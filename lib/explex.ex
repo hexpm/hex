@@ -24,29 +24,39 @@ defmodule Explex do
     :ets.insert(@ets_table, packages)
   end
 
-  def resolve(pending) do
-    requests = Enum.map(pending, fn { name, req } ->
-      Request[name: name, req: req]
-    end)
-    resolve(HashDict.new, requests)
+  def resolve(requests, locked // []) do
+    { activated, pending } =
+      Enum.reduce(locked, { HashDict.new, [] }, fn { name, version }, { dict, pending } ->
+        active = Active[name: name, version: version, parents: [], possibles: []]
+        dict = Dict.put(dict, name, active)
+        pending = pending ++ get_deps(name, version)
+        { dict, pending }
+      end)
+
+    requests =
+      Enum.map(requests, fn { name, req } ->
+        Request[name: name, req: req]
+      end)
+
+    do_resolve(activated, pending ++ requests)
   end
 
-  defp resolve(activated, []) do
+  defp do_resolve(activated, []) do
     Enum.map(activated, fn { name, Active[] = active } ->
       { name, active.version }
     end) |> Enum.reverse
   end
 
-  defp resolve(activated, [request|pending]) do
+  defp do_resolve(activated, [request|pending]) do
     active = activated[request.name]
 
     if active do
       possibles = Enum.filter(active.possibles, &version_match?(&1, request.req))
       active = active.possibles(possibles).parents(wrap(request.parent) ++ active.parents)
 
-      if Version.match?(active.version, request.req) do
+      if version_match?(active.version, request.req) do
         activated = Dict.put(activated, request.name, active)
-        resolve(activated, pending)
+        do_resolve(activated, pending)
       else
         backtrack(active, activated)
       end
@@ -65,7 +75,7 @@ defmodule Explex do
                               possibles: possibles, parents: wrap(request.parent)]
           activated = Dict.put(activated, request.name, new_active)
 
-          resolve(activated, pending ++ new_pending)
+          do_resolve(activated, pending ++ new_pending)
       end
     end
   end
@@ -86,7 +96,7 @@ defmodule Explex do
         pending = get_deps(active.name, version)
 
         activated = Dict.put(state.activated, active.name, active)
-        resolve(activated, state.pending ++ pending)
+        do_resolve(activated, state.pending ++ pending)
     end
   end
 
