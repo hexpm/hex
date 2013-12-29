@@ -1,30 +1,47 @@
 defmodule Explex do
-  defrecord Package, [:name, :version, :deps]
-
   defrecord State, [:activated, :pending]
   defrecord Request, [:name, :req, :parent]
   defrecord Active, [:name, :version, :state, :parents, :possibles]
 
-  @ets_table :explex_registry
+  defexception Error, [:message]
 
-  def start do
-    opts = [
-      :bag,
-      { :keypos, Package.__record__(:index, :name) + 1 },
+  @ets_table :explex_ets_registry
+  @dets_table :explex_dets_registry
+
+  def start(opts // []) do
+    filename = opts[:registry_path] || Path.join(Mix.Utils.mix_home, "explex.dets")
+    ram_file = opts[:ram_file] || false
+
+    dets_opts = [
+      access: :read,
+      file: filename,
+      ram_file: ram_file,
+      type: :duplicate_bag ]
+
+    ets_opts = [
+      :set,
       :named_table,
       :public ]
-    :ets.new(@ets_table, opts)
+
+    case :dets.open_file(@dets_table, dets_opts) do
+      { :ok, @dets_table } -> :ok
+      { :error, reason } -> raise Explex.Error, message: "failed to open registry file, reason: #{inspect reason}"
+    end
+    :ets.new(@ets_table, ets_opts)
+
+    # TODO: Check registry version
+    :ok
   end
 
   def stop do
     :ets.delete(@ets_table)
-  end
-
-  def add_packages(packages) do
-    :ets.insert(@ets_table, packages)
+    :dets.close(@dets_table)
+    :ok
   end
 
   def resolve(requests, locked // []) do
+    # TODO: Check if locked deps are valid (they should exist in registry)
+
     { activated, pending } =
       Enum.reduce(locked, { HashDict.new, [] }, fn { name, version }, { dict, pending } ->
         active = Active[name: name, version: version, parents: [], possibles: []]
@@ -104,21 +121,40 @@ defmodule Explex do
   defp version_match?(version, req), do: Version.match?(version, req)
 
   defp get_versions(package) do
-    package_vsn_ix = Package.__record__(:index, :version) + 1
-    :ets.lookup_element(@ets_table, package, package_vsn_ix)
-      |> Enum.sort(&Version.gt?/2)
+    case :ets.lookup(@ets_table, package) do
+      [] ->
+        load_package(package)
+        :ets.lookup_element(@ets_table, package, 2)
+      [{ ^package, versions }] ->
+        versions
+    end
   end
 
   defp get_deps(package, version) do
-    ms = [{
-      Package[name: package, version: version, deps: :"$1"],
-      [],
-      [:"$1"] }]
-    deps = :ets.select(@ets_table, ms) |> Enum.first
+    deps =
+      case :ets.lookup(@ets_table, { package, version }) do
+        [] ->
+          load_package(package)
+          :ets.lookup_element(@ets_table, { package, version }, 2)
+        [{ { ^package, ^version }, deps }] ->
+          deps
+      end
 
     Enum.map(deps, fn { name, req } ->
       Request[name: name, req: req, parent: package]
     end)
+  end
+
+  defp load_package(package) do
+    packages = :dets.lookup(@dets_table, package)
+    versions =
+      Enum.map(packages, fn { name, version, deps } ->
+        :ets.insert(@ets_table, { { name, version }, deps })
+        version
+      end)
+
+    versions = Enum.sort(versions, &Version.gt?/2)
+    :ets.insert(@ets_table, { package, versions })
   end
 
   defp wrap(nil), do: []
