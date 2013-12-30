@@ -1,5 +1,6 @@
 defmodule ExplexTest do
   use ExUnit.Case, async: false
+  import TestHelper
 
   @dets_table :explex_dets_registry
 
@@ -9,13 +10,16 @@ defmodule ExplexTest do
       ram_file: true,
       type: :duplicate_bag ]
 
+    packages =
+      Enum.map(packages, fn { name, version, deps } ->
+        url = "#{name}-#{version}"
+        ref = "ref-#{version}"
+        { name, version, deps, url, ref }
+      end)
+
     { :ok, @dets_table } = :dets.open_file(@dets_table, dets_opts)
     :ok = :dets.insert(@dets_table, packages)
     :ok = :dets.close(@dets_table)
-  end
-
-  defp tmp_path do
-    Path.expand("../tmp", __DIR__)
   end
 
   setup_all do
@@ -70,6 +74,10 @@ defmodule ExplexTest do
   teardown do
     Explex.stop
     :ok
+  end
+
+  test "package info" do
+    assert { "postgrex-0.2.1", "ref-0.2.1" } = Explex.package_info(:postgrex, "0.2.1")
   end
 
   test "simple" do

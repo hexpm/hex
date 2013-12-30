@@ -39,6 +39,18 @@ defmodule Explex do
     :ok
   end
 
+  def package_info(package, version) do
+    info =
+      case :ets.lookup(@ets_table, { package, version }) do
+        [] ->
+          load_package(package)
+          [{ _key, _deps, url, ref }] = :ets.lookup(@ets_table, { package, version })
+          { url, ref }
+        [{ { ^package, ^version }, _deps, url, ref }] ->
+          { url, ref }
+      end
+  end
+
   def resolve(requests, locked // []) do
     # TODO: Check if locked deps are valid (they should exist in registry)
 
@@ -136,7 +148,7 @@ defmodule Explex do
         [] ->
           load_package(package)
           :ets.lookup_element(@ets_table, { package, version }, 2)
-        [{ { ^package, ^version }, deps }] ->
+        [{ { ^package, ^version }, deps, _url, _ref }] ->
           deps
       end
 
@@ -148,8 +160,8 @@ defmodule Explex do
   defp load_package(package) do
     packages = :dets.lookup(@dets_table, package)
     versions =
-      Enum.map(packages, fn { name, version, deps } ->
-        :ets.insert(@ets_table, { { name, version }, deps })
+      Enum.map(packages, fn { name, version, deps, url, ref } ->
+        :ets.insert(@ets_table, { { name, version }, deps, url, ref })
         version
       end)
 
