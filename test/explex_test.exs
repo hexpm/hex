@@ -1,6 +1,8 @@
 defmodule ExplexTest do
   use ExUnit.Case, async: false
+
   import TestHelper
+  import Explex.Resolver
 
   @dets_table :explex_dets_registry
 
@@ -76,105 +78,101 @@ defmodule ExplexTest do
     :ok
   end
 
-  test "package ref" do
-    assert { "postgrex-0.2.1", "ref-0.2.1" } = Explex.package_ref(:postgrex, "0.2.1")
-  end
-
   test "from mixlock" do
     lock = [ ex_doc: { :git, "ex_doc-0.1.0", "ref-0.1.0", [] },
              postgrex: { :git, "postgrex-0.2.1", "ref-0.2.1", [] } ]
-    assert [ex_doc: "0.1.0", postgrex: "0.2.1"] = Explex.from_mixlock(lock)
+    assert [ex_doc: "0.1.0", postgrex: "0.2.1"] = Explex.Mix.from_lock(lock)
   end
 
   test "to mixlock" do
     lock = [ ex_doc: { :git, "ex_doc-0.1.0", "ref-0.1.0", [] },
              postgrex: { :git, "postgrex-0.2.1", "ref-0.2.1", [] } ]
-    assert ^lock = Explex.to_mixlock([ex_doc: "0.1.0", postgrex: "0.2.1"])
+    assert ^lock = Explex.Mix.to_lock([ex_doc: "0.1.0", postgrex: "0.2.1"])
 
     lock = [ ex_doc: { :git, "ex_doc-0.1.0", "ref-0.1.0", [] },
              postgrex: { :git, "postgrex-0.2.1", "ref-0.2.1", [] } ]
     new_lock = [ ecto: { :git, "ecto-0.2.1", "ref-0.2.1", [] } ] ++ lock
-    assert ^new_lock = Explex.to_mixlock([ecto: "0.2.1"], lock)
+    assert ^new_lock = Explex.Mix.to_lock([ecto: "0.2.1"], lock)
   end
 
   test "simple" do
     deps = [foo: nil, bar: nil]
-    assert Dict.equal? [foo: "0.2.1", bar: "0.2.0"], Explex.resolve(deps)
+    assert Dict.equal? [foo: "0.2.1", bar: "0.2.0"], resolve(deps)
 
     deps = [foo: "0.2.1", bar: "0.2.0"]
-    assert Dict.equal? [foo: "0.2.1", bar: "0.2.0"], Explex.resolve(deps)
+    assert Dict.equal? [foo: "0.2.1", bar: "0.2.0"], resolve(deps)
 
     deps = [foo: "0.2.0", bar: "0.2.0"]
-    assert Dict.equal? [foo: "0.2.0", bar: "0.2.0"], Explex.resolve(deps)
+    assert Dict.equal? [foo: "0.2.0", bar: "0.2.0"], resolve(deps)
 
     deps = [foo: "~> 0.3.0", bar: nil]
-    assert nil = Explex.resolve(deps)
+    assert nil = resolve(deps)
 
     deps = [foo: nil, bar: "~> 0.3.0"]
-    assert nil = Explex.resolve(deps)
+    assert nil = resolve(deps)
   end
 
   test "backtrack" do
     deps = [decimal: "0.2.0", ex_plex: "0.2.0"]
-    assert Dict.equal? [decimal: "0.2.0", ex_plex: "0.2.0"], Explex.resolve(deps)
+    assert Dict.equal? [decimal: "0.2.0", ex_plex: "0.2.0"], resolve(deps)
 
     deps = [decimal: "0.1.0", ex_plex: ">= 0.1.0"]
-    assert Dict.equal? [decimal: "0.1.0", ex_plex: "0.1.2"], Explex.resolve(deps)
+    assert Dict.equal? [decimal: "0.1.0", ex_plex: "0.1.2"], resolve(deps)
 
     deps = [decimal: nil, ex_plex: "< 0.1.0"]
-    assert Dict.equal? [decimal: "0.2.1", ex_plex: "0.0.1"], Explex.resolve(deps)
+    assert Dict.equal? [decimal: "0.2.1", ex_plex: "0.0.1"], resolve(deps)
 
     deps = [decimal: "0.1.0", ex_plex: "< 0.1.0"]
-    assert Dict.equal? [decimal: "0.1.0", ex_plex: "0.0.1"], Explex.resolve(deps)
+    assert Dict.equal? [decimal: "0.1.0", ex_plex: "0.0.1"], resolve(deps)
 
     deps = [decimal: "0.1.0", ex_plex: "~> 0.0.2"]
-    assert nil = Explex.resolve(deps)
+    assert nil = resolve(deps)
 
     deps = [decimal: nil, ex_plex: "0.0.2"]
-    assert nil = Explex.resolve(deps)
+    assert nil = resolve(deps)
   end
 
   test "complete backtrack" do
     deps = [jose: nil, eric: nil]
-    assert Dict.equal? [jose: "0.2.1", eric: "0.0.2"], Explex.resolve(deps)
+    assert Dict.equal? [jose: "0.2.1", eric: "0.0.2"], resolve(deps)
   end
 
   test "more backtrack" do
     deps = [ecto: nil]
-    assert Dict.equal? [ecto: "0.2.0", postgrex: "0.2.0", ex_doc: "0.0.1"], Explex.resolve(deps)
+    assert Dict.equal? [ecto: "0.2.0", postgrex: "0.2.0", ex_doc: "0.0.1"], resolve(deps)
   end
 
   test "locked" do
     locked = [decimal: "0.2.0"]
     deps = [decimal: nil, ex_plex: nil]
-    assert Dict.equal? [decimal: "0.2.0", ex_plex: "0.2.0"], Explex.resolve(deps, locked)
+    assert Dict.equal? [decimal: "0.2.0", ex_plex: "0.2.0"], resolve(deps, locked)
 
     locked = [decimal: "0.1.0"]
     deps = [decimal: nil, ex_plex: nil]
-    assert Dict.equal? [decimal: "0.1.0", ex_plex: "0.1.2"], Explex.resolve(deps, locked)
+    assert Dict.equal? [decimal: "0.1.0", ex_plex: "0.1.2"], resolve(deps, locked)
 
     locked = [decimal: "0.0.1"]
     deps = [decimal: nil, ex_plex: nil]
-    assert Dict.equal? [decimal: "0.0.1", ex_plex: "0.0.1"], Explex.resolve(deps, locked)
+    assert Dict.equal? [decimal: "0.0.1", ex_plex: "0.0.1"], resolve(deps, locked)
 
     locked = [ex_plex: "0.1.0"]
     deps = [decimal: "0.1.0", ex_plex: nil]
-    assert Dict.equal? [decimal: "0.1.0", ex_plex: "0.1.0"], Explex.resolve(deps, locked)
+    assert Dict.equal? [decimal: "0.1.0", ex_plex: "0.1.0"], resolve(deps, locked)
 
     locked = [ex_plex: "0.1.0", decimal: "0.1.0"]
     deps = [decimal: "0.1.0", ex_plex: nil]
-    assert Dict.equal? [decimal: "0.1.0", ex_plex: "0.1.0"], Explex.resolve(deps, locked)
+    assert Dict.equal? [decimal: "0.1.0", ex_plex: "0.1.0"], resolve(deps, locked)
 
     locked = [ex_plex: "0.1.0", decimal: "0.1.0"]
     deps = [decimal: nil, ex_plex: nil]
-    assert Dict.equal? [decimal: "0.1.0", ex_plex: "0.1.0"], Explex.resolve(deps, locked)
+    assert Dict.equal? [decimal: "0.1.0", ex_plex: "0.1.0"], resolve(deps, locked)
 
     locked = [ex_plex: "0.1.0", decimal: "0.1.0"]
     deps = []
-    assert Dict.equal? [decimal: "0.1.0", ex_plex: "0.1.0"], Explex.resolve(deps, locked)
+    assert Dict.equal? [decimal: "0.1.0", ex_plex: "0.1.0"], resolve(deps, locked)
 
     locked = [ex_plex: "0.1.0"]
     deps = [decimal: "~> 0.2.0", ex_plex: nil]
-    assert nil = Explex.resolve(deps, locked)
+    assert nil = resolve(deps, locked)
   end
 end
