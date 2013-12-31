@@ -53,13 +53,13 @@ defmodule ExplexTest do
       { :eric, "0.1.2", [jose: "~> 0.1.0"] },
       { :eric, "0.2.0", [jose: "~> 0.3.0"] },
 
-      { :ex_unit, "0.0.1", [] },
-      { :ex_unit, "0.0.2", [] },
-      { :ex_unit, "0.1.0", [] },
-      { :postgrex, "0.2.0", [ex_unit: "0.0.1"] },
-      { :postgrex, "0.2.1", [ex_unit: "~> 0.1.0"] },
-      { :ecto, "0.2.0", [postgrex: "~> 0.2.0", ex_unit: "~> 0.0.1"] },
-      { :ecto, "0.2.1", [postgrex: "~> 0.2.0", ex_unit: "0.0.2"] },
+      { :ex_doc, "0.0.1", [] },
+      { :ex_doc, "0.0.2", [] },
+      { :ex_doc, "0.1.0", [] },
+      { :postgrex, "0.2.0", [ex_doc: "0.0.1"] },
+      { :postgrex, "0.2.1", [ex_doc: "~> 0.1.0"] },
+      { :ecto, "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"] },
+      { :ecto, "0.2.1", [postgrex: "~> 0.2.0", ex_doc: "0.0.2"] },
     ]
     :ok
   end
@@ -76,8 +76,25 @@ defmodule ExplexTest do
     :ok
   end
 
-  test "package info" do
-    assert { "postgrex-0.2.1", "ref-0.2.1" } = Explex.package_info(:postgrex, "0.2.1")
+  test "package ref" do
+    assert { "postgrex-0.2.1", "ref-0.2.1" } = Explex.package_ref(:postgrex, "0.2.1")
+  end
+
+  test "from mixlock" do
+    lock = [ ex_doc: { :git, "ex_doc-0.1.0", "ref-0.1.0", [] },
+             postgrex: { :git, "postgrex-0.2.1", "ref-0.2.1", [] } ]
+    assert [ex_doc: "0.1.0", postgrex: "0.2.1"] = Explex.from_mixlock(lock)
+  end
+
+  test "to mixlock" do
+    lock = [ ex_doc: { :git, "ex_doc-0.1.0", "ref-0.1.0", [] },
+             postgrex: { :git, "postgrex-0.2.1", "ref-0.2.1", [] } ]
+    assert ^lock = Explex.to_mixlock([ex_doc: "0.1.0", postgrex: "0.2.1"])
+
+    lock = [ ex_doc: { :git, "ex_doc-0.1.0", "ref-0.1.0", [] },
+             postgrex: { :git, "postgrex-0.2.1", "ref-0.2.1", [] } ]
+    new_lock = [ ecto: { :git, "ecto-0.2.1", "ref-0.2.1", [] } ] ++ lock
+    assert ^new_lock = Explex.to_mixlock([ecto: "0.2.1"], lock)
   end
 
   test "simple" do
@@ -124,7 +141,7 @@ defmodule ExplexTest do
 
   test "more backtrack" do
     deps = [ecto: nil]
-    assert Dict.equal? [ecto: "0.2.0", postgrex: "0.2.0", ex_unit: "0.0.1"], Explex.resolve(deps)
+    assert Dict.equal? [ecto: "0.2.0", postgrex: "0.2.0", ex_doc: "0.0.1"], Explex.resolve(deps)
   end
 
   test "locked" do

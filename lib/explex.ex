@@ -1,4 +1,7 @@
 defmodule Explex do
+  defrecordp :package, [:key, :deps, :url, :ref]
+  defrecordp :package_versions, [:key, :versions]
+
   defrecord State, [:activated, :pending]
   defrecord Request, [:name, :req, :parent]
   defrecord Active, [:name, :version, :state, :parents, :possibles]
@@ -21,6 +24,7 @@ defmodule Explex do
     ets_opts = [
       :set,
       :named_table,
+      { :keypos, 2 },
       :public ]
 
     case :dets.open_file(@dets_table, dets_opts) do
@@ -39,20 +43,36 @@ defmodule Explex do
     :ok
   end
 
-  def package_info(package, version) do
-    info =
-      case :ets.lookup(@ets_table, { package, version }) do
-        [] ->
-          load_package(package)
-          [{ _key, _deps, url, ref }] = :ets.lookup(@ets_table, { package, version })
-          { url, ref }
-        [{ { ^package, ^version }, _deps, url, ref }] ->
-          { url, ref }
+  def package_ref(package, version) do
+    package(url: url, ref: ref) = get_package(package, version)
+    { url, ref }
+  end
+
+  def from_mixlock(lock) do
+    Enum.map(lock, fn { name, opts } ->
+      { url, ref } = from_lock_ref(opts)
+
+      case version_from_ref(name, url, ref) do
+        { :ok, version } ->
+          { name, version }
+        { :error, _ } ->
+          { name, :unknown }
       end
+    end)
+  end
+
+  def to_mixlock(result, old_lock // []) do
+    new_lock =
+      Enum.map(result, fn { name, version } ->
+        package(url: url, ref: ref) = get_package(name, version)
+        { name, to_lock_ref(url, ref) }
+      end)
+    Dict.merge(new_lock, old_lock)
   end
 
   def resolve(requests, locked // []) do
     # TODO: Check if locked deps are valid (they should exist in registry)
+    #       Run a resolve with just the locked deps, to check that it works
 
     { activated, pending } =
       Enum.reduce(locked, { HashDict.new, [] }, fn { name, version }, { dict, pending } ->
@@ -71,8 +91,9 @@ defmodule Explex do
   end
 
   defp do_resolve(activated, []) do
-    Enum.map(activated, fn { name, Active[] = active } ->
-      { name, active.version }
+    Enum.flat_map(activated, fn
+      { _name, Active[version: :unknown] } -> []
+      { name, Active[version: version] } -> [{ name, version }]
     end) |> Enum.reverse
   end
 
@@ -129,46 +150,72 @@ defmodule Explex do
     end
   end
 
-  defp version_match?(_version, nil), do: true
-  defp version_match?(version, req), do: Version.match?(version, req)
+  defp version_match?(_version, nil),  do: true
+  defp version_match?(:unknown, _req), do: true
+  defp version_match?(version, req),   do: Version.match?(version, req)
 
   defp get_versions(package) do
     case :ets.lookup(@ets_table, package) do
       [] ->
-        load_package(package)
-        :ets.lookup_element(@ets_table, package, 2)
-      [{ ^package, versions }] ->
+        if load_package?(package), do: get_versions(package)
+      [package_versions(versions: versions)] ->
         versions
     end
   end
 
   defp get_deps(package, version) do
-    deps =
-      case :ets.lookup(@ets_table, { package, version }) do
-        [] ->
-          load_package(package)
-          :ets.lookup_element(@ets_table, { package, version }, 2)
-        [{ { ^package, ^version }, deps, _url, _ref }] ->
-          deps
-      end
+    package(deps: deps) = get_package(package, version)
 
     Enum.map(deps, fn { name, req } ->
       Request[name: name, req: req, parent: package]
     end)
   end
 
-  defp load_package(package) do
+  defp get_package(package, version) do
+    case :ets.lookup(@ets_table, { package, version }) do
+      [] ->
+        if load_package?(package), do: get_package(package, version)
+      [package] ->
+        package
+    end
+  end
+
+  defp version_from_ref(package, url, ref) do
+    match = package(key: { package, :"$1" }, deps: :_, url: url, ref: ref)
+
+    case :ets.match(@ets_table, match) do
+      [] ->
+        case load_package?(package) && :ets.match(@ets_table, match) do
+          [[version]] -> { :ok, version }
+          _ -> :error
+        end
+      [[version]] ->
+        { :ok, version }
+    end
+  end
+
+  defp load_package?(package) do
     packages = :dets.lookup(@dets_table, package)
     versions =
       Enum.map(packages, fn { name, version, deps, url, ref } ->
-        :ets.insert(@ets_table, { { name, version }, deps, url, ref })
+        package = package(key: { name, version }, deps: deps, url: url, ref: ref)
+        :ets.insert(@ets_table, package)
         version
       end)
 
-    versions = Enum.sort(versions, &Version.gt?/2)
-    :ets.insert(@ets_table, { package, versions })
+    found? = versions != []
+    if found? do
+      versions = Enum.sort(versions, &Version.gt?/2)
+      package = package_versions(key: package, versions: versions)
+      :ets.insert(@ets_table, package)
+    end
+    found?
   end
 
   defp wrap(nil), do: []
   defp wrap(arg), do: [arg]
+
+  defp from_lock_ref({ :git, url, ref, _opts }), do: { url, ref }
+
+  defp to_lock_ref(url, ref), do: { :git, url, ref, [] }
 end
