@@ -37,6 +37,10 @@ defmodule Explex.Registry do
     :ok
   end
 
+  def package_exists?(package) do
+    load_package?(package)
+  end
+
   def get_versions(package) do
     case :ets.lookup(@ets_table, package) do
       [] ->
@@ -80,7 +84,7 @@ defmodule Explex.Registry do
 
     found? = versions != []
     if found? do
-      versions = Enum.sort(versions, &Version.gt?/2)
+      versions = Enum.sort(versions, &(Version.compare(&1, &2) == :gt))
       package = PackageVsn[key: package, versions: versions]
       :ets.insert(@ets_table, package)
     end

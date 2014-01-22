@@ -2,15 +2,22 @@ defmodule Explex.Mix do
   alias Explex.Registry
   alias Explex.Registry.Package
 
+  def deps_to_requests(deps) do
+    Enum.flat_map(deps, fn
+      { name, opts } ->
+        if opts[:package], do: [{ name, nil }], else: []
+      { name, req, opts } ->
+        if opts[:package], do: [{ name, req }], else: []
+    end)
+  end
+
   def from_lock(lock) do
-    Enum.map(lock, fn { name, opts } ->
+    Enum.flat_map(lock, fn { name, opts } ->
       { url, ref } = from_lock_ref(opts)
 
       case Registry.version_from_ref(name, url, ref) do
-        { :ok, version } ->
-          { name, version }
-        { :error, _ } ->
-          { name, :unknown }
+        { :ok, version } -> [{ name, version }]
+        :error -> []
       end
     end)
   end

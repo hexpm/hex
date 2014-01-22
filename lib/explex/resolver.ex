@@ -7,14 +7,13 @@ defmodule Explex.Resolver do
   alias Explex.Registry.Package
 
   def resolve(requests, locked // []) do
-    # TODO: Check if locked deps are valid (they should exist in registry)
-    #       Run a resolve with just the locked deps, to check that it works
-
     { activated, pending } =
       Enum.reduce(locked, { HashDict.new, [] }, fn { name, version }, { dict, pending } ->
-        active = Active[name: name, version: version, parents: [], possibles: []]
-        dict = Dict.put(dict, name, active)
-        pending = pending ++ get_deps(name, version)
+        if (versions = Registry.get_versions(name)) && version in versions do
+          active = Active[name: name, version: version, parents: [], possibles: []]
+          dict = Dict.put(dict, name, active)
+          pending = pending ++ get_deps(name, version)
+        end
         { dict, pending }
       end)
 
@@ -27,9 +26,8 @@ defmodule Explex.Resolver do
   end
 
   defp do_resolve(activated, []) do
-    Enum.flat_map(activated, fn
-      { _name, Active[version: :unknown] } -> []
-      { name, Active[version: version] } -> [{ name, version }]
+    Enum.map(activated, fn { name, Active[version: version] } ->
+      { name, version }
     end) |> Enum.reverse
   end
 
@@ -37,10 +35,10 @@ defmodule Explex.Resolver do
     active = activated[request.name]
 
     if active do
-      possibles = Enum.filter(active.possibles, &version_match?(&1, request.req))
+      possibles = Enum.filter(active.possibles, &vsn_match?(&1, request.req))
       active = active.possibles(possibles).parents(wrap(request.parent) ++ active.parents)
 
-      if version_match?(active.version, request.req) do
+      if vsn_match?(active.version, request.req) do
         activated = Dict.put(activated, request.name, active)
         do_resolve(activated, pending)
       else
@@ -48,7 +46,7 @@ defmodule Explex.Resolver do
       end
     else
       versions = Registry.get_versions(request.name)
-        |> Enum.filter(&version_match?(&1, request.req))
+        |> Enum.filter(&vsn_match?(&1, request.req))
 
       case versions do
         [] ->
@@ -94,9 +92,12 @@ defmodule Explex.Resolver do
     end)
   end
 
-  defp version_match?(_version, nil),  do: true
-  defp version_match?(:unknown, _req), do: true
-  defp version_match?(version, req),   do: Version.match?(version, req)
+  defp vsn_match?(_version, nil),
+    do: true
+  defp vsn_match?(version, req) when is_regex(req),
+    do: version =~ req
+  defp vsn_match?(version, req) when is_binary(req),
+    do: Version.match?(version, req)
 
   defp wrap(nil), do: []
   defp wrap(arg), do: [arg]

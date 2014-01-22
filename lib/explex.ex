@@ -1,6 +1,8 @@
 defmodule Explex do
-  def start(opts // []) do
-    Explex.Registry.start(opts)
+  def start() do
+    Explex.Registry.start()
+    Mix.SCM.append(Explex.SCM)
+    Mix.RemoteConverger.register(Explex.RemoteConverger)
   end
 
   def stop do
