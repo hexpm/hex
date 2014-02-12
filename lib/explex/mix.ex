@@ -22,7 +22,7 @@ defmodule Explex.Mix do
     end)
   end
 
-  def to_lock(result, old_lock // []) do
+  def to_lock(result, old_lock \\ []) do
     new_lock =
       Enum.map(result, fn { name, version } ->
         Package[url: url, ref: ref] = Registry.get_package(name, version)

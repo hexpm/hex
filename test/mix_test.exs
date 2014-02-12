@@ -28,6 +28,7 @@ defmodule Explex.MixTest do
       assert_received { :mix_shell, :info, ["* Getting postgrex (package)"] }
       assert_received { :mix_shell, :info, ["* Getting ex_doc (package)"] }
 
+      Mix.Task.run "deps.compile"
       Mix.Task.run "deps"
 
       assert_received { :mix_shell, :info, ["* ecto 0.2.0 (package)"] }

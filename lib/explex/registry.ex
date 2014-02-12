@@ -5,7 +5,7 @@ defmodule Explex.Registry do
   @ets_table :explex_ets_registry
   @dets_table :explex_dets_registry
 
-  def start(opts // []) do
+  def start(opts \\ []) do
     filename = opts[:registry_path] || Path.join(Mix.Utils.mix_home, "explex.dets")
     ram_file = opts[:ram_file] || false
 

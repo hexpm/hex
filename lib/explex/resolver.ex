@@ -6,7 +6,7 @@ defmodule Explex.Resolver do
   alias Explex.Registry
   alias Explex.Registry.Package
 
-  def resolve(requests, locked // []) do
+  def resolve(requests, locked \\ []) do
     { activated, pending } =
       Enum.reduce(locked, { HashDict.new, [] }, fn { name, version }, { dict, pending } ->
         if (versions = Registry.get_versions(name)) && version in versions do
