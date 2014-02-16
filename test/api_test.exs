@@ -5,34 +5,37 @@ defmodule Explex.APITest do
   @db "explex_client_test"
   @db_url "ecto://explex:explex@localhost/#{@db}"
 
-  setup_all do
-    System.put_env("EXPLEX_ALT_ECTO_URL", @db_url)
+  defp reset_db(repo, dir) do
+    files = Path.join(dir, "*") |> Path.wildcard
 
-    setup_cmds = [
-      ~s(psql -U explex -c "DROP DATABASE IF EXISTS #{@db};"),
-      ~s(psql -U explex -c "CREATE DATABASE #{@db} ENCODING='UTF8' LC_COLLATE='en_US.UTF-8' LC_CTYPE='en_US.UTF-8';"),
-      ~s(cd ../explex_web && mix ecto.migrate ExplexWeb.Repo)
-    ]
+    modules =
+      Enum.map(files, fn file ->
+        filename = Path.basename(file)
+        { version, _ } = Integer.parse(filename)
+        [{ module, _ }] = Code.load_file(file)
+        { version, module }
+      end) |> Enum.sort
 
-    Enum.find_value(setup_cmds, fn cmd ->
-      status = Mix.Shell.cmd(cmd, fn x -> x end)
+    Enum.each(Enum.reverse(modules), fn { version, module } ->
+      :ok = Ecto.Migrator.down(repo, version, module)
+    end)
 
-      if status != 0 do
-        IO.puts "Test setup command error'd: `#{cmd}`"
-        :error
-      end
-    end) || :ok
+    Enum.each(modules, fn { version, module } ->
+      :ok = Ecto.Migrator.up(repo, version, module)
+    end)
   end
 
   setup_all do
-    Explex.url("http://localhost:4000")
+    System.put_env("EXPLEX_ECTO_URL", @db_url)
+    { :ok, _ } = ExplexWeb.Repo.start_link
+    reset_db(ExplexWeb.Repo, "deps/explex_web/priv/migrations")
+    ExplexWeb.Repo.stop
 
-    "../explex_web/_build/dev/lib/*/ebin"
-    |> Path.wildcard
-    |> Enum.each(&Code.prepend_path/1)
+    Explex.url("http://localhost:4000")
 
     :inets.start()
     :application.ensure_all_started(:explex_web)
+    :ok
   end
 
   teardown_all do

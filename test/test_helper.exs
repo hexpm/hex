@@ -71,7 +71,7 @@ defmodule ExplexTest.Case do
   end
 
   @template '''
-  defmodule ~s.Mixfile do
+  defmodule ~s.NoConflict.Mixfile do
     use Mix.Project
 
     def project do
@@ -196,6 +196,11 @@ end
 alias ExplexTest.Case
 
 Mix.shell(Mix.Shell.Process)
+Mix.Task.clear
+Mix.Shell.Process.flush
+Mix.ProjectStack.clear_cache
+Mix.ProjectStack.clear_stack
+
 Mix.SCM.append(Explex.SCM)
 Mix.RemoteConverger.register(Explex.RemoteConverger)
 

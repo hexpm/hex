@@ -1,0 +1,11 @@
+[ "bcrypt": {:git, "git://github.com/opscode/erlang-bcrypt.git", "7515e80a5e16f62aef149709f6cc09995dd480be", []},
+  "cowboy": {:git, "git://github.com/extend/cowboy.git", "903594bb8709db4fa98697ecf8adbdccabf64a83", []},
+  "cowlib": {:git, "git://github.com/extend/cowlib.git", "2e0fc55f71bfeb543fd2218abed85890ff1e3e82", [ref: "0.5.0"]},
+  "decimal": {:git, "git://github.com/ericmj/decimal.git", "ca3ca3de2425b1ee19d175eca92d80dcfe02fdb1", []},
+  "ecto": {:git, "git://github.com/elixir-lang/ecto.git", "3d8e05fe9a9da17a3c163b5ee271d9023cd829a1", []},
+  "explex_web": {:git, "git://github.com/ericmj/explex_web.git", "3858e85e41ad6e5d54dfd9e5e8836e0d8b7d898a", []},
+  "jazz": {:git, "git://github.com/meh/jazz.git", "c7d2d5fd50db2ec1a70141d6f42c84b7a1e8e542", []},
+  "plug": {:git, "git://github.com/elixir-lang/plug.git", "9967d4de39c107237a3eb30c3939588766499637", []},
+  "poolboy": {:git, "git://github.com/devinus/poolboy.git", "3cc20d045243fe8d034a295923bd3deeb3be047a", []},
+  "postgrex": {:git, "git://github.com/ericmj/postgrex.git", "c6fbb72d6f0678efd02e58b38cf2308397f0566a", []},
+  "ranch": {:git, "git://github.com/extend/ranch.git", "5df1f222f94e08abdcab7084f5e13027143cc222", [ref: "0.9.0"]} ]

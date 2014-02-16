@@ -5,7 +5,7 @@ defmodule Explex.Mixfile do
     [ app: :explex,
       version: "0.0.1",
       elixir: "~> 0.12.4",
-      deps: deps ]
+      deps: deps(Mix.env) ]
   end
 
   # Configuration for the OTP application
@@ -13,12 +13,8 @@ defmodule Explex.Mixfile do
     []
   end
 
-  # Returns the list of dependencies in the format:
-  # { :foobar, git: "https://github.com/elixir-lang/foobar.git", tag: "0.1" }
-  #
-  # To specify particular versions, regardless of the tag, do:
-  # { :barbat, "~> 0.1", github: "elixir-lang/barbat" }
-  defp deps do
-    []
-  end
+  defp deps(:test),
+    do: [{ :explex_web, github: "ericmj/explex_web" }]
+  defp deps(_),
+    do: []
 end
