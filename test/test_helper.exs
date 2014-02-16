@@ -1,4 +1,4 @@
-ExUnit.start
+ExUnit.start exclude: [:api]
 
 defmodule ExplexTest.Case do
   use ExUnit.CaseTemplate

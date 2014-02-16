@@ -1,7 +1,7 @@
 defmodule Explex.SCM do
   @moduledoc false
 
-  @behavior Mix.SCM
+  @behaviour Mix.SCM
 
   alias Mix.SCM.Git
 

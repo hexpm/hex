@@ -1,5 +1,5 @@
 defmodule Explex.MixTest do
-  use ExplexTest.Case, async: false
+  use ExplexTest.Case
 
   teardown do
     Mix.Task.clear

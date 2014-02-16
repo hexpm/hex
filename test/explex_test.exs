@@ -1,5 +1,5 @@
 defmodule Explex.Test do
-  use ExplexTest.Case, async: false
+  use ExplexTest.Case
 
   import Explex.Resolver
 
