@@ -35,8 +35,6 @@ defmodule Explex.MixTest do
       assert_received { :mix_shell, :info, ["* git_repo 0.1.0" <> _] }
       assert_received { :mix_shell, :info, ["* postgrex 0.2.0 (package)"] }
       assert_received { :mix_shell, :info, ["* ex_doc 0.0.1 (package)"] }
-
     end
   end
-
 end
