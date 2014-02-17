@@ -31,9 +31,9 @@ defmodule Explex.APITest do
     reset_db(ExplexWeb.Repo, "deps/explex_web/priv/migrations")
     ExplexWeb.Repo.stop
 
+    Explex.start_api()
     Explex.url("http://localhost:4000")
 
-    :inets.start()
     :application.ensure_all_started(:explex_web)
     :ok
   end
@@ -56,7 +56,7 @@ defmodule Explex.APITest do
   end
 
   test "package" do
-    auth = [username: "user", password: "hunter42"]
+    auth = [user: "user", password: "hunter42"]
 
     assert { 404, _ } = Explex.API.get_package("ecto")
     assert { 201, _ } = Explex.API.new_package("ecto", [description: "foobar"], auth)
@@ -65,7 +65,7 @@ defmodule Explex.APITest do
   end
 
   test "release" do
-    auth = [username: "user", password: "hunter42"]
+    auth = [user: "user", password: "hunter42"]
     Explex.API.new_package("postgrex", [], auth)
     Explex.API.new_package("decimal", [], auth)
 
