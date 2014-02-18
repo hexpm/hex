@@ -112,6 +112,7 @@ defmodule ExplexTest.Case do
   end
 
   @dets_table :explex_dets_registry
+  @version    1
 
   def create_test_registry(path) do
     dets_opts = [
@@ -126,6 +127,7 @@ defmodule ExplexTest.Case do
       end)
 
     { :ok, @dets_table } = :dets.open_file(@dets_table, dets_opts)
+    :ok = :dets.insert(@dets_table, { :"$$version$$", @version })
     :ok = :dets.insert(@dets_table, packages)
     :ok = :dets.close(@dets_table)
   end

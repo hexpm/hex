@@ -2,8 +2,9 @@ defmodule Explex.Registry do
   defrecord Package, [:key, :deps, :url, :ref]
   defrecord PackageVsn, [:key, :versions]
 
-  @ets_table :explex_ets_registry
+  @ets_table  :explex_ets_registry
   @dets_table :explex_dets_registry
+  @version    1
 
   def start(opts \\ []) do
     filename = opts[:registry_path] || Path.join(Mix.Utils.mix_home, "explex.dets")
@@ -30,8 +31,13 @@ defmodule Explex.Registry do
     end
     :ets.new(@ets_table, ets_opts)
 
-    # TODO: Check registry version
-    :ok
+    case :dets.lookup(@dets_table, :"$$version$$") do
+      [{ :"$$version$$", @version }] ->
+        :ok
+      _ ->
+        raise Explex.Error, message: "The registry file version is newer than what is supported. " <>
+          "Please update explex."
+    end
   end
 
   def stop do
