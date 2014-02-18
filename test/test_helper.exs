@@ -1,4 +1,4 @@
-ExUnit.start exclude: [:api]
+ExUnit.start exclude: [:integration]
 
 defmodule ExplexTest.Case do
   use ExUnit.CaseTemplate
@@ -166,6 +166,26 @@ defmodule ExplexTest.Case do
       { :ecto, "0.2.1", [postgrex: "~> 0.2.0", ex_doc: "0.0.2"] } ]
   end
 
+  def reset_db(repo, dir) do
+    files = Path.join(dir, "*") |> Path.wildcard
+
+    modules =
+      Enum.map(files, fn file ->
+        filename = Path.basename(file)
+        { version, _ } = Integer.parse(filename)
+        [{ module, _ }] = Code.load_file(file)
+        { version, module }
+      end) |> Enum.sort
+
+    Enum.each(Enum.reverse(modules), fn { version, module } ->
+      Ecto.Migrator.down(repo, version, module)
+    end)
+
+    Enum.each(modules, fn { version, module } ->
+      :ok = Ecto.Migrator.up(repo, version, module)
+    end)
+  end
+
   using do
     quote do
       import unquote(__MODULE__)
@@ -181,6 +201,12 @@ defmodule ExplexTest.Case do
   end
 
   setup do
+    Mix.shell(Mix.Shell.Process)
+    Mix.Task.clear
+    Mix.Shell.Process.flush
+    Mix.ProjectStack.clear_cache
+    Mix.ProjectStack.clear_stack
+
     Explex.Registry.start [
       registry_path: tmp_path("explex.dets"),
       ram_file: true ]
@@ -194,6 +220,7 @@ defmodule ExplexTest.Case do
 end
 
 alias ExplexTest.Case
+
 
 Mix.shell(Mix.Shell.Process)
 Mix.Task.clear
@@ -219,3 +246,24 @@ Case.init_fixture("git_repo", "0.1.0", [
 Case.init_fixture("postgrex", "0.2.0", [
   { :ex_doc, "0.0.1", package: true }
 ])
+
+
+if :integration in ExUnit.configuration[:include] do
+  db = "explex_client_test"
+  db_url = "ecto://explex:explex@localhost/#{db}"
+
+  System.put_env("EXPLEX_ECTO_URL", db_url)
+  { :ok, _ } = ExplexWeb.Repo.start_link
+  Case.reset_db(ExplexWeb.Repo, "deps/explex_web/priv/migrations")
+  ExplexWeb.Repo.stop
+
+  Explex.start_api()
+  Explex.url("http://localhost:4000")
+
+  :application.ensure_all_started(:explex_web)
+  :application.set_env(:explex_web, :password_work_factor, 4)
+
+  { :ok, user }    = ExplexWeb.User.create("user", "user@mail.com", "hunter42")
+  { :ok, package } = ExplexWeb.Package.create("ex_doc", user, [])
+  { :ok, _ }       = ExplexWeb.Release.create(package, "0.0.1", Case.fixture_path("ex_doc-0.0.1"), "HEAD", [])
+end

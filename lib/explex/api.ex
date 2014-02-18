@@ -74,8 +74,12 @@ defmodule Explex.API do
   end
 
   defp auth(info) do
-    base64 = :base64.encode_to_string(info[:username] <> ":" <> info[:password])
+    base64 = :base64.encode_to_string(info[:user] <> ":" <> info[:password])
     [{ 'authorization', 'Basic ' ++ base64 }]
+  end
+
+  def safe_deserialize_elixir("") do
+    nil
   end
 
   def safe_deserialize_elixir(string) do

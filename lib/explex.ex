@@ -1,11 +1,12 @@
 defmodule Explex do
-  def start() do
+  def start_api do
     :inets.start()
-
     if url = System.get_env("EXPLEX_URL") do
       url(url)
     end
+  end
 
+  def start_mix do
     Explex.Registry.start()
     Mix.SCM.append(Explex.SCM)
     Mix.RemoteConverger.register(Explex.RemoteConverger)
@@ -19,7 +20,7 @@ defmodule Explex do
   def url do
     case :application.get_env(:explex, :url) do
       { :ok, url } -> url
-      :undefined   -> "http://explex.org"
+      :undefined   -> "http://localhost:4000" # "http://explex.org"
     end
   end
 

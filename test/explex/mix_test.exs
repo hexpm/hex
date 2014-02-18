@@ -1,14 +1,6 @@
 defmodule Explex.MixTest do
   use ExplexTest.Case
 
-  teardown do
-    Mix.Task.clear
-    Mix.Shell.Process.flush
-    Mix.ProjectStack.clear_cache
-    Mix.ProjectStack.clear_stack
-    :ok
-  end
-
   defmodule Foo do
     def project do
       [ app: :foo,
@@ -36,5 +28,8 @@ defmodule Explex.MixTest do
       assert_received { :mix_shell, :info, ["* postgrex 0.2.0 (package)"] }
       assert_received { :mix_shell, :info, ["* ex_doc 0.0.1 (package)"] }
     end
+  after
+    purge [ Ecto.NoConflict.Mixfile, Git_repo.NoConflict.Mixfile,
+            Postgrex.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
   end
 end

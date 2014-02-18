@@ -22,8 +22,11 @@ defmodule Explex.Registry do
       :public ]
 
     case :dets.open_file(@dets_table, dets_opts) do
-      { :ok, @dets_table } -> :ok
-      { :error, reason } -> raise Explex.Error, message: "failed to open registry file, reason: #{inspect reason}"
+      { :ok, @dets_table } ->
+        :ok
+      { :error, _reason } ->
+        raise Explex.Error, message: "Failed to open explex registry file. " <>
+          "Did you fetch it with 'mix explex.update'?"
     end
     :ets.new(@ets_table, ets_opts)
 

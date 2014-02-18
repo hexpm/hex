@@ -2,7 +2,7 @@ defmodule Explex.Mix do
   alias Explex.Registry
   alias Explex.Registry.Package
 
-  def deps_to_requests(deps) do
+  def deps_to_requirements(deps) do
     Enum.flat_map(deps, fn
       { name, opts } ->
         if opts[:package], do: [{ name, nil }], else: []

@@ -18,7 +18,7 @@ defmodule Explex.RemoteConverger do
     locked = Explex.Mix.from_lock(lock)
 
     Mix.Project.config[:deps]
-    |> Explex.Mix.deps_to_requests
+    |> Explex.Mix.deps_to_requirements
     |> Explex.Resolver.resolve(locked)
     |> Explex.Mix.to_lock(lock)
   end
