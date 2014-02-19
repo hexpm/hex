@@ -4,10 +4,12 @@ defmodule Explex.Mix do
 
   def deps_to_requirements(deps) do
     Enum.flat_map(deps, fn
-      { name, opts } ->
-        if opts[:package], do: [{ name, nil }], else: []
-      { name, req, opts } ->
-        if opts[:package], do: [{ name, req }], else: []
+      Mix.Dep[app: app, opts: opts, requirement: req] ->
+        if opts[:package], do: [{ app, req }], else: []
+      { app, opts } ->
+        if opts[:package], do: [{ app, nil }], else: []
+      { app, req, opts } ->
+        if opts[:package], do: [{ app, req }], else: []
     end)
   end
 
@@ -22,16 +24,17 @@ defmodule Explex.Mix do
     end)
   end
 
-  def to_lock(result, old_lock \\ []) do
-    new_lock =
-      Enum.map(result, fn { name, version } ->
-        Package[url: url, ref: ref] = Registry.get_package(name, version)
-        { name, to_lock_ref({ url, ref }) }
-      end)
-    Dict.merge(new_lock, old_lock)
+  def annotate_deps(result, deps) do
+    scms = Mix.SCM.available
+    from = Path.absname("mix.exs")
+
+    Enum.map(result, fn { app, version } ->
+      Package[url: url, ref: ref] = Registry.get_package(app, version)
+      dep = Enum.find(deps, &(elem(&1, 0) == app)) || { app, package: true }
+      loaded_dep = Mix.Deps.Loader.to_dep(dep, scms, from)
+      loaded_dep.update_opts(&(&1 ++ [git_url: url, git_ref: ref]))
+    end)
   end
 
   defp from_lock_ref({ :git, url, ref, _opts }), do: { url, ref }
-
-  defp to_lock_ref({ url, ref }), do: { :git, url, ref, [] }
 end

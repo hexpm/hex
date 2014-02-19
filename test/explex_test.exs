@@ -9,17 +9,6 @@ defmodule Explex.Test do
     assert [ex_doc: "0.1.0", postgrex: "0.2.1"] = Explex.Mix.from_lock(lock)
   end
 
-  test "to mixlock" do
-    lock = [ ex_doc: { :git, fixture_path("ex_doc-0.1.0"), "HEAD", [] },
-             postgrex: { :git, fixture_path("postgrex-0.2.1"), "HEAD", [] } ]
-    assert ^lock = Explex.Mix.to_lock([ex_doc: "0.1.0", postgrex: "0.2.1"])
-
-    lock = [ ex_doc: { :git, fixture_path("ex_doc-0.1.0"), "HEAD", [] },
-             postgrex: { :git, fixture_path("postgrex-0.2.1"), "HEAD", [] } ]
-    new_lock = [ ecto: { :git, fixture_path("ecto-0.2.1"), "HEAD", [] } ] ++ lock
-    assert ^new_lock = Explex.Mix.to_lock([ecto: "0.2.1"], lock)
-  end
-
   test "simple" do
     deps = [foo: nil, bar: nil]
     assert Dict.equal? [foo: "0.2.1", bar: "0.2.0"], resolve(deps)

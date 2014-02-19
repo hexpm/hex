@@ -5,6 +5,11 @@ defmodule Explex.SCM do
 
   alias Mix.SCM.Git
 
+  defdelegate [
+    format_lock(opts),
+    checked_out?(opts)
+    ], to: Git
+
   def fetchable? do
     true
   end
@@ -25,9 +30,9 @@ defmodule Explex.SCM do
         File.cd!(opts[:dest], fn ->
           rev_info = get_rev_info
           cond do
-            lock_rev  != rev_info[:rev]      -> :mismatch
-            lock_repo != rev_info[:origin]   -> :outdated
-            true -> :ok
+            lock_rev  != rev_info[:rev]    -> :mismatch
+            lock_repo != rev_info[:origin] -> :outdated
+            true                           -> :ok
           end
         end)
       nil ->
@@ -41,18 +46,24 @@ defmodule Explex.SCM do
     true
   end
 
+  def checkout(opts) do
+    # IO.inspect git_opts(opts)
+    git_opts(opts) |> Git.checkout
+  end
+
+  def update(opts) do
+    # IO.inspect git_opts(opts)
+    git_opts(opts) |> Git.update
+  end
+
   defp get_rev_info do
     destructure [origin, rev],
-      System.cmd('git config remote.origin.url && git rev-parse --verify --quiet HEAD')
-      |> iolist_to_binary
+      System.cmd("git config remote.origin.url && git rev-parse --verify --quiet HEAD")
       |> String.split("\n", trim: true)
     [ origin: origin, rev: rev ]
   end
 
-  defdelegate [
-    format_lock(opts),
-    checked_out?(opts),
-    checkout(opts),
-    update(opts),
-    ], to: Git
+  defp git_opts(opts) do
+    [ git: opts[:git_url], ref: opts[:git_ref] ] ++ opts
+  end
 end
