@@ -7,7 +7,7 @@ defmodule Explex.Registry do
   @version    1
 
   def start(opts \\ []) do
-    filename = opts[:registry_path] || Path.join(Mix.Utils.mix_home, "explex.dets")
+    filename = opts[:registry_path] || path()
     ram_file = opts[:ram_file] || false
 
     dets_opts = [
@@ -44,6 +44,21 @@ defmodule Explex.Registry do
     :ets.delete(@ets_table)
     :dets.close(@dets_table)
     :ok
+  end
+
+  def path do
+    Path.join(Mix.Utils.mix_home, "explex.dets")
+  end
+
+  def stat do
+    fun = fn
+      { name, _, _, _, _ }, { packages, releases } ->
+        { Set.put(packages, name), releases + 1 }
+      _, acc ->
+        acc
+    end
+    { packages, releases } = :dets.foldl(fun, { HashSet.new, 0 }, @dets_table)
+    { Set.size(packages), releases }
   end
 
   def package_exists?(package) do

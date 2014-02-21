@@ -17,6 +17,12 @@ defmodule Mix.Tasks.Explex.ReleaseTest do
 
   @auth ["-u", "user", "-p", "hunter42"]
 
+  setup do
+    Explex.Registry.start [
+      registry_path: tmp_path("explex.dets"),
+      ram_file: true ]
+  end
+
   test "validate" do
     assert_raise Mix.Error, "Missing command line option: password", fn ->
       Mix.Tasks.Explex.Release.run(["--user", "release_name"])

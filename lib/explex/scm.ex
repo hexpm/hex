@@ -47,12 +47,10 @@ defmodule Explex.SCM do
   end
 
   def checkout(opts) do
-    # IO.inspect git_opts(opts)
     git_opts(opts) |> Git.checkout
   end
 
   def update(opts) do
-    # IO.inspect git_opts(opts)
     git_opts(opts) |> Git.update
   end
 

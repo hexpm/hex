@@ -208,15 +208,11 @@ defmodule ExplexTest.Case do
     Mix.Shell.Process.flush
     Mix.ProjectStack.clear_cache
     Mix.ProjectStack.clear_stack
-
-    Explex.Registry.start [
-      registry_path: tmp_path("explex.dets"),
-      ram_file: true ]
     :ok
   end
 
   teardown do
-    Explex.Registry.stop
+    Explex.stop
     :ok
   end
 end
@@ -265,7 +261,13 @@ if :integration in ExUnit.configuration[:include] do
   :application.ensure_all_started(:explex_web)
   :application.set_env(:explex_web, :password_work_factor, 4)
 
+  meta = [
+    { "contributors", ["John Doe", "Jane Doe"] },
+    { "licenses", ["GPL2", "MIT", "Apache"] },
+    { "links", [{ "docs", "http://docs" }, { "repo", "http://repo" }] },
+    { "description", "builds docs" } ]
+
   { :ok, user }    = ExplexWeb.User.create("user", "user@mail.com", "hunter42")
-  { :ok, package } = ExplexWeb.Package.create("ex_doc", user, [])
+  { :ok, package } = ExplexWeb.Package.create("ex_doc", user, meta)
   { :ok, _ }       = ExplexWeb.Release.create(package, "0.0.1", Case.fixture_path("ex_doc-0.0.1"), "HEAD", [])
 end

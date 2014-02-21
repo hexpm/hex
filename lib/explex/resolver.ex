@@ -94,10 +94,13 @@ defmodule Explex.Resolver do
 
   defp vsn_match?(_version, nil),
     do: true
-  defp vsn_match?(version, req) when is_regex(req),
-    do: version =~ req
-  defp vsn_match?(version, req) when is_binary(req),
-    do: Version.match?(version, req)
+  defp vsn_match?(version, req) do
+    if Regex.regex?(req) do
+      version =~ req
+    else
+      Version.match?(version, req)
+    end
+  end
 
   defp wrap(nil), do: []
   defp wrap(arg), do: [arg]

@@ -9,6 +9,12 @@ defmodule Explex.MixTest do
     end
   end
 
+  setup do
+    Explex.Registry.start [
+      registry_path: tmp_path("explex.dets"),
+      ram_file: true ]
+  end
+
   test "simple" do
     Mix.Project.push Foo
 

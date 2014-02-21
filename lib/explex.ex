@@ -14,7 +14,6 @@ defmodule Explex do
 
   def stop do
     Explex.Registry.stop
-    :inets.stop()
   end
 
   def url do

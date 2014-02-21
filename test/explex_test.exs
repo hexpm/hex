@@ -3,6 +3,12 @@ defmodule Explex.Test do
 
   import Explex.Resolver
 
+  setup do
+    Explex.Registry.start [
+      registry_path: tmp_path("explex.dets"),
+      ram_file: true ]
+  end
+
   test "from mixlock" do
     lock = [ ex_doc: { :git, fixture_path("ex_doc-0.1.0"), "HEAD", [] },
              postgrex: { :git, fixture_path("postgrex-0.2.1"), "HEAD", [] } ]
