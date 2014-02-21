@@ -18,6 +18,11 @@ defmodule Explex.APITest do
     assert body["meta"]["description"] == "foobar"
   end
 
+  test "packages" do
+    assert { 200, body } = Explex.API.get_packages("e")
+    assert length(body) > 1
+  end
+
   test "release" do
     auth = [user: "user", password: "hunter42"]
     Explex.API.new_package("postgrex", [], auth)

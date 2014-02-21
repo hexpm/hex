@@ -2,8 +2,6 @@ defmodule Mix.Tasks.Explex.Info do
   use Mix.Task
   alias Mix.Tasks.Explex.Util
 
-  @aliases [u: :user, e: :email, p: :password]
-
   def run(args) do
     { _opts, args, _ } = OptionParser.parse(args)
     Explex.start_api
@@ -12,7 +10,8 @@ defmodule Mix.Tasks.Explex.Info do
       [] -> general()
       [package] -> package(package)
       [package, version] -> release(package, version)
-      _ -> # oops
+      _ ->
+        raise Mix.Error, message: "invalid arguments, expected 'mix explex.info [ PACKAGE [ VERSION ] ]'"
     end
   end
 
