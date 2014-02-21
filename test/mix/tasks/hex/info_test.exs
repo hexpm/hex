@@ -25,6 +25,10 @@ defmodule Mix.Tasks.Hex.InfoTest do
     in_tmp fn _ ->
       System.put_env("MIX_HOME", System.cwd!)
 
+      File.mkdir_p!("tmp")
+      HexWeb.RegistryBuilder.rebuild
+      HexWeb.RegistryBuilder.wait_for_build
+
       Mix.Tasks.Hex.Info.run([])
       assert_received { :mix_shell, :info, ["No registry file available, fetch it with 'mix hex.update'"] }
 

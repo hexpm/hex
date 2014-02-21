@@ -20,7 +20,7 @@ defmodule Hex.APITest do
 
   test "packages" do
     assert { 200, body } = Hex.API.get_packages("e")
-    assert length(body) > 1
+    assert length(body) >= 1
   end
 
   test "release" do
@@ -42,6 +42,9 @@ defmodule Hex.APITest do
   end
 
   test "registry" do
+    HexWeb.RegistryBuilder.rebuild
+    HexWeb.RegistryBuilder.wait_for_build
+
     Hex.API.get_registry("tmp/file.dets")
     assert File.exists?("tmp/file.dets")
   end

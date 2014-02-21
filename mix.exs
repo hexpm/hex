@@ -14,7 +14,7 @@ defmodule Hex.Mixfile do
   end
 
   defp deps(:test),
-    do: [{ :explex_web, github: "ericmj/explex_web" }]
+    do: [{ :hex_web, github: "ericmj/hex_web" }]
   defp deps(_),
     do: []
 end

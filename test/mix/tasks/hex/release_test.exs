@@ -33,6 +33,8 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
     Mix.Project.push ReleaseA.Mixfile
 
     in_tmp fn _ ->
+      File.mkdir_p("tmp")
+
       System.cmd("git init && git commit --allow-empty --allow-empty-message -m \"\"")
       Mix.Tasks.Hex.Release.run(@auth)
       assert_received { :mix_shell, :info, ["Updating package releasea and creating release 0.0.1 was successful!"] }
@@ -46,6 +48,8 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
     Mix.Project.push ReleaseB.Mixfile
 
     in_tmp fn _ ->
+      File.mkdir_p("tmp")
+
       System.cmd("git init && git commit --allow-empty --allow-empty-message -m \"\"")
       Mix.Tasks.Deps.Get.run([])
 

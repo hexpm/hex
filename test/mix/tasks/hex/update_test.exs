@@ -5,6 +5,11 @@ defmodule Mix.Tasks.Hex.UpdateTest do
   test "fetch registry" do
     in_tmp fn _ ->
       System.put_env("MIX_HOME", System.cwd!)
+
+      File.mkdir_p!("tmp")
+      HexWeb.RegistryBuilder.rebuild
+      HexWeb.RegistryBuilder.wait_for_build
+
       refute File.exists?(Hex.Registry.path)
 
       Mix.Tasks.Hex.Update.run([])

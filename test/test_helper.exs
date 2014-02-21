@@ -248,18 +248,18 @@ Case.init_fixture("postgrex", "0.2.0", [
 
 if :integration in ExUnit.configuration[:include] do
   db = "hex_client_test"
-  db_url = "ecto://explex:explex@localhost/#{db}"
+  db_url = "ecto://hex:hex@localhost/#{db}"
 
-  System.put_env("EXPLEX_ECTO_URL", db_url)
-  { :ok, _ } = ExplexWeb.Repo.start_link
-  Case.reset_db(ExplexWeb.Repo, "deps/explex_web/priv/migrations")
-  ExplexWeb.Repo.stop
+  System.put_env("HEX_ECTO_URL", db_url)
+  { :ok, _ } = HexWeb.Repo.start_link
+  Case.reset_db(HexWeb.Repo, "deps/hex_web/priv/migrations")
+  HexWeb.Repo.stop
 
   Hex.start_api()
   Hex.url("http://localhost:4000")
 
-  :application.ensure_all_started(:explex_web)
-  :application.set_env(:explex_web, :password_work_factor, 4)
+  :application.ensure_all_started(:hex_web)
+  :application.set_env(:hex_web, :password_work_factor, 4)
 
   meta = [
     { "contributors", ["John Doe", "Jane Doe"] },
@@ -267,7 +267,7 @@ if :integration in ExUnit.configuration[:include] do
     { "links", [{ "docs", "http://docs" }, { "repo", "http://repo" }] },
     { "description", "builds docs" } ]
 
-  { :ok, user }    = ExplexWeb.User.create("user", "user@mail.com", "hunter42")
-  { :ok, package } = ExplexWeb.Package.create("ex_doc", user, meta)
-  { :ok, _ }       = ExplexWeb.Release.create(package, "0.0.1", Case.fixture_path("ex_doc-0.0.1"), "HEAD", [])
+  { :ok, user }    = HexWeb.User.create("user", "user@mail.com", "hunter42")
+  { :ok, package } = HexWeb.Package.create("ex_doc", user, meta)
+  { :ok, _ }       = HexWeb.Release.create(package, "0.0.1", Case.fixture_path("ex_doc-0.0.1"), "HEAD", [])
 end

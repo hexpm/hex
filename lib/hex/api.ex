@@ -38,12 +38,12 @@ defmodule Hex.API do
 
   defp request(method, path, headers, body \\ nil) do
     url = url(path)
-    headers = [ { 'accept', 'application/vnd.explex.beta+elixir' } ] ++ headers
+    headers = [ { 'accept', 'application/vnd.hex.beta+elixir' } ] ++ headers
     http_opts = [timeout: 5000]
     opts = [body_format: :binary]
 
     if body do
-      request = { url, headers, 'application/vnd.explex+elixir', safe_serialize_elixir(body) }
+      request = { url, headers, 'application/vnd.hex+elixir', safe_serialize_elixir(body) }
     else
       request = { url, headers }
     end
@@ -58,7 +58,7 @@ defmodule Hex.API do
 
   defp request_file(method, path, filename) do
     url = url(path)
-    headers = [ { 'accept', 'application/vnd.explex.beta+dets' } ]
+    headers = [ { 'accept', 'application/vnd.hex.beta+dets' } ]
     http_opts = [timeout: 5000]
     request = { url, headers }
     opts = [stream: String.to_char_list!(filename)]
