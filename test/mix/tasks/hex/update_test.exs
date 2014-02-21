@@ -1,21 +1,21 @@
-defmodule Mix.Tasks.Explex.UpdateTest do
-  use ExplexTest.Case
+defmodule Mix.Tasks.Hex.UpdateTest do
+  use HexTest.Case
   @moduletag :integration
 
   test "fetch registry" do
     in_tmp fn _ ->
       System.put_env("MIX_HOME", System.cwd!)
-      refute File.exists?(Explex.Registry.path)
+      refute File.exists?(Hex.Registry.path)
 
-      Mix.Tasks.Explex.Update.run([])
+      Mix.Tasks.Hex.Update.run([])
       assert_received { :mix_shell, :info, ["Downloading registry..."] }
       assert_received { :mix_shell, :info, ["Updating registry was successful!"] }
-      assert File.exists?(Explex.Registry.path)
+      assert File.exists?(Hex.Registry.path)
 
-      Mix.Tasks.Explex.Update.run([])
+      Mix.Tasks.Hex.Update.run([])
       assert_received { :mix_shell, :info, ["Downloading registry..."] }
       assert_received { :mix_shell, :info, ["Updating registry was successful!"] }
-      assert File.exists?(Explex.Registry.path)
+      assert File.exists?(Hex.Registry.path)
     end
   after
     System.delete_env("MIX_HOME")

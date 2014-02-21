@@ -1,6 +1,6 @@
-defmodule Mix.Tasks.Explex.Register do
+defmodule Mix.Tasks.Hex.Register do
   use Mix.Task
-  alias Mix.Tasks.Explex.Util
+  alias Mix.Tasks.Hex.Util
 
   @aliases [u: :user, e: :email, p: :password]
 
@@ -8,12 +8,12 @@ defmodule Mix.Tasks.Explex.Register do
     { opts, _, _ } = OptionParser.parse(args, aliases: @aliases)
     Util.required_opts(opts, [:user, :email, :password])
 
-    Explex.start_api
+    Hex.start_api
     create_user(opts)
   end
 
   defp create_user(opts) do
-    case Explex.API.new_user(opts[:user], opts[:email], opts[:password]) do
+    case Hex.API.new_user(opts[:user], opts[:email], opts[:password]) do
       { 201, _ } ->
         Mix.shell.info("Registration of user #{opts[:user]} successful!")
       { code, body } ->

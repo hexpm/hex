@@ -1,4 +1,4 @@
-defmodule Explex.RemoteConverger do
+defmodule Hex.RemoteConverger do
   @moduledoc false
 
   @behaviour Mix.RemoteConverger
@@ -8,7 +8,7 @@ defmodule Explex.RemoteConverger do
   end
 
   def remote?(app) when is_atom(app) do
-    Explex.Registry.package_exists?(app)
+    Hex.Registry.package_exists?(app)
   end
 
   def converge(main) do
@@ -16,14 +16,14 @@ defmodule Explex.RemoteConverger do
 
     deps   = Mix.project[:deps] || []
     lock   = Mix.Deps.Lock.read
-    locked = Explex.Mix.from_lock(lock)
-    reqs   = Explex.Mix.deps_to_requirements(main)
+    locked = Hex.Mix.from_lock(lock)
+    reqs   = Hex.Mix.deps_to_requirements(main)
 
     print_info(reqs, locked)
 
-    if resolved = Explex.Resolver.resolve(reqs, locked) do
+    if resolved = Hex.Resolver.resolve(reqs, locked) do
       print_success(resolved)
-      Explex.Mix.annotate_deps(resolved, deps)
+      Hex.Mix.annotate_deps(resolved, deps)
     else
       raise Mix.Error, message: "Dependency resolution failed. Relax the version requirements."
     end

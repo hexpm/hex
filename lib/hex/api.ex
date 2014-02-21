@@ -1,4 +1,4 @@
-defmodule Explex.API do
+defmodule Hex.API do
   def get_user(username) do
     request(:get, "users/#{username}", [])
   end
@@ -52,7 +52,7 @@ defmodule Explex.API do
       { :ok, response } ->
         handle_response(response)
       { :error, reason } ->
-        raise Explex.Error, message: "HTTP failure: #{inspect(reason)}"
+        raise Hex.Error, message: "HTTP failure: #{inspect(reason)}"
     end
   end
 
@@ -67,7 +67,7 @@ defmodule Explex.API do
       { :ok, :saved_to_file } ->
         :ok
       { :error, reason } ->
-        raise Explex.Error, message: "HTTP failure: #{inspect(reason)}"
+        raise Hex.Error, message: "HTTP failure: #{inspect(reason)}"
     end
   end
   defp handle_response({ { _version, code, _reason }, _headers, body }) do
@@ -75,7 +75,7 @@ defmodule Explex.API do
   end
 
   defp url(path) do
-    String.to_char_list!(Explex.url <> "/api/" <> path)
+    String.to_char_list!(Hex.url <> "/api/" <> path)
   end
 
   defp auth(info) do
@@ -93,10 +93,10 @@ defmodule Explex.API do
         if Macro.safe_term(ast) do
           Code.eval_quoted(ast) |> elem(0)
         else
-          raise Explex.Error, message: "received unsafe elixir from API"
+          raise Hex.Error, message: "received unsafe elixir from API"
         end
       _ ->
-        raise Explex.Error, message: "received malformed elixir from API"
+        raise Hex.Error, message: "received malformed elixir from API"
     end
   end
 

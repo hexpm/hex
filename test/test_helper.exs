@@ -1,6 +1,6 @@
 ExUnit.start exclude: [:integration]
 
-defmodule ExplexTest.Case do
+defmodule HexTest.Case do
   use ExUnit.CaseTemplate
 
   def tmp_path do
@@ -111,7 +111,7 @@ defmodule ExplexTest.Case do
     end
   end
 
-  @dets_table :explex_dets_registry
+  @dets_table :hex_dets_registry
   @version    1
 
   def create_test_registry(path) do
@@ -195,9 +195,9 @@ defmodule ExplexTest.Case do
   end
 
   setup_all do
-    dets_path = tmp_path("explex.dets")
     File.mkdir_p!(tmp_path)
-    File.rm!(dets_path)
+    dets_path = tmp_path("hex.dets")
+    File.rm(dets_path)
     create_test_registry(dets_path)
     :ok
   end
@@ -212,12 +212,12 @@ defmodule ExplexTest.Case do
   end
 
   teardown do
-    Explex.stop
+    Hex.stop
     :ok
   end
 end
 
-alias ExplexTest.Case
+alias HexTest.Case
 
 
 Mix.shell(Mix.Shell.Process)
@@ -226,8 +226,8 @@ Mix.Shell.Process.flush
 Mix.ProjectStack.clear_cache
 Mix.ProjectStack.clear_stack
 
-Mix.SCM.append(Explex.SCM)
-Mix.RemoteConverger.register(Explex.RemoteConverger)
+Mix.SCM.append(Hex.SCM)
+Mix.RemoteConverger.register(Hex.RemoteConverger)
 
 Case.init_fixture("ecto", "0.2.0", [
   { :git_repo, git: Case.fixture_path("git_repo-0.1.0") },
@@ -247,7 +247,7 @@ Case.init_fixture("postgrex", "0.2.0", [
 
 
 if :integration in ExUnit.configuration[:include] do
-  db = "explex_client_test"
+  db = "hex_client_test"
   db_url = "ecto://explex:explex@localhost/#{db}"
 
   System.put_env("EXPLEX_ECTO_URL", db_url)
@@ -255,8 +255,8 @@ if :integration in ExUnit.configuration[:include] do
   Case.reset_db(ExplexWeb.Repo, "deps/explex_web/priv/migrations")
   ExplexWeb.Repo.stop
 
-  Explex.start_api()
-  Explex.url("http://localhost:4000")
+  Hex.start_api()
+  Hex.url("http://localhost:4000")
 
   :application.ensure_all_started(:explex_web)
   :application.set_env(:explex_web, :password_work_factor, 4)

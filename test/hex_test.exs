@@ -1,18 +1,18 @@
-defmodule Explex.Test do
-  use ExplexTest.Case
+defmodule Hex.Test do
+  use HexTest.Case
 
-  import Explex.Resolver
+  import Hex.Resolver
 
   setup do
-    Explex.Registry.start [
-      registry_path: tmp_path("explex.dets"),
+    Hex.Registry.start [
+      registry_path: tmp_path("hex.dets"),
       ram_file: true ]
   end
 
   test "from mixlock" do
     lock = [ ex_doc: { :git, fixture_path("ex_doc-0.1.0"), "HEAD", [] },
              postgrex: { :git, fixture_path("postgrex-0.2.1"), "HEAD", [] } ]
-    assert [ex_doc: "0.1.0", postgrex: "0.2.1"] = Explex.Mix.from_lock(lock)
+    assert [ex_doc: "0.1.0", postgrex: "0.2.1"] = Hex.Mix.from_lock(lock)
   end
 
   test "simple" do

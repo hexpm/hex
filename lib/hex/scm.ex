@@ -1,4 +1,4 @@
-defmodule Explex.SCM do
+defmodule Hex.SCM do
   @moduledoc false
 
   @behaviour Mix.SCM

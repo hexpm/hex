@@ -1,5 +1,5 @@
-defmodule Explex.MixTest do
-  use ExplexTest.Case
+defmodule Hex.MixTest do
+  use HexTest.Case
 
   defmodule Foo do
     def project do
@@ -10,8 +10,8 @@ defmodule Explex.MixTest do
   end
 
   setup do
-    Explex.Registry.start [
-      registry_path: tmp_path("explex.dets"),
+    Hex.Registry.start [
+      registry_path: tmp_path("hex.dets"),
       ram_file: true ]
   end
 

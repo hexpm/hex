@@ -1,10 +1,10 @@
-defmodule Explex.Resolver do
+defmodule Hex.Resolver do
   defrecord State, [:activated, :pending]
   defrecord Request, [:name, :req, :parent]
   defrecord Active, [:name, :version, :state, :parents, :possibles]
 
-  alias Explex.Registry
-  alias Explex.Registry.Package
+  alias Hex.Registry
+  alias Hex.Registry.Package
 
   def resolve(requests, locked \\ []) do
     { activated, pending } =

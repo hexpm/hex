@@ -1,17 +1,17 @@
-defmodule Mix.Tasks.Explex.Info do
+defmodule Mix.Tasks.Hex.Info do
   use Mix.Task
-  alias Mix.Tasks.Explex.Util
+  alias Mix.Tasks.Hex.Util
 
   def run(args) do
     { _opts, args, _ } = OptionParser.parse(args)
-    Explex.start_api
+    Hex.start_api
 
     case args do
       [] -> general()
       [package] -> package(package)
       [package, version] -> release(package, version)
       _ ->
-        raise Mix.Error, message: "invalid arguments, expected 'mix explex.info [ PACKAGE [ VERSION ] ]'"
+        raise Mix.Error, message: "invalid arguments, expected 'mix hex.info [ PACKAGE [ VERSION ] ]'"
     end
   end
 
@@ -19,24 +19,24 @@ defmodule Mix.Tasks.Explex.Info do
     # TODO: version, new version avaliable?
     #       github links to both repos (for docs)
 
-    path = Explex.Registry.path()
+    path = Hex.Registry.path()
 
     if File.exists?(path) do
-      Explex.start_mix
+      Hex.start_mix
       stat = File.stat!(path)
-      { packages, releases } = Explex.Registry.stat()
+      { packages, releases } = Hex.Registry.stat()
 
       Mix.shell.info("Registry file available (last updated: #{pretty_date(stat.mtime)})")
       Mix.shell.info("Size: #{div stat.size, 1024}kB")
       Mix.shell.info("Packages #: #{packages}")
       Mix.shell.info("Releases #: #{releases}")
     else
-      Mix.shell.info("No registry file available, fetch it with 'mix explex.update'")
+      Mix.shell.info("No registry file available, fetch it with 'mix hex.update'")
     end
   end
 
   defp package(package) do
-    case Explex.API.get_package(package) do
+    case Hex.API.get_package(package) do
       { 200, body } ->
         pretty_package(body)
       { 404, _ } ->
@@ -48,7 +48,7 @@ defmodule Mix.Tasks.Explex.Info do
   end
 
   defp release(package, version) do
-    case Explex.API.get_release(package, version) do
+    case Hex.API.get_release(package, version) do
       { 200, body } ->
         pretty_release(package, body)
       { 404, _ } ->

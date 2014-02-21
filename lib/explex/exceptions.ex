@@ -1,1 +1,0 @@
-defexception Explex.Error, [:message]

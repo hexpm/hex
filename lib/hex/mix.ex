@@ -1,6 +1,6 @@
-defmodule Explex.Mix do
-  alias Explex.Registry
-  alias Explex.Registry.Package
+defmodule Hex.Mix do
+  alias Hex.Registry
+  alias Hex.Registry.Package
 
   def deps_to_requirements(deps) do
     Enum.flat_map(deps, fn

@@ -1,3 +1,3 @@
-# Explex
+# Hex
 
 ** TODO: Add description **

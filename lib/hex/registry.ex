@@ -1,9 +1,9 @@
-defmodule Explex.Registry do
+defmodule Hex.Registry do
   defrecord Package, [:key, :deps, :url, :ref]
   defrecord PackageVsn, [:key, :versions]
 
-  @ets_table  :explex_ets_registry
-  @dets_table :explex_dets_registry
+  @ets_table  :hex_ets_registry
+  @dets_table :hex_dets_registry
   @version    1
 
   def start(opts \\ []) do
@@ -26,8 +26,8 @@ defmodule Explex.Registry do
       { :ok, @dets_table } ->
         :ok
       { :error, _reason } ->
-        raise Explex.Error, message: "Failed to open explex registry file. " <>
-          "Did you fetch it with 'mix explex.update'?"
+        raise Hex.Error, message: "Failed to open hex registry file. " <>
+          "Did you fetch it with 'mix hex.update'?"
     end
     :ets.new(@ets_table, ets_opts)
 
@@ -35,8 +35,8 @@ defmodule Explex.Registry do
       [{ :"$$version$$", @version }] ->
         :ok
       _ ->
-        raise Explex.Error, message: "The registry file version is newer than what is supported. " <>
-          "Please update explex."
+        raise Hex.Error, message: "The registry file version is newer than what is supported. " <>
+          "Please update hex."
     end
   end
 
@@ -47,7 +47,7 @@ defmodule Explex.Registry do
   end
 
   def path do
-    Path.join(Mix.Utils.mix_home, "explex.dets")
+    Path.join(Mix.Utils.mix_home, "hex.dets")
   end
 
   def stat do

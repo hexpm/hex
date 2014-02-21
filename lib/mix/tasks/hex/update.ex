@@ -1,10 +1,10 @@
-defmodule Mix.Tasks.Explex.Update do
+defmodule Mix.Tasks.Hex.Update do
   use Mix.Task
 
   def run(_args) do
-    Explex.start_api
+    Hex.start_api
     Mix.shell.info("Downloading registry...")
-    Explex.API.get_registry(Explex.Registry.path)
+    Hex.API.get_registry(Hex.Registry.path)
     Mix.shell.info("Updating registry was successful!")
   end
 end

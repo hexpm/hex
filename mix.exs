@@ -1,8 +1,8 @@
-defmodule Explex.Mixfile do
+defmodule Hex.Mixfile do
   use Mix.Project
 
   def project do
-    [ app: :explex,
+    [ app: :hex,
       version: "0.0.1",
       elixir: "~> 0.12.4 or ~> 0.13.0-dev",
       deps: deps(Mix.env) ]

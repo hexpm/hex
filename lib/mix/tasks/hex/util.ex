@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Explex.Util do
+defmodule Mix.Tasks.Hex.Util do
   def required_opts(opts, required) do
     Enum.map(required, fn req ->
       unless Keyword.has_key?(opts, req) do

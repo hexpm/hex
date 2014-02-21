@@ -1,5 +1,5 @@
-defmodule Mix.Tasks.Explex.ReleaseTest do
-  use ExplexTest.Case
+defmodule Mix.Tasks.Hex.ReleaseTest do
+  use HexTest.Case
   @moduletag :integration
 
   defmodule ReleaseA.Mixfile do
@@ -18,14 +18,14 @@ defmodule Mix.Tasks.Explex.ReleaseTest do
   @auth ["-u", "user", "-p", "hunter42"]
 
   setup do
-    Explex.Registry.start [
-      registry_path: tmp_path("explex.dets"),
+    Hex.Registry.start [
+      registry_path: tmp_path("hex.dets"),
       ram_file: true ]
   end
 
   test "validate" do
     assert_raise Mix.Error, "Missing command line option: password", fn ->
-      Mix.Tasks.Explex.Release.run(["--user", "release_name"])
+      Mix.Tasks.Hex.Release.run(["--user", "release_name"])
     end
   end
 
@@ -34,10 +34,10 @@ defmodule Mix.Tasks.Explex.ReleaseTest do
 
     in_tmp fn _ ->
       System.cmd("git init && git commit --allow-empty --allow-empty-message -m \"\"")
-      Mix.Tasks.Explex.Release.run(@auth)
+      Mix.Tasks.Hex.Release.run(@auth)
       assert_received { :mix_shell, :info, ["Updating package releasea and creating release 0.0.1 was successful!"] }
 
-      Mix.Tasks.Explex.Release.run(@auth)
+      Mix.Tasks.Hex.Release.run(@auth)
       assert_received { :mix_shell, :error, ["Creating release releasea 0.0.1 failed! (422)"] }
     end
   end
@@ -49,7 +49,7 @@ defmodule Mix.Tasks.Explex.ReleaseTest do
       System.cmd("git init && git commit --allow-empty --allow-empty-message -m \"\"")
       Mix.Tasks.Deps.Get.run([])
 
-      Mix.Tasks.Explex.Release.run(@auth)
+      Mix.Tasks.Hex.Release.run(@auth)
       assert_received { :mix_shell, :info, ["Updating package releaseb and creating release 0.0.2 was successful!"] }
     end
   after

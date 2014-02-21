@@ -1,6 +1,6 @@
-defmodule Mix.Tasks.Explex.Release do
+defmodule Mix.Tasks.Hex.Release do
   use Mix.Task
-  alias Mix.Tasks.Explex.Util
+  alias Mix.Tasks.Hex.Util
 
   @aliases [u: :user, p: :password]
 
@@ -12,7 +12,7 @@ defmodule Mix.Tasks.Explex.Release do
     Mix.Project.get!
     config = Mix.project
 
-    Explex.start_api
+    Hex.start_api
     if create_package?(config, opts) do
       create_release(config, opts)
     end
@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Explex.Release do
   defp create_package?(config, opts) do
     meta = config[:package] || []
 
-    case Explex.API.new_package(config[:app], meta, opts) do
+    case Hex.API.new_package(config[:app], meta, opts) do
       { code, _ } when code in [200, 201] ->
         true
 
@@ -33,7 +33,7 @@ defmodule Mix.Tasks.Explex.Release do
   end
 
   defp create_release(config, opts) do
-    reqs = Explex.Mix.deps_to_requirements(config[:deps] || [])
+    reqs = Hex.Mix.deps_to_requirements(config[:deps] || [])
     git_url = config[:source_url]
     git_ref = git_ref()
 
@@ -41,7 +41,7 @@ defmodule Mix.Tasks.Explex.Release do
       raise Mix.Error, message: "Missing source_url, specifying the git repo url, option in mix.exs"
     end
 
-    case Explex.API.new_release(config[:app], config[:version], git_url, git_ref, reqs, opts) do
+    case Hex.API.new_release(config[:app], config[:version], git_url, git_ref, reqs, opts) do
       { 201, _ } ->
         Mix.shell.info("Updating package #{config[:app]} and creating " <>
           "release #{config[:version]} was successful!")
