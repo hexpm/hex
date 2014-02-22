@@ -1,117 +1,79 @@
 defmodule Hex.Registry do
-  defrecord Package, [:key, :deps, :url, :ref]
-  defrecord PackageVsn, [:key, :versions]
-
-  @ets_table  :hex_ets_registry
-  @dets_table :hex_dets_registry
-  @version    1
+  @registry_tid :registry_tid
+  @version      1
 
   def start(opts \\ []) do
-    filename = opts[:registry_path] || path()
-    ram_file = opts[:ram_file] || false
+    path = opts[:registry_path] || path()
 
-    dets_opts = [
-      access: :read,
-      file: filename,
-      ram_file: ram_file,
-      type: :duplicate_bag ]
+    case :ets.file2tab(String.to_char_list!(path)) do
+      { :ok, tid } ->
+        :application.set_env(:hex, @registry_tid, tid)
 
-    ets_opts = [
-      :set,
-      :named_table,
-      { :keypos, 2 },
-      :public ]
+        case :ets.lookup(tid, :"$$version$$") do
+          [{ :"$$version$$", @version }] ->
+            :ok
+          _ ->
+            raise Hex.Error, message: "The registry file version is newer than what is supported. " <>
+              "Please update hex."
+        end
 
-    case :dets.open_file(@dets_table, dets_opts) do
-      { :ok, @dets_table } ->
-        :ok
       { :error, _reason } ->
         raise Hex.Error, message: "Failed to open hex registry file. " <>
           "Did you fetch it with 'mix hex.update'?"
     end
-    :ets.new(@ets_table, ets_opts)
-
-    case :dets.lookup(@dets_table, :"$$version$$") do
-      [{ :"$$version$$", @version }] ->
-        :ok
-      _ ->
-        raise Hex.Error, message: "The registry file version is newer than what is supported. " <>
-          "Please update hex."
-    end
   end
 
   def stop do
-    :ets.delete(@ets_table)
-    :dets.close(@dets_table)
+    { :ok, tid } = :application.get_env(:hex, @registry_tid)
+    :ets.delete(tid)
     :ok
   end
 
   def path do
-    Path.join(Mix.Utils.mix_home, "hex.dets")
+    Path.join(Mix.Utils.mix_home, "hex.ets")
   end
 
   def stat do
     fun = fn
-      { name, _, _, _, _ }, { packages, releases } ->
-        { Set.put(packages, name), releases + 1 }
+      { { _, _ }, _, _, _, _ }, { packages, releases } ->
+        { packages, releases + 1 }
+      { _, _, _, _, _ }, { packages, releases } ->
+        { packages + 1, releases }
       _, acc ->
         acc
     end
-    { packages, releases } = :dets.foldl(fun, { HashSet.new, 0 }, @dets_table)
-    { Set.size(packages), releases }
+
+    { :ok, tid } = :application.get_env(:hex, @registry_tid)
+    :ets.foldl(fun, { 0, 0 }, tid)
   end
 
   def package_exists?(package) do
-    load_package?(package)
+    !! get_versions(package)
   end
 
   def get_versions(package) do
-    case :ets.lookup(@ets_table, package) do
-      [] ->
-        if load_package?(package), do: get_versions(package)
-      [PackageVsn[versions: versions]] ->
-        versions
+    { :ok, tid } = :application.get_env(:hex, @registry_tid)
+    case :ets.lookup(tid, package) do
+      [] -> nil
+      [{ ^package, versions }] -> versions
     end
   end
 
-  def get_package(package, version) do
-    case :ets.lookup(@ets_table, { package, version }) do
-      [] ->
-        if load_package?(package), do: get_package(package, version)
-      [package] ->
-        package
+  def get_release(package, version) do
+    { :ok, tid } = :application.get_env(:hex, @registry_tid)
+    case :ets.lookup(tid, { package, version }) do
+      [] -> nil
+      [release] -> release
     end
   end
 
   def version_from_ref(package, url, ref) do
-    match = Package[key: { package, :"$1" }, deps: :_, url: url, ref: ref]
+    { :ok, tid } = :application.get_env(:hex, @registry_tid)
+    match = { { package, :"$1" }, :_, url, ref }
 
-    case :ets.match(@ets_table, match) do
-      [] ->
-        case load_package?(package) && :ets.match(@ets_table, match) do
-          [[version]] -> { :ok, version }
-          _ -> :error
-        end
-      [[version]] ->
-        { :ok, version }
+    case :ets.match(tid, match) do
+      [] -> :error
+      [[version]] -> { :ok, version }
     end
-  end
-
-  defp load_package?(package) do
-    packages = :dets.lookup(@dets_table, package)
-    versions =
-      Enum.map(packages, fn { name, version, deps, url, ref } ->
-        package = Package[key: { name, version }, deps: deps, url: url, ref: ref]
-        :ets.insert(@ets_table, package)
-        version
-      end)
-
-    found? = versions != []
-    if found? do
-      versions = Enum.sort(versions, &(Version.compare(&1, &2) == :gt))
-      package = PackageVsn[key: package, versions: versions]
-      :ets.insert(@ets_table, package)
-    end
-    found?
   end
 end

@@ -4,7 +4,6 @@ defmodule Hex.Resolver do
   defrecord Active, [:name, :version, :state, :parents, :possibles]
 
   alias Hex.Registry
-  alias Hex.Registry.Package
 
   def resolve(requests, locked \\ []) do
     { activated, pending } =
@@ -47,6 +46,7 @@ defmodule Hex.Resolver do
     else
       versions = Registry.get_versions(request.name)
         |> Enum.filter(&vsn_match?(&1, request.req))
+        |> Enum.reverse
 
       case versions do
         [] ->
@@ -85,7 +85,7 @@ defmodule Hex.Resolver do
   end
 
   def get_deps(package, version) do
-    Package[deps: deps] = Registry.get_package(package, version)
+    { _, deps, _, _ } = Registry.get_release(package, version)
 
     Enum.map(deps, fn { name, req } ->
       Request[name: name, req: req, parent: package]

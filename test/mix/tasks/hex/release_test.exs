@@ -18,9 +18,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
   @auth ["-u", "user", "-p", "hunter42"]
 
   setup do
-    Hex.Registry.start [
-      registry_path: tmp_path("hex.dets"),
-      ram_file: true ]
+    Hex.Registry.start(registry_path: tmp_path("hex.ets"))
   end
 
   test "validate" do

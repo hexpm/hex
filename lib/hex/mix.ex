@@ -1,6 +1,5 @@
 defmodule Hex.Mix do
   alias Hex.Registry
-  alias Hex.Registry.Package
 
   def deps_to_requirements(deps) do
     Enum.flat_map(deps, fn
@@ -29,7 +28,7 @@ defmodule Hex.Mix do
     from = Path.absname("mix.exs")
 
     Enum.map(result, fn { app, version } ->
-      Package[url: url, ref: ref] = Registry.get_package(app, version)
+      { _, _, url, ref } = Registry.get_release(app, version)
       dep = Enum.find(deps, &(elem(&1, 0) == app)) || { app, package: true }
       loaded_dep = Mix.Deps.Loader.to_dep(dep, scms, from)
       loaded_dep.update_opts(&(&1 ++ [git_url: url, git_ref: ref]))

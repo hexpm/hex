@@ -111,25 +111,31 @@ defmodule HexTest.Case do
     end
   end
 
-  @dets_table :hex_dets_registry
+  @ets_table :hex_ets_registry
   @version    1
 
   def create_test_registry(path) do
-    dets_opts = [
-      file: path,
-      ram_file: true,
-      type: :duplicate_bag ]
-
     packages =
-      Enum.map(test_registry, fn { name, version, deps } ->
-        url = fixture_path("#{name}-#{version}")
-        { name, version, deps, url, "HEAD" }
+      Enum.reduce(test_registry, HashDict.new, fn { name, vsn, _ }, dict ->
+        Dict.update(dict, :"#{name}", [vsn], &[vsn|&1])
       end)
 
-    { :ok, @dets_table } = :dets.open_file(@dets_table, dets_opts)
-    :ok = :dets.insert(@dets_table, { :"$$version$$", @version })
-    :ok = :dets.insert(@dets_table, packages)
-    :ok = :dets.close(@dets_table)
+    packages =
+      Enum.map(packages, fn { name, vsns } ->
+        { name, Enum.sort(vsns, &(Version.compare(&1, &2) == :lt)) }
+      end)
+
+    releases =
+      Enum.map(test_registry, fn { name, version, deps } ->
+        url = fixture_path("#{name}-#{version}")
+        { { :"#{name}", version }, deps, url, "HEAD" }
+      end)
+
+    tid = :ets.new(@ets_table, [])
+    :ets.insert(tid, { :"$$version$$", @version })
+    :ets.insert(tid, releases ++ packages)
+    :ok = :ets.tab2file(tid, String.to_char_list!(path))
+    :ets.delete(tid)
   end
 
   defp test_registry do
@@ -196,9 +202,9 @@ defmodule HexTest.Case do
 
   setup_all do
     File.mkdir_p!(tmp_path)
-    dets_path = tmp_path("hex.dets")
-    File.rm(dets_path)
-    create_test_registry(dets_path)
+    ets_path = tmp_path("hex.ets")
+    File.rm(ets_path)
+    create_test_registry(ets_path)
     :ok
   end
 
