@@ -100,6 +100,8 @@ defmodule HexTest.Case do
 
       System.cmd("git init")
       System.cmd("git add .")
+      System.cmd("git config user.email \"hex@example.com\"")
+      System.cmd("git config user.name \"Hex Repo\"")
       System.cmd("git commit -m \"ok\"")
     end
   end

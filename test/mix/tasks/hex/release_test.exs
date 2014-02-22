@@ -33,7 +33,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
     in_tmp fn _ ->
       File.mkdir_p("tmp")
 
-      System.cmd("git init && git commit --allow-empty --allow-empty-message -m \"\"")
+      git_commit()
       Mix.Tasks.Hex.Release.run(@auth)
       assert_received { :mix_shell, :info, ["Updating package releasea and creating release 0.0.1 was successful!"] }
 
@@ -48,7 +48,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
     in_tmp fn _ ->
       File.mkdir_p("tmp")
 
-      System.cmd("git init && git commit --allow-empty --allow-empty-message -m \"\"")
+      git_commit()
       Mix.Tasks.Deps.Get.run([])
 
       Mix.Tasks.Hex.Release.run(@auth)
@@ -56,5 +56,13 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
     end
   after
     purge [Ex_doc.NoConflict.Mixfile]
+  end
+
+  defp git_commit do
+    System.cmd("git init")
+    System.cmd("git add .")
+    System.cmd("git config user.email \"hex@example.com\"")
+    System.cmd("git config user.name \"Hex Repo\"")
+    System.cmd("git commit --allow-empty -m \"ok\"")
   end
 end

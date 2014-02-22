@@ -36,7 +36,7 @@ defmodule Hex.RemoteConverger do
 
     if resolve != [] do
       Mix.shell.info "Running dependency resolution for unlocked dependencies..."
-      Mix.shell.info inspect(resolve, pretty: true)
+      Mix.shell.info Enum.join(resolve, ", ")
     end
   end
 
