@@ -174,26 +174,6 @@ defmodule HexTest.Case do
       { :ecto, "0.2.1", [postgrex: "~> 0.2.0", ex_doc: "0.0.2"] } ]
   end
 
-  def reset_db(repo, dir) do
-    files = Path.join(dir, "*") |> Path.wildcard
-
-    modules =
-      Enum.map(files, fn file ->
-        filename = Path.basename(file)
-        { version, _ } = Integer.parse(filename)
-        [{ module, _ }] = Code.load_file(file)
-        { version, module }
-      end) |> Enum.sort
-
-    Enum.each(Enum.reverse(modules), fn { version, module } ->
-      Ecto.Migrator.down(repo, version, module)
-    end)
-
-    Enum.each(modules, fn { version, module } ->
-      :ok = Ecto.Migrator.up(repo, version, module)
-    end)
-  end
-
   using do
     quote do
       import unquote(__MODULE__)
@@ -226,15 +206,6 @@ end
 alias HexTest.Case
 
 
-Mix.shell(Mix.Shell.Process)
-Mix.Task.clear
-Mix.Shell.Process.flush
-Mix.ProjectStack.clear_cache
-Mix.ProjectStack.clear_stack
-
-Mix.SCM.append(Hex.SCM)
-Mix.RemoteConverger.register(Hex.RemoteConverger)
-
 Case.init_fixture("ecto", "0.2.0", [
   { :git_repo, git: Case.fixture_path("git_repo-0.1.0") },
   { :postgrex, "~> 0.2.0", package: true },
@@ -254,18 +225,20 @@ Case.init_fixture("postgrex", "0.2.0", [
 
 if :integration in ExUnit.configuration[:include] do
   db = "hex_client_test"
-  db_url = "ecto://hex:hex@localhost/#{db}"
+  db_url = "ecto://postgres:postgres@localhost/#{db}"
 
   System.put_env("HEX_ECTO_URL", db_url)
-  { :ok, _ } = HexWeb.Repo.start_link
-  Case.reset_db(HexWeb.Repo, "deps/hex_web/priv/migrations")
-  HexWeb.Repo.stop
+  :application.ensure_all_started(:hex_web)
+  :application.set_env(:hex_web, :password_work_factor, 4)
+
+  File.cd! "_build/test/lib/hex_web", fn ->
+    Mix.Task.run "ecto.drop", ["HexWeb.Repo"]
+    Mix.Task.run "ecto.create", ["HexWeb.Repo"]
+    Mix.Task.run "ecto.migrate", ["HexWeb.Repo"]
+  end
 
   Hex.start_api()
   Hex.url("http://localhost:4000")
-
-  :application.ensure_all_started(:hex_web)
-  :application.set_env(:hex_web, :password_work_factor, 4)
 
   meta = [
     { "contributors", ["John Doe", "Jane Doe"] },
@@ -277,3 +250,12 @@ if :integration in ExUnit.configuration[:include] do
   { :ok, package } = HexWeb.Package.create("ex_doc", user, meta)
   { :ok, _ }       = HexWeb.Release.create(package, "0.0.1", Case.fixture_path("ex_doc-0.0.1"), "HEAD", [])
 end
+
+Mix.shell(Mix.Shell.Process)
+Mix.Task.clear
+Mix.Shell.Process.flush
+Mix.ProjectStack.clear_cache
+Mix.ProjectStack.clear_stack
+
+Mix.SCM.append(Hex.SCM)
+Mix.RemoteConverger.register(Hex.RemoteConverger)
