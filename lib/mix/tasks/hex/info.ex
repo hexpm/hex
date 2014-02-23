@@ -2,6 +2,24 @@ defmodule Mix.Tasks.Hex.Info do
   use Mix.Task
   alias Mix.Tasks.Hex.Util
 
+  @shortdoc "Print hex package or system information"
+
+  @moduledoc """
+  Prints hex package or system information.
+
+  `mix hex.info [package [version]]`
+
+  If `package` is not given, print system information. This includes when
+  registry was last updated, current system version and if there is a new
+  version available.
+
+  If `package` is given, print information about the package. This includes all
+  released versions and package metadata.
+
+  If `package` and `version` is given print release information. This includes
+  remote Git URL and Git ref, and all package dependencies.
+  """
+
   def run(args) do
     { _opts, args, _ } = OptionParser.parse(args)
     Hex.start_api
@@ -11,7 +29,7 @@ defmodule Mix.Tasks.Hex.Info do
       [package] -> package(package)
       [package, version] -> release(package, version)
       _ ->
-        raise Mix.Error, message: "invalid arguments, expected 'mix hex.info [ PACKAGE [ VERSION ] ]'"
+        raise Mix.Error, message: "invalid arguments, expected 'mix hex.info [PACKAGE [VERSION]]'"
     end
   end
 
@@ -92,7 +110,7 @@ defmodule Mix.Tasks.Hex.Info do
 
   # defp pretty_dict(meta, name, title \\ String.capitalize(name)) do
   defp pretty_dict(meta, name, title \\ nil) do
-    title = title || name
+    title = title || String.capitalize(name)
 
     if (dict = meta[name]) && dict != [] do
       Mix.shell.info("  #{title}:")

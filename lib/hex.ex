@@ -1,4 +1,9 @@
 defmodule Hex do
+  def start do
+    start_api()
+    start_mix()
+  end
+
   def start_api do
     :inets.start()
     if url = System.get_env("HEX_URL") do
@@ -19,7 +24,7 @@ defmodule Hex do
   def url do
     case :application.get_env(:hex, :url) do
       { :ok, url } -> url
-      :undefined   -> "http://localhost:4000" # "http://hex.org"
+      :undefined   -> "http://hex.pm/api"
     end
   end
 

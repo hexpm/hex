@@ -2,6 +2,24 @@ defmodule Mix.Tasks.Hex.Register do
   use Mix.Task
   alias Mix.Tasks.Hex.Util
 
+  @shortdoc "Register a new hex user"
+
+  @moduledoc """
+  Registers a new hex user.
+
+  `mix hex.register -u username -e email -p password`
+
+  ## Command line options
+
+  * `--user`, `-u` - Username for the user, used for authentication (required)
+
+  * `--email`, `-e` - Email of the user, used for contact information if there
+    are issues with a package. Will not be shared (required)
+
+  * `--password`, `-p` - Password for the user, used for authentication
+    (required)
+  """
+
   @aliases [u: :user, e: :email, p: :password]
 
   def run(args) do

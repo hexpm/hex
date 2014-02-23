@@ -2,7 +2,13 @@ defmodule Mix.Tasks.Hex.Search do
   use Mix.Task
   alias Mix.Tasks.Hex.Util
 
-  @aliases [u: :user, e: :email, p: :password]
+  @shortdoc "Search for package names"
+
+  @moduledoc """
+  Print names matching the given search query.
+
+  `mix hex.search package`
+  """
 
   def run(args) do
     { _opts, args, _ } = OptionParser.parse(args)
