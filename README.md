@@ -6,7 +6,7 @@ Hex is package manager for [Elixir](https://github.com/elixir-lang/elixir) that 
 
 ## Installation
 
-Install by running in your shell `mix local.install http://hex.pm/archives/hex.ez && mix hex.update`. The Hex installation can later be updated with `mix hex.update --system`.
+Install by running in your shell `mix local.install https://hex.pm/archives/hex.ez && mix hex.update`. The Hex installation can later be updated with `mix hex.update --system`.
 
 ## Usage
 

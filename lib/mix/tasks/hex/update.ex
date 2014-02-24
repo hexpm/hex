@@ -1,7 +1,8 @@
 defmodule Mix.Tasks.Hex.Update do
   use Mix.Task
+  alias Mix.Tasks.Hex.Util
 
-  @archive_url "http://hex.pm/archives/hex.ez"
+  @archive_url "https://hex.pm/archives/hex.ez"
 
   @shortdoc "Update hex"
 

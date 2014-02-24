@@ -5,10 +5,9 @@ defmodule Hex do
   end
 
   def start_api do
+    :ssl.start()
     :inets.start()
-    if url = System.get_env("HEX_URL") do
-      url(url)
-    end
+    if url = System.get_env("HEX_URL"), do: url(url)
   end
 
   def start_mix do
@@ -24,7 +23,7 @@ defmodule Hex do
   def url do
     case :application.get_env(:hex, :url) do
       { :ok, url } -> url
-      :undefined   -> "http://hex.pm"
+      :undefined   -> "https://hex.pm"
     end
   end
 
