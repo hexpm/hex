@@ -14,12 +14,12 @@ defmodule Mix.Tasks.Hex.UpdateTest do
 
       Mix.Tasks.Hex.Update.run([])
       assert_received { :mix_shell, :info, ["Downloading registry..."] }
-      assert_received { :mix_shell, :info, ["Updating registry was successful!"] }
+      assert_received { :mix_shell, :info, ["Registry update was successful!"] }
       assert File.exists?(Hex.Registry.path)
 
       Mix.Tasks.Hex.Update.run([])
       assert_received { :mix_shell, :info, ["Downloading registry..."] }
-      assert_received { :mix_shell, :info, ["Updating registry was successful!"] }
+      assert_received { :mix_shell, :info, ["Registry update was successful!"] }
       assert File.exists?(Hex.Registry.path)
     end
   after

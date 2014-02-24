@@ -42,6 +42,5 @@ defmodule Mix.Tasks.Hex.Update do
         Mix.shell.error("Registry update failed! (#{code})")
         Util.print_error_result(code, body)
     end
-
   end
 end
