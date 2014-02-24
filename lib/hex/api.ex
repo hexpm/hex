@@ -1,27 +1,28 @@
 defmodule Hex.API do
   def get_user(username) do
-    request(:get, "users/#{username}", [])
+    request(:get, api_url("users/#{username}"), [])
   end
 
   def new_user(username, email, password) do
-    request(:post, "users", [], [username: username, email: email, password: password])
+    request(:post, api_url("users"), [],
+            [username: username, email: email, password: password])
   end
 
   def get_package(name) do
-    request(:get, "packages/#{name}", [])
+    request(:get, api_url("packages/#{name}"), [])
   end
 
   def get_packages(search) do
     query = URI.encode_query([search: search])
-    request(:get, "packages?#{query}", [])
+    request(:get, api_url("packages?#{query}"), [])
   end
 
   def new_package(name, meta, auth) do
-    request(:put, "packages/#{name}", auth(auth), [meta: meta])
+    request(:put, api_url("packages/#{name}"), auth(auth), [meta: meta])
   end
 
   def get_release(name, version) do
-    request(:get, "packages/#{name}/releases/#{version}", [])
+    request(:get, api_url("packages/#{name}/releases/#{version}"), [])
   end
 
   def new_release(name, version, url, ref, reqs, auth) do
@@ -29,16 +30,21 @@ defmodule Hex.API do
              git_url: url,
              git_ref: ref,
              requirements: reqs ]
-    request(:post, "packages/#{name}/releases", auth(auth), body)
+    request(:post, api_url("packages/#{name}/releases"), auth(auth), body)
+  end
+
+  def get_archives do
+    request(:get, url("archives"), [])
   end
 
   def get_registry(filename) do
-    request_file(:get, "registry", filename)
+    request_file(:get, api_url("registry"), filename)
   end
 
-  defp request(method, path, headers, body \\ nil) do
-    url = url(path)
-    headers = [ { 'accept', 'application/vnd.hex.beta+elixir' } ] ++ headers
+  defp request(method, url, headers, body \\ nil) do
+    headers = [ { 'accept', 'application/vnd.hex.beta+elixir' },
+                { 'user-agent', 'Hex/' ++ String.to_char_list!(Hex.version) } ]
+              ++ headers
     http_opts = [timeout: 5000]
     opts = [body_format: :binary]
 
@@ -52,23 +58,27 @@ defmodule Hex.API do
       { :ok, response } ->
         handle_response(response)
       { :error, reason } ->
-        raise Hex.Error, message: "HTTP failure: #{inspect(reason)}"
+        { :http_error, reason }
     end
   end
 
-  defp request_file(method, path, filename) do
-    url = url(path)
-    headers = [ { 'accept', 'application/vnd.hex.beta+dets' } ]
+  defp request_file(method, url, filename) do
+    headers = [ { 'accept', 'application/vnd.hex.beta+dets' },
+                { 'user-agent', 'Hex/' ++ String.to_char_list!(Hex.version) } ]
     http_opts = [timeout: 5000]
     request = { url, headers }
     opts = [stream: String.to_char_list!(filename)]
 
     case :httpc.request(method, request, http_opts, opts) do
-      { :ok, :saved_to_file } ->
-        :ok
+      { :ok, response } ->
+        handle_response(response)
       { :error, reason } ->
-        raise Hex.Error, message: "HTTP failure: #{inspect(reason)}"
+        { :http_error, reason }
     end
+  end
+
+  defp handle_response(:saved_to_file) do
+    :ok
   end
 
   defp handle_response({ { _version, code, _reason }, headers, body }) do
@@ -89,7 +99,11 @@ defmodule Hex.API do
   end
 
   defp url(path) do
-    String.to_char_list!(Hex.url <> "/api/" <> path)
+    :binary.bin_to_list(Hex.url <> "/" <> path)
+  end
+
+  defp api_url(path) do
+    :binary.bin_to_list(Hex.url <> "/api/" <> path)
   end
 
   defp auth(info) do

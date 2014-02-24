@@ -229,7 +229,7 @@ if :integration in ExUnit.configuration[:include] do
   db = "hex_client_test"
   db_url = "ecto://postgres:postgres@localhost/#{db}"
 
-  System.put_env("HEX_ECTO_URL", db_url)
+  System.put_env("DATABASE_URL", db_url)
   :application.ensure_all_started(:hex_web)
   :application.set_env(:hex_web, :password_work_factor, 4)
 

@@ -34,11 +34,26 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp general() do
-    # TODO: version, new version avaliable?
-    #       github links to both repos (for docs)
+    Mix.shell.info("Hex v" <> Hex.version)
 
+    case Hex.API.get_archives() do
+      { 200, body } ->
+        # Default to stable channel when we have one
+        latest = body[Hex.channel] || body["dev"]
+
+        if Version.compare(latest["version"], Hex.version) == :gt do
+          Mix.shell.info("Newer version available: v" <> latest["version"] <> " update with 'mix hex.update --system'")
+        else
+          Mix.shell.info("Latest version installed")
+        end
+
+      { code, body } ->
+        Mix.shell.error("Failed to fetch installation information (#{code})")
+        Util.print_error_result(code, body)
+    end
+
+    Mix.shell.info("")
     path = Hex.Registry.path()
-
     if File.exists?(path) do
       Hex.start_mix
       stat = File.stat!(path)
@@ -61,7 +76,7 @@ defmodule Mix.Tasks.Hex.Info do
         Mix.shell.error("No package with name #{package}")
       { code, body } ->
         Mix.shell.error("Failed to retrieve package information! (#{code})")
-        Util.print_error_result(body)
+        Util.print_error_result(code, body)
     end
   end
 
@@ -73,7 +88,7 @@ defmodule Mix.Tasks.Hex.Info do
         Mix.shell.error("No release with package name #{package} and version #{version}")
       { code, body } ->
         Mix.shell.error("Failed to retrieve release information! (#{code})")
-        Util.print_error_result(body)
+        Util.print_error_result(code, body)
     end
   end
 
@@ -108,7 +123,6 @@ defmodule Mix.Tasks.Hex.Info do
     end
   end
 
-  # defp pretty_dict(meta, name, title \\ String.capitalize(name)) do
   defp pretty_dict(meta, name, title \\ nil) do
     title = title || String.capitalize(name)
 

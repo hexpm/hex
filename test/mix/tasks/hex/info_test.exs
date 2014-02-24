@@ -30,6 +30,10 @@ defmodule Mix.Tasks.Hex.InfoTest do
       HexWeb.RegistryBuilder.wait_for_build
 
       Mix.Tasks.Hex.Info.run([])
+      message = "Hex v" <> Hex.version
+      assert_received { :mix_shell, :info, [^message] }
+      assert_received { :mix_shell, :info, ["Latest version installed"] }
+
       assert_received { :mix_shell, :info, ["No registry file available, fetch it with 'mix hex.update'"] }
 
       Hex.API.get_registry(Hex.Registry.path)

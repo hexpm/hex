@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Hex.Search do
             print_packages(body)
           { code, body } ->
             Mix.shell.error("Package search failed! (#{code})")
-            Util.print_error_result(body)
+            Util.print_error_result(code, body)
         end
       _ ->
         raise Mix.Error, message: "invalid arguments, expected 'mix hex.search PACKAGE'"

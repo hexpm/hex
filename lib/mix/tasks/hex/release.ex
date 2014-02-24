@@ -85,10 +85,9 @@ defmodule Mix.Tasks.Hex.Release do
     case Hex.API.new_package(config[:app], meta, opts) do
       { code, _ } when code in [200, 201] ->
         true
-
       { code, body } ->
         Mix.shell.error("Updating package #{config[:app]} failed! (#{code})")
-        Util.print_error_result(body)
+        Util.print_error_result(code, body)
         false
     end
   end
@@ -108,7 +107,7 @@ defmodule Mix.Tasks.Hex.Release do
           "release #{config[:version]} was successful!")
       { code, body } ->
         Mix.shell.error("Creating release #{config[:app]} #{config[:version]} failed! (#{code})")
-        Util.print_error_result(body)
+        Util.print_error_result(code, body)
     end
   end
 

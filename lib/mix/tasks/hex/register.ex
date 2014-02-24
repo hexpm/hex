@@ -36,7 +36,7 @@ defmodule Mix.Tasks.Hex.Register do
         Mix.shell.info("Registration of user #{opts[:user]} successful!")
       { code, body } ->
         Mix.shell.error("Registration of user #{opts[:user]} failed! (#{code})")
-        Util.print_error_result(body)
+        Util.print_error_result(code, body)
     end
   end
 end

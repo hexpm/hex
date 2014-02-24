@@ -3,7 +3,7 @@
   "cowlib": {:git, "git://github.com/extend/cowlib.git", "0d4ece08a7cce90a07cf33d4edad29bc324c7d90", [ref: "0.5.1"]},
   "decimal": {:git, "git://github.com/ericmj/decimal.git", "342476ec74b90619f54e419c9449b8fa2e859ae7", []},
   "ecto": {:git, "git://github.com/elixir-lang/ecto.git", "29744894030a86719dd6d50529435b96a0fc0312", []},
-  "hex_web": {:git, "git://github.com/ericmj/hex_web.git", "587767607516dcf3a0524e4869470119c74440c2", []},
+  "hex_web": {:git, "git://github.com/ericmj/hex_web.git", "5db0e24fe43b3224da195d87ea3e1488b8ecc8d2", []},
   "jazz": {:git, "git://github.com/meh/jazz.git", "c502fc3894249d677f0546bc02a9b866d5d32afa", []},
   "mime": {:git, "git://github.com/dynamo/mime.git", "db84370c53a67a7e58a4d0cfb026f4edc64a9367", []},
   "plug": {:git, "git://github.com/elixir-lang/plug.git", "c735ee21ab8384ab47ac27feb56cc509641fdc6d", []},

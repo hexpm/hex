@@ -1,26 +1,47 @@
 defmodule Mix.Tasks.Hex.Update do
   use Mix.Task
 
-  @shortdoc "Update hex registry file"
+  @archive_url "http://hex.pm/archives/hex.ez"
+
+  @shortdoc "Update hex"
 
   @moduledoc """
-  Update the hex registry file. This should be done periodically. The registry
-  status can be checked with `mix hex.info`.
-
-  The registry contains an index of all packages, releases and their
-  dependencies that is used during hex's dependency resolution.
+  Update the hex installation or registry file.
 
   `mix hex.update`
+
+  Updating the registry should be done periodically. The registry status can be
+  checked with `mix hex.info`. The registry contains an index of all packages,
+  releases and their dependencies that is used during Hex's dependency
+  resolution.
+
+  If the command line option `--system` is supplied
+
+  ## Command line options
+
+  * `--system` - Update the hex installation
   """
 
-  @aliases [q: :quiet]
-
   def run(args) do
-    { opts, _, _ } = OptionParser.parse(args, aliases: @aliases)
-
+    { opts, _, _ } = OptionParser.parse(args)
     Hex.start_api
-    unless opts[:quiet], do: Mix.shell.info("Downloading registry...")
-    Hex.API.get_registry(Hex.Registry.path)
-    unless opts[:quiet], do: Mix.shell.info("Updating registry was successful!")
+
+    # TODO: Check /archives for url
+    if opts[:system] do
+      Mix.shell.info("Updating Hex installation...")
+      Mix.Task.run "local.install", [@archive_url, "--force"]
+      Mix.shell.info("Updating Hex was successful!")
+    end
+
+    Mix.shell.info("Downloading registry...")
+
+    case Hex.API.get_registry(Hex.Registry.path) do
+      :ok ->
+        Mix.shell.info("Registry update was successful!")
+      { code, body } ->
+        Mix.shell.error("Registry update failed! (#{code})")
+        Util.print_error_result(code, body)
+    end
+
   end
 end

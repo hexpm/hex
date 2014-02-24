@@ -24,7 +24,7 @@ defmodule Hex do
   def url do
     case :application.get_env(:hex, :url) do
       { :ok, url } -> url
-      :undefined   -> "http://hex.pm/api"
+      :undefined   -> "http://hex.pm"
     end
   end
 
@@ -32,4 +32,11 @@ defmodule Hex do
     url = String.rstrip(url, ?/)
     :application.set_env(:hex, :url, url)
   end
+
+  version = Mix.project[:version]
+  { :ok, Version.Schema[pre: pre] } = Version.parse(version)
+  channel = Enum.join(pre, ".")
+
+  def version, do: unquote(version)
+  def channel, do: unquote(channel)
 end

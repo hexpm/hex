@@ -7,9 +7,12 @@ defmodule Mix.Tasks.Hex.Util do
     end)
   end
 
-  def print_error_result(nil), do: :ok
+  def print_error_result(:http_error, reason) do
+    Mix.shell.info(inspect(reason))
+  end
 
-  def print_error_result(body) do
+  def print_error_result(_status, nil), do: :ok
+  def print_error_result(_status, body) do
     if body["message"] && body["errors"] do
       Mix.shell.info(body["message"])
       pretty_errors(body["errors"])

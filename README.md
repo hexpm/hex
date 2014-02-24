@@ -6,16 +6,16 @@ Hex is package manager for [Elixir](https://github.com/elixir-lang/elixir) that 
 
 ## Installation
 
-Install by running in your shell `$ mix local.install [SNIP] && mix hex.update`. The Hex installation can later be updated with `$ mix hex.update --system`.
+Install by running in your shell `mix local.install http://hex.pm/archives/hex.ez && mix hex.update`. The Hex installation can later be updated with `mix hex.update --system`.
 
 ## Usage
 
-Hex integrates with Mix's dependency handling. This means that it utilizes Mix's dependency lock `mix.lock`, dependencies are defined in Mix's format and all the ordinary Mix dependency commands work. A Hex package dependency is defined with `package: true`. `Explex.start` is required at the top of the mixfile to ensure that Hex integrates with Mix.
+Hex integrates with Mix's dependency handling. This means that it utilizes Mix's dependency lock `mix.lock`, dependencies are defined in Mix's format and all the ordinary Mix dependency commands work. A Hex package dependency is defined with `package: true`. `Code.ensure_loaded?(Hex) && Hex.start` is required at the top of the mixfile to ensure that Hex integrates with Mix.
 
 Below is an example mix.exs file.
 
 ```elixir
-Hex.start
+Code.ensure_loaded?(Hex) && Hex.start
 
 defmodule MyProject.Mixfile do
   use Mix.Project
@@ -45,13 +45,21 @@ Because of the nature of dependency resolution Hex may sometimes fail to find co
 
 Hex supplies a few extra Mix tasks. They are prefixed with `hex` and can be found with `mix help`.
 
+## Browsing for packages
+
+Packages can be searched for with `mix hex.search`. Additional information about a package can be found with `mix hex.info`.
+
 ## Creating a package and release
 
 See `mix help hex.release`
 
 ## Roadmap and TODO
 
+* Website.
+
 * Honour `override: true` during resolution.
+
+* Package maintainers that can do releases.
 
 * Package into tarballs that we host instead of using git urls and refs.
 
@@ -63,6 +71,6 @@ See `mix help hex.release`
 
 Integration testing against the API server requires a postgresql user with username `postgres` and password `postgres`.
 
-Run integration tests with `$ mix test --include integration`.
+Run integration tests with `mix test --include integration`.
 
 Also see the API server repository: [hex_web](https://github.com/ericmj/hex_web).
