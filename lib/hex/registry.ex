@@ -35,9 +35,10 @@ defmodule Hex.Registry do
 
   def stat do
     fun = fn
-      { { _, _ }, _, _, _, _ }, { packages, releases } ->
+      { { _, _ }, _, _, _ }, { packages, releases } ->
         { packages, releases + 1 }
-      { _, _, _, _, _ }, { packages, releases } ->
+      { binary, list }, { packages, releases }
+          when is_binary(binary) and is_list(list) ->
         { packages + 1, releases }
       _, acc ->
         acc

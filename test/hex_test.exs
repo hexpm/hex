@@ -93,4 +93,8 @@ defmodule Hex.Test do
     deps = [decimal: "~> 0.2.0", ex_plex: nil]
     assert nil = resolve(deps, locked)
   end
+
+  test "stat" do
+    assert Hex.Registry.stat == { 9, 30 }
+  end
 end
