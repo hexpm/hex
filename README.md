@@ -63,6 +63,8 @@ See `mix help hex.release`
 
 * Package into tarballs that are hosted instead of using git urls and refs
 
+* Administrative tasks (changing user password, deleting packages etc.)
+
 * escript client for erlang users (should not require an elixir installation)
 
 * Use elixir version requirement during resolution (wait for elixir 1.0.0)

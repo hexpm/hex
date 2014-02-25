@@ -37,14 +37,14 @@ defmodule Hex.API do
     request(:get, url("archives"), [])
   end
 
-  def get_registry(filename) do
-    request_file(:get, api_url("registry"), filename)
+  def get_registry do
+    request(:get, api_url("registry"), [{ 'accept', 'application/vnd.hex.beta+ets' }])
   end
 
   defp request(method, url, headers, body \\ nil) do
-    headers = [ { 'accept', 'application/vnd.hex.beta+elixir' },
-                { 'user-agent', user_agent } ]
-              ++ headers
+    default_headers = [ { 'accept', 'application/vnd.hex.beta+elixir' },
+                        { 'user-agent', user_agent } ]
+    headers = Dict.merge(default_headers, headers)
     http_opts = [timeout: 5000]
     opts = [body_format: :binary]
 
@@ -62,28 +62,15 @@ defmodule Hex.API do
     end
   end
 
-  defp request_file(method, url, filename) do
-    headers = [ { 'accept', 'application/vnd.hex.beta+dets' },
-                { 'user-agent', user_agent } ]
-    http_opts = [timeout: 5000]
-    request = { url, headers }
-    opts = [stream: String.to_char_list!(filename)]
-
-    case :httpc.request(method, request, http_opts, opts) do
-      { :ok, response } ->
-        handle_response(response)
-      { :error, reason } ->
-        { :http_error, reason }
-    end
-  end
-
-  defp handle_response(:saved_to_file) do
-    :ok
-  end
-
   defp handle_response({ { _version, code, _reason }, headers, body }) do
+    content_type = :binary.list_to_bin(headers['content-type'] || '')
     handle_hex_message(headers['x-hex-message'])
-    { code, safe_deserialize_elixir(body) }
+
+    if String.contains?(content_type, "application/vnd.hex+elixir") do
+      body = safe_deserialize_elixir(body)
+    end
+
+    { code, body }
   end
 
   @doc false

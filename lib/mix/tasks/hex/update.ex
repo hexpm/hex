@@ -36,8 +36,9 @@ defmodule Mix.Tasks.Hex.Update do
 
     Mix.shell.info("Downloading registry...")
 
-    case Hex.API.get_registry(Hex.Registry.path) do
-      :ok ->
+    case Hex.API.get_registry do
+      { 200, body } ->
+        File.write!(Hex.Registry.path, body)
         Mix.shell.info("Registry update was successful!")
       { code, body } ->
         Mix.shell.error("Registry update failed! (#{code})")
