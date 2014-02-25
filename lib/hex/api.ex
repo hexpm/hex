@@ -43,7 +43,7 @@ defmodule Hex.API do
 
   defp request(method, url, headers, body \\ nil) do
     headers = [ { 'accept', 'application/vnd.hex.beta+elixir' },
-                { 'user-agent', 'Hex/' ++ String.to_char_list!(Hex.version) } ]
+                { 'user-agent', user_agent } ]
               ++ headers
     http_opts = [timeout: 5000]
     opts = [body_format: :binary]
@@ -64,7 +64,7 @@ defmodule Hex.API do
 
   defp request_file(method, url, filename) do
     headers = [ { 'accept', 'application/vnd.hex.beta+dets' },
-                { 'user-agent', 'Hex/' ++ String.to_char_list!(Hex.version) } ]
+                { 'user-agent', user_agent } ]
     http_opts = [timeout: 5000]
     request = { url, headers }
     opts = [stream: String.to_char_list!(filename)]
@@ -96,6 +96,10 @@ defmodule Hex.API do
       "fatal" -> Mix.shell.error("API error: " <> message)
       _       -> :ok
     end
+  end
+
+  defp user_agent do
+    'Hex/#{Hex.version} (Elixir/#{System.version})'
   end
 
   defp url(path) do

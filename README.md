@@ -43,7 +43,7 @@ When `mix deps.get` is called when you have unlocked dependencies Hex will perfo
 
 Because of the nature of dependency resolution Hex may sometimes fail to find compatible releases of all your dependencies. This can be resolved by unlocking dependencies with `mix deps.unlock`, more unlocked dependencies gives Hex a larger selection of releases to work with. It may also be the case that there is no way to resolve a conflict between your dependencies, then you need to contact the package maintainers so they can update their package requirements.
 
-Hex supplies a few extra Mix tasks. They are prefixed with `hex` and can be found with `mix help`.
+Hex supplies a few extra Mix tasks. They are prefixed with `hex` and can be found with `mix help`. Documentation about a specific task can be found with `mix help TASK_NAME`.
 
 ## Browsing for packages
 
@@ -55,17 +55,17 @@ See `mix help hex.release`
 
 ## Roadmap and TODO
 
-* Website.
+* Website
 
-* Honour `override: true` during resolution.
+* Honour `override: true` during resolution
 
-* Package maintainers that can do releases.
+* Package maintainers that can do releases
 
-* Package into tarballs that we host instead of using git urls and refs.
+* Package into tarballs that are hosted instead of using git urls and refs
 
-* escript client for erlang users (should not require an elixir installation).
+* escript client for erlang users (should not require an elixir installation)
 
-* Use elixir version requirement during resolution (wait for elixir 1.0.0).
+* Use elixir version requirement during resolution (wait for elixir 1.0.0)
 
 ## Contributing
 
