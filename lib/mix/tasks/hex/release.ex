@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.Release do
   @moduledoc """
   Create a new package release and update package meta data.
 
-  `mix hex.release -u username -p password`
+  `mix hex.release -u username -p password -t 0.13.0`
 
   If it is a new package being released it will be created and the user
   specified in `username` will be the package owner. Only package owners can
@@ -23,6 +23,8 @@ defmodule Mix.Tasks.Hex.Release do
 
   * `--password`, `-p` - Password of package owner (required)
 
+  * `--tag`, `-t` - Git tag of release (required)
+
   ## Configuration
 
   * `:app` - Package name (required)
@@ -31,7 +33,7 @@ defmodule Mix.Tasks.Hex.Release do
 
   * `:deps` - List of package dependencies (see Dependencies below)
 
-  * `:package` - List of package metadata (see Metadata below)
+  * `:package` - Hex specific configuration (see Package configuration below) (required)
 
   ## Dependencies
 
@@ -49,10 +51,12 @@ defmodule Mix.Tasks.Hex.Release do
   dependency resolution and neither will be they listed as dependencies under
   a release.
 
-  ## Metadata
+  ## Package configuration
 
   Additional metadata of the package can optionally be defined, but it is very
   recommended to do so.
+
+  * `:github` or `:git` - Git remote used when fetching package (required)
 
   * `:description` - Description of the project in a few paragraphs
 
@@ -63,11 +67,11 @@ defmodule Mix.Tasks.Hex.Release do
   * `:links` - Dictionary of links
   """
 
-  @aliases [u: :user, p: :password]
+  @aliases [u: :user, p: :password, t: :tag]
 
   def run(args) do
     { opts, _, _ } = OptionParser.parse(args, aliases: @aliases)
-    Util.required_opts(opts, [:user, :password])
+    Util.required_opts(opts, [:user, :password, :tag])
 
     Mix.Task.run "compile"
     Mix.Project.get!
@@ -93,15 +97,12 @@ defmodule Mix.Tasks.Hex.Release do
   end
 
   defp create_release(config, opts) do
-    reqs = Hex.Mix.deps_to_requirements(config[:deps] || [])
-    git_url = config[:source_url]
-    git_ref = git_ref()
+    reqs    = Hex.Mix.deps_to_requests(config[:deps] || [])
+    auth    = Keyword.take(opts, [:user, :password])
+    git_url = git_remote(config[:package])
+    git_ref = opts[:tag]
 
-    unless git_url do
-      raise Mix.Error, message: "Missing source_url, specifying the git repo url, option in mix.exs"
-    end
-
-    case Hex.API.new_release(config[:app], config[:version], git_url, git_ref, reqs, opts) do
+    case Hex.API.new_release(config[:app], config[:version], git_url, git_ref, reqs, auth) do
       { 201, _ } ->
         Mix.shell.info("Updating package #{config[:app]} and creating " <>
           "release #{config[:version]} was successful!")
@@ -111,18 +112,14 @@ defmodule Mix.Tasks.Hex.Release do
     end
   end
 
-  @ref_regex ~r/^
-      [0-9A-Fa-f]+
-      $/x
-
-  defp git_ref do
-    ref = System.cmd("git rev-parse --verify --quiet HEAD")
-          |> String.strip
-
-    unless Regex.match?(@ref_regex, ref) do
-      raise Mix.Error, message: "Invalid git ref, are you in a git repository?"
+  def git_remote(opts) do
+    cond do
+      gh = opts[:github] ->
+        "git://github.com/#{gh}.git"
+      git = opts[:git] ->
+        git
+      true ->
+        raise Mix.Error, message: "Missing git remote configuration in mix.exs"
     end
-
-    ref
   end
 end

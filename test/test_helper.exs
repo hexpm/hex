@@ -119,18 +119,19 @@ defmodule HexTest.Case do
   def create_test_registry(path) do
     packages =
       Enum.reduce(test_registry, HashDict.new, fn { name, vsn, _ }, dict ->
-        Dict.update(dict, :"#{name}", [vsn], &[vsn|&1])
+        Dict.update(dict, "#{name}", [vsn], &[vsn|&1])
       end)
 
     packages =
       Enum.map(packages, fn { name, vsns } ->
-        { name, Enum.sort(vsns, &(Version.compare(&1, &2) == :lt)) }
+        { "#{name}", Enum.sort(vsns, &(Version.compare(&1, &2) == :lt)) }
       end)
 
     releases =
       Enum.map(test_registry, fn { name, version, deps } ->
-        url = fixture_path("#{name}-#{version}")
-        { { :"#{name}", version }, deps, url, "HEAD" }
+        url  = fixture_path("#{name}-#{version}")
+        deps = Enum.map(deps, fn { app, req } -> { "#{app}", req } end)
+        { { "#{name}", version }, deps, url, "HEAD" }
       end)
 
     tid = :ets.new(@ets_table, [])

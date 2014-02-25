@@ -4,18 +4,20 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
 
   defmodule ReleaseA.Mixfile do
     def project do
-      [ app: :releasea, version: "0.0.1", source_url: "url" ]
+      [ app: :releasea, version: "0.0.1",
+        package: [git: "git_url"] ]
     end
   end
 
   defmodule ReleaseB.Mixfile do
     def project do
-      [ app: :releaseb, version: "0.0.2", source_url: "url",
-       deps: [{ :ex_doc, "0.0.1", package: true }] ]
+      [ app: :releaseb, version: "0.0.2",
+        package: [git: "git_url"],
+        deps: [{ :ex_doc, "0.0.1", package: true }] ]
     end
   end
 
-  @auth ["-u", "user", "-p", "hunter42"]
+  @opts ["-u", "user", "-p", "hunter42", "--tag", "HEAD"]
 
   setup do
     Hex.Registry.start(registry_path: tmp_path("hex.ets"))
@@ -23,7 +25,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
 
   test "validate" do
     assert_raise Mix.Error, "Missing command line option: password", fn ->
-      Mix.Tasks.Hex.Release.run(["--user", "release_name"])
+      Mix.Tasks.Hex.Release.run(["--user", "release_name", "-t", "HEAD"])
     end
   end
 
@@ -34,10 +36,10 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
       File.mkdir_p("tmp")
 
       git_commit()
-      Mix.Tasks.Hex.Release.run(@auth)
+      Mix.Tasks.Hex.Release.run(@opts)
       assert_received { :mix_shell, :info, ["Updating package releasea and creating release 0.0.1 was successful!"] }
 
-      Mix.Tasks.Hex.Release.run(@auth)
+      Mix.Tasks.Hex.Release.run(@opts)
       assert_received { :mix_shell, :error, ["Creating release releasea 0.0.1 failed! (422)"] }
     end
   end
@@ -51,7 +53,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
       git_commit()
       Mix.Tasks.Deps.Get.run([])
 
-      Mix.Tasks.Hex.Release.run(@auth)
+      Mix.Tasks.Hex.Release.run(@opts)
       assert_received { :mix_shell, :info, ["Updating package releaseb and creating release 0.0.2 was successful!"] }
     end
   after
