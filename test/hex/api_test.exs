@@ -45,8 +45,7 @@ defmodule Hex.APITest do
     HexWeb.RegistryBuilder.rebuild
     HexWeb.RegistryBuilder.wait_for_build
 
-    Hex.API.get_registry("tmp/file.dets")
-    assert File.exists?("tmp/file.dets")
+    assert { 200, _ } = Hex.API.get_registry
   end
 
   test "x-hex-message" do
