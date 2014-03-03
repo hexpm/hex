@@ -9,10 +9,10 @@ defmodule Mix.Tasks.Hex.RegisterTest do
   end
 
   test "create" do
-    Mix.Tasks.Hex.Register.run(["-u", "validation_name", "-p", "hunter42", "--email", "mail"])
+    Mix.Tasks.Hex.Register.run(["-u", "validation_name", "-p", "hunter42", "--email", "mail@mail.com"])
     assert_received { :mix_shell, :info, ["Registration of user validation_name successful!"] }
 
-    Mix.Tasks.Hex.Register.run(["-u", "some_other_name", "-p", "hunter42", "--email", "mail"])
+    Mix.Tasks.Hex.Register.run(["-u", "some_other_name", "-p", "hunter42", "--email", "mail@mail.com"])
     assert_received { :mix_shell, :error, ["Registration of user some_other_name failed! (422)"] }
   end
 end

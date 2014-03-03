@@ -97,13 +97,14 @@ defmodule Mix.Tasks.Hex.Release do
   end
 
   defp create_release(config, opts) do
+    # TODO: Filter on :only option
     reqs    = Hex.Mix.deps_to_requests(config[:deps] || [])
     auth    = Keyword.take(opts, [:user, :password])
     git_url = git_remote(config[:package])
     git_ref = opts[:tag]
 
     case Hex.API.new_release(config[:app], config[:version], git_url, git_ref, reqs, auth) do
-      { 201, _ } ->
+      { code, _ } when code in [200, 201] ->
         Mix.shell.info("Updating package #{config[:app]} and creating " <>
           "release #{config[:version]} was successful!")
       { code, body } ->

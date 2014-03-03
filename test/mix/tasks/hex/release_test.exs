@@ -38,9 +38,6 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
       git_commit()
       Mix.Tasks.Hex.Release.run(@opts)
       assert_received { :mix_shell, :info, ["Updating package releasea and creating release 0.0.1 was successful!"] }
-
-      Mix.Tasks.Hex.Release.run(@opts)
-      assert_received { :mix_shell, :error, ["Creating release releasea 0.0.1 failed! (422)"] }
     end
   end
 
