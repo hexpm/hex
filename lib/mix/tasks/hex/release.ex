@@ -97,8 +97,7 @@ defmodule Mix.Tasks.Hex.Release do
   end
 
   defp create_release(config, opts) do
-    # TODO: Filter on :only option
-    reqs    = Hex.Mix.deps_to_requests(config[:deps] || [])
+    reqs    = get_requests(config)
     auth    = Keyword.take(opts, [:user, :password])
     git_url = git_remote(config[:package])
     git_ref = opts[:tag]
@@ -113,7 +112,20 @@ defmodule Mix.Tasks.Hex.Release do
     end
   end
 
-  def git_remote(opts) do
+  defp get_requests(config) do
+    Enum.filter(config[:deps] || [], &prod_dep?(&1))
+    |> Hex.Mix.deps_to_requests
+  end
+
+  defp prod_dep?({ _app, opts }) do
+    if only = opts[:only], do: :prod in List.wrap(only), else: true
+  end
+
+  defp prod_dep?({ _app, _req, opts }) do
+    if only = opts[:only], do: :prod in List.wrap(only), else: true
+  end
+
+  defp git_remote(opts) do
     cond do
       gh = opts[:github] ->
         "git://github.com/#{gh}.git"
