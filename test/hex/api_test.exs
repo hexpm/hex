@@ -4,9 +4,15 @@ defmodule Hex.APITest do
 
   test "user" do
     assert { 404, _ } = Hex.API.get_user("test_user")
+
     assert { 201, _ } = Hex.API.new_user("test_user", "test_user@mail.com", "hunter42")
     assert { 200, body } = Hex.API.get_user("test_user")
     assert body["username"] == "test_user"
+
+    auth = [user: "test_user", password: "hunter42"]
+    assert { 200, _ } = Hex.API.update_user("new_mail@mail.com", nil, auth)
+    assert { 200, body } = Hex.API.get_user("test_user")
+    assert body["email"] == "new_mail@mail.com"
   end
 
   test "package" do

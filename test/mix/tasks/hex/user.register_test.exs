@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Hex.RegisterTest do
+defmodule Mix.Tasks.Hex.User.RegisterTest do
   use HexTest.Case
   @moduletag :integration
 
@@ -7,6 +7,6 @@ defmodule Mix.Tasks.Hex.RegisterTest do
     send self, { :mix_shell_input, :prompt, "mail@mail.com" }
     send self, { :mix_shell_input, :prompt, "hunter42" }
     Mix.Tasks.Hex.User.Register.run([])
-    assert_received { :mix_shell, :info, ["Registration of user eric successful!"] }
+    assert_received { :mix_shell, :info, ["Registration of user eric was successful!"] }
   end
 end

@@ -8,6 +8,16 @@ defmodule Hex.API do
             [username: username, email: email, password: password])
   end
 
+  def update_user(email, password, auth) do
+    body = []
+    if email, do: body = body ++ [email: email]
+    if password, do: body = body ++ [password: password]
+
+    headers = auth(auth) ++ [{ 'x-http-method-override', 'PATCH' }]
+
+    request(:post, api_url("users/#{auth[:user]}"), headers, body)
+  end
+
   def get_package(name) do
     request(:get, api_url("packages/#{name}"), [])
   end

@@ -24,7 +24,7 @@ defmodule Mix.Tasks.Hex.Search do
             Util.print_error_result(code, body)
         end
       _ ->
-        raise Mix.Error, message: "invalid arguments, expected 'mix hex.search PACKAGE'"
+        raise Mix.Error, message: "invalid arguments, expected 'mix hex.search package'"
     end
   end
 
