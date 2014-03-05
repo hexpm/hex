@@ -43,6 +43,10 @@ defmodule Hex.API do
     request(:post, api_url("packages/#{name}/releases"), auth(auth), body)
   end
 
+  def delete_release(name, version, auth) do
+    request(:delete, api_url("packages/#{name}/releases/#{version}"), auth(auth))
+  end
+
   def get_archives do
     request(:get, url("archives"), [])
   end

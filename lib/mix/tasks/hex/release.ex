@@ -13,9 +13,9 @@ defmodule Mix.Tasks.Hex.Release do
   specified in `username` will be the package owner. Only package owners can
   create new releases.
 
-  IMPORTANT! Make sure to create the commit for this release before running
-  task. Also, please make sure that the package compiles correctly and that all
-  tests pass.
+  A release can be amended or reverted with `--revert` up to one hour after its
+  creation. If you want to revert a release that is more than one hour old you
+  need to contact an administrator.
 
   ## Command line options
 
@@ -24,6 +24,8 @@ defmodule Mix.Tasks.Hex.Release do
   * `--pass`, `-p` - Password of package owner (required)
 
   * `--tag`, `-t` - Git tag of release (required)
+
+  * `--revert version` - Revert given release
 
   ## Configuration
 
@@ -46,8 +48,8 @@ defmodule Mix.Tasks.Hex.Release do
           { :cowboy, github: "extend/cowboy" } ]
       end
 
-  As can be seen git dependencies works alongside git dependencies. Important
-  to note is that non-packaged dependencies will not be used during hex's
+  As can be seen package dependencies works alongside git dependencies.
+  Important to note is that non-packaged dependencies will not be used during
   dependency resolution and neither will be they listed as dependencies under
   a release.
 
@@ -67,21 +69,38 @@ defmodule Mix.Tasks.Hex.Release do
   * `:links` - Dictionary of links
   """
 
+  @switches [revert: :string]
   @aliases [u: :user, p: :pass, t: :tag]
 
   def run(args) do
-    { opts, _, _ } = OptionParser.parse(args, aliases: @aliases)
-    config = Hex.Mix.read_config
-    opts = Util.config_opts(opts, config)
-    Util.required_opts(opts, [:user, :pass, :tag])
-
-    Mix.Task.run "compile"
-    Mix.Project.get!
-    config = Mix.project
-
+    { opts, _, _ } = OptionParser.parse(args, switches: @switches, aliases: @aliases)
+    user_config = Hex.Mix.read_config
+    opts = Util.config_opts(opts, user_config)
+    Util.required_opts(opts, [:user, :pass])
     Hex.start_api
-    if create_package?(config, opts) do
-      create_release(config, opts)
+
+    if version = opts[:revert] do
+      revert(Mix.project, version, opts)
+    else
+      Util.required_opts(opts, [:tag])
+      Mix.Task.run "compile"
+      Mix.Project.get!
+      config = Mix.project
+
+      if create_package?(config, opts) do
+        create_release(config, opts)
+      end
+    end
+  end
+
+  defp revert(config, version, opts) do
+    case Hex.API.delete_release(config[:app], version, opts) do
+      { 204, _ } ->
+        Mix.shell.info("Successfully reverted release #{config[:app]} #{config[:version]}")
+      { code, body } ->
+        Mix.shell.error("Reverting release #{config[:app]} #{config[:version]} failed! (#{code})")
+        Util.print_error_result(code, body)
+        false
     end
   end
 

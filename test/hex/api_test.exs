@@ -45,6 +45,9 @@ defmodule Hex.APITest do
     assert { 201, _ } = Hex.API.new_release("decimal", "0.0.2", "url", "ref", reqs, auth)
     assert { 200, body } = Hex.API.get_release("decimal", "0.0.2")
     assert body["requirements"] == reqs
+
+    assert { 204, _ } = Hex.API.delete_release("decimal", "0.0.2", auth)
+    assert { 404, _ } = Hex.API.get_release("decimal", "0.0.2")
   end
 
   test "registry" do

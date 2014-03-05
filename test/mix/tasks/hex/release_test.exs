@@ -29,7 +29,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
     end
   end
 
-  test "create" do
+  test "create and revert" do
     Mix.Project.push ReleaseA.Mixfile
 
     in_tmp fn _ ->
@@ -38,6 +38,9 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
       git_commit()
       Mix.Tasks.Hex.Release.run(@opts)
       assert_received { :mix_shell, :info, ["Updating package releasea and creating release 0.0.1 was successful!"] }
+
+      Mix.Tasks.Hex.Release.run(@opts ++ ["--revert", "0.0.1"])
+      assert_received { :mix_shell, :info, ["Successfully reverted release releasea 0.0.1"] }
     end
   end
 
