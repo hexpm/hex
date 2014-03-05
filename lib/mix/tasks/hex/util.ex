@@ -1,4 +1,16 @@
 defmodule Mix.Tasks.Hex.Util do
+  def update_config(config) do
+    if Mix.shell.yes?("Update config file?") do
+      Hex.Mix.update_config(config)
+    end
+  end
+
+  def config_opts(opts, config) do
+    if user = config[:username], do: opts = Keyword.put_new(opts, :user, user)
+    if pass = config[:password], do: opts = Keyword.put_new(opts, :pass, pass)
+    opts
+  end
+
   def required_opts(opts, required) do
     Enum.map(required, fn req ->
       unless Keyword.has_key?(opts, req) do

@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Hex.Release do
 
   * `--user`, `-u` - Username of package owner (required)
 
-  * `--password`, `-p` - Password of package owner (required)
+  * `--pass`, `-p` - Password of package owner (required)
 
   * `--tag`, `-t` - Git tag of release (required)
 
@@ -67,11 +67,13 @@ defmodule Mix.Tasks.Hex.Release do
   * `:links` - Dictionary of links
   """
 
-  @aliases [u: :user, p: :password, t: :tag]
+  @aliases [u: :user, p: :pass, t: :tag]
 
   def run(args) do
     { opts, _, _ } = OptionParser.parse(args, aliases: @aliases)
-    Util.required_opts(opts, [:user, :password, :tag])
+    config = Hex.Mix.read_config
+    opts = Util.config_opts(opts, config)
+    Util.required_opts(opts, [:user, :pass, :tag])
 
     Mix.Task.run "compile"
     Mix.Project.get!
@@ -98,7 +100,7 @@ defmodule Mix.Tasks.Hex.Release do
 
   defp create_release(config, opts) do
     reqs    = get_requests(config)
-    auth    = Keyword.take(opts, [:user, :password])
+    auth    = Keyword.take(opts, [:user, :pass])
     git_url = git_remote(config[:package])
     git_ref = opts[:tag]
 

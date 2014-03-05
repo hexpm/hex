@@ -36,4 +36,19 @@ defmodule Hex.MixTest do
     purge [ Ecto.NoConflict.Mixfile, Git_repo.NoConflict.Mixfile,
             Postgrex.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
   end
+
+  test "config" do
+    in_tmp fn _ ->
+      System.put_env("MIX_HOME", System.cwd!)
+      assert Hex.Mix.read_config == []
+
+      Hex.Mix.update_config([key: "value"])
+      assert Hex.Mix.read_config == [key: "value"]
+
+      Hex.Mix.update_config([key: "other", foo: :bar])
+      assert Hex.Mix.read_config == [key: "other", foo: :bar]
+    end
+  after
+    System.delete_env("MIX_HOME")
+  end
 end

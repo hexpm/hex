@@ -108,7 +108,7 @@ defmodule Hex.API do
   end
 
   defp auth(info) do
-    base64 = :base64.encode_to_string(info[:user] <> ":" <> info[:password])
+    base64 = :base64.encode_to_string(info[:user] <> ":" <> info[:pass])
     [{ 'authorization', 'Basic ' ++ base64 }]
   end
 

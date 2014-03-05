@@ -24,7 +24,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
   end
 
   test "validate" do
-    assert_raise Mix.Error, "Missing command line option: password", fn ->
+    assert_raise Mix.Error, "Missing command line option: pass", fn ->
       Mix.Tasks.Hex.Release.run(["--user", "release_name", "-t", "HEAD"])
     end
   end

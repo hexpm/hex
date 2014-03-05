@@ -9,14 +9,14 @@ defmodule Hex.APITest do
     assert { 200, body } = Hex.API.get_user("test_user")
     assert body["username"] == "test_user"
 
-    auth = [user: "test_user", password: "hunter42"]
+    auth = [user: "test_user", pass: "hunter42"]
     assert { 200, _ } = Hex.API.update_user("new_mail@mail.com", nil, auth)
     assert { 200, body } = Hex.API.get_user("test_user")
     assert body["email"] == "new_mail@mail.com"
   end
 
   test "package" do
-    auth = [user: "user", password: "hunter42"]
+    auth = [user: "user", pass: "hunter42"]
 
     assert { 404, _ } = Hex.API.get_package("ecto")
     assert { 201, _ } = Hex.API.new_package("ecto", [description: "foobar"], auth)
@@ -30,7 +30,7 @@ defmodule Hex.APITest do
   end
 
   test "release" do
-    auth = [user: "user", password: "hunter42"]
+    auth = [user: "user", pass: "hunter42"]
     Hex.API.new_package("postgrex", [], auth)
     Hex.API.new_package("decimal", [], auth)
 
