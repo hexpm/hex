@@ -4,6 +4,6 @@ defmodule Mix.Tasks.Hex.SearchTest do
 
   test "search" do
     Mix.Tasks.Hex.Search.run(["e"])
-    assert_received { :mix_shell, :info, ["ex_doc"] }
+    assert_received { :mix_shell, :info, ["decimal"] }
   end
 end

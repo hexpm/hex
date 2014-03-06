@@ -48,6 +48,24 @@ defmodule Hex.Registry do
     :ets.foldl(fun, { 0, 0 }, tid)
   end
 
+  def search(term) do
+    fun = fn
+      { package, list }, packages when is_binary(package) and is_list(list) ->
+        if String.contains?(package, term) do
+          [package|packages]
+        else
+          packages
+        end
+      _, packages ->
+        packages
+    end
+
+    { :ok, tid } = :application.get_env(:hex, @registry_tid)
+    :ets.foldl(fun, [], tid)
+    |> Enum.reverse
+    |> Enum.sort
+  end
+
   def package_exists?(package) do
     !! get_versions(package)
   end

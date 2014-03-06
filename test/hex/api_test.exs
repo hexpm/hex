@@ -24,11 +24,6 @@ defmodule Hex.APITest do
     assert body["meta"]["description"] == "foobar"
   end
 
-  test "packages" do
-    assert { 200, body } = Hex.API.get_packages("e")
-    assert length(body) >= 1
-  end
-
   test "release" do
     auth = [user: "user", pass: "hunter42"]
     Hex.API.new_package("postgrex", [], auth)

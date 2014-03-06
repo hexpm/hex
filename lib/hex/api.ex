@@ -22,11 +22,6 @@ defmodule Hex.API do
     request(:get, api_url("packages/#{name}"), [])
   end
 
-  def get_packages(search) do
-    query = URI.encode_query([search: search])
-    request(:get, api_url("packages?#{query}"), [])
-  end
-
   def new_package(name, meta, auth) do
     request(:put, api_url("packages/#{name}"), auth(auth), [meta: meta])
   end
