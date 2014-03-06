@@ -32,8 +32,10 @@ defmodule Hex.Mix do
       atom = :"#{app}"
       { _, _, url, ref } = Registry.get_release(app, version)
       dep = Enum.find(deps, &(elem(&1, 0) == atom)) || { atom, package: true }
-      loaded_dep = Mix.Deps.Loader.to_dep(dep, scms, from)
-      loaded_dep.update_opts(&(&1 ++ [git_url: url, git_ref: ref]))
+
+      Mix.Deps.Loader.to_dep(dep, scms, from)
+        .update_deps(fn deps -> Enum.filter(deps, &(&1.scm == Hex.Mix.SCM)) end)
+        .update_opts(&(&1 ++ [git_url: url, git_ref: ref]))
     end)
   end
 
