@@ -36,9 +36,11 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
       File.mkdir_p("tmp")
 
       git_commit()
+      send self, { :mix_shell_input, :yes?, true }
       Mix.Tasks.Hex.Release.run(@opts)
-      assert_received { :mix_shell, :info, ["Updating package releasea and creating release 0.0.1 was successful!"] }
+      assert_received { :mix_shell, :info, ["Successfully updated packaged and pushed new release!"] }
 
+      send self, { :mix_shell_input, :yes?, true }
       Mix.Tasks.Hex.Release.run(@opts ++ ["--revert", "0.0.1"])
       assert_received { :mix_shell, :info, ["Successfully reverted release releasea 0.0.1"] }
     end
@@ -53,8 +55,9 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
       git_commit()
       Mix.Tasks.Deps.Get.run([])
 
+      send self, { :mix_shell_input, :yes?, true }
       Mix.Tasks.Hex.Release.run(@opts)
-      assert_received { :mix_shell, :info, ["Updating package releaseb and creating release 0.0.2 was successful!"] }
+      assert_received { :mix_shell, :info, ["Successfully updated packaged and pushed new release!"] }
     end
   after
     purge [Ex_doc.NoConflict.Mixfile]

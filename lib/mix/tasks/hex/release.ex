@@ -86,11 +86,26 @@ defmodule Mix.Tasks.Hex.Release do
       Mix.Task.run "compile"
       Mix.Project.get!
       config = Mix.project
+      reqs   = get_requests(config)
+
+      print_info(config, reqs, opts)
 
       if create_package?(config, opts) do
-        create_release(config, opts)
+        create_release(config, reqs, opts)
       end
     end
+  end
+
+  defp print_info(config, reqs, opts) do
+    Mix.shell.info("Pushing release #{config[:app]} #{config[:version]}")
+    Mix.shell.info("  Tag: #{opts[:tag]}")
+    Mix.shell.info("  Dependencies:")
+
+    Enum.each(reqs, fn { app, req } ->
+      Mix.shell.info("    #{app}: #{req}")
+    end)
+
+    Mix.shell.yes?("Proceed?")
   end
 
   defp revert(config, version, opts) do
@@ -117,16 +132,14 @@ defmodule Mix.Tasks.Hex.Release do
     end
   end
 
-  defp create_release(config, opts) do
-    reqs    = get_requests(config)
+  defp create_release(config, reqs, opts) do
     auth    = Keyword.take(opts, [:user, :pass])
     git_url = git_remote(config[:package])
     git_ref = opts[:tag]
 
     case Hex.API.new_release(config[:app], config[:version], git_url, git_ref, reqs, auth) do
       { code, _ } when code in [200, 201] ->
-        Mix.shell.info("Updating package #{config[:app]} and creating " <>
-          "release #{config[:version]} was successful!")
+        Mix.shell.info("Successfully updated packaged and pushed new release!")
       { code, body } ->
         Mix.shell.error("Creating release #{config[:app]} #{config[:version]} failed! (#{code})")
         Util.print_error_result(code, body)
