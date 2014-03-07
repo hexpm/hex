@@ -11,26 +11,32 @@ defmodule Hex.Resolver do
         if (versions = Registry.get_versions(name)) && version in versions do
           active = Active[name: name, version: version, parents: [], possibles: []]
           dict = Dict.put(dict, name, active)
-          pending = pending ++ get_deps(name, version)
+          pending = pending ++ get_deps(name, version, [])
         end
         { dict, pending }
       end)
 
+    overriden =
+      Enum.flat_map(requests, fn
+        { name, _req, true }   -> [name]
+        { _name, _req, false } -> []
+      end)
+
     requests =
-      Enum.map(requests, fn { name, req } ->
+      Enum.map(requests, fn { name, req, _override? } ->
         Request[name: name, req: req]
       end)
 
-    do_resolve(activated, pending ++ requests)
+    do_resolve(activated, pending ++ requests, overriden)
   end
 
-  defp do_resolve(activated, []) do
+  defp do_resolve(activated, [], _overriden) do
     Enum.map(activated, fn { name, Active[version: version] } ->
       { name, version }
     end) |> Enum.reverse
   end
 
-  defp do_resolve(activated, [request|pending]) do
+  defp do_resolve(activated, [request|pending], overriden) do
     active = activated[request.name]
 
     if active do
@@ -39,9 +45,9 @@ defmodule Hex.Resolver do
 
       if vsn_match?(active.version, request.req) do
         activated = Dict.put(activated, request.name, active)
-        do_resolve(activated, pending)
+        do_resolve(activated, pending, overriden)
       else
-        backtrack(active, activated)
+        backtrack(active, activated, overriden)
       end
     else
       versions = Registry.get_versions(request.name)
@@ -50,45 +56,49 @@ defmodule Hex.Resolver do
 
       case versions do
         [] ->
-          backtrack(activated[request.parent], activated)
+          backtrack(activated[request.parent], activated, overriden)
 
         [version|possibles] ->
-          new_pending = get_deps(request.name, version)
+          new_pending = get_deps(request.name, version, overriden)
           state = State[activated: activated, pending: pending]
           new_active = Active[name: request.name, version: version, state: state,
                               possibles: possibles, parents: wrap(request.parent)]
           activated = Dict.put(activated, request.name, new_active)
 
-          do_resolve(activated, pending ++ new_pending)
+          do_resolve(activated, pending ++ new_pending, overriden)
       end
     end
   end
 
-  defp backtrack(nil, _activated) do
+  defp backtrack(nil, _activated, _overriden) do
     nil
   end
 
-  defp backtrack(Active[state: state] = active, activated) do
+  defp backtrack(Active[state: state] = active, activated, overriden) do
     case active.possibles do
       [] ->
         Enum.find_value(active.parents, fn parent ->
-          backtrack(activated[parent], activated)
+          backtrack(activated[parent], activated, overriden)
         end)
 
       [version|possibles] ->
         active = active.possibles(possibles).version(version)
-        pending = get_deps(active.name, version)
+        pending = get_deps(active.name, version, overriden)
 
         activated = Dict.put(state.activated, active.name, active)
-        do_resolve(activated, state.pending ++ pending)
+        do_resolve(activated, state.pending ++ pending, overriden)
     end
   end
 
-  def get_deps(package, version) do
+  def get_deps(package, version, overriden) do
     { _, deps, _, _ } = Registry.get_release(package, version)
 
-    Enum.map(deps, fn { name, req } ->
-      Request[name: name, req: req, parent: package]
+    Enum.flat_map(deps, fn { name, req } ->
+      if name in overriden do
+        []
+      else
+        [Request[name: name, req: req, parent: package]]
+      end
     end)
   end
 

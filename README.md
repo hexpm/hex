@@ -57,8 +57,6 @@ See `mix help hex.release`
 
 * Website
 
-* Honour `override: true` during resolution
-
 * Package maintainers that can do releases
 
 * Package into tarballs that are hosted instead of using git urls and refs

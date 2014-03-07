@@ -2,7 +2,8 @@ defmodule Hex.Test do
   use HexTest.Case
 
   defp resolve(reqs, locked \\ []) do
-    Hex.Resolver.resolve(reqs(reqs), reqs(locked))
+    reqs = Enum.map(reqs, fn { app, req } -> { app, req, false } end)
+    Hex.Resolver.resolve(reqs, reqs(locked))
   end
 
   def reqs(reqs) do
@@ -26,7 +27,7 @@ defmodule Hex.Test do
     deps = reqs([foo: "0.2.1", bar: "0.2.0"])
     assert Dict.equal? reqs([foo: "0.2.1", bar: "0.2.0"]), resolve(deps)
 
-    deps = [foo: "0.2.0", bar: "0.2.0"]
+    deps = reqs([foo: "0.2.0", bar: "0.2.0"])
     assert Dict.equal? reqs([foo: "0.2.0", bar: "0.2.0"]), resolve(deps)
 
     deps = reqs([foo: "~> 0.3.0", bar: nil])

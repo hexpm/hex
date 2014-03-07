@@ -1,16 +1,30 @@
 defmodule Hex.Mix do
   alias Hex.Registry
 
-  def deps_to_requests(deps) do
-    Enum.flat_map(deps, fn
-      Mix.Dep[app: app, opts: opts, requirement: req] ->
-        if opts[:package], do: [{ "#{app}", req }], else: []
-      { app, opts } ->
-        if opts[:package], do: [{ "#{app}", nil }], else: []
-      { app, req, opts } ->
-        if opts[:package], do: [{ "#{app}", req }], else: []
+  def deps_to_requests(deps, main \\ []) do
+    Enum.flat_map(deps, fn dep ->
+      { app, req, opts } = dep(dep)
+      if opts[:package], do: [{ "#{app}", req, override?(app, main) }], else: []
     end)
   end
+
+  defp override?(app, main) do
+    result =
+      Enum.find_value(main, fn dep ->
+        { dep_app, _req, opts } = dep(dep)
+        if app == dep_app do
+          if opts[:override], do: :yes, else: :no
+        end
+      end)
+    result == :yes
+  end
+
+  defp dep(Mix.Dep[app: app, opts: opts, requirement: req]),
+    do: { app, req, opts }
+  defp dep({ app, opts }),
+    do: { app, nil, opts }
+  defp dep({ app, req, opts }),
+    do: { app, req, opts }
 
   def from_lock(lock) do
     Enum.flat_map(lock, fn { name, opts } ->
@@ -26,16 +40,16 @@ defmodule Hex.Mix do
 
   def annotate_deps(result, deps) do
     scms = Mix.SCM.available
+    # TODO: from may be wrong for some deps
     from = Path.absname("mix.exs")
 
     Enum.map(result, fn { app, version } ->
       atom = :"#{app}"
       { _, _, url, ref } = Registry.get_release(app, version)
-      dep = Enum.find(deps, &(elem(&1, 0) == atom)) || { atom, package: true }
+      dep = Enum.find(deps, &(&1.app == atom))
+            || Mix.Deps.Loader.to_dep({ atom, package: true }, scms, from)
 
-      Mix.Deps.Loader.to_dep(dep, scms, from)
-        .update_deps(fn deps -> Enum.filter(deps, &(&1.scm == Hex.Mix.SCM)) end)
-        .update_opts(&(&1 ++ [git_url: url, git_ref: ref]))
+      dep.update_opts(&(&1 ++ [git_url: url, git_ref: ref]))
     end)
   end
 

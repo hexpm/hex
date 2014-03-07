@@ -1,11 +1,20 @@
 defmodule Hex.MixTest do
   use HexTest.Case
 
-  defmodule Foo do
+  defmodule Simple do
     def project do
-      [ app: :foo,
+      [ app: :simple,
         version: "0.1.0",
         deps: [ { :ecto, [package: true] } ] ]
+    end
+  end
+
+  defmodule Override do
+    def project do
+      [ app: :override,
+        version: "0.1.0",
+        deps: [ { :ecto, package: true },
+                { :ex_doc, "~> 0.1.0", package: true, override: true }] ]
     end
   end
 
@@ -14,13 +23,12 @@ defmodule Hex.MixTest do
   end
 
   test "simple" do
-    Mix.Project.push Foo
+    Mix.Project.push Simple
 
     in_tmp fn _ ->
       Mix.Task.run "deps.get"
 
       assert_received { :mix_shell, :info, ["* Getting ecto (package)"] }
-      assert_received { :mix_shell, :info, ["* Getting git_repo" <> _] }
       assert_received { :mix_shell, :info, ["* Getting postgrex (package)"] }
       assert_received { :mix_shell, :info, ["* Getting ex_doc (package)"] }
 
@@ -28,13 +36,29 @@ defmodule Hex.MixTest do
       Mix.Task.run "deps"
 
       assert_received { :mix_shell, :info, ["* ecto 0.2.0 (package)"] }
-      assert_received { :mix_shell, :info, ["* git_repo 0.1.0" <> _] }
       assert_received { :mix_shell, :info, ["* postgrex 0.2.0 (package)"] }
       assert_received { :mix_shell, :info, ["* ex_doc 0.0.1 (package)"] }
     end
   after
-    purge [ Ecto.NoConflict.Mixfile, Git_repo.NoConflict.Mixfile,
-            Postgrex.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
+    purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+            Ex_doc.NoConflict.Mixfile ]
+  end
+
+  test "override" do
+    Mix.Project.push Override
+
+    in_tmp fn _ ->
+      Mix.Task.run "deps.get"
+      Mix.Task.run "deps.compile"
+      Mix.Task.run "deps"
+
+      assert_received { :mix_shell, :info, ["* ecto 0.2.1 (package)"] }
+      assert_received { :mix_shell, :info, ["* postgrex 0.2.1 (package)"] }
+      assert_received { :mix_shell, :info, ["* ex_doc 0.1.0 (package)"] }
+    end
+  after
+    purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+            Ex_doc.NoConflict.Mixfile ]
   end
 
   test "config" do

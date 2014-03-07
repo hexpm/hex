@@ -11,11 +11,11 @@ defmodule Hex.RemoteConverger do
     Hex.Registry.package_exists?("#{app}")
   end
 
-  def converge(main) do
-    deps   = Mix.project[:deps] || []
+  def converge(deps) do
+    main   = Mix.project[:deps] || []
     lock   = Mix.Deps.Lock.read
     locked = Hex.Mix.from_lock(lock)
-    reqs   = Hex.Mix.deps_to_requests(main)
+    reqs   = Hex.Mix.deps_to_requests(deps, main)
 
     check_requests(reqs)
     print_info(reqs, locked)
@@ -29,9 +29,10 @@ defmodule Hex.RemoteConverger do
   end
 
   defp print_info(reqs, locked) do
-    resolve = Enum.filter_map(reqs,
-        fn { req, _ } -> not Dict.has_key?(locked, req) end,
-        &elem(&1, 0))
+    resolve =
+      Enum.flat_map(reqs, fn { app, _, _ } ->
+        if Dict.has_key?(locked, app), do: [], else: [app]
+      end)
 
     if resolve != [] do
       Mix.shell.info "Running dependency resolution for unlocked dependencies: " <> Enum.join(resolve, ", ")
@@ -49,7 +50,7 @@ defmodule Hex.RemoteConverger do
   end
 
   defp check_requests(reqs) do
-    Enum.each(reqs, fn { package, _req } ->
+    Enum.each(reqs, fn { package, _req, _override? } ->
       unless Hex.Registry.package_exists?(package) do
         raise Mix.Error, message: "Package #{package} not found in registry"
       end

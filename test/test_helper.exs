@@ -49,7 +49,7 @@ defmodule HexTest.Case do
   def in_fixture(which, tmp, function) do
     src  = fixture_path(which)
     dest = tmp_path(tmp)
-    flag = tmp_path |> String.to_char_list!
+    flag = String.to_char_list(tmp_path())
 
     File.rm_rf!(dest)
     File.mkdir_p!(dest)
@@ -210,15 +210,20 @@ alias HexTest.Case
 
 
 Case.init_fixture("ecto", "0.2.0", [
-  { :git_repo, git: Case.fixture_path("git_repo-0.1.0") },
   { :postgrex, "~> 0.2.0", package: true },
   { :ex_doc, "~> 0.0.1", package: true }
 ])
 
+Case.init_fixture("ecto", "0.2.1", [
+  { :postgrex, "~> 0.2.0", package: true },
+  { :ex_doc, "~> 0.0.2", package: true }
+])
+
+Case.init_fixture("ex_doc", "0.1.0", [])
 Case.init_fixture("ex_doc", "0.0.1", [])
 
-Case.init_fixture("git_repo", "0.1.0", [
-  { :ex_doc, "~> 0.0.1", package: true }
+Case.init_fixture("postgrex", "0.2.1", [
+  { :ex_doc, "~> 0.1.0", package: true }
 ])
 
 Case.init_fixture("postgrex", "0.2.0", [
