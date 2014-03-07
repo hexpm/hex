@@ -12,15 +12,16 @@ defmodule Hex.RemoteConverger do
   end
 
   def converge(deps) do
-    main   = Mix.project[:deps] || []
-    lock   = Mix.Deps.Lock.read
-    locked = Hex.Mix.from_lock(lock)
-    reqs   = Hex.Mix.deps_to_requests(deps, main)
+    main      = Mix.project[:deps] || []
+    lock      = Mix.Deps.Lock.read
+    locked    = Hex.Mix.from_lock(lock)
+    reqs      = Hex.Mix.deps_to_requests(deps)
+    overriden = Hex.Mix.overriden(main)
 
     check_requests(reqs)
     print_info(reqs, locked)
 
-    if resolved = Hex.Resolver.resolve(reqs, locked) do
+    if resolved = Hex.Resolver.resolve(reqs, overriden, locked) do
       print_success(resolved, locked)
       Hex.Mix.annotate_deps(resolved, deps)
     else
@@ -30,7 +31,7 @@ defmodule Hex.RemoteConverger do
 
   defp print_info(reqs, locked) do
     resolve =
-      Enum.flat_map(reqs, fn { app, _, _ } ->
+      Enum.flat_map(reqs, fn { app, _req} ->
         if Dict.has_key?(locked, app), do: [], else: [app]
       end)
 
@@ -50,7 +51,7 @@ defmodule Hex.RemoteConverger do
   end
 
   defp check_requests(reqs) do
-    Enum.each(reqs, fn { package, _req, _override? } ->
+    Enum.each(reqs, fn { package, _req } ->
       unless Hex.Registry.package_exists?(package) do
         raise Mix.Error, message: "Package #{package} not found in registry"
       end

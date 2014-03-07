@@ -1,22 +1,18 @@
 defmodule Hex.Mix do
   alias Hex.Registry
 
-  def deps_to_requests(deps, main \\ []) do
+  def deps_to_requests(deps) do
     Enum.flat_map(deps, fn dep ->
       { app, req, opts } = dep(dep)
-      if opts[:package], do: [{ "#{app}", req, override?(app, main) }], else: []
+      if opts[:package], do: [{ "#{app}", req }], else: []
     end)
   end
 
-  defp override?(app, main) do
-    result =
-      Enum.find_value(main, fn dep ->
-        { dep_app, _req, opts } = dep(dep)
-        if app == dep_app do
-          if opts[:override], do: :yes, else: :no
-        end
-      end)
-    result == :yes
+  def overriden(main) do
+    Enum.flat_map(main, fn dep ->
+      { app, _req, opts } = dep(dep)
+      if opts[:override], do: ["#{app}"], else: []
+    end)
   end
 
   defp dep(Mix.Dep[app: app, opts: opts, requirement: req]),

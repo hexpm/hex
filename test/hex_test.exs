@@ -1,9 +1,8 @@
-defmodule Hex.Test do
+defmodule HexTest do
   use HexTest.Case
 
   defp resolve(reqs, locked \\ []) do
-    reqs = Enum.map(reqs, fn { app, req } -> { app, req, false } end)
-    Hex.Resolver.resolve(reqs, reqs(locked))
+    Hex.Resolver.resolve(reqs(reqs), [], reqs(locked))
   end
 
   def reqs(reqs) do

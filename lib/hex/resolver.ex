@@ -5,7 +5,7 @@ defmodule Hex.Resolver do
 
   alias Hex.Registry
 
-  def resolve(requests, locked \\ []) do
+  def resolve(requests, overriden, locked) do
     { activated, pending } =
       Enum.reduce(locked, { HashDict.new, [] }, fn { name, version }, { dict, pending } ->
         if (versions = Registry.get_versions(name)) && version in versions do
@@ -16,14 +16,8 @@ defmodule Hex.Resolver do
         { dict, pending }
       end)
 
-    overriden =
-      Enum.flat_map(requests, fn
-        { name, _req, true }   -> [name]
-        { _name, _req, false } -> []
-      end)
-
     requests =
-      Enum.map(requests, fn { name, req, _override? } ->
+      Enum.map(requests, fn { name, req } ->
         Request[name: name, req: req]
       end)
 

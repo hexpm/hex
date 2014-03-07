@@ -103,7 +103,7 @@ defmodule Mix.Tasks.Hex.Release do
     Mix.shell.info("  Tag: #{opts[:tag]}")
     Mix.shell.info("  Dependencies:")
 
-    Enum.each(reqs, fn { app, req, _override? } ->
+    Enum.each(reqs, fn { app, req } ->
       Mix.shell.info("    #{app}: #{req}")
     end)
 
@@ -135,12 +135,11 @@ defmodule Mix.Tasks.Hex.Release do
   end
 
   defp create_release(config, reqs, opts) do
-    deps    = Enum.map(reqs, fn { app, req, _override? } -> { app, req } end)
     auth    = Keyword.take(opts, [:user, :pass])
     git_url = git_remote(config[:package])
     git_ref = opts[:tag]
 
-    case Hex.API.new_release(config[:app], config[:version], git_url, git_ref, deps, auth) do
+    case Hex.API.new_release(config[:app], config[:version], git_url, git_ref, reqs, auth) do
       { code, _ } when code in [200, 201] ->
         Mix.shell.info("Successfully updated packaged and pushed new release!")
       { code, body } ->
