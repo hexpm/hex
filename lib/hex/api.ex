@@ -47,7 +47,7 @@ defmodule Hex.API do
   end
 
   def get_registry do
-    request(:get, cdn("registry.ets"), [])
+    request(:get, cdn("registry.ets.gz"), [])
   end
 
   defp request(method, url, headers, body \\ nil) do
@@ -72,8 +72,13 @@ defmodule Hex.API do
   end
 
   defp handle_response({ { _version, code, _reason }, headers, body }) do
+    content_encoding = :binary.list_to_bin(headers['content-encoding'] || '')
     content_type = :binary.list_to_bin(headers['content-type'] || '')
     handle_hex_message(headers['x-hex-message'])
+
+    if String.contains?(content_encoding, "gzip") do
+      body = :zlib.gunzip(body)
+    end
 
     if String.contains?(content_type, "application/vnd.hex+elixir") do
       body = safe_deserialize_elixir(body)

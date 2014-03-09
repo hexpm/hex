@@ -17,8 +17,8 @@ defmodule Hex.Registry do
               "Please update hex."
         end
 
-      { :error, _reason } ->
-        raise Hex.Error, message: "Failed to open hex registry file. " <>
+      { :error, reason } ->
+        raise Hex.Error, message: "Failed to open hex registry file (#{inspect reason}). " <>
           "Did you fetch it with 'mix hex.update'?"
     end
   end

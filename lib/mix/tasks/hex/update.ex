@@ -38,7 +38,8 @@ defmodule Mix.Tasks.Hex.Update do
 
     case Hex.API.get_registry do
       { 200, body } ->
-        File.write!(Hex.Registry.path, body)
+        data = :zlib.gunzip(body)
+        File.write!(Hex.Registry.path, data)
         Mix.shell.info("Registry update was successful!")
       { code, body } ->
         Mix.shell.error("Registry update failed! (#{code})")

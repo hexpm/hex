@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
       assert_received { :mix_shell, :info, ["No registry file available, fetch it with 'mix hex.update'"] }
 
       assert { 200, data } = Hex.API.get_registry
-      File.write!(Hex.Registry.path, data)
+      File.write!(Hex.Registry.path, :zlib.gunzip(data))
       Mix.Tasks.Hex.Info.run([])
       assert_received { :mix_shell, :info, ["Registry file available (last updated: " <> _] }
       assert_received { :mix_shell, :info, ["Size: " <> _] }
