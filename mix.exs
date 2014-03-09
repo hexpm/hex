@@ -5,16 +5,14 @@ defmodule Hex.Mixfile do
     [ app: :hex,
       version: "0.0.1-dev",
       elixir: "~> 0.12.4 or ~> 0.13.0-dev",
-      deps: deps(Mix.env) ]
+      deps: deps ]
   end
 
-  # Configuration for the OTP application
   def application do
     []
   end
 
-  defp deps(:test),
-    do: [{ :hex_web, github: "ericmj/hex_web" }]
-  defp deps(_),
-    do: []
+  defp deps do
+    [{ :hex_web, github: "ericmj/hex_web", only: :test }]
+  end
 end

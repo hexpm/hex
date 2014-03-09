@@ -247,6 +247,7 @@ if :integration in ExUnit.configuration[:include] do
 
   Hex.start_api()
   Hex.url("http://localhost:4000")
+  unless System.get_env("HEX_CDN"), do: Hex.cdn(Hex.url)
 
   meta = [
     { "contributors", ["John Doe", "Jane Doe"] },

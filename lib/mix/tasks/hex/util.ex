@@ -24,6 +24,8 @@ defmodule Mix.Tasks.Hex.Util do
   end
 
   def print_error_result(_status, nil), do: :ok
+  def print_error_result(_status, ""), do: :ok
+
   def print_error_result(_status, body) do
     if body["message"] && body["errors"] do
       Mix.shell.info(body["message"])

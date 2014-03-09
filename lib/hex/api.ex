@@ -47,7 +47,7 @@ defmodule Hex.API do
   end
 
   def get_registry do
-    request(:get, api_url("registry"), [{ 'accept', 'application/vnd.hex.beta+ets' }])
+    request(:get, cdn("registry.ets"), [])
   end
 
   defp request(method, url, headers, body \\ nil) do
@@ -96,6 +96,10 @@ defmodule Hex.API do
 
   defp user_agent do
     'Hex/#{Hex.version} (Elixir/#{System.version})'
+  end
+
+  defp cdn(path) do
+    :binary.bin_to_list(Hex.cdn <> "/" <> path)
   end
 
   defp url(path) do
