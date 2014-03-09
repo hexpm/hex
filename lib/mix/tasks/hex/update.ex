@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Hex.Update do
   use Mix.Task
   alias Mix.Tasks.Hex.Util
 
-  @archive_url "https://hex.pm/archives/hex.ez"
+  @install_url "http://storage.hex.pm/installs/hex.ez"
 
   @shortdoc "Update hex"
 
@@ -27,10 +27,10 @@ defmodule Mix.Tasks.Hex.Update do
     { opts, _, _ } = OptionParser.parse(args)
     Hex.start_api
 
-    # TODO: Check /archives for url
+    # TODO: Check /installs for url
     if opts[:system] do
       Mix.shell.info("Updating Hex installation...")
-      Mix.Task.run "local.install", [@archive_url, "--force"]
+      Mix.Task.run "local.install", [@install_url, "--force"]
       Mix.shell.info("Updating Hex was successful!")
     end
 

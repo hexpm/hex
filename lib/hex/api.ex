@@ -42,8 +42,8 @@ defmodule Hex.API do
     request(:delete, api_url("packages/#{name}/releases/#{version}"), auth(auth))
   end
 
-  def get_archives do
-    request(:get, url("archives"), [])
+  def get_installs do
+    request(:get, url("installs"), [])
   end
 
   def get_registry do

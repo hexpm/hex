@@ -36,7 +36,7 @@ defmodule Mix.Tasks.Hex.Info do
   defp general() do
     Mix.shell.info("Hex v" <> Hex.version)
 
-    case Hex.API.get_archives() do
+    case Hex.API.get_installs() do
       { 200, body } ->
         # Default to stable channel when we have one
         latest = body[Hex.channel] || body["dev"]
