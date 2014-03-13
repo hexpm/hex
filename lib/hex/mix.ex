@@ -15,7 +15,7 @@ defmodule Hex.Mix do
     end)
   end
 
-  defp dep(Mix.Dep[app: app, opts: opts, requirement: req]),
+  defp dep(%Mix.Dep{app: app, opts: opts, requirement: req}),
     do: { app, req, opts }
   defp dep({ app, opts }),
     do: { app, nil, opts }
@@ -45,7 +45,7 @@ defmodule Hex.Mix do
       dep = Enum.find(deps, &(&1.app == atom))
             || Mix.Deps.Loader.to_dep({ atom, package: true }, scms, from)
 
-      dep.update_opts(&(&1 ++ [git_url: url, git_ref: ref]))
+      %{ dep | opts: dep.opts ++ [git_url: url, git_ref: ref] }
     end)
   end
 
