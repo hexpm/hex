@@ -30,12 +30,8 @@ defmodule Hex.API do
     request(:get, api_url("packages/#{name}/releases/#{version}"), [])
   end
 
-  def new_release(name, version, url, ref, reqs, auth) do
-    body = [ version: version,
-             git_url: url,
-             git_ref: ref,
-             requirements: reqs ]
-    request(:post, api_url("packages/#{name}/releases"), auth(auth), body)
+  def new_release(name, tar, auth) do
+    request(:post, api_url("packages/#{name}/releases"), auth(auth), tar, 'application/octet-stream')
   end
 
   def delete_release(name, version, auth) do
@@ -50,15 +46,18 @@ defmodule Hex.API do
     request(:get, cdn("registry.ets.gz"), [])
   end
 
-  defp request(method, url, headers, body \\ nil) do
-    default_headers = [ { 'accept', 'application/vnd.hex.beta+elixir' },
-                        { 'user-agent', user_agent } ]
+  defp request(method, url, headers, body \\ nil, content_type \\ 'application/vnd.hex+elixir') do
+    default_headers = [
+      { 'accept', 'application/vnd.hex.beta+elixir' },
+      { 'accept-encoding', 'gzip' },
+      { 'user-agent', user_agent } ]
     headers = Dict.merge(default_headers, headers)
     http_opts = [timeout: 5000]
     opts = [body_format: :binary]
 
     if body do
-      request = { url, headers, 'application/vnd.hex+elixir', safe_serialize_elixir(body) }
+      if content_type == 'application/vnd.hex+elixir', do: body = safe_serialize_elixir(body)
+      request = { url, headers, content_type, body }
     else
       request = { url, headers }
     end

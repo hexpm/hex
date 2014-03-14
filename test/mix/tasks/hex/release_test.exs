@@ -4,20 +4,18 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
 
   defmodule ReleaseA.Mixfile do
     def project do
-      [ app: :releasea, version: "0.0.1",
-        package: [git: "git_url"] ]
+      [ app: :releasea, version: "0.0.1" ]
     end
   end
 
   defmodule ReleaseB.Mixfile do
     def project do
       [ app: :releaseb, version: "0.0.2",
-        package: [git: "git_url"],
         deps: [{ :ex_doc, "0.0.1", package: true }] ]
     end
   end
 
-  @opts ["-u", "user", "-p", "hunter42", "--tag", "HEAD"]
+  @opts ["-u", "user", "-p", "hunter42"]
 
   setup do
     Hex.Registry.start(registry_path: tmp_path("hex.ets"))
@@ -25,7 +23,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
 
   test "validate" do
     assert_raise Mix.Error, "Missing command line option: pass", fn ->
-      Mix.Tasks.Hex.Release.run(["--user", "release_name", "-t", "HEAD"])
+      Mix.Tasks.Hex.Release.run(["--user", "release_name"])
     end
   end
 
@@ -38,11 +36,11 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
       git_commit()
       send self, { :mix_shell_input, :yes?, true }
       Mix.Tasks.Hex.Release.run(@opts)
-      assert_received { :mix_shell, :info, ["Successfully updated packaged and pushed new release!"] }
+      assert_received { :mix_shell, :info, ["Successfully pushed releasea v0.0.1!"] }
 
       send self, { :mix_shell_input, :yes?, true }
       Mix.Tasks.Hex.Release.run(@opts ++ ["--revert", "0.0.1"])
-      assert_received { :mix_shell, :info, ["Successfully reverted release releasea 0.0.1"] }
+      assert_received { :mix_shell, :info, ["Successfully reverted releasea v0.0.1"] }
     end
   end
 
@@ -57,7 +55,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
 
       send self, { :mix_shell_input, :yes?, true }
       Mix.Tasks.Hex.Release.run(@opts)
-      assert_received { :mix_shell, :info, ["Successfully updated packaged and pushed new release!"] }
+      assert_received { :mix_shell, :info, ["Successfully pushed releaseb v0.0.2!"] }
     end
   after
     purge [Ex_doc.NoConflict.Mixfile]

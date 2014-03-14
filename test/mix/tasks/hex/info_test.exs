@@ -15,7 +15,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
 
   test "release" do
     Mix.Tasks.Hex.Info.run(["ex_doc", "0.0.1"])
-    assert_received { :mix_shell, :info, ["  Git ref: HEAD"] }
+    assert_received { :mix_shell, :info, ["ex_doc v0.0.1"] }
 
     Mix.Tasks.Hex.Info.run(["ex_doc", "1.2.3"])
     assert_received { :mix_shell, :error, ["No release with package name ex_doc and version 1.2.3"] }

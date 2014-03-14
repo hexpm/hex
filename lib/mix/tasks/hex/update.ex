@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Hex.Update do
   use Mix.Task
   alias Mix.Tasks.Hex.Util
 
-  @install_url "http://storage.hex.pm/installs/hex.ez"
+  @install_url "http://s3.hex.pm/installs/hex.ez"
 
   @shortdoc "Update hex"
 

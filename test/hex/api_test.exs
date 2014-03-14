@@ -29,15 +29,15 @@ defmodule Hex.APITest do
     Hex.API.new_package("postgrex", [], auth)
     Hex.API.new_package("decimal", [], auth)
 
+    tar = Hex.Tar.create([app: :postgrex, version: "0.0.1", requirements: []], [])
     assert { 404, _ } = Hex.API.get_release("postgrex", "0.0.1")
-    assert { 201, _ } = Hex.API.new_release("postgrex", "0.0.1", "url", "ref", [], auth)
+    assert { 201, _ } = Hex.API.new_release("postgrex", tar, auth)
     assert { 200, body } = Hex.API.get_release("postgrex", "0.0.1")
-    assert body["git_url"] == "url"
-    assert body["git_ref"] == "ref"
     assert body["requirements"] == []
 
+    tar = Hex.Tar.create([app: :decimal, version: "0.0.2", requirements: [postgrex: "~> 0.0.1"]], [])
     reqs = [{ "postgrex", "~> 0.0.1" }]
-    assert { 201, _ } = Hex.API.new_release("decimal", "0.0.2", "url", "ref", reqs, auth)
+    assert { 201, _ } = Hex.API.new_release("decimal", tar, auth)
     assert { 200, body } = Hex.API.get_release("decimal", "0.0.2")
     assert body["requirements"] == reqs
 

@@ -23,8 +23,6 @@ defmodule Mix.Tasks.Hex.Release do
 
   * `--pass`, `-p` - Password of package owner (required)
 
-  * `--tag`, `-t` - Git tag of release (required)
-
   * `--revert version` - Revert given release
 
   ## Configuration
@@ -58,7 +56,7 @@ defmodule Mix.Tasks.Hex.Release do
   Additional metadata of the package can optionally be defined, but it is very
   recommended to do so.
 
-  * `:github` or `:git` - Git remote used when fetching package (required)
+  * `:files` - List of files and directories to include in the release (required)
 
   * `:description` - Description of the project in a few paragraphs
 
@@ -70,7 +68,9 @@ defmodule Mix.Tasks.Hex.Release do
   """
 
   @switches [revert: :string]
-  @aliases [u: :user, p: :pass, t: :tag]
+  @aliases [u: :user, p: :pass]
+
+  @default_files ["lib", "priv", "mix.exs", "README*", "readme*"]
 
   def run(args) do
     { opts, _, _ } = OptionParser.parse(args, switches: @switches, aliases: @aliases)
@@ -82,74 +82,74 @@ defmodule Mix.Tasks.Hex.Release do
     if version = opts[:revert] do
       revert(Mix.project, version, opts)
     else
-      Util.required_opts(opts, [:tag])
       Mix.Task.run "compile"
       Mix.Project.get!
       config = Mix.project
       reqs   = get_requests(config)
+      files  = expand_paths(config[:package][:files] || @default_files)
+      meta   = Keyword.take(config, [:app, :version])
+      meta   = meta ++ [requirements: reqs, files: files] ++ (config[:package] || [])
+      auth   = Keyword.take(opts, [:user, :pass])
 
-      print_info(config, reqs, opts)
+      print_info(meta)
 
-      if create_package?(config, opts) do
-        create_release(config, reqs, opts)
+      if create_package?(meta, auth) do
+        create_release(meta, auth)
       end
     end
   end
 
-  defp print_info(config, reqs, opts) do
-    # TODO: Fail if a dependency is not a package
+  defp print_info(meta) do
+    # TODO: Run dependency resolution (don't use mix.lock), check that deps
+    # are valid packages and has valid version requirements
 
-    Mix.shell.info("Pushing release #{config[:app]} #{config[:version]}")
-    Mix.shell.info("  Tag: #{opts[:tag]}")
+    Mix.shell.info("Pushing release #{meta[:app]} v#{meta[:version]}")
     Mix.shell.info("  Dependencies:")
+    Mix.shell.info("  Files: !TODO!")
 
-    Enum.each(reqs, fn { app, req } ->
+    Enum.each(meta[:requirements], fn { app, req } ->
       Mix.shell.info("    #{app}: #{req}")
     end)
 
     Mix.shell.yes?("Proceed?")
   end
 
-  defp revert(config, version, opts) do
-    case Hex.API.delete_release(config[:app], version, opts) do
+  defp revert(meta, version, auth) do
+    case Hex.API.delete_release(meta[:app], version, auth) do
       { 204, _ } ->
-        Mix.shell.info("Successfully reverted release #{config[:app]} #{config[:version]}")
+        Mix.shell.info("Successfully reverted #{meta[:app]} v#{meta[:version]}")
       { code, body } ->
-        Mix.shell.error("Reverting release #{config[:app]} #{config[:version]} failed! (#{code})")
+        Mix.shell.error("Reverting #{meta[:app]} v#{meta[:version]} failed! (#{code})")
         Util.print_error_result(code, body)
         false
     end
   end
 
-  defp create_package?(config, opts) do
-    meta = config[:package] || []
-
-    case Hex.API.new_package(config[:app], meta, opts) do
+  defp create_package?(meta, auth) do
+    case Hex.API.new_package(meta[:app], meta, auth) do
       { code, _ } when code in [200, 201] ->
         true
       { code, body } ->
-        Mix.shell.error("Updating package #{config[:app]} failed! (#{code})")
+        Mix.shell.error("Updating package #{meta[:app]} failed! (#{code})")
         Util.print_error_result(code, body)
         false
     end
   end
 
-  defp create_release(config, reqs, opts) do
-    auth    = Keyword.take(opts, [:user, :pass])
-    git_url = git_remote(config[:package])
-    git_ref = opts[:tag]
+  defp create_release(meta, auth) do
+    tarball = Hex.Tar.create(meta, meta[:files])
 
-    case Hex.API.new_release(config[:app], config[:version], git_url, git_ref, reqs, auth) do
+    case Hex.API.new_release(meta[:app], tarball, auth) do
       { code, _ } when code in [200, 201] ->
-        Mix.shell.info("Successfully updated packaged and pushed new release!")
+        Mix.shell.info("Successfully pushed #{meta[:app]} v#{meta[:version]}!")
       { code, body } ->
-        Mix.shell.error("Creating release #{config[:app]} #{config[:version]} failed! (#{code})")
+        Mix.shell.error("Pushing #{meta[:app]} v#{meta[:version]} failed! (#{code})")
         Util.print_error_result(code, body)
     end
   end
 
-  defp get_requests(config) do
-    Enum.filter(config[:deps] || [], &prod_dep?(&1))
+  defp get_requests(meta) do
+    Enum.filter(meta[:deps] || [], &prod_dep?(&1))
     |> Hex.Mix.deps_to_requests
   end
 
@@ -161,14 +161,16 @@ defmodule Mix.Tasks.Hex.Release do
     if only = opts[:only], do: :prod in List.wrap(only), else: true
   end
 
-  defp git_remote(opts) do
-    cond do
-      gh = opts[:github] ->
-        "git://github.com/#{gh}.git"
-      git = opts[:git] ->
-        git
-      true ->
-        raise Mix.Error, message: "Missing git remote configuration in mix.exs"
-    end
+  defp expand_paths(paths) do
+    Enum.flat_map(paths, fn path ->
+      cond do
+        not File.exists?(path) ->
+          []
+        File.dir?(path) ->
+          Path.wildcard(Path.join(path, "**"))
+        true ->
+          Path.wildcard(path)
+      end
+    end) |> Enum.uniq
   end
 end

@@ -112,8 +112,6 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp pretty_release(package, release) do
     Mix.shell.info(package <> " v" <> release["version"])
-    if repo = release["git_url"], do: Mix.shell.info("  Git repo: #{repo}")
-    if ref = release["git_ref"], do: Mix.shell.info("  Git ref: #{ref}")
     pretty_dict(release, "requirements", "Dependencies")
   end
 

@@ -257,7 +257,7 @@ if :integration in ExUnit.configuration[:include] do
 
   { :ok, user }    = HexWeb.User.create("user", "user@mail.com", "hunter42")
   { :ok, package } = HexWeb.Package.create("ex_doc", user, meta)
-  { :ok, _ }       = HexWeb.Release.create(package, "0.0.1", Case.fixture_path("ex_doc-0.0.1"), "HEAD", [])
+  { :ok, _ }       = HexWeb.Release.create(package, "0.0.1", [])
 end
 
 Mix.shell(Mix.Shell.Process)

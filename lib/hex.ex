@@ -1,6 +1,6 @@
 defmodule Hex do
   @default_url "https://hex.pm"
-  @default_cdn "http://storage.hex.pm"
+  @default_cdn "http://s3.hex.pm"
 
 
   def start do
