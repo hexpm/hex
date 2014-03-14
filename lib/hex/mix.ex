@@ -1,6 +1,4 @@
 defmodule Hex.Mix do
-  alias Hex.Registry
-
   def deps_to_requests(deps) do
     Enum.flat_map(deps, fn dep ->
       { app, req, opts } = dep(dep)
@@ -23,14 +21,12 @@ defmodule Hex.Mix do
     do: { app, req, opts }
 
   def from_lock(lock) do
-    Enum.flat_map(lock, fn { name, opts } ->
-      name = "#{name}"
-      { url, ref } = from_lock_ref(opts)
-
-      case Registry.version_from_ref(name, url, ref) do
-        { :ok, version } -> [{ name, version }]
-        :error -> []
-      end
+    Enum.flat_map(lock, fn
+      { name, { :package, version } } ->
+        name = "#{name}"
+        [{ name, version }]
+       _ ->
+        []
     end)
   end
 
@@ -41,15 +37,12 @@ defmodule Hex.Mix do
 
     Enum.map(result, fn { app, version } ->
       atom = :"#{app}"
-      { _, _, url, ref } = Registry.get_release(app, version)
       dep = Enum.find(deps, &(&1.app == atom))
             || Mix.Deps.Loader.to_dep({ atom, package: true }, scms, from)
 
-      %{ dep | opts: dep.opts ++ [git_url: url, git_ref: ref] }
+      %{ dep | opts: dep.opts ++ [lock: { :package, version }] }
     end)
   end
-
-  defp from_lock_ref({ :git, url, ref, _opts }), do: { url, ref }
 
   def read_config do
     case File.read(config_path) do

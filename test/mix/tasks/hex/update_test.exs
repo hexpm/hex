@@ -7,8 +7,7 @@ defmodule Mix.Tasks.Hex.UpdateTest do
       System.put_env("MIX_HOME", System.cwd!)
 
       File.mkdir_p!("tmp")
-      HexWeb.RegistryBuilder.rebuild
-      HexWeb.RegistryBuilder.wait_for_build
+      HexWeb.RegistryBuilder.sync_rebuild
 
       refute File.exists?(Hex.Registry.path)
 

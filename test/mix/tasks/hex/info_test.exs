@@ -26,8 +26,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
       System.put_env("MIX_HOME", System.cwd!)
 
       File.mkdir_p!("tmp")
-      HexWeb.RegistryBuilder.rebuild
-      HexWeb.RegistryBuilder.wait_for_build
+      HexWeb.RegistryBuilder.sync_rebuild
 
       Mix.Tasks.Hex.Info.run([])
       message = "Hex v" <> Hex.version

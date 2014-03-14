@@ -22,6 +22,7 @@ defmodule Hex.MixTest do
     Hex.Registry.start(registry_path: tmp_path("hex.ets"))
   end
 
+  @tag :integration
   test "simple" do
     Mix.Project.push Simple
 
@@ -36,14 +37,23 @@ defmodule Hex.MixTest do
       Mix.Task.run "deps"
 
       assert_received { :mix_shell, :info, ["* ecto 0.2.0 (package)"] }
+      assert_received { :mix_shell, :info, ["  locked at 0.2.0"] }
+      assert_received { :mix_shell, :info, ["  ok"] }
+
       assert_received { :mix_shell, :info, ["* postgrex 0.2.0 (package)"] }
+      assert_received { :mix_shell, :info, ["  locked at 0.2.0"] }
+      assert_received { :mix_shell, :info, ["  ok"] }
+
       assert_received { :mix_shell, :info, ["* ex_doc 0.0.1 (package)"] }
+      assert_received { :mix_shell, :info, ["  locked at 0.0.1"] }
+      assert_received { :mix_shell, :info, ["  ok"] }
     end
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
             Ex_doc.NoConflict.Mixfile ]
   end
 
+  @tag :integration
   test "override" do
     Mix.Project.push Override
 
@@ -53,8 +63,16 @@ defmodule Hex.MixTest do
       Mix.Task.run "deps"
 
       assert_received { :mix_shell, :info, ["* ecto 0.2.1 (package)"] }
+      assert_received { :mix_shell, :info, ["  locked at 0.2.1"] }
+      assert_received { :mix_shell, :info, ["  ok"] }
+
       assert_received { :mix_shell, :info, ["* postgrex 0.2.1 (package)"] }
+      assert_received { :mix_shell, :info, ["  locked at 0.2.1"] }
+      assert_received { :mix_shell, :info, ["  ok"] }
+
       assert_received { :mix_shell, :info, ["* ex_doc 0.1.0 (package)"] }
+      assert_received { :mix_shell, :info, ["  locked at 0.1.0"] }
+      assert_received { :mix_shell, :info, ["  ok"] }
     end
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
@@ -74,5 +92,11 @@ defmodule Hex.MixTest do
     end
   after
     System.delete_env("MIX_HOME")
+  end
+
+  test "from mixlock" do
+    lock = [ ex_doc: { :package, "0.1.0" },
+             postgrex: { :package, "0.2.1" } ]
+    assert Hex.Mix.from_lock(lock) == [{ "ex_doc", "0.1.0" }, { "postgrex", "0.2.1" }]
   end
 end

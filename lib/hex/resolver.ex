@@ -85,7 +85,7 @@ defmodule Hex.Resolver do
   end
 
   def get_deps(package, version, overriden) do
-    { _, deps, _, _ } = Registry.get_release(package, version)
+    { _, deps } = Registry.get_release(package, version)
 
     Enum.flat_map(deps, fn { name, req } ->
       if name in overriden do

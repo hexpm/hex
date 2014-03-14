@@ -36,41 +36,7 @@ defmodule HexTest.Case do
     File.cd! path, function
   end
 
-  defmacro in_fixture(which, block) do
-    module   = inspect __CALLER__.module
-    function = atom_to_binary elem(__CALLER__.function, 0)
-    tmp      = Path.join(module, function)
-
-    quote do
-      unquote(__MODULE__).in_fixture(unquote(which), unquote(tmp), unquote(block))
-    end
-  end
-
-  def in_fixture(which, tmp, function) do
-    src  = fixture_path(which)
-    dest = tmp_path(tmp)
-    flag = String.to_char_list(tmp_path())
-
-    File.rm_rf!(dest)
-    File.mkdir_p!(dest)
-    File.cp_r!(src, dest)
-
-    get_path = :code.get_path
-    previous = :code.all_loaded
-
-    try do
-      File.cd! dest, function
-    after
-      :code.set_path(get_path)
-      Enum.each (:code.all_loaded -- previous), fn { mod, file } ->
-        if is_list(file) and :lists.prefix(flag, file) do
-          purge [mod]
-        end
-      end
-    end
-  end
-
-  @template '''
+  @template """
   defmodule ~s.NoConflict.Mixfile do
     use Mix.Project
 
@@ -80,30 +46,26 @@ defmodule HexTest.Case do
         deps: deps() ]
     end
 
-    def deps do
+    defp deps do
       ~s
     end
   end
-  '''
+  """
 
-  def init_fixture(name, version, deps) do
-    path = fixture_path("#{name}-#{version}")
-    File.rm_rf!(path)
-    File.mkdir_p!(path)
+  def init_project(name, version, deps, meta, auth) do
+    meta = [app: name, version: version, requirements: deps] ++ meta
 
+
+    deps = Enum.map(deps, fn { app, req } -> { app, req, package: true } end)
+           |> inspect(pretty: true)
     module = String.capitalize(name)
-    deps = inspect(deps, pretty: true)
     mixfile = :io_lib.format(@template, [module, name, version, deps])
 
-    File.cd! path, fn ->
-      File.write(Path.join(path, "mix.exs"), mixfile)
+    files = [{ "mix.exs", String.from_char_list!(mixfile) }]
+    tar = Hex.Tar.create(meta, files)
 
-      System.cmd("git init")
-      System.cmd("git add .")
-      System.cmd("git config user.email \"hex@example.com\"")
-      System.cmd("git config user.name \"Hex Repo\"")
-      System.cmd("git commit -m \"ok\"")
-    end
+    Hex.API.new_package(name, meta, auth)
+    Hex.API.new_release(name, tar, auth)
   end
 
   def purge(modules) do
@@ -129,9 +91,8 @@ defmodule HexTest.Case do
 
     releases =
       Enum.map(test_registry, fn { name, version, deps } ->
-        url  = fixture_path("#{name}-#{version}")
         deps = Enum.map(deps, fn { app, req } -> { "#{app}", req } end)
-        { { "#{name}", version }, deps, url, "HEAD" }
+        { { "#{name}", version }, deps }
       end)
 
     tid = :ets.new(@ets_table, [])
@@ -192,6 +153,7 @@ defmodule HexTest.Case do
   end
 
   setup do
+    System.put_env("MIX_HOME", tmp_path("mix_home"))
     Mix.shell(Mix.Shell.Process)
     Mix.Task.clear
     Mix.Shell.Process.flush
@@ -207,28 +169,8 @@ defmodule HexTest.Case do
 end
 
 alias HexTest.Case
-
-
-Case.init_fixture("ecto", "0.2.0", [
-  { :postgrex, "~> 0.2.0", package: true },
-  { :ex_doc, "~> 0.0.1", package: true }
-])
-
-Case.init_fixture("ecto", "0.2.1", [
-  { :postgrex, "~> 0.2.0", package: true },
-  { :ex_doc, "~> 0.0.2", package: true }
-])
-
-Case.init_fixture("ex_doc", "0.1.0", [])
-Case.init_fixture("ex_doc", "0.0.1", [])
-
-Case.init_fixture("postgrex", "0.2.1", [
-  { :ex_doc, "~> 0.1.0", package: true }
-])
-
-Case.init_fixture("postgrex", "0.2.0", [
-  { :ex_doc, "0.0.1", package: true }
-])
+File.rm_rf!(Case.tmp_path)
+File.mkdir_p!(Case.tmp_path)
 
 
 if :integration in ExUnit.configuration[:include] do
@@ -258,6 +200,15 @@ if :integration in ExUnit.configuration[:include] do
   { :ok, user }    = HexWeb.User.create("user", "user@mail.com", "hunter42")
   { :ok, package } = HexWeb.Package.create("ex_doc", user, meta)
   { :ok, _ }       = HexWeb.Release.create(package, "0.0.1", [])
+
+  auth = [user: "user", pass: "hunter42"]
+
+  Case.init_project("ex_doc", "0.0.1", [], meta, auth)
+  Case.init_project("ex_doc", "0.1.0", [], meta, auth)
+  Case.init_project("postgrex", "0.2.1", [ex_doc: "~> 0.1.0"], [], auth)
+  Case.init_project("postgrex", "0.2.0", [ex_doc: "0.0.1"], [], auth)
+  Case.init_project("ecto", "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"], [], auth)
+  Case.init_project("ecto", "0.2.1", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.2"], [], auth)
 end
 
 Mix.shell(Mix.Shell.Process)

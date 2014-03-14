@@ -35,7 +35,7 @@ defmodule Hex.Registry do
 
   def stat do
     fun = fn
-      { { _, _ }, _, _, _ }, { packages, releases } ->
+      { { _, _ }, _ }, { packages, releases } ->
         { packages, releases + 1 }
       { binary, list }, { packages, releases }
           when is_binary(binary) and is_list(list) ->
@@ -83,16 +83,6 @@ defmodule Hex.Registry do
     case :ets.lookup(tid, { package, version }) do
       [] -> nil
       [release] -> release
-    end
-  end
-
-  def version_from_ref(package, url, ref) do
-    { :ok, tid } = :application.get_env(:hex, @registry_tid)
-    match = { { package, :"$1" }, :_, url, ref }
-
-    case :ets.match(tid, match) do
-      [] -> :error
-      [[version]] -> { :ok, version }
     end
   end
 end

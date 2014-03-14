@@ -1,6 +1,5 @@
 /_build
 /deps
 /tmp
-/test/fixtures
 erl_crash.dump
 *.ez

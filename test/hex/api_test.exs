@@ -18,37 +18,35 @@ defmodule Hex.APITest do
   test "package" do
     auth = [user: "user", pass: "hunter42"]
 
-    assert { 404, _ } = Hex.API.get_package("ecto")
-    assert { 201, _ } = Hex.API.new_package("ecto", [description: "foobar"], auth)
-    assert { 200, body } = Hex.API.get_package("ecto")
+    assert { 404, _ } = Hex.API.get_package("apple")
+    assert { 201, _ } = Hex.API.new_package("apple", [description: "foobar"], auth)
+    assert { 200, body } = Hex.API.get_package("apple")
     assert body["meta"]["description"] == "foobar"
   end
 
   test "release" do
     auth = [user: "user", pass: "hunter42"]
-    Hex.API.new_package("postgrex", [], auth)
-    Hex.API.new_package("decimal", [], auth)
+    Hex.API.new_package("pear", [], auth)
+    Hex.API.new_package("grape", [], auth)
 
-    tar = Hex.Tar.create([app: :postgrex, version: "0.0.1", requirements: []], [])
-    assert { 404, _ } = Hex.API.get_release("postgrex", "0.0.1")
-    assert { 201, _ } = Hex.API.new_release("postgrex", tar, auth)
-    assert { 200, body } = Hex.API.get_release("postgrex", "0.0.1")
+    tar = Hex.Tar.create([app: :pear, version: "0.0.1", requirements: []], [])
+    assert { 404, _ } = Hex.API.get_release("pear", "0.0.1")
+    assert { 201, _ } = Hex.API.new_release("pear", tar, auth)
+    assert { 200, body } = Hex.API.get_release("pear", "0.0.1")
     assert body["requirements"] == []
 
-    tar = Hex.Tar.create([app: :decimal, version: "0.0.2", requirements: [postgrex: "~> 0.0.1"]], [])
-    reqs = [{ "postgrex", "~> 0.0.1" }]
-    assert { 201, _ } = Hex.API.new_release("decimal", tar, auth)
-    assert { 200, body } = Hex.API.get_release("decimal", "0.0.2")
+    tar = Hex.Tar.create([app: :grape, version: "0.0.2", requirements: [pear: "~> 0.0.1"]], [])
+    reqs = [{ "pear", "~> 0.0.1" }]
+    assert { 201, _ } = Hex.API.new_release("grape", tar, auth)
+    assert { 200, body } = Hex.API.get_release("grape", "0.0.2")
     assert body["requirements"] == reqs
 
-    assert { 204, _ } = Hex.API.delete_release("decimal", "0.0.2", auth)
-    assert { 404, _ } = Hex.API.get_release("decimal", "0.0.2")
+    assert { 204, _ } = Hex.API.delete_release("grape", "0.0.2", auth)
+    assert { 404, _ } = Hex.API.get_release("grape", "0.0.2")
   end
 
   test "registry" do
-    HexWeb.RegistryBuilder.rebuild
-    HexWeb.RegistryBuilder.wait_for_build
-
+    HexWeb.RegistryBuilder.sync_rebuild
     assert { 200, _ } = Hex.API.get_registry
   end
 

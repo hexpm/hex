@@ -13,12 +13,6 @@ defmodule HexTest do
     Hex.Registry.start(registry_path: tmp_path("hex.ets"))
   end
 
-  test "from mixlock" do
-    lock = [ ex_doc: { :git, fixture_path("ex_doc-0.1.0"), "HEAD", [] },
-             postgrex: { :git, fixture_path("postgrex-0.2.1"), "HEAD", [] } ]
-    assert Hex.Mix.from_lock(lock) == reqs([ex_doc: "0.1.0", postgrex: "0.2.1"])
-  end
-
   test "simple" do
     deps = reqs([foo: nil, bar: nil])
     assert Dict.equal? reqs([foo: "0.2.1", bar: "0.2.0"]), resolve(deps)

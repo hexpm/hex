@@ -3,12 +3,7 @@ defmodule Hex.SCM do
 
   @behaviour Mix.SCM
 
-  alias Mix.SCM.Git
-
-  defdelegate [
-    format_lock(opts),
-    checked_out?(opts)
-    ], to: Git
+  @cache_dir ".package-cache"
 
   def fetchable? do
     true
@@ -18,21 +13,31 @@ defmodule Hex.SCM do
     "package"
   end
 
-  def accepts_options(_app, opts) do
-    if opts[:package] do
-      opts
+  def format_lock(opts) do
+    case opts[:lock] do
+      { :package, version } ->
+        version
+      _ ->
+        nil
     end
   end
 
-  def lock_status(opts) do
+  def accepts_options(_app, opts) do
+    if opts[:package], do: opts
+  end
+
+  def checked_out?(opts) do
+    File.dir?(opts[:dest])
+  end
+
+  def lock_status(app, opts) do
     case opts[:lock] do
-      { :git, lock_repo, lock_rev, _lock_opts } ->
-        File.cd!(opts[:dest], fn ->
-          rev_info = get_rev_info
-          cond do
-            lock_rev  != rev_info[:rev]    -> :mismatch
-            lock_repo != rev_info[:origin] -> :outdated
-            true                           -> :ok
+      { :package, version } ->
+        Mix.Deps.in_dependency(%Mix.Dep{app: app, opts: opts}, fn _ ->
+          if Mix.project[:version] == version do
+            :ok
+          else
+            :mismatch
           end
         end)
       nil ->
@@ -42,26 +47,112 @@ defmodule Hex.SCM do
     end
   end
 
-  def equal?(_, _) do
-    true
+  def equal?(opts1, opts2) do
+    opts1[:package] == opts2[:package]
   end
 
-  def checkout(opts) do
-    git_opts(opts) |> Git.checkout
+  def checkout(app, opts) do
+    dest = opts[:dest]
+    { :package, version } = opts[:lock]
+    fetch(app, version)
+    Mix.shell.info("Unpacking tarball...")
+
+    File.rm_rf!(dest)
+    unpack(app, version, dest)
+    Mix.shell.info("Successfully unpacked")
+    opts[:lock]
   end
 
-  def update(opts) do
-    git_opts(opts) |> Git.update
+  def update(app, opts) do
+    checkout(app, opts)
   end
 
-  defp get_rev_info do
-    destructure [origin, rev],
-      System.cmd("git config remote.origin.url && git rev-parse --verify --quiet HEAD")
-      |> String.split("\n", trim: true)
-    [ origin: origin, rev: rev ]
+  defp unpack(package, version, dest) do
+    name = "#{package}-#{version}.tar"
+    path = cache_path(name)
+
+    # TODO: Validate package with checksum, version, etc.
+    # note that if tarball is empty :ok is returned, not { :ok, [] }
+
+    case :erl_tar.extract(path, [:memory, files: ['contents.tar.gz']]) do
+      { :ok, [{ _name, binary }] } ->
+        case :erl_tar.extract({ :binary, binary }, [:compressed, cwd: dest]) do
+          :ok ->
+            :ok
+        { :error, reason } ->
+          raise Mix.Error, message: "Unpacking #{path}/contents.tar.gz failed: #{inspect reason}"
+        end
+      { :error, reason } ->
+        raise Mix.Error, message: "Unpacking #{path} failed: #{inspect reason}"
+    end
   end
 
-  defp git_opts(opts) do
-    [ git: opts[:git_url], ref: opts[:git_ref] ] ++ opts
+  defp fetch(package, version) do
+    name = "#{package}-#{version}.tar"
+    path = cache_path(name)
+    etag = etag(path)
+    url  = Hex.API.cdn("tarballs/#{name}")
+
+    Mix.shell.info("Fetching '#{url}'...")
+
+    cond do
+      body = fetch_request(url, etag) ->
+        File.mkdir_p!(cache_path)
+        File.write!(path, body)
+      File.exists?(path) ->
+        Mix.shell.info("Using local cached copy")
+      true ->
+        raise Mix.Error, message: "Package fetch failed"
+    end
+  end
+
+  defp etag(path) do
+    case File.read(path) do
+      { :ok, binary } ->
+        :crypto.hash(:md5, binary)
+        |> Hex.Util.hexify
+        |> String.to_char_list!
+      { :error, _ } ->
+        nil
+    end
+  end
+
+  defp fetch_request(url, etag) do
+    headers = [{ 'user-agent', Hex.API.user_agent }]
+    if etag do
+      headers = headers ++ [{ 'if-none-match', etag }]
+    end
+
+    :inets.start
+    case :httpc.request(:get, { url, headers }, [], body_format: :binary) do
+      { :ok, response } ->
+        handle_response(response)
+      { :error, reason } ->
+        Mix.shell.info("Request failed: #{inspect reason}")
+        nil
+    end
+  end
+
+  defp handle_response({ { _version, 304, _reason }, _headers, _body }) do
+    nil
+  end
+
+  defp handle_response({ { _version, 200, _reason }, _headers, body }) do
+    Mix.shell.info("Successfully fetched")
+    body
+  end
+
+  defp handle_response({ { _version, code, _reason }, _headers, _body }) do
+    Mix.shell.info("Request failed (#{code})")
+    nil
+  end
+
+  defp cache_path do
+    Path.join(Mix.Utils.mix_home, @cache_dir)
+  end
+
+  defp cache_path(name) do
+    Path.join([Mix.Utils.mix_home, @cache_dir, name])
   end
 end
+

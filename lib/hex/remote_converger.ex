@@ -45,7 +45,7 @@ defmodule Hex.RemoteConverger do
     if resolved != [] do
       Mix.shell.info "Dependency resolution completed successfully"
       Enum.each(resolved, fn { dep, version } ->
-        Mix.shell.info "    #{dep} : #{version}"
+        Mix.shell.info "  #{dep} : v#{version}"
       end)
     end
   end

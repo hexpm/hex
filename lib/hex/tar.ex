@@ -5,13 +5,18 @@ defmodule Hex.Tar do
     contents_path = "#{meta[:app]}-#{meta[:version]}-contents.tar.gz"
     path = "#{meta[:app]}-#{meta[:version]}.tar"
 
-    files = Enum.map(files, fn { name, bin } -> { String.to_char_list!(name), bin } end)
+    files =
+      Enum.map(files, fn
+        { name, bin } -> { String.to_char_list!(name), bin }
+        name -> name
+      end)
+
     :ok = :erl_tar.create(contents_path, files, [:compressed, :cooked])
     contents = File.read!(contents_path)
 
-    meta_string = Hex.API.safe_serialize_elixir(meta)
+    meta_string = Hex.Util.safe_serialize_elixir(meta)
     blob = @version <> meta_string <> contents
-    checksum = :crypto.hash(:md5, blob) |> HexWeb.Util.hexify
+    checksum = :crypto.hash(:md5, blob) |> Hex.Util.hexify
 
     files = [
       { 'VERSION', @version},

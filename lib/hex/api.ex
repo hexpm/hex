@@ -56,7 +56,7 @@ defmodule Hex.API do
     opts = [body_format: :binary]
 
     if body do
-      if content_type == 'application/vnd.hex+elixir', do: body = safe_serialize_elixir(body)
+      if content_type == 'application/vnd.hex+elixir', do: body = Hex.Util.safe_serialize_elixir(body)
       request = { url, headers, content_type, body }
     else
       request = { url, headers }
@@ -80,7 +80,7 @@ defmodule Hex.API do
     end
 
     if String.contains?(content_type, "application/vnd.hex+elixir") do
-      body = safe_deserialize_elixir(body)
+      body = Hex.Util.safe_deserialize_elixir(body)
     end
 
     { code, body }
@@ -98,19 +98,19 @@ defmodule Hex.API do
     end
   end
 
-  defp user_agent do
+  def user_agent do
     'Hex/#{Hex.version} (Elixir/#{System.version})'
   end
 
-  defp cdn(path) do
+  def cdn(path) do
     :binary.bin_to_list(Hex.cdn <> "/" <> path)
   end
 
-  defp url(path) do
+  def url(path) do
     :binary.bin_to_list(Hex.url <> "/" <> path)
   end
 
-  defp api_url(path) do
+  def api_url(path) do
     :binary.bin_to_list(Hex.url <> "/api/" <> path)
   end
 
@@ -118,37 +118,6 @@ defmodule Hex.API do
     base64 = :base64.encode_to_string(info[:user] <> ":" <> info[:pass])
     [{ 'authorization', 'Basic ' ++ base64 }]
   end
-
-  def safe_deserialize_elixir("") do
-    nil
-  end
-
-  def safe_deserialize_elixir(string) do
-    case Code.string_to_quoted(string, existing_atoms_only: true) do
-      { :ok, ast } ->
-        if Macro.safe_term(ast) do
-          Code.eval_quoted(ast) |> elem(0)
-        else
-          raise Hex.Error, message: "received unsafe elixir from API"
-        end
-      _ ->
-        raise Hex.Error, message: "received malformed elixir from API"
-    end
-  end
-
-  def safe_serialize_elixir(term) do
-    binarify(term)
-    |> inspect(limit: :infinity, records: false, binaries: :as_strings)
-  end
-
-  defp binarify(binary) when is_binary(binary),
-    do: binary
-  defp binarify(atom) when is_atom(atom),
-    do: atom_to_binary(atom)
-  defp binarify(list) when is_list(list),
-    do: lc(elem inlist list, do: binarify(elem))
-  defp binarify({ left, right }),
-    do: { binarify(left), binarify(right) }
 
   @space [?\s, ?\t]
 
