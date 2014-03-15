@@ -22,7 +22,7 @@ defmodule Hex.SCM do
     end
   end
 
-  def accepts_options(_app, opts) do
+  def accepts_options(opts) do
     if opts[:package], do: opts
   end
 
@@ -30,10 +30,10 @@ defmodule Hex.SCM do
     File.dir?(opts[:dest])
   end
 
-  def lock_status(app, opts) do
+  def lock_status(opts) do
     case opts[:lock] do
       { :package, version } ->
-        Mix.Deps.in_dependency(%Mix.Dep{app: app, opts: opts}, fn _ ->
+        Mix.Deps.in_dependency(%Mix.Dep{app: opts[:app], opts: opts}, fn _ ->
           if Mix.project[:version] == version do
             :ok
           else
@@ -51,7 +51,8 @@ defmodule Hex.SCM do
     opts1[:package] == opts2[:package]
   end
 
-  def checkout(app, opts) do
+  def checkout(opts) do
+    app  = opts[:app]
     dest = opts[:dest]
     { :package, version } = opts[:lock]
     fetch(app, version)
@@ -63,8 +64,8 @@ defmodule Hex.SCM do
     opts[:lock]
   end
 
-  def update(app, opts) do
-    checkout(app, opts)
+  def update(opts) do
+    checkout(opts)
   end
 
   defp unpack(package, version, dest) do
