@@ -12,10 +12,18 @@ defmodule Mix.Tasks.Hex.User.Register do
 
   def run(_args) do
     Mix.shell.info("Register a new user")
-    username = Mix.shell.prompt("Username:")
-    email    = Mix.shell.prompt("Email:")
-    password = Mix.shell.prompt("Password:")
+    username = Mix.shell.prompt("Username:") |> String.strip
+    email    = Mix.shell.prompt("Email:")    |> String.strip
+    password = Mix.shell.prompt("Password:") |> String.strip
 
+    unless nil?(password) do
+      confirm = Mix.shell.prompt("Password (confirm):") |> String.strip
+      if password != confirm do
+        raise Mix.Error, message: "Entered passwords do not match"
+      end
+    end
+
+    Mix.shell.info("Registering...")
     Hex.start_api
     create_user(username, email, password)
   end

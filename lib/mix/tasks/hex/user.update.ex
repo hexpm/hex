@@ -2,10 +2,10 @@ defmodule Mix.Tasks.Hex.User.Update do
   use Mix.Task
   alias Mix.Tasks.Hex.Util
 
-  @shortdoc "Updates user options"
+  @shortdoc "Update user options"
 
   @moduledoc """
-  Updates user options.
+  Update user options.
 
   `mix hex.user.update -u username -p password`
   """
@@ -21,6 +21,13 @@ defmodule Mix.Tasks.Hex.User.Update do
     Mix.shell.info("Update user options (leave blank to not change an option)")
     email    = Mix.shell.prompt("Email:")    |> String.strip |> nillify
     password = Mix.shell.prompt("Password:") |> String.strip |> nillify
+
+    unless nil?(password) do
+      confirm = Mix.shell.prompt("Password (confirm):") |> String.strip |> nillify
+      if password != confirm do
+        raise Mix.Error, message: "Entered passwords do not match"
+      end
+    end
 
     Hex.start_api
     update_user(opts[:user], email, password, opts)

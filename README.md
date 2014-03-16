@@ -61,8 +61,6 @@ See `mix help hex.release`
 
 * Package maintainers that can do releases
 
-* Package into tarballs that are hosted instead of using git urls and refs
-
 * escript client for erlang users (should not require an elixir installation)
 
 * Use elixir version requirement during resolution (wait for elixir 1.0.0)

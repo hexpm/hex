@@ -2,9 +2,20 @@ defmodule Mix.Tasks.Hex.User.Test do
   use HexTest.Case
   @moduletag :integration
 
-  test "create" do
+  test "register" do
     send self, { :mix_shell_input, :prompt, "eric" }
     send self, { :mix_shell_input, :prompt, "mail@mail.com" }
+    send self, { :mix_shell_input, :prompt, "hunter42" }
+    send self, { :mix_shell_input, :prompt, "hunter43" }
+    send self, { :mix_shell_input, :yes?, false }
+
+    assert_raise Mix.Error, "Entered passwords do not match", fn ->
+      Mix.Tasks.Hex.User.Register.run([])
+    end
+
+    send self, { :mix_shell_input, :prompt, "eric" }
+    send self, { :mix_shell_input, :prompt, "mail@mail.com" }
+    send self, { :mix_shell_input, :prompt, "hunter42" }
     send self, { :mix_shell_input, :prompt, "hunter42" }
     send self, { :mix_shell_input, :yes?, false }
     Mix.Tasks.Hex.User.Register.run([])
@@ -30,6 +41,7 @@ defmodule Mix.Tasks.Hex.User.Test do
       send self, { :mix_shell_input, :prompt, "config" }
       send self, { :mix_shell_input, :prompt, "config@mail.com" }
       send self, { :mix_shell_input, :prompt, "hunter42" }
+      send self, { :mix_shell_input, :prompt, "hunter42" }
       send self, { :mix_shell_input, :yes?, true }
 
       Mix.Tasks.Hex.User.Register.run([])
@@ -50,6 +62,7 @@ defmodule Mix.Tasks.Hex.User.Test do
       Hex.Mix.update_config(username: "use_config", password: "hunter42")
 
       send self, { :mix_shell_input, :prompt, "new_config@mail.com" }
+      send self, { :mix_shell_input, :prompt, "new_pass" }
       send self, { :mix_shell_input, :prompt, "new_pass" }
       send self, { :mix_shell_input, :yes?, false }
 
