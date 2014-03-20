@@ -46,6 +46,10 @@ defmodule Hex.API do
     request(:get, cdn("registry.ets.gz"), [])
   end
 
+  def new_key(name, auth) do
+    request(:post, api_url("keys"), auth(auth), [name: name])
+  end
+
   defp request(method, url, headers, body \\ nil, content_type \\ 'application/vnd.hex+elixir') do
     default_headers = [
       { 'accept', 'application/vnd.hex.beta+elixir' },
@@ -112,6 +116,10 @@ defmodule Hex.API do
 
   def api_url(path) do
     :binary.bin_to_list(Hex.url <> "/api/" <> path)
+  end
+
+  defp auth(key: secret) do
+    [{ 'authorization', String.to_char_list!(secret) }]
   end
 
   defp auth(info) do

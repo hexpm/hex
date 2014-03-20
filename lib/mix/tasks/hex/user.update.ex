@@ -8,14 +8,18 @@ defmodule Mix.Tasks.Hex.User.Update do
   Update user options.
 
   `mix hex.user.update -u username -p password`
+
+  ## Command line options
+
+  * `--user`, `-u` - Username of user (required)
+
+  * `--pass`, `-p` - Password of user (required)
   """
 
   @aliases [u: :user, p: :pass]
 
   def run(args) do
     { opts, _, _ } = OptionParser.parse(args, aliases: @aliases)
-    config = Hex.Mix.read_config
-    opts = Util.config_opts(opts, config)
     Util.required_opts(opts, [:user, :pass])
 
     Mix.shell.info("Update user options (leave blank to not change an option)")

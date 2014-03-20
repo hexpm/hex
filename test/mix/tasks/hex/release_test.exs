@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
   end
 
   test "validate" do
-    assert_raise Mix.Error, "Missing command line option: pass", fn ->
+    assert_raise Mix.Error, "--pass option required if --user was given", fn ->
       Mix.Tasks.Hex.Release.run(["--user", "release_name"])
     end
   end
@@ -33,7 +33,6 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
     in_tmp fn _ ->
       File.mkdir_p("tmp")
 
-      git_commit()
       send self, { :mix_shell_input, :yes?, true }
       Mix.Tasks.Hex.Release.run(@opts)
       assert_received { :mix_shell, :info, ["Successfully pushed releasea v0.0.1!"] }
@@ -44,13 +43,30 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
     end
   end
 
+  test "create with key" do
+    Mix.Project.push ReleaseA.Mixfile
+
+    in_tmp fn _ ->
+      System.put_env("MIX_HOME", System.cwd!)
+
+      user = HexWeb.User.get("user")
+      { :ok, key } = HexWeb.Key.create("computer", user)
+      Hex.Mix.update_config(username: "user", key: key.secret)
+
+      send self, { :mix_shell_input, :yes?, true }
+      Mix.Tasks.Hex.Release.run([])
+      assert_received { :mix_shell, :info, ["Successfully pushed releasea v0.0.1!"] }
+    end
+  after
+    System.delete_env("MIX_HOME")
+  end
+
   test "create with deps" do
     Mix.Project.push ReleaseB.Mixfile
 
     in_tmp fn _ ->
       File.mkdir_p("tmp")
 
-      git_commit()
       Mix.Tasks.Deps.Get.run([])
 
       send self, { :mix_shell_input, :yes?, true }
@@ -59,13 +75,5 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
     end
   after
     purge [Ex_doc.NoConflict.Mixfile]
-  end
-
-  defp git_commit do
-    System.cmd("git init")
-    System.cmd("git add .")
-    System.cmd("git config user.email \"hex@example.com\"")
-    System.cmd("git config user.name \"Hex Repo\"")
-    System.cmd("git commit --allow-empty -m \"ok\"")
   end
 end

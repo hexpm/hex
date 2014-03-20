@@ -50,6 +50,12 @@ defmodule Hex.APITest do
     assert { 200, _ } = Hex.API.get_registry
   end
 
+  test "keys" do
+    auth = [user: "user", pass: "hunter42"]
+    assert { 201, body } = Hex.API.new_key("macbook", auth)
+    assert { 201, _ } = Hex.API.new_package("melon", [], [key: body["secret"]])
+  end
+
   test "x-hex-message" do
     Hex.API.handle_hex_message('"oops, you done goofed"')
     refute_received { :mix_shell, _, _ }

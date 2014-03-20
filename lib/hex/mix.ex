@@ -65,6 +65,7 @@ defmodule Hex.Mix do
           config
       end
 
+    File.mkdir_p!(Path.dirname(path))
     File.write!(path, Macro.to_string(updated_config))
   end
 

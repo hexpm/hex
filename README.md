@@ -57,8 +57,6 @@ See `mix help hex.release`
 
 * Website
 
-* API keys, so that passwords are not stored on users machine
-
 * Package maintainers that can do releases
 
 * escript client for erlang users (should not require an elixir installation)

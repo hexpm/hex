@@ -48,26 +48,7 @@ defmodule Mix.Tasks.Hex.User.Test do
       assert_received { :mix_shell, :info, ["Registration of user config was successful!"] }
 
       assert Hex.Mix.read_config[:username] == "config"
-      assert Hex.Mix.read_config[:password] == "hunter42"
-    end
-  after
-    System.delete_env("MIX_HOME")
-  end
-
-  test "use config" do
-    in_tmp fn _ ->
-      System.put_env("MIX_HOME", System.cwd!)
-
-      { :ok, _ } = HexWeb.User.create("use_config", "use_config@mail.com", "hunter42")
-      Hex.Mix.update_config(username: "use_config", password: "hunter42")
-
-      send self, { :mix_shell_input, :prompt, "new_config@mail.com" }
-      send self, { :mix_shell_input, :prompt, "new_pass" }
-      send self, { :mix_shell_input, :prompt, "new_pass" }
-      send self, { :mix_shell_input, :yes?, false }
-
-      Mix.Tasks.Hex.User.Update.run([])
-      assert_received { :mix_shell, :info, ["Updating user options for use_config was successful!"] }
+      assert is_binary(Hex.Mix.read_config[:key])
     end
   after
     System.delete_env("MIX_HOME")

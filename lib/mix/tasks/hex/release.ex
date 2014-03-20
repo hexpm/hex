@@ -19,9 +19,9 @@ defmodule Mix.Tasks.Hex.Release do
 
   ## Command line options
 
-  * `--user`, `-u` - Username of package owner (required)
+  * `--user`, `-u` - Username of package owner (overrides user stored in config)
 
-  * `--pass`, `-p` - Password of package owner (required)
+  * `--pass`, `-p` - Password of package owner (required if `--user` was given)
 
   * `--revert version` - Revert given release
 
@@ -75,8 +75,7 @@ defmodule Mix.Tasks.Hex.Release do
   def run(args) do
     { opts, _, _ } = OptionParser.parse(args, switches: @switches, aliases: @aliases)
     user_config = Hex.Mix.read_config
-    opts = Util.config_opts(opts, user_config)
-    Util.required_opts(opts, [:user, :pass])
+    auth        = Util.auth_opts(opts, user_config)
     Hex.start_api
 
     if version = opts[:revert] do
@@ -89,7 +88,6 @@ defmodule Mix.Tasks.Hex.Release do
       files  = expand_paths(config[:package][:files] || @default_files)
       meta   = Keyword.take(config, [:app, :version])
       meta   = meta ++ [requirements: reqs, files: files] ++ (config[:package] || [])
-      auth   = Keyword.take(opts, [:user, :pass])
 
       print_info(meta)
 

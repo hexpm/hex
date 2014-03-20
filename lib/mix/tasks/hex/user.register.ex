@@ -32,7 +32,7 @@ defmodule Mix.Tasks.Hex.User.Register do
     case Hex.API.new_user(username, email, password) do
       { 201, _ } ->
         Mix.shell.info("Registration of user #{username} was successful!")
-        Util.update_config([username: username, password: password])
+        Util.generate_key(username, password)
       { code, body } ->
         Mix.shell.error("Registration of user #{username} failed! (#{code})")
         Util.print_error_result(code, body)
