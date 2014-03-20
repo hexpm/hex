@@ -22,8 +22,8 @@ defmodule Hex.SCM do
     end
   end
 
-  def accepts_options(opts) do
-    if opts[:package], do: opts
+  def accepts_options(app, opts) do
+    Keyword.put(opts, :hex_app, app)
   end
 
   def checked_out?(opts) do
@@ -33,7 +33,7 @@ defmodule Hex.SCM do
   def lock_status(opts) do
     case opts[:lock] do
       { :package, version } ->
-        Mix.Deps.in_dependency(%Mix.Dep{app: opts[:app], opts: opts}, fn _ ->
+        Mix.Dep.in_dependency(%Mix.Dep{app: opts[:hex_app], opts: opts}, fn _ ->
           if Mix.project[:version] == version do
             :ok
           else
@@ -52,7 +52,7 @@ defmodule Hex.SCM do
   end
 
   def checkout(opts) do
-    app  = opts[:app]
+    app  = opts[:hex_app]
     dest = opts[:dest]
     { :package, version } = opts[:lock]
     fetch(app, version)

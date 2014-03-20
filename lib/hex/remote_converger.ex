@@ -13,7 +13,7 @@ defmodule Hex.RemoteConverger do
 
   def converge(deps) do
     main      = Mix.project[:deps] || []
-    lock      = Mix.Deps.Lock.read
+    lock      = Mix.Dep.Lock.read
     locked    = Hex.Mix.from_lock(lock)
     reqs      = Hex.Mix.deps_to_requests(deps)
     overriden = Hex.Mix.overriden(main)

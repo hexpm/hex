@@ -38,7 +38,7 @@ defmodule Hex.Mix do
     Enum.map(result, fn { app, version } ->
       atom = :"#{app}"
       dep = Enum.find(deps, &(&1.app == atom))
-            || Mix.Deps.Loader.to_dep({ atom, package: true }, scms, from)
+            || Mix.Dep.Loader.to_dep({ atom, package: true }, scms, from)
 
       %{ dep | opts: dep.opts ++ [lock: { :package, version }] }
     end)
