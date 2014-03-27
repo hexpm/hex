@@ -39,7 +39,7 @@ defmodule Hex.API do
   end
 
   def get_installs do
-    request(:get, url("api/installs"), [])
+    request(:get, api_url("installs"), [])
   end
 
   def get_registry do
@@ -48,6 +48,14 @@ defmodule Hex.API do
 
   def new_key(name, auth) do
     request(:post, api_url("keys"), auth(auth), [name: name])
+  end
+
+  def get_keys(auth) do
+    request(:get, api_url("keys"), auth(auth))
+  end
+
+  def delete_key(name, auth) do
+    request(:delete, api_url("keys/#{name}"), auth(auth))
   end
 
   defp request(method, url, headers, body \\ nil, content_type \\ 'application/vnd.hex+elixir') do

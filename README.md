@@ -55,8 +55,6 @@ See `mix help hex.release`
 
 ## Roadmap and TODO
 
-* Website
-
 * Package maintainers that can do releases
 
 * escript client for erlang users (should not require an elixir installation)

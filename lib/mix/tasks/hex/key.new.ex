@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Hex.User.Key do
+defmodule Mix.Tasks.Hex.Key.New do
   use Mix.Task
   alias Mix.Tasks.Hex.Util
 
@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.User.Key do
   @moduledoc """
   Generate new API key and store on local machine.
 
-  `mix hex.user.key -u username -p password`
+  `mix hex.key.new -u username -p password`
 
   ## Command line options
 

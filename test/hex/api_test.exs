@@ -54,6 +54,15 @@ defmodule Hex.APITest do
     auth = [user: "user", pass: "hunter42"]
     assert { 201, body } = Hex.API.new_key("macbook", auth)
     assert { 201, _ } = Hex.API.new_package("melon", [], [key: body["secret"]])
+
+    assert { 200, body } = Hex.API.get_keys(auth)
+    key = Enum.find(body, &(&1["name"] == "macbook"))
+    assert byte_size(key["secret"]) == 32
+
+    assert { 204, _ } = Hex.API.delete_key("macbook", auth)
+
+    assert { 200, body } = Hex.API.get_keys(auth)
+    refute Enum.find(body, &(&1["name"] == "macbook"))
   end
 
   test "x-hex-message" do

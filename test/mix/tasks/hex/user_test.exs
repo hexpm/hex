@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Hex.User.Test do
+defmodule Mix.Tasks.Hex.UserTest do
   use HexTest.Case
   @moduletag :integration
 

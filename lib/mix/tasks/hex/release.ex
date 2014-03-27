@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.Release do
   @moduledoc """
   Create a new package release and update package meta data.
 
-  `mix hex.release -u username -p password -t 0.13.0`
+  `mix hex.release -u username -p password`
 
   If it is a new package being released it will be created and the user
   specified in `username` will be the package owner. Only package owners can
