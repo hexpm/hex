@@ -39,11 +39,11 @@ defmodule Hex.API do
   end
 
   def get_installs do
-    request(:get, url("installs"), [])
+    request(:get, url("api/installs"), [])
   end
 
   def get_registry do
-    request(:get, cdn("registry.ets.gz"), [])
+    request(:get, cdn_url("registry.ets.gz"), [])
   end
 
   def new_key(name, auth) do
@@ -106,7 +106,7 @@ defmodule Hex.API do
     'Hex/#{Hex.version} (Elixir/#{System.version})'
   end
 
-  def cdn(path) do
+  def cdn_url(path) do
     :binary.bin_to_list(Hex.cdn <> "/" <> path)
   end
 

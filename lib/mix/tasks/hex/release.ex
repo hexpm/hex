@@ -33,7 +33,9 @@ defmodule Mix.Tasks.Hex.Release do
 
   * `:deps` - List of package dependencies (see Dependencies below)
 
-  * `:package` - Hex specific configuration (see Package configuration below) (required)
+  * `:description` - Description of the project in a few paragraphs
+
+  * `:package` - Hex specific configuration (see Package configuration below)
 
   ## Dependencies
 
@@ -56,9 +58,7 @@ defmodule Mix.Tasks.Hex.Release do
   Additional metadata of the package can optionally be defined, but it is very
   recommended to do so.
 
-  * `:files` - List of files and directories to include in the release (required)
-
-  * `:description` - Description of the project in a few paragraphs
+  * `:files` - List of files and directories to include in the release
 
   * `:contributors` - List of names of contributors
 
@@ -83,11 +83,12 @@ defmodule Mix.Tasks.Hex.Release do
     else
       Mix.Task.run "compile"
       Mix.Project.get!
-      config = Mix.project
-      reqs   = get_requests(config)
-      files  = expand_paths(config[:package][:files] || @default_files)
-      meta   = Keyword.take(config, [:app, :version])
-      meta   = meta ++ [requirements: reqs, files: files] ++ (config[:package] || [])
+      config  = Mix.project
+      reqs    = get_requests(config)
+      package = config[:package]
+      files   = expand_paths(package[:files] || @default_files)
+      meta    = Keyword.take(config, [:app, :version, :description])
+      meta    = meta ++ [requirements: reqs, files: files] ++ (package || [])
 
       print_info(meta)
 

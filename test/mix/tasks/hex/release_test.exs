@@ -50,7 +50,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
       System.put_env("MIX_HOME", System.cwd!)
 
       user = HexWeb.User.get("user")
-      { :ok, key } = HexWeb.Key.create("computer", user)
+      { :ok, key } = HexWeb.API.Key.create("computer", user)
       Hex.Mix.update_config(username: "user", key: key.secret)
 
       send self, { :mix_shell_input, :yes?, true }

@@ -92,7 +92,7 @@ defmodule Hex.SCM do
     name = "#{package}-#{version}.tar"
     path = cache_path(name)
     etag = etag(path)
-    url  = Hex.API.cdn("tarballs/#{name}")
+    url  = Hex.API.cdn_url("tarballs/#{name}")
 
     Mix.shell.info("Fetching '#{url}'...")
 

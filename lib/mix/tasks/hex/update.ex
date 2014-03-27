@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Hex.Update do
     { opts, _, _ } = OptionParser.parse(args)
     Hex.start_api
 
-    # TODO: Check /installs for url
+    # TODO: Check /api/installs for url
     if opts[:system] do
       Mix.shell.info("Updating Hex installation...")
       Mix.Task.run "local.install", [@install_url, "--force"]
