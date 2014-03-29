@@ -35,7 +35,7 @@ defmodule Mix.Tasks.Hex.User.Register do
         Util.generate_key(username, password)
       { code, body } ->
         Mix.shell.error("Registration of user #{username} failed! (#{code})")
-        Util.print_error_result(code, body)
+        Hex.Util.print_error_result(code, body)
     end
   end
 end

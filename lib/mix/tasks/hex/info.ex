@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.Info do
   use Mix.Task
-  alias Mix.Tasks.Hex.Util
 
   @shortdoc "Print hex package or system information"
 
@@ -49,7 +48,7 @@ defmodule Mix.Tasks.Hex.Info do
 
       { code, body } ->
         Mix.shell.error("Failed to fetch installation information (#{code})")
-        Util.print_error_result(code, body)
+        Hex.Util.print_error_result(code, body)
     end
 
     Mix.shell.info("")
@@ -76,7 +75,7 @@ defmodule Mix.Tasks.Hex.Info do
         Mix.shell.error("No package with name #{package}")
       { code, body } ->
         Mix.shell.error("Failed to retrieve package information! (#{code})")
-        Util.print_error_result(code, body)
+        Hex.Util.print_error_result(code, body)
     end
   end
 
@@ -88,7 +87,7 @@ defmodule Mix.Tasks.Hex.Info do
         Mix.shell.error("No release with package name #{package} and version #{version}")
       { code, body } ->
         Mix.shell.error("Failed to retrieve release information! (#{code})")
-        Util.print_error_result(code, body)
+        Hex.Util.print_error_result(code, body)
     end
   end
 

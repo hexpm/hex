@@ -116,7 +116,7 @@ defmodule Hex.Resolver do
   defp unlocked_pending(pending, Info[locked: locked]) do
     Enum.find(pending, fn Request[name: name] ->
       unless Set.member?(locked, name) do
-        if Hex.RemoteConverger.update_registry("Updating registry...") == { :ok, :new } do
+        if Hex.Util.update_registry("Updating registry...") == { :ok, :new } do
           throw :restart
         end
         :ok
@@ -139,7 +139,7 @@ defmodule Hex.Resolver do
 
   defp verify_existence(name) do
     unless Registry.exists?(name) do
-      result = Hex.RemoteConverger.update_registry("Found unknown package #{name}, updating registry...")
+      result = Hex.Util.update_registry("Found unknown package #{name}, updating registry...")
       if match?({ :ok, _ }, result) do
         unless Registry.exists?(name) do
           Mix.shell.error("Package still not found")
@@ -153,7 +153,7 @@ defmodule Hex.Resolver do
 
   defp verify_existence(name, version) do
     unless Registry.exists?(name, version) do
-      result = Hex.RemoteConverger.update_registry("Found unknown package release #{name} #{version}, updating registry...")
+      result = Hex.Util.update_registry("Found unknown package release #{name} #{version}, updating registry...")
       if match?({ :ok, _ }, result) do
         unless Registry.exists?(name, version) do
           Mix.shell.error("Release still not found, is your lockfile bad?")

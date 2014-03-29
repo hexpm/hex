@@ -29,7 +29,7 @@ defmodule Mix.Tasks.Hex.Key.List do
         Enum.each(body, &Mix.shell.info(&1["name"]))
       { code, body } ->
         Mix.shell.error("Key fetching failed! (#{code})")
-        Util.print_error_result(code, body)
+        Hex.Util.print_error_result(code, body)
     end
   end
 end

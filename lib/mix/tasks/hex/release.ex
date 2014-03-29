@@ -119,7 +119,7 @@ defmodule Mix.Tasks.Hex.Release do
         Mix.shell.info("Successfully reverted #{meta[:app]} v#{meta[:version]}")
       { code, body } ->
         Mix.shell.error("Reverting #{meta[:app]} v#{meta[:version]} failed! (#{code})")
-        Util.print_error_result(code, body)
+        Hex.Util.print_error_result(code, body)
         false
     end
   end
@@ -130,7 +130,7 @@ defmodule Mix.Tasks.Hex.Release do
         true
       { code, body } ->
         Mix.shell.error("Updating package #{meta[:app]} failed! (#{code})")
-        Util.print_error_result(code, body)
+        Hex.Util.print_error_result(code, body)
         false
     end
   end
@@ -143,7 +143,7 @@ defmodule Mix.Tasks.Hex.Release do
         Mix.shell.info("Successfully pushed #{meta[:app]} v#{meta[:version]}!")
       { code, body } ->
         Mix.shell.error("Pushing #{meta[:app]} v#{meta[:version]} failed! (#{code})")
-        Util.print_error_result(code, body)
+        Hex.Util.print_error_result(code, body)
     end
   end
 

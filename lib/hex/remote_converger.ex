@@ -11,7 +11,7 @@ defmodule Hex.RemoteConverger do
 
   def converge(deps) do
     unless File.exists?(Hex.Registry.path()) do
-      if update_registry("Fetching registry...") == :error do
+      if Hex.Util.update_registry("Fetching registry...") == :error do
         raise Mix.Error
       end
     end
@@ -31,43 +31,6 @@ defmodule Hex.RemoteConverger do
       Hex.Mix.annotate_deps(resolved, deps)
     else
       raise Mix.Error, message: "Dependency resolution failed, relax the version requirements or unlock dependencies"
-    end
-  end
-
-  def update_registry(info \\ nil) do
-    if :application.get_env(:hex, :registry_updated) == { :ok, true } do
-      { :ok, :cached }
-    else
-      :application.set_env(:hex, :registry_updated, true)
-
-      if info, do: Mix.shell.info(info)
-
-      path = Hex.Registry.path
-      path_gz = Hex.Registry.path <> ".gz"
-
-      case File.read(path_gz) do
-        { :ok, contents } ->
-          etag = :crypto.hash(:md5, contents) |> Hex.Util.hexify
-          opts = [etag: etag]
-        { :error, _ } ->
-          opts = []
-      end
-
-      case Hex.API.get_registry(opts) do
-        { 200, body } ->
-          File.write!(path_gz, body)
-          data = :zlib.gunzip(body)
-          File.write!(path, data)
-          Mix.shell.info("Registry update was successful!")
-          { :ok, :new }
-        { 304, _ } ->
-          Mix.shell.info("Registry was fresh!")
-          { :ok, :new }
-        { code, body } ->
-          Mix.shell.error("Registry update failed! (#{code})")
-          Mix.Tasks.Hex.Util.print_error_result(code, body)
-          :error
-      end
     end
   end
 

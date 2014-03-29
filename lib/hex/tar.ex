@@ -30,4 +30,21 @@ defmodule Hex.Tar do
     File.rm!(path)
     tar
   end
+
+  def unpack(path, dest) do
+    # TODO: Validate package with checksum, version, etc.
+    # note that if tarball is empty :ok is returned, not { :ok, [] }
+
+    case :erl_tar.extract(path, [:memory, files: ['contents.tar.gz']]) do
+      { :ok, [{ _name, binary }] } ->
+        case :erl_tar.extract({ :binary, binary }, [:compressed, cwd: dest]) do
+          :ok ->
+            :ok
+        { :error, reason } ->
+          raise Mix.Error, message: "Unpacking #{path}/contents.tar.gz failed: #{inspect reason}"
+        end
+      { :error, reason } ->
+        raise Mix.Error, message: "Unpacking #{path} failed: #{inspect reason}"
+    end
+  end
 end

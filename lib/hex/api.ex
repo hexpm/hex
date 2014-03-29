@@ -44,7 +44,7 @@ defmodule Hex.API do
 
   def get_registry(opts \\ []) do
     if etag = opts[:etag] do
-      headers = [{ 'if-none-match', String.to_char_list!(etag) }]
+      headers = [{ 'if-none-match', etag }]
     end
     request(:get, cdn_url("registry.ets.gz"), headers || [])
   end

@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Hex.Key.Drop do
         Mix.shell.info("Key #{key} dropped!")
       { code, body } ->
         Mix.shell.error("Key fetching failed! (#{code})")
-        Util.print_error_result(code, body)
+        Hex.Util.print_error_result(code, body)
     end
   end
 end

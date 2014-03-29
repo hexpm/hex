@@ -44,7 +44,7 @@ defmodule Mix.Tasks.Hex.User.Update do
         Util.update_config([username: username, password: password])
       { code, body } ->
         Mix.shell.error("Updating user options for #{auth[:user]} failed! (#{code})")
-        Util.print_error_result(code, body)
+        Hex.Util.print_error_result(code, body)
     end
   end
 

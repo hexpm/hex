@@ -55,11 +55,14 @@ defmodule Hex.SCM do
     app  = opts[:hex_app]
     dest = opts[:dest]
     { :package, version } = opts[:lock]
-    fetch(app, version)
+    name = "#{app}-#{version}.tar"
+    path = cache_path(name)
+
+    fetch(name, path)
     Mix.shell.info("Unpacking tarball...")
 
     File.rm_rf!(dest)
-    unpack(app, version, dest)
+    Hex.Tar.unpack(path, dest)
     Mix.shell.info("Successfully unpacked")
     opts[:lock]
   end
@@ -68,30 +71,8 @@ defmodule Hex.SCM do
     checkout(opts)
   end
 
-  defp unpack(package, version, dest) do
-    name = "#{package}-#{version}.tar"
-    path = cache_path(name)
-
-    # TODO: Validate package with checksum, version, etc.
-    # note that if tarball is empty :ok is returned, not { :ok, [] }
-
-    case :erl_tar.extract(path, [:memory, files: ['contents.tar.gz']]) do
-      { :ok, [{ _name, binary }] } ->
-        case :erl_tar.extract({ :binary, binary }, [:compressed, cwd: dest]) do
-          :ok ->
-            :ok
-        { :error, reason } ->
-          raise Mix.Error, message: "Unpacking #{path}/contents.tar.gz failed: #{inspect reason}"
-        end
-      { :error, reason } ->
-        raise Mix.Error, message: "Unpacking #{path} failed: #{inspect reason}"
-    end
-  end
-
-  defp fetch(package, version) do
-    name = "#{package}-#{version}.tar"
-    path = cache_path(name)
-    etag = etag(path)
+  defp fetch(name, path) do
+    etag = Hex.Util.etag(path)
     url  = Hex.API.cdn_url("tarballs/#{name}")
 
     Mix.shell.info("Fetching '#{url}'...")
@@ -104,17 +85,6 @@ defmodule Hex.SCM do
         Mix.shell.info("Using local cached copy")
       true ->
         raise Mix.Error, message: "Package fetch failed"
-    end
-  end
-
-  defp etag(path) do
-    case File.read(path) do
-      { :ok, binary } ->
-        :crypto.hash(:md5, binary)
-        |> Hex.Util.hexify
-        |> String.to_char_list!
-      { :error, _ } ->
-        nil
     end
   end
 
