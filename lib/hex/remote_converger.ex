@@ -42,11 +42,26 @@ defmodule Hex.RemoteConverger do
 
       if info, do: Mix.shell.info(info)
 
-      case Hex.API.get_registry do
+      path = Hex.Registry.path
+      path_gz = Hex.Registry.path <> ".gz"
+
+      case File.read(path_gz) do
+        { :ok, contents } ->
+          etag = :crypto.hash(:md5, contents) |> Hex.Util.hexify
+          opts = [etag: etag]
+        { :error, _ } ->
+          opts = []
+      end
+
+      case Hex.API.get_registry(opts) do
         { 200, body } ->
+          File.write!(path_gz, body)
           data = :zlib.gunzip(body)
-          File.write!(Hex.Registry.path, data)
+          File.write!(path, data)
           Mix.shell.info("Registry update was successful!")
+          { :ok, :new }
+        { 304, _ } ->
+          Mix.shell.info("Registry was fresh!")
           { :ok, :new }
         { code, body } ->
           Mix.shell.error("Registry update failed! (#{code})")

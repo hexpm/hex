@@ -42,8 +42,11 @@ defmodule Hex.API do
     request(:get, api_url("installs"), [])
   end
 
-  def get_registry do
-    request(:get, cdn_url("registry.ets.gz"), [])
+  def get_registry(opts \\ []) do
+    if etag = opts[:etag] do
+      headers = [{ 'if-none-match', String.to_char_list!(etag) }]
+    end
+    request(:get, cdn_url("registry.ets.gz"), headers || [])
   end
 
   def new_key(name, auth) do
