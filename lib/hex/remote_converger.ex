@@ -3,22 +3,29 @@ defmodule Hex.RemoteConverger do
 
   @behaviour Mix.RemoteConverger
 
+  @registry_updated :registry_updated
+
   def remote?({ app, _opts }) do
     remote?(app)
   end
 
   def remote?(app) when is_atom(app) do
-    Hex.Registry.package_exists?("#{app}")
+    Hex.Registry.exists?("#{app}")
   end
 
   def converge(deps) do
+    unless File.exists?(Hex.Registry.path()) do
+      if update_registry("Fetching registry...") == :error do
+        raise Mix.Error
+      end
+    end
+
     main      = Mix.project[:deps] || []
     lock      = Mix.Dep.Lock.read
     locked    = Hex.Mix.from_lock(lock)
     reqs      = Hex.Mix.deps_to_requests(deps)
     overriden = Hex.Mix.overriden(main)
 
-    check_requests(reqs)
     print_info(reqs, locked)
 
     if resolved = Hex.Resolver.resolve(reqs, overriden, locked) do
@@ -26,6 +33,28 @@ defmodule Hex.RemoteConverger do
       Hex.Mix.annotate_deps(resolved, deps)
     else
       raise Mix.Error, message: "Dependency resolution failed, relax the version requirements or unlock dependencies"
+    end
+  end
+
+  def update_registry(info \\ nil) do
+    if :application.get_env(:hex, :registry_updated) == { :ok, true } do
+      { :ok, :cached }
+    else
+      :application.set_env(:hex, :registry_updated, true)
+
+      if info, do: Mix.shell.info(info)
+
+      case Hex.API.get_registry do
+        { 200, body } ->
+          data = :zlib.gunzip(body)
+          File.write!(Hex.Registry.path, data)
+          Mix.shell.info("Registry update was successful!")
+          { :ok, :new }
+        { code, body } ->
+          Mix.shell.error("Registry update failed! (#{code})")
+          Mix.Tasks.Hex.Util.print_error_result(code, body)
+          :error
+      end
     end
   end
 
@@ -48,13 +77,5 @@ defmodule Hex.RemoteConverger do
         Mix.shell.info "  #{dep} : v#{version}"
       end)
     end
-  end
-
-  defp check_requests(reqs) do
-    Enum.each(reqs, fn { package, _req } ->
-      unless Hex.Registry.package_exists?(package) do
-        raise Mix.Error, message: "Package #{package} not found in registry"
-      end
-    end)
   end
 end

@@ -66,8 +66,13 @@ defmodule Hex.Registry do
     |> Enum.sort
   end
 
-  def package_exists?(package) do
+  def exists?(package) do
     !! get_versions(package)
+  end
+
+  def exists?(package, version) do
+    versions = get_versions(package)
+    !! (versions && version in versions)
   end
 
   def get_versions(package) do

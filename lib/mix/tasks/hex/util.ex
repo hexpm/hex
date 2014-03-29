@@ -44,6 +44,8 @@ defmodule Mix.Tasks.Hex.Util do
     end)
   end
 
+  # TODO: Move printing to Hex namespace
+
   def print_error_result(:http_error, reason) do
     Mix.shell.info(inspect(reason))
   end

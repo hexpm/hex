@@ -20,6 +20,7 @@ defmodule Hex.MixTest do
 
   setup do
     Hex.Registry.start(registry_path: tmp_path("hex.ets"))
+    :application.set_env(:hex, :registry_updated, false)
   end
 
   @tag :integration
@@ -27,6 +28,7 @@ defmodule Hex.MixTest do
     Mix.Project.push Simple
 
     in_tmp fn _ ->
+      System.put_env("MIX_HOME", System.cwd!)
       Mix.Task.run "deps.get"
 
       assert_received { :mix_shell, :info, ["* Getting ecto (package)"] }
@@ -51,6 +53,7 @@ defmodule Hex.MixTest do
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
             Ex_doc.NoConflict.Mixfile ]
+    System.delete_env("MIX_HOME")
   end
 
   @tag :integration
@@ -58,6 +61,8 @@ defmodule Hex.MixTest do
     Mix.Project.push Override
 
     in_tmp fn _ ->
+      System.put_env("MIX_HOME", System.cwd!)
+
       Mix.Task.run "deps.get"
       Mix.Task.run "deps.compile"
       Mix.Task.run "deps"
@@ -77,6 +82,7 @@ defmodule Hex.MixTest do
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
             Ex_doc.NoConflict.Mixfile ]
+    System.delete_env("MIX_HOME")
   end
 
   test "config" do

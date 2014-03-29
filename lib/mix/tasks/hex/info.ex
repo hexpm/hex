@@ -64,7 +64,7 @@ defmodule Mix.Tasks.Hex.Info do
       Mix.shell.info("Packages #: #{packages}")
       Mix.shell.info("Releases #: #{releases}")
     else
-      Mix.shell.info("No registry file available, fetch it with 'mix hex.update'")
+      Mix.shell.info("No registry file available")
     end
   end
 

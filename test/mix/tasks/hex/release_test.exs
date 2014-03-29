@@ -65,6 +65,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
     Mix.Project.push ReleaseB.Mixfile
 
     in_tmp fn _ ->
+      System.put_env("MIX_HOME", System.cwd!)
       File.mkdir_p("tmp")
 
       Mix.Tasks.Deps.Get.run([])
@@ -75,5 +76,6 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
     end
   after
     purge [Ex_doc.NoConflict.Mixfile]
+    System.delete_env("MIX_HOME")
   end
 end

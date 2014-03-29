@@ -1,4 +1,5 @@
 defmodule Hex.Resolver do
+  defrecord Info, [:overriden, :locked]
   defrecord State, [:activated, :pending]
   defrecord Request, [:name, :req, :parent]
   defrecord Active, [:name, :version, :state, :parents, :possibles]
@@ -6,31 +7,40 @@ defmodule Hex.Resolver do
   alias Hex.Registry
 
   def resolve(requests, overriden, locked) do
+    info = Info[overriden: overriden, locked: locked]
+
     { activated, pending } =
       Enum.reduce(locked, { HashDict.new, [] }, fn { name, version }, { dict, pending } ->
-        if (versions = Registry.get_versions(name)) && version in versions do
-          active = Active[name: name, version: version, parents: [], possibles: []]
-          dict = Dict.put(dict, name, active)
-          pending = pending ++ get_deps(name, version, [])
-        end
+        verify_existence(name, version)
+        active = Active[name: name, version: version, parents: [], possibles: []]
+        dict = Dict.put(dict, name, active)
+        pending = pending ++ get_deps(name, version, info)
         { dict, pending }
       end)
 
-    requests =
+    req_requests =
       Enum.map(requests, fn { name, req } ->
+        verify_existence(name)
         Request[name: name, req: req]
       end)
 
-    do_resolve(activated, pending ++ requests, overriden)
+    try do
+      pending = pending ++ req_requests
+      unlocked_pending(activated, pending)
+      do_resolve(activated, pending, info)
+    catch
+      :throw, :restart ->
+        resolve(requests, overriden, locked)
+    end
   end
 
-  defp do_resolve(activated, [], _overriden) do
+  defp do_resolve(activated, [], _info) do
     Enum.map(activated, fn { name, Active[version: version] } ->
       { name, version }
     end) |> Enum.reverse
   end
 
-  defp do_resolve(activated, [request|pending], overriden) do
+  defp do_resolve(activated, [request|pending], info) do
     active = activated[request.name]
 
     if active do
@@ -39,9 +49,9 @@ defmodule Hex.Resolver do
 
       if vsn_match?(active.version, request.req) do
         activated = Dict.put(activated, request.name, active)
-        do_resolve(activated, pending, overriden)
+        do_resolve(activated, pending, info)
       else
-        backtrack(active, activated, overriden)
+        backtrack(active, activated, info)
       end
     else
       versions = Registry.get_versions(request.name)
@@ -50,48 +60,66 @@ defmodule Hex.Resolver do
 
       case versions do
         [] ->
-          backtrack(activated[request.parent], activated, overriden)
+          backtrack(activated[request.parent], activated, info)
 
         [version|possibles] ->
-          new_pending = get_deps(request.name, version, overriden)
+          new_pending = get_deps(request.name, version, info)
+          unlocked_pending(activated, new_pending)
+
           state = State[activated: activated, pending: pending]
           new_active = Active[name: request.name, version: version, state: state,
                               possibles: possibles, parents: wrap(request.parent)]
           activated = Dict.put(activated, request.name, new_active)
 
-          do_resolve(activated, pending ++ new_pending, overriden)
+          do_resolve(activated, pending ++ new_pending, info)
       end
     end
   end
 
-  defp backtrack(nil, _activated, _overriden) do
+  defp backtrack(nil, _activated, _info) do
     nil
   end
 
-  defp backtrack(Active[state: state] = active, activated, overriden) do
+  defp backtrack(Active[state: state] = active, activated, info) do
     case active.possibles do
       [] ->
         Enum.find_value(active.parents, fn parent ->
-          backtrack(activated[parent], activated, overriden)
+          backtrack(activated[parent], activated, info)
         end)
 
       [version|possibles] ->
         active = active.possibles(possibles).version(version)
-        pending = get_deps(active.name, version, overriden)
+        pending = get_deps(active.name, version, info)
+        unlocked_pending(activated, pending)
 
         activated = Dict.put(state.activated, active.name, active)
-        do_resolve(activated, state.pending ++ pending, overriden)
+        do_resolve(activated, state.pending ++ pending, info)
     end
   end
 
-  def get_deps(package, version, overriden) do
+  def get_deps(package, version, info) do
     { _, deps } = Registry.get_release(package, version)
 
-    Enum.flat_map(deps, fn { name, req } ->
-      if name in overriden do
-        []
-      else
-        [Request[name: name, req: req, parent: package]]
+    pending =
+      Enum.flat_map(deps, fn { name, req } ->
+        if name in info.overriden do
+          []
+        else
+          verify_existence(name)
+          [Request[name: name, req: req, parent: package]]
+        end
+      end)
+
+    pending
+  end
+
+  defp unlocked_pending(activated, pending) do
+    Enum.find(pending, fn request ->
+      unless activated[request.name] do
+        if Hex.RemoteConverger.update_registry("Updating registry...") == { :ok, :new } do
+          throw :restart
+        end
+        :ok
       end
     end)
   end
@@ -108,4 +136,32 @@ defmodule Hex.Resolver do
 
   defp wrap(nil), do: []
   defp wrap(arg), do: [arg]
+
+  defp verify_existence(name) do
+    unless Registry.exists?(name) do
+      result = Hex.RemoteConverger.update_registry("Found unknown package #{name}, updating registry...")
+      if match?({ :ok, _ }, result) do
+        unless Registry.exists?(name) do
+          Mix.shell.info("Package still not found, is your lockfile bad?")
+          raise Mix.Error
+        end
+      else
+        raise Mix.Error
+      end
+    end
+  end
+
+  defp verify_existence(name, version) do
+    unless Registry.exists?(name, version) do
+      result = Hex.RemoteConverger.update_registry("Found unknown package #{name} #{version}, updating registry...")
+      if match?({ :ok, _ }, result) do
+        unless Registry.exists?(name, version) do
+          Mix.shell.info("Package still not found, is your lockfile bad?")
+          raise Mix.Error
+        end
+      else
+        raise Mix.Error
+      end
+    end
+  end
 end
