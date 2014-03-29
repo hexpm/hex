@@ -7,7 +7,7 @@ defmodule Hex.Resolver do
   alias Hex.Registry
 
   def resolve(requests, overriden, locked) do
-    info = Info[overriden: overriden, locked: locked]
+    info = Info[overriden: HashSet.new(overriden), locked: HashSet.new(locked)]
 
     { activated, pending } =
       Enum.reduce(locked, { HashDict.new, [] }, fn { name, version }, { dict, pending } ->
@@ -26,7 +26,7 @@ defmodule Hex.Resolver do
 
     try do
       pending = pending ++ req_requests
-      unlocked_pending(activated, pending)
+      unlocked_pending(pending, info)
       do_resolve(activated, pending, info)
     catch
       :throw, :restart ->
@@ -40,7 +40,7 @@ defmodule Hex.Resolver do
     end) |> Enum.reverse
   end
 
-  defp do_resolve(activated, [request|pending], info) do
+  defp do_resolve(activated, [Request[] = request|pending], info) do
     active = activated[request.name]
 
     if active do
@@ -64,7 +64,7 @@ defmodule Hex.Resolver do
 
         [version|possibles] ->
           new_pending = get_deps(request.name, version, info)
-          unlocked_pending(activated, new_pending)
+          unlocked_pending(new_pending, info)
 
           state = State[activated: activated, pending: pending]
           new_active = Active[name: request.name, version: version, state: state,
@@ -90,19 +90,19 @@ defmodule Hex.Resolver do
       [version|possibles] ->
         active = active.possibles(possibles).version(version)
         pending = get_deps(active.name, version, info)
-        unlocked_pending(activated, pending)
+        unlocked_pending(pending, info)
 
         activated = Dict.put(state.activated, active.name, active)
         do_resolve(activated, state.pending ++ pending, info)
     end
   end
 
-  def get_deps(package, version, info) do
+  def get_deps(package, version, Info[overriden: overriden]) do
     { _, deps } = Registry.get_release(package, version)
 
     pending =
       Enum.flat_map(deps, fn { name, req } ->
-        if name in info.overriden do
+        if Set.member?(overriden, name) do
           []
         else
           verify_existence(name)
@@ -113,9 +113,9 @@ defmodule Hex.Resolver do
     pending
   end
 
-  defp unlocked_pending(activated, pending) do
-    Enum.find(pending, fn request ->
-      unless activated[request.name] do
+  defp unlocked_pending(pending, Info[locked: locked]) do
+    Enum.find(pending, fn Request[name: name] ->
+      unless Set.member?(locked, name) do
         if Hex.RemoteConverger.update_registry("Updating registry...") == { :ok, :new } do
           throw :restart
         end
