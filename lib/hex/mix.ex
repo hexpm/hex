@@ -1,8 +1,8 @@
 defmodule Hex.Mix do
   def deps_to_requests(deps) do
-    Enum.flat_map(deps, fn dep ->
-      { app, req, opts } = dep(dep)
-      if opts[:package], do: [{ "#{app}", req }], else: []
+    Enum.flat_map(deps, fn
+      %Mix.Dep{scm: Hex.SCM} = dep -> [{ "#{dep.app}", dep.requirement }]
+      %Mix.Dep{} -> []
     end)
   end
 
@@ -66,7 +66,7 @@ defmodule Hex.Mix do
       end
 
     File.mkdir_p!(Path.dirname(path))
-    File.write!(path, Macro.to_string(updated_config))
+    File.write!(path, Macro.to_string(updated_config) <> "\n")
   end
 
   defp config_path do

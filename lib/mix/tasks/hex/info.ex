@@ -55,7 +55,7 @@ defmodule Mix.Tasks.Hex.Info do
     Mix.shell.info("")
     path = Hex.Registry.path()
     if File.exists?(path) do
-      Hex.start_mix
+      Hex.Registry.start
       stat = File.stat!(path)
       { packages, releases } = Hex.Registry.stat()
 

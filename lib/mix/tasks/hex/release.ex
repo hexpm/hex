@@ -76,13 +76,13 @@ defmodule Mix.Tasks.Hex.Release do
     { opts, _, _ } = OptionParser.parse(args, switches: @switches, aliases: @aliases)
     user_config = Hex.Mix.read_config
     auth        = Util.auth_opts(opts, user_config)
+
+    Mix.Project.get!
     Hex.start_api
 
     if version = opts[:revert] do
       revert(Mix.project, version, opts)
     else
-      Mix.Task.run "compile"
-      Mix.Project.get!
       config  = Mix.project
       reqs    = get_requests(config)
       package = config[:package]
@@ -148,8 +148,11 @@ defmodule Mix.Tasks.Hex.Release do
   end
 
   defp get_requests(meta) do
-    Enum.filter(meta[:deps] || [], &prod_dep?(&1))
-    |> Hex.Mix.deps_to_requests
+    deps = Enum.filter(meta[:deps] || [], &prod_dep?(&1))
+    Enum.map(deps, fn
+      { app, req, _opts } -> { app, req }
+      { app, _opts }      -> { app, nil }
+    end)
   end
 
   defp prod_dep?({ _app, opts }) do

@@ -5,12 +5,8 @@ defmodule Hex.RemoteConverger do
 
   @registry_updated :registry_updated
 
-  def remote?({ app, _opts }) do
-    remote?(app)
-  end
-
-  def remote?(app) when is_atom(app) do
-    Hex.Registry.exists?("#{app}")
+  def remote?(dep) do
+    !! dep.opts[:hex_app]
   end
 
   def converge(deps) do
@@ -19,6 +15,8 @@ defmodule Hex.RemoteConverger do
         raise Mix.Error
       end
     end
+
+    Hex.Registry.start
 
     main      = Mix.project[:deps] || []
     lock      = Mix.Dep.Lock.read

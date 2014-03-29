@@ -22,6 +22,7 @@ defmodule Mix.Tasks.Hex.Key.Drop do
   def run(args) do
     { opts, rest, _ } = OptionParser.parse(args, aliases: @aliases)
     Util.required_opts(opts, [:user, :pass])
+    Hex.start_api
 
     case rest do
       [key] ->
@@ -29,9 +30,6 @@ defmodule Mix.Tasks.Hex.Key.Drop do
       _ ->
         raise Mix.Error, message: "invalid arguments, expected 'mix hex.key.drop key_name'"
     end
-
-    Hex.start_api
-    Util.generate_key(opts[:user], opts[:pass])
   end
 
   defp drop_key(key, opts) do

@@ -142,7 +142,7 @@ defmodule Hex.Resolver do
       result = Hex.RemoteConverger.update_registry("Found unknown package #{name}, updating registry...")
       if match?({ :ok, _ }, result) do
         unless Registry.exists?(name) do
-          Mix.shell.info("Package still not found, is your lockfile bad?")
+          Mix.shell.error("Package still not found")
           raise Mix.Error
         end
       else
@@ -153,10 +153,10 @@ defmodule Hex.Resolver do
 
   defp verify_existence(name, version) do
     unless Registry.exists?(name, version) do
-      result = Hex.RemoteConverger.update_registry("Found unknown package #{name} #{version}, updating registry...")
+      result = Hex.RemoteConverger.update_registry("Found unknown package release #{name} #{version}, updating registry...")
       if match?({ :ok, _ }, result) do
         unless Registry.exists?(name, version) do
-          Mix.shell.info("Package still not found, is your lockfile bad?")
+          Mix.shell.error("Release still not found, is your lockfile bad?")
           raise Mix.Error
         end
       else

@@ -15,7 +15,7 @@ Hex integrates with Mix's dependency handling. This means that it utilizes Mix's
 Below is an example mix.exs file.
 
 ```elixir
-Code.ensure_loaded?(Hex) && Hex.start
+Code.ensure_loaded?(Hex) and Hex.start
 
 defmodule MyProject.Mixfile do
   use Mix.Project

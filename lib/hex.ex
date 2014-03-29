@@ -17,7 +17,6 @@ defmodule Hex do
   end
 
   def start_mix do
-    Hex.Registry.start()
     Mix.SCM.append(Hex.SCM)
     Mix.RemoteConverger.register(Hex.RemoteConverger)
   end
