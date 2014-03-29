@@ -3,29 +3,32 @@ defmodule Hex.Registry do
   @version      1
 
   def start(opts \\ []) do
-    path = opts[:registry_path] || path()
+    unless match?({ :ok, _ }, :application.get_env(:hex, @registry_tid)) do
+      path = opts[:registry_path] || path()
 
-    case :ets.file2tab(String.to_char_list!(path)) do
-      { :ok, tid } ->
-        :application.set_env(:hex, @registry_tid, tid)
+      case :ets.file2tab(String.to_char_list!(path)) do
+        { :ok, tid } ->
+          :application.set_env(:hex, @registry_tid, tid)
 
-        case :ets.lookup(tid, :"$$version$$") do
-          [{ :"$$version$$", @version }] ->
-            :ok
-          _ ->
-            raise Hex.Error, message: "The registry file version is newer than what is supported. " <>
-              "Please update hex."
-        end
+          case :ets.lookup(tid, :"$$version$$") do
+            [{ :"$$version$$", @version }] ->
+              :ok
+            _ ->
+              raise Hex.Error, message: "The registry file version is newer than what is supported. " <>
+                "Please update hex."
+          end
 
-      { :error, reason } ->
-        raise Hex.Error, message: "Failed to open hex registry file (#{inspect reason}). " <>
-          "Did you fetch it with 'mix hex.update'?"
+        { :error, reason } ->
+          raise Hex.Error, message: "Failed to open hex registry file (#{inspect reason}). " <>
+            "Did you fetch it with 'mix hex.update'?"
+      end
     end
   end
 
   def stop do
     { :ok, tid } = :application.get_env(:hex, @registry_tid)
     :ets.delete(tid)
+    :application.unset_env(:hex, @registry_tid)
     :ok
   end
 
