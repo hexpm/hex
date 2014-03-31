@@ -13,11 +13,11 @@ defmodule Hex.Mix do
     end)
   end
 
-  defp dep(%Mix.Dep{app: app, opts: opts, requirement: req}),
-    do: { app, req, opts }
-  defp dep({ app, opts }),
+  def dep({ app, opts }) when is_list(opts),
     do: { app, nil, opts }
-  defp dep({ app, req, opts }),
+  def dep({ app, req }) when is_binary(req),
+    do: { app, req, [] }
+  def dep({ app, req, opts }),
     do: { app, req, opts }
 
   def from_lock(lock) do

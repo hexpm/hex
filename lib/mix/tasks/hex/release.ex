@@ -78,7 +78,7 @@ defmodule Mix.Tasks.Hex.Release do
     auth        = Util.auth_opts(opts, user_config)
 
     Mix.Project.get!
-    Hex.start_api
+    Hex.start
 
     if version = opts[:revert] do
       revert(Mix.project, version, opts)
@@ -92,7 +92,7 @@ defmodule Mix.Tasks.Hex.Release do
 
       print_info(meta)
 
-      if create_package?(meta, auth) do
+      if Mix.shell.yes?("Proceed?") and create_package?(meta, auth) do
         create_release(meta, auth)
       end
     end
@@ -103,14 +103,15 @@ defmodule Mix.Tasks.Hex.Release do
     # are valid packages and has valid version requirements
 
     Mix.shell.info("Pushing release #{meta[:app]} v#{meta[:version]}")
-    Mix.shell.info("  Dependencies:")
-    Mix.shell.info("  Files: !TODO!")
 
-    Enum.each(meta[:requirements], fn { app, req } ->
-      Mix.shell.info("    #{app}: #{req}")
+    Mix.shell.info("  Dependencies:")
+    Enum.each(meta[:requirements], fn
+      { app, nil } -> Mix.shell.info("    #{app}")
+      { app, req } -> Mix.shell.info("    #{app} : #{req}")
     end)
 
-    Mix.shell.yes?("Proceed?")
+    Mix.shell.info("  Included files:")
+    Enum.each(meta[:files], &Mix.shell.info("    #{&1}"))
   end
 
   defp revert(meta, version, auth) do
@@ -148,19 +149,19 @@ defmodule Mix.Tasks.Hex.Release do
   end
 
   defp get_requests(meta) do
-    deps = Enum.filter(meta[:deps] || [], &prod_dep?(&1))
-    Enum.map(deps, fn
-      { app, req, _opts } -> { app, req }
-      { app, _opts }      -> { app, nil }
-    end)
-  end
-
-  defp prod_dep?({ _app, opts }) do
-    if only = opts[:only], do: :prod in List.wrap(only), else: true
+    Enum.map(meta[:deps] || [], &Hex.Mix.dep/1)
+    |> Enum.filter(&(package_dep?(&1) and prod_dep?(&1)))
+    |> Enum.map(fn { app, req, _opts } -> { app, req } end)
   end
 
   defp prod_dep?({ _app, _req, opts }) do
     if only = opts[:only], do: :prod in List.wrap(only), else: true
+  end
+
+  defp package_dep?({ app, _req, opts }) do
+    Enum.find(Mix.SCM.available, fn scm ->
+      scm.accepts_options(app, opts)
+    end) == Hex.SCM
   end
 
   defp expand_paths(paths) do

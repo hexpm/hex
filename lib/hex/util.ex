@@ -65,6 +65,8 @@ defmodule Hex.Util do
 
   defp binarify(binary) when is_binary(binary),
     do: binary
+  defp binarify(atom) when nil?(atom) or is_boolean(atom),
+    do: atom
   defp binarify(atom) when is_atom(atom),
     do: atom_to_binary(atom)
   defp binarify(list) when is_list(list),
@@ -107,7 +109,7 @@ defmodule Hex.Util do
     Enum.each(errors, fn
       { key, list } when is_list(list) ->
         Mix.shell.info(indent(depth) <> key <> ":")
-        pretty_errors(errors, depth + 1)
+        pretty_errors(list, depth + 1)
       { key, value } ->
         Mix.shell.info(indent(depth) <> key <> ": " <> value)
     end)
