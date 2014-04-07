@@ -178,7 +178,9 @@ if :integration in ExUnit.configuration[:include] do
   db_url = "ecto://postgres:postgres@localhost/#{db}"
 
   System.put_env("DATABASE_URL", db_url)
+
   :application.ensure_all_started(:hex_web)
+  HexWeb.RegistryBuilder.start_link
   HexWeb.Config.password_work_factor(4)
 
   File.cd! "_build/test/lib/hex_web", fn ->

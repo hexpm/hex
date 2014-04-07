@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Hex.Update do
   use Mix.Task
 
-  @install_url "http://s3.hex.pm/installs/hex.ez"
+  @install_url "http://hex.pm/installs/hex.ez"
 
   @shortdoc "Update hex"
 
@@ -10,19 +10,27 @@ defmodule Mix.Tasks.Hex.Update do
 
   `mix hex.update`
 
-  Updating the hex installation should be done periodically. The registry status can be
-  checked with `mix hex.info`. The registry contains an index of all packages,
-  releases and their dependencies that is used during Hex's dependency
-  resolution.
+  ## Command line options
+
+  * `--channel`, `-c` - Selects the channel, defaults to the currently installed
+    channel (possible values: `stable` `dev`)
   """
 
-  def run(_args) do
-    Hex.start_api
+  @aliases [c: :channel]
 
-    # TODO: Check /api/installs for url
+  def run(args) do
+    { opts, _, _ } = OptionParser.parse(args, aliases: @aliases)
+
+    channel = URI.encode channel(opts)
+    elixir  = URI.encode System.version
+    url = @install_url <> "?channel=#{channel}&elixir=#{elixir}"
 
     Mix.shell.info("Updating Hex installation...")
-    Mix.Task.run "local.install", [@install_url, "--force"]
+    Mix.Task.run "local.install", [url, "--force"]
     Mix.shell.info("Updating Hex was successful!")
+  end
+
+  defp channel(opts) do
+    opts[:channel] || atom_to_binary(Hex.channel)
   end
 end

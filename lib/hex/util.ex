@@ -24,7 +24,7 @@ defmodule Hex.Util do
           { :ok, :new }
         { code, body } ->
           Mix.shell.error("Registry update failed! (#{code})")
-          Mix.Tasks.Hex.Util.print_error_result(code, body)
+          print_error_result(code, body)
           :error
       end
     end

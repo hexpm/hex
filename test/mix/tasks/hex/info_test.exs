@@ -29,15 +29,15 @@ defmodule Mix.Tasks.Hex.InfoTest do
       HexWeb.RegistryBuilder.sync_rebuild
 
       Mix.Tasks.Hex.Info.run([])
+
       message = "Hex v" <> Hex.version
       assert_received { :mix_shell, :info, [^message] }
-      assert_received { :mix_shell, :info, ["Latest version installed"] }
-
       assert_received { :mix_shell, :info, ["No registry file available"] }
 
       assert { 200, data } = Hex.API.get_registry
       File.write!(Hex.Registry.path, :zlib.gunzip(data))
       Mix.Tasks.Hex.Info.run([])
+
       assert_received { :mix_shell, :info, ["Registry file available (last updated: " <> _] }
       assert_received { :mix_shell, :info, ["Size: " <> _] }
       assert_received { :mix_shell, :info, ["Packages #: " <> _] }

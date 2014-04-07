@@ -9,8 +9,7 @@ defmodule Mix.Tasks.Hex.Info do
   `mix hex.info [package [version]]`
 
   If `package` is not given, print system information. This includes when
-  registry was last updated, current system version and if there is a new
-  version available.
+  registry was last updated and current system version
 
   If `package` is given, print information about the package. This includes all
   released versions and package metadata.
@@ -34,22 +33,6 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp general() do
     Mix.shell.info("Hex v" <> Hex.version)
-
-    case Hex.API.get_installs() do
-      { 200, body } ->
-        # Default to stable channel when we have one
-        latest = body[Hex.channel] || body["dev"]
-
-        if Version.compare(latest["version"], Hex.version) == :gt do
-          Mix.shell.info("Newer version available: v" <> latest["version"] <> " update with 'mix hex.update --system'")
-        else
-          Mix.shell.info("Latest version installed")
-        end
-
-      { code, body } ->
-        Mix.shell.error("Failed to fetch installation information (#{code})")
-        Hex.Util.print_error_result(code, body)
-    end
 
     Mix.shell.info("")
     path = Hex.Registry.path()

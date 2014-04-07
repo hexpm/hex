@@ -38,10 +38,6 @@ defmodule Hex.API do
     request(:delete, api_url("packages/#{name}/releases/#{version}"), auth(auth))
   end
 
-  def get_installs do
-    request(:get, api_url("installs"), [])
-  end
-
   def get_registry(opts \\ []) do
     if etag = opts[:etag] do
       headers = [{ 'if-none-match', etag }]

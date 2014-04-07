@@ -51,7 +51,7 @@ defmodule Hex do
 
   version = Mix.project[:version]
   { :ok, Version.Schema[pre: pre] } = Version.parse(version)
-  channel = Enum.join(pre, ".")
+  channel = if pre == ["dev"], do: :dev, else: :stable
 
   def version, do: unquote(version)
   def channel, do: unquote(channel)

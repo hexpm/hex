@@ -43,8 +43,8 @@ defmodule Mix.Tasks.Hex.Release do
   `:git` or `:path` as the SCM `:package` is used.
 
       defp deps do
-        [ { :ecto, "~> 0.1.0", package: true },
-          { :postgrex, "~> 0.3.0", package: true },
+        [ { :ecto, "~> 0.1.0" },
+          { :postgrex, "~> 0.3.0" },
           { :cowboy, github: "extend/cowboy" } ]
       end
 
