@@ -33,13 +33,12 @@ defmodule Hex.SCM do
   def lock_status(opts) do
     case opts[:lock] do
       { :package, version } ->
-        Mix.Dep.in_dependency(%Mix.Dep{app: opts[:hex_app], opts: opts}, fn _ ->
-          if Mix.project[:version] == version do
-            :ok
-          else
+        case File.read(Path.join(opts[:dest], ".hex")) do
+          { :ok, dep_version } ->
+            if String.strip(dep_version) == version, do: :ok, else: :mismatch
+          { :error, _ } ->
             :mismatch
-          end
-        end)
+        end
       nil ->
         :mismatch
       _ ->
@@ -63,6 +62,8 @@ defmodule Hex.SCM do
 
     File.rm_rf!(dest)
     Hex.Tar.unpack(path, dest)
+    File.write!(Path.join(dest, ".hex"), version)
+
     Mix.shell.info("Successfully unpacked")
     opts[:lock]
   end
