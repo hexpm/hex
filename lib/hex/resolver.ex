@@ -124,14 +124,8 @@ defmodule Hex.Resolver do
     end)
   end
 
-  defp vsn_match?(_version, nil),
-    do: true
   defp vsn_match?(version, req) do
-    if Regex.regex?(req) do
-      version =~ req
-    else
-      Version.match?(version, req)
-    end
+    nil?(req) or Version.match?(version, req)
   end
 
   defp wrap(nil), do: []

@@ -56,11 +56,6 @@ defmodule HexTest do
     assert Dict.equal? reqs([jose: "0.2.1", eric: "0.0.2"]), resolve(deps)
   end
 
-  test "more backtrack" do
-    deps = reqs([ecto: nil])
-    assert Dict.equal? reqs([ecto: "0.2.0", postgrex: "0.2.0", ex_doc: "0.0.1"]), resolve(deps)
-  end
-
   test "locked" do
     locked = reqs([decimal: "0.2.0"])
     deps = reqs([decimal: nil, ex_plex: nil])

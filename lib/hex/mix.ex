@@ -7,8 +7,7 @@ defmodule Hex.Mix do
   end
 
   def overriden(main) do
-    Enum.flat_map(main, fn dep ->
-      { app, _req, opts } = dep(dep)
+    Enum.flat_map(main, fn %Mix.Dep{app: app, opts: opts} ->
       if opts[:override], do: ["#{app}"], else: []
     end)
   end
@@ -30,17 +29,9 @@ defmodule Hex.Mix do
     end)
   end
 
-  def annotate_deps(result, deps) do
-    scms = Mix.SCM.available
-    # TODO: from may be wrong for some deps
-    from = Path.absname("mix.exs")
-
-    Enum.map(result, fn { app, version } ->
-      atom = :"#{app}"
-      dep = Enum.find(deps, &(&1.app == atom))
-            || Mix.Dep.Loader.to_dep({ atom, package: true }, scms, from)
-
-      %{ dep | opts: dep.opts ++ [lock: { :package, version }] }
+  def to_lock(result) do
+    Enum.map(result, fn { name, version } ->
+      { :"#{name}", { :package, version } }
     end)
   end
 

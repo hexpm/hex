@@ -9,7 +9,7 @@ defmodule Hex.RemoteConverger do
     !! dep.opts[:hex_app]
   end
 
-  def converge(deps) do
+  def converge(main, old_lock) do
     unless File.exists?(Hex.Registry.path()) do
       if Hex.Util.update_registry("Fetching registry...") == :error do
         raise Mix.Error
@@ -18,17 +18,18 @@ defmodule Hex.RemoteConverger do
 
     Hex.Registry.start
 
-    main      = Mix.project[:deps] || []
-    lock      = Mix.Dep.Lock.read
+    apps      = Enum.map(main, &(&1.app))
+    lock      = Enum.reject(old_lock, fn { app, _ } -> app in apps end)
     locked    = Hex.Mix.from_lock(lock)
-    reqs      = Hex.Mix.deps_to_requests(deps)
+    reqs      = Hex.Mix.deps_to_requests(main)
     overriden = Hex.Mix.overriden(main)
 
     print_info(reqs, locked)
 
     if resolved = Hex.Resolver.resolve(reqs, overriden, locked) do
       print_success(resolved, locked)
-      Hex.Mix.annotate_deps(resolved, deps)
+      new_lock = Hex.Mix.to_lock(resolved)
+      Dict.merge(old_lock, new_lock)
     else
       raise Mix.Error, message: "Dependency resolution failed, relax the version requirements or unlock dependencies"
     end

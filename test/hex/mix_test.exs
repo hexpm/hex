@@ -5,7 +5,15 @@ defmodule Hex.MixTest do
     def project do
       [ app: :simple,
         version: "0.1.0",
-        deps: [ { :ecto, [package: true] } ] ]
+        deps: [ { :ecto, "0.2.0", [package: true] } ] ]
+    end
+  end
+
+  defmodule SimpleOld do
+    def project do
+      [ app: :simple,
+        version: "0.1.0",
+        deps: [ { :ecto, "~> 0.2.1", [package: true] } ] ]
     end
   end
 
@@ -24,7 +32,7 @@ defmodule Hex.MixTest do
   end
 
   @tag :integration
-  test "simple" do
+  test "deps.get" do
     Mix.Project.push Simple
 
     in_tmp fn _ ->
@@ -57,7 +65,52 @@ defmodule Hex.MixTest do
   end
 
   @tag :integration
-  test "override" do
+  test "deps.update" do
+    Mix.Project.push Simple
+
+    in_tmp fn _ ->
+      System.put_env("MIX_HOME", System.cwd!)
+
+      # `deps.get` to set up lock
+      Mix.Task.run "deps.get"
+
+      purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+              Ex_doc.NoConflict.Mixfile ]
+
+      Mix.ProjectStack.clear_cache
+      Mix.Project.pop
+      Mix.Project.push SimpleOld
+
+      # TODO: `deps.update ecto` should also unlock children
+      Mix.Task.run "deps.update", ["ecto", "postgrex", "ex_doc"]
+
+      assert_received { :mix_shell, :info, ["* Updating ecto (package)"] }
+      assert_received { :mix_shell, :info, ["* Updating postgrex (package)"] }
+      assert_received { :mix_shell, :info, ["* Updating ex_doc (package)"] }
+
+      Mix.Task.run "deps.compile"
+      Mix.Task.run "deps"
+
+      assert_received { :mix_shell, :info, ["* ecto 0.2.1 (package)"] }
+      assert_received { :mix_shell, :info, ["  locked at 0.2.1"] }
+      assert_received { :mix_shell, :info, ["  ok"] }
+
+      assert_received { :mix_shell, :info, ["* postgrex 0.2.1 (package)"] }
+      assert_received { :mix_shell, :info, ["  locked at 0.2.1"] }
+      assert_received { :mix_shell, :info, ["  ok"] }
+
+      assert_received { :mix_shell, :info, ["* ex_doc 0.1.0 (package)"] }
+      assert_received { :mix_shell, :info, ["  locked at 0.1.0"] }
+      assert_received { :mix_shell, :info, ["  ok"] }
+    end
+  after
+    purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+            Ex_doc.NoConflict.Mixfile ]
+    System.delete_env("MIX_HOME")
+  end
+
+  @tag :integration
+  test "deps.get with override" do
     Mix.Project.push Override
 
     in_tmp fn _ ->

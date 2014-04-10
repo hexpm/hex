@@ -135,7 +135,7 @@ defmodule HexTest.Case do
       { :postgrex, "0.2.0", [ex_doc: "0.0.1"] },
       { :postgrex, "0.2.1", [ex_doc: "~> 0.1.0"] },
       { :ecto, "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"] },
-      { :ecto, "0.2.1", [postgrex: "~> 0.2.0", ex_doc: "0.0.2"] } ]
+      { :ecto, "0.2.1", [postgrex: "~> 0.2.1", ex_doc: "0.1.0"] } ]
   end
 
   using do
@@ -206,11 +206,12 @@ if :integration in ExUnit.configuration[:include] do
   auth = [user: "user", pass: "hunter42"]
 
   Case.init_project("ex_doc", "0.0.1", [], meta, auth)
+  Case.init_project("ex_doc", "0.0.1", [], meta, auth)
   Case.init_project("ex_doc", "0.1.0", [], meta, auth)
   Case.init_project("postgrex", "0.2.1", [ex_doc: "~> 0.1.0"], [], auth)
   Case.init_project("postgrex", "0.2.0", [ex_doc: "0.0.1"], [], auth)
   Case.init_project("ecto", "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"], [], auth)
-  Case.init_project("ecto", "0.2.1", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.2"], [], auth)
+  Case.init_project("ecto", "0.2.1", [postgrex: "~> 0.2.1", ex_doc: "0.1.0"], [], auth)
 end
 
 Mix.shell(Mix.Shell.Process)
