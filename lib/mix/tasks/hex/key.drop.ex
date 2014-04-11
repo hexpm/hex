@@ -28,7 +28,7 @@ defmodule Mix.Tasks.Hex.Key.Drop do
       [key] ->
         drop_key(key, opts)
       _ ->
-        raise Mix.Error, message: "invalid arguments, expected 'mix hex.key.drop key_name'"
+        raise Mix.Error, message: "Invalid arguments, expected 'mix hex.key.drop key_name'"
     end
   end
 

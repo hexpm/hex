@@ -14,12 +14,11 @@ defmodule Hex.Registry do
             [{ :"$$version$$", @version }] ->
               :ok
             _ ->
-              raise Hex.Error, message: "The registry file version is newer than what is supported. " <>
-                "Please update hex."
+              raise Mix.Error, message: "The registry file version is too new. Please update hex."
           end
 
         { :error, reason } ->
-          raise Hex.Error, message: "Failed to open hex registry file (#{inspect reason})"
+          raise Mix.Error, message: "Failed to open hex registry file (#{inspect reason})"
       end
     end
   end

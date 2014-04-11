@@ -58,13 +58,12 @@ defmodule Hex.SCM do
     path = cache_path(name)
 
     fetch(name, path)
-    Mix.shell.info("Unpacking tarball...")
 
     File.rm_rf!(dest)
     Hex.Tar.unpack(path, dest)
     File.write!(Path.join(dest, ".hex"), version)
 
-    Mix.shell.info("Successfully unpacked")
+    Mix.shell.info("Unpacked package tarball (#{path})")
     opts[:lock]
   end
 
@@ -76,16 +75,14 @@ defmodule Hex.SCM do
     etag = Hex.Util.etag(path)
     url  = Hex.API.cdn_url("tarballs/#{name}")
 
-    Mix.shell.info("Fetching '#{url}'...")
+    Mix.shell.info("Fetching package (#{url})")
 
     cond do
       body = fetch_request(url, etag) ->
         File.mkdir_p!(cache_path)
         File.write!(path, body)
-      File.exists?(path) ->
-        Mix.shell.info("Using local cached copy")
-      true ->
-        raise Mix.Error, message: "Package fetch failed"
+      not File.exists?(path) ->
+        raise Mix.Error, message: "Package fetch failed and no cached copy available"
     end
   end
 
@@ -100,7 +97,7 @@ defmodule Hex.SCM do
       { :ok, response } ->
         handle_response(response)
       { :error, reason } ->
-        Mix.shell.info("Request failed: #{inspect reason}")
+        Mix.shell.error("Request failed: #{inspect reason}")
         nil
     end
   end
@@ -110,12 +107,11 @@ defmodule Hex.SCM do
   end
 
   defp handle_response({ { _version, 200, _reason }, _headers, body }) do
-    Mix.shell.info("Successfully fetched")
     body
   end
 
   defp handle_response({ { _version, code, _reason }, _headers, _body }) do
-    Mix.shell.info("Request failed (#{code})")
+    Mix.shell.error("Request failed (#{code})")
     nil
   end
 

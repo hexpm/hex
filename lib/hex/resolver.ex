@@ -1,13 +1,14 @@
 defmodule Hex.Resolver do
-  defrecord Info, [:overriden, :locked]
+  defrecord Info, [:overriden, :locked, :restarted]
   defrecord State, [:activated, :pending]
   defrecord Request, [:name, :req, :parent]
   defrecord Active, [:name, :version, :state, :parents, :possibles]
 
   alias Hex.Registry
 
-  def resolve(requests, overriden, locked) do
-    info = Info[overriden: HashSet.new(overriden), locked: HashSet.new(locked)]
+  def resolve(requests, overriden, locked, restarted \\ false) do
+    info = Info[overriden: HashSet.new(overriden), locked: HashSet.new(locked),
+                restarted: restarted]
 
     { activated, pending } =
       Enum.reduce(locked, { HashDict.new, [] }, fn { name, version }, { dict, pending } ->
@@ -30,7 +31,7 @@ defmodule Hex.Resolver do
       do_resolve(activated, pending, info)
     catch
       :throw, :restart ->
-        resolve(requests, overriden, locked)
+        resolve(requests, overriden, locked, true)
     end
   end
 
@@ -64,7 +65,6 @@ defmodule Hex.Resolver do
 
         [version|possibles] ->
           new_pending = get_deps(request.name, version, info)
-          unlocked_pending(new_pending, info)
 
           state = State[activated: activated, pending: pending]
           new_active = Active[name: request.name, version: version, state: state,
@@ -90,14 +90,13 @@ defmodule Hex.Resolver do
       [version|possibles] ->
         active = active.possibles(possibles).version(version)
         pending = get_deps(active.name, version, info)
-        unlocked_pending(pending, info)
 
         activated = Dict.put(state.activated, active.name, active)
         do_resolve(activated, state.pending ++ pending, info)
     end
   end
 
-  def get_deps(package, version, Info[overriden: overriden]) do
+  def get_deps(package, version, Info[overriden: overriden] = info) do
     { _, deps } = Registry.get_release(package, version)
 
     pending =
@@ -110,16 +109,23 @@ defmodule Hex.Resolver do
         end
       end)
 
+    unlocked_pending(pending, info)
     pending
   end
 
+  defp unlocked_pending(_pending, Info[restarted: true]) do
+    :ok
+  end
+
+  # If a a package that needs to be resolved is found, the registry
+  # needs to be updated and resolver restarted. Only update registry
+  # once.
   defp unlocked_pending(pending, Info[locked: locked]) do
-    Enum.find(pending, fn Request[name: name] ->
+    Enum.each(pending, fn Request[name: name] ->
       unless Set.member?(locked, name) do
-        if Hex.Util.update_registry("Updating registry...") == { :ok, :new } do
+        if Hex.Util.update_registry == { :ok, :new } do
           throw :restart
         end
-        :ok
       end
     end)
   end
@@ -133,28 +139,26 @@ defmodule Hex.Resolver do
 
   defp verify_existence(name) do
     unless Registry.exists?(name) do
-      result = Hex.Util.update_registry("Found unknown package #{name}, updating registry...")
-      if match?({ :ok, _ }, result) do
-        unless Registry.exists?(name) do
-          Mix.shell.error("Package still not found")
-          raise Mix.Error
-        end
-      else
-        raise Mix.Error
+      case Hex.Util.update_registry do
+        { :ok, :new } ->
+          unless Registry.exists?(name) do
+            verify_existence(name)
+          end
+        _ ->
+          raise Mix.Error, message: "Package #{name} not found in registry"
       end
     end
   end
 
   defp verify_existence(name, version) do
     unless Registry.exists?(name, version) do
-      result = Hex.Util.update_registry("Found unknown package release #{name} #{version}, updating registry...")
-      if match?({ :ok, _ }, result) do
-        unless Registry.exists?(name, version) do
-          Mix.shell.error("Release still not found, is your lockfile bad?")
-          raise Mix.Error
-        end
-      else
-        raise Mix.Error
+      case Hex.Util.update_registry do
+        { :ok, :new } ->
+          unless Registry.exists?(name, version) do
+            verify_existence(name, version)
+          end
+        _ ->
+          raise Mix.Error, message: "Release #{name} v#{version} not found in registry"
       end
     end
   end

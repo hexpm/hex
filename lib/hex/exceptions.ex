@@ -1,1 +1,0 @@
-defexception Hex.Error, [:message]

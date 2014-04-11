@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Hex.Info do
       [package] -> package(package)
       [package, version] -> release(package, version)
       _ ->
-        raise Mix.Error, message: "invalid arguments, expected 'mix hex.info [package [version]]'"
+        raise Mix.Error, message: "Invalid arguments, expected 'mix hex.info [package [version]]'"
     end
   end
 
@@ -67,7 +67,7 @@ defmodule Mix.Tasks.Hex.Info do
       { 200, body } ->
         pretty_release(package, body)
       { 404, _ } ->
-        Mix.shell.error("No release with package name #{package} and version #{version}")
+        Mix.shell.error("No release with name #{package} v#{version}")
       { code, body } ->
         Mix.shell.error("Failed to retrieve release information! (#{code})")
         Hex.Util.print_error_result(code, body)

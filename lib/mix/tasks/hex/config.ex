@@ -14,12 +14,12 @@ defmodule Mix.Tasks.Hex.Config do
       [key] ->
         case Keyword.fetch(Hex.Mix.read_config, :"#{key}") do
           { :ok, value } -> Mix.shell.info(inspect(value, pretty: true))
-          :error         -> raise Mix.Error, message: "config does not contain a key #{key}"
+          :error         -> raise Mix.Error, message: "Config does not contain a key #{key}"
         end
       [key, value] ->
         Hex.Mix.update_config([{ :"#{key}", value }])
       _ ->
-        raise Mix.Error, message: "invalid arguments, expected 'mix hex.config key [value]'"
+        raise Mix.Error, message: "Invalid arguments, expected 'mix hex.config key [value]'"
     end
   end
 end

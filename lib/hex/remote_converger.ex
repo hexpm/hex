@@ -11,8 +11,8 @@ defmodule Hex.RemoteConverger do
 
   def converge(main, old_lock) do
     unless File.exists?(Hex.Registry.path()) do
-      if Hex.Util.update_registry("Fetching registry...") == :error do
-        raise Mix.Error
+      if Hex.Util.update_registry == :error do
+        raise Mix.Error, message: "Failed to fetch registry"
       end
     end
 
@@ -51,7 +51,7 @@ defmodule Hex.RemoteConverger do
     if resolved != [] do
       Mix.shell.info "Dependency resolution completed successfully"
       Enum.each(resolved, fn { dep, version } ->
-        Mix.shell.info "  #{dep} : v#{version}"
+        Mix.shell.info "  #{dep}: v#{version}"
       end)
     end
   end

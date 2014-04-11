@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
     in_tmp fn _ ->
       System.put_env("MIX_HOME", System.cwd!)
 
-      assert_raise Mix.Error, "config does not contain a key foo", fn ->
+      assert_raise Mix.Error, "Config does not contain a key foo", fn ->
         Mix.Tasks.Hex.Config.run(["foo"])
       end
 

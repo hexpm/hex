@@ -1,11 +1,9 @@
 defmodule Hex.Util do
-  def update_registry(info \\ nil) do
+  def update_registry do
     if :application.get_env(:hex, :registry_updated) == { :ok, true } do
       { :ok, :cached }
     else
       :application.set_env(:hex, :registry_updated, true)
-
-      if info, do: Mix.shell.info(info)
 
       path = Hex.Registry.path
       path_gz = Hex.Registry.path <> ".gz"
@@ -17,13 +15,11 @@ defmodule Hex.Util do
           File.write!(path_gz, body)
           data = :zlib.gunzip(body)
           File.write!(path, data)
-          Mix.shell.info("Registry update was successful!")
           { :ok, :new }
         { 304, _ } ->
-          Mix.shell.info("Registry was fresh!")
           { :ok, :new }
         { code, body } ->
-          Mix.shell.error("Registry update failed! (#{code})")
+          Mix.shell.error("Registry update failed (#{code})")
           print_error_result(code, body)
           :error
       end
@@ -51,10 +47,10 @@ defmodule Hex.Util do
         if Macro.safe_term(ast) do
           Code.eval_quoted(ast) |> elem(0)
         else
-          raise Hex.Error, message: "received unsafe elixir from API"
+          raise Mix.Error, message: "Received unsafe elixir from Hex API"
         end
       _ ->
-        raise Hex.Error, message: "received malformed elixir from API"
+        raise Mix.Error, message: "Received malformed elixir from Hex API"
     end
   end
 
