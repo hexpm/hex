@@ -32,7 +32,7 @@ defmodule Hex.Mix do
   def to_lock(result) do
     Enum.map(result, fn { name, version } ->
       { :"#{name}", { :package, version } }
-    end)
+    end) |> Enum.into(%{})
   end
 
   def read_config do

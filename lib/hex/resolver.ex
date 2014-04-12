@@ -1,14 +1,13 @@
 defmodule Hex.Resolver do
-  defrecord Info, [:overriden, :locked, :restarted]
+  defrecord Info, [:overriden]
   defrecord State, [:activated, :pending]
   defrecord Request, [:name, :req, :parent]
   defrecord Active, [:name, :version, :state, :parents, :possibles]
 
   alias Hex.Registry
 
-  def resolve(requests, overriden, locked, restarted \\ false) do
-    info = Info[overriden: HashSet.new(overriden), locked: HashSet.new(locked),
-                restarted: restarted]
+  def resolve(requests, overriden, locked) do
+    info = Info[overriden: HashSet.new(overriden)]
 
     { activated, pending } =
       Enum.reduce(locked, { HashDict.new, [] }, fn { name, version }, { dict, pending } ->
@@ -23,14 +22,8 @@ defmodule Hex.Resolver do
         Request[name: name, req: req]
       end)
 
-    try do
-      pending = pending ++ req_requests
-      unlocked_pending(pending, info)
-      do_resolve(activated, pending, info)
-    catch
-      :throw, :restart ->
-        resolve(requests, overriden, locked, true)
-    end
+    pending = pending ++ req_requests
+    do_resolve(activated, pending, info)
   end
 
   defp do_resolve(activated, [], _info) do
@@ -91,48 +84,19 @@ defmodule Hex.Resolver do
   end
 
   def get_versions(package, req) do
-    case Registry.get_versions(package) do
-      nil ->
-        raise Mix.Error, message: "Package #{package} not found in registry"
-      versions ->
-        versions
-        |> Enum.filter(&vsn_match?(&1, req))
-        |> Enum.reverse
-    end
+    Registry.get_versions(package)
+    |> Enum.filter(&vsn_match?(&1, req))
+    |> Enum.reverse
   end
 
-  def get_deps(package, version, Info[overriden: overriden] = info) do
-    case Registry.get_release(package, version) do
-      nil ->
-        raise Mix.Error, message: "Release #{package} v#{version} not found in registry"
-      { _, deps } ->
-        pending =
-          Enum.flat_map(deps, fn { name, req } ->
-            if Set.member?(overriden, name) do
-              []
-            else
-              [Request[name: name, req: req, parent: package]]
-            end
-          end)
+  def get_deps(package, version, Info[overriden: overriden]) do
+    { _, deps } = Registry.get_release(package, version)
 
-        unlocked_pending(pending, info)
-        pending
-    end
-  end
-
-  defp unlocked_pending(_pending, Info[restarted: true]) do
-    :ok
-  end
-
-  # If a a package that needs to be resolved is found, the registry
-  # needs to be updated and resolver restarted. Only update registry
-  # once.
-  defp unlocked_pending(pending, Info[locked: locked]) do
-    Enum.each(pending, fn Request[name: name] ->
-      unless Set.member?(locked, name) do
-        if Hex.Util.update_registry == { :ok, :new } do
-          throw :restart
-        end
+    Enum.flat_map(deps, fn { name, req } ->
+      if Set.member?(overriden, name) do
+        []
+      else
+        [Request[name: name, req: req, parent: package]]
       end
     end)
   end
