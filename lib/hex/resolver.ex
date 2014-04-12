@@ -12,7 +12,6 @@ defmodule Hex.Resolver do
 
     { activated, pending } =
       Enum.reduce(locked, { HashDict.new, [] }, fn { name, version }, { dict, pending } ->
-        verify_existence(name, version)
         active = Active[name: name, version: version, parents: [], possibles: []]
         dict = Dict.put(dict, name, active)
         pending = pending ++ get_deps(name, version, info)
@@ -21,7 +20,6 @@ defmodule Hex.Resolver do
 
     req_requests =
       Enum.map(requests, fn { name, req } ->
-        verify_existence(name)
         Request[name: name, req: req]
       end)
 
@@ -55,11 +53,7 @@ defmodule Hex.Resolver do
         backtrack(active, activated, info)
       end
     else
-      versions = Registry.get_versions(request.name)
-        |> Enum.filter(&vsn_match?(&1, request.req))
-        |> Enum.reverse
-
-      case versions do
+      case get_versions(request.name, request.req) do
         [] ->
           backtrack(activated[request.parent], activated, info)
 
@@ -96,21 +90,34 @@ defmodule Hex.Resolver do
     end
   end
 
+  def get_versions(package, req) do
+    case Registry.get_versions(package) do
+      nil ->
+        raise Mix.Error, message: "Package #{package} not found in registry"
+      versions ->
+        versions
+        |> Enum.filter(&vsn_match?(&1, req))
+        |> Enum.reverse
+    end
+  end
+
   def get_deps(package, version, Info[overriden: overriden] = info) do
-    { _, deps } = Registry.get_release(package, version)
+    case Registry.get_release(package, version) do
+      nil ->
+        raise Mix.Error, message: "Release #{package} v#{version} not found in registry"
+      { _, deps } ->
+        pending =
+          Enum.flat_map(deps, fn { name, req } ->
+            if Set.member?(overriden, name) do
+              []
+            else
+              [Request[name: name, req: req, parent: package]]
+            end
+          end)
 
-    pending =
-      Enum.flat_map(deps, fn { name, req } ->
-        if Set.member?(overriden, name) do
-          []
-        else
-          verify_existence(name)
-          [Request[name: name, req: req, parent: package]]
-        end
-      end)
-
-    unlocked_pending(pending, info)
-    pending
+        unlocked_pending(pending, info)
+        pending
+    end
   end
 
   defp unlocked_pending(_pending, Info[restarted: true]) do
@@ -136,30 +143,4 @@ defmodule Hex.Resolver do
 
   defp wrap(nil), do: []
   defp wrap(arg), do: [arg]
-
-  defp verify_existence(name) do
-    unless Registry.exists?(name) do
-      case Hex.Util.update_registry do
-        { :ok, :new } ->
-          unless Registry.exists?(name) do
-            verify_existence(name)
-          end
-        _ ->
-          raise Mix.Error, message: "Package #{name} not found in registry"
-      end
-    end
-  end
-
-  defp verify_existence(name, version) do
-    unless Registry.exists?(name, version) do
-      case Hex.Util.update_registry do
-        { :ok, :new } ->
-          unless Registry.exists?(name, version) do
-            verify_existence(name, version)
-          end
-        _ ->
-          raise Mix.Error, message: "Release #{name} v#{version} not found in registry"
-      end
-    end
-  end
 end
