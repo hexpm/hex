@@ -81,8 +81,7 @@ defmodule Hex.MixTest do
       Mix.Project.pop
       Mix.Project.push SimpleOld
 
-      # TODO: `deps.update ecto` should also unlock children
-      Mix.Task.run "deps.update", ["ecto", "postgrex", "ex_doc"]
+      Mix.Task.run "deps.update", ["ecto"]
 
       assert_received { :mix_shell, :info, ["* Updating ecto (package)"] }
       assert_received { :mix_shell, :info, ["* Updating postgrex (package)"] }
