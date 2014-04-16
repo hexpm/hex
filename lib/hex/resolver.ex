@@ -7,7 +7,7 @@ defmodule Hex.Resolver do
   alias Hex.Registry
 
   def resolve(requests, overriden, locked) do
-    info = Info[overriden: HashSet.new(overriden)]
+    info = Info[overriden: Enum.into(overriden, HashSet.new)]
 
     { activated, pending } =
       Enum.reduce(locked, { HashDict.new, [] }, fn { name, version }, { dict, pending } ->
