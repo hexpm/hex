@@ -27,7 +27,6 @@ defmodule Mix.Tasks.Hex.Update do
 
     Mix.shell.info("Updating Hex installation...")
     Mix.Task.run "local.install", [url, "--force"]
-    Mix.shell.info("Updating Hex was successful!")
   end
 
   defp channel(opts) do

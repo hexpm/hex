@@ -33,11 +33,12 @@ defmodule Mix.Tasks.Hex.Key.Drop do
   end
 
   defp drop_key(key, opts) do
+    Mix.shell.info("Dropping key #{key}...")
     case Hex.API.delete_key(key, opts) do
       { 204, _body } ->
-        Mix.shell.info("Key #{key} dropped!")
+        :ok
       { code, body } ->
-        Mix.shell.error("Key fetching failed! (#{code})")
+        Mix.shell.error("Key fetching failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end
   end

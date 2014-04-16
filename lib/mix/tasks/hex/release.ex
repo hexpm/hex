@@ -117,7 +117,7 @@ defmodule Mix.Tasks.Hex.Release do
   defp revert(meta, version, auth) do
     case Hex.API.delete_release(meta[:app], version, auth) do
       { 204, _ } ->
-        Mix.shell.info("Successfully reverted #{meta[:app]} v#{meta[:version]}")
+        Mix.shell.info("Reverted #{meta[:app]} v#{meta[:version]}")
       { code, body } ->
         Mix.shell.error("Reverting #{meta[:app]} v#{meta[:version]} failed! (#{code})")
         Hex.Util.print_error_result(code, body)
@@ -130,7 +130,7 @@ defmodule Mix.Tasks.Hex.Release do
       { code, _ } when code in [200, 201] ->
         true
       { code, body } ->
-        Mix.shell.error("Updating package #{meta[:app]} failed! (#{code})")
+        Mix.shell.error("Updating package #{meta[:app]} failed (#{code})")
         Hex.Util.print_error_result(code, body)
         false
     end
@@ -141,9 +141,9 @@ defmodule Mix.Tasks.Hex.Release do
 
     case Hex.API.new_release(meta[:app], tarball, auth) do
       { code, _ } when code in [200, 201] ->
-        Mix.shell.info("Successfully pushed #{meta[:app]} v#{meta[:version]}!")
+        Mix.shell.info("Pushed #{meta[:app]} v#{meta[:version]}")
       { code, body } ->
-        Mix.shell.error("Pushing #{meta[:app]} v#{meta[:version]} failed! (#{code})")
+        Mix.shell.error("Pushing #{meta[:app]} v#{meta[:version]} failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end
   end

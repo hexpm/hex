@@ -35,11 +35,11 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
 
       send self, { :mix_shell_input, :yes?, true }
       Mix.Tasks.Hex.Release.run(@opts)
-      assert_received { :mix_shell, :info, ["Successfully pushed releasea v0.0.1!"] }
+      assert HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
 
       send self, { :mix_shell_input, :yes?, true }
       Mix.Tasks.Hex.Release.run(@opts ++ ["--revert", "0.0.1"])
-      assert_received { :mix_shell, :info, ["Successfully reverted releasea v0.0.1"] }
+      refute HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
     end
   end
 
@@ -55,7 +55,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
 
       send self, { :mix_shell_input, :yes?, true }
       Mix.Tasks.Hex.Release.run([])
-      assert_received { :mix_shell, :info, ["Successfully pushed releasea v0.0.1!"] }
+      assert HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
     end
   after
     System.delete_env("MIX_HOME")
@@ -72,7 +72,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
 
       send self, { :mix_shell_input, :yes?, true }
       Mix.Tasks.Hex.Release.run(@opts)
-      assert_received { :mix_shell, :info, ["Successfully pushed releaseb v0.0.2!"] }
+      assert HexWeb.Release.get(HexWeb.Package.get("releaseb"), "0.0.2")
     end
   after
     purge [Ex_doc.NoConflict.Mixfile]

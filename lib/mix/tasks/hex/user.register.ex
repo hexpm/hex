@@ -11,7 +11,6 @@ defmodule Mix.Tasks.Hex.User.Register do
   """
 
   def run(_args) do
-    Mix.shell.info("Register a new user")
     username = Mix.shell.prompt("Username:") |> String.strip
     email    = Mix.shell.prompt("Email:")    |> String.strip
     password = Mix.shell.prompt("Password:") |> String.strip
@@ -31,10 +30,9 @@ defmodule Mix.Tasks.Hex.User.Register do
   defp create_user(username, email, password) do
     case Hex.API.new_user(username, email, password) do
       { 201, _ } ->
-        Mix.shell.info("Registration of user #{username} was successful!")
         Util.generate_key(username, password)
       { code, body } ->
-        Mix.shell.error("Registration of user #{username} failed! (#{code})")
+        Mix.shell.error("Registration of user #{username} failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end
   end

@@ -19,7 +19,8 @@ defmodule Mix.Tasks.Hex.UserTest do
     send self, { :mix_shell_input, :prompt, "hunter42" }
     send self, { :mix_shell_input, :yes?, false }
     Mix.Tasks.Hex.User.Register.run([])
-    assert_received { :mix_shell, :info, ["Registration of user eric was successful!"] }
+
+    assert HexWeb.User.get("eric").email == "mail@mail.com"
   end
 
   test "update" do
@@ -30,7 +31,6 @@ defmodule Mix.Tasks.Hex.UserTest do
     send self, { :mix_shell_input, :yes?, false }
     Mix.Tasks.Hex.User.Update.run(["-u", "update_user", "-p", "hunter42"])
 
-    assert_received { :mix_shell, :info, ["Updating user options for update_user was successful!"] }
     assert HexWeb.User.get("update_user").email == "new@mail.com"
   end
 
@@ -45,7 +45,6 @@ defmodule Mix.Tasks.Hex.UserTest do
       send self, { :mix_shell_input, :yes?, true }
 
       Mix.Tasks.Hex.User.Register.run([])
-      assert_received { :mix_shell, :info, ["Registration of user config was successful!"] }
 
       assert Hex.Mix.read_config[:username] == "config"
       assert is_binary(Hex.Mix.read_config[:key])
