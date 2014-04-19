@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Hex.Update do
   use Mix.Task
 
-  @install_url "http://hex.pm/installs/hex.ez"
+  @install_url "https://hex.pm/installs/hex.ez"
 
   @shortdoc "Update hex"
 

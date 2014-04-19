@@ -80,6 +80,8 @@ defmodule Mix.Tasks.Hex.Release do
     Mix.Project.get!
     Hex.start
 
+    # TODO: Check that mix.exs was included in files
+
     if version = opts[:revert] do
       revert(Mix.project, version, opts)
     else
@@ -106,8 +108,7 @@ defmodule Mix.Tasks.Hex.Release do
 
     Mix.shell.info("  Dependencies:")
     Enum.each(meta[:requirements], fn
-      { app, nil } -> Mix.shell.info("    #{app}")
-      { app, req } -> Mix.shell.info("    #{app} : #{req}")
+      { app, req } -> Mix.shell.info("    #{app} #{req}")
     end)
 
     Mix.shell.info("  Included files:")

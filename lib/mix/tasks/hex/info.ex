@@ -9,7 +9,7 @@ defmodule Mix.Tasks.Hex.Info do
   `mix hex.info [package [version]]`
 
   If `package` is not given, print system information. This includes when
-  registry was last updated and current system version
+  registry was last updated and current system version.
 
   If `package` is given, print information about the package. This includes all
   released versions and package metadata.
