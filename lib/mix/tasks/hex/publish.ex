@@ -1,21 +1,21 @@
-defmodule Mix.Tasks.Hex.Release do
+defmodule Mix.Tasks.Hex.Publish do
   use Mix.Task
   alias Mix.Tasks.Hex.Util
 
-  @shortdoc "Create a new package release"
+  @shortdoc "Publish a new package versio "
 
   @moduledoc """
-  Create a new package release and update package meta data.
+  Publish a new version of your package and update the package.
 
-  `mix hex.release -u username -p password`
+  `mix hex.publish -u username -p password`
 
-  If it is a new package being released it will be created and the user
+  If it is a new package being published it will be created and the user
   specified in `username` will be the package owner. Only package owners can
-  create new releases.
+  publish.
 
-  A release can be amended or reverted with `--revert` up to one hour after its
-  creation. If you want to revert a release that is more than one hour old you
-  need to contact an administrator.
+  A published version can be amended or reverted with `--revert` up to one hour
+  after its publication. If you want to revert a publication that is more than
+  one hour old you need to contact an administrator.
 
   ## Command line options
 
@@ -23,13 +23,13 @@ defmodule Mix.Tasks.Hex.Release do
 
   * `--pass`, `-p` - Password of package owner (required if `--user` was given)
 
-  * `--revert version` - Revert given release
+  * `--revert version` - Revert given version
 
   ## Configuration
 
   * `:app` - Package name (required)
 
-  * `:version` - Release version (required)
+  * `:version` - Package version (required)
 
   * `:deps` - List of package dependencies (see Dependencies below)
 
@@ -48,17 +48,17 @@ defmodule Mix.Tasks.Hex.Release do
           { :cowboy, github: "extend/cowboy" } ]
       end
 
-  As can be seen package dependencies works alongside git dependencies.
-  Important to note is that non-packaged dependencies will not be used during
-  dependency resolution and neither will be they listed as dependencies under
-  a release.
+  As can be seen Hex package dependencies works alongside git dependencies.
+  Important to note is that non-Hex dependencies will not be used during
+  dependency resolution and neither will be they listed as dependencies of the
+  package.
 
   ## Package configuration
 
   Additional metadata of the package can optionally be defined, but it is very
   recommended to do so.
 
-  * `:files` - List of files and directories to include in the release
+  * `:files` - List of files and directories to include in the package
 
   * `:contributors` - List of names of contributors
 
@@ -70,7 +70,8 @@ defmodule Mix.Tasks.Hex.Release do
   @switches [revert: :string]
   @aliases [u: :user, p: :pass]
 
-  @default_files ["lib", "priv", "mix.exs", "README*", "readme*"]
+  @default_files [ "lib", "priv", "mix.exs", "README*", "readme*", "LICENSE*",
+                   "license*" ]
 
   def run(args) do
     { opts, _, _ } = OptionParser.parse(args, switches: @switches, aliases: @aliases)
@@ -85,14 +86,15 @@ defmodule Mix.Tasks.Hex.Release do
     if version = opts[:revert] do
       revert(Mix.project, version, opts)
     else
-      config  = Mix.project
-      reqs    = get_requests(config)
+      config = Mix.project
+      { deps, exclude_deps } = dependencies(config)
+
       package = config[:package]
       files   = expand_paths(package[:files] || @default_files)
       meta    = Keyword.take(config, [:app, :version, :description])
-      meta    = meta ++ [requirements: reqs, files: files] ++ (package || [])
+      meta    = meta ++ [requirements: deps, files: files] ++ (package || [])
 
-      print_info(meta)
+      print_info(meta, exclude_deps)
 
       if Mix.shell.yes?("Proceed?") and create_package?(meta, auth) do
         create_release(meta, auth)
@@ -100,16 +102,19 @@ defmodule Mix.Tasks.Hex.Release do
     end
   end
 
-  defp print_info(meta) do
+  defp print_info(meta, exclude_deps) do
     # TODO: Run dependency resolution (don't use mix.lock), check that deps
     # are valid packages and has valid version requirements
 
-    Mix.shell.info("Pushing release #{meta[:app]} v#{meta[:version]}")
+    Mix.shell.info("Publishing #{meta[:app]} v#{meta[:version]}")
 
     Mix.shell.info("  Dependencies:")
     Enum.each(meta[:requirements], fn
       { app, req } -> Mix.shell.info("    #{app} #{req}")
     end)
+
+    Mix.shell.info("  Excluded dependencies (not part of the Hex package):")
+    Enum.each(exclude_deps, &Mix.shell.info("    #{&1}"))
 
     Mix.shell.info("  Included files:")
     Enum.each(meta[:files], &Mix.shell.info("    #{&1}"))
@@ -142,17 +147,19 @@ defmodule Mix.Tasks.Hex.Release do
 
     case Hex.API.new_release(meta[:app], tarball, auth) do
       { code, _ } when code in [200, 201] ->
-        Mix.shell.info("Pushed #{meta[:app]} v#{meta[:version]}")
+        Mix.shell.info("Published #{meta[:app]} v#{meta[:version]}")
       { code, body } ->
         Mix.shell.error("Pushing #{meta[:app]} v#{meta[:version]} failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end
   end
 
-  defp get_requests(meta) do
-    Enum.map(meta[:deps] || [], &Hex.Mix.dep/1)
-    |> Enum.filter(&(package_dep?(&1) and prod_dep?(&1)))
-    |> Enum.map(fn { app, req, _opts } -> { app, req } end)
+  defp dependencies(meta) do
+    deps = Enum.map(meta[:deps] || [], &Hex.Mix.dep/1)
+    { include, exclude } = Enum.partition(deps, &(package_dep?(&1) and prod_dep?(&1)))
+    include = Enum.map(include, fn { app, req, _opts } -> { app, req } end)
+    exclude = Enum.map(exclude, fn { app, _req, _opts } -> app end)
+    { include, exclude }
   end
 
   defp prod_dep?({ _app, _req, opts }) do

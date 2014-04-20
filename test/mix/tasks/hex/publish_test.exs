@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Hex.ReleaseTest do
+defmodule Mix.Tasks.Hex.PublishTest do
   use HexTest.Case
   @moduletag :integration
 
@@ -23,7 +23,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
 
   test "validate" do
     assert_raise Mix.Error, "--pass option required if --user was given", fn ->
-      Mix.Tasks.Hex.Release.run(["--user", "release_name"])
+      Mix.Tasks.Hex.Publish.run(["--user", "release_name"])
     end
   end
 
@@ -34,11 +34,11 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
       File.mkdir_p("tmp")
 
       send self, { :mix_shell_input, :yes?, true }
-      Mix.Tasks.Hex.Release.run(@opts)
+      Mix.Tasks.Hex.Publish.run(@opts)
       assert HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
 
       send self, { :mix_shell_input, :yes?, true }
-      Mix.Tasks.Hex.Release.run(@opts ++ ["--revert", "0.0.1"])
+      Mix.Tasks.Hex.Publish.run(@opts ++ ["--revert", "0.0.1"])
       refute HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
     end
   end
@@ -54,7 +54,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
       Hex.Mix.update_config(username: "user", key: key.secret)
 
       send self, { :mix_shell_input, :yes?, true }
-      Mix.Tasks.Hex.Release.run([])
+      Mix.Tasks.Hex.Publish.run([])
       assert HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
     end
   after
@@ -71,7 +71,7 @@ defmodule Mix.Tasks.Hex.ReleaseTest do
       Mix.Tasks.Deps.Get.run([])
 
       send self, { :mix_shell_input, :yes?, true }
-      Mix.Tasks.Hex.Release.run(@opts)
+      Mix.Tasks.Hex.Publish.run(@opts)
       assert HexWeb.Release.get(HexWeb.Package.get("releaseb"), "0.0.2")
     end
   after
