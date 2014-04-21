@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Hex.Publish do
   use Mix.Task
   alias Mix.Tasks.Hex.Util
 
-  @shortdoc "Publish a new package versio "
+  @shortdoc "Publish a new package version "
 
   @moduledoc """
   Publish a new version of your package and update the package.
