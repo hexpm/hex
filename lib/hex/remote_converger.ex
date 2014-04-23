@@ -12,11 +12,7 @@ defmodule Hex.RemoteConverger do
   end
 
   def converge(main, lock) do
-    if Hex.Util.update_registry == :error and not File.exists?(Registry.path()) do
-      raise Mix.Error, message: "Failed to fetch registry"
-    end
-
-    Registry.start
+    Hex.Util.ensure_registry()
 
     # We actually cannot use given lock here, because all deps that are being
     # converged have been removed from the lock by Mix

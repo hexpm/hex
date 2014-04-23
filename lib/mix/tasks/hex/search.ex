@@ -14,7 +14,8 @@ defmodule Mix.Tasks.Hex.Search do
 
     case args do
       [package] ->
-        Hex.Registry.start
+        Hex.start
+        Hex.Util.ensure_registry()
 
         Enum.each(Hex.Registry.search(package), fn pkg ->
           Mix.shell.info(pkg)

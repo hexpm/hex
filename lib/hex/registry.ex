@@ -24,10 +24,13 @@ defmodule Hex.Registry do
   end
 
   def stop do
-    { :ok, tid } = :application.get_env(:hex, @registry_tid)
-    :ets.delete(tid)
-    :application.unset_env(:hex, @registry_tid)
-    :ok
+    case :application.get_env(:hex, @registry_tid) do
+      { :ok, tid } ->
+        :ets.delete(tid)
+        :application.unset_env(:hex, @registry_tid)
+      :undefined ->
+        :ok
+    end
   end
 
   def path do
