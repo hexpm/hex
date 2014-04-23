@@ -71,7 +71,7 @@ defmodule Mix.Tasks.Hex.Publish do
   @aliases [u: :user, p: :pass]
 
   @default_files [ "lib", "priv", "mix.exs", "README*", "readme*", "LICENSE*",
-                   "license*" ]
+                   "license*", "CHANGELOG*", "changelog*", "src" ]
 
   def run(args) do
     { opts, _, _ } = OptionParser.parse(args, switches: @switches, aliases: @aliases)
@@ -80,8 +80,6 @@ defmodule Mix.Tasks.Hex.Publish do
 
     Mix.Project.get!
     Hex.start
-
-    # TODO: Check that mix.exs was included in files
 
     if version = opts[:revert] do
       revert(Mix.project, version, opts)
