@@ -83,6 +83,8 @@ defmodule Hex.SCM do
         File.write!(path, body)
       not File.exists?(path) ->
         raise Mix.Error, message: "Package fetch failed and no cached copy available"
+      true ->
+        :ok
     end
   end
 
