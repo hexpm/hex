@@ -174,13 +174,10 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp expand_paths(paths) do
     Enum.flat_map(paths, fn path ->
-      cond do
-        not File.exists?(path) ->
-          []
-        File.dir?(path) ->
-          Path.wildcard(Path.join(path, "**"))
-        true ->
-          Path.wildcard(path)
+      if File.dir?(path) do
+        Path.wildcard(Path.join(path, "**"))
+      else
+        Path.wildcard(path)
       end
     end) |> Enum.uniq
   end
