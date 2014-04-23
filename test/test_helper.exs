@@ -149,6 +149,7 @@ defmodule HexTest.Case do
     ets_path = tmp_path("hex.ets")
     File.rm(ets_path)
     create_test_registry(ets_path)
+    :application.set_env(:hex, :registry_updated, true)
     :ok
   end
 

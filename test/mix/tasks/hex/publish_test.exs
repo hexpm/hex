@@ -31,8 +31,6 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push ReleaseA.Mixfile
 
     in_tmp fn _ ->
-      File.mkdir_p("tmp")
-
       send self, { :mix_shell_input, :yes?, true }
       Mix.Tasks.Hex.Publish.run(@opts)
       assert HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
@@ -47,7 +45,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push ReleaseA.Mixfile
 
     in_tmp fn _ ->
-      System.put_env("MIX_HOME", System.cwd!)
+      System.put_env("MIX_HOME", tmp_path())
 
       user = HexWeb.User.get("user")
       { :ok, key } = HexWeb.API.Key.create("computer", user)
@@ -65,8 +63,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push ReleaseB.Mixfile
 
     in_tmp fn _ ->
-      System.put_env("MIX_HOME", System.cwd!)
-      File.mkdir_p("tmp")
+      System.put_env("MIX_HOME", tmp_path())
 
       Mix.Tasks.Deps.Get.run([])
 
