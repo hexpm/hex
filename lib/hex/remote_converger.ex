@@ -11,21 +11,26 @@ defmodule Hex.RemoteConverger do
     !! dep.opts[:hex_app]
   end
 
-  def converge(main, lock) do
+  def converge(deps, lock) do
     Hex.Util.ensure_registry()
 
     # We actually cannot use given lock here, because all deps that are being
     # converged have been removed from the lock by Mix
 
     old_lock = Mix.Dep.Lock.read
-    verify_lock(old_lock)
+    verify_lock(lock)
 
-    apps      = Enum.map(main, &"#{&1.app}")
-                |> with_children(old_lock)
-    locked    = Hex.Mix.from_lock(old_lock)
-                |> Enum.reject(fn { app, _ } -> app in apps end)
-    reqs      = Hex.Mix.deps_to_requests(main)
-    overriden = Hex.Mix.overriden(main)
+    unlocked =
+      for { app, _ } <- old_lock,
+          not Dict.has_key?(lock, app),
+          do: "#{app}"
+
+    unlocked  = with_children(unlocked, old_lock)
+    locked    = for { app, _ } = pair <- Hex.Mix.from_lock(old_lock),
+                    not app in unlocked,
+                    into: %{}, do: pair
+    reqs      = Hex.Mix.deps_to_requests(deps)
+    overriden = Hex.Mix.overriden(deps)
 
     print_info(reqs, locked)
 
@@ -38,9 +43,21 @@ defmodule Hex.RemoteConverger do
     end
   end
 
+  def deps(%Mix.Dep{app: app}, lock) do
+    {:package, version} = lock[app]
+    Hex.Util.ensure_registry()
+
+    scms = Mix.SCM.available
+    {_, deps} = Registry.get_release("#{app}", version)
+
+    Enum.map(deps, fn {app, _} ->
+      Mix.Dep.Loader.to_dep({:"#{app}", []}, scms, "Hex")
+    end)
+  end
+
   defp print_info(reqs, locked) do
     resolve =
-      Enum.flat_map(reqs, fn { app, _req} ->
+      Enum.flat_map(reqs, fn { app, _req } ->
         if Dict.has_key?(locked, app), do: [], else: [app]
       end)
 
