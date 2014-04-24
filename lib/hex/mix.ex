@@ -10,8 +10,11 @@ defmodule Hex.Mix do
         do: {"#{app}", req}
   end
 
-  defp hex_dep?(%Mix.Dep{scm: Hex.SCM}), do: true
-  defp hex_dep?(%Mix.Dep{}), do: false
+  def deps_to_overriden(deps) do
+    for %Mix.Dep{app: app, scm: Hex.SCM, top_level: true, opts: opts} <- deps,
+        opts[:override],
+        do: "#{app}"
+  end
 
   def dep({ app, opts }) when is_list(opts),
     do: { app, nil, opts }

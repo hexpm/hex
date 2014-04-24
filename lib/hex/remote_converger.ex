@@ -32,7 +32,7 @@ defmodule Hex.RemoteConverger do
                     not app in unlocked,
                     into: %{}, do: pair
     reqs      = Hex.Mix.deps_to_requests(deps)
-    overriden = []
+    overriden = Hex.Mix.deps_to_overriden(deps)
 
     print_info(reqs, locked)
 

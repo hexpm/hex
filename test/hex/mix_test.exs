@@ -21,7 +21,7 @@ defmodule Hex.MixTest do
     def project do
       [ app: :override,
         version: "0.1.0",
-        deps: [ { :ecto, nil }, # TODO: with override support { :ecto, "0.2.0" }
+        deps: [ { :ecto, "0.2.0" },
                 { :ex_doc, "~> 0.1.0", override: true }] ]
     end
   end
@@ -127,8 +127,8 @@ defmodule Hex.MixTest do
       Mix.Task.run "deps.compile"
       Mix.Task.run "deps"
 
-      assert_received { :mix_shell, :info, ["* ecto 0.2.1 (package)"] }
-      assert_received { :mix_shell, :info, ["  locked at 0.2.1"] }
+      assert_received { :mix_shell, :info, ["* ecto 0.2.0 (package)"] }
+      assert_received { :mix_shell, :info, ["  locked at 0.2.0"] }
       assert_received { :mix_shell, :info, ["  ok"] }
 
       assert_received { :mix_shell, :info, ["* postgrex 0.2.1 (package)"] }
