@@ -5,7 +5,7 @@ defmodule Hex.MixTest do
     def project do
       [ app: :simple,
         version: "0.1.0",
-        deps: [ { :ecto, "0.2.0", [package: true] } ] ]
+        deps: [ { :ecto, "0.2.0" } ] ]
     end
   end
 
@@ -13,7 +13,7 @@ defmodule Hex.MixTest do
     def project do
       [ app: :simple,
         version: "0.1.0",
-        deps: [ { :ecto, "~> 0.2.1", [package: true] } ] ]
+        deps: [ { :ecto, "~> 0.2.1" } ] ]
     end
   end
 
@@ -35,7 +35,7 @@ defmodule Hex.MixTest do
   test "deps.get" do
     Mix.Project.push Simple
 
-    in_tmp fn _ ->
+    in_tmp fn ->
       System.put_env("MIX_HOME", System.cwd!)
       Mix.Task.run "deps.get"
 
@@ -68,7 +68,7 @@ defmodule Hex.MixTest do
   test "deps.update" do
     Mix.Project.push Simple
 
-    in_tmp fn _ ->
+    in_tmp fn ->
       System.put_env("MIX_HOME", System.cwd!)
 
       # `deps.get` to set up lock
@@ -112,7 +112,7 @@ defmodule Hex.MixTest do
   test "deps.get with override" do
     Mix.Project.push Override
 
-    in_tmp fn _ ->
+    in_tmp fn ->
       System.put_env("MIX_HOME", System.cwd!)
 
       Mix.Task.run "deps.get"
@@ -138,7 +138,7 @@ defmodule Hex.MixTest do
   end
 
   test "config" do
-    in_tmp fn _ ->
+    in_tmp fn ->
       System.put_env("MIX_HOME", System.cwd!)
       assert Hex.Mix.read_config == []
 

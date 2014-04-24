@@ -30,7 +30,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
   test "create and revert" do
     Mix.Project.push ReleaseA.Mixfile
 
-    in_tmp fn _ ->
+    in_tmp fn ->
       send self, { :mix_shell_input, :yes?, true }
       Mix.Tasks.Hex.Publish.run(@opts)
       assert HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
@@ -44,7 +44,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
   test "create with key" do
     Mix.Project.push ReleaseA.Mixfile
 
-    in_tmp fn _ ->
+    in_tmp fn ->
       System.put_env("MIX_HOME", tmp_path())
 
       user = HexWeb.User.get("user")
@@ -62,7 +62,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
   test "create with deps" do
     Mix.Project.push ReleaseB.Mixfile
 
-    in_tmp fn _ ->
+    in_tmp fn ->
       System.put_env("MIX_HOME", tmp_path())
 
       Mix.Tasks.Deps.Get.run([])

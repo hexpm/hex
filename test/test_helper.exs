@@ -20,20 +20,35 @@ defmodule HexTest.Case do
   end
 
   defmacro in_tmp(fun) do
-    path = Path.join([tmp_path, "#{__CALLER__.module}", "#{elem(__CALLER__.function, 0)}"])
+    path = Path.join(["#{__CALLER__.module}", "#{elem(__CALLER__.function, 0)}"])
     quote do
-      path = unquote(path)
-      File.rm_rf!(path)
-      File.mkdir_p!(path)
-      File.cd!(path, fn -> unquote(fun).(path) end)
+      in_tmp(unquote(path), unquote(fun))
     end
   end
 
-  def in_tmp(which, function) do
-    path = tmp_path(which)
-    File.rm_rf! path
-    File.mkdir_p! path
-    File.cd! path, function
+  defmacro in_fixture(which, fun) do
+    path = Path.join(["#{__CALLER__.module}", "#{elem(__CALLER__.function, 0)}"])
+    quote do
+      in_fixture(unquote(which), unquote(path), unquote(fun))
+    end
+  end
+
+  def in_tmp(tmp, function) do
+    path = tmp_path(tmp)
+    File.rm_rf!(path)
+    File.mkdir_p!(path)
+    File.cd!(path, function)
+  end
+
+  def in_fixture(which, tmp, function) do
+    tmp = tmp_path(tmp)
+    File.rm_rf!(tmp)
+    File.mkdir_p!(tmp)
+
+    which = fixture_path(which)
+    File.cp_r!(which, tmp)
+
+    File.cd!(tmp, function)
   end
 
   @template """

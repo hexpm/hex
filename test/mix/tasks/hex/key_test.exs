@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Hex.KeyTest do
   @moduletag :integration
 
   test "new key" do
-    in_tmp fn _ ->
+    in_tmp fn ->
       System.put_env("MIX_HOME", System.cwd!)
       Mix.Tasks.Hex.Key.New.run(["-u", "user", "-p", "hunter42"])
 

@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
   use HexTest.Case
 
   test "config" do
-    in_tmp fn _ ->
+    in_tmp fn ->
       System.put_env("MIX_HOME", System.cwd!)
 
       assert_raise Mix.Error, "Config does not contain a key foo", fn ->

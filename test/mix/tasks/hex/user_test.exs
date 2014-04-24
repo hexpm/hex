@@ -35,7 +35,7 @@ defmodule Mix.Tasks.Hex.UserTest do
   end
 
   test "update config" do
-    in_tmp fn _ ->
+    in_tmp fn ->
       System.put_env("MIX_HOME", System.cwd!)
 
       send self, { :mix_shell_input, :prompt, "config" }

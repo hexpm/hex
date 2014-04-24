@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
   end
 
   test "general" do
-    in_tmp fn _ ->
+    in_tmp fn ->
       System.put_env("MIX_HOME", System.cwd!)
 
       File.mkdir_p!("tmp")
