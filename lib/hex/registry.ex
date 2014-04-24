@@ -6,7 +6,7 @@ defmodule Hex.Registry do
     unless match?({ :ok, _ }, :application.get_env(:hex, @registry_tid)) do
       path = opts[:registry_path] || path()
 
-      case :ets.file2tab(String.to_char_list!(path)) do
+      case :ets.file2tab(List.from_char_data!(path)) do
         { :ok, tid } ->
           :application.set_env(:hex, @registry_tid, tid)
 

@@ -7,8 +7,8 @@ defmodule Hex.Tar do
 
     files =
       Enum.map(files, fn
-        { name, bin } -> { String.to_char_list!(name), bin }
-        name -> String.to_char_list!(name)
+        { name, bin } -> { List.from_char_data!(name), bin }
+        name -> List.from_char_data!(name)
       end)
 
     :ok = :erl_tar.create(contents_path, files, [:compressed, :cooked])

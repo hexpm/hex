@@ -33,10 +33,10 @@ defmodule Hex.APITest do
     assert { 404, _ } = Hex.API.get_release("pear", "0.0.1")
     assert { 201, _ } = Hex.API.new_release("pear", tar, auth)
     assert { 200, body } = Hex.API.get_release("pear", "0.0.1")
-    assert body["requirements"] == []
+    assert body["requirements"] == %{}
 
     tar = Hex.Tar.create([app: :grape, version: "0.0.2", requirements: [pear: "~> 0.0.1"]], [])
-    reqs = [{ "pear", "~> 0.0.1" }]
+    reqs = %{"pear" => "~> 0.0.1"}
     assert { 201, _ } = Hex.API.new_release("grape", tar, auth)
     assert { 200, body } = Hex.API.get_release("grape", "0.0.2")
     assert body["requirements"] == reqs

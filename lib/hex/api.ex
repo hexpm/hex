@@ -13,7 +13,7 @@ defmodule Hex.API do
     if email, do: body = body ++ [email: email]
     if password, do: body = body ++ [password: password]
 
-    headers = auth(auth) ++ [{ 'x-http-method-override', 'PATCH' }]
+    headers = Dict.merge(auth(auth), %{'x-http-method-override' => 'PATCH'})
 
     request(:post, api_url("users/#{auth[:user]}"), headers, body)
   end
@@ -40,7 +40,7 @@ defmodule Hex.API do
 
   def get_registry(opts \\ []) do
     if etag = opts[:etag] do
-      headers = [{ 'if-none-match', etag }]
+      headers = %{'if-none-match' => etag}
     end
     request(:get, cdn_url("registry.ets.gz"), headers || [])
   end
@@ -58,19 +58,19 @@ defmodule Hex.API do
   end
 
   defp request(method, url, headers, body \\ nil, content_type \\ 'application/vnd.hex+elixir') do
-    default_headers = [
-      { 'accept', 'application/vnd.hex.beta+elixir' },
-      { 'accept-encoding', 'gzip' },
-      { 'user-agent', user_agent } ]
+    default_headers = %{
+      'accept' => 'application/vnd.hex.beta+elixir',
+      'accept-encoding' => 'gzip',
+      'user-agent' => user_agent }
     headers = Dict.merge(default_headers, headers)
     http_opts = [timeout: 5000]
     opts = [body_format: :binary]
 
     if body do
       if content_type == 'application/vnd.hex+elixir', do: body = Hex.Util.safe_serialize_elixir(body)
-      request = { url, headers, content_type, body }
+      request = { url, Map.to_list(headers), content_type, body }
     else
-      request = { url, headers }
+      request = { url, Map.to_list(headers) }
     end
 
     case :httpc.request(method, request, http_opts, opts) do
@@ -82,6 +82,7 @@ defmodule Hex.API do
   end
 
   defp handle_response({ { _version, code, _reason }, headers, body }) do
+    headers = Enum.into(headers, %{})
     content_encoding = :binary.list_to_bin(headers['content-encoding'] || '')
     content_type = :binary.list_to_bin(headers['content-type'] || '')
     handle_hex_message(headers['x-hex-message'])
@@ -126,12 +127,12 @@ defmodule Hex.API do
   end
 
   defp auth(key: secret) do
-    [{ 'authorization', String.to_char_list!(secret) }]
+    %{'authorization' => List.from_char_data!(secret)}
   end
 
   defp auth(info) do
     base64 = :base64.encode_to_string(info[:user] <> ":" <> info[:pass])
-    [{ 'authorization', 'Basic ' ++ base64 }]
+    %{'authorization' => 'Basic ' ++ base64}
   end
 
   @space [?\s, ?\t]

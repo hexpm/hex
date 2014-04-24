@@ -155,6 +155,6 @@ defmodule Hex.MixTest do
   test "from mixlock" do
     lock = [ ex_doc: { :package, "0.1.0" },
              postgrex: { :package, "0.2.1" } ]
-    assert Hex.Mix.from_lock(lock) == [{ "ex_doc", "0.1.0" }, { "postgrex", "0.2.1" }]
+    assert Hex.Mix.from_lock(lock) == %{"ex_doc" => "0.1.0", "postgrex" => "0.2.1"}
   end
 end

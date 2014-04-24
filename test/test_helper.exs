@@ -20,7 +20,7 @@ defmodule HexTest.Case do
   end
 
   defmacro in_tmp(fun) do
-    path = Path.join([tmp_path, __CALLER__.module, elem(__CALLER__.function, 0)])
+    path = Path.join([tmp_path, "#{__CALLER__.module}", "#{elem(__CALLER__.function, 0)}"])
     quote do
       path = unquote(path)
       File.rm_rf!(path)
@@ -61,7 +61,7 @@ defmodule HexTest.Case do
     module = String.capitalize(name)
     mixfile = :io_lib.format(@template, [module, name, version, deps])
 
-    files = [{ "mix.exs", String.from_char_list!(mixfile) }]
+    files = [{ "mix.exs", String.from_char_data!(mixfile) }]
     tar = Hex.Tar.create(meta, files)
 
     Hex.API.new_package(name, meta, auth)
@@ -98,7 +98,7 @@ defmodule HexTest.Case do
     tid = :ets.new(@ets_table, [])
     :ets.insert(tid, { :"$$version$$", @version })
     :ets.insert(tid, releases ++ packages)
-    :ok = :ets.tab2file(tid, String.to_char_list!(path))
+    :ok = :ets.tab2file(tid, List.from_char_data!(path))
     :ets.delete(tid)
   end
 
@@ -164,7 +164,7 @@ defmodule HexTest.Case do
   end
 
   teardown do
-    Hex.stop
+    Hex.Registry.stop
     :ok
   end
 end
@@ -194,15 +194,21 @@ if :integration in ExUnit.configuration[:include] do
   Hex.url("http://localhost:4000")
   unless System.get_env("HEX_CDN"), do: Hex.cdn(Hex.url)
 
-  meta = [
-    { "contributors", ["John Doe", "Jane Doe"] },
-    { "licenses", ["GPL2", "MIT", "Apache"] },
-    { "links", [{ "docs", "http://docs" }, { "repo", "http://repo" }] },
-    { "description", "builds docs" } ]
+  meta = %{
+    "contributors" => ["John Doe", "Jane Doe"],
+    "licenses" => ["GPL2", "MIT", "Apache"],
+    "links" => %{"docs" => "http://docs", "repo" => "http://repo"},
+    "description" => "builds docs" }
 
   { :ok, user }    = HexWeb.User.create("user", "user@mail.com", "hunter42")
   { :ok, package } = HexWeb.Package.create("ex_doc", user, meta)
-  { :ok, _ }       = HexWeb.Release.create(package, "0.0.1", [])
+  { :ok, _ }       = HexWeb.Release.create(package, "0.0.1", %{})
+
+  meta = [
+    contributors: ["John Doe", "Jane Doe"],
+    licenses: ["GPL2", "MIT", "Apache"],
+    links: %{"docs" => "http://docs", "repo" => "http://repo"},
+    description: "builds docs"]
 
   auth = [user: "user", pass: "hunter42"]
 

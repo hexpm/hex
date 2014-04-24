@@ -8,7 +8,7 @@ defmodule Mix.Tasks.Hex.KeyTest do
       Mix.Tasks.Hex.Key.New.run(["-u", "user", "-p", "hunter42"])
 
       { :ok, name } = :inet.gethostname()
-      name = String.from_char_list!(name)
+      name = String.from_char_data!(name)
       user = HexWeb.User.get("user")
       key = HexWeb.API.Key.get(name, user)
 

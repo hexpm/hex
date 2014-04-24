@@ -39,7 +39,7 @@ defmodule Hex.Util do
       { :ok, binary } ->
         :crypto.hash(:md5, binary)
         |> Hex.Util.hexify
-        |> String.to_char_list!
+        |> List.from_char_data!(binary)
       { :error, _ } ->
         nil
     end
@@ -53,7 +53,9 @@ defmodule Hex.Util do
     case Code.string_to_quoted(string, existing_atoms_only: true) do
       { :ok, ast } ->
         if Macro.safe_term(ast) do
-          Code.eval_quoted(ast) |> elem(0)
+          Code.eval_quoted(ast)
+          |> elem(0)
+          |> list_to_map
         else
           raise Mix.Error, message: "Received unsafe elixir from Hex API"
         end
@@ -74,9 +76,26 @@ defmodule Hex.Util do
   defp binarify(atom) when is_atom(atom),
     do: atom_to_binary(atom)
   defp binarify(list) when is_list(list),
-    do: lc(elem inlist list, do: binarify(elem))
+    do: for(elem <- list, do: binarify(elem))
+  defp binarify(map) when is_map(map),
+    do: for(elem <- map, into: %{}, do: binarify(elem))
   defp binarify({ left, right }),
     do: { binarify(left), binarify(right) }
+
+    defp list_to_map(list) when is_list(list) do
+    if list == [] or is_tuple(List.first(list)) do
+      Enum.into(list, %{}, fn
+        { key, list } when is_list(list) -> { key, list_to_map(list) }
+        other -> list_to_map(other)
+      end)
+    else
+      Enum.map(list, &list_to_map/1)
+    end
+  end
+
+  defp list_to_map(other) do
+    other
+  end
 
   def hexify(bin) do
     bc << high :: size(4), low :: size(4) >> inbits bin do

@@ -1,15 +1,13 @@
 defmodule Hex.Mix do
   def deps_to_requests(deps) do
-    Enum.flat_map(deps, fn
-      %Mix.Dep{scm: Hex.SCM} = dep -> [{ "#{dep.app}", dep.requirement }]
-      %Mix.Dep{} -> []
-    end)
+    for %Mix.Dep{scm: Hex.SCM} = dep <- deps,
+        do: { "#{dep.app}", dep.requirement }
   end
 
   def overriden(main) do
-    Enum.flat_map(main, fn %Mix.Dep{app: app, opts: opts} ->
-      if opts[:override], do: ["#{app}"], else: []
-    end)
+    for %Mix.Dep{app: app, opts: opts} <- main,
+        opts[:override],
+        do: "#{app}"
   end
 
   def dep({ app, opts }) when is_list(opts),
@@ -20,19 +18,15 @@ defmodule Hex.Mix do
     do: { app, req, opts }
 
   def from_lock(lock) do
-    Enum.flat_map(lock, fn
-      { name, { :package, version } } ->
-        name = "#{name}"
-        [{ name, version }]
-       _ ->
-        []
-    end)
+    for { name, { :package, version } } <- lock,
+        into: %{},
+        do: { "#{name}", version }
   end
 
   def to_lock(result) do
-    Enum.map(result, fn { name, version } ->
-      { :"#{name}", { :package, version } }
-    end) |> Enum.into(%{})
+    for { name, version } <- result,
+        into: %{},
+        do: { :"#{name}", { :package, version } }
   end
 
   def read_config do
