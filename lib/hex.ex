@@ -21,10 +21,6 @@ defmodule Hex do
     Mix.RemoteConverger.register(Hex.RemoteConverger)
   end
 
-  def stop do
-    Hex.Registry.stop
-  end
-
   def url do
     case :application.get_env(:hex, :url) do
       { :ok, url } -> url

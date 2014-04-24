@@ -16,7 +16,7 @@ defmodule Hex.Util do
       path = Hex.Registry.path
       path_gz = Hex.Registry.path <> ".gz"
 
-      opts = [etag: Hex.Util.etag(path_gz)]
+      opts = [etag: etag(path_gz)]
 
       case Hex.API.get_registry(opts) do
         { 200, body } ->
@@ -39,7 +39,7 @@ defmodule Hex.Util do
       { :ok, binary } ->
         :crypto.hash(:md5, binary)
         |> Hex.Util.hexify
-        |> List.from_char_data!(binary)
+        |> List.from_char_data!
       { :error, _ } ->
         nil
     end
