@@ -21,8 +21,16 @@ defmodule Hex.MixTest do
     def project do
       [ app: :override,
         version: "0.1.0",
-        deps: [ { :ecto, package: true },
-                { :ex_doc, "~> 0.1.0", package: true, override: true }] ]
+        deps: [ { :ecto, nil }, # TODO: with override support { :ecto, "0.2.0" }
+                { :ex_doc, "~> 0.1.0", override: true }] ]
+    end
+  end
+
+  defmodule NonHexDep do
+    def project do
+      [ app: :non_hex_dep,
+        version: "0.1.0",
+        deps: [ { :has_hex_dep, path: fixture_path("has_hex_dep") } ] ]
     end
   end
 
@@ -134,6 +142,24 @@ defmodule Hex.MixTest do
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
             Ex_doc.NoConflict.Mixfile ]
+    System.delete_env("MIX_HOME")
+  end
+
+  @tag :integration
+  test "deps.get with non hex dependency that has hex dependency" do
+    Mix.Project.push NonHexDep
+
+    in_tmp fn ->
+      System.put_env("MIX_HOME", System.cwd!)
+      Mix.Task.run "deps.get"
+
+      assert_received { :mix_shell, :info, ["* Getting ecto (package)"] }
+      assert_received { :mix_shell, :info, ["* Getting postgrex (package)"] }
+      assert_received { :mix_shell, :info, ["* Getting ex_doc (package)"] }
+    end
+  after
+    purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+            Ex_doc.NoConflict.Mixfile, HasHexDep.Mixfile ]
     System.delete_env("MIX_HOME")
   end
 

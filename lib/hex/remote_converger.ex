@@ -14,23 +14,25 @@ defmodule Hex.RemoteConverger do
   def converge(deps, lock) do
     Hex.Util.ensure_registry()
 
-    # We actually cannot use given lock here, because all deps that are being
+    # We cannot use given lock here, because all deps that are being
     # converged have been removed from the lock by Mix
+    # We need the old lock to get the children of Hex packages
 
     old_lock = Mix.Dep.Lock.read
     verify_lock(lock)
 
+    # Make sure to unlock all children of Hex packages
     unlocked =
       for { app, _ } <- old_lock,
           not Dict.has_key?(lock, app),
           do: "#{app}"
-
     unlocked  = with_children(unlocked, old_lock)
+
     locked    = for { app, _ } = pair <- Hex.Mix.from_lock(old_lock),
                     not app in unlocked,
                     into: %{}, do: pair
     reqs      = Hex.Mix.deps_to_requests(deps)
-    overriden = Hex.Mix.overriden(deps)
+    overriden = []
 
     print_info(reqs, locked)
 
