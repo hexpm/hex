@@ -68,7 +68,7 @@ defmodule Hex.MixTest do
     end
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-            Ex_doc.NoConflict.Mixfile ]
+            Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
     System.delete_env("MIX_HOME")
   end
 
@@ -83,7 +83,7 @@ defmodule Hex.MixTest do
       Mix.Task.run "deps.get"
 
       purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-              Ex_doc.NoConflict.Mixfile ]
+              Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
 
       Mix.ProjectStack.clear_cache
       Mix.Project.pop
@@ -112,7 +112,7 @@ defmodule Hex.MixTest do
     end
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-            Ex_doc.NoConflict.Mixfile ]
+            Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
     System.delete_env("MIX_HOME")
   end
 
@@ -141,7 +141,7 @@ defmodule Hex.MixTest do
     end
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-            Ex_doc.NoConflict.Mixfile ]
+            Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
     System.delete_env("MIX_HOME")
   end
 
@@ -159,7 +159,28 @@ defmodule Hex.MixTest do
     end
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-            Ex_doc.NoConflict.Mixfile, HasHexDep.Mixfile ]
+            Ex_doc.NoConflict.Mixfile, HasHexDep.Mixfile, Sample.Mixfile ]
+    System.delete_env("MIX_HOME")
+  end
+
+  @tag :integration
+  test "do not fetch git children of hex dependencies" do
+    Mix.Project.push SimpleOld
+
+    in_tmp fn ->
+      System.put_env("MIX_HOME", System.cwd!)
+      Mix.Task.run "deps.get"
+
+      assert_received { :mix_shell, :info, ["* Getting ecto (package)"] }
+
+      Mix.Task.run "deps"
+
+      assert_received { :mix_shell, :info, ["* ecto (package)"] }
+      refute_received { :mix_shell, :info, ["* sample" <> _] }
+    end
+  after
+    purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+            Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
     System.delete_env("MIX_HOME")
   end
 

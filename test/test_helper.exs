@@ -68,11 +68,11 @@ defmodule HexTest.Case do
   """
 
   def init_project(name, version, deps, meta, auth) do
-    meta = [app: name, version: version, requirements: deps] ++ meta
+    reqs = Enum.filter(deps, &(tuple_size(&1) == 2))
 
+    meta = [app: name, version: version, requirements: reqs] ++ meta
 
-    deps = Enum.map(deps, fn { app, req } -> { app, req, package: true } end)
-           |> inspect(pretty: true)
+    deps = inspect(deps, pretty: true)
     module = String.capitalize(name)
     mixfile = :io_lib.format(@template, [module, name, version, deps])
 
@@ -233,7 +233,7 @@ if :integration in ExUnit.configuration[:include] do
   Case.init_project("postgrex", "0.2.1", [ex_doc: "~> 0.1.0"], [], auth)
   Case.init_project("postgrex", "0.2.0", [ex_doc: "0.0.1"], [], auth)
   Case.init_project("ecto", "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"], [], auth)
-  Case.init_project("ecto", "0.2.1", [postgrex: "~> 0.2.1", ex_doc: "0.1.0"], [], auth)
+  Case.init_project("ecto", "0.2.1", [{:sample, "0.0.1", path: Case.fixture_path("sample")}, postgrex: "~> 0.2.1", ex_doc: "0.1.0"], [], auth)
 end
 
 Mix.shell(Mix.Shell.Process)

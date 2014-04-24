@@ -1,23 +1,11 @@
 defmodule Hex.Mix do
   def deps_to_requests(deps) do
-    # Ignore overriding of Hex deps for now
     overriden =
       for %Mix.Dep{app: app, scm: scm, opts: opts} <- deps,
         scm != Hex.SCM and opts[:override],
         do: app
 
-    hex_deps =
-      Enum.flat_map(deps, fn %Mix.Dep{deps: children} = dep ->
-        hex_deps = Enum.filter(children, &hex_dep?/1)
-        if hex_dep?(dep) do
-          hex_deps = [dep|hex_deps]
-        end
-        hex_deps
-      end)
-
-    hex_deps = Enum.reject(hex_deps, fn %Mix.Dep{app: app} -> app in overriden end)
-
-    for %Mix.Dep{app: app, requirement: req} <- hex_deps,
+    for %Mix.Dep{app: app, requirement: req, scm: Hex.SCM} <- deps,
         not app in overriden,
         do: {"#{app}", req}
   end
