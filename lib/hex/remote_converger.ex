@@ -26,22 +26,23 @@ defmodule Hex.RemoteConverger do
       for { app, _ } <- old_lock,
           not Dict.has_key?(lock, app),
           do: "#{app}"
-    unlocked  = with_children(unlocked, old_lock)
+    unlocked = with_children(unlocked, old_lock)
 
-    locked    = for { app, _ } = pair <- Hex.Mix.from_lock(old_lock),
-                    not app in unlocked,
-                    into: %{}, do: pair
-    reqs      = Hex.Mix.deps_to_requests(deps)
-    overriden = Hex.Mix.deps_to_overriden(deps)
+    locked = for { app, _ } = pair <- Hex.Mix.from_lock(old_lock),
+                 not app in unlocked,
+                 into: %{}, do: pair
 
-    print_info(reqs, locked)
+    reqs = Hex.Mix.deps_to_requests(deps)
+    overridden = Hex.Mix.deps_to_overridden(deps)
 
-    if resolved = Hex.Resolver.resolve(reqs, overriden, locked) do
+    print_info(reqs, locked, overridden)
+
+    if resolved = Hex.Resolver.resolve(reqs, overridden, locked) do
       print_success(resolved, locked)
       new_lock = Hex.Mix.to_lock(resolved)
       Dict.merge(lock, new_lock)
     else
-      raise Mix.Error, message: "Dependency resolution failed, relax the version requirements or unlock dependencies"
+      raise Mix.Error, message: "Hex dependency resolution failed, relax the version requirements or unlock dependencies"
     end
   end
 
@@ -57,14 +58,23 @@ defmodule Hex.RemoteConverger do
     end)
   end
 
-  defp print_info(reqs, locked) do
-    resolve =
-      Enum.flat_map(reqs, fn { app, _req } ->
-        if Dict.has_key?(locked, app), do: [], else: [app]
-      end)
+  defp print_info(reqs, locked, overridden) do
+    reqs = Enum.into(reqs, %{})
 
-    if resolve != [] do
-      Mix.shell.info "Running dependency resolution for unlocked dependencies: " <> Enum.join(resolve, ", ")
+    unlocked = for {app, _req} <- reqs,
+                   not Dict.has_key?(locked, app),
+                   do: app
+
+    {overridden, skipping} = Enum.partition(overridden, &Dict.has_key?(reqs, &1))
+
+    if unlocked != [] do
+      Mix.shell.info "Running dependency resolution"
+      Mix.shell.info "Unlocked:   " <> Enum.join(unlocked, ", ")
+
+      if overridden != [],
+        do: Mix.shell.info "Overridden: " <> Enum.join(overridden, ", ")
+      if skipping != [],
+        do: Mix.shell.info "Skipping:   " <> Enum.join(skipping, ", ")
     end
   end
 

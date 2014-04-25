@@ -1,17 +1,17 @@
 defmodule Hex.Mix do
   def deps_to_requests(deps) do
-    overriden =
+    overridden =
       for %Mix.Dep{app: app, scm: scm, opts: opts} <- deps,
         scm != Hex.SCM and opts[:override],
         do: app
 
     for %Mix.Dep{app: app, requirement: req, scm: Hex.SCM} <- deps,
-        not app in overriden,
+        not app in overridden,
         do: {"#{app}", req}
   end
 
-  def deps_to_overriden(deps) do
-    for %Mix.Dep{app: app, scm: Hex.SCM, top_level: true, opts: opts} <- deps,
+  def deps_to_overridden(deps) do
+    for %Mix.Dep{app: app, top_level: true, opts: opts} <- deps,
         opts[:override],
         do: "#{app}"
   end

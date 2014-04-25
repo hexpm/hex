@@ -34,6 +34,15 @@ defmodule Hex.MixTest do
     end
   end
 
+  defmodule OverrideWithGit do
+    def project do
+      [ app: :override_with_git,
+        version: "0.1.0",
+        deps: [ { :postgrex, nil },
+                { :ex_doc, path: fixture_path("ex_doc"), override: true }] ]
+    end
+  end
+
   setup do
     Hex.Registry.start(registry_path: tmp_path("hex.ets"))
     :application.set_env(:hex, :registry_updated, false)
@@ -181,6 +190,27 @@ defmodule Hex.MixTest do
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
             Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
+    System.delete_env("MIX_HOME")
+  end
+
+  @tag :integration
+  test "override hex dependency with path dependency" do
+    Mix.Project.push OverrideWithGit
+
+    in_tmp fn ->
+      System.put_env("MIX_HOME", System.cwd!)
+      Mix.Task.run "deps.get"
+
+      assert_received { :mix_shell, :info, ["* Getting postgrex (package)"] }
+
+      Mix.Task.run "deps"
+
+      assert_received { :mix_shell, :info, ["* postgrex (package)"] }
+      refute_received { :mix_shell, :info, ["* ex_doc (package)"] }
+      assert_received { :mix_shell, :info, ["* ex_doc" <> _] }
+    end
+  after
+    purge [ Postgrex.NoConflict.Mixfile, ExDoc.NoConflict.Mixfile ]
     System.delete_env("MIX_HOME")
   end
 

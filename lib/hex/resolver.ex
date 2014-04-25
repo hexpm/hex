@@ -1,13 +1,13 @@
 defmodule Hex.Resolver do
-  defrecord Info, [:overriden]
+  defrecord Info, [:overridden]
   defrecord State, [:activated, :pending]
   defrecord Request, [:name, :req, :parent]
   defrecord Active, [:name, :version, :state, :parents, :possibles]
 
   alias Hex.Registry
 
-  def resolve(requests, overriden, locked) do
-    info = Info[overriden: Enum.into(overriden, HashSet.new)]
+  def resolve(requests, overridden, locked) do
+    info = Info[overridden: Enum.into(overridden, HashSet.new)]
 
     { activated, pending } =
       Enum.reduce(locked, { HashDict.new, [] }, fn { name, version }, { dict, pending } ->
@@ -89,11 +89,11 @@ defmodule Hex.Resolver do
     |> Enum.reverse
   end
 
-  def get_deps(package, version, Info[overriden: overriden]) do
+  def get_deps(package, version, Info[overridden: overridden]) do
     { _, deps } = Registry.get_release(package, version)
 
     Enum.flat_map(deps, fn { name, req } ->
-      if Set.member?(overriden, name) do
+      if Set.member?(overridden, name) do
         []
       else
         [Request[name: name, req: req, parent: package]]

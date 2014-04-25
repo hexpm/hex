@@ -158,7 +158,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
     Enum.each(include, fn { app, _req, opts } ->
       if opts[:override] do
-        raise Mix.Error, message: "Can't publish with overriden dependency #{app}, remove `override: true`"
+        raise Mix.Error, message: "Can't publish with overridden dependency #{app}, remove `override: true`"
       end
     end)
 
