@@ -155,6 +155,13 @@ defmodule Mix.Tasks.Hex.Publish do
   defp dependencies(meta) do
     deps = Enum.map(meta[:deps] || [], &Hex.Mix.dep/1)
     { include, exclude } = Enum.partition(deps, &(package_dep?(&1) and prod_dep?(&1)))
+
+    Enum.each(include, fn { app, _req, opts } ->
+      if opts[:override] do
+        raise Mix.Error, message: "Can't publish with overriden dependency #{app}, remove `override: true`"
+      end
+    end)
+
     include = Enum.map(include, fn { app, req, _opts } -> { app, req } end)
     exclude = Enum.map(exclude, fn { app, _req, _opts } -> app end)
     { include, exclude }
