@@ -47,15 +47,20 @@ defmodule Hex.RemoteConverger do
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
-    {:package, version} = lock[app]
-    Hex.Util.ensure_registry()
+    case Dict.fetch(lock, app do
+      {:ok, {:package, version}} ->
+        Hex.Util.ensure_registry()
 
-    scms = Mix.SCM.available
-    {_, deps} = Registry.get_release("#{app}", version)
+        scms = Mix.SCM.available
+        {_, deps} = Registry.get_release("#{app}", version)
 
-    Enum.map(deps, fn {app, _} ->
-      Mix.Dep.Loader.to_dep({:"#{app}", []}, scms, "Hex")
-    end)
+        Enum.map(deps, fn {app, _} ->
+          Mix.Dep.Loader.to_dep({:"#{app}", []}, scms, "Hex")
+        end)
+
+      :error ->
+        []
+    end
   end
 
   defp print_info(reqs, locked, overridden) do
