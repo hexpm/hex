@@ -47,7 +47,7 @@ defmodule Hex.RemoteConverger do
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
-    case Dict.fetch(lock, app do
+    case Dict.fetch(lock, app) do
       {:ok, {:package, version}} ->
         Hex.Registry.start
 
