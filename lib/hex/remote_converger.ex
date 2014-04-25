@@ -49,7 +49,7 @@ defmodule Hex.RemoteConverger do
   def deps(%Mix.Dep{app: app}, lock) do
     case Dict.fetch(lock, app do
       {:ok, {:package, version}} ->
-        Hex.Util.ensure_registry()
+        Hex.Registry.start
 
         scms = Mix.SCM.available
         {_, deps} = Registry.get_release("#{app}", version)
