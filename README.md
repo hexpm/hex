@@ -2,7 +2,9 @@
 
 [![Build Status](https://travis-ci.org/ericmj/hex.png?branch=master "Build Status")](http://travis-ci.org/ericmj/hex)
 
-Hex is package manager for [Elixir](https://github.com/elixir-lang/elixir) that integrates with Mix.
+Hex is package manager for the Erlang VM.
+
+This project currently provides tasks that integrates with Mix, [Elixir](https://github.com/elixir-lang/elixir)'s build tool.
 
 ## Roadmap and TODO
 

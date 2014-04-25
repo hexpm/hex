@@ -5,8 +5,9 @@ defmodule Mix.Tasks.Hex.Key.Drop do
   @shortdoc "Drop an API key"
 
   @moduledoc """
-  Remove given API key from account. The key can no longer be used to
-  authenticate API requests.
+  Remove given API key from account.
+
+  The key can no longer be used to authenticate API requests.
 
   `mix hex.key.drop key_name -u username -p password`
 
