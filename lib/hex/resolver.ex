@@ -9,6 +9,8 @@ defmodule Hex.Resolver do
   def resolve(requests, overridden, locked) do
     info = Info[overridden: Enum.into(overridden, HashSet.new)]
 
+    # Make sure to add children of locked dependencies, they may have been
+    # overridden before and not been included in the lock
     { activated, pending } =
       Enum.reduce(locked, { HashDict.new, [] }, fn { name, version }, { dict, pending } ->
         active = Active[name: name, version: version, parents: [], possibles: []]

@@ -3,7 +3,7 @@ defmodule Hex.Mixfile do
 
   def project do
     [ app: :hex,
-      version: "0.1.0-dev",
+      version: "0.1.1-dev",
       elixir: "~> 0.13.1-dev",
       deps: deps ]
   end
@@ -13,6 +13,6 @@ defmodule Hex.Mixfile do
   end
 
   defp deps do
-    [{ :hex_web, github: "ericmj/hex_web", only: :test, env: :test }]
+    [{ :hex_web, path: "../hex_web", only: :test, env: :test }]
   end
 end

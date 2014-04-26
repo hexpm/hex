@@ -51,12 +51,8 @@ defmodule Hex.RemoteConverger do
       {:ok, {:package, version}} ->
         Hex.Registry.start
 
-        scms = Mix.SCM.available
         {_, deps} = Registry.get_release("#{app}", version)
-
-        Enum.map(deps, fn {app, _} ->
-          Mix.Dep.Loader.to_dep({:"#{app}", []}, scms, "Hex")
-        end)
+        for {app, _} <- deps, do: :"#{app}"
 
       :error ->
         []
