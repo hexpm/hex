@@ -45,10 +45,5 @@ defmodule Hex do
     :application.set_env(:hex, :cdn, cdn)
   end
 
-  version = Mix.project[:version]
-  { :ok, Version.Schema[pre: pre] } = Version.parse(version)
-  channel = if pre == ["dev"], do: :dev, else: :stable
-
-  def version, do: unquote(version)
-  def channel, do: unquote(channel)
+  def version, do: unquote(Mix.project[:version])
 end
