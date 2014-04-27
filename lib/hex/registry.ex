@@ -1,6 +1,6 @@
 defmodule Hex.Registry do
   @registry_tid :registry_tid
-  @version      1
+  @versions     [1, 2]
 
   def start(opts \\ []) do
     unless match?({ :ok, _ }, :application.get_env(:hex, @registry_tid)) do
@@ -11,7 +11,7 @@ defmodule Hex.Registry do
           :application.set_env(:hex, @registry_tid, tid)
 
           case :ets.lookup(tid, :"$$version$$") do
-            [{ :"$$version$$", @version }] ->
+            [{ :"$$version$$", version }] when version in @versions ->
               :ok
             _ ->
               raise Mix.Error, message: "The registry file version is too new. Please update hex."
@@ -39,10 +39,10 @@ defmodule Hex.Registry do
 
   def stat do
     fun = fn
-      { { _, _ }, _ }, { packages, releases } ->
+      { { package, version }, _ }, { packages, releases }
+          when is_binary(package) and is_binary(version) ->
         { packages, releases + 1 }
-      { binary, list }, { packages, releases }
-          when is_binary(binary) and is_list(list) ->
+      { package, _ }, { packages, releases } when is_binary(package) ->
         { packages + 1, releases }
       _, acc ->
         acc
@@ -83,15 +83,17 @@ defmodule Hex.Registry do
     { :ok, tid } = :application.get_env(:hex, @registry_tid)
     case :ets.lookup(tid, package) do
       [] -> nil
+      [{ ^package, [versions|_] }] when is_list(versions) -> versions
       [{ ^package, versions }] -> versions
     end
   end
 
-  def get_release(package, version) do
+  def get_deps(package, version) do
     { :ok, tid } = :application.get_env(:hex, @registry_tid)
     case :ets.lookup(tid, { package, version }) do
       [] -> nil
-      [release] -> release
+      [{{^package, ^version}, [deps|_]}] when is_list(deps) -> deps
+      [{{^package, ^version}, deps}] -> deps
     end
   end
 end

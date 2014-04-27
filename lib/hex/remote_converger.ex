@@ -51,7 +51,7 @@ defmodule Hex.RemoteConverger do
       {:ok, {:package, version}} ->
         Hex.Registry.start
 
-        {_, deps} = Registry.get_release("#{app}", version)
+        deps = Registry.get_deps("#{app}", version)
         for {app, _} <- deps, do: :"#{app}"
 
       :error ->
@@ -113,8 +113,8 @@ defmodule Hex.RemoteConverger do
     Enum.map(apps, fn app ->
       case Dict.fetch(lock, :"#{app}") do
         { :ok, { :package, version } } ->
-          { _, deps } = Registry.get_release(app, version)
-          deps = Enum.map(deps, &elem(&1, 0))
+          deps = Registry.get_deps(app, version)
+                 |> Enum.map(&elem(&1, 0))
           [deps, do_with_children(deps, lock)]
         _ ->
           []
