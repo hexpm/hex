@@ -23,7 +23,7 @@ defmodule Hex.RemoteConverger do
 
     reqs       = Hex.Mix.deps_to_requests(deps)
     overridden = Hex.Mix.deps_to_overridden(deps)
-    locked     = prepare_lock(lock, old_lock, deps)
+    locked     = prepare_locked(lock, old_lock, deps)
 
     print_info(reqs, locked, overridden)
 
