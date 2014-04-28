@@ -14,26 +14,16 @@ defmodule Hex.RemoteConverger do
   def converge(deps, lock) do
     Hex.Util.ensure_registry()
 
+    verify_lock(lock)
+
     # We cannot use given lock here, because all deps that are being
     # converged have been removed from the lock by Mix
     # We need the old lock to get the children of Hex packages
-
     old_lock = Mix.Dep.Lock.read
-    verify_lock(lock)
 
-    # Make sure to unlock all children of Hex packages
-    unlocked =
-      for { app, _ } <- old_lock,
-          not Dict.has_key?(lock, app),
-          do: "#{app}"
-    unlocked = with_children(unlocked, old_lock)
-
-    locked = for { app, _ } = pair <- Hex.Mix.from_lock(old_lock),
-                 not app in unlocked,
-                 into: %{}, do: pair
-
-    reqs = Hex.Mix.deps_to_requests(deps)
+    reqs       = Hex.Mix.deps_to_requests(deps)
     overridden = Hex.Mix.deps_to_overridden(deps)
+    locked     = prepare_lock(lock, old_lock, deps)
 
     print_info(reqs, locked, overridden)
 
@@ -119,6 +109,28 @@ defmodule Hex.RemoteConverger do
         _ ->
           []
       end
+    end)
+  end
+
+  defp prepare_locked(lock, old_lock, deps) do
+    # Make sure to unlock all children of Hex packages
+    unlocked =
+      for { app, _ } <- old_lock,
+          not Dict.has_key?(lock, app),
+          do: "#{app}"
+    unlocked = with_children(unlocked, old_lock)
+
+    locked = for { app, _ } = pair <- Hex.Mix.from_lock(old_lock),
+                 not app in unlocked,
+                 into: %{}, do: pair
+
+    # Remove dependencies from the lock that are defined as
+    # git or path in mix.exs
+    Enum.reduce(deps, locked, fn
+      %Mix.Dep{scm: Hex.SCM}, locked ->
+        locked
+      %Mix.Dep{app: app}, locked ->
+        Dict.delete(locked, "#{app}")
     end)
   end
 end
