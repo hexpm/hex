@@ -54,8 +54,8 @@ defmodule Hex.RemoteConverger do
         deps = Registry.get_deps("#{app}", version)
         for {app, _} <- deps, do: :"#{app}"
 
-      :error ->
-        []
+      _ ->
+        nil
     end
   end
 
