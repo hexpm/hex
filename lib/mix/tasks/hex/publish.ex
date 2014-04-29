@@ -88,9 +88,14 @@ defmodule Mix.Tasks.Hex.Publish do
       { deps, exclude_deps } = dependencies(config)
 
       package = config[:package]
+      check_package(package)
+
       files   = expand_paths(package[:files] || @default_files)
-      meta    = Keyword.take(config, [:app, :version, :description])
-      meta    = meta ++ [requirements: deps, files: files] ++ (package || [])
+
+      meta = Keyword.take(config, [:app, :version, :description])
+             |> Enum.into(%{})
+             |> Map.merge(%{requirements: deps, files: files})
+             |> Map.merge(package || %{})
 
       print_info(meta, exclude_deps)
 
@@ -185,5 +190,17 @@ defmodule Mix.Tasks.Hex.Publish do
         Path.wildcard(path)
       end
     end) |> Enum.uniq
+  end
+
+  defp check_package(nil), do: :ok
+
+  defp check_package(package) do
+    unless is_map(package) do
+      raise Mix.Error, message: "package configuration should be a map"
+    end
+
+    unless package[:links] || is_map(package[:links]) do
+      raise Mix.Error, message: "package configuration :links field should be a map"
+    end
   end
 end
