@@ -1,5 +1,5 @@
 defmodule Hex.Tar do
-  @version "1"
+  @version "2"
 
   def create(meta, files) do
     contents_path = "#{meta[:app]}-#{meta[:version]}-contents.tar.gz"
@@ -16,7 +16,7 @@ defmodule Hex.Tar do
 
     meta_string = Hex.Util.safe_serialize_elixir(meta)
     blob = @version <> meta_string <> contents
-    checksum = :crypto.hash(:md5, blob) |> Hex.Util.hexify
+    checksum = :crypto.hash(:sha256, blob) |> Hex.Util.hexify
 
     files = [
       { 'VERSION', @version},
