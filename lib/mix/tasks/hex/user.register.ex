@@ -10,13 +10,18 @@ defmodule Mix.Tasks.Hex.User.Register do
   `mix hex.user.register`
   """
 
-  def run(_args) do
-    username = Mix.shell.prompt("Username:") |> String.strip
-    email    = Mix.shell.prompt("Email:")    |> String.strip
-    password = Mix.shell.prompt("Password:") |> String.strip
+  @switches [clean_pass: :boolean]
+
+  def run(args) do
+    { opts, _, _ } = OptionParser.parse(args, switches: @switches)
+    clean? = opts[:clean_pass]
+
+    username = Mix.shell.prompt("Username:")  |> String.strip
+    email    = Mix.shell.prompt("Email:")     |> String.strip
+    password = Util.password_get("Password:", clean?) |> String.strip
 
     unless nil?(password) do
-      confirm = Mix.shell.prompt("Password (confirm):") |> String.strip
+      confirm = Util.password_get("Password (confirm):", clean?) |> String.strip
       if password != confirm do
         raise Mix.Error, message: "Entered passwords do not match"
       end

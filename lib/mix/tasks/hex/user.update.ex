@@ -17,17 +17,19 @@ defmodule Mix.Tasks.Hex.User.Update do
   """
 
   @aliases [u: :user, p: :pass]
+  @switches [clean_pass: :boolean]
 
   def run(args) do
-    { opts, _, _ } = OptionParser.parse(args, aliases: @aliases)
+    { opts, _, _ } = OptionParser.parse(args, aliases: @aliases, switches: @switches)
     Util.required_opts(opts, [:user, :pass])
+    clean? = opts[:clean_pass]
 
     Mix.shell.info("Update user options (leave blank to not change an option)")
-    email    = Mix.shell.prompt("Email:")    |> String.strip |> nillify
-    password = Mix.shell.prompt("Password:") |> String.strip |> nillify
+    email    = Mix.shell.prompt("Email:")             |> String.strip |> nillify
+    password = Util.password_get("Password:", clean?) |> String.strip |> nillify
 
     unless nil?(password) do
-      confirm = Mix.shell.prompt("Password (confirm):") |> String.strip |> nillify
+      confirm = Util.password_get("Password (confirm):", clean?) |> String.strip |> nillify
       if password != confirm do
         raise Mix.Error, message: "Entered passwords do not match"
       end
