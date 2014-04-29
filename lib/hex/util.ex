@@ -52,17 +52,32 @@ defmodule Hex.Util do
   def safe_deserialize_elixir(string) do
     case Code.string_to_quoted(string, existing_atoms_only: true) do
       { :ok, ast } ->
-        if Macro.safe_term(ast) do
-          Code.eval_quoted(ast)
-          |> elem(0)
-          |> list_to_map
-        else
-          raise Mix.Error, message: "Received unsafe elixir from Hex API"
-        end
+        safe_eval(ast)
       _ ->
         raise Mix.Error, message: "Received malformed elixir from Hex API"
     end
   end
+
+  def safe_eval(ast) do
+    if safe_term?(ast) do
+      Code.eval_quoted(ast)
+      |> elem(0)
+      |> list_to_map
+    else
+      raise Mix.Error, message: "Received unsafe elixir from Hex API"
+    end
+  end
+
+  def safe_term?({func, _, terms}) when func in [:{}, :%{}] and is_list(terms) do
+    Enum.all?(terms, &safe_term?/1)
+  end
+
+  def safe_term?(term) when is_number(term), do: true
+  def safe_term?(term) when is_binary(term), do: true
+  def safe_term?(term) when is_boolean(term), do: true
+  def safe_term?(term) when is_list(term), do: Enum.all?(term, &safe_term?/1)
+  def safe_term?(term) when is_tuple(term), do: Enum.all?(tuple_to_list(term), &safe_term?/1)
+  def safe_term?(_), do: false
 
   def safe_serialize_elixir(term) do
     binarify(term)
