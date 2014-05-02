@@ -13,6 +13,6 @@ defmodule Hex.Mixfile do
   end
 
   defp deps do
-    [{ :hex_web, path: "../hex_web", only: :test, env: :test }]
+    [{ :hex_web, github: "ericmj/hex_web", only: :test, env: :test }]
   end
 end
