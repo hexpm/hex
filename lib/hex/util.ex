@@ -86,6 +86,8 @@ defmodule Hex.Util do
 
   defp binarify(binary) when is_binary(binary),
     do: binary
+  defp binarify(number) when is_number(number),
+    do: number
   defp binarify(atom) when nil?(atom) or is_boolean(atom),
     do: atom
   defp binarify(atom) when is_atom(atom),
@@ -97,7 +99,7 @@ defmodule Hex.Util do
   defp binarify({ left, right }),
     do: { binarify(left), binarify(right) }
 
-    defp list_to_map(list) when is_list(list) do
+  defp list_to_map(list) when is_list(list) do
     if list == [] or is_tuple(List.first(list)) do
       Enum.into(list, %{}, fn
         { key, list } when is_list(list) -> { key, list_to_map(list) }
