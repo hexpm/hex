@@ -183,13 +183,22 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp expand_paths(paths) do
-    Enum.flat_map(paths, fn path ->
-      if File.dir?(path) do
-        Path.wildcard(Path.join(path, "**"))
-      else
-        Path.wildcard(path)
-      end
-    end) |> Enum.uniq
+    paths =
+      Enum.flat_map(paths, fn path ->
+        if File.dir?(path) do
+          Path.wildcard(Path.join(path, "**"))
+        else
+          Path.wildcard(path)
+        end
+      end)
+
+    cwd = File.cwd!
+
+    paths
+    |> Enum.map(&Path.expand/1)
+    |> Enum.filter(&File.regular?/1)
+    |> Enum.uniq
+    |> Enum.map(&Path.relative_to(&1, cwd))
   end
 
   defp check_package(nil), do: :ok
