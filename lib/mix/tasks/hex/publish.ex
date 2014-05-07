@@ -70,8 +70,10 @@ defmodule Mix.Tasks.Hex.Publish do
   @switches [revert: :string]
   @aliases [u: :user, p: :pass]
 
-  @default_files [ "lib", "priv", "mix.exs", "README*", "readme*", "LICENSE*",
-                   "license*", "CHANGELOG*", "changelog*", "src" ]
+  @default_files ["lib", "priv", "mix.exs", "README*", "readme*", "LICENSE*",
+                  "license*", "CHANGELOG*", "changelog*", "src"]
+
+  @meta_fields [:description, :license, :contributors, :links]
 
   def run(args) do
     { opts, _, _ } = OptionParser.parse(args, switches: @switches, aliases: @aliases)
@@ -121,6 +123,12 @@ defmodule Mix.Tasks.Hex.Publish do
 
     Mix.shell.info("  Included files:")
     Enum.each(meta[:files], &Mix.shell.info("    #{&1}"))
+
+    fields = Dict.take(meta, @meta_fields) |> Dict.keys
+    if Dict.size(fields) > 0 do
+      fields = Enum.join(fields, ", ")
+      Mix.shell.info("  WARNING! Missing metadata fields: #{fields}")
+    end
   end
 
   defp revert(meta, version, auth) do
