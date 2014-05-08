@@ -1,5 +1,7 @@
 defmodule Hex.Tar do
+  @supported ["1", "2"]
   @version "2"
+  @required_files ['VERSION', 'CHECKSUM', 'metadata.exs', 'contents.tar.gz']
 
   def create(meta, files) do
     contents_path = "#{meta[:app]}-#{meta[:version]}-contents.tar.gz"
@@ -32,19 +34,53 @@ defmodule Hex.Tar do
   end
 
   def unpack(path, dest) do
-    # TODO: Validate package with checksum, version, etc.
-    # note that if tarball is empty :ok is returned, not { :ok, [] }
+    case :erl_tar.extract(path, [:memory]) do
+      { :ok, files } ->
+        files = Enum.into(files, %{})
+        check_files(files, path)
+        check_version(files['VERSION'], path)
+        checksum(files, path)
+        extract_contents(files['contents.tar.gz'], dest, path)
 
-    case :erl_tar.extract(path, [:memory, files: ['contents.tar.gz']]) do
-      { :ok, [{ _name, binary }] } ->
-        case :erl_tar.extract({ :binary, binary }, [:compressed, cwd: dest]) do
-          :ok ->
-            :ok
-        { :error, reason } ->
-          raise Mix.Error, message: "Unpacking #{path}/contents.tar.gz failed: #{inspect reason}"
-        end
+      :ok ->
+        raise Mix.Error, message: "Unpacking #{path} failed: tarball empty"
+
       { :error, reason } ->
         raise Mix.Error, message: "Unpacking #{path} failed: #{inspect reason}"
     end
   end
+
+  defp check_files(files, path) do
+    diff = @required_files -- Dict.keys(files)
+    if diff != [] do
+      diff = Enum.join(diff, ", ")
+      raise Mix.Error, message: "Missing files #{diff} in #{path}"
+    end
+  end
+
+  defp check_version(version, path) do
+    unless version in @supported do
+      raise Mix.Error, message: "Unsupported tarball version #{version} in #{path}"
+    end
+  end
+
+  defp checksum(files, path) do
+    blob = files['VERSION'] <> files['metadata.exs'] <> files['contents.tar.gz']
+    hash = version_hash(files['VERSION'])
+    if :crypto.hash(hash, blob) != Hex.Util.dehexify(files['CHECKSUM']) do
+      raise Mix.Error, message: "Checksum wrong in #{path}"
+    end
+  end
+
+  defp extract_contents(file, dest, path) do
+    case :erl_tar.extract({ :binary, file }, [:compressed, cwd: dest]) do
+      :ok ->
+        :ok
+      { :error, reason } ->
+        raise Mix.Error, message: "Unpacking #{path}/contents.tar.gz failed: #{inspect reason}"
+    end
+  end
+
+  defp version_hash("1"), do: :md5
+  defp version_hash("2"), do: :sha256
 end
