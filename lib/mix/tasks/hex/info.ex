@@ -33,21 +33,17 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp general() do
     Mix.shell.info("Hex v" <> Hex.version)
-
     Mix.shell.info("")
-    path = Hex.Registry.path()
-    if File.exists?(path) do
-      Hex.Registry.start
-      stat = File.stat!(path)
-      { packages, releases } = Hex.Registry.stat()
 
-      Mix.shell.info("Registry file available (last updated: #{pretty_date(stat.mtime)})")
-      Mix.shell.info("Size: #{div stat.size, 1024}kB")
-      Mix.shell.info("Packages #: #{packages}")
-      Mix.shell.info("Releases #: #{releases}")
-    else
-      Mix.shell.info("No registry file available")
-    end
+    Hex.Util.ensure_registry
+    path = Hex.Registry.path()
+    stat = File.stat!(path)
+    { packages, releases } = Hex.Registry.stat()
+
+    Mix.shell.info("Registry file available (last updated: #{pretty_date(stat.mtime)})")
+    Mix.shell.info("Size: #{div stat.size, 1024}kB")
+    Mix.shell.info("Packages #: #{packages}")
+    Mix.shell.info("Releases #: #{releases}")
   end
 
   defp package(package) do
