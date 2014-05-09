@@ -36,7 +36,7 @@ defmodule Hex.Registry do
     case :ets.lookup(get_tid(), :"$$installs$$") do
       [{ :"$$installs$$", [versions|_] }] ->
         if version = latest_version(versions) do
-          Mix.shell.error("A new Hex version is available (v#{version}), please update with `mix hex.local`")
+          Mix.shell.error("A new Hex version is available (v#{version}), please update with `mix local.hex`")
         end
       _ ->
         :ok

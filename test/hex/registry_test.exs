@@ -33,7 +33,7 @@ defmodule Hex.RegistryTest do
       create_registry(path, 2, versions, [], [])
 
       Hex.Util.ensure_registry
-      assert_received { :mix_shell, :error, ["A new Hex version is available (v100.0.0), please update with `mix hex.local`"] }
+      assert_received { :mix_shell, :error, ["A new Hex version is available (v100.0.0), please update with `mix local.hex`"] }
     end
   after
     Hex.Registry.stop
