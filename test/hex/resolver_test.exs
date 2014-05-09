@@ -1,4 +1,4 @@
-defmodule HexTest do
+defmodule Hex.ResolverTest do
   use HexTest.Case
 
   defp resolve(reqs, locked \\ []) do
@@ -88,9 +88,5 @@ defmodule HexTest do
     locked = reqs([ex_plex: "0.1.0"])
     deps = reqs([decimal: "~> 0.2.0", ex_plex: nil])
     assert nil = resolve(deps, locked)
-  end
-
-  test "stat" do
-    assert Hex.Registry.stat == { 9, 30 }
   end
 end
