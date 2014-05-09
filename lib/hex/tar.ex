@@ -60,7 +60,9 @@ defmodule Hex.Tar do
 
   defp check_version(version, path) do
     unless version in @supported do
-      raise Mix.Error, message: "Unsupported tarball version #{version} in #{path}"
+      raise Mix.Error,
+        message: "Unsupported tarball version #{version} in #{path}. " <>
+                 "Try updating Hex with `mix local.hex`."
     end
   end
 
