@@ -13,7 +13,5 @@ defmodule Mix.Tasks.Hex.ConfigTest do
       Mix.Tasks.Hex.Config.run(["foo"])
       assert_received { :mix_shell, :info, ["\"bar\""] }
     end
-  after
-    System.delete_env("MIX_HOME")
   end
 end

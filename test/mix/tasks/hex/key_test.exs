@@ -15,8 +15,6 @@ defmodule Mix.Tasks.Hex.KeyTest do
       assert Hex.Mix.read_config[:username] == "user"
       assert Hex.Mix.read_config[:key] == key.secret
     end
-  after
-    System.delete_env("MIX_HOME")
   end
 
   test "list keys" do

@@ -55,8 +55,6 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run([])
       assert HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
     end
-  after
-    System.delete_env("MIX_HOME")
   end
 
   test "create with deps" do
@@ -73,6 +71,5 @@ defmodule Mix.Tasks.Hex.PublishTest do
     end
   after
     purge [Ex_doc.NoConflict.Mixfile]
-    System.delete_env("MIX_HOME")
   end
 end

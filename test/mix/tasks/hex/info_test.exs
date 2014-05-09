@@ -43,7 +43,5 @@ defmodule Mix.Tasks.Hex.InfoTest do
       assert_received { :mix_shell, :info, ["Packages #: " <> _] }
       assert_received { :mix_shell, :info, ["Releases #: " <> _] }
     end
-  after
-    System.delete_env("MIX_HOME")
   end
 end

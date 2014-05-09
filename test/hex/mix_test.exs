@@ -78,7 +78,6 @@ defmodule Hex.MixTest do
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
             Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
-    System.delete_env("MIX_HOME")
   end
 
   @tag :integration
@@ -122,7 +121,6 @@ defmodule Hex.MixTest do
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
             Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
-    System.delete_env("MIX_HOME")
   end
 
   @tag :integration
@@ -151,7 +149,6 @@ defmodule Hex.MixTest do
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
             Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
-    System.delete_env("MIX_HOME")
   end
 
   @tag :integration
@@ -169,7 +166,6 @@ defmodule Hex.MixTest do
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
             Ex_doc.NoConflict.Mixfile, HasHexDep.Mixfile, Sample.Mixfile ]
-    System.delete_env("MIX_HOME")
   end
 
   @tag :integration
@@ -190,7 +186,6 @@ defmodule Hex.MixTest do
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
             Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
-    System.delete_env("MIX_HOME")
   end
 
   @tag :integration
@@ -211,7 +206,6 @@ defmodule Hex.MixTest do
     end
   after
     purge [ Postgrex.NoConflict.Mixfile, ExDoc.NoConflict.Mixfile ]
-    System.delete_env("MIX_HOME")
   end
 
   test "config" do
@@ -225,8 +219,6 @@ defmodule Hex.MixTest do
       Hex.Mix.update_config([key: "other", foo: :bar])
       assert Hex.Mix.read_config == [key: "other", foo: :bar]
     end
-  after
-    System.delete_env("MIX_HOME")
   end
 
   test "from mixlock" do

@@ -55,7 +55,5 @@ defmodule Mix.Tasks.Hex.UserTest do
       assert Hex.Mix.read_config[:username] == "config"
       assert is_binary(Hex.Mix.read_config[:key])
     end
-  after
-    System.delete_env("MIX_HOME")
   end
 end

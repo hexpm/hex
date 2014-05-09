@@ -8,7 +8,5 @@ defmodule Mix.Tasks.Hex.SearchTest do
     assert_received { :mix_shell, :info, ["ex_doc"] }
     assert_received { :mix_shell, :info, ["ex_plex"] }
     assert_received { :mix_shell, :info, ["postgrex"] }
-  after
-    System.delete_env("MIX_HOME")
   end
 end
