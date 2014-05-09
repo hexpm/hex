@@ -9,13 +9,7 @@ defmodule Hex.Registry do
       case :ets.file2tab(List.from_char_data!(path)) do
         { :ok, tid } ->
           :application.set_env(:hex, @registry_tid, tid)
-
-          case :ets.lookup(tid, :"$$version$$") do
-            [{ :"$$version$$", version }] when version in @versions ->
-              :ok
-            _ ->
-              raise Mix.Error, message: "The registry file version is too new. Please update hex."
-          end
+          check_version(tid)
 
         { :error, reason } ->
           raise Mix.Error, message: "Failed to open hex registry file (#{inspect reason})"
@@ -28,13 +22,25 @@ defmodule Hex.Registry do
       { :ok, tid } ->
         :ets.delete(tid)
         :application.unset_env(:hex, @registry_tid)
+        true
       :undefined ->
-        :ok
+        false
     end
   end
 
   def path do
     Path.join(Mix.Utils.mix_home, "hex.ets")
+  end
+
+  def info_installs do
+    case :ets.lookup(get_tid(), :"$$installs$$") do
+      [{ :"$$installs$$", [versions|_] }] ->
+        if version = latest_version(versions) do
+          Mix.shell.error("A new Hex version is available (v#{version}), please update with `mix hex.local`")
+        end
+      _ ->
+        :ok
+    end
   end
 
   def stat do
@@ -48,8 +54,7 @@ defmodule Hex.Registry do
         acc
     end
 
-    { :ok, tid } = :application.get_env(:hex, @registry_tid)
-    :ets.foldl(fun, { 0, 0 }, tid)
+    :ets.foldl(fun, { 0, 0 }, get_tid())
   end
 
   def search(term) do
@@ -64,8 +69,7 @@ defmodule Hex.Registry do
         packages
     end
 
-    { :ok, tid } = :application.get_env(:hex, @registry_tid)
-    :ets.foldl(fun, [], tid)
+    :ets.foldl(fun, [], get_tid())
     |> Enum.reverse
     |> Enum.sort
   end
@@ -80,8 +84,7 @@ defmodule Hex.Registry do
   end
 
   def get_versions(package) do
-    { :ok, tid } = :application.get_env(:hex, @registry_tid)
-    case :ets.lookup(tid, package) do
+    case :ets.lookup(get_tid(), package) do
       [] -> nil
       [{ ^package, [versions|_] }] when is_list(versions) -> versions
       [{ ^package, versions }] -> versions
@@ -89,11 +92,38 @@ defmodule Hex.Registry do
   end
 
   def get_deps(package, version) do
-    { :ok, tid } = :application.get_env(:hex, @registry_tid)
-    case :ets.lookup(tid, { package, version }) do
+    case :ets.lookup(get_tid(), { package, version }) do
       [] -> nil
       [{{^package, ^version}, [deps|_]}] when is_list(deps) -> deps
       [{{^package, ^version}, deps}] -> deps
     end
+  end
+
+  defp get_tid do
+    { :ok, tid } = :application.get_env(:hex, @registry_tid)
+    tid
+  end
+
+  defp check_version(tid) do
+    case :ets.lookup(tid, :"$$version$$") do
+      [{ :"$$version$$", version }] when version in @versions ->
+        :ok
+      _ ->
+        raise Mix.Error,
+          message: "The registry file version is not supported. " <>
+                   "Try updating Hex with `mix local.hex`."
+    end
+  end
+
+  defp latest_version(versions) do
+    current_elixir = System.version
+    current_hex    = Hex.version
+
+    versions
+    |> Enum.filter(fn {hex, _} -> Version.compare(hex, current_hex) == :gt end)
+    |> Enum.filter(fn {_, elixir} -> Version.compare(elixir, current_elixir) != :gt end)
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.sort(&(Version.compare(&1, &2) == :gt))
+    |> List.first
   end
 end

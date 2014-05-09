@@ -91,7 +91,7 @@ defmodule HexTest.Case do
   end
 
   @ets_table :hex_ets_registry
-  @version    1
+  @version   2 # 1
 
   def create_test_registry(path) do
     packages =
@@ -112,8 +112,13 @@ defmodule HexTest.Case do
         { { "#{name}", version }, [deps] }
       end)
 
+    create_registry(path, @version, [], releases, packages)
+  end
+
+  def create_registry(path, version, installs, releases, packages) do
     tid = :ets.new(@ets_table, [])
-    :ets.insert(tid, { :"$$version$$", @version })
+    :ets.insert(tid, { :"$$version$$", version })
+    :ets.insert(tid, { :"$$installs$$", [installs] })
     :ets.insert(tid, releases ++ packages)
     :ok = :ets.tab2file(tid, List.from_char_data!(path))
     :ets.delete(tid)
@@ -166,7 +171,6 @@ defmodule HexTest.Case do
     ets_path = tmp_path("hex.ets")
     File.rm(ets_path)
     create_test_registry(ets_path)
-    :application.set_env(:hex, :registry_updated, true)
     :ok
   end
 
@@ -177,6 +181,7 @@ defmodule HexTest.Case do
     Mix.Shell.Process.flush
     Mix.ProjectStack.clear_cache
     Mix.ProjectStack.clear_stack
+    :application.set_env(:hex, :registry_updated, true)
     :ok
   end
 

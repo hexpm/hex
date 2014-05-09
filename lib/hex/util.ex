@@ -1,13 +1,18 @@
 defmodule Hex.Util do
   def ensure_registry do
-    Hex.Registry.stop
-    if Hex.Util.update_registry == :error and not File.exists?(Registry.path()) do
+    stopped? = Hex.Registry.stop
+
+    if update_registry == :error and not File.exists?(Hex.Registry.path()) do
       raise Mix.Error, message: "Failed to fetch registry"
     end
     Hex.Registry.start
+
+    unless stopped? do
+      Hex.Registry.info_installs
+    end
   end
 
-  def update_registry do
+  defp update_registry do
     if :application.get_env(:hex, :registry_updated) == { :ok, true } do
       { :ok, :cached }
     else
