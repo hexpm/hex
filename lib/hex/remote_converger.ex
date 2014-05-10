@@ -39,13 +39,16 @@ defmodule Hex.RemoteConverger do
   def deps(%Mix.Dep{app: app}, lock) do
     case Dict.fetch(lock, app) do
       {:ok, {:package, version}} ->
-        Hex.Registry.start
 
-        deps = Registry.get_deps("#{app}", version)
-        for {app, _} <- deps, do: :"#{app}"
+        if Hex.Registry.start(no_fail: true) do
+          deps = Registry.get_deps("#{app}", version) || []
+          for {app, _} <- deps, do: :"#{app}"
+        else
+          []
+        end
 
       _ ->
-        nil
+        []
     end
   end
 

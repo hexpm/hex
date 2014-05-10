@@ -3,17 +3,24 @@ defmodule Hex.Registry do
   @versions     [1, 2]
 
   def start(opts \\ []) do
-    unless match?({ :ok, _ }, :application.get_env(:hex, @registry_tid)) do
-      path = opts[:registry_path] || path()
+    case :application.get_env(:hex, @registry_tid) do
+      { :ok, _ } ->
+        true
+      :undefined ->
+        path = opts[:registry_path] || path()
 
-      case :ets.file2tab(List.from_char_data!(path)) do
-        { :ok, tid } ->
-          :application.set_env(:hex, @registry_tid, tid)
-          check_version(tid)
+        case :ets.file2tab(List.from_char_data!(path)) do
+          { :ok, tid } ->
+            :application.set_env(:hex, @registry_tid, tid)
+            check_version(tid)
+            true
 
-        { :error, reason } ->
-          raise Mix.Error, message: "Failed to open hex registry file (#{inspect reason})"
-      end
+          { :error, reason } ->
+            unless opts[:no_fail] do
+              raise Mix.Error, message: "Failed to open hex registry file (#{inspect reason})"
+            end
+            false
+        end
     end
   end
 

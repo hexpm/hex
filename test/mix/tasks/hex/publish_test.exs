@@ -19,6 +19,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
   setup do
     Hex.Registry.start(registry_path: tmp_path("hex.ets"))
+    :ok
   end
 
   test "validate" do
