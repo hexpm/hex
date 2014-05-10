@@ -12,18 +12,23 @@ defmodule Hex.Util do
     end
   end
 
-  defp update_registry do
+  def update_registry(opts \\ []) do
     if registry_updated? do
       { :ok, :cached }
     else
       :application.set_env(:hex, :registry_updated, true)
+      Hex.start_api
 
       path = Hex.Registry.path
       path_gz = Hex.Registry.path <> ".gz"
 
-      opts = [etag: etag(path_gz)]
+      if opts[:no_cache] do
+        api_opts = []
+      else
+        api_opts = [etag: etag(path_gz)]
+      end
 
-      case Hex.API.get_registry(opts) do
+      case Hex.API.get_registry(api_opts) do
         { 200, body } ->
           File.write!(path_gz, body)
           data = :zlib.gunzip(body)
