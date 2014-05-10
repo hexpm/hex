@@ -21,7 +21,7 @@ defmodule Hex.Resolver do
 
     req_requests =
       Enum.map(requests, fn { name, req } ->
-        Request[name: name, req: req]
+        Request[name: name, req: compile_requirement(req, name)]
       end)
 
     pending = pending ++ req_requests
@@ -86,26 +86,48 @@ defmodule Hex.Resolver do
   end
 
   def get_versions(package, req) do
-    Registry.get_versions(package)
-    |> Enum.filter(&vsn_match?(&1, req))
-    |> Enum.reverse
+    if versions = Registry.get_versions(package) do
+      versions
+      |> Enum.filter(&vsn_match?(&1, req))
+      |> Enum.reverse
+    else
+      raise Mix.Error, message: "Unable to find package #{package} in registry"
+    end
   end
 
   def get_deps(package, version, Info[overridden: overridden]) do
-    deps = Registry.get_deps(package, version)
-
-    Enum.flat_map(deps, fn { name, req } ->
-      if Set.member?(overridden, name) do
-        []
-      else
-        [Request[name: name, req: req, parent: package]]
-      end
-    end)
+    if deps = Registry.get_deps(package, version) do
+      Enum.flat_map(deps, fn { name, req } ->
+        if Set.member?(overridden, name) do
+          []
+        else
+          [Request[name: name, req: compile_requirement(req, name), parent: package]]
+        end
+      end)
+    else
+      raise Mix.Error, message: "Unable to find package version #{package} v#{version} in registry"
+    end
   end
 
-  defp vsn_match?(version, req) do
-    nil?(req) or Version.match?(version, req)
+  defp compile_requirement(nil, _package) do
+    nil
   end
+
+  defp compile_requirement(req, package) when is_binary(req) do
+    case Version.parse_requirement(req) do
+      { :ok, req } ->
+        req
+      :error ->
+        raise Mix.Error, message: "Invalid requirement #{inspect req} defined for package #{package}"
+    end
+  end
+
+  defp compile_requirement(req, package) do
+    raise Mix.Error, message: "Invalid requirement #{inspect req} defined for package #{package}"
+  end
+
+  defp vsn_match?(version, nil), do: true
+  defp vsn_match?(version, req), do: Version.match?(version, req)
 
   defp wrap(nil), do: []
   defp wrap(arg), do: [arg]

@@ -13,7 +13,7 @@ defmodule Hex.Util do
   end
 
   defp update_registry do
-    if :application.get_env(:hex, :registry_updated) == { :ok, true } do
+    if registry_updated? do
       { :ok, :cached }
     else
       :application.set_env(:hex, :registry_updated, true)
@@ -37,6 +37,10 @@ defmodule Hex.Util do
           :error
       end
     end
+  end
+
+  def registry_updated? do
+    :application.get_env(:hex, :registry_updated) == { :ok, true }
   end
 
   def etag(path) do
