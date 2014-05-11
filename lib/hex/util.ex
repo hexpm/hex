@@ -86,6 +86,7 @@ defmodule Hex.Util do
     Enum.all?(terms, &safe_term?/1)
   end
 
+  def safe_term?(nil), do: true
   def safe_term?(term) when is_number(term), do: true
   def safe_term?(term) when is_binary(term), do: true
   def safe_term?(term) when is_boolean(term), do: true
@@ -153,7 +154,7 @@ defmodule Hex.Util do
   def print_error_result(_status, body) do
     if body["message"] && body["errors"] do
       Mix.shell.info(body["message"])
-      pretty_errors(body["errors"])
+      pretty_errors(list_to_map(body["errors"]))
     else
       Mix.shell.info(inspect(body))
     end
@@ -161,9 +162,9 @@ defmodule Hex.Util do
 
   defp pretty_errors(errors, depth \\ 0) do
     Enum.each(errors, fn
-      { key, list } when is_list(list) ->
+      { key, map } when is_map(map) ->
         Mix.shell.info(indent(depth) <> key <> ":")
-        pretty_errors(list, depth + 1)
+        pretty_errors(map, depth + 1)
       { key, value } ->
         Mix.shell.info(indent(depth) <> key <> ": " <> value)
     end)

@@ -110,8 +110,8 @@ defmodule Mix.Tasks.Hex.Publish do
     Mix.shell.info("Publishing #{meta[:app]} v#{meta[:version]}")
 
     Mix.shell.info("  Dependencies:")
-    Enum.each(meta[:requirements], fn
-      { app, req } -> Mix.shell.info("    #{app} #{req}")
+    Enum.each(meta[:requirements], fn { app, %{requirement: req} } ->
+       Mix.shell.info("    #{app} #{req}")
     end)
 
     Mix.shell.info("  Excluded dependencies (not part of the Hex package):")
@@ -173,8 +173,10 @@ defmodule Mix.Tasks.Hex.Publish do
       end
     end)
 
-    include = Enum.map(include, fn { app, req, _opts } -> { app, req } end)
-    exclude = Enum.map(exclude, fn { app, _req, _opts } -> app end)
+    include = for { app, req, opts } <- include, into: %{} do
+      { app, %{requirement: req, optional: opts[:optional]} }
+    end
+    exclude = for { app, _req, _opts } <- exclude, do: app
     { include, exclude }
   end
 
