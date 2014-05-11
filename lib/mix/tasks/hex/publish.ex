@@ -88,15 +88,11 @@ defmodule Mix.Tasks.Hex.Publish do
     else
       config = Mix.project
       { deps, exclude_deps } = dependencies(config)
-
-      package = config[:package]
-      check_package(package)
-
-      files   = expand_paths(package[:files] || @default_files)
+      package                = package(config)
 
       meta = Keyword.take(config, [:app, :version, :description])
              |> Enum.into(%{})
-             |> Map.merge(%{requirements: deps, files: files})
+             |> Map.put(:requirements, deps)
              |> Map.merge(package || %{})
 
       print_info(meta, exclude_deps)
@@ -125,9 +121,11 @@ defmodule Mix.Tasks.Hex.Publish do
     Enum.each(meta[:files], &Mix.shell.info("    #{&1}"))
 
     fields = Dict.take(meta, @meta_fields) |> Dict.keys
-    if Dict.size(fields) > 0 do
-      fields = Enum.join(fields, ", ")
-      Mix.shell.info("  WARNING! Missing metadata fields: #{fields}")
+    missing = @meta_fields -- fields
+
+    if missing != [] do
+      missing = Enum.join(missing, ", ")
+      Mix.shell.info("  WARNING! Missing metadata fields: #{missing}")
     end
   end
 
@@ -209,15 +207,19 @@ defmodule Mix.Tasks.Hex.Publish do
     |> Enum.map(&Path.relative_to(&1, cwd))
   end
 
-  defp check_package(nil), do: :ok
+  defp package(config) do
+    package = Enum.into(config[:package] || [], %{})
+              |> Map.take(@meta_fields)
 
-  defp check_package(package) do
-    unless is_map(package) do
-      raise Mix.Error, message: "package configuration should be a map"
+    if package[:links] do
+      package = Map.update!(package, :links, &Enum.into(&1, %{}))
     end
 
-    unless package[:links] || is_map(package[:links]) do
-      raise Mix.Error, message: "package configuration :links field should be a map"
+    if files = package[:files] || @default_files do
+      files = expand_paths(files)
+      package = Map.put(package, :files, files)
     end
+
+    package
   end
 end

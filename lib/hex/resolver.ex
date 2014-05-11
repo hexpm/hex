@@ -126,7 +126,7 @@ defmodule Hex.Resolver do
     raise Mix.Error, message: "Invalid requirement #{inspect req} defined for package #{package}"
   end
 
-  defp vsn_match?(version, nil), do: true
+  defp vsn_match?(_version, nil), do: true
   defp vsn_match?(version, req), do: Version.match?(version, req)
 
   defp wrap(nil), do: []
