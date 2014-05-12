@@ -212,7 +212,10 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp package(config) do
     package = Enum.into(config[:package] || [], %{})
-              |> Map.take(@meta_fields)
+
+    if licenses = package[:licenses] || package[:license] do
+      package = Map.put(package, :licenses, licenses)
+    end
 
     if package[:links] do
       package = Map.update!(package, :links, &Enum.into(&1, %{}))
@@ -223,6 +226,6 @@ defmodule Mix.Tasks.Hex.Publish do
       package = Map.put(package, :files, files)
     end
 
-    package
+    Map.take(package, @meta_fields)
   end
 end
