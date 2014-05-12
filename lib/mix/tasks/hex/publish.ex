@@ -73,7 +73,8 @@ defmodule Mix.Tasks.Hex.Publish do
   @default_files ["lib", "priv", "mix.exs", "README*", "readme*", "LICENSE*",
                   "license*", "CHANGELOG*", "changelog*", "src"]
 
-  @meta_fields [:description, :license, :contributors, :links]
+  @warn_fields [:description, :licenses, :contributors, :links]
+  @meta_fields @warn_fields ++ [:files]
 
   def run(args) do
     { opts, _, _ } = OptionParser.parse(args, switches: @switches, aliases: @aliases)
@@ -120,8 +121,8 @@ defmodule Mix.Tasks.Hex.Publish do
     Mix.shell.info("  Included files:")
     Enum.each(meta[:files], &Mix.shell.info("    #{&1}"))
 
-    fields = Dict.take(meta, @meta_fields) |> Dict.keys
-    missing = @meta_fields -- fields
+    fields = Dict.take(meta, @warn_fields) |> Dict.keys
+    missing = @warn_fields -- fields
 
     if missing != [] do
       missing = Enum.join(missing, ", ")
