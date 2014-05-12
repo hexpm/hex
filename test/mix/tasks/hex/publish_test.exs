@@ -80,6 +80,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self, { :mix_shell_input, :yes?, true }
       Mix.Tasks.Hex.Publish.run(@opts)
 
+      assert_received { :mix_shell, :info, ["  WARNING! No included files"] }
       assert_received { :mix_shell, :info, ["  WARNING! Missing metadata fields: description, licenses, contributors, links"] }
       assert HexWeb.Release.get(HexWeb.Package.get("releaseb"), "0.0.2")
     end

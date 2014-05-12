@@ -110,16 +110,24 @@ defmodule Mix.Tasks.Hex.Publish do
 
     Mix.shell.info("Publishing #{meta[:app]} v#{meta[:version]}")
 
-    Mix.shell.info("  Dependencies:")
-    Enum.each(meta[:requirements], fn { app, %{requirement: req} } ->
-       Mix.shell.info("    #{app} #{req}")
-    end)
+    if meta[:requirements] != [] do
+      Mix.shell.info("  Dependencies:")
+      Enum.each(meta[:requirements], fn { app, %{requirement: req} } ->
+         Mix.shell.info("    #{app} #{req}")
+      end)
+    end
 
-    Mix.shell.info("  Excluded dependencies (not part of the Hex package):")
-    Enum.each(exclude_deps, &Mix.shell.info("    #{&1}"))
+    if exclude_deps != [] do
+      Mix.shell.info("  Excluded dependencies (not part of the Hex package):")
+      Enum.each(exclude_deps, &Mix.shell.info("    #{&1}"))
+    end
 
-    Mix.shell.info("  Included files:")
-    Enum.each(meta[:files], &Mix.shell.info("    #{&1}"))
+    if meta[:files] != [] do
+      Mix.shell.info("  Included files:")
+      Enum.each(meta[:files], &Mix.shell.info("    #{&1}"))
+    else
+      Mix.shell.info("  WARNING! No included files")
+    end
 
     fields = Dict.take(meta, @warn_fields) |> Dict.keys
     missing = @warn_fields -- fields
