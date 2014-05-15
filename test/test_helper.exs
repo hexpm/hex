@@ -91,7 +91,7 @@ defmodule HexTest.Case do
   end
 
   @ets_table :hex_ets_registry
-  @version   2 # 1
+  @version   3 # 2
 
   def create_test_registry(path) do
     packages =
@@ -101,14 +101,13 @@ defmodule HexTest.Case do
 
     packages =
       Enum.map(packages, fn { name, vsns } ->
-        # { "#{name}", Enum.sort(vsns, &(Version.compare(&1, &2) == :lt)) }
         { "#{name}", [Enum.sort(vsns, &(Version.compare(&1, &2) == :lt))] }
       end)
 
     releases =
       Enum.map(test_registry, fn { name, version, deps } ->
-        deps = Enum.map(deps, fn { app, req } -> { "#{app}", req } end)
-        # { { "#{name}", version }, deps }
+        #deps = Enum.map(deps, fn { app, req } -> { "#{app}", req } end)
+        deps = Enum.map(deps, fn { app, req } -> ["#{app}", req] end)
         { { "#{name}", version }, [deps] }
       end)
 

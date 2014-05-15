@@ -1,6 +1,6 @@
 defmodule Hex.Registry do
   @registry_tid :registry_tid
-  @versions     [1, 2]
+  @versions     [2, 3]
 
   def start(opts \\ []) do
     case :application.get_env(:hex, @registry_tid) do
@@ -94,15 +94,19 @@ defmodule Hex.Registry do
     case :ets.lookup(get_tid(), package) do
       [] -> nil
       [{ ^package, [versions|_] }] when is_list(versions) -> versions
-      [{ ^package, versions }] -> versions
     end
   end
 
   def get_deps(package, version) do
     case :ets.lookup(get_tid(), { package, version }) do
-      [] -> nil
-      [{{^package, ^version}, [deps|_]}] when is_list(deps) -> deps
-      [{{^package, ^version}, deps}] -> deps
+      [] ->
+        nil
+      [{{^package, ^version}, [deps|_]}] when is_list(deps) ->
+        Enum.map(deps, fn
+          # Compatability with version 2
+          { app, dep }   -> { app, dep }
+          [app, dep | _] -> { app, dep }
+        end)
     end
   end
 
