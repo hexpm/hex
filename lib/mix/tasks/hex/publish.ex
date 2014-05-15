@@ -84,10 +84,11 @@ defmodule Mix.Tasks.Hex.Publish do
     Mix.Project.get!
     Hex.start
 
+    config = Mix.Project.config
+
     if version = opts[:revert] do
-      revert(Mix.project, version, auth)
+      revert(config, version, auth)
     else
-      config = Mix.project
       { deps, exclude_deps } = dependencies(config)
       package                = package(config)
 

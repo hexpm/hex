@@ -45,5 +45,5 @@ defmodule Hex do
     :application.set_env(:hex, :cdn, cdn)
   end
 
-  def version, do: unquote(Mix.project[:version])
+  def version, do: unquote(Mix.Project.config[:version])
 end
