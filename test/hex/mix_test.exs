@@ -43,6 +43,23 @@ defmodule Hex.MixTest do
     end
   end
 
+  defmodule Optional do
+    def project do
+      [ app: :optional,
+        version: "0.1.0",
+        deps: [ { :only_doc, nil } ] ]
+    end
+  end
+
+  defmodule WithOptional do
+    def project do
+      [ app: :with_optional,
+        version: "0.1.0",
+        deps: [ { :only_doc, nil },
+                { :ex_doc, "0.0.1" } ] ]
+    end
+  end
+
   setup do
     Hex.Registry.start(registry_path: tmp_path("hex.ets"))
     :application.set_env(:hex, :registry_updated, false)
@@ -205,7 +222,51 @@ defmodule Hex.MixTest do
       assert_received { :mix_shell, :info, ["* ex_doc" <> _] }
     end
   after
-    purge [ Postgrex.NoConflict.Mixfile, ExDoc.NoConflict.Mixfile ]
+    purge [ Postgrex.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
+  end
+
+  @tag :integration
+  test "optional dependency" do
+    Mix.Project.push Optional
+
+    in_tmp fn ->
+      System.put_env("MIX_HOME", System.cwd!)
+
+      Mix.Task.run "deps.get"
+
+      assert_received { :mix_shell, :info, ["* Getting only_doc (package)"] }
+      refute_received { :mix_shell, :info, ["* Getting ex_doc (package)"] }
+
+      Mix.Task.run "deps"
+
+      assert_received { :mix_shell, :info, ["* only_doc (package)"] }
+      refute_received { :mix_shell, :info, ["* ex_doc (package)"] }
+    end
+  after
+    purge [ Only_doc.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
+  end
+
+
+  @tag :integration
+  test "with optional dependency" do
+    Mix.Project.push WithOptional
+
+    in_tmp fn ->
+      System.put_env("MIX_HOME", System.cwd!)
+
+      Mix.Task.run "deps.get"
+
+      assert_received { :mix_shell, :info, ["* Getting only_doc (package)"] }
+      assert_received { :mix_shell, :info, ["* Getting ex_doc (package)"] }
+
+      Mix.Task.run "deps"
+
+      assert_received { :mix_shell, :info, ["* only_doc (package)"] }
+      assert_received { :mix_shell, :info, ["* ex_doc (package)"] }
+      assert_received { :mix_shell, :info, ["  locked at 0.0.1"] }
+    end
+  after
+    purge [ Only_doc.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
   end
 
   test "config" do

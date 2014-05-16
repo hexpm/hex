@@ -5,7 +5,7 @@ defmodule Hex.RegistryTest do
     Hex.Registry.start(registry_path: tmp_path("hex.ets"))
     :application.set_env(:hex, :registry_updated, true)
 
-    assert Hex.Registry.stat == { 9, 30 }
+    assert Hex.Registry.stat == { 10, 31 }
   end
 
   test "install info output once" do

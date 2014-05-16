@@ -42,7 +42,7 @@ defmodule Hex.RemoteConverger do
 
         if Hex.Registry.start(no_fail: true) do
           deps = Registry.get_deps("#{app}", version) || []
-          for {app, _} <- deps, do: :"#{app}"
+          for {app, _, _} <- deps, do: :"#{app}"
         else
           []
         end

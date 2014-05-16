@@ -104,8 +104,8 @@ defmodule Hex.Registry do
       [{{^package, ^version}, [deps|_]}] when is_list(deps) ->
         Enum.map(deps, fn
           # Compatability with version 2
-          { app, dep }   -> { app, dep }
-          [app, dep | _] -> { app, dep }
+          { app, dep } -> { app, dep, false }
+          [app, dep, optional | _] -> { app, dep, optional }
         end)
     end
   end

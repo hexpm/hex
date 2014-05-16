@@ -84,9 +84,5 @@ defmodule Hex.ResolverTest do
     locked = reqs([ex_plex: "0.1.0", decimal: "0.1.0"])
     deps = reqs([])
     assert Dict.equal? reqs([decimal: "0.1.0", ex_plex: "0.1.0"]), resolve(deps, locked)
-
-    locked = reqs([ex_plex: "0.1.0"])
-    deps = reqs([decimal: "~> 0.2.0", ex_plex: nil])
-    assert nil = resolve(deps, locked)
   end
 end

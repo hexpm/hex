@@ -68,7 +68,13 @@ defmodule HexTest.Case do
   """
 
   def init_project(name, version, deps, meta, auth) do
-    reqs = Enum.filter(deps, &(tuple_size(&1) == 2))
+    reqs =
+      Enum.filter(deps, fn
+        {_app, _req, opts} -> !(opts[:path] || opts[:git] || opts[:github])
+        _ -> true
+      end)
+
+    reqs = Enum.map(reqs, &{elem(&1, 0), elem(&1, 1)})
 
     meta = [app: name, version: version, requirements: reqs] ++ meta
 
@@ -107,7 +113,7 @@ defmodule HexTest.Case do
     releases =
       Enum.map(test_registry, fn { name, version, deps } ->
         #deps = Enum.map(deps, fn { app, req } -> { "#{app}", req } end)
-        deps = Enum.map(deps, fn { app, req } -> ["#{app}", req] end)
+        deps = Enum.map(deps, fn { app, req } -> ["#{app}", req, false] end)
         { { "#{name}", version }, [deps] }
       end)
 
@@ -156,7 +162,9 @@ defmodule HexTest.Case do
       { :postgrex, "0.2.0", [ex_doc: "0.0.1"] },
       { :postgrex, "0.2.1", [ex_doc: "~> 0.1.0"] },
       { :ecto, "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"] },
-      { :ecto, "0.2.1", [postgrex: "~> 0.2.1", ex_doc: "0.1.0"] } ]
+      { :ecto, "0.2.1", [postgrex: "~> 0.2.1", ex_doc: "0.1.0"] },
+
+      { :only_doc, "0.1.0", [ex_doc: nil] } ]
   end
 
   using do
@@ -240,6 +248,7 @@ if :integration in ExUnit.configuration[:include] do
   Case.init_project("postgrex", "0.2.0", [ex_doc: "0.0.1"], [], auth)
   Case.init_project("ecto", "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"], [], auth)
   Case.init_project("ecto", "0.2.1", [{:sample, "0.0.1", path: Case.fixture_path("sample")}, postgrex: "~> 0.2.1", ex_doc: "0.1.0"], [], auth)
+  Case.init_project("only_doc", "0.1.0", [{:ex_doc, nil, optional: true}], [], auth)
 end
 
 Mix.shell(Mix.Shell.Process)

@@ -111,8 +111,8 @@ defmodule Hex.Util do
     do: for(elem <- list, do: binarify(elem))
   defp binarify(map) when is_map(map),
     do: for(elem <- map, into: %{}, do: binarify(elem))
-  defp binarify({ left, right }),
-    do: { binarify(left), binarify(right) }
+  defp binarify(tuple) when is_tuple(tuple),
+    do: for(elem <- tuple_to_list(tuple), do: binarify(elem)) |> list_to_tuple
 
   defp list_to_map(list) when is_list(list) do
     if list == [] or is_tuple(List.first(list)) do
