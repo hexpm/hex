@@ -43,7 +43,7 @@ defmodule Mix.Tasks.Hex.Info do
     Mix.shell.info("Registry file available (last updated: #{pretty_date(stat.mtime)})")
     Mix.shell.info("Size: #{div stat.size, 1024}kB")
     Mix.shell.info("Packages #: #{packages}")
-    Mix.shell.info("Releases #: #{releases}")
+    Mix.shell.info("Versions #: #{releases}")
   end
 
   defp package(package) do
