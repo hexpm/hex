@@ -25,6 +25,7 @@ defmodule Hex.RemoteConverger do
     overridden = Hex.Mix.deps_to_overridden(deps)
     locked     = prepare_locked(lock, old_lock, deps)
 
+    check_input(reqs, locked)
     print_info(reqs, locked, overridden)
 
     if resolved = Hex.Resolver.resolve(reqs, overridden, locked) do
@@ -49,6 +50,27 @@ defmodule Hex.RemoteConverger do
 
       _ ->
         []
+    end
+  end
+
+  defp check_input(reqs,locked ) do
+    Enum.each(reqs, fn {app, req} ->
+      check_package_req(app, req, nil)
+    end)
+
+    Enum.each(locked, fn {app, req} ->
+      check_package_req(app, req, " (from lock)")
+    end)
+  end
+
+  defp check_package_req(app, req, message) do
+    if versions = Registry.get_versions(app) do
+      versions = Enum.filter(versions, &Hex.Mix.version_match?(&1, req))
+      if versions == [] do
+        raise Mix.Error, message: "No package version in registry matches #{app} #{req}#{message}"
+      end
+    else
+      raise Mix.Error, message: "No package with name #{app}#{message} in registry"
     end
   end
 

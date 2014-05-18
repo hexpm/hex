@@ -1,4 +1,7 @@
 defmodule Hex.Mix do
+  def version_match?(_version, nil), do: true
+  def version_match?(version, req),  do: Version.match?(version, req)
+
   def deps_to_requests(deps) do
     overridden =
       for %Mix.Dep{app: app, scm: scm, opts: opts} <- deps,

@@ -1,6 +1,8 @@
 defmodule Hex.Resolver do
   alias Hex.Registry
 
+  import Hex.Mix, only: [version_match?: 2]
+
   require Record
   Record.defrecord :info, [:overridden]
   Record.defrecord :state, [:activated, :pending, :optional]
@@ -45,10 +47,10 @@ defmodule Hex.Resolver do
   defp do_resolve(activated, [request(name: name, req: req, parent: parent) = request|pending], optional, info) do
     case activated[name] do
       active(version: version, possibles: possibles, parents: parents) = active ->
-        possibles = Enum.filter(possibles, &vsn_match?(&1, req))
+        possibles = Enum.filter(possibles, &version_match?(&1, req))
         active = active(active, possibles: possibles, parents: wrap(parent) ++ parents)
 
-        if vsn_match?(version, req) do
+        if version_match?(version, req) do
           activated = Dict.put(activated, name, active)
           do_resolve(activated, pending, optional, info)
         else
@@ -107,7 +109,7 @@ defmodule Hex.Resolver do
       try do
         versions =
           Enum.reduce(requests, versions, fn request(req: req) = request, versions ->
-            versions = Enum.filter(versions, &vsn_match?(&1, req))
+            versions = Enum.filter(versions, &version_match?(&1, req))
             if versions == [] do
               throw request
             else
@@ -169,9 +171,6 @@ defmodule Hex.Resolver do
   defp compile_requirement(req, package) do
     raise Mix.Error, message: "Invalid requirement #{inspect req} defined for package #{package}"
   end
-
-  defp vsn_match?(_version, nil), do: true
-  defp vsn_match?(version, req), do: Version.match?(version, req)
 
   defp wrap(nil), do: []
   defp wrap(arg), do: [arg]
