@@ -1,20 +1,21 @@
 defmodule Hex.Resolver do
-  defrecord Info, [:overridden]
-  defrecord State, [:activated, :pending, :optional]
-  defrecord Request, [:name, :req, :parent]
-  defrecord Active, [:name, :version, :state, :parents, :possibles]
-
   alias Hex.Registry
 
+  require Record
+  Record.defrecord :info, [:overridden]
+  Record.defrecord :state, [:activated, :pending, :optional]
+  Record.defrecord :request, [:name, :req, :parent]
+  Record.defrecord :active, [:name, :version, :state, :parents, :possibles]
+
   def resolve(requests, overridden, locked) do
-    info = Info[overridden: Enum.into(overridden, HashSet.new)]
+    info = info(overridden: Enum.into(overridden, HashSet.new))
 
     { activated, pending, optional } =
       Enum.reduce(locked, { HashDict.new, [], HashDict.new }, &locked(&1, &2, info))
 
     req_requests =
       Enum.map(requests, fn { name, req } ->
-        Request[name: name, req: compile_requirement(req, name)]
+        request(name: name, req: compile_requirement(req, name))
       end)
 
     pending = pending ++ req_requests
@@ -29,52 +30,51 @@ defmodule Hex.Resolver do
     pending = pending ++ new_pending
     optional = merge_optional(optional, new_optional)
 
-    active = Active[name: name, version: version, parents: [], possibles: []]
+    active = active(name: name, version: version, parents: [], possibles: [])
     activated = Dict.put(activated, name, active)
 
     {activated, pending, optional}
   end
 
   defp do_resolve(activated, [], _optional, _info) do
-    Enum.map(activated, fn { name, Active[version: version] } ->
+    Enum.map(activated, fn { name, active(version: version) } ->
       { name, version }
     end) |> Enum.reverse
   end
 
-  defp do_resolve(activated, [Request[] = request|pending], optional, info) do
-    active = activated[request.name]
+  defp do_resolve(activated, [request(name: name, req: req, parent: parent) = request|pending], optional, info) do
+    case activated[name] do
+      active(version: version, possibles: possibles, parents: parents) = active ->
+        possibles = Enum.filter(possibles, &vsn_match?(&1, req))
+        active = active(active, possibles: possibles, parents: wrap(parent) ++ parents)
 
-    if active do
-      possibles = Enum.filter(active.possibles, &vsn_match?(&1, request.req))
-      active = active.possibles(possibles).parents(wrap(request.parent) ++ active.parents)
+        if vsn_match?(version, req) do
+          activated = Dict.put(activated, name, active)
+          do_resolve(activated, pending, optional, info)
+        else
+          backtrack(active, activated, info)
+        end
 
-      if vsn_match?(active.version, request.req) do
-        activated = Dict.put(activated, request.name, active)
-        do_resolve(activated, pending, optional, info)
-      else
-        backtrack(active, activated, info)
-      end
-    else
+      nil ->
+        { opts, optional } = Dict.pop(optional, name)
+        requests = [request] ++ (opts || [])
 
-      { opts, optional } = Dict.pop(optional, request.name)
-      requests = [request] ++ (opts || [])
+        case get_versions(name, requests) do
+          { :error, request(parent: parent) } ->
+            backtrack(activated[parent], activated, info)
 
-      case get_versions(request.name, requests) do
-        { :error, request } ->
-          backtrack(activated[request.parent], activated, info)
+          { :ok, [version|possibles] } ->
+            {new_pending, new_optional} = get_deps(name, version, info)
+            new_pending = pending ++ new_pending
+            new_optional = merge_optional(optional, new_optional)
 
-        { :ok, [version|possibles] } ->
-          {new_pending, new_optional} = get_deps(request.name, version, info)
-          new_pending = pending ++ new_pending
-          new_optional = merge_optional(optional, new_optional)
+            state = state(activated: activated, pending: pending, optional: optional)
+            new_active = active(name: name, version: version, state: state,
+                                possibles: possibles, parents: wrap(parent))
+            activated = Dict.put(activated, name, new_active)
 
-          state = State[activated: activated, pending: pending, optional: optional]
-          new_active = Active[name: request.name, version: version, state: state,
-                              possibles: possibles, parents: wrap(request.parent)]
-          activated = Dict.put(activated, request.name, new_active)
-
-          do_resolve(activated, new_pending, new_optional, info)
-      end
+            do_resolve(activated, new_pending, new_optional, info)
+        end
     end
   end
 
@@ -82,20 +82,22 @@ defmodule Hex.Resolver do
     nil
   end
 
-  defp backtrack(Active[state: state] = active, activated, info) do
-    case active.possibles do
+  defp backtrack(active(name: name, possibles: possibles, parents: parents, state: state) = active, activated, info) do
+    case possibles do
       [] ->
-        Enum.find_value(active.parents, fn parent ->
+        Enum.find_value(parents, fn parent ->
           backtrack(activated[parent], activated, info)
         end)
 
       [version|possibles] ->
-        active = active.possibles(possibles).version(version)
-        {pending, optional} = get_deps(active.name, version, info)
-        pending = state.pending ++ pending
-        optional = merge_optional(state.optional, optional)
+        state(activated: activated, pending: pending, optional: optional) = state
 
-        activated = Dict.put(state.activated, active.name, active)
+        active = active(active, possibles: possibles, version: version)
+        {new_pending, new_optional} = get_deps(name, version, info)
+        pending = pending ++ new_pending
+        optional = merge_optional(optional, new_optional)
+
+        activated = Dict.put(activated, name, active)
         do_resolve(activated, pending, optional, info)
     end
   end
@@ -104,8 +106,8 @@ defmodule Hex.Resolver do
     if versions = Registry.get_versions(package) do
       try do
         versions =
-          Enum.reduce(requests, versions, fn Request[] = request, versions ->
-            versions = Enum.filter(versions, &vsn_match?(&1, request.req))
+          Enum.reduce(requests, versions, fn request(req: req) = request, versions ->
+            versions = Enum.filter(versions, &vsn_match?(&1, req))
             if versions == [] do
               throw request
             else
@@ -124,11 +126,11 @@ defmodule Hex.Resolver do
     end
   end
 
-  def get_deps(package, version, Info[overridden: overridden]) do
+  def get_deps(package, version, info(overridden: overridden)) do
     if deps = Registry.get_deps(package, version) do
       {reqs, opts} = 
         Enum.reduce(deps, { [], [] }, fn { name, req, optional }, { reqs, opts } ->
-          request = Request[name: name, req: compile_requirement(req, name), parent: package]
+          request = request(name: name, req: compile_requirement(req, name), parent: package)
 
           cond do
             Set.member?(overridden, name) ->
