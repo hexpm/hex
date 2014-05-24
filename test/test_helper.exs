@@ -231,7 +231,7 @@ if :integration in ExUnit.configuration[:include] do
 
   { :ok, user }    = HexWeb.User.create("user", "user@mail.com", "hunter42")
   { :ok, package } = HexWeb.Package.create("ex_doc", user, meta)
-  { :ok, _ }       = HexWeb.Release.create(package, "0.0.1", %{})
+  { :ok, _ }       = HexWeb.Release.create(package, "0.0.1", %{}, "")
 
   meta = [
     contributors: ["John Doe", "Jane Doe"],
