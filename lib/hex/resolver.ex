@@ -130,7 +130,7 @@ defmodule Hex.Resolver do
 
   def get_deps(package, version, info(overridden: overridden)) do
     if deps = Registry.get_deps(package, version) do
-      {reqs, opts} = 
+      {reqs, opts} =
         Enum.reduce(deps, { [], [] }, fn { name, req, optional }, { reqs, opts } ->
           request = request(name: name, req: compile_requirement(req, name), parent: package)
 
@@ -151,7 +151,10 @@ defmodule Hex.Resolver do
   end
 
   defp merge_optional(optional, new_optional) do
-    new_optional = Enum.map(new_optional, &{&1.name, [&1]})
+    new_optional =
+      Enum.map(new_optional, fn request(name: name) = request ->
+        {name, [request]}
+      end)
     Dict.merge(optional, new_optional, fn _, v1, v2 -> v1 ++ v2 end)
   end
 

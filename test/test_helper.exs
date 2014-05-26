@@ -113,7 +113,10 @@ defmodule HexTest.Case do
     releases =
       Enum.map(test_registry, fn { name, version, deps } ->
         #deps = Enum.map(deps, fn { app, req } -> { "#{app}", req } end)
-        deps = Enum.map(deps, fn { app, req } -> ["#{app}", req, false] end)
+        deps = Enum.map(deps, fn
+          { app, req } -> ["#{app}", req, false]
+          { app, req, optional } -> ["#{app}", req, optional]
+        end)
         { { "#{name}", version }, [deps] }
       end)
 
@@ -164,7 +167,7 @@ defmodule HexTest.Case do
       { :ecto, "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"] },
       { :ecto, "0.2.1", [postgrex: "~> 0.2.1", ex_doc: "0.1.0"] },
 
-      { :only_doc, "0.1.0", [ex_doc: nil] } ]
+      { :only_doc, "0.1.0", [{:ex_doc, nil, true}] } ]
   end
 
   using do

@@ -1,14 +1,7 @@
 defmodule Hex.Util do
   def ensure_registry do
-    stopped? = Hex.Registry.stop
-
     if update_registry == :error and not File.exists?(Hex.Registry.path()) do
       raise Mix.Error, message: "Failed to fetch registry"
-    end
-    Hex.Registry.start
-
-    unless stopped? do
-      Hex.Registry.info_installs
     end
   end
 
@@ -16,31 +9,49 @@ defmodule Hex.Util do
     if registry_updated? do
       { :ok, :cached }
     else
+      stopped? = Hex.Registry.stop
       :application.set_env(:hex, :registry_updated, true)
-      Hex.start_api
 
-      path = Hex.Registry.path
-      path_gz = Hex.Registry.path <> ".gz"
-
-      if opts[:no_cache] do
-        api_opts = []
+      # For testing
+      if opts[:no_fetch] do
+        result = {:ok, :new}
       else
-        api_opts = [etag: etag(path_gz)]
+
+        Hex.start_api
+
+        path = Hex.Registry.path
+        path_gz = Hex.Registry.path <> ".gz"
+
+        if opts[:no_cache] do
+          api_opts = []
+        else
+          api_opts = [etag: etag(path_gz)]
+        end
+
+        result =
+          case Hex.API.get_registry(api_opts) do
+            { 200, body } ->
+              File.write!(path_gz, body)
+              data = :zlib.gunzip(body)
+              File.write!(path, data)
+              { :ok, :new }
+            { 304, _ } ->
+              { :ok, :new }
+            { code, body } ->
+              Mix.shell.error("Registry update failed (#{code})")
+              print_error_result(code, body)
+              :error
+          end
       end
 
-      case Hex.API.get_registry(api_opts) do
-        { 200, body } ->
-          File.write!(path_gz, body)
-          data = :zlib.gunzip(body)
-          File.write!(path, data)
-          { :ok, :new }
-        { 304, _ } ->
-          { :ok, :new }
-        { code, body } ->
-          Mix.shell.error("Registry update failed (#{code})")
-          print_error_result(code, body)
-          :error
+      if result != :error do
+        Hex.Registry.start
+        unless stopped? do
+          Hex.Registry.info_installs
+        end
       end
+
+      result
     end
   end
 

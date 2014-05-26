@@ -23,6 +23,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
 
   test "general" do
     in_tmp fn ->
+      Hex.Registry.start(registry_path: tmp_path("hex.ets"))
       System.put_env("MIX_HOME", System.cwd!)
 
       File.mkdir_p!("tmp")
