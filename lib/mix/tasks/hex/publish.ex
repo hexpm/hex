@@ -106,9 +106,6 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp print_info(meta, exclude_deps) do
-    # TODO: Run dependency resolution (don't use mix.lock), check that deps
-    # are valid packages and has valid version requirements
-
     Mix.shell.info("Publishing #{meta[:app]} v#{meta[:version]}")
 
     if meta[:requirements] != [] do

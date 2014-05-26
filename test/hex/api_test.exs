@@ -36,7 +36,7 @@ defmodule Hex.APITest do
     assert body["requirements"] == %{}
 
     tar = Hex.Tar.create([app: :grape, version: "0.0.2", requirements: [pear: "~> 0.0.1"]], [])
-    reqs = %{"pear" => "~> 0.0.1"}
+    reqs = %{"pear" => %{"requirement" => "~> 0.0.1", "optional" => false}}
     assert { 201, _ } = Hex.API.new_release("grape", tar, auth)
     assert { 200, body } = Hex.API.get_release("grape", "0.0.2")
     assert body["requirements"] == reqs

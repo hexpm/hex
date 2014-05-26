@@ -9,7 +9,7 @@ defmodule Hex.Registry do
       :undefined ->
         path = opts[:registry_path] || path()
 
-        case :ets.file2tab(List.from_char_data!(path)) do
+        case :ets.file2tab(String.to_char_list(path)) do
           { :ok, tid } ->
             :application.set_env(:hex, @registry_tid, tid)
             check_version(tid)
@@ -104,7 +104,7 @@ defmodule Hex.Registry do
       [{{^package, ^version}, [deps|_]}] when is_list(deps) ->
         Enum.map(deps, fn
           # Compatability with version 2
-          { app, dep } -> { app, dep, false }
+          # { app, dep } -> { app, dep, false }
           [app, dep, optional | _] -> { app, dep, optional }
         end)
     end

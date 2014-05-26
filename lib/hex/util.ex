@@ -53,7 +53,7 @@ defmodule Hex.Util do
       { :ok, binary } ->
         :crypto.hash(:md5, binary)
         |> Hex.Util.hexify
-        |> List.from_char_data!
+        |> String.to_char_list
       { :error, _ } ->
         nil
     end

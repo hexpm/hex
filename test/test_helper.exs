@@ -82,7 +82,7 @@ defmodule HexTest.Case do
     module = String.capitalize(name)
     mixfile = :io_lib.format(@template, [module, name, version, deps])
 
-    files = [{ "mix.exs", String.from_char_data!(mixfile) }]
+    files = [{ "mix.exs", List.to_string(mixfile) }]
     tar = Hex.Tar.create(meta, files)
 
     Hex.API.new_package(name, meta, auth)
@@ -125,7 +125,7 @@ defmodule HexTest.Case do
     :ets.insert(tid, { :"$$version$$", version })
     :ets.insert(tid, { :"$$installs$$", installs })
     :ets.insert(tid, releases ++ packages)
-    :ok = :ets.tab2file(tid, List.from_char_data!(path))
+    :ok = :ets.tab2file(tid, String.to_char_list(path))
     :ets.delete(tid)
   end
 

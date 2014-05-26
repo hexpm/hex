@@ -127,7 +127,7 @@ defmodule Hex.API do
   end
 
   defp auth(key: secret) do
-    %{'authorization' => List.from_char_data!(secret)}
+    %{'authorization' => String.to_char_list(secret)}
   end
 
   defp auth(info) do
