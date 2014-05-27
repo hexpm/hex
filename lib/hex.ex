@@ -14,6 +14,8 @@ defmodule Hex do
 
     if url = System.get_env("HEX_URL"), do: url(url)
     if cdn = System.get_env("HEX_CDN"), do: cdn(cdn)
+    if http_proxy = System.get_env("HTTP_PROXY"), do: proxy(http_proxy)
+    if https_proxy = System.get_env("HTTPS_PROXY"), do: proxy(https_proxy)
   end
 
   def start_mix do
@@ -46,4 +48,17 @@ defmodule Hex do
   end
 
   def version, do: unquote(Mix.Project.config[:version])
+
+  defp proxy(proxy) do
+    uri = URI.parse(proxy)
+    :httpc.set_options [{ proxy_scheme(uri.scheme),
+        { { uri.host |> String.to_char_list, uri.port }, [] } }]
+  end
+
+  defp proxy_scheme(scheme) do
+    case scheme do
+      "http" -> :proxy
+      "https" -> :https_proxy
+    end
+  end
 end
