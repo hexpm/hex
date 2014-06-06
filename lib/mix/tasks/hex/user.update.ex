@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Hex.User.Update do
   def run(args) do
     { opts, _, _ } = OptionParser.parse(args, aliases: @aliases, switches: @switches)
     Util.required_opts(opts, [:user, :pass])
-    clean? = opts[:clean_pass]
+    clean? = Keyword.get(opts, :clean_pass, false)
 
     Mix.shell.info("Update user options (leave blank to not change an option)")
     email    = Mix.shell.prompt("Email:")             |> String.strip |> nillify

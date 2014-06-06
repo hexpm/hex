@@ -14,7 +14,7 @@ defmodule Mix.Tasks.Hex.User.Register do
 
   def run(args) do
     { opts, _, _ } = OptionParser.parse(args, switches: @switches)
-    clean? = opts[:clean_pass]
+    clean? = Keyword.get(opts, :clean_pass, false)
 
     username = Mix.shell.prompt("Username:")  |> String.strip
     email    = Mix.shell.prompt("Email:")     |> String.strip
