@@ -20,8 +20,6 @@ defmodule Hex.RegistryTest do
       Hex.Util.update_registry(no_fetch: true)
       refute_received { :mix_shell, :error, ["A new Hex version is available" <> _] }
     end
-  after
-    Hex.Registry.stop
   end
 
   test "install info, find correct version" do
@@ -52,8 +50,6 @@ defmodule Hex.RegistryTest do
       Hex.Util.update_registry(no_fetch: true)
       refute_received { :mix_shell, :error, ["A new Hex version is available" <> _] }
     end
-  after
-    Hex.Registry.stop
   end
 
   test "install info, too old hex" do
@@ -68,7 +64,5 @@ defmodule Hex.RegistryTest do
       Hex.Util.update_registry(no_fetch: true)
       refute_received { :mix_shell, :error, ["A new Hex version is available" <> _] }
     end
-  after
-    Hex.Registry.stop
   end
 end

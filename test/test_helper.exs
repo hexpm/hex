@@ -97,7 +97,7 @@ defmodule HexTest.Case do
   end
 
   @ets_table :hex_ets_registry
-  @version   3 # 2
+  @version   3
 
   def create_test_registry(path) do
     packages =
@@ -112,7 +112,6 @@ defmodule HexTest.Case do
 
     releases =
       Enum.map(test_registry, fn { name, version, deps } ->
-        #deps = Enum.map(deps, fn { app, req } -> { "#{app}", req } end)
         deps = Enum.map(deps, fn
           { app, req } -> ["#{app}", req, false]
           { app, req, optional } -> ["#{app}", req, optional]
@@ -184,6 +183,8 @@ defmodule HexTest.Case do
     :ok
   end
 
+  @registry_tid :registry_tid
+
   setup do
     System.put_env("MIX_HOME", tmp_path("mix_home"))
     Mix.shell(Mix.Shell.Process)
@@ -192,11 +193,11 @@ defmodule HexTest.Case do
     Mix.ProjectStack.clear_cache
     Mix.ProjectStack.clear_stack
     :application.set_env(:hex, :registry_updated, true)
-    :ok
-  end
 
-  teardown do
-    Hex.Registry.stop
+    on_exit fn ->
+      :application.unset_env(:hex, @registry_tid)
+    end
+
     :ok
   end
 end
