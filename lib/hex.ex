@@ -11,6 +11,7 @@ defmodule Hex do
   def start_api do
     :ssl.start()
     :inets.start()
+    :inets.start(:httpc, profile: :hex)
 
     if url = System.get_env("HEX_URL"), do: url(url)
     if cdn = System.get_env("HEX_CDN"), do: cdn(cdn)
@@ -50,9 +51,9 @@ defmodule Hex do
   def version, do: unquote(Mix.Project.config[:version])
 
   defp proxy(proxy) do
-    uri = URI.parse(proxy)
-    :httpc.set_options [{ proxy_scheme(uri.scheme),
-        { { uri.host |> String.to_char_list, uri.port }, [] } }]
+    uri  = URI.parse(proxy)
+    host = String.to_char_list(uri.host)
+    :httpc.set_options([{proxy_scheme(uri.scheme), {{host, uri.port}, []}}], :hex)
   end
 
   defp proxy_scheme(scheme) do

@@ -73,7 +73,7 @@ defmodule Hex.API do
       request = { url, Map.to_list(headers) }
     end
 
-    case :httpc.request(method, request, http_opts, opts) do
+    case :httpc.request(method, request, http_opts, opts, :hex) do
       { :ok, response } ->
         handle_response(response)
       { :error, reason } ->
