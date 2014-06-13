@@ -44,9 +44,9 @@ defmodule Hex.Util do
           end
       end
 
-      if result != :error do
+      if stopped? do
         Hex.Registry.start
-        unless stopped? do
+        unless result == :error do
           Hex.Registry.info_installs
         end
       end

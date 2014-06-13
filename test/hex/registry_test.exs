@@ -18,6 +18,9 @@ defmodule Hex.RegistryTest do
 
       Hex.Registry.start
       Hex.Util.update_registry(no_fetch: true)
+      assert_received { :mix_shell, :error, ["A new Hex version is available" <> _] }
+
+      Hex.Util.update_registry(no_fetch: true)
       refute_received { :mix_shell, :error, ["A new Hex version is available" <> _] }
     end
   end
@@ -31,11 +34,10 @@ defmodule Hex.RegistryTest do
       versions = [{"100.0.0", "100.0.0"}, {"0.0.1", "0.0.1"}, {"99.0.0", "0.0.1"}, {"100.0.0", "0.0.1"}, {"98.0.0", "0.0.1"}]
       create_registry(path, 2, versions, [], [])
 
+      Hex.Registry.start
       Hex.Util.update_registry(no_fetch: true)
       assert_received { :mix_shell, :error, ["A new Hex version is available (v100.0.0), please update with `mix local.hex`"] }
     end
-  after
-    Hex.Registry.stop
   end
 
   test "install info, too new elixir" do
@@ -47,6 +49,7 @@ defmodule Hex.RegistryTest do
       versions = [{"100.0.0", "100.0.0"}]
       create_registry(path, 2, versions, [], [])
 
+      Hex.Registry.start
       Hex.Util.update_registry(no_fetch: true)
       refute_received { :mix_shell, :error, ["A new Hex version is available" <> _] }
     end
@@ -61,6 +64,7 @@ defmodule Hex.RegistryTest do
       versions = [{"0.0.1", "0.0.1"}]
       create_registry(path, 2, versions, [], [])
 
+      Hex.Registry.start
       Hex.Util.update_registry(no_fetch: true)
       refute_received { :mix_shell, :error, ["A new Hex version is available" <> _] }
     end
