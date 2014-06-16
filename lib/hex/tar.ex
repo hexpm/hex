@@ -13,7 +13,7 @@ defmodule Hex.Tar do
         name -> String.to_char_list(name)
       end)
 
-    :ok = :erl_tar.create(contents_path, files, [:compressed, :cooked])
+    :ok = :erl_tar.create(contents_path, files, [:compressed])
     contents = File.read!(contents_path)
 
     meta_string = Hex.Util.safe_serialize_elixir(meta)
@@ -25,7 +25,7 @@ defmodule Hex.Tar do
       { 'CHECKSUM', checksum },
       { 'metadata.exs', meta_string },
       { 'contents.tar.gz', contents } ]
-    :ok = :erl_tar.create(path, files, [:cooked])
+    :ok = :erl_tar.create(path, files)
 
     tar = File.read!(path)
     File.rm!(contents_path)
