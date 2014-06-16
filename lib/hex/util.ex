@@ -3,6 +3,8 @@ defmodule Hex.Util do
     if update_registry == :error and not File.exists?(Hex.Registry.path()) do
       raise Mix.Error, message: "Failed to fetch registry"
     end
+
+    Hex.Registry.start
   end
 
   def update_registry(opts \\ []) do
