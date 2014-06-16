@@ -18,7 +18,7 @@ defmodule Hex.Tar do
 
     meta_string = Hex.Util.safe_serialize_elixir(meta)
     blob = @version <> meta_string <> contents
-    checksum = :crypto.hash(:sha256, blob) |> Hex.Util.hexify
+    checksum = :crypto.hash(:sha256, blob) |> Base.encode16
 
     files = [
       { 'VERSION', @version},
@@ -67,9 +67,10 @@ defmodule Hex.Tar do
   end
 
   defp checksum(files, path) do
+    ref_checksum = Base.decode16!(files['CHECKSUM'])
     blob = files['VERSION'] <> files['metadata.exs'] <> files['contents.tar.gz']
-    hash = version_hash(files['VERSION'])
-    if :crypto.hash(hash, blob) != Hex.Util.dehexify(files['CHECKSUM']) do
+
+    if :crypto.hash(:sha256, blob) != ref_checksum do
       raise Mix.Error, message: "Checksum wrong in #{path}"
     end
   end

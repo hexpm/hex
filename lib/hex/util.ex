@@ -65,7 +65,7 @@ defmodule Hex.Util do
     case File.read(path) do
       { :ok, binary } ->
         :crypto.hash(:md5, binary)
-        |> Hex.Util.hexify
+        |> Base.encode16(case: :lower)
         |> String.to_char_list
       { :error, _ } ->
         nil
@@ -140,21 +140,6 @@ defmodule Hex.Util do
 
   defp list_to_map(other) do
     other
-  end
-
-  def hexify(bin) do
-    for << high :: size(4), low :: size(4) <- bin >>, into: "" do
-      << hex_char(high), hex_char(low) >>
-    end
-  end
-
-  defp hex_char(n) when n < 10, do: ?0 + n
-  defp hex_char(n) when n < 16, do: ?a - 10 + n
-
-  def dehexify(bin) do
-    int  = :erlang.binary_to_integer(bin, 16)
-    size = byte_size(bin)
-    << int :: [integer, unit(4), size(size)] >>
   end
 
   def print_error_result(:http_error, reason) do
