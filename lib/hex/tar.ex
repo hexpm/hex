@@ -67,11 +67,16 @@ defmodule Hex.Tar do
   end
 
   defp checksum(files, path) do
-    ref_checksum = Base.decode16!(files['CHECKSUM'])
-    blob = files['VERSION'] <> files['metadata.exs'] <> files['contents.tar.gz']
+    case Base.decode16(files['CHECKSUM'], case: :mixed) do
+      {:ok, ref_checksum} ->
+        blob = files['VERSION'] <> files['metadata.exs'] <> files['contents.tar.gz']
 
-    if :crypto.hash(:sha256, blob) != ref_checksum do
-      raise Mix.Error, message: "Checksum wrong in #{path}"
+        if :crypto.hash(:sha256, blob) != ref_checksum do
+          raise Mix.Error, message: "Checksum wrong in #{path}"
+        end
+
+      :error ->
+        raise Mix.Error, message: "Checksum invalid in #{path}"
     end
   end
 
