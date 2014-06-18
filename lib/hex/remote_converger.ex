@@ -33,7 +33,7 @@ defmodule Hex.RemoteConverger do
       new_lock = Hex.Mix.to_lock(resolved)
       Dict.merge(lock, new_lock)
     else
-      raise Mix.Error, message: "Hex dependency resolution failed, relax the version requirements or unlock dependencies"
+      Mix.raise "Hex dependency resolution failed, relax the version requirements or unlock dependencies"
     end
   end
 
@@ -67,10 +67,10 @@ defmodule Hex.RemoteConverger do
     if versions = Registry.get_versions(app) do
       versions = Enum.filter(versions, &Hex.Mix.version_match?(&1, req))
       if versions == [] do
-        raise Mix.Error, message: "No package version in registry matches #{app} #{req}#{message}"
+        Mix.raise "No package version in registry matches #{app} #{req}#{message}"
       end
     else
-      raise Mix.Error, message: "No package with name #{app}#{message} in registry"
+      Mix.raise "No package with name #{app}#{message} in registry"
     end
   end
 
@@ -109,10 +109,10 @@ defmodule Hex.RemoteConverger do
       { app, { :package, version } } ->
         if versions = Registry.get_versions("#{app}") do
           unless version in versions do
-            raise Mix.Error, message: "Unknown package version #{app} v#{version} in lockfile"
+            Mix.raise "Unknown package version #{app} v#{version} in lockfile"
           end
         else
-          raise Mix.Error, message: "Unknown package #{app} in lockfile"
+          Mix.raise "Unknown package #{app} in lockfile"
         end
       _ ->
         :ok

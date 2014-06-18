@@ -23,7 +23,7 @@ defmodule Mix.Tasks.Hex.Util do
     cond do
       user = opts[:user] ->
         unless pass = opts[:pass] do
-          raise Mix.Error, message: "--pass option required if --user was given"
+          Mix.raise "--pass option required if --user was given"
         end
         [user: user, pass: pass]
 
@@ -31,14 +31,14 @@ defmodule Mix.Tasks.Hex.Util do
         [key: key]
 
       true ->
-        raise Mix.Error, message: "No user in config or given as command line argument"
+        Mix.raise "No user in config or given as command line argument"
     end
   end
 
   def required_opts(opts, required) do
     Enum.map(required, fn req ->
       unless Keyword.has_key?(opts, req) do
-        raise Mix.Error, message: "Missing command line option: #{req}"
+        Mix.raise "Missing command line option: #{req}"
       end
     end)
   end

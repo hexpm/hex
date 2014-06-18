@@ -1,7 +1,7 @@
 defmodule Hex.Util do
   def ensure_registry do
     if update_registry == :error and not File.exists?(Hex.Registry.path()) do
-      raise Mix.Error, message: "Failed to fetch registry"
+      Mix.raise "Failed to fetch registry"
     end
 
     Hex.Registry.start
@@ -81,7 +81,7 @@ defmodule Hex.Util do
       { :ok, ast } ->
         safe_eval(ast)
       _ ->
-        raise Mix.Error, message: "Received malformed elixir from Hex API"
+        Mix.raise "Received malformed elixir from Hex API"
     end
   end
 
@@ -91,7 +91,7 @@ defmodule Hex.Util do
       |> elem(0)
       |> list_to_map
     else
-      raise Mix.Error, message: "Received unsafe elixir from Hex API"
+      Mix.raise "Received unsafe elixir from Hex API"
     end
   end
 

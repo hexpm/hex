@@ -43,10 +43,10 @@ defmodule Hex.Tar do
         extract_contents(files['contents.tar.gz'], dest, path)
 
       :ok ->
-        raise Mix.Error, message: "Unpacking #{path} failed: tarball empty"
+        Mix.raise "Unpacking #{path} failed: tarball empty"
 
       { :error, reason } ->
-        raise Mix.Error, message: "Unpacking #{path} failed: #{inspect reason}"
+        Mix.raise "Unpacking #{path} failed: #{inspect reason}"
     end
   end
 
@@ -54,7 +54,7 @@ defmodule Hex.Tar do
     diff = @required_files -- Dict.keys(files)
     if diff != [] do
       diff = Enum.join(diff, ", ")
-      raise Mix.Error, message: "Missing files #{diff} in #{path}"
+      Mix.raise "Missing files #{diff} in #{path}"
     end
   end
 
@@ -72,11 +72,11 @@ defmodule Hex.Tar do
         blob = files['VERSION'] <> files['metadata.exs'] <> files['contents.tar.gz']
 
         if :crypto.hash(:sha256, blob) != ref_checksum do
-          raise Mix.Error, message: "Checksum wrong in #{path}"
+          Mix.raise "Checksum wrong in #{path}"
         end
 
       :error ->
-        raise Mix.Error, message: "Checksum invalid in #{path}"
+        Mix.raise "Checksum invalid in #{path}"
     end
   end
 
@@ -85,7 +85,7 @@ defmodule Hex.Tar do
       :ok ->
         :ok
       { :error, reason } ->
-        raise Mix.Error, message: "Unpacking #{path}/contents.tar.gz failed: #{inspect reason}"
+        Mix.raise "Unpacking #{path}/contents.tar.gz failed: #{inspect reason}"
     end
   end
 

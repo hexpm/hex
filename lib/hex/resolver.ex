@@ -124,7 +124,7 @@ defmodule Hex.Resolver do
       end
 
     else
-      raise Mix.Error, message: "Unable to find package #{package} in registry"
+      Mix.raise "Unable to find package #{package} in registry"
     end
   end
 
@@ -146,7 +146,7 @@ defmodule Hex.Resolver do
 
         { Enum.reverse(reqs), Enum.reverse(opts) }
     else
-      raise Mix.Error, message: "Unable to find package version #{package} v#{version} in registry"
+      Mix.raise "Unable to find package version #{package} v#{version} in registry"
     end
   end
 
@@ -167,12 +167,12 @@ defmodule Hex.Resolver do
       { :ok, req } ->
         req
       :error ->
-        raise Mix.Error, message: "Invalid requirement #{inspect req} defined for package #{package}"
+        Mix.raise "Invalid requirement #{inspect req} defined for package #{package}"
     end
   end
 
   defp compile_requirement(req, package) do
-    raise Mix.Error, message: "Invalid requirement #{inspect req} defined for package #{package}"
+    Mix.raise "Invalid requirement #{inspect req} defined for package #{package}"
   end
 
   defp wrap(nil), do: []

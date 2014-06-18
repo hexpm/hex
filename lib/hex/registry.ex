@@ -17,7 +17,7 @@ defmodule Hex.Registry do
 
           { :error, reason } ->
             unless opts[:no_fail] do
-              raise Mix.Error, message: "Failed to open hex registry file (#{inspect reason})"
+              Mix.raise "Failed to open hex registry file (#{inspect reason})"
             end
             false
         end

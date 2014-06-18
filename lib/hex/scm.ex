@@ -82,7 +82,7 @@ defmodule Hex.SCM do
         File.mkdir_p!(cache_path)
         File.write!(path, body)
       not File.exists?(path) ->
-        raise Mix.Error, message: "Package fetch failed and no cached copy available"
+        Mix.raise "Package fetch failed and no cached copy available"
       true ->
         :ok
     end
