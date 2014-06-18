@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Hex.KeyTest do
   test "new key" do
     in_tmp fn ->
       System.put_env("MIX_HOME", System.cwd!)
-      Mix.Tasks.Hex.Key.New.run(["-u", "user", "-p", "hunter42"])
+      Mix.Tasks.Hex.Key.run(["new", "-u", "user", "-p", "hunter42"])
 
       { :ok, name } = :inet.gethostname()
       name = List.to_string(name)
@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Hex.KeyTest do
     user = HexWeb.User.get("user")
     HexWeb.API.Key.create("list_keys", user)
 
-    Mix.Tasks.Hex.Key.List.run(["-u", "user", "-p", "hunter42"])
+    Mix.Tasks.Hex.Key.run(["list", "-u", "user", "-p", "hunter42"])
     assert_received { :mix_shell, :info, ["list_keys"] }
   end
 
@@ -29,7 +29,7 @@ defmodule Mix.Tasks.Hex.KeyTest do
     user = HexWeb.User.get("user")
     HexWeb.API.Key.create("drop_key", user)
 
-    Mix.Tasks.Hex.Key.Drop.run(["drop_key", "-u", "user", "-p", "hunter42"])
+    Mix.Tasks.Hex.Key.run(["drop", "drop_key", "-u", "user", "-p", "hunter42"])
 
     assert_received { :mix_shell, :info, ["Dropping key drop_key..."] }
     refute HexWeb.API.Key.get("drop_key", user)

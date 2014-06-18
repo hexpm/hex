@@ -1,15 +1,30 @@
-defmodule Mix.Tasks.Hex.Key.Drop do
+defmodule Mix.Tasks.Hex.Key do
   use Mix.Task
   alias Mix.Tasks.Hex.Util
 
-  @shortdoc "Drop an API key"
+  @shortdoc "Hex API key tasks"
 
   @moduledoc """
+  Generate, remove or list API keys.
+
+  ### Generate key
+
+  Generate new API key and store it in the hex config.
+
+  `mix hex.key new -u username -p password`
+
+  ### Remove key
+
   Remove given API key from account.
 
   The key can no longer be used to authenticate API requests.
+  `mix hex.key drop key_name -u username -p password`
 
-  `mix hex.key.drop key_name -u username -p password`
+  ### List keys
+
+  List all API keys associated with your account.
+
+  `mix hex.key list -u username -p password`
 
   ## Command line options
 
@@ -26,11 +41,19 @@ defmodule Mix.Tasks.Hex.Key.Drop do
     Hex.start_api
 
     case rest do
-      [key] ->
+      ["drop", key] ->
         drop_key(key, opts)
+      ["list"] ->
+        list_keys(opts)
+      ["new"] ->
+        new_key(opts)
       _ ->
         Mix.raise "Invalid arguments, expected 'mix hex.key.drop key_name'"
     end
+  end
+
+  defp new_key(opts) do
+    Util.generate_key(opts[:user], opts[:pass])
   end
 
   defp drop_key(key, opts) do
@@ -38,6 +61,16 @@ defmodule Mix.Tasks.Hex.Key.Drop do
     case Hex.API.delete_key(key, opts) do
       { 204, _body } ->
         :ok
+      { code, body } ->
+        Mix.shell.error("Key fetching failed (#{code})")
+        Hex.Util.print_error_result(code, body)
+    end
+  end
+
+  defp list_keys(opts) do
+    case Hex.API.get_keys(opts) do
+      { 200, body } ->
+        Enum.each(body, &Mix.shell.info(&1["name"]))
       { code, body } ->
         Mix.shell.error("Key fetching failed (#{code})")
         Hex.Util.print_error_result(code, body)
