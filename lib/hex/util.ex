@@ -104,7 +104,7 @@ defmodule Hex.Util do
   def safe_term?(term) when is_binary(term), do: true
   def safe_term?(term) when is_boolean(term), do: true
   def safe_term?(term) when is_list(term), do: Enum.all?(term, &safe_term?/1)
-  def safe_term?(term) when is_tuple(term), do: Enum.all?(tuple_to_list(term), &safe_term?/1)
+  def safe_term?(term) when is_tuple(term), do: Enum.all?(Tuple.to_list(term), &safe_term?/1)
   def safe_term?(_), do: false
 
   def safe_serialize_elixir(term) do
@@ -119,13 +119,13 @@ defmodule Hex.Util do
   defp binarify(atom) when nil?(atom) or is_boolean(atom),
     do: atom
   defp binarify(atom) when is_atom(atom),
-    do: atom_to_binary(atom)
+    do: Atom.to_string(atom)
   defp binarify(list) when is_list(list),
     do: for(elem <- list, do: binarify(elem))
   defp binarify(map) when is_map(map),
     do: for(elem <- map, into: %{}, do: binarify(elem))
   defp binarify(tuple) when is_tuple(tuple),
-    do: for(elem <- tuple_to_list(tuple), do: binarify(elem)) |> list_to_tuple
+    do: for(elem <- Tuple.to_list(tuple), do: binarify(elem)) |> List.to_tuple
 
   defp list_to_map(list) when is_list(list) do
     if list == [] or is_tuple(List.first(list)) do

@@ -88,7 +88,4 @@ defmodule Hex.Tar do
         Mix.raise "Unpacking #{path}/contents.tar.gz failed: #{inspect reason}"
     end
   end
-
-  defp version_hash("1"), do: :md5
-  defp version_hash("2"), do: :sha256
 end
