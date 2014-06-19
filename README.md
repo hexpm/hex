@@ -4,7 +4,7 @@
 
 Hex is package manager for the Erlang VM.
 
-This project currently provides tasks that integrates with Mix, [Elixir](https://github.com/elixir-lang/elixir)'s build tool.
+This project currently provides tasks that integrate with Mix, [Elixir](https://github.com/elixir-lang/elixir)'s build tool.
 
 ## Roadmap and TODO
 
