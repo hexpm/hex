@@ -197,23 +197,25 @@ defmodule Mix.Tasks.Hex.Publish do
     end) == Hex.SCM
   end
 
-  defp expand_paths(paths) do
-    paths =
-      Enum.flat_map(paths, fn path ->
-        if File.dir?(path) do
-          Path.wildcard(Path.join(path, "**"))
-        else
-          Path.wildcard(path)
-        end
-      end)
-
-    cwd = File.cwd!
+  defp expand_paths(paths, dir) do
+    expand_dir = Path.expand(dir)
 
     paths
+    |> Enum.map(&Path.join(dir, &1))
+    |> Enum.flat_map(&Path.wildcard/1)
+    |> Enum.flat_map(&dir_files/1)
     |> Enum.map(&Path.expand/1)
     |> Enum.filter(&File.regular?/1)
     |> Enum.uniq
-    |> Enum.map(&Path.relative_to(&1, cwd))
+    |> Enum.map(&Path.relative_to(&1, expand_dir))
+  end
+
+  defp dir_files(path) do
+    if File.dir?(path) do
+      Path.wildcard(Path.join(path, "**"))
+    else
+      [path]
+    end
   end
 
   defp package(config) do
@@ -228,7 +230,7 @@ defmodule Mix.Tasks.Hex.Publish do
     end
 
     if files = package[:files] || @default_files do
-      files = expand_paths(files)
+      files = expand_paths(files, File.cwd!)
       package = Map.put(package, :files, files)
     end
 
