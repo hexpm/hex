@@ -48,7 +48,7 @@ defmodule Mix.Tasks.Hex.Key do
       ["new"] ->
         new_key(opts)
       _ ->
-        Mix.raise "Invalid arguments, expected 'mix hex.key.drop key_name'"
+        Mix.raise "Invalid arguments, expected 'mix hex.key task'"
     end
   end
 
