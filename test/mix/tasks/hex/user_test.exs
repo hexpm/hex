@@ -11,7 +11,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
     assert_raise Mix.Error, "Entered passwords do not match", fn ->
       capture_io "hunter42\nhunter43\n", fn ->
-        Mix.Tasks.Hex.User.Register.run(["--no-clean-pass"])
+        Mix.Tasks.Hex.User.run(["register", "--no-clean-pass"])
       end
     end
 
@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Hex.UserTest do
     send self, { :mix_shell_input, :yes?, false }
 
     capture_io "hunter42\nhunter42\n", fn ->
-      Mix.Tasks.Hex.User.Register.run(["--no-clean-pass"])
+      Mix.Tasks.Hex.User.run(["register", "--no-clean-pass"])
     end
 
     assert HexWeb.User.get("eric").email == "mail@mail.com"
@@ -34,7 +34,7 @@ defmodule Mix.Tasks.Hex.UserTest do
     send self, { :mix_shell_input, :yes?, false }
 
     capture_io "\n\n", fn ->
-      Mix.Tasks.Hex.User.Update.run(["-u", "update_user", "-p", "hunter42", "--no-clean-pass"])
+      Mix.Tasks.Hex.User.run(["update", "-u", "update_user", "-p", "hunter42", "--no-clean-pass"])
     end
 
     assert HexWeb.User.get("update_user").email == "new@mail.com"
@@ -49,7 +49,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       send self, { :mix_shell_input, :yes?, true }
 
     capture_io "hunter42\nhunter42\n", fn ->
-      Mix.Tasks.Hex.User.Register.run(["--no-clean-pass"])
+      Mix.Tasks.Hex.User.run(["register", "--no-clean-pass"])
     end
 
       assert Hex.Mix.read_config[:username] == "config"
