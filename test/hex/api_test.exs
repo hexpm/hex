@@ -65,6 +65,23 @@ defmodule Hex.APITest do
     refute Enum.find(body, &(&1["name"] == "macbook"))
   end
 
+  test "owners" do
+    auth = [user: "user", pass: "hunter42"]
+    Hex.API.new_package("orange", [], auth)
+    Hex.API.new_user("orange_user", "orange_user@mail.com", "hunter42")
+
+    assert {200, [%{"username" => "user"}]} = Hex.API.get_package_owners("orange", auth)
+
+    assert {204, _} = Hex.API.add_package_owner("orange", "orange_user@mail.com", auth)
+
+    assert {200, [%{"username" => "user"}, %{"username" => "orange_user"}]} =
+           Hex.API.get_package_owners("orange", auth)
+
+    assert {204, _} = Hex.API.delete_package_owner("orange", "orange_user@mail.com", auth)
+
+    assert {200, [%{"username" => "user"}]} = Hex.API.get_package_owners("orange", auth)
+  end
+
   test "x-hex-message" do
     Hex.API.handle_hex_message('"oops, you done goofed"')
     refute_received { :mix_shell, _, _ }

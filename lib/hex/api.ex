@@ -57,6 +57,20 @@ defmodule Hex.API do
     request(:delete, api_url("keys/#{name}"), auth(auth))
   end
 
+  def add_package_owner(package, owner, auth) do
+    owner = URI.encode_www_form(owner)
+    request(:put, api_url("packages/#{package}/owners/#{owner}"), auth(auth))
+  end
+
+  def delete_package_owner(package, owner, auth) do
+    owner = URI.encode_www_form(owner)
+    request(:delete, api_url("packages/#{package}/owners/#{owner}"), auth(auth))
+  end
+
+  def get_package_owners(package, auth) do
+    request(:get, api_url("packages/#{package}/owners"), auth(auth))
+  end
+
   defp request(method, url, headers, body \\ nil, content_type \\ 'application/vnd.hex+elixir') do
     default_headers = %{
       'accept' => 'application/vnd.hex.beta+elixir',
@@ -66,11 +80,14 @@ defmodule Hex.API do
     http_opts = [timeout: 5000]
     opts = [body_format: :binary]
 
-    if body do
-      if content_type == 'application/vnd.hex+elixir', do: body = Hex.Util.safe_serialize_elixir(body)
-      request = { url, Map.to_list(headers), content_type, body }
-    else
-      request = { url, Map.to_list(headers) }
+    cond do
+      body ->
+        if content_type == 'application/vnd.hex+elixir', do: body = Hex.Util.safe_serialize_elixir(body)
+        request = { url, Map.to_list(headers), content_type, body }
+      method in [:put, :post] ->
+        request = { url, Map.to_list(headers), 'application/vnd.hex+elixir', '%{}' }
+      true ->
+        request = { url, Map.to_list(headers) }
     end
 
     case :httpc.request(method, request, http_opts, opts, :hex) do
