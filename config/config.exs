@@ -1,15 +1,21 @@
 use Mix.Config
 
-log_level = :notice
+if Mix.env == :test do
+  config :hex_web,
+    password_work_factor: 4,
+    url:                  "http://localhost:4000"
 
-config :lager,
-  handlers: [
-    lager_console_backend:
-      [log_level, {:lager_default_formatter, [:time, ' [', :severity, '] ', :message, '\n']}]
-  ],
-  crash_log: :undefined,
-  error_logger_hwm: 150
+  log_level = :notice
 
-config :stout,
-  truncation_size: 4096,
-  level: log_level
+  config :lager,
+    handlers: [
+      lager_console_backend:
+        [log_level, {:lager_default_formatter, [:time, ' [', :severity, '] ', :message, '\n']}]
+    ],
+    crash_log: :undefined,
+    error_logger_hwm: 150
+
+  config :stout,
+    truncation_size: 4096,
+    level: log_level
+end

@@ -23,7 +23,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       Mix.Tasks.Hex.User.run(["register", "--no-clean-pass"])
     end
 
-    assert HexWeb.User.get("eric").email == "mail@mail.com"
+    assert HexWeb.User.get(username: "eric").email == "mail@mail.com"
   end
 
   test "update" do
@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       Mix.Tasks.Hex.User.run(["update", "-u", "update_user", "-p", "hunter42", "--no-clean-pass"])
     end
 
-    assert HexWeb.User.get("update_user").email == "new@mail.com"
+    assert HexWeb.User.get(username: "update_user").email == "new@mail.com"
   end
 
   test "update config" do

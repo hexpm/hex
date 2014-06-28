@@ -24,7 +24,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
                   links: %{"a" => "b"},
                   contributors: ["contributors"]] ]
     end
-  end 
+  end
 
   @opts ["-u", "user", "-p", "hunter42"]
 
@@ -59,7 +59,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     in_tmp fn ->
       System.put_env("MIX_HOME", tmp_path())
 
-      user = HexWeb.User.get("user")
+      user = HexWeb.User.get(username: "user")
       { :ok, key } = HexWeb.API.Key.create("computer", user)
       Hex.Mix.update_config(username: "user", key: key.secret)
 
@@ -93,7 +93,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp fn ->
       System.put_env("MIX_HOME", tmp_path())
-      
+
       File.write!("myfile.txt", "hello")
       send self, { :mix_shell_input, :yes?, true }
       Mix.Tasks.Hex.Publish.run(@opts)

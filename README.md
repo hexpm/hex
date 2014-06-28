@@ -6,14 +6,6 @@ Hex is package manager for the Erlang VM.
 
 This project currently provides tasks that integrate with Mix, [Elixir](https://github.com/elixir-lang/elixir)'s build tool.
 
-## Roadmap and TODO
-
-* Package maintainers that can do releases
-
-* escript client for erlang users (should not require an elixir installation)
-
-* Use elixir version requirement during resolution (wait for elixir 1.0.0)
-
 ## Contributing
 
 Integration testing against the API server requires a postgresql user with username `postgres` and password `postgres`.
