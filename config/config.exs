@@ -3,7 +3,7 @@ use Mix.Config
 if Mix.env == :test do
   config :hex_web,
     password_work_factor: 4,
-    url:                  "http://localhost:4000"
+    url: "http://localhost:4000"
 
   log_level = :notice
 
