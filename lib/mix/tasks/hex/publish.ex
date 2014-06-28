@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.Publish do
   @moduledoc """
   Publish a new version of your package and update the package.
 
-  `mix hex.publish -u username -p password`
+  `mix hex.publish -u USERNAME -p PASSWORD`
 
   If it is a new package being published it will be created and the user
   specified in `username` will be the package owner. Only package owners can
@@ -23,7 +23,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   * `--pass`, `-p` - Password of package owner (required if `--user` was given)
 
-  * `--revert version` - Revert given version
+  * `--revert VERSION` - Revert given version
 
   ## Configuration
 

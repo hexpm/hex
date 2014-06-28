@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Hex.Config do
   @moduledoc """
   Reads or updates hex configuration file.
 
-  `mix hex.config key [value]`
+  `mix hex.config KEY [VALUE]`
   """
 
   def run(args) do
@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Hex.Config do
       [key, value] ->
         Hex.Mix.update_config([{ :"#{key}", value }])
       _ ->
-        Mix.raise "Invalid arguments, expected 'mix hex.config key [value]'"
+        Mix.raise "Invalid arguments, expected 'mix hex.config KEY [VALUE]'"
     end
   end
 end

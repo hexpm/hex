@@ -9,11 +9,11 @@ defmodule Mix.Tasks.Hex.User do
 
   ### Registers a new hex user.
 
-  `mix hex.user.register`
+  `mix hex.user register`
 
   ### Update user options.
 
-  `mix hex.user.update -u username -p password`
+  `mix hex.user update -u USERNAME -p PASSWORD`
 
   ## Command line options
 
@@ -34,7 +34,7 @@ defmodule Mix.Tasks.Hex.User do
       ["update"] ->
         update(opts)
       _ ->
-        Mix.raise "Invalid arguments, expected 'mix hex.user task'"
+        Mix.raise "Invalid arguments, expected 'mix hex.user TASK ...'"
     end
   end
 

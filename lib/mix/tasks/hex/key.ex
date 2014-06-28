@@ -18,7 +18,8 @@ defmodule Mix.Tasks.Hex.Key do
   Remove given API key from account.
 
   The key can no longer be used to authenticate API requests.
-  `mix hex.key drop key_name -u username -p password`
+
+  `mix hex.key remove key_name -u username -p password`
 
   ### List keys
 
@@ -41,14 +42,14 @@ defmodule Mix.Tasks.Hex.Key do
     Hex.start_api
 
     case rest do
-      ["drop", key] ->
-        drop_key(key, opts)
+      ["remove", key] ->
+        remove_key(key, opts)
       ["list"] ->
         list_keys(opts)
       ["new"] ->
         new_key(opts)
       _ ->
-        Mix.raise "Invalid arguments, expected 'mix hex.key task'"
+        Mix.raise "Invalid arguments, expected 'mix hex.key TASK ...'"
     end
   end
 
@@ -56,8 +57,8 @@ defmodule Mix.Tasks.Hex.Key do
     Util.generate_key(opts[:user], opts[:pass])
   end
 
-  defp drop_key(key, opts) do
-    Mix.shell.info("Dropping key #{key}...")
+  defp remove_key(key, opts) do
+    Mix.shell.info("Removing key #{key}...")
     case Hex.API.delete_key(key, opts) do
       { 204, _body } ->
         :ok

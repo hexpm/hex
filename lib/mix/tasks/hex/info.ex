@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Hex.Info do
   @moduledoc """
   Prints hex package or system information.
 
-  `mix hex.info [package [version]]`
+  `mix hex.info [PACKAGE [VERSION]]`
 
   If `package` is not given, print system information. This includes when
   registry was last updated and current system version.
@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Hex.Info do
       [package] -> package(package)
       [package, version] -> release(package, version)
       _ ->
-        Mix.raise "Invalid arguments, expected 'mix hex.info [package [version]]'"
+        Mix.raise "Invalid arguments, expected 'mix hex.info [PACKAGE [VERSION]]'"
     end
   end
 

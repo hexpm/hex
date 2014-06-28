@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Hex.Search do
   @moduledoc """
   Display packages matching the given search query.
 
-  `mix hex.search package`
+  `mix hex.search PACKAGE`
   """
 
   def run(args) do
@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Hex.Search do
           Mix.shell.info(pkg)
         end)
       _ ->
-        Mix.raise "Invalid arguments, expected 'mix hex.search package'"
+        Mix.raise "Invalid arguments, expected 'mix hex.search PACKAGE'"
     end
   end
 end
