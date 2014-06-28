@@ -157,7 +157,7 @@ defmodule Hex.RemoteConverger do
       %Mix.Dep{scm: Hex.SCM, app: app, requirement: req}, locked ->
         app = "#{app}"
         case Dict.fetch(locked, app) do
-          {:ok, {:package, vsn}} ->
+          {:ok, vsn} ->
             if Version.match?(vsn, req) do
               locked
             else

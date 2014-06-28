@@ -98,6 +98,28 @@ defmodule Hex.MixTest do
   end
 
   @tag :integration
+  test "deps.get with lock" do
+    Mix.Project.push Simple
+
+    in_tmp fn ->
+      System.put_env("MIX_HOME", System.cwd!)
+      Mix.Task.run "deps.get"
+      Mix.Task.clear
+
+      Mix.Task.run "deps.get"
+      Mix.Task.run "deps.compile"
+      Mix.Task.run "deps"
+
+      assert_received {:mix_shell, :info, ["* ecto 0.2.0 (package)"]}
+      assert_received {:mix_shell, :info, ["* postgrex 0.2.0 (package)"]}
+      assert_received {:mix_shell, :info, ["* ex_doc 0.0.1 (package)"]}
+    end
+  after
+    purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+            Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
+  end
+
+  @tag :integration
   test "deps.update" do
     Mix.Project.push Simple
 
