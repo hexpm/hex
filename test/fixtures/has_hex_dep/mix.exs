@@ -8,6 +8,6 @@ defmodule HasHexDep.Mixfile do
   end
 
   defp deps do
-    [{ :ecto, nil }]
+    [{:ecto, nil}]
   end
 end

@@ -9,7 +9,7 @@ defmodule Hex.Util do
 
   def update_registry(opts \\ []) do
     if registry_updated? do
-      { :ok, :cached }
+      {:ok, :cached}
     else
       stopped? = Hex.Registry.stop
       :application.set_env(:hex, :registry_updated, true)
@@ -32,14 +32,14 @@ defmodule Hex.Util do
 
         result =
           case Hex.API.get_registry(api_opts) do
-            { 200, body } ->
+            {200, body} ->
               File.write!(path_gz, body)
               data = :zlib.gunzip(body)
               File.write!(path, data)
-              { :ok, :new }
-            { 304, _ } ->
-              { :ok, :new }
-            { code, body } ->
+              {:ok, :new}
+            {304, _} ->
+              {:ok, :new}
+            {code, body} ->
               Mix.shell.error("Registry update failed (#{code})")
               print_error_result(code, body)
               :error
@@ -58,16 +58,16 @@ defmodule Hex.Util do
   end
 
   def registry_updated? do
-    :application.get_env(:hex, :registry_updated) == { :ok, true }
+    :application.get_env(:hex, :registry_updated) == {:ok, true}
   end
 
   def etag(path) do
     case File.read(path) do
-      { :ok, binary } ->
+      {:ok, binary} ->
         :crypto.hash(:md5, binary)
         |> Base.encode16(case: :lower)
         |> String.to_char_list
-      { :error, _ } ->
+      {:error, _} ->
         nil
     end
   end
@@ -78,7 +78,7 @@ defmodule Hex.Util do
 
   def safe_deserialize_elixir(string) do
     case Code.string_to_quoted(string, existing_atoms_only: true) do
-      { :ok, ast } ->
+      {:ok, ast} ->
         safe_eval(ast)
       _ ->
         Mix.raise "Received malformed elixir from Hex API"
@@ -130,7 +130,7 @@ defmodule Hex.Util do
   defp list_to_map(list) when is_list(list) do
     if list == [] or is_tuple(List.first(list)) do
       Enum.into(list, %{}, fn
-        { key, list } when is_list(list) -> { key, list_to_map(list) }
+        {key, list} when is_list(list) -> {key, list_to_map(list)}
         other -> list_to_map(other)
       end)
     else
@@ -160,10 +160,10 @@ defmodule Hex.Util do
 
   defp pretty_errors(errors, depth \\ 0) do
     Enum.each(errors, fn
-      { key, map } when is_map(map) ->
+      {key, map} when is_map(map) ->
         Mix.shell.info(indent(depth) <> key <> ":")
         pretty_errors(map, depth + 1)
-      { key, value } ->
+      {key, value} ->
         Mix.shell.info(indent(depth) <> key <> ": " <> value)
     end)
   end

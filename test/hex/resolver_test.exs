@@ -6,7 +6,7 @@ defmodule Hex.ResolverTest do
   end
 
   def reqs(reqs) do
-    Enum.map(reqs, fn { app, req } -> { "#{app}", req } end)
+    Enum.map(reqs, fn {app, req} -> {"#{app}", req} end)
   end
 
   setup do
@@ -87,6 +87,6 @@ defmodule Hex.ResolverTest do
   end
 
   test "stat" do
-    assert Hex.Registry.stat == { 10, 31 }
+    assert Hex.Registry.stat == {10, 31}
   end
 end

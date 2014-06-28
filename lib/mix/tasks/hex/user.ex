@@ -26,7 +26,7 @@ defmodule Mix.Tasks.Hex.User do
   @switches [clean_pass: :boolean]
 
   def run(args) do
-    { opts, rest, _ } = OptionParser.parse(args, aliases: @aliases, switches: @switches)
+    {opts, rest, _} = OptionParser.parse(args, aliases: @aliases, switches: @switches)
 
     case rest do
       ["register"] ->
@@ -59,9 +59,9 @@ defmodule Mix.Tasks.Hex.User do
 
   defp update_user(username, email, password, auth) do
     case Hex.API.update_user(email, password, auth) do
-      { 200, _ } ->
+      {200, _} ->
         Util.update_config([username: username, password: password])
-      { code, body } ->
+      {code, body} ->
         Mix.shell.error("Updating user options for #{auth[:user]} failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end
@@ -88,9 +88,9 @@ defmodule Mix.Tasks.Hex.User do
 
   defp create_user(username, email, password) do
     case Hex.API.new_user(username, email, password) do
-      { 201, _ } ->
+      {201, _} ->
         Util.generate_key(username, password)
-      { code, body } ->
+      {code, body} ->
         Mix.shell.error("Registration of user #{username} failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end

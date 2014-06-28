@@ -98,7 +98,7 @@ defmodule Hex.RemoteConverger do
     resolved = Dict.drop(resolved, Dict.keys(locked))
     if resolved != [] do
       Mix.shell.info "Dependency resolution completed successfully"
-      Enum.each(resolved, fn { dep, version } ->
+      Enum.each(resolved, fn {dep, version} ->
         Mix.shell.info "  #{dep}: v#{version}"
       end)
     end
@@ -106,7 +106,7 @@ defmodule Hex.RemoteConverger do
 
   defp verify_lock(lock) do
     Enum.each(lock, fn
-      { app, { :package, version } } ->
+      {app, {:package, version}} ->
         if versions = Registry.get_versions("#{app}") do
           unless version in versions do
             Mix.raise "Unknown package version #{app} v#{version} in lockfile"
@@ -127,7 +127,7 @@ defmodule Hex.RemoteConverger do
   defp do_with_children(apps, lock) do
     Enum.map(apps, fn app ->
       case Dict.fetch(lock, :"#{app}") do
-        { :ok, { :package, version } } ->
+        {:ok, {:package, version}} ->
           deps = Registry.get_deps(app, version)
                  |> Enum.map(&elem(&1, 0))
           [deps, do_with_children(deps, lock)]
@@ -140,13 +140,13 @@ defmodule Hex.RemoteConverger do
   defp prepare_locked(lock, old_lock, deps) do
     # Make sure to unlock all children of Hex packages
     unlocked =
-      for { app, _ } <- old_lock,
+      for {app, _} <- old_lock,
           not Dict.has_key?(lock, app),
           do: "#{app}"
 
     unlocked = with_children(unlocked, old_lock)
 
-    locked = for { app, _ } = pair <- Hex.Mix.from_lock(old_lock),
+    locked = for {app, _} = pair <- Hex.Mix.from_lock(old_lock),
                  not app in unlocked,
                  into: %{}, do: pair
 

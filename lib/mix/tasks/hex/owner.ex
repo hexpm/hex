@@ -40,7 +40,7 @@ defmodule Mix.Tasks.Hex.Owner do
   @aliases [u: :user, p: :pass]
 
   def run(args) do
-    { opts, rest, _ } = OptionParser.parse(args, aliases: @aliases)
+    {opts, rest, _} = OptionParser.parse(args, aliases: @aliases)
     user_config       = Hex.Mix.read_config
     auth              = Util.auth_opts(opts, user_config)
     Hex.start_api
@@ -60,9 +60,9 @@ defmodule Mix.Tasks.Hex.Owner do
   defp add_owner(package, owner, opts) do
     Mix.shell.info("Adding owner #{owner} to #{package}")
     case Hex.API.add_package_owner(package, owner, opts) do
-      { 204, _body } ->
+      {204, _body} ->
         :ok
-      { code, body } ->
+      {code, body} ->
         Mix.shell.error("Adding owner failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end
@@ -71,9 +71,9 @@ defmodule Mix.Tasks.Hex.Owner do
   defp remove_owner(package, owner, opts) do
     Mix.shell.info("Removing owner #{owner} from #{package}")
     case Hex.API.delete_package_owner(package, owner, opts) do
-      { 204, _body } ->
+      {204, _body} ->
         :ok
-      { code, body } ->
+      {code, body} ->
         Mix.shell.error("Removing owner failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end
@@ -81,9 +81,9 @@ defmodule Mix.Tasks.Hex.Owner do
 
   defp list_owners(package, opts) do
     case Hex.API.get_package_owners(package, opts) do
-      { 200, body } ->
+      {200, body} ->
         Enum.each(body, &Mix.shell.info(&1["email"]))
-      { code, body } ->
+      {code, body} ->
         Mix.shell.error("Package owner fetching failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end

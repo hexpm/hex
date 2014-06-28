@@ -4,18 +4,18 @@ defmodule Hex.Registry do
 
   def start(opts \\ []) do
     case :application.get_env(:hex, @registry_tid) do
-      { :ok, _ } ->
+      {:ok, _} ->
         true
       :undefined ->
         path = opts[:registry_path] || path()
 
         case :ets.file2tab(String.to_char_list(path)) do
-          { :ok, tid } ->
+          {:ok, tid} ->
             :application.set_env(:hex, @registry_tid, tid)
             check_version(tid)
             true
 
-          { :error, reason } ->
+          {:error, reason} ->
             unless opts[:no_fail] do
               Mix.raise "Failed to open hex registry file (#{inspect reason})"
             end
@@ -26,7 +26,7 @@ defmodule Hex.Registry do
 
   def stop do
     case :application.get_env(:hex, @registry_tid) do
-      { :ok, tid } ->
+      {:ok, tid} ->
         :ets.delete(tid)
         :application.unset_env(:hex, @registry_tid)
         true
@@ -41,7 +41,7 @@ defmodule Hex.Registry do
 
   def info_installs do
     case :ets.lookup(get_tid(), :"$$installs$$") do
-      [{ :"$$installs$$", installs }] ->
+      [{:"$$installs$$", installs}] ->
         if version = latest_version(installs) do
           Mix.shell.error("A new Hex version is available (v#{version}), please update with `mix local.hex`")
         end
@@ -52,21 +52,21 @@ defmodule Hex.Registry do
 
   def stat do
     fun = fn
-      { { package, version }, _ }, { packages, releases }
+      {{package, version}, _}, {packages, releases}
           when is_binary(package) and is_binary(version) ->
-        { packages, releases + 1 }
-      { package, _ }, { packages, releases } when is_binary(package) ->
-        { packages + 1, releases }
+        {packages, releases + 1}
+      {package, _}, {packages, releases} when is_binary(package) ->
+        {packages + 1, releases}
       _, acc ->
         acc
     end
 
-    :ets.foldl(fun, { 0, 0 }, get_tid())
+    :ets.foldl(fun, {0, 0}, get_tid())
   end
 
   def search(term) do
     fun = fn
-      { package, list }, packages when is_binary(package) and is_list(list) ->
+      {package, list}, packages when is_binary(package) and is_list(list) ->
         if String.contains?(package, term) do
           [package|packages]
         else
@@ -93,29 +93,29 @@ defmodule Hex.Registry do
   def get_versions(package) do
     case :ets.lookup(get_tid(), package) do
       [] -> nil
-      [{ ^package, [versions|_] }] when is_list(versions) -> versions
+      [{^package, [versions|_]}] when is_list(versions) -> versions
     end
   end
 
   def get_deps(package, version) do
-    case :ets.lookup(get_tid(), { package, version }) do
+    case :ets.lookup(get_tid(), {package, version}) do
       [] ->
         nil
       [{{^package, ^version}, [deps|_]}] when is_list(deps) ->
         Enum.map(deps, fn
-          [app, dep, optional | _] -> { app, dep, optional }
+          [app, dep, optional | _] -> {app, dep, optional}
         end)
     end
   end
 
   defp get_tid do
-    { :ok, tid } = :application.get_env(:hex, @registry_tid)
+    {:ok, tid} = :application.get_env(:hex, @registry_tid)
     tid
   end
 
   defp check_version(tid) do
     case :ets.lookup(tid, :"$$version$$") do
-      [{ :"$$version$$", version }] when version in @versions ->
+      [{:"$$version$$", version}] when version in @versions ->
         :ok
       _ ->
         raise Mix.Error,

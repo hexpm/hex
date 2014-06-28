@@ -43,9 +43,9 @@ defmodule Mix.Tasks.Hex.Publish do
   `:git` or `:path` as the SCM `:package` is used.
 
       defp deps do
-        [ { :ecto, "~> 0.1.0" },
-          { :postgrex, "~> 0.3.0" },
-          { :cowboy, github: "extend/cowboy" } ]
+        [ {:ecto, "~> 0.1.0"},
+          {:postgrex, "~> 0.3.0"},
+          {:cowboy, github: "extend/cowboy"} ]
       end
 
   As can be seen Hex package dependencies works alongside git dependencies.
@@ -77,7 +77,7 @@ defmodule Mix.Tasks.Hex.Publish do
   @meta_fields @warn_fields ++ [:files]
 
   def run(args) do
-    { opts, _, _ } = OptionParser.parse(args, switches: @switches, aliases: @aliases)
+    {opts, _, _} = OptionParser.parse(args, switches: @switches, aliases: @aliases)
     user_config = Hex.Mix.read_config
     auth        = Util.auth_opts(opts, user_config)
 
@@ -89,7 +89,7 @@ defmodule Mix.Tasks.Hex.Publish do
     if version = opts[:revert] do
       revert(config, version, auth)
     else
-      { deps, exclude_deps } = dependencies(config)
+      {deps, exclude_deps} = dependencies(config)
       package                = package(config)
 
       meta = Keyword.take(config, [:app, :version, :description])
@@ -110,7 +110,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
     if meta[:requirements] != [] do
       Mix.shell.info("  Dependencies:")
-      Enum.each(meta[:requirements], fn { app, %{requirement: req} } ->
+      Enum.each(meta[:requirements], fn {app, %{requirement: req}} ->
          Mix.shell.info("    #{app} #{req}")
       end)
     end
@@ -138,9 +138,9 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp revert(meta, version, auth) do
     case Hex.API.delete_release(meta[:app], version, auth) do
-      { 204, _ } ->
+      {204, _} ->
         Mix.shell.info("Reverted #{meta[:app]} v#{meta[:version]}")
-      { code, body } ->
+      {code, body} ->
         Mix.shell.error("Reverting #{meta[:app]} v#{meta[:version]} failed! (#{code})")
         Hex.Util.print_error_result(code, body)
         false
@@ -149,9 +149,9 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp create_package?(meta, auth) do
     case Hex.API.new_package(meta[:app], meta, auth) do
-      { code, _ } when code in [200, 201] ->
+      {code, _} when code in [200, 201] ->
         true
-      { code, body } ->
+      {code, body} ->
         Mix.shell.error("Updating package #{meta[:app]} failed (#{code})")
         Hex.Util.print_error_result(code, body)
         false
@@ -162,9 +162,9 @@ defmodule Mix.Tasks.Hex.Publish do
     tarball = Hex.Tar.create(meta, meta[:files])
 
     case Hex.API.new_release(meta[:app], tarball, auth) do
-      { code, _ } when code in [200, 201] ->
+      {code, _} when code in [200, 201] ->
         Mix.shell.info("Published #{meta[:app]} v#{meta[:version]}")
-      { code, body } ->
+      {code, body} ->
         Mix.shell.error("Pushing #{meta[:app]} v#{meta[:version]} failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end
@@ -172,26 +172,26 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp dependencies(meta) do
     deps = Enum.map(meta[:deps] || [], &Hex.Mix.dep/1)
-    { include, exclude } = Enum.partition(deps, &(package_dep?(&1) and prod_dep?(&1)))
+    {include, exclude} = Enum.partition(deps, &(package_dep?(&1) and prod_dep?(&1)))
 
-    Enum.each(include, fn { app, _req, opts } ->
+    Enum.each(include, fn {app, _req, opts} ->
       if opts[:override] do
         Mix.raise "Can't publish with overridden dependency #{app}, remove `override: true`"
       end
     end)
 
-    include = for { app, req, opts } <- include, into: %{} do
-      { app, %{requirement: req, optional: opts[:optional]} }
+    include = for {app, req, opts} <- include, into: %{} do
+      {app, %{requirement: req, optional: opts[:optional]}}
     end
-    exclude = for { app, _req, _opts } <- exclude, do: app
-    { include, exclude }
+    exclude = for {app, _req, _opts} <- exclude, do: app
+    {include, exclude}
   end
 
-  defp prod_dep?({ _app, _req, opts }) do
+  defp prod_dep?({_app, _req, opts}) do
     if only = opts[:only], do: :prod in List.wrap(only), else: true
   end
 
-  defp package_dep?({ app, _req, opts }) do
+  defp package_dep?({app, _req, opts}) do
     Enum.find(Mix.SCM.available, fn scm ->
       scm.accepts_options(app, opts)
     end) == Hex.SCM

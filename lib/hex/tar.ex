@@ -9,7 +9,7 @@ defmodule Hex.Tar do
 
     files =
       Enum.map(files, fn
-        { name, bin } -> { String.to_char_list(name), bin }
+        {name, bin} -> {String.to_char_list(name), bin}
         name -> String.to_char_list(name)
       end)
 
@@ -21,10 +21,10 @@ defmodule Hex.Tar do
     checksum = :crypto.hash(:sha256, blob) |> Base.encode16
 
     files = [
-      { 'VERSION', @version},
-      { 'CHECKSUM', checksum },
-      { 'metadata.exs', meta_string },
-      { 'contents.tar.gz', contents } ]
+      {'VERSION', @version},
+      {'CHECKSUM', checksum},
+      {'metadata.exs', meta_string},
+      {'contents.tar.gz', contents} ]
     :ok = :erl_tar.create(path, files)
 
     tar = File.read!(path)
@@ -35,7 +35,7 @@ defmodule Hex.Tar do
 
   def unpack(path, dest) do
     case :erl_tar.extract(path, [:memory]) do
-      { :ok, files } ->
+      {:ok, files} ->
         files = Enum.into(files, %{})
         check_files(files, path)
         check_version(files['VERSION'], path)
@@ -45,7 +45,7 @@ defmodule Hex.Tar do
       :ok ->
         Mix.raise "Unpacking #{path} failed: tarball empty"
 
-      { :error, reason } ->
+      {:error, reason} ->
         Mix.raise "Unpacking #{path} failed: #{inspect reason}"
     end
   end
@@ -81,10 +81,10 @@ defmodule Hex.Tar do
   end
 
   defp extract_contents(file, dest, path) do
-    case :erl_tar.extract({ :binary, file }, [:compressed, cwd: dest]) do
+    case :erl_tar.extract({:binary, file}, [:compressed, cwd: dest]) do
       :ok ->
         :ok
-      { :error, reason } ->
+      {:error, reason} ->
         Mix.raise "Unpacking #{path}/contents.tar.gz failed: #{inspect reason}"
     end
   end

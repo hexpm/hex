@@ -75,7 +75,7 @@ defmodule Hex.API do
     default_headers = %{
       'accept' => 'application/vnd.hex.beta+elixir',
       'accept-encoding' => 'gzip',
-      'user-agent' => user_agent }
+      'user-agent' => user_agent}
     headers = Dict.merge(default_headers, headers)
     http_opts = [timeout: 5000]
     opts = [body_format: :binary]
@@ -83,22 +83,22 @@ defmodule Hex.API do
     cond do
       body ->
         if content_type == 'application/vnd.hex+elixir', do: body = Hex.Util.safe_serialize_elixir(body)
-        request = { url, Map.to_list(headers), content_type, body }
+        request = {url, Map.to_list(headers), content_type, body}
       method in [:put, :post] ->
-        request = { url, Map.to_list(headers), 'application/vnd.hex+elixir', '%{}' }
+        request = {url, Map.to_list(headers), 'application/vnd.hex+elixir', '%{}'}
       true ->
-        request = { url, Map.to_list(headers) }
+        request = {url, Map.to_list(headers)}
     end
 
     case :httpc.request(method, request, http_opts, opts, :hex) do
-      { :ok, response } ->
+      {:ok, response} ->
         handle_response(response)
-      { :error, reason } ->
-        { :http_error, reason }
+      {:error, reason} ->
+        {:http_error, reason}
     end
   end
 
-  defp handle_response({ { _version, code, _reason }, headers, body }) do
+  defp handle_response({{_version, code, _reason}, headers, body}) do
     headers = Enum.into(headers, %{})
     content_encoding = :binary.list_to_bin(headers['content-encoding'] || '')
     content_type = :binary.list_to_bin(headers['content-type'] || '')
@@ -112,14 +112,14 @@ defmodule Hex.API do
       body = Hex.Util.safe_deserialize_elixir(body)
     end
 
-    { code, body }
+    {code, body}
   end
 
   @doc false
   def handle_hex_message(nil), do: :ok
 
   def handle_hex_message(header) do
-    { message, level } = :binary.list_to_bin(header) |> parse_hex_message
+    {message, level} = :binary.list_to_bin(header) |> parse_hex_message
     case level do
       "warn"  -> Mix.shell.info("API warning: " <> message)
       "fatal" -> Mix.shell.error("API error: " <> message)
@@ -155,9 +155,9 @@ defmodule Hex.API do
   @space [?\s, ?\t]
 
   defp parse_hex_message(message) do
-    { message, rest } = skip_ws(message) |> quoted
+    {message, rest} = skip_ws(message) |> quoted
     level = skip_ws(rest) |> opt_level
-    { message, level }
+    {message, level}
   end
 
   defp skip_ws(<< char, rest :: binary >>) when char in @space,
@@ -178,7 +178,7 @@ defmodule Hex.API do
     do: do_quoted(rest, "")
 
   defp do_quoted("\"" <> rest, acc),
-    do: { acc, rest }
+    do: {acc, rest}
   defp do_quoted(<< char, rest :: binary >>, acc),
     do: do_quoted(rest, << acc :: binary, char >>)
 

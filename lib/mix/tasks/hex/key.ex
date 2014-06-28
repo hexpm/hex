@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Hex.Key do
   @aliases [u: :user, p: :pass]
 
   def run(args) do
-    { opts, rest, _ } = OptionParser.parse(args, aliases: @aliases)
+    {opts, rest, _} = OptionParser.parse(args, aliases: @aliases)
     Util.required_opts(opts, [:user, :pass])
     Hex.start_api
 
@@ -60,9 +60,9 @@ defmodule Mix.Tasks.Hex.Key do
   defp remove_key(key, opts) do
     Mix.shell.info("Removing key #{key}...")
     case Hex.API.delete_key(key, opts) do
-      { 204, _body } ->
+      {204, _body} ->
         :ok
-      { code, body } ->
+      {code, body} ->
         Mix.shell.error("Key fetching failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end
@@ -70,9 +70,9 @@ defmodule Mix.Tasks.Hex.Key do
 
   defp list_keys(opts) do
     case Hex.API.get_keys(opts) do
-      { 200, body } ->
+      {200, body} ->
         Enum.each(body, &Mix.shell.info(&1["name"]))
-      { code, body } ->
+      {code, body} ->
         Mix.shell.error("Key fetching failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end

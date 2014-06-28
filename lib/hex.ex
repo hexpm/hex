@@ -26,7 +26,7 @@ defmodule Hex do
 
   def url do
     case :application.get_env(:hex, :url) do
-      { :ok, url } -> url
+      {:ok, url} -> url
       :undefined   -> @default_url
     end
   end
@@ -38,7 +38,7 @@ defmodule Hex do
 
   def cdn do
     case :application.get_env(:hex, :cdn) do
-      { :ok, cdn } -> cdn
+      {:ok, cdn} -> cdn
       :undefined   -> @default_cdn
     end
   end

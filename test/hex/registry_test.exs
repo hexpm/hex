@@ -4,7 +4,7 @@ defmodule Hex.RegistryTest do
   test "stat" do
     Hex.Registry.start(registry_path: tmp_path("hex.ets"))
 
-    assert Hex.Registry.stat == { 10, 31 }
+    assert Hex.Registry.stat == {10, 31}
   end
 
   test "install info output once" do
@@ -18,10 +18,10 @@ defmodule Hex.RegistryTest do
 
       Hex.Registry.start
       Hex.Util.update_registry(no_fetch: true)
-      assert_received { :mix_shell, :error, ["A new Hex version is available" <> _] }
+      assert_received {:mix_shell, :error, ["A new Hex version is available" <> _]}
 
       Hex.Util.update_registry(no_fetch: true)
-      refute_received { :mix_shell, :error, ["A new Hex version is available" <> _] }
+      refute_received {:mix_shell, :error, ["A new Hex version is available" <> _]}
     end
   end
 
@@ -36,7 +36,7 @@ defmodule Hex.RegistryTest do
 
       Hex.Registry.start
       Hex.Util.update_registry(no_fetch: true)
-      assert_received { :mix_shell, :error, ["A new Hex version is available (v100.0.0), please update with `mix local.hex`"] }
+      assert_received {:mix_shell, :error, ["A new Hex version is available (v100.0.0), please update with `mix local.hex`"]}
     end
   end
 
@@ -51,7 +51,7 @@ defmodule Hex.RegistryTest do
 
       Hex.Registry.start
       Hex.Util.update_registry(no_fetch: true)
-      refute_received { :mix_shell, :error, ["A new Hex version is available" <> _] }
+      refute_received {:mix_shell, :error, ["A new Hex version is available" <> _]}
     end
   end
 
@@ -66,7 +66,7 @@ defmodule Hex.RegistryTest do
 
       Hex.Registry.start
       Hex.Util.update_registry(no_fetch: true)
-      refute_received { :mix_shell, :error, ["A new Hex version is available" <> _] }
+      refute_received {:mix_shell, :error, ["A new Hex version is available" <> _]}
     end
   end
 end

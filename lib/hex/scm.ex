@@ -15,7 +15,7 @@ defmodule Hex.SCM do
 
   def format_lock(opts) do
     case opts[:lock] do
-      { :package, version } ->
+      {:package, version} ->
         version
       _ ->
         nil
@@ -32,11 +32,11 @@ defmodule Hex.SCM do
 
   def lock_status(opts) do
     case opts[:lock] do
-      { :package, version } ->
+      {:package, version} ->
         case File.read(Path.join(opts[:dest], ".hex")) do
-          { :ok, dep_version } ->
+          {:ok, dep_version} ->
             if String.strip(dep_version) == version, do: :ok, else: :mismatch
-          { :error, _ } ->
+          {:error, _} ->
             :mismatch
         end
       nil ->
@@ -53,7 +53,7 @@ defmodule Hex.SCM do
   def checkout(opts) do
     app  = opts[:hex_app]
     dest = opts[:dest]
-    { :package, version } = opts[:lock]
+    {:package, version} = opts[:lock]
     name = "#{app}-#{version}.tar"
     path = cache_path(name)
 
@@ -89,30 +89,30 @@ defmodule Hex.SCM do
   end
 
   defp fetch_request(url, etag) do
-    headers = [{ 'user-agent', Hex.API.user_agent }]
+    headers = [{'user-agent', Hex.API.user_agent}]
     if etag do
-      headers = headers ++ [{ 'if-none-match', etag }]
+      headers = headers ++ [{'if-none-match', etag}]
     end
 
     :inets.start
-    case :httpc.request(:get, { url, headers }, [], body_format: :binary) do
-      { :ok, response } ->
+    case :httpc.request(:get, {url, headers}, [], body_format: :binary) do
+      {:ok, response} ->
         handle_response(response)
-      { :error, reason } ->
+      {:error, reason} ->
         Mix.shell.error("Request failed: #{inspect reason}")
         nil
     end
   end
 
-  defp handle_response({ { _version, 304, _reason }, _headers, _body }) do
+  defp handle_response({{_version, 304, _reason}, _headers, _body}) do
     nil
   end
 
-  defp handle_response({ { _version, 200, _reason }, _headers, body }) do
+  defp handle_response({{_version, 200, _reason}, _headers, body}) do
     body
   end
 
-  defp handle_response({ { _version, code, _reason }, _headers, _body }) do
+  defp handle_response({{_version, code, _reason}, _headers, _body}) do
     Mix.shell.error("Request failed (#{code})")
     nil
   end

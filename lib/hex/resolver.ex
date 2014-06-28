@@ -12,11 +12,11 @@ defmodule Hex.Resolver do
   def resolve(requests, overridden, locked) do
     info = info(overridden: Enum.into(overridden, HashSet.new))
 
-    { activated, pending, optional } =
-      Enum.reduce(locked, { HashDict.new, [], HashDict.new }, &locked(&1, &2, info))
+    {activated, pending, optional} =
+      Enum.reduce(locked, {HashDict.new, [], HashDict.new}, &locked(&1, &2, info))
 
     req_requests =
-      Enum.map(requests, fn { name, req } ->
+      Enum.map(requests, fn {name, req} ->
         request(name: name, req: compile_requirement(req, name))
       end)
 
@@ -39,8 +39,8 @@ defmodule Hex.Resolver do
   end
 
   defp do_resolve(activated, [], _optional, _info) do
-    Enum.map(activated, fn { name, active(version: version) } ->
-      { name, version }
+    Enum.map(activated, fn {name, active(version: version)} ->
+      {name, version}
     end) |> Enum.reverse
   end
 
@@ -58,14 +58,14 @@ defmodule Hex.Resolver do
         end
 
       nil ->
-        { opts, optional } = Dict.pop(optional, name)
+        {opts, optional} = Dict.pop(optional, name)
         requests = [request] ++ (opts || [])
 
         case get_versions(name, requests) do
-          { :error, request(parent: parent) } ->
+          {:error, request(parent: parent)} ->
             backtrack(activated[parent], activated, info)
 
-          { :ok, [version|possibles] } ->
+          {:ok, [version|possibles]} ->
             {new_pending, new_optional} = get_deps(name, version, info)
             new_pending = pending ++ new_pending
             new_optional = merge_optional(optional, new_optional)
@@ -117,10 +117,10 @@ defmodule Hex.Resolver do
             end
           end)
 
-        { :ok, Enum.reverse(versions) }
+        {:ok, Enum.reverse(versions)}
       catch
         :throw, request ->
-          { :error, request }
+          {:error, request}
       end
 
     else
@@ -131,20 +131,20 @@ defmodule Hex.Resolver do
   def get_deps(package, version, info(overridden: overridden)) do
     if deps = Registry.get_deps(package, version) do
       {reqs, opts} =
-        Enum.reduce(deps, { [], [] }, fn { name, req, optional }, { reqs, opts } ->
+        Enum.reduce(deps, {[], []}, fn {name, req, optional}, {reqs, opts} ->
           request = request(name: name, req: compile_requirement(req, name), parent: package)
 
           cond do
             Set.member?(overridden, name) ->
-              { reqs, opts }
+              {reqs, opts}
             optional ->
-              { reqs, [request|opts] }
+              {reqs, [request|opts]}
             true ->
-              { [request|reqs], opts }
+              {[request|reqs], opts}
           end
         end)
 
-        { Enum.reverse(reqs), Enum.reverse(opts) }
+        {Enum.reverse(reqs), Enum.reverse(opts)}
     else
       Mix.raise "Unable to find package version #{package} v#{version} in registry"
     end
@@ -164,7 +164,7 @@ defmodule Hex.Resolver do
 
   defp compile_requirement(req, package) when is_binary(req) do
     case Version.parse_requirement(req) do
-      { :ok, req } ->
+      {:ok, req} ->
         req
       :error ->
         Mix.raise "Invalid requirement #{inspect req} defined for package #{package}"

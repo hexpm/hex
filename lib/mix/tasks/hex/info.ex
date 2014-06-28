@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Hex.Info do
   """
 
   def run(args) do
-    { _opts, args, _ } = OptionParser.parse(args)
+    {_opts, args, _} = OptionParser.parse(args)
     Hex.start_api
 
     case args do
@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Util.ensure_registry
     path = Hex.Registry.path()
     stat = File.stat!(path)
-    { packages, releases } = Hex.Registry.stat()
+    {packages, releases} = Hex.Registry.stat()
 
     Mix.shell.info("Registry file available (last updated: #{pretty_date(stat.mtime)})")
     Mix.shell.info("Size: #{div stat.size, 1024}kB")
@@ -48,11 +48,11 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp package(package) do
     case Hex.API.get_package(package) do
-      { 200, body } ->
+      {200, body} ->
         pretty_package(body)
-      { 404, _ } ->
+      {404, _} ->
         Mix.shell.error("No package with name #{package}")
-      { code, body } ->
+      {code, body} ->
         Mix.shell.error("Failed to retrieve package information! (#{code})")
         Hex.Util.print_error_result(code, body)
     end
@@ -60,11 +60,11 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp release(package, version) do
     case Hex.API.get_release(package, version) do
-      { 200, body } ->
+      {200, body} ->
         pretty_release(package, body)
-      { 404, _ } ->
+      {404, _} ->
         Mix.shell.error("No release with name #{package} v#{version}")
-      { code, body } ->
+      {code, body} ->
         Mix.shell.error("Failed to retrieve release information! (#{code})")
         Hex.Util.print_error_result(code, body)
     end
@@ -104,13 +104,13 @@ defmodule Mix.Tasks.Hex.Info do
 
     if (dict = meta[name]) && dict != [] do
       Mix.shell.info("  #{title}:")
-      Enum.each(dict, fn { name, url } ->
+      Enum.each(dict, fn {name, url} ->
         Mix.shell.info("    #{name}: #{url}")
       end)
     end
   end
 
-  defp pretty_date({ { year, month, day }, { hour, min, sec } }) do
+  defp pretty_date({{year, month, day}, {hour, min, sec}}) do
     "#{pad(year, 4)}-#{pad(month, 2)}-#{pad(day, 2)} " <>
     "#{pad(hour, 2)}:#{pad(min, 2)}:#{pad(sec, 2)}"
   end

@@ -11,7 +11,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
 
       Mix.Tasks.Hex.Config.run(["foo", "bar"])
       Mix.Tasks.Hex.Config.run(["foo"])
-      assert_received { :mix_shell, :info, ["\"bar\""] }
+      assert_received {:mix_shell, :info, ["\"bar\""]}
     end
   end
 end

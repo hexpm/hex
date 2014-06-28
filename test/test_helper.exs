@@ -82,7 +82,7 @@ defmodule HexTest.Case do
     module = String.capitalize(name)
     mixfile = :io_lib.format(@template, [module, name, version, deps])
 
-    files = [{ "mix.exs", List.to_string(mixfile) }]
+    files = [{"mix.exs", List.to_string(mixfile)}]
     tar = Hex.Tar.create(meta, files)
 
     Hex.API.new_package(name, meta, auth)
@@ -101,22 +101,22 @@ defmodule HexTest.Case do
 
   def create_test_registry(path) do
     packages =
-      Enum.reduce(test_registry, HashDict.new, fn { name, vsn, _ }, dict ->
+      Enum.reduce(test_registry, HashDict.new, fn {name, vsn, _}, dict ->
         Dict.update(dict, "#{name}", [vsn], &[vsn|&1])
       end)
 
     packages =
-      Enum.map(packages, fn { name, vsns } ->
-        { "#{name}", [Enum.sort(vsns, &(Version.compare(&1, &2) == :lt))] }
+      Enum.map(packages, fn {name, vsns} ->
+        {"#{name}", [Enum.sort(vsns, &(Version.compare(&1, &2) == :lt))]}
       end)
 
     releases =
-      Enum.map(test_registry, fn { name, version, deps } ->
+      Enum.map(test_registry, fn {name, version, deps} ->
         deps = Enum.map(deps, fn
-          { app, req } -> ["#{app}", req, false]
-          { app, req, optional } -> ["#{app}", req, optional]
+          {app, req} -> ["#{app}", req, false]
+          {app, req, optional} -> ["#{app}", req, optional]
         end)
-        { { "#{name}", version }, [deps] }
+        {{"#{name}", version}, [deps]}
       end)
 
     create_registry(path, @version, [], releases, packages)
@@ -124,49 +124,49 @@ defmodule HexTest.Case do
 
   def create_registry(path, version, installs, releases, packages) do
     tid = :ets.new(@ets_table, [])
-    :ets.insert(tid, { :"$$version$$", version })
-    :ets.insert(tid, { :"$$installs$$", installs })
+    :ets.insert(tid, {:"$$version$$", version})
+    :ets.insert(tid, {:"$$installs$$", installs})
     :ets.insert(tid, releases ++ packages)
     :ok = :ets.tab2file(tid, String.to_char_list(path))
     :ets.delete(tid)
   end
 
   defp test_registry do
-    [ { :foo, "0.0.1", [] },
-      { :foo, "0.1.0", [] },
-      { :foo, "0.2.0", [] },
-      { :foo, "0.2.1", [] },
-      { :bar, "0.0.1", [] },
-      { :bar, "0.1.0", [foo: "~> 0.1.0"] },
-      { :bar, "0.2.0", [foo: "~> 0.2.0"] },
+    [ {:foo, "0.0.1", []},
+      {:foo, "0.1.0", []},
+      {:foo, "0.2.0", []},
+      {:foo, "0.2.1", []},
+      {:bar, "0.0.1", []},
+      {:bar, "0.1.0", [foo: "~> 0.1.0"]},
+      {:bar, "0.2.0", [foo: "~> 0.2.0"]},
 
-      { :decimal, "0.0.1", [] },
-      { :decimal, "0.1.0", [] },
-      { :decimal, "0.2.0", [] },
-      { :decimal, "0.2.1", [] },
-      { :ex_plex, "0.0.1", [] },
-      { :ex_plex, "0.0.2", [decimal: "0.1.1"] },
-      { :ex_plex, "0.1.0", [decimal: "~> 0.1.0"] },
-      { :ex_plex, "0.1.2", [decimal: "~> 0.1.0"] },
-      { :ex_plex, "0.2.0", [decimal: "~> 0.2.0"] },
+      {:decimal, "0.0.1", []},
+      {:decimal, "0.1.0", []},
+      {:decimal, "0.2.0", []},
+      {:decimal, "0.2.1", []},
+      {:ex_plex, "0.0.1", []},
+      {:ex_plex, "0.0.2", [decimal: "0.1.1"]},
+      {:ex_plex, "0.1.0", [decimal: "~> 0.1.0"]},
+      {:ex_plex, "0.1.2", [decimal: "~> 0.1.0"]},
+      {:ex_plex, "0.2.0", [decimal: "~> 0.2.0"]},
 
-      { :jose, "0.2.0", [] },
-      { :jose, "0.2.1", [] },
-      { :eric, "0.0.1", [] },
-      { :eric, "0.0.2", [] },
-      { :eric, "0.1.0", [jose: "~> 0.1.0"] },
-      { :eric, "0.1.2", [jose: "~> 0.1.0"] },
-      { :eric, "0.2.0", [jose: "~> 0.3.0"] },
+      {:jose, "0.2.0", []},
+      {:jose, "0.2.1", []},
+      {:eric, "0.0.1", []},
+      {:eric, "0.0.2", []},
+      {:eric, "0.1.0", [jose: "~> 0.1.0"]},
+      {:eric, "0.1.2", [jose: "~> 0.1.0"]},
+      {:eric, "0.2.0", [jose: "~> 0.3.0"]},
 
-      { :ex_doc, "0.0.1", [] },
-      { :ex_doc, "0.0.2", [] },
-      { :ex_doc, "0.1.0", [] },
-      { :postgrex, "0.2.0", [ex_doc: "0.0.1"] },
-      { :postgrex, "0.2.1", [ex_doc: "~> 0.1.0"] },
-      { :ecto, "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"] },
-      { :ecto, "0.2.1", [postgrex: "~> 0.2.1", ex_doc: "0.1.0"] },
+      {:ex_doc, "0.0.1", []},
+      {:ex_doc, "0.0.2", []},
+      {:ex_doc, "0.1.0", []},
+      {:postgrex, "0.2.0", [ex_doc: "0.0.1"]},
+      {:postgrex, "0.2.1", [ex_doc: "~> 0.1.0"]},
+      {:ecto, "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"]},
+      {:ecto, "0.2.1", [postgrex: "~> 0.2.1", ex_doc: "0.1.0"]},
 
-      { :only_doc, "0.1.0", [{:ex_doc, nil, true}] } ]
+      {:only_doc, "0.1.0", [{:ex_doc, nil, true}]} ]
   end
 
   using do
@@ -231,11 +231,11 @@ if :integration in ExUnit.configuration[:include] do
     "contributors" => ["John Doe", "Jane Doe"],
     "licenses" => ["GPL2", "MIT", "Apache"],
     "links" => %{"docs" => "http://docs", "repo" => "http://repo"},
-    "description" => "builds docs" }
+    "description" => "builds docs"}
 
-  { :ok, user }    = HexWeb.User.create("user", "user@mail.com", "hunter42")
-  { :ok, package } = HexWeb.Package.create("ex_doc", user, meta)
-  { :ok, _ }       = HexWeb.Release.create(package, "0.0.1", %{}, "")
+  {:ok, user}    = HexWeb.User.create("user", "user@mail.com", "hunter42")
+  {:ok, package} = HexWeb.Package.create("ex_doc", user, meta)
+  {:ok, _}       = HexWeb.Release.create(package, "0.0.1", %{}, "")
 
   meta = [
     contributors: ["John Doe", "Jane Doe"],
