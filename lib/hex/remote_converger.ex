@@ -12,7 +12,7 @@ defmodule Hex.RemoteConverger do
   end
 
   def converge(deps, lock) do
-    Hex.Util.ensure_registry()
+    Hex.Util.ensure_registry!()
 
     verify_lock(lock)
 
@@ -41,7 +41,7 @@ defmodule Hex.RemoteConverger do
     case Dict.fetch(lock, app) do
       {:ok, {:package, version}} ->
 
-        if Hex.Registry.start(no_fail: true) do
+        if Hex.Registry.start() == :ok do
           deps = Registry.get_deps("#{app}", version) || []
           for {app, _, _} <- deps, do: :"#{app}"
         else

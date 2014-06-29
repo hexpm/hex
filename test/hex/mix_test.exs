@@ -61,7 +61,7 @@ defmodule Hex.MixTest do
   end
 
   setup do
-    Hex.Registry.start(registry_path: tmp_path("hex.ets"))
+    Hex.Registry.start!(registry_path: tmp_path("hex.ets"))
     :ok
   end
 

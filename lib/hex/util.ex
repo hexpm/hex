@@ -1,27 +1,47 @@
 defmodule Hex.Util do
-  def ensure_registry do
-    if update_registry == :error and not File.exists?(Hex.Registry.path()) do
+  def ensure_registry(opts \\ []) do
+    update_result = update_registry(opts)
+
+    if update_result == :error and not File.exists?(Hex.Registry.path()) do
+      {:error, :update_failed}
+    else
+      start_result = Hex.Registry.start
+
+      # Show available newer versions
+      if update_result == {:ok, :new} do
+        Hex.Registry.info_installs
+      end
+
+      start_result
+    end
+  end
+
+  def ensure_registry!(opts \\ []) do
+    update_result = update_registry(opts)
+
+    if update_result == :error and not File.exists?(Hex.Registry.path()) do
       Mix.raise "Failed to fetch registry"
     end
 
-    Hex.Registry.start
+    Hex.Registry.start!
+
+    # Show available newer versions
+    if update_result == {:ok, :new} do
+      Hex.Registry.info_installs
+    end
   end
 
-  def update_registry(opts \\ []) do
+  defp update_registry(opts) do
     if Application.get_env(:hex, :registry_updated) do
       {:ok, :cached}
     else
       stopped? = Hex.Registry.stop
       Application.put_env(:hex, :registry_updated, true)
 
-      # For testing
-      if opts[:no_fetch] do
-        result = {:ok, :new}
-      else
-
+      if Keyword.get(opts, :fetch, true) do
         Hex.start_api
 
-        path = Hex.Registry.path
+        path    = Hex.Registry.path
         path_gz = Hex.Registry.path <> ".gz"
 
         if opts[:no_cache] do
@@ -44,13 +64,13 @@ defmodule Hex.Util do
               print_error_result(code, body)
               :error
           end
+      else
+        result = {:ok, :new}
       end
 
+      # Start registry if it was already started when update began
       if stopped? do
-        Hex.Registry.start
-        unless result == :error do
-          Hex.Registry.info_installs
-        end
+        Hex.Registry.start!
       end
 
       result

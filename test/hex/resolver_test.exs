@@ -10,7 +10,7 @@ defmodule Hex.ResolverTest do
   end
 
   setup do
-    Hex.Registry.start(registry_path: tmp_path("hex.ets"))
+    Hex.Registry.start!(registry_path: tmp_path("hex.ets"))
     Application.put_env(:hex, :registry_updated, true)
   end
 

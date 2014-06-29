@@ -29,7 +29,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
   @opts ["-u", "user", "-p", "hunter42"]
 
   setup do
-    Hex.Registry.start(registry_path: tmp_path("hex.ets"))
+    Hex.Registry.start!(registry_path: tmp_path("hex.ets"))
     :ok
   end
 

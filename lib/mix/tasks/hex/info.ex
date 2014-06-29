@@ -21,6 +21,7 @@ defmodule Mix.Tasks.Hex.Info do
   def run(args) do
     {_opts, args, _} = OptionParser.parse(args)
     Hex.start_api
+    Hex.Util.ensure_registry(no_cache: true)
 
     case args do
       [] -> general()
@@ -35,7 +36,6 @@ defmodule Mix.Tasks.Hex.Info do
     Mix.shell.info("Hex v" <> Hex.version)
     Mix.shell.info("")
 
-    Hex.Util.ensure_registry
     path = Hex.Registry.path()
     stat = File.stat!(path)
     {packages, releases} = Hex.Registry.stat()

@@ -2,7 +2,7 @@ defmodule Hex.RegistryTest do
   use HexTest.Case
 
   test "stat" do
-    Hex.Registry.start(registry_path: tmp_path("hex.ets"))
+    Hex.Registry.start!(registry_path: tmp_path("hex.ets"))
 
     assert Hex.Registry.stat == {10, 31}
   end
@@ -16,11 +16,11 @@ defmodule Hex.RegistryTest do
       versions = [{"100.0.0", "0.0.1"}]
       create_registry(path, 2, versions, [], [])
 
-      Hex.Registry.start
-      Hex.Util.update_registry(no_fetch: true)
+      Hex.Registry.start!
+      Hex.Util.ensure_registry!(fetch: false)
       assert_received {:mix_shell, :error, ["A new Hex version is available" <> _]}
 
-      Hex.Util.update_registry(no_fetch: true)
+      Hex.Util.ensure_registry!(fetch: false)
       refute_received {:mix_shell, :error, ["A new Hex version is available" <> _]}
     end
   end
@@ -34,8 +34,8 @@ defmodule Hex.RegistryTest do
       versions = [{"100.0.0", "100.0.0"}, {"0.0.1", "0.0.1"}, {"99.0.0", "0.0.1"}, {"100.0.0", "0.0.1"}, {"98.0.0", "0.0.1"}]
       create_registry(path, 2, versions, [], [])
 
-      Hex.Registry.start
-      Hex.Util.update_registry(no_fetch: true)
+      Hex.Registry.start!
+      Hex.Util.ensure_registry!(fetch: false)
       assert_received {:mix_shell, :error, ["A new Hex version is available (v100.0.0), please update with `mix local.hex`"]}
     end
   end
@@ -49,8 +49,8 @@ defmodule Hex.RegistryTest do
       versions = [{"100.0.0", "100.0.0"}]
       create_registry(path, 2, versions, [], [])
 
-      Hex.Registry.start
-      Hex.Util.update_registry(no_fetch: true)
+      Hex.Registry.start!
+      Hex.Util.ensure_registry!(fetch: false)
       refute_received {:mix_shell, :error, ["A new Hex version is available" <> _]}
     end
   end
@@ -64,8 +64,8 @@ defmodule Hex.RegistryTest do
       versions = [{"0.0.1", "0.0.1"}]
       create_registry(path, 2, versions, [], [])
 
-      Hex.Registry.start
-      Hex.Util.update_registry(no_fetch: true)
+      Hex.Registry.start!
+      Hex.Util.ensure_registry!(fetch: false)
       refute_received {:mix_shell, :error, ["A new Hex version is available" <> _]}
     end
   end

@@ -40,10 +40,12 @@ defmodule Mix.Tasks.Hex.Owner do
   @aliases [u: :user, p: :pass]
 
   def run(args) do
-    {opts, rest, _} = OptionParser.parse(args, aliases: @aliases)
-    user_config       = Hex.Mix.read_config
-    auth              = Util.auth_opts(opts, user_config)
+    Hex.Util.ensure_registry(fetch: false)
     Hex.start_api
+
+    {opts, rest, _} = OptionParser.parse(args, aliases: @aliases)
+    user_config     = Hex.Mix.read_config
+    auth            = Util.auth_opts(opts, user_config)
 
     case rest do
       ["add", package, owner] ->

@@ -77,20 +77,21 @@ defmodule Mix.Tasks.Hex.Publish do
   @meta_fields @warn_fields ++ [:files]
 
   def run(args) do
-    {opts, _, _} = OptionParser.parse(args, switches: @switches, aliases: @aliases)
-    user_config = Hex.Mix.read_config
-    auth        = Util.auth_opts(opts, user_config)
-
-    Mix.Project.get!
+    Hex.Util.ensure_registry(fetch: false)
     Hex.start
 
+    {opts, _, _} = OptionParser.parse(args, switches: @switches, aliases: @aliases)
+    user_config  = Hex.Mix.read_config
+    auth         = Util.auth_opts(opts, user_config)
+
+    Mix.Project.get!
     config = Mix.Project.config
 
     if version = opts[:revert] do
       revert(config, version, auth)
     else
       {deps, exclude_deps} = dependencies(config)
-      package                = package(config)
+      package              = package(config)
 
       meta = Keyword.take(config, [:app, :version, :description])
              |> Enum.into(%{})

@@ -10,11 +10,13 @@ defmodule Mix.Tasks.Hex.Config do
   """
 
   def run(args) do
+    Hex.Util.ensure_registry(fetch: false)
+
     case args do
       [key] ->
         case Keyword.fetch(Hex.Mix.read_config, :"#{key}") do
           {:ok, value} -> Mix.shell.info(inspect(value, pretty: true))
-          :error         -> Mix.raise "Config does not contain a key #{key}"
+          :error       -> Mix.raise "Config does not contain a key #{key}"
         end
       [key, value] ->
         Hex.Mix.update_config([{:"#{key}", value}])

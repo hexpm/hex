@@ -37,9 +37,11 @@ defmodule Mix.Tasks.Hex.Key do
   @aliases [u: :user, p: :pass]
 
   def run(args) do
+    Hex.Util.ensure_registry(fetch: false)
+    Hex.start_api
+
     {opts, rest, _} = OptionParser.parse(args, aliases: @aliases)
     Util.required_opts(opts, [:user, :pass])
-    Hex.start_api
 
     case rest do
       ["remove", key] ->

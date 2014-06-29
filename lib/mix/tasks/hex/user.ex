@@ -26,6 +26,9 @@ defmodule Mix.Tasks.Hex.User do
   @switches [clean_pass: :boolean]
 
   def run(args) do
+    Hex.Util.ensure_registry(fetch: false)
+    Hex.start_api
+
     {opts, rest, _} = OptionParser.parse(args, aliases: @aliases, switches: @switches)
 
     case rest do
@@ -53,7 +56,6 @@ defmodule Mix.Tasks.Hex.User do
       end
     end
 
-    Hex.start_api
     update_user(opts[:user], email, password, opts)
   end
 
@@ -82,7 +84,6 @@ defmodule Mix.Tasks.Hex.User do
     end
 
     Mix.shell.info("Registering...")
-    Hex.start_api
     create_user(username, email, password)
   end
 

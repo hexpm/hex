@@ -4,7 +4,7 @@ defmodule Hex.Registry do
 
   def start(opts \\ []) do
     if Application.get_env(:hex, @registry_tid) do
-      true
+      :ok
     else
       path = opts[:registry_path] || path()
 
@@ -12,14 +12,20 @@ defmodule Hex.Registry do
         {:ok, tid} ->
           Application.put_env(:hex, @registry_tid, tid)
           check_version(tid)
-          true
+          :ok
 
         {:error, reason} ->
-          unless opts[:no_fail] do
-            Mix.raise "Failed to open hex registry file (#{inspect reason})"
-          end
-          false
+          {:error, reason}
       end
+    end
+  end
+
+  def start!(opts \\ []) do
+    case start(opts) do
+      {:error, reason} ->
+        Mix.raise "Failed to open hex registry file (#{inspect reason})"
+      _ ->
+        :ok
     end
   end
 
