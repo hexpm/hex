@@ -25,27 +25,21 @@ defmodule Hex do
   end
 
   def url do
-    case :application.get_env(:hex, :url) do
-      {:ok, url} -> url
-      :undefined   -> @default_url
-    end
+    Application.get_env(:hex, :url) || @default_url
   end
 
   def url(url) do
     url = String.rstrip(url, ?/)
-    :application.set_env(:hex, :url, url)
+    Application.put_env(:hex, :url, url)
   end
 
   def cdn do
-    case :application.get_env(:hex, :cdn) do
-      {:ok, cdn} -> cdn
-      :undefined   -> @default_cdn
-    end
+    Application.get_env(:hex, :cdn) || @default_cdn
   end
 
   def cdn(cdn) do
     cdn = String.rstrip(cdn, ?/)
-    :application.set_env(:hex, :cdn, cdn)
+    Application.put_env(:hex, :cdn, cdn)
   end
 
   def version, do: unquote(Mix.Project.config[:version])

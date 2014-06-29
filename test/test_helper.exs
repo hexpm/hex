@@ -192,10 +192,10 @@ defmodule HexTest.Case do
     Mix.Shell.Process.flush
     Mix.ProjectStack.clear_cache
     Mix.ProjectStack.clear_stack
-    :application.set_env(:hex, :registry_updated, true)
+    Application.put_env(:hex, :registry_updated, true)
 
     on_exit fn ->
-      :application.unset_env(:hex, @registry_tid)
+      Application.delete_env(:hex, @registry_tid)
     end
 
     :ok

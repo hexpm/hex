@@ -3,35 +3,33 @@ defmodule Hex.Registry do
   @versions     [2, 3]
 
   def start(opts \\ []) do
-    case :application.get_env(:hex, @registry_tid) do
-      {:ok, _} ->
-        true
-      :undefined ->
-        path = opts[:registry_path] || path()
+    if Application.get_env(:hex, @registry_tid) do
+      true
+    else
+      path = opts[:registry_path] || path()
 
-        case :ets.file2tab(String.to_char_list(path)) do
-          {:ok, tid} ->
-            :application.set_env(:hex, @registry_tid, tid)
-            check_version(tid)
-            true
+      case :ets.file2tab(String.to_char_list(path)) do
+        {:ok, tid} ->
+          Application.put_env(:hex, @registry_tid, tid)
+          check_version(tid)
+          true
 
-          {:error, reason} ->
-            unless opts[:no_fail] do
-              Mix.raise "Failed to open hex registry file (#{inspect reason})"
-            end
-            false
-        end
+        {:error, reason} ->
+          unless opts[:no_fail] do
+            Mix.raise "Failed to open hex registry file (#{inspect reason})"
+          end
+          false
+      end
     end
   end
 
   def stop do
-    case :application.get_env(:hex, @registry_tid) do
-      {:ok, tid} ->
-        :ets.delete(tid)
-        :application.unset_env(:hex, @registry_tid)
-        true
-      :undefined ->
-        false
+    if tid = Application.get_env(:hex, @registry_tid) do
+      :ets.delete(tid)
+      Application.delete_env(:hex, @registry_tid)
+      true
+    else
+      false
     end
   end
 
@@ -109,7 +107,7 @@ defmodule Hex.Registry do
   end
 
   defp get_tid do
-    {:ok, tid} = :application.get_env(:hex, @registry_tid)
+    {:ok, tid} = Application.fetch_env(:hex, @registry_tid)
     tid
   end
 

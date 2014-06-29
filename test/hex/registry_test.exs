@@ -9,7 +9,7 @@ defmodule Hex.RegistryTest do
 
   test "install info output once" do
     in_tmp fn ->
-      :application.set_env(:hex, :registry_updated, false)
+      Application.put_env(:hex, :registry_updated, false)
       System.put_env("MIX_HOME", System.cwd!)
 
       path = "hex.ets"
@@ -27,7 +27,7 @@ defmodule Hex.RegistryTest do
 
   test "install info, find correct version" do
     in_tmp fn ->
-      :application.set_env(:hex, :registry_updated, false)
+      Application.put_env(:hex, :registry_updated, false)
       System.put_env("MIX_HOME", System.cwd!)
 
       path = "hex.ets"
@@ -42,7 +42,7 @@ defmodule Hex.RegistryTest do
 
   test "install info, too new elixir" do
     in_tmp fn ->
-      :application.set_env(:hex, :registry_updated, false)
+      Application.put_env(:hex, :registry_updated, false)
       System.put_env("MIX_HOME", System.cwd!)
 
       path = "hex.ets"
@@ -57,7 +57,7 @@ defmodule Hex.RegistryTest do
 
   test "install info, too old hex" do
     in_tmp fn ->
-      :application.set_env(:hex, :registry_updated, false)
+      Application.put_env(:hex, :registry_updated, false)
       System.put_env("MIX_HOME", System.cwd!)
 
       path = "hex.ets"

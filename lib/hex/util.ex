@@ -8,11 +8,11 @@ defmodule Hex.Util do
   end
 
   def update_registry(opts \\ []) do
-    if registry_updated? do
+    if Application.get_env(:hex, :registry_updated) do
       {:ok, :cached}
     else
       stopped? = Hex.Registry.stop
-      :application.set_env(:hex, :registry_updated, true)
+      Application.put_env(:hex, :registry_updated, true)
 
       # For testing
       if opts[:no_fetch] do
@@ -55,10 +55,6 @@ defmodule Hex.Util do
 
       result
     end
-  end
-
-  def registry_updated? do
-    :application.get_env(:hex, :registry_updated) == {:ok, true}
   end
 
   def etag(path) do
