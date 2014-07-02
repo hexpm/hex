@@ -43,7 +43,7 @@ defmodule Mix.Tasks.Hex.User do
 
   defp update(opts) do
     Util.required_opts(opts, [:user, :pass])
-    clean? = Keyword.get(opts, :clean_pass, false)
+    clean? = Keyword.get(opts, :clean_pass, true)
 
     Mix.shell.info("Update user options (leave blank to not change an option)")
     email    = Mix.shell.prompt("Email:")             |> String.strip |> nillify
@@ -70,7 +70,7 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp register(opts) do
-    clean? = Keyword.get(opts, :clean_pass, false)
+    clean? = Keyword.get(opts, :clean_pass, true)
 
     username = Mix.shell.prompt("Username:")  |> String.strip
     email    = Mix.shell.prompt("Email:")     |> String.strip
