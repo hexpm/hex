@@ -5,13 +5,13 @@ defmodule Hex.API do
 
   def new_user(username, email, password) do
     request(:post, api_url("users"), [],
-            [username: username, email: email, password: password])
+            %{username: username, email: email, password: password})
   end
 
   def update_user(email, password, auth) do
-    body = []
-    if email, do: body = body ++ [email: email]
-    if password, do: body = body ++ [password: password]
+    body = %{}
+    if email, do: body = Map.merge(body, %{email: email})
+    if password, do: body = Map.merge(body, %{password: password})
 
     headers = Dict.merge(auth(auth), %{'x-http-method-override' => 'PATCH'})
 
@@ -23,7 +23,7 @@ defmodule Hex.API do
   end
 
   def new_package(name, meta, auth) do
-    request(:put, api_url("packages/#{name}"), auth(auth), [meta: meta])
+    request(:put, api_url("packages/#{name}"), auth(auth), %{meta: meta})
   end
 
   def get_release(name, version) do
@@ -46,7 +46,7 @@ defmodule Hex.API do
   end
 
   def new_key(name, auth) do
-    request(:post, api_url("keys"), auth(auth), [name: name])
+    request(:post, api_url("keys"), auth(auth), %{name: name})
   end
 
   def get_keys(auth) do
@@ -71,7 +71,8 @@ defmodule Hex.API do
     request(:get, api_url("packages/#{package}/owners"), auth(auth))
   end
 
-  defp request(method, url, headers, body \\ nil, content_type \\ 'application/vnd.hex+elixir') do
+  defp request(method, url, headers, body \\ nil, content_type \\ 'application/vnd.hex+elixir')
+      when body == nil or is_map(body) or is_binary(body) do
     default_headers = %{
       'accept' => 'application/vnd.hex.beta+elixir',
       'accept-encoding' => 'gzip',

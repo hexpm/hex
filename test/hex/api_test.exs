@@ -19,23 +19,23 @@ defmodule Hex.APITest do
     auth = [user: "user", pass: "hunter42"]
 
     assert {404, _} = Hex.API.get_package("apple")
-    assert {201, _} = Hex.API.new_package("apple", [description: "foobar"], auth)
+    assert {201, _} = Hex.API.new_package("apple", %{description: "foobar"}, auth)
     assert {200, body} = Hex.API.get_package("apple")
     assert body["meta"]["description"] == "foobar"
   end
 
   test "release" do
     auth = [user: "user", pass: "hunter42"]
-    Hex.API.new_package("pear", [], auth)
-    Hex.API.new_package("grape", [], auth)
+    Hex.API.new_package("pear", %{}, auth)
+    Hex.API.new_package("grape", %{}, auth)
 
-    tar = Hex.Tar.create([app: :pear, version: "0.0.1", requirements: []], [])
+    tar = Hex.Tar.create(%{app: :pear, version: "0.0.1", requirements: %{}}, [])
     assert {404, _} = Hex.API.get_release("pear", "0.0.1")
     assert {201, _} = Hex.API.new_release("pear", tar, auth)
     assert {200, body} = Hex.API.get_release("pear", "0.0.1")
     assert body["requirements"] == %{}
 
-    tar = Hex.Tar.create([app: :grape, version: "0.0.2", requirements: [pear: "~> 0.0.1"]], [])
+    tar = Hex.Tar.create(%{app: :grape, version: "0.0.2", requirements: %{pear: "~> 0.0.1"}}, [])
     reqs = %{"pear" => %{"requirement" => "~> 0.0.1", "optional" => false}}
     assert {201, _} = Hex.API.new_release("grape", tar, auth)
     assert {200, body} = Hex.API.get_release("grape", "0.0.2")
@@ -53,7 +53,7 @@ defmodule Hex.APITest do
   test "keys" do
     auth = [user: "user", pass: "hunter42"]
     assert {201, body} = Hex.API.new_key("macbook", auth)
-    assert {201, _} = Hex.API.new_package("melon", [], [key: body["secret"]])
+    assert {201, _} = Hex.API.new_package("melon", %{}, [key: body["secret"]])
 
     assert {200, body} = Hex.API.get_keys(auth)
     key = Enum.find(body, &(&1["name"] == "macbook"))
@@ -67,7 +67,7 @@ defmodule Hex.APITest do
 
   test "owners" do
     auth = [user: "user", pass: "hunter42"]
-    Hex.API.new_package("orange", [], auth)
+    Hex.API.new_package("orange", %{}, auth)
     Hex.API.new_user("orange_user", "orange_user@mail.com", "hunter42")
 
     assert {200, [%{"username" => "user"}]} = Hex.API.get_package_owners("orange", auth)

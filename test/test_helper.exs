@@ -74,9 +74,8 @@ defmodule HexTest.Case do
         _ -> true
       end)
 
-    reqs = Enum.map(reqs, &{elem(&1, 0), elem(&1, 1)})
-
-    meta = [app: name, version: version, requirements: reqs] ++ meta
+    reqs = Enum.into(reqs, %{}, &{elem(&1, 0), elem(&1, 1)})
+    meta = Map.merge(meta, %{app: name, version: version, requirements: reqs})
 
     deps = inspect(deps, pretty: true)
     module = String.capitalize(name)
@@ -237,22 +236,16 @@ if :integration in ExUnit.configuration[:include] do
   {:ok, package} = HexWeb.Package.create("ex_doc", user, meta)
   {:ok, _}       = HexWeb.Release.create(package, "0.0.1", %{}, "")
 
-  meta = [
-    contributors: ["John Doe", "Jane Doe"],
-    licenses: ["GPL2", "MIT", "Apache"],
-    links: %{"docs" => "http://docs", "repo" => "http://repo"},
-    description: "builds docs"]
-
   auth = [user: "user", pass: "hunter42"]
 
   Case.init_project("ex_doc", "0.0.1", [], meta, auth)
   Case.init_project("ex_doc", "0.0.1", [], meta, auth)
   Case.init_project("ex_doc", "0.1.0", [], meta, auth)
-  Case.init_project("postgrex", "0.2.1", [ex_doc: "~> 0.1.0"], [], auth)
-  Case.init_project("postgrex", "0.2.0", [ex_doc: "0.0.1"], [], auth)
-  Case.init_project("ecto", "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"], [], auth)
-  Case.init_project("ecto", "0.2.1", [{:sample, "0.0.1", path: Case.fixture_path("sample")}, postgrex: "~> 0.2.1", ex_doc: "0.1.0"], [], auth)
-  Case.init_project("only_doc", "0.1.0", [{:ex_doc, nil, optional: true}], [], auth)
+  Case.init_project("postgrex", "0.2.1", [ex_doc: "~> 0.1.0"], %{}, auth)
+  Case.init_project("postgrex", "0.2.0", [ex_doc: "0.0.1"], %{}, auth)
+  Case.init_project("ecto", "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"], %{}, auth)
+  Case.init_project("ecto", "0.2.1", [{:sample, "0.0.1", path: Case.fixture_path("sample")}, postgrex: "~> 0.2.1", ex_doc: "0.1.0"], %{}, auth)
+  Case.init_project("only_doc", "0.1.0", [{:ex_doc, nil, optional: true}], %{}, auth)
 end
 
 Mix.shell(Mix.Shell.Process)

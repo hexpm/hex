@@ -96,7 +96,7 @@ defmodule Mix.Tasks.Hex.Publish do
       meta = Keyword.take(config, [:app, :version, :description])
              |> Enum.into(%{})
              |> Map.put(:requirements, deps)
-             |> Map.merge(package || %{})
+             |> Map.merge(package)
 
       print_info(meta, exclude_deps)
 
