@@ -105,7 +105,6 @@ defmodule Hex.Util do
     if safe_term?(ast) do
       Code.eval_quoted(ast)
       |> elem(0)
-      |> list_to_map
     else
       Mix.raise "Received unsafe elixir from Hex API"
     end
@@ -143,21 +142,6 @@ defmodule Hex.Util do
   defp binarify(tuple) when is_tuple(tuple),
     do: for(elem <- Tuple.to_list(tuple), do: binarify(elem)) |> List.to_tuple
 
-  defp list_to_map(list) when is_list(list) do
-    if list == [] or is_tuple(List.first(list)) do
-      Enum.into(list, %{}, fn
-        {key, list} when is_list(list) -> {key, list_to_map(list)}
-        other -> list_to_map(other)
-      end)
-    else
-      Enum.map(list, &list_to_map/1)
-    end
-  end
-
-  defp list_to_map(other) do
-    other
-  end
-
   def print_error_result(:http_error, reason) do
     Mix.shell.info(inspect(reason))
   end
@@ -168,7 +152,7 @@ defmodule Hex.Util do
   def print_error_result(_status, body) do
     if body["message"] && body["errors"] do
       Mix.shell.info(body["message"])
-      pretty_errors(list_to_map(body["errors"]))
+      pretty_errors(body["errors"])
     else
       Mix.shell.info(inspect(body))
     end
