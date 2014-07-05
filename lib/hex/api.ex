@@ -71,7 +71,7 @@ defmodule Hex.API do
     request(:get, api_url("packages/#{package}/owners"), auth(auth))
   end
 
-  defp request(method, url, headers, body \\ nil, content_type \\ 'application/vnd.hex+elixir')
+  defp request(method, url, headers, body \\ nil, content_type \\ 'application/vnd.hex+elixir')
       when body == nil or is_map(body) or is_binary(body) do
     default_headers = %{
       'accept' => 'application/vnd.hex.beta+elixir',
