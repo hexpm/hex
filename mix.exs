@@ -2,10 +2,10 @@ defmodule Hex.Mixfile do
   use Mix.Project
 
   def project do
-    [ app: :hex,
-      version: "0.3.3-dev",
-      elixir: "~> 0.14.2",
-      deps: deps ]
+    [app: :hex,
+     version: "0.3.3-dev",
+     elixir: "~> 0.14.2",
+     deps: deps]
   end
 
   def application do

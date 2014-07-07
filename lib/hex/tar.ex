@@ -83,6 +83,9 @@ defmodule Hex.Tar do
   defp extract_contents(file, dest, path) do
     case :erl_tar.extract({:binary, file}, [:compressed, cwd: dest]) do
       :ok ->
+        Path.join(dest, "**")
+        |> Path.wildcard
+        |> Enum.each(&File.touch!/1)
         :ok
       {:error, reason} ->
         Mix.raise "Unpacking #{path}/contents.tar.gz failed: #{inspect reason}"
