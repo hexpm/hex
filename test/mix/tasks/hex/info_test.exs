@@ -4,8 +4,8 @@ defmodule Mix.Tasks.Hex.InfoTest do
 
   test "package" do
     in_tmp fn ->
-      Hex.Registry.start!(registry_path: tmp_path("hex.ets"))
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
+      Hex.home(System.cwd!)
       HexWeb.RegistryBuilder.sync_rebuild
 
       Mix.Tasks.Hex.Info.run(["ex_doc"])
@@ -21,8 +21,8 @@ defmodule Mix.Tasks.Hex.InfoTest do
 
   test "release" do
     in_tmp fn ->
-      Hex.Registry.start!(registry_path: tmp_path("hex.ets"))
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
+      Hex.home(System.cwd!)
       HexWeb.RegistryBuilder.sync_rebuild
 
       Mix.Tasks.Hex.Info.run(["ex_doc", "0.0.1"])
@@ -35,8 +35,8 @@ defmodule Mix.Tasks.Hex.InfoTest do
 
   test "general" do
     in_tmp fn ->
-      Hex.Registry.start!(registry_path: tmp_path("hex.ets"))
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
+      Hex.home(System.cwd!)
       HexWeb.RegistryBuilder.sync_rebuild
 
       assert {200, data} = Hex.API.get_registry

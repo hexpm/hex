@@ -1,6 +1,7 @@
 defmodule Hex do
   @default_url "https://hex.pm"
   @default_cdn "http://s3.hex.pm"
+  @default_home "~/.hex"
 
 
   def start do
@@ -15,6 +16,7 @@ defmodule Hex do
 
     if url = System.get_env("HEX_URL"), do: url(url)
     if cdn = System.get_env("HEX_CDN"), do: cdn(cdn)
+    if home = System.get_env("HEX_HOME"), do: home(home)
     if http_proxy = System.get_env("HTTP_PROXY"), do: proxy(http_proxy)
     if https_proxy = System.get_env("HTTPS_PROXY"), do: proxy(https_proxy)
   end
@@ -40,6 +42,15 @@ defmodule Hex do
   def cdn(cdn) do
     cdn = String.rstrip(cdn, ?/)
     Application.put_env(:hex, :cdn, cdn)
+  end
+
+  def home do
+    Application.get_env(:hex, :home) || Path.expand(@default_home)
+  end
+
+  def home(home) do
+    home = Path.expand(home)
+    Application.put_env(:hex, :home, home)
   end
 
   def version, do: unquote(Mix.Project.config[:version])

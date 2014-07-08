@@ -81,7 +81,7 @@ defmodule Mix.Tasks.Hex.Publish do
     Hex.start
 
     {opts, _, _} = OptionParser.parse(args, switches: @switches, aliases: @aliases)
-    user_config  = Hex.Mix.read_config
+    user_config  = Hex.Util.read_config
     auth         = Util.auth_opts(opts, user_config)
 
     Mix.Project.get!

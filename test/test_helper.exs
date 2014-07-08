@@ -176,7 +176,7 @@ defmodule HexTest.Case do
 
   setup_all do
     File.mkdir_p!(tmp_path)
-    ets_path = tmp_path("hex.ets")
+    ets_path = tmp_path("registry.ets")
     File.rm(ets_path)
     create_test_registry(ets_path)
     :ok
@@ -185,7 +185,7 @@ defmodule HexTest.Case do
   @registry_tid :registry_tid
 
   setup do
-    System.put_env("MIX_HOME", tmp_path("mix_home"))
+    Hex.home(tmp_path("hex_home"))
     Mix.shell(Mix.Shell.Process)
     Mix.Task.clear
     Mix.Shell.Process.flush

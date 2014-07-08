@@ -29,7 +29,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
   @opts ["-u", "user", "-p", "hunter42"]
 
   setup do
-    Hex.Registry.start!(registry_path: tmp_path("hex.ets"))
+    Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
     :ok
   end
 
@@ -57,11 +57,11 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push ReleaseSimple.Mixfile
 
     in_tmp fn ->
-      System.put_env("MIX_HOME", tmp_path())
+      Hex.home(tmp_path())
 
       user = HexWeb.User.get(username: "user")
       {:ok, key} = HexWeb.API.Key.create("computer", user)
-      Hex.Mix.update_config(username: "user", key: key.secret)
+      Hex.Util.update_config(username: "user", key: key.secret)
 
       send self, {:mix_shell_input, :yes?, true}
       Mix.Tasks.Hex.Publish.run([])
@@ -73,7 +73,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push ReleaseDeps.Mixfile
 
     in_tmp fn ->
-      System.put_env("MIX_HOME", tmp_path())
+      Hex.home(tmp_path())
 
       Mix.Tasks.Deps.Get.run([])
 
@@ -92,7 +92,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push ReleaseMeta.Mixfile
 
     in_tmp fn ->
-      System.put_env("MIX_HOME", tmp_path())
+      Hex.home(tmp_path())
 
       File.write!("myfile.txt", "hello")
       send self, {:mix_shell_input, :yes?, true}

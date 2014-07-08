@@ -61,7 +61,7 @@ defmodule Hex.MixTest do
   end
 
   setup do
-    Hex.Registry.start!(registry_path: tmp_path("hex.ets"))
+    Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
     :ok
   end
 
@@ -70,7 +70,7 @@ defmodule Hex.MixTest do
     Mix.Project.push Simple
 
     in_tmp fn ->
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.home(System.cwd!)
       Mix.Task.run "deps.get"
 
       assert_received {:mix_shell, :info, ["* Getting ecto (package)"]}
@@ -102,7 +102,7 @@ defmodule Hex.MixTest do
     Mix.Project.push Simple
 
     in_tmp fn ->
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.home(System.cwd!)
       Mix.Task.run "deps.get"
       Mix.Task.clear
 
@@ -124,7 +124,7 @@ defmodule Hex.MixTest do
     Mix.Project.push Simple
 
     in_tmp fn ->
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.home(System.cwd!)
 
       # `deps.get` to set up lock
       Mix.Task.run "deps.get"
@@ -167,7 +167,7 @@ defmodule Hex.MixTest do
     Mix.Project.push Override
 
     in_tmp fn ->
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.home(System.cwd!)
 
       Mix.Task.run "deps.get"
       Mix.Task.run "deps.compile"
@@ -195,7 +195,7 @@ defmodule Hex.MixTest do
     Mix.Project.push NonHexDep
 
     in_tmp fn ->
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.home(System.cwd!)
       Mix.Task.run "deps.get"
 
       assert_received {:mix_shell, :info, ["* Getting ecto (package)"]}
@@ -212,7 +212,7 @@ defmodule Hex.MixTest do
     Mix.Project.push SimpleOld
 
     in_tmp fn ->
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.home(System.cwd!)
       Mix.Task.run "deps.get"
 
       assert_received {:mix_shell, :info, ["* Getting ecto (package)"]}
@@ -232,7 +232,7 @@ defmodule Hex.MixTest do
     Mix.Project.push OverrideWithGit
 
     in_tmp fn ->
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.home(System.cwd!)
       Mix.Task.run "deps.get"
 
       assert_received {:mix_shell, :info, ["* Getting postgrex (package)"]}
@@ -252,7 +252,7 @@ defmodule Hex.MixTest do
     Mix.Project.push Optional
 
     in_tmp fn ->
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.home(System.cwd!)
 
       Mix.Task.run "deps.get"
 
@@ -274,7 +274,7 @@ defmodule Hex.MixTest do
     Mix.Project.push WithOptional
 
     in_tmp fn ->
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.home(System.cwd!)
 
       Mix.Task.run "deps.get"
 
@@ -289,19 +289,6 @@ defmodule Hex.MixTest do
     end
   after
     purge [ Only_doc.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
-  end
-
-  test "config" do
-    in_tmp fn ->
-      System.put_env("MIX_HOME", System.cwd!)
-      assert Hex.Mix.read_config == []
-
-      Hex.Mix.update_config([key: "value"])
-      assert Hex.Mix.read_config == [key: "value"]
-
-      Hex.Mix.update_config([key: "other", foo: :bar])
-      assert Hex.Mix.read_config == [key: "other", foo: :bar]
-    end
   end
 
   test "from mixlock" do

@@ -44,7 +44,7 @@ defmodule Mix.Tasks.Hex.Owner do
     Hex.start_api
 
     {opts, rest, _} = OptionParser.parse(args, aliases: @aliases)
-    user_config     = Hex.Mix.read_config
+    user_config     = Hex.Util.read_config
     auth            = Util.auth_opts(opts, user_config)
 
     case rest do

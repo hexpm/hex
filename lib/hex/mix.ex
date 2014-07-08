@@ -37,36 +37,4 @@ defmodule Hex.Mix do
         into: %{},
         do: {:"#{name}", {:package, version}}
   end
-
-  def read_config do
-    case File.read(config_path) do
-      {:ok, binary} ->
-        {config, _binding} = Code.eval_string(binary)
-        config
-      {:error, _} ->
-        []
-    end
-  end
-
-  def update_config(config) do
-    path = config_path
-    updated_config =
-      case File.read(path) do
-        {:ok, binary} ->
-          quoted = Code.string_to_quoted!(binary, file: path) |> strip_block
-          Keyword.merge(quoted, config)
-        {:error, _} ->
-          config
-      end
-
-    File.mkdir_p!(Path.dirname(path))
-    File.write!(path, Macro.to_string(updated_config) <> "\n")
-  end
-
-  defp config_path do
-    Path.join(Mix.Utils.mix_home, "hex.config")
-  end
-
-  defp strip_block({:__block__, _, [inner]}), do: inner
-  defp strip_block(inner), do: inner
 end

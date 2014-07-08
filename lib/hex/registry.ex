@@ -1,8 +1,11 @@
 defmodule Hex.Registry do
   @registry_tid :registry_tid
   @versions     [2, 3]
+  @filename     "registry.ets"
 
   def start(opts \\ []) do
+    Hex.Util.move_home
+
     if Application.get_env(:hex, @registry_tid) do
       :ok
     else
@@ -40,7 +43,7 @@ defmodule Hex.Registry do
   end
 
   def path do
-    Path.join(Mix.Utils.mix_home, "hex.ets")
+    Path.join(Hex.home, @filename)
   end
 
   def info_installs do

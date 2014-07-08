@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Hex.KeyTest do
 
   test "new key" do
     in_tmp fn ->
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.home(System.cwd!)
       Mix.Tasks.Hex.Key.run(["new", "-u", "user", "-p", "hunter42"])
 
       {:ok, name} = :inet.gethostname()
@@ -12,8 +12,8 @@ defmodule Mix.Tasks.Hex.KeyTest do
       user = HexWeb.User.get(username: "user")
       key = HexWeb.API.Key.get(name, user)
 
-      assert Hex.Mix.read_config[:username] == "user"
-      assert Hex.Mix.read_config[:key] == key.secret
+      assert Hex.Util.read_config[:username] == "user"
+      assert Hex.Util.read_config[:key] == key.secret
     end
   end
 

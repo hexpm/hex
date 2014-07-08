@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Hex.Util do
 
     case Hex.API.new_key(name, [user: username, pass: password]) do
       {201, body} ->
-        Hex.Mix.update_config([username: username, key: body["secret"]])
+        Hex.Util.update_config([username: username, key: body["secret"]])
       {code, body} ->
         Mix.shell.error("Generation of API key failed (#{code})")
         Hex.Util.print_error_result(code, body)

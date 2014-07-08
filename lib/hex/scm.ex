@@ -2,8 +2,7 @@ defmodule Hex.SCM do
   @moduledoc false
 
   @behaviour Mix.SCM
-
-  @cache_dir ".package-cache"
+  @packages_dir "packages"
 
   def fetchable? do
     true
@@ -51,6 +50,8 @@ defmodule Hex.SCM do
   end
 
   def checkout(opts) do
+    Hex.Util.move_home
+
     app  = opts[:hex_app]
     dest = opts[:dest]
     {:package, version} = opts[:lock]
@@ -118,11 +119,11 @@ defmodule Hex.SCM do
   end
 
   defp cache_path do
-    Path.join(Mix.Utils.mix_home, @cache_dir)
+    Path.join(Hex.home, @packages_dir)
   end
 
   defp cache_path(name) do
-    Path.join([Mix.Utils.mix_home, @cache_dir, name])
+    Path.join([Hex.home, @packages_dir, name])
   end
 end
 

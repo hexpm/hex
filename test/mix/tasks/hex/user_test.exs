@@ -42,7 +42,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "update config" do
     in_tmp fn ->
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.home(System.cwd!)
 
       send self, {:mix_shell_input, :prompt, "config"}
       send self, {:mix_shell_input, :prompt, "config@mail.com"}
@@ -52,8 +52,8 @@ defmodule Mix.Tasks.Hex.UserTest do
       Mix.Tasks.Hex.User.run(["register", "--no-clean-pass"])
     end
 
-      assert Hex.Mix.read_config[:username] == "config"
-      assert is_binary(Hex.Mix.read_config[:key])
+      assert Hex.Util.read_config[:username] == "config"
+      assert is_binary(Hex.Util.read_config[:key])
     end
   end
 end

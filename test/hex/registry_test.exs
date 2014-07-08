@@ -2,7 +2,7 @@ defmodule Hex.RegistryTest do
   use HexTest.Case
 
   test "stat" do
-    Hex.Registry.start!(registry_path: tmp_path("hex.ets"))
+    Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
 
     assert Hex.Registry.stat == {10, 31}
   end
@@ -10,9 +10,9 @@ defmodule Hex.RegistryTest do
   test "install info output once" do
     in_tmp fn ->
       Application.put_env(:hex, :registry_updated, false)
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.home(System.cwd!)
 
-      path = "hex.ets"
+      path = "registry.ets"
       versions = [{"100.0.0", "0.0.1"}]
       create_registry(path, 2, versions, [], [])
 
@@ -28,9 +28,9 @@ defmodule Hex.RegistryTest do
   test "install info, find correct version" do
     in_tmp fn ->
       Application.put_env(:hex, :registry_updated, false)
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.home(System.cwd!)
 
-      path = "hex.ets"
+      path = "registry.ets"
       versions = [{"100.0.0", "100.0.0"}, {"0.0.1", "0.0.1"}, {"99.0.0", "0.0.1"}, {"100.0.0", "0.0.1"}, {"98.0.0", "0.0.1"}]
       create_registry(path, 2, versions, [], [])
 
@@ -43,9 +43,9 @@ defmodule Hex.RegistryTest do
   test "install info, too new elixir" do
     in_tmp fn ->
       Application.put_env(:hex, :registry_updated, false)
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.home(System.cwd!)
 
-      path = "hex.ets"
+      path = "registry.ets"
       versions = [{"100.0.0", "100.0.0"}]
       create_registry(path, 2, versions, [], [])
 
@@ -58,9 +58,9 @@ defmodule Hex.RegistryTest do
   test "install info, too old hex" do
     in_tmp fn ->
       Application.put_env(:hex, :registry_updated, false)
-      System.put_env("MIX_HOME", System.cwd!)
+      Hex.home(System.cwd!)
 
-      path = "hex.ets"
+      path = "registry.ets"
       versions = [{"0.0.1", "0.0.1"}]
       create_registry(path, 2, versions, [], [])
 
