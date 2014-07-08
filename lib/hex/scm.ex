@@ -52,13 +52,24 @@ defmodule Hex.SCM do
   def checkout(opts) do
     Hex.Util.move_home
 
+    {:package, version} = opts[:lock]
     app  = opts[:hex_app]
     dest = opts[:dest]
-    {:package, version} = opts[:lock]
     name = "#{app}-#{version}.tar"
     path = cache_path(name)
+    url  = Hex.API.cdn_url("tarballs/#{name}")
 
-    fetch(name, path)
+    Mix.shell.info("Fetching package (#{url})")
+
+    # TODO: Increase this timeout when http timeouts have been fixed
+    case Hex.Parallel.await(:hex_fetcher, {app, version}, 5000) do
+      :ok -> :ok
+      {:error, reason} ->
+        Mix.shell.error(reason)
+        unless File.exists?(path) do
+          Mix.raise "Package fetch failed and no cached copy available"
+        end
+    end
 
     File.rm_rf!(dest)
     Hex.Tar.unpack(path, dest)
@@ -72,24 +83,70 @@ defmodule Hex.SCM do
     checkout(opts)
   end
 
+  defp cache_path do
+    Path.join(Hex.home, @packages_dir)
+  end
+
+  defp cache_path(name) do
+    Path.join([Hex.home, @packages_dir, name])
+  end
+
+  def prefetch(lock) do
+    fetch = fetch_from_lock(lock)
+
+    Enum.each(fetch, fn {app, version} ->
+      Hex.Parallel.run(:hex_fetcher, {app, version}, fn ->
+        name = "#{app}-#{version}.tar"
+        path = cache_path(name)
+        fetch(name, path)
+      end)
+    end)
+  end
+
+  defp fetch_from_lock(lock) do
+    deps_path = Mix.Project.deps_path
+
+    Enum.flat_map(lock, fn
+      {app, {:package, version}} ->
+        if fetch?(app, version, deps_path) do
+          [{app, version}]
+        else
+          []
+        end
+      _ ->
+        []
+    end)
+  end
+
+  defp fetch?(app, version, deps_path) do
+    dest = Path.join(deps_path, "#{app}")
+
+    case File.read(Path.join(dest, ".hex")) do
+      {:ok, dep_version} ->
+        String.strip(dep_version) != version
+      {:error, _} ->
+        true
+    end
+  end
+
   defp fetch(name, path) do
     etag = Hex.Util.etag(path)
     url  = Hex.API.cdn_url("tarballs/#{name}")
 
-    Mix.shell.info("Fetching package (#{url})")
-
-    cond do
-      body = fetch_request(url, etag) ->
+    case request(url, etag) do
+      {:ok, nil} ->
+        :ok
+      {:ok, body} ->
         File.mkdir_p!(cache_path)
         File.write!(path, body)
-      not File.exists?(path) ->
-        Mix.raise "Package fetch failed and no cached copy available"
-      true ->
         :ok
+      {:error, _} = error ->
+        error
     end
   end
 
-  defp fetch_request(url, etag) do
+  defp request(url, etag) do
+    # TODO: Better timeout
     headers = [{'user-agent', Hex.API.user_agent}]
     if etag do
       headers = headers ++ [{'if-none-match', etag}]
@@ -100,30 +157,20 @@ defmodule Hex.SCM do
       {:ok, response} ->
         handle_response(response)
       {:error, reason} ->
-        Mix.shell.error("Request failed: #{inspect reason}")
-        nil
+        {:error, "Request failed: #{inspect reason}"}
     end
   end
 
   defp handle_response({{_version, 304, _reason}, _headers, _body}) do
-    nil
+    {:ok, nil}
   end
 
   defp handle_response({{_version, 200, _reason}, _headers, body}) do
-    body
+    {:ok, body}
   end
 
   defp handle_response({{_version, code, _reason}, _headers, _body}) do
-    Mix.shell.error("Request failed (#{code})")
-    nil
-  end
-
-  defp cache_path do
-    Path.join(Hex.home, @packages_dir)
-  end
-
-  defp cache_path(name) do
-    Path.join([Hex.home, @packages_dir, name])
+    {:error, "Request failed (#{code})"}
   end
 end
 

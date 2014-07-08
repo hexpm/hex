@@ -19,6 +19,8 @@ defmodule Hex do
     if home = System.get_env("HEX_HOME"), do: home(home)
     if http_proxy = System.get_env("HTTP_PROXY"), do: proxy(http_proxy)
     if https_proxy = System.get_env("HTTPS_PROXY"), do: proxy(https_proxy)
+
+    Hex.Parallel.start_link(:hex_fetcher, max_parallel: 4)
   end
 
   def start_mix do

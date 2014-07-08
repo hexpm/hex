@@ -31,7 +31,7 @@ defmodule Hex.API do
   end
 
   def new_release(name, tar, auth) do
-    request(:post, api_url("packages/#{name}/releases"), auth(auth), tar, 'application/octet-stream')
+    request_tar(:post, api_url("packages/#{name}/releases"), auth(auth), tar)
   end
 
   def delete_release(name, version, auth) do
@@ -71,8 +71,7 @@ defmodule Hex.API do
     request(:get, api_url("packages/#{package}/owners"), auth(auth))
   end
 
-  defp request(method, url, headers, body \\ nil, content_type \\ 'application/vnd.hex+elixir')
-      when body == nil or is_map(body) or is_binary(body) do
+  defp request(method, url, headers, body \\ nil) when body == nil or is_map(body) do
     default_headers = %{
       'accept' => 'application/vnd.hex.beta+elixir',
       'accept-encoding' => 'gzip',
@@ -83,13 +82,33 @@ defmodule Hex.API do
 
     cond do
       body ->
-        if content_type == 'application/vnd.hex+elixir', do: body = Hex.Util.safe_serialize_elixir(body)
-        request = {url, Map.to_list(headers), content_type, body}
+        body = Hex.Util.safe_serialize_elixir(body)
+        request = {url, Map.to_list(headers), 'application/vnd.hex+elixir', body}
       method in [:put, :post] ->
         request = {url, Map.to_list(headers), 'application/vnd.hex+elixir', '%{}'}
       true ->
         request = {url, Map.to_list(headers)}
     end
+
+    case :httpc.request(method, request, http_opts, opts, :hex) do
+      {:ok, response} ->
+        handle_response(response)
+      {:error, reason} ->
+        {:http_error, reason}
+    end
+  end
+
+  defp request_tar(method, url, headers, body) do
+    # TODO: Better timeout
+
+    default_headers = %{
+      'accept' => 'application/vnd.hex.beta+elixir',
+      'accept-encoding' => 'gzip',
+      'user-agent' => user_agent}
+    headers = Dict.merge(default_headers, headers)
+    http_opts = [timeout: 5000]
+    opts = [body_format: :binary]
+    request = {url, Map.to_list(headers), 'application/octet-stream', body}
 
     case :httpc.request(method, request, http_opts, opts, :hex) do
       {:ok, response} ->

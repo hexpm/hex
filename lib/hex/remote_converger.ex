@@ -31,6 +31,8 @@ defmodule Hex.RemoteConverger do
     if resolved = Hex.Resolver.resolve(reqs, overridden, locked) do
       print_success(resolved, locked)
       new_lock = Hex.Mix.to_lock(resolved)
+      Hex.SCM.prefetch(new_lock)
+
       Dict.merge(lock, new_lock)
     else
       Mix.raise "Hex dependency resolution failed, relax the version requirements or unlock dependencies"
