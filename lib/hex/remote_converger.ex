@@ -138,7 +138,11 @@ defmodule Hex.RemoteConverger do
   end
 
   defp prepare_locked(lock, old_lock, deps) do
-    # Make sure to unlock all children of Hex packages
+    # Remove dependencies from the lock if:
+    # 1. If it's a child of another Hex package
+    # 2. They are defined as git or path in mix.exs
+    # 3. If the requirement in mix.exs does not match the locked version
+
     unlocked =
       for {app, _} <- old_lock,
           not Dict.has_key?(lock, app),
@@ -150,15 +154,12 @@ defmodule Hex.RemoteConverger do
                  not app in unlocked,
                  into: %{}, do: pair
 
-    # Remove dependencies from the lock if:
-    # 1. They are defined as git or path in mix.exs
-    # 2. If the requirement in mix.exs does not match the locked version
     Enum.reduce(deps, locked, fn
       %Mix.Dep{scm: Hex.SCM, app: app, requirement: req}, locked ->
         app = "#{app}"
         case Dict.fetch(locked, app) do
           {:ok, vsn} ->
-            if Version.match?(vsn, req) do
+            if !req or Version.match?(vsn, req) do
               locked
             else
               Dict.delete(locked, app)
