@@ -8,7 +8,7 @@ defmodule Hex.Util do
       start_result = Hex.Registry.start
 
       # Show available newer versions
-      if update_result == {:ok, :new} do
+      if update_result in [{:ok, :new}, {:ok, :no_fetch}] and start_result == :ok do
         Hex.Registry.info_installs
       end
 
@@ -26,7 +26,7 @@ defmodule Hex.Util do
     Hex.Registry.start!
 
     # Show available newer versions
-    if update_result == {:ok, :new} do
+    if update_result in [{:ok, :new}, {:ok, :no_fetch}] do
       Hex.Registry.info_installs
     end
   end
@@ -46,10 +46,10 @@ defmodule Hex.Util do
         path    = Hex.Registry.path
         path_gz = Hex.Registry.path <> ".gz"
 
-        if opts[:no_cache] do
-          api_opts = []
-        else
+        if Keyword.get(opts, :cache, true) do
           api_opts = [etag: etag(path_gz)]
+        else
+          api_opts = []
         end
 
         result =
@@ -67,7 +67,7 @@ defmodule Hex.Util do
               :error
           end
       else
-        result = {:ok, :new}
+        result = {:ok, :no_fetch}
       end
 
       # Start registry if it was already started when update began
