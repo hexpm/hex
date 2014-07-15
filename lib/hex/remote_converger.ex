@@ -172,8 +172,8 @@ defmodule Hex.RemoteConverger do
                |> with_children(old_lock)
                |> Enum.uniq
 
-    locked = for {app, _} = pair <- Hex.Mix.from_lock(old_lock),
-                 not app in unlocked,
-                 into: %{}, do: pair
+    for {app, _} = pair <- Hex.Mix.from_lock(old_lock),
+        not app in unlocked,
+        into: %{}, do: pair
   end
 end
