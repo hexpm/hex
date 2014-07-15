@@ -141,37 +141,39 @@ defmodule Hex.RemoteConverger do
 
   defp prepare_locked(lock, old_lock, deps) do
     # Remove dependencies from the lock if:
-    # 1. If it's a child of another Hex package
-    # 2. They are defined as git or path in mix.exs
-    # 3. If the requirement in mix.exs does not match the locked version
+    # 1. They are defined as git or path in mix.exs
+    # 2. If the requirement in mix.exs does not match the locked version
+    # 3. If it's a child of another Hex package
 
     unlocked =
-      for {app, _} <- old_lock,
-          not Dict.has_key?(lock, app),
-          do: "#{app}"
+      Enum.flat_map(deps, fn
+        %Mix.Dep{scm: Hex.SCM, app: app, requirement: req} ->
+          case Dict.fetch(old_lock, app) do
+            {:ok, {:package, vsn}} ->
+              if !req or Version.match?(vsn, req) do
+                []
+              else
+                ["#{app}"]
+              end
+            :error ->
+              ["#{app}"]
+          end
 
-    unlocked = with_children(unlocked, old_lock)
+        %Mix.Dep{app: app} ->
+          ["#{app}"]
+      end)
+        ++
+      for({app, _} <- old_lock,
+          not Dict.has_key?(lock, app),
+          do: "#{app}")
+
+    unlocked = unlocked
+               |> Enum.uniq
+               |> with_children(old_lock)
+               |> Enum.uniq
 
     locked = for {app, _} = pair <- Hex.Mix.from_lock(old_lock),
                  not app in unlocked,
                  into: %{}, do: pair
-
-    Enum.reduce(deps, locked, fn
-      %Mix.Dep{scm: Hex.SCM, app: app, requirement: req}, locked ->
-        app = "#{app}"
-        case Dict.fetch(locked, app) do
-          {:ok, vsn} ->
-            if !req or Version.match?(vsn, req) do
-              locked
-            else
-              Dict.delete(locked, app)
-            end
-          :error ->
-            locked
-        end
-
-      %Mix.Dep{app: app}, locked ->
-        Dict.delete(locked, "#{app}")
-    end)
   end
 end
