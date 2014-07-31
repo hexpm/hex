@@ -110,7 +110,7 @@ defmodule Hex.Registry do
         nil
       [{{^package, ^version}, [deps|_]}] when is_list(deps) ->
         Enum.map(deps, fn
-          [app, dep, optional | _] -> {app, dep, optional}
+          [app, req, optional | _] -> {app, req, optional}
         end)
     end
   end
