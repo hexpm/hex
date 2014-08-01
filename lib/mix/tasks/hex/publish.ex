@@ -87,6 +87,10 @@ defmodule Mix.Tasks.Hex.Publish do
     Mix.Project.get!
     config = Mix.Project.config
 
+    if Mix.Project.umbrella?(config) do
+      Mix.raise "Hex does not support umbrella projects"
+    end
+
     if version = opts[:revert] do
       revert(config, version, auth)
     else
