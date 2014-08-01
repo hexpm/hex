@@ -115,8 +115,10 @@ defmodule Mix.Tasks.Hex.Publish do
 
     if meta[:requirements] != [] do
       Mix.shell.info("  Dependencies:")
-      Enum.each(meta[:requirements], fn {app, %{requirement: req}} ->
-         Mix.shell.info("    #{app} #{req}")
+      Enum.each(meta[:requirements], fn {app, %{requirement: req, optional: opt}} ->
+        message = "    #{app} #{req}"
+        if opt, do: message = message <> " (optional)"
+        Mix.shell.info(message)
       end)
     end
 
