@@ -145,9 +145,10 @@ defmodule Hex.RemoteConverger do
     # 2. If the requirement in mix.exs does not match the locked version
     # 3. If it's a child of another Hex package
 
-    unlocked =
+    unlock =
       Enum.flat_map(deps, fn
         %Mix.Dep{scm: Hex.SCM, app: app, requirement: req} ->
+          # Make sure to handle deps that were previously locked as Git
           case Dict.fetch(old_lock, app) do
             {:ok, {:package, vsn}} ->
               if !req or Version.match?(vsn, req) do
@@ -155,7 +156,7 @@ defmodule Hex.RemoteConverger do
               else
                 ["#{app}"]
               end
-            :error ->
+            _ ->
               ["#{app}"]
           end
 
@@ -167,13 +168,13 @@ defmodule Hex.RemoteConverger do
           not Dict.has_key?(lock, app),
           do: "#{app}")
 
-    unlocked = unlocked
-               |> Enum.uniq
-               |> with_children(old_lock)
-               |> Enum.uniq
+    unlock = unlock
+             |> Enum.uniq
+             |> with_children(old_lock)
+             |> Enum.uniq
 
     for {app, _} = pair <- Hex.Mix.from_lock(old_lock),
-        not app in unlocked,
+        not app in unlock,
         into: %{}, do: pair
   end
 end
