@@ -59,16 +59,20 @@ defmodule Hex.SCM do
     path = cache_path(name)
     url  = Hex.API.cdn_url("tarballs/#{name}")
 
-    Mix.shell.info("Fetching package (#{url})")
+    Mix.shell.info("Checking package (#{url})")
 
     # TODO: Increase this timeout when http timeouts have been fixed
     case Hex.Parallel.await(:hex_fetcher, {app, version}, 5000) do
-      :ok -> :ok
+      {:ok, :cached} ->
+        Mix.shell.info("Using locally cached package")
+      {:ok, :new} ->
+        Mix.shell.info("Fetched package")
       {:error, reason} ->
         Mix.shell.error(reason)
         unless File.exists?(path) do
           Mix.raise "Package fetch failed and no cached copy available"
         end
+        Mix.shell.info("Check failed. Using locally cached package")
     end
 
     File.rm_rf!(dest)
@@ -135,11 +139,11 @@ defmodule Hex.SCM do
 
     case request(url, etag) do
       {:ok, nil} ->
-        :ok
+        {:ok, :cached}
       {:ok, body} ->
         File.mkdir_p!(cache_path)
         File.write!(path, body)
-        :ok
+        {:ok, :new}
       {:error, _} = error ->
         error
     end
