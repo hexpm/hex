@@ -13,25 +13,11 @@ defmodule Mix.Tasks.Hex.Util do
     end
   end
 
-  def update_config(config) do
-    if Mix.shell.yes?("Update config file?") do
-      Hex.Mix.update_config(config)
-    end
-  end
-
-  def auth_opts(opts, user_config) do
-    cond do
-      user = opts[:user] ->
-        unless pass = opts[:pass] do
-          Mix.raise "--pass option required if --user was given"
-        end
-        [user: user, pass: pass]
-
-      key = user_config[:key] ->
-        [key: key]
-
-      true ->
-        Mix.raise "No user in config or given as command line argument"
+  def auth_info(config \\ Hex.Util.read_config) do
+    if key = config[:key] do
+      [key: key]
+    else
+      Mix.raise "No authorized user found. Run 'mix hex.user auth'"
     end
   end
 

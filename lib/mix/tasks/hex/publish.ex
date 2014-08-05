@@ -68,7 +68,6 @@ defmodule Mix.Tasks.Hex.Publish do
   """
 
   @switches [revert: :string]
-  @aliases [u: :user, p: :pass]
 
   @default_files ["lib", "priv", "mix.exs", "README*", "readme*", "LICENSE*",
                   "license*", "CHANGELOG*", "changelog*", "src"]
@@ -80,9 +79,8 @@ defmodule Mix.Tasks.Hex.Publish do
     Hex.Util.ensure_registry(fetch: false)
     Hex.start
 
-    {opts, _, _} = OptionParser.parse(args, switches: @switches, aliases: @aliases)
-    user_config  = Hex.Util.read_config
-    auth         = Util.auth_opts(opts, user_config)
+    {opts, _, _} = OptionParser.parse(args, switches: @switches)
+    auth         = Util.auth_info()
 
     Mix.Project.get!
     config = Mix.Project.config

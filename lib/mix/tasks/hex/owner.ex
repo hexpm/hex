@@ -29,25 +29,15 @@ defmodule Mix.Tasks.Hex.Owner do
   List all owners of given package.
 
   `mix hex.owner list PACKAGE`
-
-  ## Command line options
-
-  * `--user`, `-u` - Username of existing package owner (overrides user stored in config)
-
-  * `--pass`, `-p` - Password of existing package owner (required if `--user` was given)
   """
-
-  @aliases [u: :user, p: :pass]
 
   def run(args) do
     Hex.Util.ensure_registry(fetch: false)
     Hex.start_api
 
-    {opts, rest, _} = OptionParser.parse(args, aliases: @aliases)
-    user_config     = Hex.Util.read_config
-    auth            = Util.auth_opts(opts, user_config)
+    auth = Util.auth_info()
 
-    case rest do
+    case args do
       ["add", package, owner] ->
         add_owner(package, owner, auth)
       ["remove", package, owner] ->

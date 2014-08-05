@@ -168,6 +168,14 @@ defmodule HexTest.Case do
       {:only_doc, "0.1.0", [{:ex_doc, nil, true}]} ]
   end
 
+  def setup_auth(username) do
+    user = HexWeb.User.get(username: username)
+    key  = :crypto.rand_bytes(4) |> Base.encode16
+
+    {:ok, key} = HexWeb.API.Key.create(key, user)
+    Hex.Util.update_config([key: key.secret])
+  end
+
   using do
     quote do
       import unquote(__MODULE__)

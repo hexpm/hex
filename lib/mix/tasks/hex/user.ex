@@ -72,7 +72,7 @@ defmodule Mix.Tasks.Hex.User do
   defp update_user(username, email, password, auth) do
     case Hex.API.update_user(email, password, auth) do
       {200, _} ->
-        Util.update_config([username: username, password: password])
+        Hex.Util.update_config([username: username, password: password])
       {code, body} ->
         Mix.shell.error("Updating user options for #{auth[:user]} failed (#{code})")
         Hex.Util.print_error_result(code, body)

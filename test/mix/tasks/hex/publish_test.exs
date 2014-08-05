@@ -26,16 +26,17 @@ defmodule Mix.Tasks.Hex.PublishTest do
     end
   end
 
-  @opts ["-u", "user", "-p", "hunter42"]
-
   setup do
     Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
     :ok
   end
 
   test "validate" do
-    assert_raise Mix.Error, "--pass option required if --user was given", fn ->
-      Mix.Tasks.Hex.Publish.run(["--user", "release_name"])
+    Mix.Project.push ReleaseSimple.Mixfile
+    Hex.home("does_not_exist")
+
+    assert_raise Mix.Error, "No authorized user found. Run 'mix hex.user auth'", fn ->
+      Mix.Tasks.Hex.Publish.run([])
     end
   end
 
@@ -43,12 +44,15 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push ReleaseSimple.Mixfile
 
     in_tmp fn ->
+      Hex.home(tmp_path())
+      setup_auth("user")
+
       send self, {:mix_shell_input, :yes?, true}
-      Mix.Tasks.Hex.Publish.run(@opts)
+      Mix.Tasks.Hex.Publish.run([])
       assert HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
 
       send self, {:mix_shell_input, :yes?, true}
-      Mix.Tasks.Hex.Publish.run(@opts ++ ["--revert", "0.0.1"])
+      Mix.Tasks.Hex.Publish.run(["--revert", "0.0.1"])
       refute HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
     end
   end
@@ -74,11 +78,12 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp fn ->
       Hex.home(tmp_path())
+      setup_auth("user")
 
       Mix.Tasks.Deps.Get.run([])
 
       send self, {:mix_shell_input, :yes?, true}
-      Mix.Tasks.Hex.Publish.run(@opts)
+      Mix.Tasks.Hex.Publish.run([])
 
       assert_received {:mix_shell, :info, ["  WARNING! No included files"]}
       assert_received {:mix_shell, :info, ["  WARNING! Missing metadata fields: description, licenses, contributors, links"]}
@@ -93,10 +98,11 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp fn ->
       Hex.home(tmp_path())
+      setup_auth("user")
 
       File.write!("myfile.txt", "hello")
       send self, {:mix_shell_input, :yes?, true}
-      Mix.Tasks.Hex.Publish.run(@opts)
+      Mix.Tasks.Hex.Publish.run([])
 
       assert_received {:mix_shell, :info, ["Publishing releasec v0.0.3"]}
       assert_received {:mix_shell, :info, ["  Included files:"]}

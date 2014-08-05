@@ -26,8 +26,7 @@ defmodule Mix.Tasks.Hex.Key do
     Hex.Util.ensure_registry(fetch: false)
     Hex.start_api
 
-    user_config  = Hex.Util.read_config
-    auth         = Util.auth_opts([], user_config)
+    auth = Util.auth_info()
 
     case args do
       ["remove", key] ->
