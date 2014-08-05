@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Hex.Search do
           Mix.shell.info(pkg)
         end)
       _ ->
-        Mix.raise "Invalid arguments, expected 'mix hex.search PACKAGE'"
+        Mix.raise "Invalid arguments, expected: mix hex.search PACKAGE"
     end
   end
 end

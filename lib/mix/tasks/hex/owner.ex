@@ -55,7 +55,8 @@ defmodule Mix.Tasks.Hex.Owner do
       ["list", package] ->
         list_owners(package, auth)
       _ ->
-        Mix.raise "Invalid arguments, expected 'mix hex.owner TASK ...'"
+        Mix.raise "Invalid arguments, expected one of:\nmix hex.owner add PACKAGE EMAIL\n" <>
+                  "mix hex.owner remove PACKAGE EMAIL\nmix hex.owner list PACKAGE"
     end
   end
 

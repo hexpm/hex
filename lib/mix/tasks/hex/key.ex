@@ -5,13 +5,7 @@ defmodule Mix.Tasks.Hex.Key do
   @shortdoc "Hex API key tasks"
 
   @moduledoc """
-  Generate, remove or list API keys.
-
-  ### Generate key
-
-  Generate new API key and store it in the hex config.
-
-  `mix hex.key new -u username -p password`
+  Remove or list API keys associated with your account.
 
   ### Remove key
 
@@ -19,49 +13,35 @@ defmodule Mix.Tasks.Hex.Key do
 
   The key can no longer be used to authenticate API requests.
 
-  `mix hex.key remove key_name -u username -p password`
+  `mix hex.key remove key_name`
 
   ### List keys
 
   List all API keys associated with your account.
 
-  `mix hex.key list -u username -p password`
-
-  ## Command line options
-
-  * `--user`, `-u` - Username of user (required)
-
-  * `--pass`, `-p` - Password of user (required)
+  `mix hex.key list`
   """
-
-  @aliases [u: :user, p: :pass]
 
   def run(args) do
     Hex.Util.ensure_registry(fetch: false)
     Hex.start_api
 
-    {opts, rest, _} = OptionParser.parse(args, aliases: @aliases)
-    Util.required_opts(opts, [:user, :pass])
+    user_config  = Hex.Util.read_config
+    auth         = Util.auth_opts([], user_config)
 
-    case rest do
+    case args do
       ["remove", key] ->
-        remove_key(key, opts)
+        remove_key(key, auth)
       ["list"] ->
-        list_keys(opts)
-      ["new"] ->
-        new_key(opts)
+        list_keys(auth)
       _ ->
-        Mix.raise "Invalid arguments, expected 'mix hex.key TASK ...'"
+        Mix.raise "Invalid arguments, expected one of:\nmix hex.key remove KEY\nmix hex.key list'"
     end
   end
 
-  defp new_key(opts) do
-    Util.generate_key(opts[:user], opts[:pass])
-  end
-
-  defp remove_key(key, opts) do
+  defp remove_key(key, auth) do
     Mix.shell.info("Removing key #{key}...")
-    case Hex.API.delete_key(key, opts) do
+    case Hex.API.delete_key(key, auth) do
       {204, _body} ->
         :ok
       {code, body} ->
@@ -70,8 +50,8 @@ defmodule Mix.Tasks.Hex.Key do
     end
   end
 
-  defp list_keys(opts) do
-    case Hex.API.get_keys(opts) do
+  defp list_keys(auth) do
+    case Hex.API.get_keys(auth) do
       {200, body} ->
         Enum.each(body, &Mix.shell.info(&1["name"]))
       {code, body} ->

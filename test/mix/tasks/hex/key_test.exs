@@ -2,36 +2,31 @@ defmodule Mix.Tasks.Hex.KeyTest do
   use HexTest.Case
   @moduletag :integration
 
-  test "new key" do
+  test "list keys" do
     in_tmp fn ->
       Hex.home(System.cwd!)
-      Mix.Tasks.Hex.Key.run(["new", "-u", "user", "-p", "hunter42"])
 
-      {:ok, name} = :inet.gethostname()
-      name = List.to_string(name)
       user = HexWeb.User.get(username: "user")
-      key = HexWeb.API.Key.get(name, user)
+      {:ok, key} = HexWeb.API.Key.create("list_keys", user)
+      Hex.Util.update_config([key: key.secret])
 
-      assert Hex.Util.read_config[:username] == "user"
-      assert Hex.Util.read_config[:key] == key.secret
+      Mix.Tasks.Hex.Key.run(["list"])
+      assert_received {:mix_shell, :info, ["list_keys"]}
     end
   end
 
-  test "list keys" do
-    user = HexWeb.User.get(username: "user")
-    HexWeb.API.Key.create("list_keys", user)
-
-    Mix.Tasks.Hex.Key.run(["list", "-u", "user", "-p", "hunter42"])
-    assert_received {:mix_shell, :info, ["list_keys"]}
-  end
-
   test "remove key" do
-    user = HexWeb.User.get(username: "user")
-    HexWeb.API.Key.create("drop_key", user)
+    in_tmp fn ->
+      Hex.home(System.cwd!)
 
-    Mix.Tasks.Hex.Key.run(["remove", "drop_key", "-u", "user", "-p", "hunter42"])
+      user = HexWeb.User.get(username: "user")
+      {:ok, key} = HexWeb.API.Key.create("drop_key", user)
+      Hex.Util.update_config([key: key.secret])
 
-    assert_received {:mix_shell, :info, ["Removing key drop_key..."]}
-    refute HexWeb.API.Key.get("drop_key", user)
+      Mix.Tasks.Hex.Key.run(["remove", "drop_key"])
+
+      assert_received {:mix_shell, :info, ["Removing key drop_key..."]}
+      refute HexWeb.API.Key.get("drop_key", user)
+    end
   end
 end

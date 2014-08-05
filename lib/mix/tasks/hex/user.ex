@@ -7,11 +7,18 @@ defmodule Mix.Tasks.Hex.User do
   @moduledoc """
   Hex user tasks.
 
-  ### Registers a new hex user.
+  ### Registers a new user
 
   `mix hex.user register`
 
-  ### Update user options.
+  ### Authorize a new user
+
+  Authorizes a new user on the local machine by generating a new API key and
+  storing it in the hex config.
+
+  `mix hex.user auth -u USERNAME -p PASSWORD`
+
+  ### Update user options
 
   `mix hex.user update -u USERNAME -p PASSWORD`
 
@@ -34,10 +41,13 @@ defmodule Mix.Tasks.Hex.User do
     case rest do
       ["register"] ->
         register(opts)
+      ["auth"] ->
+        create_key(opts)
       ["update"] ->
         update(opts)
       _ ->
-        Mix.raise "Invalid arguments, expected 'mix hex.user TASK ...'"
+        Mix.raise "Invalid arguments, expected one of:\nmix hex.user register\n" <>
+                  "mix hex.user auth\nmix hex.user update'"
     end
   end
 
@@ -95,6 +105,11 @@ defmodule Mix.Tasks.Hex.User do
         Mix.shell.error("Registration of user #{username} failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end
+  end
+
+  defp create_key(opts) do
+    Util.required_opts(opts, [:user, :pass])
+    Util.generate_key(opts[:user], opts[:pass])
   end
 
   defp nillify(""), do: nil

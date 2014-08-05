@@ -28,7 +28,7 @@ defmodule Mix.Tasks.Hex.Info do
       [package] -> package(package)
       [package, version] -> release(package, version)
       _ ->
-        Mix.raise "Invalid arguments, expected 'mix hex.info [PACKAGE [VERSION]]'"
+        Mix.raise "Invalid arguments, expected: mix hex.info [PACKAGE [VERSION]]"
     end
   end
 

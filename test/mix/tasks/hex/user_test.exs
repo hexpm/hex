@@ -26,6 +26,21 @@ defmodule Mix.Tasks.Hex.UserTest do
     assert HexWeb.User.get(username: "eric").email == "mail@mail.com"
   end
 
+  test "auth" do
+    in_tmp fn ->
+      Hex.home(System.cwd!)
+      Mix.Tasks.Hex.User.run(["auth", "-u", "user", "-p", "hunter42"])
+
+      {:ok, name} = :inet.gethostname()
+      name = List.to_string(name)
+      user = HexWeb.User.get(username: "user")
+      key = HexWeb.API.Key.get(name, user)
+
+      assert Hex.Util.read_config[:username] == "user"
+      assert Hex.Util.read_config[:key] == key.secret
+    end
+  end
+
   test "update" do
     {:ok, _} = HexWeb.User.create("update_user", "old@mail.com", "hunter42")
 
