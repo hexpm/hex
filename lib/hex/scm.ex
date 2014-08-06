@@ -162,7 +162,7 @@ defmodule Hex.SCM do
 
   # Minimum 100kb over 10s
   @timeout 10
-  @timeout_chunk 100_000
+  @chunk 100_000
 
   defp stream_start(request_id, file) do
     receive do
@@ -195,13 +195,14 @@ defmodule Hex.SCM do
         end
 
       {:error, _} = err ->
+        :httpc.cancel_request(request, :hex)
         err
     end
   end
 
   defp check_timeout(%{timeout: {time, size}} = s) do
     cond do
-      size > @timeout_chunk ->
+      size > @chunk ->
         {:ok, %{s | timeout: {now(), 0}}}
       now() - time > @timeout ->
         {:error, :timeout}

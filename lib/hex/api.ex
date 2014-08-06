@@ -30,8 +30,8 @@ defmodule Hex.API do
     request(:get, api_url("packages/#{name}/releases/#{version}"), [])
   end
 
-  def new_release(name, tar, auth) do
-    request_tar(:post, api_url("packages/#{name}/releases"), auth(auth), tar)
+  def new_release(name, tar, auth, progress \\ fn _ -> end) do
+    request_tar(:post, api_url("packages/#{name}/releases"), auth(auth), tar, progress)
   end
 
   def delete_release(name, version, auth) do
@@ -98,17 +98,31 @@ defmodule Hex.API do
     end
   end
 
-  defp request_tar(method, url, headers, body) do
+  @chunk 10_000
+
+  defp request_tar(method, url, headers, body, progress) do
     # TODO: Better timeout
 
     default_headers = %{
       'accept' => 'application/vnd.hex.beta+elixir',
       'accept-encoding' => 'gzip',
-      'user-agent' => user_agent}
+      'user-agent' => user_agent,
+      'content-length' => to_char_list(byte_size(body))}
     headers = Dict.merge(default_headers, headers)
     http_opts = [timeout: 5000]
     opts = [body_format: :binary]
-    request = {url, Map.to_list(headers), 'application/octet-stream', body}
+
+    body = fn
+      size when size < byte_size(body) ->
+        new_size = min(size + @chunk, byte_size(body))
+        chunk = new_size - size
+        progress.(new_size)
+        {:ok, [:binary.part(body, size, chunk)], new_size}
+      _size ->
+        :eof
+    end
+
+    request = {url, Map.to_list(headers), 'application/octet-stream', {body, 0}}
 
     case :httpc.request(method, request, http_opts, opts, :hex) do
       {:ok, response} ->

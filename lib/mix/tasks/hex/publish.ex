@@ -64,7 +64,7 @@ defmodule Mix.Tasks.Hex.Publish do
     * `:links` - Map of links
   """
 
-  @switches [revert: :string]
+  @switches [revert: :string, progress: :boolean]
 
   @default_files ["lib", "priv", "mix.exs", "README*", "readme*", "LICENSE*",
                   "license*", "CHANGELOG*", "changelog*", "src"]
@@ -100,7 +100,8 @@ defmodule Mix.Tasks.Hex.Publish do
       print_info(meta, exclude_deps)
 
       if Mix.shell.yes?("Proceed?") and create_package?(meta, auth) do
-        create_release(meta, auth)
+        progress? = Keyword.get(opts, :progress, true)
+        create_release(meta, auth, progress?)
       end
     end
   end
@@ -160,16 +161,40 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp create_release(meta, auth) do
-    tarball = Hex.Tar.create(meta, meta[:files])
+  defp create_release(meta, auth, progress?) do
+    tarball  = Hex.Tar.create(meta, meta[:files])
 
-    case Hex.API.new_release(meta[:app], tarball, auth) do
+    if progress? do
+      progress = progress(byte_size(tarball))
+      put_progress(0, 0)
+    else
+      progress = fn _ -> end
+    end
+
+    case Hex.API.new_release(meta[:app], tarball, auth, progress) do
       {code, _} when code in [200, 201] ->
         Mix.shell.info("Published #{meta[:app]} v#{meta[:version]}")
       {code, body} ->
         Mix.shell.error("Pushing #{meta[:app]} v#{meta[:version]} failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end
+  end
+
+  @progress_steps 25
+
+  defp progress(max) do
+    fn size ->
+      fraction = size / max
+      completed = trunc(fraction * @progress_steps)
+      put_progress(completed, trunc(fraction * 100))
+      size
+    end
+  end
+
+  defp put_progress(completed, percent) do
+    unfilled = @progress_steps - completed
+    str = "\e[2K\r[#{String.duplicate("#", completed)}#{String.duplicate(" ", unfilled)}]"
+    IO.write(:stderr, str <> " #{percent}%")
   end
 
   defp dependencies(meta) do

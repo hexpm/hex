@@ -48,7 +48,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       setup_auth("user")
 
       send self, {:mix_shell_input, :yes?, true}
-      Mix.Tasks.Hex.Publish.run([])
+      Mix.Tasks.Hex.Publish.run(["--no-progress"])
       assert HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
 
       send self, {:mix_shell_input, :yes?, true}
@@ -68,7 +68,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Hex.Util.update_config(username: "user", key: key.secret)
 
       send self, {:mix_shell_input, :yes?, true}
-      Mix.Tasks.Hex.Publish.run([])
+      Mix.Tasks.Hex.Publish.run(["--no-progress"])
       assert HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
     end
   end
@@ -83,7 +83,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Deps.Get.run([])
 
       send self, {:mix_shell_input, :yes?, true}
-      Mix.Tasks.Hex.Publish.run([])
+      Mix.Tasks.Hex.Publish.run(["--no-progress"])
 
       assert_received {:mix_shell, :info, ["  WARNING! No included files"]}
       assert_received {:mix_shell, :info, ["  WARNING! Missing metadata fields: description, licenses, contributors, links"]}
@@ -102,7 +102,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
       File.write!("myfile.txt", "hello")
       send self, {:mix_shell_input, :yes?, true}
-      Mix.Tasks.Hex.Publish.run([])
+      Mix.Tasks.Hex.Publish.run(["--no-progress"])
 
       assert_received {:mix_shell, :info, ["Publishing releasec v0.0.3"]}
       assert_received {:mix_shell, :info, ["  Included files:"]}
