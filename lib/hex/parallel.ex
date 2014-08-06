@@ -9,7 +9,7 @@ defmodule Hex.Parallel do
     GenServer.cast(name, {:run, id, fun})
   end
 
-  def await(name, id, timeout \\ 5000) do
+  def await(name, id, timeout \\ :infinity) do
     GenServer.call(name, {:await, id}, timeout)
   end
 

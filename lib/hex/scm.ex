@@ -137,44 +137,82 @@ defmodule Hex.SCM do
     etag = Hex.Util.etag(path)
     url  = Hex.API.cdn_url("tarballs/#{name}")
 
-    case request(url, etag) do
-      {:ok, nil} ->
-        {:ok, :cached}
-      {:ok, body} ->
-        File.mkdir_p!(cache_path)
-        File.write!(path, body)
-        {:ok, :new}
-      {:error, _} = error ->
-        error
-    end
+    File.mkdir_p!(cache_path)
+    File.open!(path, [:write], &request(url, etag, &1))
   end
 
-  defp request(url, etag) do
-    # TODO: Better timeout
+  defp request(url, etag, file) do
+    opts = [sync: false, stream: {:self, :once}]
     headers = [{'user-agent', Hex.API.user_agent}]
     if etag do
       headers = headers ++ [{'if-none-match', etag}]
     end
 
-    :inets.start
-    case :httpc.request(:get, {url, headers}, [], body_format: :binary) do
-      {:ok, response} ->
-        handle_response(response)
+    case :httpc.request(:get, {url, headers}, [], opts, :hex) do
+      {:ok, request_id} when is_reference(request_id) ->
+        stream_start(request_id, file)
+      {:ok, {{_version, 304, _reason}, _headers, _body}} ->
+        {:ok, :cached}
+      {:ok, {{_version, code, _reason}, _headers, _body}} ->
+        {:error, "Request failed (#{code})"}
       {:error, reason} ->
         {:error, "Request failed: #{inspect reason}"}
     end
   end
 
-  defp handle_response({{_version, 304, _reason}, _headers, _body}) do
-    {:ok, nil}
+  # Minimum 100kb over 10s
+  @timeout 10
+  @timeout_chunk 100_000
+
+  defp stream_start(request_id, file) do
+    receive do
+      {:http, {^request_id, :stream_start, _headers, pid}} ->
+        :httpc.stream_next(pid)
+        state = %{request: request_id, file: file, pid: pid, timeout: {now(), 0}}
+        stream(state)
+    after
+      @timeout * 1000 ->
+        {:error, :timeout}
+    end
   end
 
-  defp handle_response({{_version, 200, _reason}, _headers, body}) do
-    {:ok, body}
+  defp stream(%{request: request, file: file, pid: pid, timeout: {time, size}} = s) do
+    case check_timeout(s) do
+      {:ok, s} ->
+        receive do
+          {:http, {^request, :stream, body}} ->
+            size = byte_size(body) + size
+            IO.binwrite(file, body)
+            :httpc.stream_next(pid)
+            stream(%{s | timeout: {time, size}})
+
+          {:http, {^request, :stream_end, _headers}} ->
+            {:ok, :new}
+
+        after
+          1000 ->
+            stream(s)
+        end
+
+      {:error, _} = err ->
+        err
+    end
   end
 
-  defp handle_response({{_version, code, _reason}, _headers, _body}) do
-    {:error, "Request failed (#{code})"}
+  defp check_timeout(%{timeout: {time, size}} = s) do
+    cond do
+      size > @timeout_chunk ->
+        {:ok, %{s | timeout: {now(), 0}}}
+      now() - time > @timeout ->
+        {:error, :timeout}
+      true ->
+        {:ok, s}
+    end
+  end
+
+  defp now do
+    :calendar.local_time
+    |> :calendar.datetime_to_gregorian_seconds
   end
 end
 
