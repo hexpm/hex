@@ -14,11 +14,14 @@ defmodule Hex do
     :inets.start()
     :inets.start(:httpc, profile: :hex)
 
-    if url = System.get_env("HEX_URL"), do: url(url)
-    if cdn = System.get_env("HEX_CDN"), do: cdn(cdn)
+    if url  = System.get_env("HEX_URL"),  do: url(url)
+    if cdn  = System.get_env("HEX_CDN"),  do: cdn(cdn)
     if home = System.get_env("HEX_HOME"), do: home(home)
-    if http_proxy = System.get_env("HTTP_PROXY"), do: proxy(http_proxy)
-    if https_proxy = System.get_env("HTTPS_PROXY"), do: proxy(https_proxy)
+
+    http_proxy  = System.get_env("HTTP_PROXY")  || System.get_env("http_proxy")
+    https_proxy = System.get_env("HTTPS_PROXY") || System.get_env("https_proxy")
+    if http_proxy,  do: proxy(http_proxy)
+    if https_proxy, do: proxy(https_proxy)
 
     Hex.Parallel.start_link(:hex_fetcher, max_parallel: 4)
   end
