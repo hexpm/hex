@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.Publish do
   @moduledoc """
   Publish a new version of your package and update the package.
 
-  `mix hex.publish -u USERNAME -p PASSWORD`
+  `mix hex.publish`
 
   If it is a new package being published it will be created and the user
   specified in `username` will be the package owner. Only package owners can
@@ -19,23 +19,19 @@ defmodule Mix.Tasks.Hex.Publish do
 
   ## Command line options
 
-  * `--user`, `-u` - Username of package owner (overrides user stored in config)
-
-  * `--pass`, `-p` - Password of package owner (required if `--user` was given)
-
-  * `--revert VERSION` - Revert given version
+    * `--revert VERSION` - Revert given version
 
   ## Configuration
 
-  * `:app` - Package name (required)
+    * `:app` - Package name (required)
 
-  * `:version` - Package version (required)
+    * `:version` - Package version (required)
 
-  * `:deps` - List of package dependencies (see Dependencies below)
+    * `:deps` - List of package dependencies (see Dependencies below)
 
-  * `:description` - Description of the project in a few paragraphs
+    * `:description` - Description of the project in a few paragraphs
 
-  * `:package` - Hex specific configuration (see Package configuration below)
+    * `:package` - Hex specific configuration (see Package configuration below)
 
   ## Dependencies
 
@@ -58,13 +54,14 @@ defmodule Mix.Tasks.Hex.Publish do
   Additional metadata of the package can optionally be defined, but it is very
   recommended to do so.
 
-  * `:files` - List of files and directories to include in the package
+    * `:files` - List of files and directories to include in the package,
+      can include wildcards
 
-  * `:contributors` - List of names of contributors
+    * `:contributors` - List of names of contributors
 
-  * `:licenses` - List of licenses used by the package
+    * `:licenses` - List of licenses used by the package
 
-  * `:links` - Dictionary of links
+    * `:links` - Map of links
   """
 
   @switches [revert: :string]

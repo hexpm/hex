@@ -16,27 +16,20 @@ defmodule Mix.Tasks.Hex.User do
   Authorizes a new user on the local machine by generating a new API key and
   storing it in the hex config.
 
-  `mix hex.user auth -u USERNAME -p PASSWORD`
+  `mix hex.user auth`
 
   ### Update user options
 
-  `mix hex.user update -u USERNAME -p PASSWORD`
-
-  ## Command line options
-
-  * `--user`, `-u` - Username of user (required)
-
-  * `--pass`, `-p` - Password of user (required)
+  `mix hex.user update`
   """
 
-  @aliases [u: :user, p: :pass]
   @switches [clean_pass: :boolean]
 
   def run(args) do
     Hex.Util.ensure_registry(fetch: false)
     Hex.start_api
 
-    {opts, rest, _} = OptionParser.parse(args, aliases: @aliases, switches: @switches)
+    {opts, rest, _} = OptionParser.parse(args, switches: @switches)
 
     case rest do
       ["register"] ->
@@ -52,27 +45,31 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp update(opts) do
-    Util.required_opts(opts, [:user, :pass])
     clean? = Keyword.get(opts, :clean_pass, true)
 
-    Mix.shell.info("Update user options (leave blank to not change an option)")
-    email    = Mix.shell.prompt("Email:")             |> String.strip |> nillify
-    password = Util.password_get("Password:", clean?) |> String.strip |> nillify
+    username = Mix.shell.prompt("Username:")          |> String.strip
+    password = Util.password_get("Password:", clean?) |> String.strip
 
-    unless nil?(password) do
+    Mix.shell.info("Update user options (leave blank to not change an option)")
+    new_email    = Mix.shell.prompt("Email:")             |> String.strip |> nillify
+    new_password = Util.password_get("Password:", clean?) |> String.strip |> nillify
+
+    unless nil?(new_password) do
       confirm = Util.password_get("Password (confirm):", clean?) |> String.strip |> nillify
       if password != confirm do
         Mix.raise "Entered passwords do not match"
       end
     end
 
-    update_user(opts[:user], email, password, opts)
+    update_user(username, password, new_email, new_password)
   end
 
-  defp update_user(username, email, password, auth) do
-    case Hex.API.update_user(email, password, auth) do
+  defp update_user(username, password, new_email, new_password) do
+    auth = [user: username, pass: password]
+
+    case Hex.API.update_user(new_email, new_password, auth) do
       {200, _} ->
-        Hex.Util.update_config([username: username, password: password])
+        Hex.Util.update_config([username: username])
       {code, body} ->
         Mix.shell.error("Updating user options for #{auth[:user]} failed (#{code})")
         Hex.Util.print_error_result(code, body)
@@ -108,8 +105,12 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp create_key(opts) do
-    Util.required_opts(opts, [:user, :pass])
-    Util.generate_key(opts[:user], opts[:pass])
+    clean? = Keyword.get(opts, :clean_pass, true)
+
+    username = Mix.shell.prompt("Username:")          |> String.strip
+    password = Util.password_get("Password:", clean?) |> String.strip
+
+    Util.generate_key(username, password)
   end
 
   defp nillify(""), do: nil
