@@ -76,7 +76,7 @@ defmodule Hex.SCM do
     end
 
     File.rm_rf!(dest)
-    Hex.Tar.unpack(path, dest)
+    Hex.Tar.unpack(path, dest, {app, version})
     File.write!(Path.join(dest, ".hex"), version)
 
     Mix.shell.info("Unpacked package tarball (#{path})")
@@ -216,4 +216,3 @@ defmodule Hex.SCM do
     |> :calendar.datetime_to_gregorian_seconds
   end
 end
-

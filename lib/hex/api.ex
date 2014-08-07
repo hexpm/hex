@@ -101,8 +101,6 @@ defmodule Hex.API do
   @chunk 10_000
 
   defp request_tar(method, url, headers, body, progress) do
-    # TODO: Better timeout
-
     default_headers = %{
       'accept' => 'application/vnd.hex.beta+elixir',
       'accept-encoding' => 'gzip',

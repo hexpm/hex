@@ -115,7 +115,7 @@ defmodule HexTest.Case do
           {app, req} -> ["#{app}", req, false]
           {app, req, optional} -> ["#{app}", req, optional]
         end)
-        {{"#{name}", version}, [deps]}
+        {{"#{name}", version}, [deps, nil]}
       end)
 
     create_registry(path, @version, [], releases, packages)

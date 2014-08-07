@@ -1,6 +1,6 @@
 defmodule Hex.Registry do
   @registry_tid :registry_tid
-  @versions     [2, 3]
+  @versions     [3]
   @filename     "registry.ets"
 
   def start(opts \\ []) do
@@ -112,6 +112,15 @@ defmodule Hex.Registry do
         Enum.map(deps, fn
           [app, req, optional | _] -> {app, req, optional}
         end)
+    end
+  end
+
+  def get_checksum(package, version) do
+    case :ets.lookup(get_tid(), {package, version}) do
+      [] ->
+        nil
+      [{{^package, ^version}, [_, checksum | _]}] when nil?(checksum) or is_binary(checksum) ->
+        checksum
     end
   end
 

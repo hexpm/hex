@@ -162,7 +162,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp create_release(meta, auth, progress?) do
-    tarball  = Hex.Tar.create(meta, meta[:files])
+    tarball = Hex.Tar.create(meta, meta[:files])
 
     if progress? do
       progress = progress(byte_size(tarball))

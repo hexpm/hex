@@ -4,7 +4,7 @@
   "decimal": {:git, "git://github.com/ericmj/decimal.git", "c79af3ba3af64caa510c3337091928cb17af480b", []},
   "ecto": {:git, "git://github.com/elixir-lang/ecto.git", "4fce8ea5ce4f35e9d1daec369e85cf0f8f36c0f4", []},
   "envy": {:git, "git://github.com/manderson26/envy.git", "d62cb227b9000ee866c8bcc724ddf68d87621dea", [branch: "master"]},
-  "hex_web": {:git, "git://github.com/hexpm/hex_web.git", "ea7a84f6ef703f051112de8cc9eac74f938a5d2a", []},
+  "hex_web": {:git, "git://github.com/hexpm/hex_web.git", "d5c431e419113dc89ca4eb231b7ffa4fe0df9691", []},
   "ibrowse": {:git, "git://github.com/opscode/ibrowse", "8f3f6a3a30730b193cc340a8885a960586dc98de", [tag: "v4.0.1.1"]},
   "jazz": {:git, "git://github.com/meh/jazz.git", "e0cf73011f64868534cd229c458e205ce04a6619", []},
   "mini_s3": {:git, "git://github.com/ericmj/mini_s3.git", "5e3d7aa3c198381582b01f88517fdf3dfda8e549", [branch: "hex-fixes"]},
