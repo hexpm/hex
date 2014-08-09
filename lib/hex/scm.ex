@@ -61,8 +61,7 @@ defmodule Hex.SCM do
 
     Mix.shell.info("Checking package (#{url})")
 
-    # TODO: Increase this timeout when http timeouts have been fixed
-    case Hex.Parallel.await(:hex_fetcher, {app, version}, 5000) do
+    case Hex.Parallel.await(:hex_fetcher, {app, version}) do
       {:ok, :cached} ->
         Mix.shell.info("Using locally cached package")
       {:ok, :new} ->
@@ -136,21 +135,27 @@ defmodule Hex.SCM do
   defp fetch(name, path) do
     etag = Hex.Util.etag(path)
     url  = Hex.API.cdn_url("tarballs/#{name}")
-
     File.mkdir_p!(cache_path)
-    File.open!(path, [:write], &request(url, etag, &1))
+
+    case request(url, etag) do
+      {:ok, body} when is_binary(body) ->
+        File.write!(path, body)
+        {:ok, :new}
+      other ->
+        other
+    end
   end
 
-  defp request(url, etag, file) do
-    opts = [sync: false, stream: {:self, :once}]
+  defp request(url, etag) do
+    opts = [body_format: :binary]
     headers = [{'user-agent', Hex.API.user_agent}]
     if etag do
       headers = headers ++ [{'if-none-match', etag}]
     end
 
     case :httpc.request(:get, {url, headers}, [], opts, :hex) do
-      {:ok, request_id} when is_reference(request_id) ->
-        stream_start(request_id, file)
+      {:ok, {{_version, 200, _reason}, _headers, body}} ->
+        {:ok, body}
       {:ok, {{_version, 304, _reason}, _headers, _body}} ->
         {:ok, :cached}
       {:ok, {{_version, code, _reason}, _headers, _body}} ->
@@ -158,61 +163,5 @@ defmodule Hex.SCM do
       {:error, reason} ->
         {:error, "Request failed: #{inspect reason}"}
     end
-  end
-
-  # Minimum 100kb over 10s
-  @timeout 10
-  @chunk 100_000
-
-  defp stream_start(request_id, file) do
-    receive do
-      {:http, {^request_id, :stream_start, _headers, pid}} ->
-        :httpc.stream_next(pid)
-        state = %{request: request_id, file: file, pid: pid, timeout: {now(), 0}}
-        stream(state)
-    after
-      @timeout * 1000 ->
-        {:error, :timeout}
-    end
-  end
-
-  defp stream(%{request: request, file: file, pid: pid, timeout: {time, size}} = s) do
-    case check_timeout(s) do
-      {:ok, s} ->
-        receive do
-          {:http, {^request, :stream, body}} ->
-            size = byte_size(body) + size
-            IO.binwrite(file, body)
-            :httpc.stream_next(pid)
-            stream(%{s | timeout: {time, size}})
-
-          {:http, {^request, :stream_end, _headers}} ->
-            {:ok, :new}
-
-        after
-          1000 ->
-            stream(s)
-        end
-
-      {:error, _} = err ->
-        :httpc.cancel_request(request, :hex)
-        err
-    end
-  end
-
-  defp check_timeout(%{timeout: {time, size}} = s) do
-    cond do
-      size > @chunk ->
-        {:ok, %{s | timeout: {now(), 0}}}
-      now() - time > @timeout ->
-        {:error, :timeout}
-      true ->
-        {:ok, s}
-    end
-  end
-
-  defp now do
-    :calendar.local_time
-    |> :calendar.datetime_to_gregorian_seconds
   end
 end
