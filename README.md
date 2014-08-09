@@ -14,4 +14,6 @@ Integration testing against the API server requires a postgresql user with usern
 
 Run integration tests with `mix test --include integration`.
 
+Install hex with: `mix run install.exs`
+
 Also see the API server repository: [hex_web](https://github.com/hexpm/hex_web).
