@@ -11,6 +11,10 @@ defmodule Mix.Tasks.Hex.User do
 
   `mix hex.user register`
 
+  ### Prints the current user
+
+  `mix hex.user whoami`
+
   ### Authorize a new user
 
   Authorizes a new user on the local machine by generating a new API key and
@@ -21,6 +25,7 @@ defmodule Mix.Tasks.Hex.User do
   ### Update user options
 
   `mix hex.user update`
+
   """
 
   @switches [clean_pass: :boolean]
@@ -34,6 +39,8 @@ defmodule Mix.Tasks.Hex.User do
     case rest do
       ["register"] ->
         register(opts)
+      ["whoami"] ->
+        whoami?(opts)
       ["auth"] ->
         create_key(opts)
       ["update"] ->
@@ -41,6 +48,13 @@ defmodule Mix.Tasks.Hex.User do
       _ ->
         Mix.raise "Invalid arguments, expected one of:\nmix hex.user register\n" <>
                   "mix hex.user auth\nmix hex.user update'"
+    end
+  end
+
+  defp whoami?(opts) do
+    case Keyword.fetch(Hex.Util.read_config, :username) do
+       {:ok, value} -> Mix.shell.info(value)
+       :error       -> Mix.raise "Config does not contain a username!"
     end
   end
 
