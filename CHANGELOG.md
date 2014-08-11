@@ -1,4 +1,4 @@
-## v0.4.1
+## v0.4.1 (2014-08-12)
 
 * Enhancements
   * Add progress bar for uploading the tarball when publishing
