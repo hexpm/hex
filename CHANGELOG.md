@@ -1,3 +1,9 @@
+## v0.4.2
+
+* Enhancements
+
+* Bug fixes
+
 ## v0.4.1 (2014-08-12)
 
 * Enhancements
