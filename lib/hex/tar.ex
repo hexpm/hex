@@ -1,5 +1,5 @@
 defmodule Hex.Tar do
-  @supported ["1", "2"]
+  @supported ["2", "3"]
   @version "2"
   @required_files ['VERSION', 'CHECKSUM', 'metadata.exs', 'contents.tar.gz']
 

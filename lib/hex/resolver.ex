@@ -4,10 +4,10 @@ defmodule Hex.Resolver do
   import Hex.Mix, only: [version_match?: 2]
 
   require Record
-  Record.defrecord :info, [:overridden]
-  Record.defrecord :state, [:activated, :pending, :optional]
-  Record.defrecord :request, [:name, :req, :parent]
-  Record.defrecord :active, [:name, :version, :state, :parents, :possibles]
+  Record.defrecordp :info, [:overridden]
+  Record.defrecordp :state, [:activated, :pending, :optional]
+  Record.defrecordp :request, [:name, :req, :parent]
+  Record.defrecordp :active, [:name, :version, :state, :parents, :possibles]
 
   def resolve(requests, overridden, locked) do
     info = info(overridden: Enum.into(overridden, HashSet.new))

@@ -193,7 +193,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp put_progress(completed, percent) do
     unfilled = @progress_steps - completed
-    str = "\e[2K\r[#{String.duplicate("#", completed)}#{String.duplicate(" ", unfilled)}]"
+    str = "\r[#{String.duplicate("#", completed)}#{String.duplicate(" ", unfilled)}]"
     IO.write(:stderr, str <> " #{percent}%")
   end
 
