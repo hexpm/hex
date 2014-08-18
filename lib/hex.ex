@@ -14,7 +14,7 @@ defmodule Hex do
     :inets.start()
     :inets.start(:httpc, profile: :hex)
 
-    if url  = System.get_env("HEX_URL"),  do: url(url)
+    if url  = System.get_env("HEX_API"),  do: url(url)
     if cdn  = System.get_env("HEX_CDN"),  do: cdn(cdn)
     if home = System.get_env("HEX_HOME"), do: home(home)
 

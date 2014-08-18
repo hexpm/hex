@@ -40,7 +40,7 @@ defmodule Mix.Tasks.Hex.User do
       ["register"] ->
         register(opts)
       ["whoami"] ->
-        whoami(opts)
+        whoami()
       ["auth"] ->
         create_key(opts)
       ["update"] ->
@@ -51,7 +51,7 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp whoami(opts) do
+  defp whoami() do
     case Keyword.fetch(Hex.Util.read_config, :username) do
        {:ok, value} ->
         Mix.shell.info(value)
