@@ -1,8 +1,11 @@
 ## v0.4.2
 
 * Enhancements
+  * Add task `hex.user whoami` that prints the locally authorized user
+  * Rename environment variable `HEX_URL` to `HEX_API` to not confuse it with `HEX_CDN`
 
 * Bug fixes
+  * Print newline after progress bar
 
 ## v0.4.1 (2014-08-12)
 
