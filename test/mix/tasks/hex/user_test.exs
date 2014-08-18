@@ -77,4 +77,19 @@ defmodule Mix.Tasks.Hex.UserTest do
       assert is_binary(Hex.Util.read_config[:key])
     end
   end
+
+  test "whoami" do
+    in_tmp fn ->
+      Hex.home(System.cwd!)
+
+      Hex.Util.update_config([username: "ausername"])
+
+      assert Hex.Util.read_config[:username] == "ausername"
+
+      assert capture_io(fn ->
+         Mix.Tasks.Hex.User.run(["whoami"])
+      end) == (Hex.Util.read_config[:username] <> "\n")
+    end
+  end
+
 end
