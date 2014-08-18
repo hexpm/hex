@@ -47,7 +47,7 @@ defmodule Mix.Tasks.Hex.User do
         update(opts)
       _ ->
         Mix.raise "Invalid arguments, expected one of:\nmix hex.user register\n" <>
-                  "mix hex.user auth\nmix hex.user update'"
+                  "mix hex.user auth\nmix hex.user update\nmix hex.user whoami'"
     end
   end
 
