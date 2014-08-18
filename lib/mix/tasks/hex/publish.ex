@@ -92,7 +92,7 @@ defmodule Mix.Tasks.Hex.Publish do
       {deps, exclude_deps} = dependencies(config)
       package              = package(config)
 
-      meta = Keyword.take(config, [:app, :version, :description])
+      meta = Keyword.take(config, [:app, :version, :elixir, :description])
              |> Enum.into(%{})
              |> Map.put(:requirements, deps)
              |> Map.merge(package)
