@@ -173,7 +173,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
     case Hex.API.new_release(meta[:app], tarball, auth, progress) do
       {code, _} when code in [200, 201] ->
-        IO.write("\n")
+        Mix.shell.info("")
         Mix.shell.info("Published #{meta[:app]} v#{meta[:version]}")
       {code, body} ->
         Mix.shell.error("Pushing #{meta[:app]} v#{meta[:version]} failed (#{code})")

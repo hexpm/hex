@@ -81,15 +81,10 @@ defmodule Mix.Tasks.Hex.UserTest do
   test "whoami" do
     in_tmp fn ->
       Hex.home(System.cwd!)
-
       Hex.Util.update_config([username: "ausername"])
 
-      assert Hex.Util.read_config[:username] == "ausername"
-
-      assert capture_io(fn ->
-         Mix.Tasks.Hex.User.run(["whoami"])
-      end) == (Hex.Util.read_config[:username] <> "\n")
+      Mix.Tasks.Hex.User.run(["whoami"])
+      assert_received {:mix_shell, :info, ["ausername"]}
     end
   end
-
 end

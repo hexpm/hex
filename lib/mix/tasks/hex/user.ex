@@ -40,7 +40,7 @@ defmodule Mix.Tasks.Hex.User do
       ["register"] ->
         register(opts)
       ["whoami"] ->
-        whoami?(opts)
+        whoami(opts)
       ["auth"] ->
         create_key(opts)
       ["update"] ->
@@ -51,10 +51,13 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp whoami?(opts) do
+  defp whoami(opts) do
     case Keyword.fetch(Hex.Util.read_config, :username) do
-       {:ok, value} -> Mix.Shell.IO.info(value)
-       :error       -> Mix.raise "Config does not contain a username!"
+       {:ok, value} ->
+        Mix.shell.info(value)
+       :error ->
+        Mix.raise "No user authorised on the local machine. Run `mix hex.user auth` " <>
+                  "or create a new user with `mix hex.user register`"
     end
   end
 
