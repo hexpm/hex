@@ -53,7 +53,7 @@ defmodule Mix.Tasks.Hex.User do
 
   defp whoami?(opts) do
     case Keyword.fetch(Hex.Util.read_config, :username) do
-       {:ok, value} -> Mix.shell.info(value)
+       {:ok, value} -> Mix.Shell.IO.info(value)
        :error       -> Mix.raise "Config does not contain a username!"
     end
   end

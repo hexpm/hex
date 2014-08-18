@@ -26,24 +26,6 @@ defmodule Mix.Tasks.Hex.UserTest do
     assert HexWeb.User.get(username: "eric").email == "mail@mail.com"
   end
 
-  test "whoami" do
-    in_tmp fn ->
-      Hex.home(System.cwd!)
-
-      send self, {:mix_shell_input, :prompt, "eric"}
-      send self, {:mix_shell_input, :prompt, "mail@mail.com"}
-      send self, {:mix_shell_input, :yes?, false}
-
-      capture_io "hunter42\nhunter42\n", fn ->
-        Mix.Tasks.Hex.User.run(["register", "--no-clean-pass"])
-      end
-
-      assert capture_io fn ->
-         Mix.Tasks.Hex.User.run(["whoami"])
-      end =="eric\n"
-    end
-  end
-
   test "auth" do
     in_tmp fn ->
       Hex.home(System.cwd!)
@@ -95,4 +77,19 @@ defmodule Mix.Tasks.Hex.UserTest do
       assert is_binary(Hex.Util.read_config[:key])
     end
   end
+
+  test "whoami" do
+    in_tmp fn ->
+      Hex.home(System.cwd!)
+
+      Hex.Util.update_config([username: "ausername"])
+
+      assert Hex.Util.read_config[:username] == "ausername"
+
+      assert capture_io(fn ->
+         Mix.Tasks.Hex.User.run(["whoami"])
+      end) == (Hex.Util.read_config[:username] <> "\n")
+    end
+  end
+
 end
