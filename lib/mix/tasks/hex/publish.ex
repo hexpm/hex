@@ -66,11 +66,11 @@ defmodule Mix.Tasks.Hex.Publish do
 
   @switches [revert: :string, progress: :boolean]
 
-  @default_files ["lib", "priv", "mix.exs", "README*", "readme*", "LICENSE*",
-                  "license*", "CHANGELOG*", "changelog*", "src"]
+  @default_files ~w(lib priv mix.exs README* readme* LICENSE*
+                    license* CHANGELOG* changelog* src)
 
-  @warn_fields [:description, :licenses, :contributors, :links]
-  @meta_fields @warn_fields ++ [:files]
+  @warn_fields ~w(description licenses contributors links)a
+  @meta_fields @warn_fields ++ ~w(files)a
 
   def run(args) do
     Hex.Util.ensure_registry(fetch: false)

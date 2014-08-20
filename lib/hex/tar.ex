@@ -1,7 +1,7 @@
 defmodule Hex.Tar do
   @supported ["2", "3"]
   @version "2"
-  @required_files ['VERSION', 'CHECKSUM', 'metadata.exs', 'contents.tar.gz']
+  @required_files ~w(VERSION CHECKSUM metadata.exs contents.tar.gz)c
 
   def create(meta, files) do
     contents_path = "#{meta[:app]}-#{meta[:version]}-contents.tar.gz"
