@@ -140,15 +140,20 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp revert(meta, version, auth) do
+    version = clean_version(version)
+
     case Hex.API.delete_release(meta[:app], version, auth) do
       {204, _} ->
-        Mix.shell.info("Reverted #{meta[:app]} v#{meta[:version]}")
+        Mix.shell.info("Reverted #{meta[:app]} v#{version}")
       {code, body} ->
-        Mix.shell.error("Reverting #{meta[:app]} v#{meta[:version]} failed! (#{code})")
+        Mix.shell.error("Reverting #{meta[:app]} v#{version} failed! (#{code})")
         Hex.Util.print_error_result(code, body)
         false
     end
   end
+
+  defp clean_version("v" <> version), do: version
+  defp clean_version(version),        do: version
 
   defp create_package?(meta, auth) do
     case Hex.API.new_package(meta[:app], meta, auth) do
