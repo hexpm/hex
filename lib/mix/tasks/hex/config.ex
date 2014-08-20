@@ -13,6 +13,8 @@ defmodule Mix.Tasks.Hex.Config do
     Hex.Util.ensure_registry(fetch: false)
 
     case args do
+      ["flush"] ->
+        flush()
       [key] ->
         case Keyword.fetch(Hex.Util.read_config, :"#{key}") do
           {:ok, value} -> Mix.shell.info(inspect(value, pretty: true))
@@ -23,5 +25,11 @@ defmodule Mix.Tasks.Hex.Config do
       _ ->
         Mix.raise "Invalid arguments, expected: mix hex.config KEY [VALUE]"
     end
+  end
+
+  defp flush() do
+    Hex.Util.nuke_config()
+
+    Mix.shell.info("Successfully flushed the Hex configuration file.")
   end
 end
