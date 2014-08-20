@@ -43,11 +43,13 @@ defmodule Mix.Tasks.Hex.User do
         whoami()
       ["auth"] ->
         create_key(opts)
+      ["deauth"] ->
+        deauth()
       ["update"] ->
         update(opts)
       _ ->
         Mix.raise "Invalid arguments, expected one of:\nmix hex.user register\n" <>
-                  "mix hex.user auth\nmix hex.user update\nmix hex.user whoami'"
+                  "mix hex.user auth\nmix hex.user update\nmix hex.user whoami\nmix hex.user deauth"
     end
   end
 
@@ -55,6 +57,19 @@ defmodule Mix.Tasks.Hex.User do
     case Keyword.fetch(Hex.Util.read_config, :username) do
        {:ok, value} ->
         Mix.shell.info(value)
+       :error ->
+        Mix.raise "No user authorised on the local machine. Run `mix hex.user auth` " <>
+                  "or create a new user with `mix hex.user register`"
+    end
+  end
+
+  defp deauth() do
+    case Keyword.fetch(Hex.Util.read_config, :username) do
+      {:ok, value} ->
+        Hex.Util.filter_config_keys(fn({k, v}) -> !(Enum.member?([:username, :key], k)) end)
+
+        Mix.shell.info "User `" <> value <> "` removed from the local machine. To authenticate again, run `mix hex.user auth` " <>
+                       "or create a new user with `mix hex.user register`"
        :error ->
         Mix.raise "No user authorised on the local machine. Run `mix hex.user auth` " <>
                   "or create a new user with `mix hex.user register`"
