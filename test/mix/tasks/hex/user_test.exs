@@ -46,6 +46,21 @@ defmodule Mix.Tasks.Hex.UserTest do
     end
   end
 
+  test "deauth" do
+    in_tmp fn ->
+      Hex.home(System.cwd!)
+      assert Hex.Util.read_config == []
+
+      Hex.Util.update_config([xyz: "other", foo: :bar])
+      assert Hex.Util.read_config == [xyz: "other", foo: :bar]
+
+      Hex.Util.update_config([username: "johndoe", key: "qwertyuiop"])
+      Mix.Tasks.Hex.User.run(["deauth"])
+
+      assert Hex.Util.read_config == [xyz: "other", foo: :bar]
+    end
+  end
+
   test "update" do
     {:ok, _} = HexWeb.User.create("update_user", "old@mail.com", "hunter42")
 
