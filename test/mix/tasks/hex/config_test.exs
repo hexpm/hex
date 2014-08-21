@@ -44,20 +44,4 @@ defmodule Mix.Tasks.Hex.ConfigTest do
       assert Hex.Util.read_config == []
     end
   end
-
-  test "flush" do
-    in_tmp fn ->
-      Hex.home(System.cwd!)
-      assert Hex.Util.read_config == []
-
-      Hex.Util.update_config([xyz: "other", foo: :bar])
-      assert Hex.Util.read_config == [xyz: "other", foo: :bar]
-
-      Hex.Util.update_config([username: "johndoe", key: "qwertyuiop"])
-      Mix.Tasks.Hex.Config.run(["flush"])
-
-      assert Hex.Util.read_config == []
-    end
-  end
-
 end
