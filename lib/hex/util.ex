@@ -125,22 +125,13 @@ defmodule Hex.Util do
     File.write!(path, Macro.to_string(updated_config) <> "\n")
   end
 
-  def filter_config_keys(func) when is_function(func) do
+  def write_config(config) do
     Hex.Util.move_home
-
     path = config_path
-    case File.read(path) do
-      {:ok, binary} ->
-        quoted = Code.string_to_quoted!(binary, file: path)
-                  |> Enum.filter(func)
 
-        File.mkdir_p!(Path.dirname(path))
-        File.write!(path, Macro.to_string(quoted) <> "\n")
-      {:error, _} ->
-        nil
-    end
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, Macro.to_string(config) <> "\n")
   end
-
 
   defp config_path do
     Path.join(Hex.home, "hex.config")

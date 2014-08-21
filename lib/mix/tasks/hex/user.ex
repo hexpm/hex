@@ -55,8 +55,8 @@ defmodule Mix.Tasks.Hex.User do
 
   defp whoami() do
     case Keyword.fetch(Hex.Util.read_config, :username) do
-       {:ok, value} ->
-        Mix.shell.info(value)
+       {:ok, username} ->
+        Mix.shell.info(username)
        :error ->
         Mix.raise "No user authorised on the local machine. Run `mix hex.user auth` " <>
                   "or create a new user with `mix hex.user register`"
@@ -65,10 +65,13 @@ defmodule Mix.Tasks.Hex.User do
 
   defp deauth() do
     case Keyword.fetch(Hex.Util.read_config, :username) do
-      {:ok, value} ->
-        Hex.Util.filter_config_keys(fn({k, v}) -> !(Enum.member?([:username, :key], k)) end)
+      {:ok, username} ->
+        Hex.Util.read_config
+        |> Keyword.drop([:username, :key])
+        |> Hex.Util.write_config
 
-        Mix.shell.info "User `" <> value <> "` removed from the local machine. To authenticate again, run `mix hex.user auth` " <>
+        Mix.shell.info "User `" <> username <> "` removed from the local machine. " <>
+                       "To authenticate again, run `mix hex.user auth` " <>
                        "or create a new user with `mix hex.user register`"
        :error ->
         Mix.raise "No user authorised on the local machine. Run `mix hex.user auth` " <>
