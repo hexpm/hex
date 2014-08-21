@@ -125,14 +125,6 @@ defmodule Hex.Util do
     File.write!(path, Macro.to_string(updated_config) <> "\n")
   end
 
-  def nuke_config() do
-    Hex.Util.move_home
-
-    path = config_path
-
-    path |> String.to_char_list |> File.rm
-  end
-
   def filter_config_keys(func) when is_function(func) do
     Hex.Util.move_home
 
