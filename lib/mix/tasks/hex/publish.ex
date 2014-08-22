@@ -142,7 +142,7 @@ defmodule Mix.Tasks.Hex.Publish do
   defp revert(meta, version, auth) do
     version = clean_version(version)
 
-    case Hex.API.delete_release(meta[:app], version, auth) do
+    case Hex.API.Release.delete(meta[:app], version, auth) do
       {204, _} ->
         Mix.shell.info("Reverted #{meta[:app]} v#{version}")
       {code, body} ->
@@ -156,7 +156,7 @@ defmodule Mix.Tasks.Hex.Publish do
   defp clean_version(version),        do: version
 
   defp create_package?(meta, auth) do
-    case Hex.API.new_package(meta[:app], meta, auth) do
+    case Hex.API.Package.new(meta[:app], meta, auth) do
       {code, _} when code in [200, 201] ->
         true
       {code, body} ->
@@ -176,7 +176,7 @@ defmodule Mix.Tasks.Hex.Publish do
       progress = fn _ -> end
     end
 
-    case Hex.API.new_release(meta[:app], tarball, auth, progress) do
+    case Hex.API.Release.new(meta[:app], tarball, auth, progress) do
       {code, _} when code in [200, 201] ->
         Mix.shell.info("")
         Mix.shell.info("Published #{meta[:app]} v#{meta[:version]}")

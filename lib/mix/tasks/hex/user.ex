@@ -102,7 +102,7 @@ defmodule Mix.Tasks.Hex.User do
   defp update_user(username, password, new_email, new_password) do
     auth = [user: username, pass: password]
 
-    case Hex.API.update_user(new_email, new_password, auth) do
+    case Hex.API.User.update(new_email, new_password, auth) do
       {200, _} ->
         Hex.Util.update_config([username: username])
       {code, body} ->
@@ -130,7 +130,7 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp create_user(username, email, password) do
-    case Hex.API.new_user(username, email, password) do
+    case Hex.API.User.new(username, email, password) do
       {201, _} ->
         Util.generate_key(username, password)
       {code, body} ->

@@ -40,7 +40,7 @@ defmodule Mix.Tasks.Hex.Key do
 
   defp remove_key(key, auth) do
     Mix.shell.info("Removing key #{key}...")
-    case Hex.API.delete_key(key, auth) do
+    case Hex.API.Key.delete(key, auth) do
       {204, _body} ->
         :ok
       {code, body} ->
@@ -50,7 +50,7 @@ defmodule Mix.Tasks.Hex.Key do
   end
 
   defp list_keys(auth) do
-    case Hex.API.get_keys(auth) do
+    case Hex.API.Key.get(auth) do
       {200, body} ->
         Enum.each(body, &Mix.shell.info(&1["name"]))
       {code, body} ->

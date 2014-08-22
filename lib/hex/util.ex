@@ -53,7 +53,7 @@ defmodule Hex.Util do
         end
 
         result =
-          case Hex.API.get_registry(api_opts) do
+          case Hex.API.Registry.get(api_opts) do
             {200, body} ->
               File.write!(path_gz, body)
               data = :zlib.gunzip(body)

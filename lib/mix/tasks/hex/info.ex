@@ -47,7 +47,7 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp package(package) do
-    case Hex.API.get_package(package) do
+    case Hex.API.Package.get(package) do
       {200, body} ->
         pretty_package(body)
       {404, _} ->
@@ -59,7 +59,7 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp release(package, version) do
-    case Hex.API.get_release(package, version) do
+    case Hex.API.Release.get(package, version) do
       {200, body} ->
         pretty_release(package, body)
       {404, _} ->
