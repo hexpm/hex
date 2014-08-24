@@ -1,77 +1,5 @@
 defmodule Hex.API do
-  def get_user(username) do
-    request(:get, api_url("users/#{username}"), [])
-  end
-
-  def new_user(username, email, password) do
-    request(:post, api_url("users"), [],
-            %{username: username, email: email, password: password})
-  end
-
-  def update_user(email, password, auth) do
-    body = %{}
-    if email, do: body = Map.merge(body, %{email: email})
-    if password, do: body = Map.merge(body, %{password: password})
-
-    headers = Dict.merge(auth(auth), %{'x-http-method-override' => 'PATCH'})
-
-    request(:post, api_url("users/#{auth[:user]}"), headers, body)
-  end
-
-  def get_package(name) do
-    request(:get, api_url("packages/#{name}"), [])
-  end
-
-  def new_package(name, meta, auth) do
-    request(:put, api_url("packages/#{name}"), auth(auth), %{meta: meta})
-  end
-
-  def get_release(name, version) do
-    request(:get, api_url("packages/#{name}/releases/#{version}"), [])
-  end
-
-  def new_release(name, tar, auth, progress \\ fn _ -> end) do
-    request_tar(:post, api_url("packages/#{name}/releases"), auth(auth), tar, progress)
-  end
-
-  def delete_release(name, version, auth) do
-    request(:delete, api_url("packages/#{name}/releases/#{version}"), auth(auth))
-  end
-
-  def get_registry(opts \\ []) do
-    if etag = opts[:etag] do
-      headers = %{'if-none-match' => etag}
-    end
-    request(:get, cdn_url("registry.ets.gz"), headers || [])
-  end
-
-  def new_key(name, auth) do
-    request(:post, api_url("keys"), auth(auth), %{name: name})
-  end
-
-  def get_keys(auth) do
-    request(:get, api_url("keys"), auth(auth))
-  end
-
-  def delete_key(name, auth) do
-    request(:delete, api_url("keys/#{name}"), auth(auth))
-  end
-
-  def add_package_owner(package, owner, auth) do
-    owner = URI.encode_www_form(owner)
-    request(:put, api_url("packages/#{package}/owners/#{owner}"), auth(auth))
-  end
-
-  def delete_package_owner(package, owner, auth) do
-    owner = URI.encode_www_form(owner)
-    request(:delete, api_url("packages/#{package}/owners/#{owner}"), auth(auth))
-  end
-
-  def get_package_owners(package, auth) do
-    request(:get, api_url("packages/#{package}/owners"), auth(auth))
-  end
-
-  defp request(method, url, headers, body \\ nil) when body == nil or is_map(body) do
+  def request(method, url, headers, body \\ nil) when body == nil or is_map(body) do
     default_headers = %{
       'accept' => 'application/vnd.hex.beta+elixir',
       'accept-encoding' => 'gzip',
@@ -100,7 +28,7 @@ defmodule Hex.API do
 
   @chunk 10_000
 
-  defp request_tar(method, url, headers, body, progress) do
+  def request_tar(method, url, headers, body, progress) do
     default_headers = %{
       'accept' => 'application/vnd.hex.beta+elixir',
       'accept-encoding' => 'gzip',
@@ -175,11 +103,11 @@ defmodule Hex.API do
     :binary.bin_to_list(Hex.url <> "/api/" <> path)
   end
 
-  defp auth(key: secret) do
+  def auth(key: secret) do
     %{'authorization' => String.to_char_list(secret)}
   end
 
-  defp auth(info) do
+  def auth(info) do
     base64 = :base64.encode_to_string(info[:user] <> ":" <> info[:pass])
     %{'authorization' => 'Basic ' ++ base64}
   end

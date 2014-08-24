@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Hex.Util do
     {:ok, name} = :inet.gethostname()
     name = List.to_string(name)
 
-    case Hex.API.new_key(name, [user: username, pass: password]) do
+    case Hex.API.Key.new(name, [user: username, pass: password]) do
       {201, body} ->
         Hex.Util.update_config([username: username, key: body["secret"]])
       {code, body} ->

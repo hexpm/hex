@@ -39,7 +39,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
       Hex.home(System.cwd!)
       HexWeb.RegistryBuilder.sync_rebuild
 
-      assert {200, data} = Hex.API.get_registry
+      assert {200, data} = Hex.API.Registry.get
       File.write!(Hex.Registry.path, :zlib.gunzip(data))
       Mix.Tasks.Hex.Info.run([])
 

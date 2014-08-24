@@ -84,8 +84,8 @@ defmodule HexTest.Case do
     files = [{"mix.exs", List.to_string(mixfile)}]
     tar = Hex.Tar.create(meta, files)
 
-    Hex.API.new_package(name, meta, auth)
-    Hex.API.new_release(name, tar, auth)
+    Hex.API.Package.new(name, meta, auth)
+    Hex.API.Release.new(name, tar, auth)
   end
 
   def purge(modules) do
