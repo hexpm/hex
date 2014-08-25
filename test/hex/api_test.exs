@@ -70,26 +70,26 @@ defmodule Hex.APITest do
     Hex.API.Package.new("orange", %{}, auth)
     Hex.API.User.new("orange_user", "orange_user@mail.com", "hunter42")
 
-    assert {200, [%{"username" => "user"}]} = Hex.API.Package.get_owners("orange", auth)
+    assert {200, [%{"username" => "user"}]} = Hex.API.Package.Owner.get("orange", auth)
 
-    assert {204, _} = Hex.API.Package.add_owner("orange", "orange_user@mail.com", auth)
+    assert {204, _} = Hex.API.Package.Owner.add("orange", "orange_user@mail.com", auth)
 
     assert {200, [%{"username" => "user"}, %{"username" => "orange_user"}]} =
-           Hex.API.Package.get_owners("orange", auth)
+           Hex.API.Package.Owner.get("orange", auth)
 
-    assert {204, _} = Hex.API.Package.delete_owner("orange", "orange_user@mail.com", auth)
+    assert {204, _} = Hex.API.Package.Owner.delete("orange", "orange_user@mail.com", auth)
 
-    assert {200, [%{"username" => "user"}]} = Hex.API.Package.get_owners("orange", auth)
+    assert {200, [%{"username" => "user"}]} = Hex.API.Package.Owner.get("orange", auth)
   end
 
   test "x-hex-message" do
-    Hex.API.handle_hex_message('"oops, you done goofed"')
+    Hex.API.Util.handle_hex_message('"oops, you done goofed"')
     refute_received {:mix_shell, _, _}
 
-    Hex.API.handle_hex_message('  "oops, you done goofed" ; level = warn')
+    Hex.API.Util.handle_hex_message('  "oops, you done goofed" ; level = warn')
     assert_received {:mix_shell, :info, ["API warning: oops, you done goofed"]}
 
-    Hex.API.handle_hex_message('"oops, you done goofed";level=fatal  ')
+    Hex.API.Util.handle_hex_message('"oops, you done goofed";level=fatal  ')
     assert_received {:mix_shell, :error, ["API error: oops, you done goofed"]}
   end
 end
