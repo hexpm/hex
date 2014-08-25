@@ -52,7 +52,7 @@ defmodule Mix.Tasks.Hex.Owner do
 
   defp add_owner(package, owner, opts) do
     Mix.shell.info("Adding owner #{owner} to #{package}")
-    case Hex.API.Package.add_owner(package, owner, opts) do
+    case Hex.API.Package.Owner.add(package, owner, opts) do
       {204, _body} ->
         :ok
       {code, body} ->
@@ -63,7 +63,7 @@ defmodule Mix.Tasks.Hex.Owner do
 
   defp remove_owner(package, owner, opts) do
     Mix.shell.info("Removing owner #{owner} from #{package}")
-    case Hex.API.Package.delete_owner(package, owner, opts) do
+    case Hex.API.Package.Owner.delete(package, owner, opts) do
       {204, _body} ->
         :ok
       {code, body} ->
@@ -73,7 +73,7 @@ defmodule Mix.Tasks.Hex.Owner do
   end
 
   defp list_owners(package, opts) do
-    case Hex.API.Package.get_owners(package, opts) do
+    case Hex.API.Package.Owner.get(package, opts) do
       {200, body} ->
         Enum.each(body, &Mix.shell.info(&1["email"]))
       {code, body} ->
