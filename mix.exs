@@ -3,8 +3,8 @@ defmodule Hex.Mixfile do
 
   def project do
     [app: :hex,
-     version: "0.4.2-dev",
-     elixir: "~> 1.0.0-rc1",
+     version: "0.4.2",
+     elixir: "~> 0.15.0 or ~> 1.0.0-rc1",
      aliases: aliases,
      deps: deps]
   end

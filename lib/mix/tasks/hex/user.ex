@@ -22,10 +22,16 @@ defmodule Mix.Tasks.Hex.User do
 
   `mix hex.user auth`
 
-  ### Update user options
+  ### Deauthorize the user
+
+  Deauthorizes the user from the local machine by removing the API key from the
+  hex config.
+
+  `mix hex.user deauth`
+
+  ### Update user configuration
 
   `mix hex.user update`
-
   """
 
   @switches [clean_pass: :boolean]
@@ -89,7 +95,7 @@ defmodule Mix.Tasks.Hex.User do
     new_email    = Mix.shell.prompt("Email:")             |> String.strip |> nillify
     new_password = Util.password_get("Password:", clean?) |> String.strip |> nillify
 
-    unless is_nil(new_password) do
+    unless nil?(new_password) do
       confirm = Util.password_get("Password (confirm):", clean?) |> String.strip |> nillify
       if password != confirm do
         Mix.raise "Entered passwords do not match"
@@ -118,7 +124,7 @@ defmodule Mix.Tasks.Hex.User do
     email    = Mix.shell.prompt("Email:")     |> String.strip
     password = Util.password_get("Password:", clean?) |> String.strip
 
-    unless is_nil(password) do
+    unless nil?(password) do
       confirm = Util.password_get("Password (confirm):", clean?) |> String.strip
       if password != confirm do
         Mix.raise "Entered passwords do not match"

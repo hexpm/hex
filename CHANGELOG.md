@@ -1,7 +1,8 @@
-## v0.4.2
+## v0.4.2 (2014-08-31)
 
 * Enhancements
   * Add task `hex.user whoami` that prints the locally authorized user
+  * Add task `hex.user deauth` to deauthorize the local user
   * Rename environment variable `HEX_URL` to `HEX_API` to not confuse it with `HEX_CDN`
 
 * Bug fixes
