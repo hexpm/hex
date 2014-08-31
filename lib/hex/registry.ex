@@ -119,7 +119,7 @@ defmodule Hex.Registry do
     case :ets.lookup(get_tid(), {package, version}) do
       [] ->
         nil
-      [{{^package, ^version}, [_, checksum | _]}] when nil?(checksum) or is_binary(checksum) ->
+      [{{^package, ^version}, [_, checksum | _]}] when is_nil(checksum) or is_binary(checksum) ->
         checksum
     end
   end

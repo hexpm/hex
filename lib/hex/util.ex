@@ -191,7 +191,7 @@ defmodule Hex.Util do
     do: binary
   defp binarify(number) when is_number(number),
     do: number
-  defp binarify(atom) when nil?(atom) or is_boolean(atom),
+  defp binarify(atom) when is_nil(atom) or is_boolean(atom),
     do: atom
   defp binarify(atom) when is_atom(atom),
     do: Atom.to_string(atom)
