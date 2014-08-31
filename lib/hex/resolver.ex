@@ -25,8 +25,8 @@ defmodule Hex.Resolver do
   end
 
   defp locked({name, version}, {activated, pending, optional}, info) do
-    # Make sure to add children of locked dependencies, they may have been
-    # overridden before and not been included in the lock
+    # Make sure to add children of locked dependencies, they may be missing
+    # from the lock for multiple reasons
 
     {new_pending, new_optional} = get_deps(name, version, info)
     pending = pending ++ new_pending

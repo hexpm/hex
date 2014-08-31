@@ -1,14 +1,25 @@
 defmodule Hex.Parallel do
+  @moduledoc """
+  Run a number of jobs (with an upper bound) in parallel and
+  await their finish.
+  """
+
   use GenServer
 
   def start_link(name, opts) do
     GenServer.start_link(__MODULE__, new_state(opts), name: name)
   end
 
+  @doc """
+  """
+  @spec run(GenServer.server, any, (() -> any)) :: :ok
   def run(name, id, fun) do
     GenServer.cast(name, {:run, id, fun})
   end
 
+  @doc """
+  """
+  @spec await(GenServer.server, timeout) :: any
   def await(name, id, timeout \\ :infinity) do
     GenServer.call(name, {:await, id}, timeout)
   end
