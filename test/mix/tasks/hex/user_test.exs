@@ -39,10 +39,10 @@ defmodule Mix.Tasks.Hex.UserTest do
       {:ok, name} = :inet.gethostname()
       name = List.to_string(name)
       user = HexWeb.User.get(username: "user")
-      key = HexWeb.API.Key.get(name, user)
+      assert HexWeb.API.Key.get(name, user)
 
       assert Hex.Util.read_config[:username] == "user"
-      assert Hex.Util.read_config[:key] == key.secret
+      assert byte_size(Hex.Util.read_config[:key]) == 32
     end
   end
 
