@@ -6,7 +6,8 @@ defmodule Hex.Mixfile do
      version: "0.4.4-dev",
      elixir: "~> 1.0",
      aliases: aliases,
-     deps: deps]
+     deps: deps,
+     elixirc_options: [debug_info: false]]
   end
 
   def application do
