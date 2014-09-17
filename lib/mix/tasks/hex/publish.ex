@@ -254,21 +254,12 @@ defmodule Mix.Tasks.Hex.Publish do
   defp package(config) do
     package = Enum.into(config[:package] || [], %{})
 
-    # TODO: Remove
-    if licenses = package[:license] do
-      Mix.shell.error(":license key is deprecated in favor of :licenses")
-    end
-
-    if licenses = licenses || package[:licenses] do
+    if licenses = package[:licenses] do
       package = Map.put(package, :licenses, licenses)
     end
 
     if links = package[:links] do
-      # TODO: Remove
-      if is_list(links) do
-        Mix.shell.error(":links keyword is deprecated, should be specificed with a map")
-      end
-      package = Map.update!(package, :links, &Enum.into(&1, %{}))
+      package = Map.put(package, :links, links)
     end
 
     if files = package[:files] || @default_files do
