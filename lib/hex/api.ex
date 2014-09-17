@@ -1,13 +1,16 @@
 defmodule Hex.API do
   alias Hex.API.Util
 
+  @secure_ssl_version {5, 3, 6}
+
   def request(method, url, headers, body \\ nil) when body == nil or is_map(body) do
     default_headers = %{
       'accept' => 'application/vnd.hex.beta+elixir',
       'accept-encoding' => 'gzip',
       'user-agent' => user_agent}
     headers = Dict.merge(default_headers, headers)
-    http_opts = [timeout: 5000]
+
+    http_opts = [timeout: 5000, ssl: ssl_opts()]
     opts = [body_format: :binary]
 
     cond do
@@ -25,6 +28,33 @@ defmodule Hex.API do
         handle_response(response)
       {:error, reason} ->
         {:http_error, reason}
+    end
+  end
+
+  defp ssl_opts do
+    if ssl_version() >= @secure_ssl_version do
+      [verify: :verify_peer, depth: 2, partial_chain: &partial_chain/1,
+       cacerts: Hex.API.Certs.cacerts()]
+    else
+      [verify: :verify_none]
+    end
+  end
+
+  defp partial_chain(certs) do
+    certs = Enum.map(certs, &{&1, :public_key.pkix_decode_cert(&1, :otp)})
+    cacerts = Hex.API.Certs.cacerts()
+    cacerts = Enum.map(cacerts, &:public_key.pkix_decode_cert(&1, :otp))
+
+    trusted =
+      Enum.find_value(certs, fn {der, cert} ->
+        trust? = Enum.any?(cacerts, &:public_key.pkix_is_issuer(cert, &1))
+        if trust?, do: der
+      end)
+
+    if trusted do
+      {:trusted_ca, trusted}
+    else
+      :unknown_ca
     end
   end
 
@@ -100,5 +130,40 @@ defmodule Hex.API do
   def auth(info) do
     base64 = :base64.encode_to_string(info[:user] <> ":" <> info[:pass])
     %{'authorization' => 'Basic ' ++ base64}
+  end
+
+  defp ssl_version do
+    case Application.fetch_env(:hex, :ssl_version) do
+      {:ok, version} ->
+        version
+      :error ->
+        {:ok, version} = :application.get_key(:ssl, :vsn)
+        version = parse_ssl_version(version)
+
+        warn_ssl_version(version)
+        Application.put_env(:hex, :ssl_version, version)
+        version
+    end
+  end
+
+  defp warn_ssl_version(version) do
+    if version < @secure_ssl_version do
+      Mix.shell.error("Insecure HTTPS request (peer verification disabled), " <>
+                      "please update to OTP 17.3 or later")
+    end
+  end
+
+  defp parse_ssl_version(version) do
+    version
+    |> List.to_string
+    |> String.split(".")
+    |> Enum.take(3)
+    |> Enum.map(&to_integer/1)
+    |> List.to_tuple
+  end
+
+  defp to_integer(string) do
+    {int, _} = Integer.parse(string)
+    int
   end
 end

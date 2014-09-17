@@ -1,6 +1,6 @@
 defmodule Hex do
   @default_url "https://hex.pm"
-  @default_cdn "http://s3.hex.pm"
+  @default_cdn "https://s3.amazonaws.com/s3.hex.pm"
   @default_home "~/.hex"
 
 
