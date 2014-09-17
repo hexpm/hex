@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       [ app: :releasec, version: "0.0.3",
         description: "foo",
         package: [files: ["myfile.txt"],
-                  license: ["Apache"],
+                  licenses: ["Apache"],
                   links: %{"a" => "b"},
                   contributors: ["contributors"]] ]
     end
