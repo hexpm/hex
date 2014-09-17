@@ -7,7 +7,7 @@ defmodule Hex.API do
     default_headers = %{
       'accept' => 'application/vnd.hex.beta+elixir',
       'accept-encoding' => 'gzip',
-      'user-agent' => user_agent}
+      'user-agent' => user_agent()}
     headers = Dict.merge(default_headers, headers)
 
     http_opts = [timeout: 5000, ssl: ssl_opts()]
@@ -64,10 +64,10 @@ defmodule Hex.API do
     default_headers = %{
       'accept' => 'application/vnd.hex.beta+elixir',
       'accept-encoding' => 'gzip',
-      'user-agent' => user_agent,
+      'user-agent' => user_agent(),
       'content-length' => to_char_list(byte_size(body))}
     headers = Dict.merge(default_headers, headers)
-    http_opts = [timeout: 5000]
+    http_opts = [timeout: 5000, ssl: ssl_opts()]
     opts = [body_format: :binary]
 
     body = fn
