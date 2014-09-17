@@ -1,3 +1,9 @@
+## v0.4.4-dev
+
+* Enhancements
+  * Verify peer certificate for SSL (only available in OTP 17.3)
+  * Reduce archive size with compiler option `debug_info: false`
+
 ## v0.4.3 (2014-09-06)
 
 ## v0.4.2 (2014-08-31)
