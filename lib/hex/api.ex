@@ -146,11 +146,14 @@ defmodule Hex.API do
     end
   end
 
-  defp warn_ssl_version(version) do
-    if version < @secure_ssl_version do
-      Mix.shell.error("Insecure HTTPS request (peer verification disabled), " <>
-                      "please update to OTP 17.3 or later")
-    end
+  defp warn_ssl_version(_version) do
+    # Don't emit the warning just yet.
+    # Wait ~2 weeks (2014-09-17)
+
+    # if version < @secure_ssl_version do
+    #   Mix.shell.error("Insecure HTTPS request (peer verification disabled), " <>
+    #                   "please update to OTP 17.3 or later")
+    # end
   end
 
   defp parse_ssl_version(version) do
