@@ -4,7 +4,7 @@ defmodule Hex.Mixfile do
   def project do
     [app: :hex,
      version: "0.4.4-dev",
-     elixir: "~> 1.0.0-rc1",
+     elixir: "~> 1.0",
      aliases: aliases,
      deps: deps]
   end
@@ -19,7 +19,8 @@ defmodule Hex.Mixfile do
 
   defp aliases do
     [compile: [&unload_hex/1, "compile"],
-     run:     [&unload_hex/1, "run"]]
+     run: [&unload_hex/1, "run"],
+     install: ["archive.build -o hex.ez", "archive.install hex.ez --force"]]
   end
 
   defp unload_hex(_) do
