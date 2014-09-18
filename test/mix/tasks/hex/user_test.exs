@@ -41,8 +41,8 @@ defmodule Mix.Tasks.Hex.UserTest do
       user = HexWeb.User.get(username: "user")
       assert HexWeb.API.Key.get(name, user)
 
-      assert Hex.Util.read_config[:username] == "user"
-      assert byte_size(Hex.Util.read_config[:key]) == 32
+      assert Hex.Config.read[:username] == "user"
+      assert byte_size(Hex.Config.read[:key]) == 32
     end
   end
 
@@ -50,11 +50,11 @@ defmodule Mix.Tasks.Hex.UserTest do
     in_tmp fn ->
       Hex.home(System.cwd!)
 
-      Hex.Util.update_config(username: "johndoe", key: "qwertyuiop",
-                             xyz: "other", foo: :bar)
+      Hex.Config.update(username: "johndoe", key: "qwertyuiop",
+                        xyz: "other", foo: :bar)
       Mix.Tasks.Hex.User.run(["deauth"])
 
-      assert Hex.Util.read_config == [xyz: "other", foo: :bar]
+      assert Hex.Config.read == [xyz: "other", foo: :bar]
     end
   end
 
@@ -85,15 +85,15 @@ defmodule Mix.Tasks.Hex.UserTest do
         Mix.Tasks.Hex.User.run(["register", "--no-clean-pass"])
       end
 
-      assert Hex.Util.read_config[:username] == "config"
-      assert is_binary(Hex.Util.read_config[:key])
+      assert Hex.Config.read[:username] == "config"
+      assert is_binary(Hex.Config.read[:key])
     end
   end
 
   test "whoami" do
     in_tmp fn ->
       Hex.home(System.cwd!)
-      Hex.Util.update_config([username: "ausername"])
+      Hex.Config.update([username: "ausername"])
 
       Mix.Tasks.Hex.User.run(["whoami"])
       assert_received {:mix_shell, :info, ["ausername"]}

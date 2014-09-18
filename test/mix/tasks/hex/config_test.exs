@@ -18,13 +18,13 @@ defmodule Mix.Tasks.Hex.ConfigTest do
   test "direct api" do
     in_tmp fn ->
       Hex.home(System.cwd!)
-      assert Hex.Util.read_config == []
+      assert Hex.Config.read == []
 
-      Hex.Util.update_config([key: "value"])
-      assert Hex.Util.read_config == [key: "value"]
+      Hex.Config.update([key: "value"])
+      assert Hex.Config.read == [key: "value"]
 
-      Hex.Util.update_config([key: "other", foo: :bar])
-      assert Hex.Util.read_config == [key: "other", foo: :bar]
+      Hex.Config.update([key: "other", foo: :bar])
+      assert Hex.Config.read == [key: "other", foo: :bar]
     end
   end
 end

@@ -173,7 +173,7 @@ defmodule HexTest.Case do
     key  = :crypto.rand_bytes(4) |> Base.encode16
 
     {:ok, key} = HexWeb.API.Key.create(key, user)
-    Hex.Util.update_config([key: key.user_secret])
+    Hex.Config.update([key: key.user_secret])
   end
 
   using do

@@ -6,14 +6,14 @@ defmodule Mix.Tasks.Hex.Util do
 
     case Hex.API.Key.new(name, [user: username, pass: password]) do
       {201, body} ->
-        Hex.Util.update_config([username: username, key: body["secret"]])
+        Hex.Config.update([username: username, key: body["secret"]])
       {code, body} ->
         Mix.shell.error("Generation of API key failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end
   end
 
-  def auth_info(config \\ Hex.Util.read_config) do
+  def auth_info(config \\ Hex.Config.read) do
     if key = config[:key] do
       [key: key]
     else

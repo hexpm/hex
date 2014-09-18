@@ -60,7 +60,7 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp whoami() do
-    case Keyword.fetch(Hex.Util.read_config, :username) do
+    case Keyword.fetch(Hex.Config.read, :username) do
        {:ok, username} ->
         Mix.shell.info(username)
        :error ->
@@ -70,11 +70,12 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp deauth() do
-    case Keyword.fetch(Hex.Util.read_config, :username) do
+    config = Hex.Config.read
+    case Keyword.fetch(config, :username) do
       {:ok, username} ->
-        Hex.Util.read_config
+        config
         |> Keyword.drop([:username, :key])
-        |> Hex.Util.write_config
+        |> Hex.Config.write
 
         Mix.shell.info "User `" <> username <> "` removed from the local machine. " <>
                        "To authenticate again, run `mix hex.user auth` " <>
@@ -110,7 +111,7 @@ defmodule Mix.Tasks.Hex.User do
 
     case Hex.API.User.update(new_email, new_password, auth) do
       {200, _} ->
-        Hex.Util.update_config([username: username])
+        Hex.Config.update([username: username])
       {code, body} ->
         Mix.shell.error("Updating user options for #{auth[:user]} failed (#{code})")
         Hex.Util.print_error_result(code, body)

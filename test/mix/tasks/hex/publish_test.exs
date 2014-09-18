@@ -65,7 +65,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
       user = HexWeb.User.get(username: "user")
       {:ok, key} = HexWeb.API.Key.create("computer", user)
-      Hex.Util.update_config(username: "user", key: key.user_secret)
+      Hex.Config.update(username: "user", key: key.user_secret)
 
       send self, {:mix_shell_input, :yes?, true}
       Mix.Tasks.Hex.Publish.run(["--no-progress"])
