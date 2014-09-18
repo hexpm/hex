@@ -3,6 +3,7 @@
 * Enhancements
   * Verify peer certificate for SSL (only available in OTP 17.3)
   * Reduce archive size with compiler option `debug_info: false`
+  * Add support for config as an erlang term file
 
 ## v0.4.3 (2014-09-06)
 

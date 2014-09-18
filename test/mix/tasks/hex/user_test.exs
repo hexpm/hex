@@ -54,7 +54,7 @@ defmodule Mix.Tasks.Hex.UserTest do
                         xyz: "other", foo: :bar)
       Mix.Tasks.Hex.User.run(["deauth"])
 
-      assert Hex.Config.read == [xyz: "other", foo: :bar]
+      assert Dict.take(Hex.Config.read, [:username, :key]) == []
     end
   end
 

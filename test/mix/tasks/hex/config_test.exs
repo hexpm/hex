@@ -21,10 +21,10 @@ defmodule Mix.Tasks.Hex.ConfigTest do
       assert Hex.Config.read == []
 
       Hex.Config.update([key: "value"])
-      assert Hex.Config.read == [key: "value"]
+      assert Hex.Config.read == [key: "value", source: :elixir]
 
       Hex.Config.update([key: "other", foo: :bar])
-      assert Hex.Config.read == [key: "other", foo: :bar]
+      assert Hex.Config.read == [key: "other", foo: :bar, source: :elixir]
     end
   end
 end
