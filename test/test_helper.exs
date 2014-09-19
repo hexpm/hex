@@ -96,7 +96,7 @@ defmodule HexTest.Case do
   end
 
   @ets_table :hex_ets_registry
-  @version   3
+  @version   4
 
   def create_test_registry(path) do
     packages =
@@ -124,7 +124,7 @@ defmodule HexTest.Case do
   def create_registry(path, version, installs, releases, packages) do
     tid = :ets.new(@ets_table, [])
     :ets.insert(tid, {:"$$version$$", version})
-    :ets.insert(tid, {:"$$installs$$", installs})
+    :ets.insert(tid, {:"$$installs2$$", installs})
     :ets.insert(tid, releases ++ packages)
     :ok = :ets.tab2file(tid, String.to_char_list(path))
     :ets.delete(tid)

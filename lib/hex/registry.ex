@@ -1,6 +1,6 @@
 defmodule Hex.Registry do
   @registry_tid :registry_tid
-  @versions     [3]
+  @versions     [3, 4]
   @filename     "registry.ets"
 
   def start(opts \\ []) do
@@ -47,10 +47,12 @@ defmodule Hex.Registry do
   end
 
   def info_installs do
-    case :ets.lookup(get_tid(), :"$$installs$$") do
-      [{:"$$installs$$", installs}] ->
+    case :ets.lookup(get_tid(), :"$$installs2$$") do
+      [{:"$$installs2$$", installs}] ->
         if version = latest_version(installs) do
           Mix.shell.error("A new Hex version is available (v#{version}), please update with `mix local.hex`")
+        else
+          check_elixir_version(installs)
         end
       _ ->
         :ok
@@ -146,9 +148,35 @@ defmodule Hex.Registry do
 
     versions
     |> Enum.filter(fn {hex, _} -> Version.compare(hex, current_hex) == :gt end)
-    |> Enum.filter(fn {_, elixir} -> Version.compare(elixir, current_elixir) != :gt end)
+    |> Enum.filter(fn {_, elixirs} -> Version.compare(List.first(elixirs), current_elixir) != :gt end)
     |> Enum.map(&elem(&1, 0))
     |> Enum.sort(&(Version.compare(&1, &2) == :gt))
     |> List.first
+  end
+
+  defp check_elixir_version(versions) do
+    {:ok, built}   = Version.parse(Hex.elixir_version())
+    {:ok, current} = Version.parse(System.version)
+
+    if built.major != current.major or built.minor != current.minor do
+      case :lists.keyfind(Hex.version, 1, versions) do
+        {_, elixirs} ->
+          if match_elixir_version?(elixirs, current) do
+            Mix.shell.error "Hex was built against against Elixir v#{Hex.elixir_version} " <>
+              "and you are running v#{System.version}, please run `mix local.hex` " <>
+              "to update to a matching version"
+          end
+
+        false ->
+          :ok
+      end
+    end
+  end
+
+  defp match_elixir_version?(elixirs, current) do
+    Enum.any?(elixirs, fn elixir ->
+      {:ok, elixir} = Version.parse(elixir)
+      elixir.major == current.major and elixir.minor == current.minor
+    end)
   end
 end

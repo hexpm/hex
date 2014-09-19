@@ -6,7 +6,6 @@ defmodule Hex do
 
   def start do
     unless Application.get_env(:hex, :started) do
-      check_elixir_version()
       start_api()
       start_mix()
     else
@@ -76,17 +75,6 @@ defmodule Hex do
     case scheme do
       "http" -> :proxy
       "https" -> :https_proxy
-    end
-  end
-
-  defp check_elixir_version do
-    {:ok, built}   = Version.parse(elixir_version())
-    {:ok, current} = Version.parse(System.version)
-
-    if built.major != current.major or built.minor != current.minor do
-      Mix.shell.error "Hex was built against against v#{elixir_version} " <>
-        "and you are running v#{System.version}, please run `mix local.hex` " <>
-        "to update to a matching version"
     end
   end
 end

@@ -13,7 +13,7 @@ defmodule Hex.RegistryTest do
       Hex.home(System.cwd!)
 
       path = "registry.ets"
-      versions = [{"100.0.0", "0.0.1"}]
+      versions = [{"100.0.0", ["0.0.1"]}]
       create_registry(path, 3, versions, [], [])
 
       Hex.Registry.start!
@@ -31,7 +31,8 @@ defmodule Hex.RegistryTest do
       Hex.home(System.cwd!)
 
       path = "registry.ets"
-      versions = [{"100.0.0", "100.0.0"}, {"0.0.1", "0.0.1"}, {"99.0.0", "0.0.1"}, {"100.0.0", "0.0.1"}, {"98.0.0", "0.0.1"}]
+      versions = [{"100.0.0", ["100.0.0"]}, {"0.0.1", ["0.0.1"]}, {"99.0.0", ["0.0.1"]},
+                  {"100.0.0", ["0.0.1"]}, {"98.0.0", ["0.0.1"]}]
       create_registry(path, 3, versions, [], [])
 
       Hex.Registry.start!
@@ -46,7 +47,7 @@ defmodule Hex.RegistryTest do
       Hex.home(System.cwd!)
 
       path = "registry.ets"
-      versions = [{"100.0.0", "100.0.0"}]
+      versions = [{"100.0.0", ["100.0.0"]}]
       create_registry(path, 3, versions, [], [])
 
       Hex.Registry.start!
@@ -61,7 +62,7 @@ defmodule Hex.RegistryTest do
       Hex.home(System.cwd!)
 
       path = "registry.ets"
-      versions = [{"0.0.1", "0.0.1"}]
+      versions = [{"0.0.1", ["0.0.1"]}]
       create_registry(path, 3, versions, [], [])
 
       Hex.Registry.start!
