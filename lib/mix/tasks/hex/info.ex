@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Hex.Info do
 
   def run(args) do
     {_opts, args, _} = OptionParser.parse(args)
-    Hex.start_api
+    Hex.start
     Hex.Util.ensure_registry(cache: false)
 
     case args do

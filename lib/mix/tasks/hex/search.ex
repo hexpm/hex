@@ -11,10 +11,10 @@ defmodule Mix.Tasks.Hex.Search do
 
   def run(args) do
     {_opts, args, _} = OptionParser.parse(args)
+    Hex.start
 
     case args do
       [package] ->
-        Hex.start
         Hex.Util.ensure_registry!()
 
         Enum.each(Hex.Registry.search(package), fn pkg ->

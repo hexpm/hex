@@ -230,7 +230,7 @@ if :integration in ExUnit.configuration[:include] do
     Mix.Task.run "ecto.migrate", ["HexWeb.Repo"]
   end
 
-  Hex.start_api()
+  Hex.start()
   Hex.url("http://localhost:4000")
   unless System.get_env("HEX_CDN"), do: Hex.cdn(Hex.url)
 

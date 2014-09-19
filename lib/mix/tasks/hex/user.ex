@@ -37,8 +37,8 @@ defmodule Mix.Tasks.Hex.User do
   @switches [clean_pass: :boolean]
 
   def run(args) do
+    Hex.start
     Hex.Util.ensure_registry(fetch: false)
-    Hex.start_api
 
     {opts, rest, _} = OptionParser.parse(args, switches: @switches)
 

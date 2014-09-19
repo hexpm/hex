@@ -41,8 +41,6 @@ defmodule Hex.Util do
       Application.put_env(:hex, :registry_updated, true)
 
       if Keyword.get(opts, :fetch, true) do
-        Hex.start_api
-
         path    = Hex.Registry.path
         path_gz = Hex.Registry.path <> ".gz"
 

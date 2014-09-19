@@ -5,11 +5,16 @@ defmodule Hex do
 
 
   def start do
-    start_api()
-    start_mix()
+    unless Application.get_env(:hex, :started) do
+      check_elixir_version()
+      start_api()
+      start_mix()
+    else
+      Application.put_env(:hex, :started, true)
+    end
   end
 
-  def start_api do
+  defp start_api do
     :ssl.start()
     :inets.start()
     :inets.start(:httpc, profile: :hex)
@@ -26,7 +31,7 @@ defmodule Hex do
     Hex.Parallel.start_link(:hex_fetcher, max_parallel: 4)
   end
 
-  def start_mix do
+  defp start_mix do
     Mix.SCM.append(Hex.SCM)
     Mix.RemoteConverger.register(Hex.RemoteConverger)
   end
@@ -58,7 +63,8 @@ defmodule Hex do
     Application.put_env(:hex, :home, home)
   end
 
-  def version, do: unquote(Mix.Project.config[:version])
+  def version,        do: unquote(Mix.Project.config[:version])
+  def elixir_version, do: unquote(System.version)
 
   defp proxy(proxy) do
     uri  = URI.parse(proxy)
@@ -70,6 +76,17 @@ defmodule Hex do
     case scheme do
       "http" -> :proxy
       "https" -> :https_proxy
+    end
+  end
+
+  defp check_elixir_version do
+    {:ok, built}   = Version.parse(elixir_version())
+    {:ok, current} = Version.parse(System.version)
+
+    if built.major != current.major or built.minor != current.minor do
+      Mix.shell.error "Hex was built against against v#{elixir_version} " <>
+        "and you are running v#{System.version}, please run `mix local.hex` " <>
+        "to update to a matching version"
     end
   end
 end

@@ -10,6 +10,7 @@ defmodule Mix.Tasks.Hex.Config do
   """
 
   def run(args) do
+    Hex.start
     Hex.Util.ensure_registry(fetch: false)
 
     case args do

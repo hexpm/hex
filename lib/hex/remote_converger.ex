@@ -12,6 +12,7 @@ defmodule Hex.RemoteConverger do
   end
 
   def converge(deps, lock) do
+    Hex.start
     Hex.Util.ensure_registry!()
 
     verify_lock(lock)

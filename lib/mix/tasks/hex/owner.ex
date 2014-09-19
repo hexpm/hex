@@ -32,8 +32,8 @@ defmodule Mix.Tasks.Hex.Owner do
   """
 
   def run(args) do
+    Hex.start
     Hex.Util.ensure_registry(fetch: false)
-    Hex.start_api
 
     auth = Util.auth_info()
 

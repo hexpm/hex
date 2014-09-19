@@ -73,8 +73,8 @@ defmodule Mix.Tasks.Hex.Publish do
   @meta_fields @warn_fields ++ ~w(files)a
 
   def run(args) do
-    Hex.Util.ensure_registry(fetch: false)
     Hex.start
+    Hex.Util.ensure_registry(fetch: false)
 
     {opts, _, _} = OptionParser.parse(args, switches: @switches)
     auth         = Util.auth_info()
