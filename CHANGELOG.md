@@ -1,4 +1,4 @@
-## v0.4.4-dev
+## v0.5.0 (2014-09-19)
 
 * Enhancements
   * Verify peer certificate for SSL (only available in OTP 17.3)
