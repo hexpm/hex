@@ -98,7 +98,7 @@ defmodule Mix.Tasks.Hex.User do
 
     unless is_nil(new_password) do
       confirm = Util.password_get("Password (confirm):", clean?) |> String.strip |> nillify
-      if password != confirm do
+      if new_password != confirm do
         Mix.raise "Entered passwords do not match"
       end
     end
