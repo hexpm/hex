@@ -144,7 +144,7 @@ defmodule Hex.RemoteConverger do
     # Remove dependencies from the lock if:
     # 1. They are defined as git or path in mix.exs
     # 2. If the requirement in mix.exs does not match the locked version
-    # 3. If it's a child of another Hex package being updated
+    # 3. If it's a child of another Hex package being unlocked/updated
 
     unlock =
       Enum.flat_map(deps, fn

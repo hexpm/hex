@@ -93,11 +93,11 @@ defmodule Mix.Tasks.Hex.User do
     password = Util.password_get("Password:", clean?) |> String.strip
 
     Mix.shell.info("Update user options (leave blank to not change an option)")
-    new_email    = Mix.shell.prompt("Email:")             |> String.strip |> nillify
-    new_password = Util.password_get("Password:", clean?) |> String.strip |> nillify
+    new_email    = Mix.shell.prompt("New email:")             |> String.strip |> nillify
+    new_password = Util.password_get("New password:", clean?) |> String.strip |> nillify
 
     unless is_nil(new_password) do
-      confirm = Util.password_get("Password (confirm):", clean?) |> String.strip |> nillify
+      confirm = Util.password_get("New password (confirm):", clean?) |> String.strip |> nillify
       if new_password != confirm do
         Mix.raise "Entered passwords do not match"
       end

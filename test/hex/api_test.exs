@@ -45,6 +45,24 @@ defmodule Hex.APITest do
     assert {404, _} = Hex.API.Release.get("grape", "0.0.2")
   end
 
+  test "docs" do
+    auth = [user: "user", pass: "hunter42"]
+    Hex.API.Package.new("tangerine", %{}, auth)
+
+    tar = Hex.Tar.create(%{app: :tangerine, version: "0.0.1", requirements: %{}}, [])
+    assert {201, _} = Hex.API.Release.new("tangerine", tar, auth)
+
+    tarball = Path.join(tmp_path, "docs.tar.gz")
+    :ok = :erl_tar.create(tarball, [{'index.html', "heya"}], [:compressed])
+    tar = File.read!(tarball)
+
+    assert {201, _} = Hex.API.Release.new_docs("tangerine", "0.0.1", tar, auth)
+    assert {200, ^tar} = Hex.API.Release.get_docs("tangerine", "0.0.1")
+
+    assert {204, _} = Hex.API.Release.delete_docs("tangerine", "0.0.1", auth)
+    assert {404, _} = Hex.API.Release.get_docs("tangerine", "0.0.1")
+  end
+
   test "registry" do
     HexWeb.RegistryBuilder.sync_rebuild
     assert {200, _} = Hex.API.Registry.get
