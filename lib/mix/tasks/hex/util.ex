@@ -58,4 +58,30 @@ defmodule Mix.Tasks.Hex.Util do
         loop(prompt)
     end
   end
+
+  @progress_steps 25
+
+  def progress(nil) do
+    fn _ -> end
+  end
+
+  def progress(max) do
+    put_progress(0, 0)
+
+    fn size ->
+      fraction = size / max
+      completed = trunc(fraction * @progress_steps)
+      put_progress(completed, trunc(fraction * 100))
+      size
+    end
+  end
+
+  defp put_progress(completed, percent) do
+    unfilled = @progress_steps - completed
+    str = "\r[#{String.duplicate("#", completed)}#{String.duplicate(" ", unfilled)}]"
+    IO.write(:stderr, str <> " #{percent}%")
+  end
+
+  def clean_version("v" <> version), do: version
+  def clean_version(version),        do: version
 end

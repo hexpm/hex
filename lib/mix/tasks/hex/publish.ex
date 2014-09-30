@@ -140,7 +140,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp revert(meta, version, auth) do
-    version = clean_version(version)
+    version = Util.clean_version(version)
 
     case Hex.API.Release.delete(meta[:app], version, auth) do
       {204, _} ->
@@ -148,12 +148,8 @@ defmodule Mix.Tasks.Hex.Publish do
       {code, body} ->
         Mix.shell.error("Reverting #{meta[:app]} v#{version} failed! (#{code})")
         Hex.Util.print_error_result(code, body)
-        false
     end
   end
-
-  defp clean_version("v" <> version), do: version
-  defp clean_version(version),        do: version
 
   defp create_package?(meta, auth) do
     case Hex.API.Package.new(meta[:app], meta, auth) do
@@ -170,10 +166,9 @@ defmodule Mix.Tasks.Hex.Publish do
     tarball = Hex.Tar.create(meta, meta[:files])
 
     if progress? do
-      progress = progress(byte_size(tarball))
-      put_progress(0, 0)
+      progress = Util.progress(byte_size(tarball))
     else
-      progress = fn _ -> end
+      progress = Util.progress(nil)
     end
 
     case Hex.API.Release.new(meta[:app], tarball, auth, progress) do
@@ -184,23 +179,6 @@ defmodule Mix.Tasks.Hex.Publish do
         Mix.shell.error("Pushing #{meta[:app]} v#{meta[:version]} failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end
-  end
-
-  @progress_steps 25
-
-  defp progress(max) do
-    fn size ->
-      fraction = size / max
-      completed = trunc(fraction * @progress_steps)
-      put_progress(completed, trunc(fraction * 100))
-      size
-    end
-  end
-
-  defp put_progress(completed, percent) do
-    unfilled = @progress_steps - completed
-    str = "\r[#{String.duplicate("#", completed)}#{String.duplicate(" ", unfilled)}]"
-    IO.write(:stderr, str <> " #{percent}%")
   end
 
   defp dependencies(meta) do

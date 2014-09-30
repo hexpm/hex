@@ -10,7 +10,7 @@ defmodule Hex.API do
       'user-agent' => user_agent()}
     headers = Dict.merge(default_headers, headers)
 
-    http_opts = [timeout: 5000, ssl: ssl_opts()]
+    http_opts = [ssl: ssl_opts()]
     opts = [body_format: :binary]
 
     cond do
@@ -63,11 +63,10 @@ defmodule Hex.API do
   def request_tar(method, url, headers, body, progress) do
     default_headers = %{
       'accept' => 'application/vnd.hex.beta+elixir',
-      'accept-encoding' => 'gzip',
       'user-agent' => user_agent(),
       'content-length' => to_char_list(byte_size(body))}
     headers = Dict.merge(default_headers, headers)
-    http_opts = [timeout: 5000, ssl: ssl_opts()]
+    http_opts = [ssl: ssl_opts()]
     opts = [body_format: :binary]
 
     body = fn
