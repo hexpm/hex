@@ -6,7 +6,7 @@ defmodule Hex.Mixfile do
      version: "0.5.1-dev",
      aliases: aliases,
      deps: deps,
-     elixirc_options: [debug_info: false]]
+     elixirc_options: elixirc_options(Mix.env)]
   end
 
   def application do
@@ -15,6 +15,14 @@ defmodule Hex.Mixfile do
 
   defp deps do
     [{:hex_web, github: "hexpm/hex_web", only: :test, env: :test}]
+  end
+
+  defp elixirc_options(:prod) do
+    [debug_info: false]
+  end
+
+  defp elixirc_options(_) do
+    []
   end
 
   defp aliases do
