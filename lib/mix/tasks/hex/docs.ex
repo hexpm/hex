@@ -93,8 +93,11 @@ defmodule Mix.Tasks.Hex.Docs do
     "docs/**"
     |> Path.wildcard
     |> Enum.filter(&File.regular?/1)
-    |> Enum.map(&{&1, File.read!(&1)})
-    |> Enum.map(fn {file, data} -> {Path.relative_to(file, "docs"), data} end)
-    |> Enum.map(fn {file, data} -> {String.to_char_list(file), data} end)
+    |> Enum.map(&{relative_path(&1, "docs"), File.read!(&1)})
+  end
+
+  defp relative_path(file, dir) do
+    Path.relative_to(file, dir)
+    |> String.to_char_list
   end
 end
