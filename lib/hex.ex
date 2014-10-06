@@ -67,8 +67,11 @@ defmodule Hex do
 
   defp proxy(proxy) do
     uri  = URI.parse(proxy)
-    host = String.to_char_list(uri.host)
-    :httpc.set_options([{proxy_scheme(uri.scheme), {{host, uri.port}, []}}], :hex)
+
+    if uri.host && uri.port do
+      host = String.to_char_list(uri.host)
+      :httpc.set_options([{proxy_scheme(uri.scheme), {{host, uri.port}, []}}], :hex)
+    end
   end
 
   defp proxy_scheme(scheme) do
