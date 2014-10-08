@@ -9,20 +9,22 @@ defmodule Hex.SCM do
   end
 
   def format(_opts) do
-    "package"
+    "Hex package"
   end
 
   def format_lock(opts) do
     case opts[:lock] do
       {:package, version} ->
         version
+      {:hex, name, version} ->
+        "#{version} (#{name})"
       _ ->
         nil
     end
   end
 
-  def accepts_options(app, opts) do
-    Keyword.put(opts, :hex_app, app)
+  def accepts_options(name, opts) do
+    Keyword.put(opts, :hex, name)
   end
 
   def checked_out?(opts) do
@@ -31,13 +33,11 @@ defmodule Hex.SCM do
 
   def lock_status(opts) do
     case opts[:lock] do
+      # Support older
       {:package, version} ->
-        case File.read(Path.join(opts[:dest], ".hex")) do
-          {:ok, dep_version} ->
-            if String.strip(dep_version) == version, do: :ok, else: :mismatch
-          {:error, _} ->
-            :mismatch
-        end
+        lock_status(opts[:dest], nil, version)
+      {:hex, name, version} ->
+        lock_status(opts[:dest], Atom.to_string(name), version)
       nil ->
         :mismatch
       _ ->
@@ -45,23 +45,45 @@ defmodule Hex.SCM do
     end
   end
 
+  defp lock_status(dest, name, version) do
+    case File.read(Path.join(dest, ".hex")) do
+      {:ok, file} ->
+        manifest = parse_manifest(file)
+
+        # Support older
+        if name == nil do
+          manifest = put_elem(manifest, 0, nil)
+        end
+
+        if {name, version} == manifest do
+          :ok
+        else
+          :mismatch
+        end
+
+      {:error, _} ->
+        :mismatch
+    end
+  end
+
+
   def equal?(opts1, opts2) do
-    opts1[:package] == opts2[:package]
+    opts1[:hex] == opts2[:hex]
   end
 
   def checkout(opts) do
     Hex.Util.move_home
 
-    {:package, version} = opts[:lock]
-    app  = opts[:hex_app]
-    dest = opts[:dest]
-    name = "#{app}-#{version}.tar"
-    path = cache_path(name)
-    url  = Hex.API.cdn_url("tarballs/#{name}")
+    {_name, version} = get_lock(opts[:lock])
+    name     = opts[:hex]
+    dest     = opts[:dest]
+    filename = "#{name}-#{version}.tar"
+    path     = cache_path(filename)
+    url      = Hex.API.cdn_url("tarballs/#{filename}")
 
     Mix.shell.info("Checking package (#{url})")
 
-    case Hex.Parallel.await(:hex_fetcher, {app, version}) do
+    case Hex.Parallel.await(:hex_fetcher, {name, version}) do
       {:ok, :cached} ->
         Mix.shell.info("Using locally cached package")
       {:ok, :new} ->
@@ -75,8 +97,9 @@ defmodule Hex.SCM do
     end
 
     File.rm_rf!(dest)
-    Hex.Tar.unpack(path, dest, {app, version})
-    File.write!(Path.join(dest, ".hex"), version)
+    Hex.Tar.unpack(path, dest, {name, version})
+    manifest = encode_manifest(name, version)
+    File.write!(Path.join(dest, ".hex"), manifest)
 
     Mix.shell.info("Unpacked package tarball (#{path})")
     opts[:lock]
@@ -84,6 +107,29 @@ defmodule Hex.SCM do
 
   def update(opts) do
     checkout(opts)
+  end
+
+  defp get_lock(lock) do
+    case lock do
+      # Support older
+      {:package, version} -> {nil, version}
+      {:hex, name, version} -> {name, version}
+    end
+  end
+
+  defp parse_manifest(file) do
+    contents = file |> String.strip |> String.split(",")
+
+    case contents do
+      [name, version] ->
+        {name, version}
+      [version] ->
+        {nil, version}
+    end
+  end
+
+  defp encode_manifest(name, version) do
+    "#{name},#{version}"
   end
 
   defp cache_path do
@@ -97,11 +143,11 @@ defmodule Hex.SCM do
   def prefetch(lock) do
     fetch = fetch_from_lock(lock)
 
-    Enum.each(fetch, fn {app, version} ->
-      Hex.Parallel.run(:hex_fetcher, {app, version}, fn ->
-        name = "#{app}-#{version}.tar"
-        path = cache_path(name)
-        fetch(name, path)
+    Enum.each(fetch, fn {name, version} ->
+      Hex.Parallel.run(:hex_fetcher, {name, version}, fn ->
+        filename = "#{name}-#{version}.tar"
+        path = cache_path(filename)
+        fetch(filename, path)
       end)
     end)
   end
@@ -109,24 +155,33 @@ defmodule Hex.SCM do
   defp fetch_from_lock(lock) do
     deps_path = Mix.Project.deps_path
 
-    Enum.flat_map(lock, fn
-      {app, {:package, version}} ->
-        if fetch?(app, version, deps_path) do
-          [{app, version}]
-        else
-          []
-        end
-      _ ->
+    Enum.flat_map(lock, fn entry ->
+      case entry do
+        # Support older
+        {app, {:package, version}} ->
+          name = app
+          version = version
+        {_app, {:hex, name, version}} ->
+          name = name
+          version = version
+        _ ->
+          :ok
+      end
+
+      if name && fetch?(name, version, deps_path) do
+        [{name, version}]
+      else
         []
+      end
     end)
   end
 
-  defp fetch?(app, version, deps_path) do
-    dest = Path.join(deps_path, "#{app}")
+  defp fetch?(name, version, deps_path) do
+    dest = Path.join(deps_path, "#{name}")
 
     case File.read(Path.join(dest, ".hex")) do
-      {:ok, dep_version} ->
-        String.strip(dep_version) != version
+      {:ok, contents} ->
+        {name, version} != parse_manifest(contents)
       {:error, _} ->
         true
     end

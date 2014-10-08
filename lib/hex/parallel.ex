@@ -24,6 +24,10 @@ defmodule Hex.Parallel do
     GenServer.call(name, {:await, id}, timeout)
   end
 
+  def clear(name) do
+    GenServer.call(name, :clear)
+  end
+
   def handle_cast({:run, id, fun}, state) do
     state = run_task(id, fun, state)
     {:noreply, state}
@@ -37,6 +41,15 @@ defmodule Hex.Parallel do
       state = update_in(state.waiting_reply, &Map.put(&1, id, from))
       {:noreply, state}
     end
+  end
+
+  def handle_call(:clear, _from, state) do
+    Enum.each(state.running, fn {%Task{pid: pid}, _} ->
+      Process.exit(pid, :stop)
+    end)
+
+    state = %{state | running: %{}, finished: %{}, waiting: :queue.new, waiting_reply: %{}}
+    {:reply, :ok, state}
   end
 
   def handle_info(message, state) do

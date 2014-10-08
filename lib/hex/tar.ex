@@ -4,8 +4,8 @@ defmodule Hex.Tar do
   @required_files ~w(VERSION CHECKSUM metadata.exs contents.tar.gz)c
 
   def create(meta, files) do
-    contents_path = "#{meta[:app]}-#{meta[:version]}-contents.tar.gz"
-    path = "#{meta[:app]}-#{meta[:version]}.tar"
+    contents_path = "#{meta[:name]}-#{meta[:version]}-contents.tar.gz"
+    path = "#{meta[:name]}-#{meta[:version]}.tar"
 
     files =
       Enum.map(files, fn
@@ -33,13 +33,13 @@ defmodule Hex.Tar do
     tar
   end
 
-  def unpack(path, dest, {app, version}) do
+  def unpack(path, dest, {name, version}) do
     case :erl_tar.extract(path, [:memory]) do
       {:ok, files} ->
         files = Enum.into(files, %{})
         check_files(files, path)
         check_version(files['VERSION'], path)
-        checksum(files, path, {app, version})
+        checksum(files, path, {name, version})
         extract_contents(files['contents.tar.gz'], dest, path)
 
       :ok ->
@@ -66,11 +66,11 @@ defmodule Hex.Tar do
     end
   end
 
-  defp checksum(files, path, {app, version}) do
+  defp checksum(files, path, {name, version}) do
     case Base.decode16(files['CHECKSUM'], case: :mixed) do
       {:ok, tar_checksum} ->
         blob = files['VERSION'] <> files['metadata.exs'] <> files['contents.tar.gz']
-        registry_checksum = Hex.Registry.get_checksum(to_string(app), version)
+        registry_checksum = Hex.Registry.get_checksum(to_string(name), version)
         checksum = :crypto.hash(:sha256, blob)
 
         if checksum != tar_checksum do

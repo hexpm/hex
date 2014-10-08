@@ -54,6 +54,9 @@ defmodule Mix.Tasks.Hex.Publish do
   Additional metadata of the package can optionally be defined, but it is very
   recommended to do so.
 
+    * `:name` - Set this if the package name is not the same as the application
+       name
+
     * `:files` - List of files and directories to include in the package,
       can include wildcards
 
@@ -70,7 +73,7 @@ defmodule Mix.Tasks.Hex.Publish do
                     license* CHANGELOG* changelog* src)
 
   @warn_fields ~w(description licenses contributors links)a
-  @meta_fields @warn_fields ++ ~w(files)a
+  @meta_fields @warn_fields ++ ~w(files name)a
 
   def run(args) do
     Hex.start
@@ -82,20 +85,21 @@ defmodule Mix.Tasks.Hex.Publish do
     Mix.Project.get!
     config = Mix.Project.config
 
+    {deps, exclude_deps} = dependencies(config)
+    package = package(config)
+
+    meta = Keyword.take(config, [:app, :version, :elixir, :description])
+           |> Enum.into(%{})
+           |> Map.put(:requirements, deps)
+           |> Map.merge(package)
+
     if Mix.Project.umbrella?(config) do
       Mix.raise "Hex does not support umbrella projects"
     end
 
     if version = opts[:revert] do
-      revert(config, version, auth)
+      revert(meta, version, auth)
     else
-      {deps, exclude_deps} = dependencies(config)
-      package              = package(config)
-
-      meta = Keyword.take(config, [:app, :version, :elixir, :description])
-             |> Enum.into(%{})
-             |> Map.put(:requirements, deps)
-             |> Map.merge(package)
 
       print_info(meta, exclude_deps)
 
@@ -107,7 +111,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp print_info(meta, exclude_deps) do
-    Mix.shell.info("Publishing #{meta[:app]} v#{meta[:version]}")
+    Mix.shell.info("Publishing #{meta[:name]} v#{meta[:version]}")
 
     if meta[:requirements] != [] do
       Mix.shell.info("  Dependencies:")
@@ -142,21 +146,21 @@ defmodule Mix.Tasks.Hex.Publish do
   defp revert(meta, version, auth) do
     version = Util.clean_version(version)
 
-    case Hex.API.Release.delete(meta[:app], version, auth) do
+    case Hex.API.Release.delete(meta[:name], version, auth) do
       {204, _} ->
-        Mix.shell.info("Reverted #{meta[:app]} v#{version}")
+        Mix.shell.info("Reverted #{meta[:name]} v#{version}")
       {code, body} ->
-        Mix.shell.error("Reverting #{meta[:app]} v#{version} failed! (#{code})")
+        Mix.shell.error("Reverting #{meta[:name]} v#{version} failed! (#{code})")
         Hex.Util.print_error_result(code, body)
     end
   end
 
   defp create_package?(meta, auth) do
-    case Hex.API.Package.new(meta[:app], meta, auth) do
+    case Hex.API.Package.new(meta[:name], meta, auth) do
       {code, _} when code in [200, 201] ->
         true
       {code, body} ->
-        Mix.shell.error("Updating package #{meta[:app]} failed (#{code})")
+        Mix.shell.error("Updating package #{meta[:name]} failed (#{code})")
         Hex.Util.print_error_result(code, body)
         false
     end
@@ -171,12 +175,12 @@ defmodule Mix.Tasks.Hex.Publish do
       progress = Util.progress(nil)
     end
 
-    case Hex.API.Release.new(meta[:app], tarball, auth, progress) do
+    case Hex.API.Release.new(meta[:name], tarball, auth, progress) do
       {code, _} when code in [200, 201] ->
         Mix.shell.info("")
-        Mix.shell.info("Published #{meta[:app]} v#{meta[:version]}")
+        Mix.shell.info("Published #{meta[:name]} v#{meta[:version]}")
       {code, body} ->
-        Mix.shell.error("Pushing #{meta[:app]} v#{meta[:version]} failed (#{code})")
+        Mix.shell.error("Pushing #{meta[:name]} v#{meta[:version]} failed (#{code})")
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -243,6 +247,10 @@ defmodule Mix.Tasks.Hex.Publish do
     if files = package[:files] || @default_files do
       files = expand_paths(files, File.cwd!)
       package = Map.put(package, :files, files)
+    end
+
+    if name = package[:name] || config[:app] do
+      package = Map.put(package, :name, name)
     end
 
     Map.take(package, @meta_fields)

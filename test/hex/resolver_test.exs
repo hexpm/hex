@@ -6,7 +6,13 @@ defmodule Hex.ResolverTest do
   end
 
   def reqs(reqs) do
-    Enum.map(reqs, fn {app, req} -> {"#{app}", req} end)
+    Enum.map(reqs, fn
+      {app, req} ->
+        name = Atom.to_string(app)
+        {name, name, req}
+      {name, name, req} ->
+        {name, name, req}
+    end)
   end
 
   setup do

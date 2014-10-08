@@ -73,23 +73,23 @@ defmodule Hex.MixTest do
       Hex.home(System.cwd!)
       Mix.Task.run "deps.get"
 
-      assert_received {:mix_shell, :info, ["* Getting ecto (package)"]}
-      assert_received {:mix_shell, :info, ["* Getting postgrex (package)"]}
-      assert_received {:mix_shell, :info, ["* Getting ex_doc (package)"]}
+      assert_received {:mix_shell, :info, ["* Getting ecto (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* Getting ex_doc (Hex package)"]}
 
       Mix.Task.run "deps.compile"
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* ecto 0.2.0 (package)"]}
-      assert_received {:mix_shell, :info, ["  locked at 0.2.0"]}
+      assert_received {:mix_shell, :info, ["* ecto 0.2.0 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.2.0 (ecto)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
-      assert_received {:mix_shell, :info, ["* postgrex 0.2.0 (package)"]}
-      assert_received {:mix_shell, :info, ["  locked at 0.2.0"]}
+      assert_received {:mix_shell, :info, ["* postgrex 0.2.0 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.2.0 (postgrex)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
-      assert_received {:mix_shell, :info, ["* ex_doc 0.0.1 (package)"]}
-      assert_received {:mix_shell, :info, ["  locked at 0.0.1"]}
+      assert_received {:mix_shell, :info, ["* ex_doc 0.0.1 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.0.1 (ex_doc)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
     end
   after
@@ -110,9 +110,9 @@ defmodule Hex.MixTest do
       Mix.Task.run "deps.compile"
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* ecto 0.2.0 (package)"]}
-      assert_received {:mix_shell, :info, ["* postgrex 0.2.0 (package)"]}
-      assert_received {:mix_shell, :info, ["* ex_doc 0.0.1 (package)"]}
+      assert_received {:mix_shell, :info, ["* ecto 0.2.0 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* postgrex 0.2.0 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* ex_doc 0.0.1 (Hex package)"]}
     end
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
@@ -138,23 +138,23 @@ defmodule Hex.MixTest do
 
       Mix.Task.run "deps.update", ["ecto"]
 
-      assert_received {:mix_shell, :info, ["* Updating ecto (package)"]}
-      assert_received {:mix_shell, :info, ["* Updating postgrex (package)"]}
-      assert_received {:mix_shell, :info, ["* Updating ex_doc (package)"]}
+      assert_received {:mix_shell, :info, ["* Updating ecto (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* Updating postgrex (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* Updating ex_doc (Hex package)"]}
 
       Mix.Task.run "deps.compile"
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* ecto 0.2.1 (package)"]}
-      assert_received {:mix_shell, :info, ["  locked at 0.2.1"]}
+      assert_received {:mix_shell, :info, ["* ecto 0.2.1 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.2.1 (ecto)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
-      assert_received {:mix_shell, :info, ["* postgrex 0.2.1 (package)"]}
-      assert_received {:mix_shell, :info, ["  locked at 0.2.1"]}
+      assert_received {:mix_shell, :info, ["* postgrex 0.2.1 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.2.1 (postgrex)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
-      assert_received {:mix_shell, :info, ["* ex_doc 0.1.0 (package)"]}
-      assert_received {:mix_shell, :info, ["  locked at 0.1.0"]}
+      assert_received {:mix_shell, :info, ["* ex_doc 0.1.0 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.1.0 (ex_doc)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
     end
   after
@@ -173,16 +173,16 @@ defmodule Hex.MixTest do
       Mix.Task.run "deps.compile"
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* ecto 0.2.0 (package)"]}
-      assert_received {:mix_shell, :info, ["  locked at 0.2.0"]}
+      assert_received {:mix_shell, :info, ["* ecto 0.2.0 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.2.0 (ecto)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
-      assert_received {:mix_shell, :info, ["* postgrex 0.2.1 (package)"]}
-      assert_received {:mix_shell, :info, ["  locked at 0.2.1"]}
+      assert_received {:mix_shell, :info, ["* postgrex 0.2.1 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.2.1 (postgrex)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
-      assert_received {:mix_shell, :info, ["* ex_doc 0.1.0 (package)"]}
-      assert_received {:mix_shell, :info, ["  locked at 0.1.0"]}
+      assert_received {:mix_shell, :info, ["* ex_doc 0.1.0 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.1.0 (ex_doc)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
     end
   after
@@ -198,9 +198,9 @@ defmodule Hex.MixTest do
       Hex.home(System.cwd!)
       Mix.Task.run "deps.get"
 
-      assert_received {:mix_shell, :info, ["* Getting ecto (package)"]}
-      assert_received {:mix_shell, :info, ["* Getting postgrex (package)"]}
-      assert_received {:mix_shell, :info, ["* Getting ex_doc (package)"]}
+      assert_received {:mix_shell, :info, ["* Getting ecto (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* Getting ex_doc (Hex package)"]}
     end
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
@@ -215,11 +215,11 @@ defmodule Hex.MixTest do
       Hex.home(System.cwd!)
       Mix.Task.run "deps.get"
 
-      assert_received {:mix_shell, :info, ["* Getting ecto (package)"]}
+      assert_received {:mix_shell, :info, ["* Getting ecto (Hex package)"]}
 
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* ecto (package)"]}
+      assert_received {:mix_shell, :info, ["* ecto (Hex package)"]}
       refute_received {:mix_shell, :info, ["* sample" <> _]}
     end
   after
@@ -235,12 +235,12 @@ defmodule Hex.MixTest do
       Hex.home(System.cwd!)
       Mix.Task.run "deps.get"
 
-      assert_received {:mix_shell, :info, ["* Getting postgrex (package)"]}
+      assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
 
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* postgrex (package)"]}
-      refute_received {:mix_shell, :info, ["* ex_doc (package)"]}
+      assert_received {:mix_shell, :info, ["* postgrex (Hex package)"]}
+      refute_received {:mix_shell, :info, ["* ex_doc (Hex package)"]}
       assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
     end
   after
@@ -256,13 +256,13 @@ defmodule Hex.MixTest do
 
       Mix.Task.run "deps.get"
 
-      assert_received {:mix_shell, :info, ["* Getting only_doc (package)"]}
-      refute_received {:mix_shell, :info, ["* Getting ex_doc (package)"]}
+      assert_received {:mix_shell, :info, ["* Getting only_doc (Hex package)"]}
+      refute_received {:mix_shell, :info, ["* Getting ex_doc (Hex package)"]}
 
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* only_doc (package)"]}
-      refute_received {:mix_shell, :info, ["* ex_doc (package)"]}
+      assert_received {:mix_shell, :info, ["* only_doc (Hex package)"]}
+      refute_received {:mix_shell, :info, ["* ex_doc (Hex package)"]}
     end
   after
     purge [ Only_doc.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
@@ -278,14 +278,14 @@ defmodule Hex.MixTest do
 
       Mix.Task.run "deps.get"
 
-      assert_received {:mix_shell, :info, ["* Getting only_doc (package)"]}
-      assert_received {:mix_shell, :info, ["* Getting ex_doc (package)"]}
+      assert_received {:mix_shell, :info, ["* Getting only_doc (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* Getting ex_doc (Hex package)"]}
 
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* only_doc (package)"]}
-      assert_received {:mix_shell, :info, ["* ex_doc (package)"]}
-      assert_received {:mix_shell, :info, ["  locked at 0.0.1"]}
+      assert_received {:mix_shell, :info, ["* only_doc (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* ex_doc (Hex package)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.0.1 (ex_doc)"]}
     end
   after
     purge [ Only_doc.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
@@ -293,7 +293,8 @@ defmodule Hex.MixTest do
 
   test "from mixlock" do
     lock = [ ex_doc: {:package, "0.1.0"},
-             postgrex: {:package, "0.2.1"} ]
-    assert Hex.Mix.from_lock(lock) == %{"ex_doc" => "0.1.0", "postgrex" => "0.2.1"}
+             postgrex: {:hex, :fork, "0.2.1"} ]
+    assert Hex.Mix.from_lock(lock) ==
+           [{"ex_doc", "ex_doc", "0.1.0"}, {"postgrex", "fork", "0.2.1"}]
   end
 end

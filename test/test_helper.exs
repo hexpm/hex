@@ -112,8 +112,8 @@ defmodule HexTest.Case do
     releases =
       Enum.map(test_registry, fn {name, version, deps} ->
         deps = Enum.map(deps, fn
-          {app, req} -> ["#{app}", req, false]
-          {app, req, optional} -> ["#{app}", req, optional]
+          {app, req} -> ["#{app}", req, false, "#{app}"]
+          {app, req, optional} -> ["#{app}", req, optional, "#{app}"]
         end)
         {{"#{name}", version}, [deps, nil]}
       end)
@@ -194,6 +194,7 @@ defmodule HexTest.Case do
 
   setup do
     Hex.home(tmp_path("hex_home"))
+    Hex.Parallel.clear(:hex_fetcher)
     Mix.shell(Mix.Shell.Process)
     Mix.Task.clear
     Mix.Shell.Process.flush

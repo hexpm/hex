@@ -24,9 +24,9 @@ defmodule Hex.Mix do
         scm != Hex.SCM and opts[:override],
         do: app
 
-    for %Mix.Dep{app: app, requirement: req, scm: Hex.SCM} <- deps,
+    for %Mix.Dep{app: app, requirement: req, scm: Hex.SCM, opts: opts} <- deps,
         not app in overridden,
-        do: {"#{app}", req}
+        do: {Atom.to_string(opts[:hex]), Atom.to_string(app), req}
   end
 
   @doc """
@@ -54,11 +54,20 @@ defmodule Hex.Mix do
   Takes all Hex packages from the lock and returns them
   as `{name, version}` tuples.
   """
-  @spec from_lock(%{}) :: %{}
+  @spec from_lock(%{}) :: [{String.t, String.t, String.t}]
   def from_lock(lock) do
-    for {name, {:package, version}} <- lock,
-        into: %{},
-        do: {"#{name}", version}
+    Enum.flat_map(lock, fn
+      # Support older
+      {name, {:package, version}} ->
+        name = Atom.to_string(name)
+        [{name, name, version}]
+
+      {app, {:hex, name, version}} ->
+        [{Atom.to_string(app), Atom.to_string(name), version}]
+
+      _ ->
+        []
+    end)
   end
 
   @doc """
@@ -67,8 +76,8 @@ defmodule Hex.Mix do
   """
   @spec to_lock(%{}) :: %{}
   def to_lock(result) do
-    for {name, version} <- result,
-        into: %{},
-        do: {:"#{name}", {:package, version}}
+    Enum.into(result, %{}, fn {name, app, version} ->
+      {String.to_atom(app), {:hex, String.to_atom(name), version}}
+    end)
   end
 end

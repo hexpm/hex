@@ -8,7 +8,7 @@ defmodule Hex.RemoteConverger do
   @registry_updated :registry_updated
 
   def remote?(dep) do
-    !! dep.opts[:hex_app]
+    !! dep.opts[:hex]
   end
 
   def converge(deps, lock) do
@@ -42,49 +42,56 @@ defmodule Hex.RemoteConverger do
 
   def deps(%Mix.Dep{app: app}, lock) do
     case Dict.fetch(lock, app) do
+      # Support older
       {:ok, {:package, version}} ->
-
-        if Hex.Registry.start() == :ok do
-          deps = Registry.get_deps("#{app}", version) || []
-          for {app, _, optional} <- deps, do: {:"#{app}", optional: optional}
-        else
-          []
-        end
-
+        get_deps(app, version)
+      {:ok, {:hex, name, version}} ->
+        get_deps(name, version)
       _ ->
         []
     end
   end
 
-  defp check_input(reqs,locked ) do
-    Enum.each(reqs, fn {app, req} ->
-      check_package_req(app, req, nil)
+  defp get_deps(name, version) do
+    if Hex.Registry.start() == :ok do
+      name = Atom.to_string(name)
+      deps = Registry.get_deps(name, version) || []
+      for {name, app, req, optional} <- deps do
+        {String.to_atom(app), req, optional: optional, hex: String.to_atom(name)}
+      end
+    else
+      []
+    end
+  end
+
+  defp check_input(reqs, locked) do
+    Enum.each(reqs, fn {name, _app, req} ->
+      check_package_req(name, req, nil)
     end)
 
-    Enum.each(locked, fn {app, req} ->
-      check_package_req(app, req, " (from lock)")
+    Enum.each(locked, fn {name, _app, req} ->
+      check_package_req(name, req, " (from lock)")
     end)
   end
 
-  defp check_package_req(app, req, message) do
-    if versions = Registry.get_versions(app) do
+  defp check_package_req(name, req, message) do
+    if versions = Registry.get_versions(name) do
       versions = Enum.filter(versions, &Hex.Mix.version_match?(&1, req))
       if versions == [] do
-        Mix.raise "No package version in registry matches #{app} #{req}#{message}"
+        Mix.raise "No package version in registry matches #{name} #{req}#{message}"
       end
     else
-      Mix.raise "No package with name #{app}#{message} in registry"
+      Mix.raise "No package with name #{name}#{message} in registry"
     end
   end
 
   defp print_info(reqs, locked, overridden) do
-    reqs = Enum.into(reqs, %{})
+    reqs   = Enum.into(reqs, HashSet.new, &elem(&1, 0))
+    locked = Enum.into(locked, HashSet.new, &elem(&1, 0))
 
-    unlocked = for {app, _req} <- reqs,
-                   not Dict.has_key?(locked, app),
-                   do: app
+    unlocked = Enum.reject(reqs, &HashSet.member?(locked, &1))
 
-    {overridden, skipping} = Enum.partition(overridden, &Dict.has_key?(reqs, &1))
+    {overridden, skipping} = Enum.partition(overridden, &HashSet.member?(reqs, &1))
 
     if unlocked != [] do
       Mix.shell.info "Running dependency resolution"
@@ -98,28 +105,38 @@ defmodule Hex.RemoteConverger do
   end
 
   defp print_success(resolved, locked) do
-    resolved = Dict.drop(resolved, Dict.keys(locked))
+    locked = Enum.map(locked, &elem(&1, 0))
+    resolved = Enum.into(resolved, HashDict.new, fn {name, _app, version} -> {name, version} end)
+    resolved = HashDict.drop(resolved, locked)
+
     if resolved != [] do
       Mix.shell.info "Dependency resolution completed successfully"
-      Enum.each(resolved, fn {dep, version} ->
-        Mix.shell.info "  #{dep}: v#{version}"
+      Enum.each(resolved, fn {name, version} ->
+        Mix.shell.info "  #{name}: v#{version}"
       end)
     end
   end
 
   defp verify_lock(lock) do
     Enum.each(lock, fn
+      # Support older
       {app, {:package, version}} ->
-        if versions = Registry.get_versions("#{app}") do
-          unless version in versions do
-            Mix.raise "Unknown package version #{app} v#{version} in lockfile"
-          end
-        else
-          Mix.raise "Unknown package #{app} in lockfile"
-        end
+        verify_dep(Atom.to_string(app), version)
+      {_app, {:package, name, version}} ->
+        verify_dep(Atom.to_string(name), version)
       _ ->
         :ok
     end)
+  end
+
+  defp verify_dep(app, version) do
+    if versions = Registry.get_versions(app) do
+      unless version in versions do
+        Mix.raise "Unknown package version #{app} v#{version} in lockfile"
+      end
+    else
+      Mix.raise "Unknown package #{app} in lockfile"
+    end
   end
 
   defp with_children(apps, lock) do
@@ -127,11 +144,16 @@ defmodule Hex.RemoteConverger do
     |> List.flatten
   end
 
-  defp do_with_children(apps, lock) do
-    Enum.map(apps, fn app ->
-      case Dict.fetch(lock, :"#{app}") do
+  defp do_with_children(names, lock) do
+    Enum.map(names, fn name ->
+      case Dict.fetch(lock, String.to_atom(name)) do
+        # Support older
         {:ok, {:package, version}} ->
-          deps = Registry.get_deps(app, version)
+          deps = Registry.get_deps(name, version)
+                 |> Enum.map(&elem(&1, 0))
+          [deps, do_with_children(deps, lock)]
+        {:ok, {:hex, name, version}} ->
+          deps = Registry.get_deps(Atom.to_string(name), version)
                  |> Enum.map(&elem(&1, 0))
           [deps, do_with_children(deps, lock)]
         _ ->
@@ -147,35 +169,38 @@ defmodule Hex.RemoteConverger do
     # 3. If it's a child of another Hex package being unlocked/updated
 
     unlock =
-      Enum.flat_map(deps, fn
-        %Mix.Dep{scm: Hex.SCM, app: app, requirement: req} ->
+      Enum.filter(deps, fn
+        %Mix.Dep{scm: Hex.SCM, app: app, requirement: req, opts: opts} ->
           # Make sure to handle deps that were previously locked as Git
           case Dict.fetch(old_lock, app) do
-            {:ok, {:package, vsn}} ->
-              if !req or Version.match?(vsn, req) do
-                []
-              else
-                ["#{app}"]
-              end
+            # Support older
+            {:ok, {:package, version}} ->
+              req && !Version.match?(version, req)
+
+            {:ok, {:hex, name, version}} ->
+              req && !Version.match?(version, req) && name == opts[:hex]
+
             _ ->
-              ["#{app}"]
+              true
           end
 
-        %Mix.Dep{app: app} ->
-          ["#{app}"]
+        %Mix.Dep{} ->
+          true
       end)
-        ++
+      |> Enum.map(&Atom.to_string(&1.app))
+
+    unlock = unlock ++
       for({app, _} <- old_lock,
           not Dict.has_key?(lock, app),
-          do: "#{app}")
+          do: Atom.to_string(app))
 
     unlock = unlock
              |> Enum.uniq
              |> with_children(old_lock)
              |> Enum.uniq
 
-    for {app, _} = pair <- Hex.Mix.from_lock(old_lock),
-        not app in unlock,
-        into: %{}, do: pair
+    Enum.reject(Hex.Mix.from_lock(old_lock), fn {_name, app, _vsn} ->
+      app in unlock
+    end)
   end
 end

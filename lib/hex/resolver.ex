@@ -6,8 +6,8 @@ defmodule Hex.Resolver do
   require Record
   Record.defrecordp :info, [:overridden]
   Record.defrecordp :state, [:activated, :pending, :optional]
-  Record.defrecordp :request, [:name, :req, :parent]
-  Record.defrecordp :active, [:name, :version, :state, :parents, :possibles]
+  Record.defrecordp :request, [:app, :name, :req, :parent]
+  Record.defrecordp :active, [:app, :name, :version, :state, :parents, :possibles]
 
   def resolve(requests, overridden, locked) do
     info = info(overridden: Enum.into(overridden, HashSet.new))
@@ -16,15 +16,15 @@ defmodule Hex.Resolver do
       Enum.reduce(locked, {HashDict.new, [], HashDict.new}, &locked(&1, &2, info))
 
     req_requests =
-      Enum.map(requests, fn {name, req} ->
-        request(name: name, req: compile_requirement(req, name))
+      Enum.map(requests, fn {name, app, req} ->
+        request(name: name, app: app, req: compile_requirement(req, name))
       end)
 
     pending = pending ++ req_requests
     do_resolve(activated, pending, optional, info)
   end
 
-  defp locked({name, version}, {activated, pending, optional}, info) do
+  defp locked({name, app, version}, {activated, pending, optional}, info) do
     # Make sure to add children of locked dependencies, they may be missing
     # from the lock for multiple reasons
 
@@ -32,19 +32,19 @@ defmodule Hex.Resolver do
     pending = pending ++ new_pending
     optional = merge_optional(optional, new_optional)
 
-    active = active(name: name, version: version, parents: [], possibles: [])
+    active = active(name: name, app: app, version: version, parents: [], possibles: [])
     activated = Dict.put(activated, name, active)
 
     {activated, pending, optional}
   end
 
   defp do_resolve(activated, [], _optional, _info) do
-    Enum.map(activated, fn {name, active(version: version)} ->
-      {name, version}
+    Enum.map(activated, fn {name, active(app: app, version: version)} ->
+      {name, app, version}
     end) |> Enum.reverse
   end
 
-  defp do_resolve(activated, [request(name: name, req: req, parent: parent) = request|pending], optional, info) do
+  defp do_resolve(activated, [request(app: app, name: name, req: req, parent: parent) = request|pending], optional, info) do
     case activated[name] do
       active(version: version, possibles: possibles, parents: parents) = active ->
         possibles = Enum.filter(possibles, &version_match?(&1, req))
@@ -71,7 +71,7 @@ defmodule Hex.Resolver do
             new_optional = merge_optional(optional, new_optional)
 
             state = state(activated: activated, pending: pending, optional: optional)
-            new_active = active(name: name, version: version, state: state,
+            new_active = active(app: app, name: name, version: version, state: state,
                                 possibles: possibles, parents: wrap(parent))
             activated = Dict.put(activated, name, new_active)
 
@@ -131,8 +131,9 @@ defmodule Hex.Resolver do
   def get_deps(package, version, info(overridden: overridden)) do
     if deps = Registry.get_deps(package, version) do
       {reqs, opts} =
-        Enum.reduce(deps, {[], []}, fn {name, req, optional}, {reqs, opts} ->
-          request = request(name: name, req: compile_requirement(req, name), parent: package)
+        Enum.reduce(deps, {[], []}, fn {name, app, req, optional}, {reqs, opts} ->
+          request = request(app: app, name: name, req: compile_requirement(req, name),
+                            parent: package)
 
           cond do
             Set.member?(overridden, name) ->
