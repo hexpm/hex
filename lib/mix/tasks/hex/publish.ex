@@ -196,7 +196,8 @@ defmodule Mix.Tasks.Hex.Publish do
     end)
 
     include = for {app, req, opts} <- include, into: %{} do
-      {app, %{requirement: req, optional: opts[:optional]}}
+      name = opts[:hex] || app
+      {name, %{app: app, requirement: req, optional: opts[:optional]}}
     end
     exclude = for {app, _req, _opts} <- exclude, do: app
     {include, exclude}

@@ -75,7 +75,7 @@ defmodule HexTest.Case do
       end)
 
     reqs = Enum.into(reqs, %{}, &{elem(&1, 0), elem(&1, 1)})
-    meta = Map.merge(meta, %{app: name, version: version, requirements: reqs})
+    meta = Map.merge(meta, %{name: name, app: name, version: version, requirements: reqs})
 
     deps = inspect(deps, pretty: true)
     module = String.capitalize(name)
@@ -243,7 +243,7 @@ if :integration in ExUnit.configuration[:include] do
 
   {:ok, user}    = HexWeb.User.create("user", "user@mail.com", "hunter42")
   {:ok, package} = HexWeb.Package.create("ex_doc", user, meta)
-  {:ok, _}       = HexWeb.Release.create(package, "0.0.1", %{}, "")
+  {:ok, _}       = HexWeb.Release.create(package, "0.0.1", "ex_doc", %{}, "")
 
   auth = [user: "user", pass: "hunter42"]
 

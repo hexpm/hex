@@ -29,14 +29,14 @@ defmodule Hex.APITest do
     Hex.API.Package.new("pear", %{}, auth)
     Hex.API.Package.new("grape", %{}, auth)
 
-    tar = Hex.Tar.create(%{app: :pear, version: "0.0.1", requirements: %{}}, [])
+    tar = Hex.Tar.create(%{name: :pear, app: :pear, version: "0.0.1", requirements: %{}}, [])
     assert {404, _} = Hex.API.Release.get("pear", "0.0.1")
     assert {201, _} = Hex.API.Release.new("pear", tar, auth)
     assert {200, body} = Hex.API.Release.get("pear", "0.0.1")
     assert body["requirements"] == %{}
 
-    tar = Hex.Tar.create(%{app: :grape, version: "0.0.2", requirements: %{pear: "~> 0.0.1"}}, [])
-    reqs = %{"pear" => %{"requirement" => "~> 0.0.1", "optional" => false}}
+    tar = Hex.Tar.create(%{name: :grape, app: :grape, version: "0.0.2", requirements: %{pear: "~> 0.0.1"}}, [])
+    reqs = %{"pear" => %{"app" => "pear", "requirement" => "~> 0.0.1", "optional" => false}}
     assert {201, _} = Hex.API.Release.new("grape", tar, auth)
     assert {200, body} = Hex.API.Release.get("grape", "0.0.2")
     assert body["requirements"] == reqs
@@ -49,7 +49,7 @@ defmodule Hex.APITest do
     auth = [user: "user", pass: "hunter42"]
     Hex.API.Package.new("tangerine", %{}, auth)
 
-    tar = Hex.Tar.create(%{app: :tangerine, version: "0.0.1", requirements: %{}}, [])
+    tar = Hex.Tar.create(%{name: :tangerine, app: :tangerine, version: "0.0.1", requirements: %{}}, [])
     assert {201, _} = Hex.API.Release.new("tangerine", tar, auth)
 
     tarball = Path.join(tmp_path, "docs.tar.gz")
