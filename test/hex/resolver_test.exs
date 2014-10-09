@@ -91,8 +91,4 @@ defmodule Hex.ResolverTest do
     deps = reqs([])
     assert Dict.equal? reqs([decimal: "0.1.0", ex_plex: "0.1.0"]), resolve(deps, locked)
   end
-
-  test "stat" do
-    assert Hex.Registry.stat == {10, 31}
-  end
 end

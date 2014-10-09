@@ -26,6 +26,13 @@ defmodule Mix.Tasks.Hex.PublishTest do
     end
   end
 
+  defmodule ReleaseName.Mixfile do
+    def project do
+      [ app: :released, version: "0.0.1",
+        package: [name: :released_name] ]
+    end
+  end
+
   setup do
     Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
     :ok
@@ -54,6 +61,20 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self, {:mix_shell_input, :yes?, true}
       Mix.Tasks.Hex.Publish.run(["--revert", "0.0.1"])
       refute HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
+    end
+  end
+
+  test "create with package name" do
+    Mix.Project.push ReleaseName.Mixfile
+
+    in_tmp fn ->
+      Hex.home(tmp_path())
+      setup_auth("user")
+
+      send self, {:mix_shell_input, :yes?, true}
+      Mix.Tasks.Hex.Publish.run(["--no-progress"])
+      release = HexWeb.Release.get(HexWeb.Package.get("released_name"), "0.0.1")
+      assert release.app == "released"
     end
   end
 

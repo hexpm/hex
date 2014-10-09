@@ -60,6 +60,22 @@ defmodule Hex.MixTest do
     end
   end
 
+  defmodule WithPackageName do
+    def project do
+      [ app: :with_package_name,
+        version: "0.1.0",
+        deps: [ {:app_name, nil, hex: :package_name} ] ]
+    end
+  end
+
+  defmodule WithDependName do
+    def project do
+      [ app: :with_depend_name,
+        version: "0.1.0",
+        deps: [ {:depend_name, nil} ] ]
+    end
+  end
+
   setup do
     Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
     :ok
@@ -268,7 +284,6 @@ defmodule Hex.MixTest do
     purge [ Only_doc.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
   end
 
-
   @tag :integration
   test "with optional dependency" do
     Mix.Project.push WithOptional
@@ -289,6 +304,49 @@ defmodule Hex.MixTest do
     end
   after
     purge [ Only_doc.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
+  end
+
+  @tag :integration
+  test "with package name" do
+    Mix.Project.push WithPackageName
+
+    in_tmp fn ->
+      Hex.home(System.cwd!)
+
+      Mix.Task.run "deps.get"
+
+      assert_received {:mix_shell, :info, ["* Getting app_name (Hex package)"]}
+
+      Mix.Task.run "deps"
+
+      assert_received {:mix_shell, :info, ["* app_name (Hex package)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.1.0 (package_name)"]}
+    end
+  after
+    purge [ Package_name.NoConflict.Mixfile ]
+  end
+
+  @tag :integration
+  test "with depend name" do
+    Mix.Project.push WithDependName
+
+    in_tmp fn ->
+      Hex.home(System.cwd!)
+
+      Mix.Task.run "deps.get"
+
+      assert_received {:mix_shell, :info, ["* Getting depend_name (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* Getting app_name (Hex package)"]}
+
+      Mix.Task.run "deps"
+
+      assert_received {:mix_shell, :info, ["* depend_name (Hex package)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.2.0 (depend_name)"]}
+      assert_received {:mix_shell, :info, ["* app_name (Hex package)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.1.0 (package_name)"]}
+    end
+  after
+    purge [ Depend_name.NoConflict.Mixfile, Package_name.NoConflict.Mixfile ]
   end
 
   test "from mixlock" do

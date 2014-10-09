@@ -24,7 +24,7 @@ defmodule Hex.SCM do
   end
 
   def accepts_options(name, opts) do
-    Keyword.put(opts, :hex, name)
+    Keyword.put_new(opts, :hex, name)
   end
 
   def checked_out?(opts) do

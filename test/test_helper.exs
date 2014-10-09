@@ -74,8 +74,16 @@ defmodule HexTest.Case do
         _ -> true
       end)
 
-    reqs = Enum.into(reqs, %{}, &{elem(&1, 0), elem(&1, 1)})
-    meta = Map.merge(meta, %{name: name, app: name, version: version, requirements: reqs})
+    reqs = Enum.into(reqs, %{}, fn
+      {app, req} ->
+        {app, %{app: app, requirement: req, optional: false}}
+      {app, req, opts} ->
+        default_opts = %{app: app, requirement: req, optional: false}
+        {opts[:hex] || app, Dict.merge(default_opts, opts)}
+    end)
+
+    meta = Map.merge(meta, %{name: name, version: version, requirements: reqs})
+    meta = Map.put_new(meta, :app, name)
 
     deps = inspect(deps, pretty: true)
     module = String.capitalize(name)
@@ -84,8 +92,8 @@ defmodule HexTest.Case do
     files = [{"mix.exs", List.to_string(mixfile)}]
     tar = Hex.Tar.create(meta, files)
 
-    Hex.API.Package.new(name, meta, auth)
-    Hex.API.Release.new(name, tar, auth)
+    {_, %{"name" => ^name}}       = Hex.API.Package.new(name, meta, auth)
+    {_, %{"version" => ^version}} = Hex.API.Release.new(name, tar, auth)
   end
 
   def purge(modules) do
@@ -112,8 +120,9 @@ defmodule HexTest.Case do
     releases =
       Enum.map(test_registry, fn {name, version, deps} ->
         deps = Enum.map(deps, fn
-          {app, req} -> ["#{app}", req, false, "#{app}"]
-          {app, req, optional} -> ["#{app}", req, optional, "#{app}"]
+          {name, req} -> ["#{name}", req, false, "#{name}"]
+          {name, req, optional} -> ["#{name}", req, optional, "#{name}"]
+          {name, req, optional, app} -> ["#{name}", req, optional, "#{app}"]
         end)
         {{"#{name}", version}, [deps, nil]}
       end)
@@ -165,7 +174,10 @@ defmodule HexTest.Case do
       {:ecto, "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"]},
       {:ecto, "0.2.1", [postgrex: "~> 0.2.1", ex_doc: "0.1.0"]},
 
-      {:only_doc, "0.1.0", [{:ex_doc, nil, true}]} ]
+      {:only_doc, "0.1.0", [{:ex_doc, nil, true}]},
+
+      {:package_name, "0.1.0", []},
+      {:depend_name, "0.2.0", [{:package_name, nil, false, :app_name}]} ]
   end
 
   def setup_auth(username) do
@@ -255,6 +267,8 @@ if :integration in ExUnit.configuration[:include] do
   Case.init_project("ecto", "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"], %{}, auth)
   Case.init_project("ecto", "0.2.1", [{:sample, "0.0.1", path: Case.fixture_path("sample")}, postgrex: "~> 0.2.1", ex_doc: "0.1.0"], %{}, auth)
   Case.init_project("only_doc", "0.1.0", [{:ex_doc, nil, optional: true}], %{}, auth)
+  Case.init_project("package_name", "0.1.0", [], %{app: "app_name"}, auth)
+  Case.init_project("depend_name", "0.2.0", [{:app_name, nil, optional: true, hex: :package_name}], %{}, auth)
 end
 
 Mix.shell(Mix.Shell.Process)
