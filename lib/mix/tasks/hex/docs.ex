@@ -56,7 +56,7 @@ defmodule Mix.Tasks.Hex.Docs do
     :ok = :erl_tar.create(tarball, files, [:compressed])
     data = File.read!(tarball)
 
-    # File.rm!(tarball)
+    File.rm!(tarball)
     data
   end
 
@@ -71,6 +71,7 @@ defmodule Mix.Tasks.Hex.Docs do
       {code, _} when code in [200, 201] ->
         Mix.shell.info("")
         Mix.shell.info("Published docs for #{app} v#{version}")
+        Mix.shell.info("Hosted at #{Hex.Util.hexdocs_url(app, version)}")
       {code, body} ->
         Mix.shell.error("Pushing docs for #{app} v#{version} failed (#{code})")
         Hex.Util.print_error_result(code, body)

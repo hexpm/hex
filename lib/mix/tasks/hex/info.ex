@@ -89,8 +89,22 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp pretty_release(package, release) do
-    Mix.shell.info(package <> " v" <> release["version"])
-    pretty_dict(release, "requirements", "Dependencies")
+    version = release["version"]
+    Mix.shell.info(package <> " v" <> version)
+
+    if release["has_docs"] do
+      Mix.shell.info("  Documentation at: #{Hex.Util.hexdocs_url(package, version)}")
+    end
+
+    if release["requirements"] do
+      Mix.shell.info("  Dependencies:")
+      Enum.each(release["requirements"], fn {name, req} ->
+        if req["optional"] do
+          optional = " (optional)"
+        end
+        Mix.shell.info("    #{name}: #{req["requirement"]}#{optional}")
+      end)
+    end
   end
 
   defp pretty_list(meta, name) do

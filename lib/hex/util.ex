@@ -187,4 +187,8 @@ defmodule Hex.Util do
 
   defp indent(0), do: "  "
   defp indent(depth), do: "  " <> indent(depth - 1)
+
+  def hexdocs_url(package, version) do
+    "http://hexdocs.pm/#{package}/#{version}/"
+  end
 end

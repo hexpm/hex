@@ -6,6 +6,7 @@
 
 * Bug fixes
   * Allow you to change your password with `mix hex.user update`
+  * Correctly display dependencies in `mix hex.info PACKAGE VERSION`
 
 ## v0.5.0 (2014-09-19)
 
