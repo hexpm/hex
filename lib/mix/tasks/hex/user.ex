@@ -80,7 +80,7 @@ defmodule Mix.Tasks.Hex.User do
         Mix.shell.info "User `" <> username <> "` removed from the local machine. " <>
                        "To authenticate again, run `mix hex.user auth` " <>
                        "or create a new user with `mix hex.user register`"
-       :error ->
+      :error ->
         Mix.raise "No user authorised on the local machine. Run `mix hex.user auth` " <>
                   "or create a new user with `mix hex.user register`"
     end
