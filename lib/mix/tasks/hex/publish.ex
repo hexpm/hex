@@ -179,6 +179,7 @@ defmodule Mix.Tasks.Hex.Publish do
       {code, _} when code in [200, 201] ->
         Mix.shell.info("")
         Mix.shell.info("Published #{meta[:name]} v#{meta[:version]}")
+        Mix.shell.info("Don't forget to upload your documentation with `mix hex.docs`")
       {code, body} ->
         Mix.shell.error("Pushing #{meta[:name]} v#{meta[:version]} failed (#{code})")
         Hex.Util.print_error_result(code, body)

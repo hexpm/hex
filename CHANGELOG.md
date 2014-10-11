@@ -3,6 +3,7 @@
 * Enhancements
   * Add support for packages with a different OTP application name than the package name
   * Add task `mix hex.docs` for uploading project documentation
+  * Add email confirmation
 
 * Bug fixes
   * Allow you to change your password with `mix hex.user update`
