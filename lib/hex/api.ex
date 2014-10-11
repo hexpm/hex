@@ -31,7 +31,7 @@ defmodule Hex.API do
     end
   end
 
-  defp ssl_opts do
+  def ssl_opts do
     if ssl_version() >= @secure_ssl_version do
       [verify: :verify_peer, depth: 2, partial_chain: &partial_chain/1,
        cacerts: Hex.API.Certs.cacerts()]
