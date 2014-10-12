@@ -1,4 +1,4 @@
-## v0.6.0-dev
+## v0.6.0 (2014-10-12)
 
 * Enhancements
   * Add support for packages with a different OTP application name than the package name
