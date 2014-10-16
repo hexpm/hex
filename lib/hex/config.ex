@@ -5,8 +5,8 @@ defmodule Hex.Config do
     case File.read(config_path) do
       {:ok, binary} ->
         case decode_term(binary) do
-          {:ok, term} -> term ++ [source: :term]
-          {:error, _} -> decode_elixir(binary) ++ [source: :elixir]
+          {:ok, term} -> term
+          {:error, _} -> decode_elixir(binary)
         end
       {:error, _} ->
         []
@@ -24,14 +24,8 @@ defmodule Hex.Config do
     path = config_path
 
     File.mkdir_p!(Path.dirname(path))
-    source = config[:source]
-    config = Dict.delete(config, :source)
 
-    if source == :term do
-      string = encode_term(config)
-    else
-      string = encode_elixir(config)
-    end
+    string = encode_term(config)
 
     File.write!(path, string)
   end
