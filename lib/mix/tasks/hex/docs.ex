@@ -67,7 +67,7 @@ defmodule Mix.Tasks.Hex.Docs do
       progress = Util.progress(nil)
     end
 
-    case Hex.API.Release.new_docs(app, version, tarball, auth, progress) do
+    case Hex.API.ReleaseDocs.new(app, version, tarball, auth, progress) do
       {code, _} when code in [200, 201] ->
         Mix.shell.info("")
         Mix.shell.info("Published docs for #{app} v#{version}")
@@ -81,7 +81,7 @@ defmodule Mix.Tasks.Hex.Docs do
   defp revert(app, version, auth) do
     version = Util.clean_version(version)
 
-    case Hex.API.Release.delete_docs(app, version, auth) do
+    case Hex.API.ReleaseDocs.delete(app, version, auth) do
       {204, _} ->
         Mix.shell.info("Reverted docs for #{app} v#{version}")
       {code, body} ->
