@@ -56,11 +56,11 @@ defmodule Hex.APITest do
     :ok = :erl_tar.create(tarball, [{'index.html', "heya"}], [:compressed])
     tar = File.read!(tarball)
 
-    assert {201, _} = Hex.API.Release.new_docs("tangerine", "0.0.1", tar, auth)
-    assert {200, ^tar} = Hex.API.Release.get_docs("tangerine", "0.0.1")
+    assert {201, _} = Hex.API.ReleaseDocs.new("tangerine", "0.0.1", tar, auth)
+    assert {200, ^tar} = Hex.API.ReleaseDocs.get("tangerine", "0.0.1")
 
-    assert {204, _} = Hex.API.Release.delete_docs("tangerine", "0.0.1", auth)
-    assert {404, _} = Hex.API.Release.get_docs("tangerine", "0.0.1")
+    assert {204, _} = Hex.API.ReleaseDocs.delete("tangerine", "0.0.1", auth)
+    assert {404, _} = Hex.API.ReleaseDocs.get("tangerine", "0.0.1")
   end
 
   test "registry" do
