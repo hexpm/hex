@@ -57,7 +57,7 @@ defmodule Hex.Mix do
   @spec from_lock(%{}) :: [{String.t, String.t, String.t}]
   def from_lock(lock) do
     Enum.flat_map(lock, fn
-      # Support older
+      # Support everything pre Hex 0.6.0 (2014-10-13)
       {name, {:package, version}} ->
         name = Atom.to_string(name)
         [{name, name, version}]

@@ -141,7 +141,7 @@ defmodule Mix.Tasks.Hex.User do
       {201, _} ->
         Util.generate_key(username, password)
         Mix.shell.info("You are required to confirm your email to access your account, " <>
-                       " a confirmation email has been sent to <#{email}>")
+                       "a confirmation email has been sent to #{email}")
       {code, body} ->
         Mix.shell.error("Registration of user #{username} failed (#{code})")
         Hex.Util.print_error_result(code, body)

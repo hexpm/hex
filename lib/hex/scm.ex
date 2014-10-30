@@ -33,7 +33,7 @@ defmodule Hex.SCM do
 
   def lock_status(opts) do
     case opts[:lock] do
-      # Support older
+      # Support everything pre Hex 0.6.0 (2014-10-13)
       {:package, version} ->
         lock_status(opts[:dest], nil, version)
       {:hex, name, version} ->
@@ -50,7 +50,7 @@ defmodule Hex.SCM do
       {:ok, file} ->
         manifest = parse_manifest(file)
 
-        # Support older
+        # Support everything pre Hex 0.6.0 (2014-10-13)
         if name == nil do
           manifest = put_elem(manifest, 0, nil)
         end
@@ -111,7 +111,7 @@ defmodule Hex.SCM do
 
   defp get_lock(lock) do
     case lock do
-      # Support older
+      # Support everything pre Hex 0.6.0 (2014-10-13)
       {:package, version} -> {nil, version}
       {:hex, name, version} -> {name, version}
     end
@@ -157,7 +157,7 @@ defmodule Hex.SCM do
 
     Enum.flat_map(lock, fn entry ->
       case entry do
-        # Support older
+        # Support everything pre Hex 0.6.0 (2014-10-13)
         {app, {:package, version}} ->
           name = app
           version = version
