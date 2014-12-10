@@ -3,15 +3,18 @@ defmodule Hex.APITest do
   @moduletag :integration
 
   test "user" do
-    assert {404, _} = Hex.API.User.get("test_user")
-
+    assert {401, _} = Hex.API.User.get("test_user", [key: "something wrong"])
     assert {201, _} = Hex.API.User.new("test_user", "test_user@mail.com", "hunter42")
-    assert {200, body} = Hex.API.User.get("test_user")
-    assert body["username"] == "test_user"
+
+    HexWeb.User.get(username: "test_user")
+    |> HexWeb.User.confirm
 
     auth = [user: "test_user", pass: "hunter42"]
+    assert {200, body} = Hex.API.User.get("test_user", auth)
+    assert body["username"] == "test_user"
+
     assert {200, _} = Hex.API.User.update("new_mail@mail.com", nil, auth)
-    assert {200, body} = Hex.API.User.get("test_user")
+    assert {200, body} = Hex.API.User.get("test_user", auth)
     assert body["email"] == "new_mail@mail.com"
   end
 
