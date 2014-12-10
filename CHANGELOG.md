@@ -1,4 +1,7 @@
-## v0.6.1-dev
+## v0.6.1 (2014-12-11)
+
+* Enhancements
+  * Convert config file to erlang term file
 
 ## v0.6.0 (2014-10-12)
 
