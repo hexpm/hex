@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
   @moduletag :integration
 
   test "add owner" do
-    {:ok, user}    = HexWeb.User.create("owner_user", "owner_user@mail.com", "hunter42")
+    {:ok, user}    = HexWeb.User.create("owner_user", "owner_user@mail.com", "hunter42", true)
     {:ok, package} = HexWeb.Package.create("owner_package", user, %{})
 
     Hex.home(tmp_path())

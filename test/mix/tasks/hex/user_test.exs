@@ -59,7 +59,7 @@ defmodule Mix.Tasks.Hex.UserTest do
   end
 
   test "update" do
-    {:ok, _} = HexWeb.User.create("update_user", "old@mail.com", "hunter42")
+    {:ok, _} = HexWeb.User.create("update_user", "old@mail.com", "hunter42", true)
 
     send self, {:mix_shell_input, :prompt, "update_user"}
 

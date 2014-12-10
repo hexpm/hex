@@ -228,20 +228,19 @@ File.mkdir_p!(Case.tmp_path)
 
 
 if :integration in ExUnit.configuration[:include] do
-  db = "hex_client_test"
+  db = "hex_test"
   db_url = "ecto://postgres:postgres@localhost/#{db}"
 
   System.put_env("DATABASE_URL", db_url)
-
-  Application.ensure_all_started(:hex_web)
-  HexWeb.RegistryBuilder.start_link
-  Application.put_env(:hex_web, :password_work_factor, 4)
 
   File.cd! "_build/test/lib/hex_web", fn ->
     Mix.Task.run "ecto.drop", ["HexWeb.Repo"]
     Mix.Task.run "ecto.create", ["HexWeb.Repo"]
     Mix.Task.run "ecto.migrate", ["HexWeb.Repo"]
   end
+  HexWeb.Repo.stop
+
+  {:ok, _} = Application.ensure_all_started(:hex_web)
 
   Hex.start()
   Hex.url("http://localhost:4000")
@@ -253,11 +252,12 @@ if :integration in ExUnit.configuration[:include] do
     "links" => %{"docs" => "http://docs", "repo" => "http://repo"},
     "description" => "builds docs"}
 
-  {:ok, user}    = HexWeb.User.create("user", "user@mail.com", "hunter42")
+  {:ok, user}    = HexWeb.User.create("user", "user@mail.com", "hunter42", true)
   {:ok, package} = HexWeb.Package.create("ex_doc", user, meta)
   {:ok, _}       = HexWeb.Release.create(package, "0.0.1", "ex_doc", %{}, "")
 
-  auth = [user: "user", pass: "hunter42"]
+  {201, %{"secret" => secret}} = Hex.API.Key.new("my_key", [user: "user", pass: "hunter42"])
+  auth = [key: secret]
 
   Case.init_project("ex_doc", "0.0.1", [], meta, auth)
   Case.init_project("ex_doc", "0.0.1", [], meta, auth)

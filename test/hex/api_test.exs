@@ -64,7 +64,7 @@ defmodule Hex.APITest do
   end
 
   test "registry" do
-    HexWeb.RegistryBuilder.sync_rebuild
+    HexWeb.RegistryBuilder.rebuild
     assert {200, _} = Hex.API.Registry.get
   end
 

@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
     in_tmp fn ->
       Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
       Hex.home(System.cwd!)
-      HexWeb.RegistryBuilder.sync_rebuild
+      HexWeb.RegistryBuilder.rebuild
 
       Mix.Tasks.Hex.Info.run(["ex_doc"])
 
@@ -23,7 +23,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
     in_tmp fn ->
       Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
       Hex.home(System.cwd!)
-      HexWeb.RegistryBuilder.sync_rebuild
+      HexWeb.RegistryBuilder.rebuild
 
       Mix.Tasks.Hex.Info.run(["ex_doc", "0.0.1"])
       assert_received {:mix_shell, :info, ["ex_doc v0.0.1"]}
@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
     in_tmp fn ->
       Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
       Hex.home(System.cwd!)
-      HexWeb.RegistryBuilder.sync_rebuild
+      HexWeb.RegistryBuilder.rebuild
 
       assert {200, data} = Hex.API.Registry.get
       File.write!(Hex.Registry.path, :zlib.gunzip(data))
