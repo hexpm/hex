@@ -157,7 +157,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp create_package?(meta, auth) do
     case Hex.API.Package.new(meta[:name], meta, auth) do
-      {code, _} when code in [200, 201] ->
+      {code, _} when code in 200..299 ->
         true
       {code, body} ->
         Mix.shell.error("Updating package #{meta[:name]} failed (#{code})")
@@ -176,7 +176,7 @@ defmodule Mix.Tasks.Hex.Publish do
     end
 
     case Hex.API.Release.new(meta[:name], tarball, auth, progress) do
-      {code, _} when code in [200, 201] ->
+      {code, _} when code in 200..299 ->
         Mix.shell.info("")
         Mix.shell.info("Published #{meta[:name]} v#{meta[:version]}")
         Mix.shell.info("Don't forget to upload your documentation with `mix hex.docs`")
@@ -237,14 +237,6 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp package(config) do
     package = Enum.into(config[:package] || [], %{})
-
-    if licenses = package[:licenses] do
-      package = Map.put(package, :licenses, licenses)
-    end
-
-    if links = package[:links] do
-      package = Map.put(package, :links, links)
-    end
 
     if files = package[:files] || @default_files do
       files = expand_paths(files, File.cwd!)
