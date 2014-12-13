@@ -1,5 +1,6 @@
 defmodule Hex.API do
   alias Hex.API.Util
+  alias Hex.API.VerifyHostname
 
   @secure_ssl_version {5, 3, 6}
 
@@ -10,8 +11,9 @@ defmodule Hex.API do
       'user-agent' => user_agent()}
     headers = Dict.merge(default_headers, headers)
 
-    http_opts = [ssl: ssl_opts()]
+    http_opts = [ssl: ssl_opts(url)]
     opts = [body_format: :binary]
+    url = String.to_char_list(url)
 
     cond do
       body ->
@@ -31,10 +33,13 @@ defmodule Hex.API do
     end
   end
 
-  def ssl_opts do
+  def ssl_opts(url) do
     if ssl_version() >= @secure_ssl_version do
+      hostname = String.to_char_list(URI.parse(url).host)
+      verify_fun = {&VerifyHostname.verify_fun/3, check_hostname: hostname}
+
       [verify: :verify_peer, depth: 2, partial_chain: &partial_chain/1,
-       cacerts: Hex.API.Certs.cacerts()]
+       cacerts: Hex.API.Certs.cacerts(), verify_fun: verify_fun]
     else
       [verify: :verify_none]
     end
@@ -66,8 +71,9 @@ defmodule Hex.API do
       'user-agent' => user_agent(),
       'content-length' => to_char_list(byte_size(body))}
     headers = Dict.merge(default_headers, headers)
-    http_opts = [ssl: ssl_opts()]
+    http_opts = [ssl: ssl_opts(url)]
     opts = [body_format: :binary]
+    url = String.to_char_list(url)
 
     body = fn
       size when size < byte_size(body) ->
@@ -111,15 +117,15 @@ defmodule Hex.API do
   end
 
   def cdn_url(path) do
-    :binary.bin_to_list(Hex.cdn <> "/" <> path)
+    Hex.cdn <> "/" <> path
   end
 
   def url(path) do
-    :binary.bin_to_list(Hex.url <> "/" <> path)
+    Hex.url <> "/" <> path
   end
 
   def api_url(path) do
-    :binary.bin_to_list(Hex.url <> "/api/" <> path)
+    Hex.url <> "/api/" <> path
   end
 
   def auth(key: secret) do

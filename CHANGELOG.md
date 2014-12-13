@@ -1,5 +1,8 @@
 ## v0.6.1-dev
 
+* Enhancements
+  * Add PKIX hostname verification according to RFC6125
+
 ## v0.6.1 (2014-12-11)
 
 * Enhancements
