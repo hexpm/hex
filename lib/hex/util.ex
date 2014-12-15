@@ -188,6 +188,10 @@ defmodule Hex.Util do
   defp indent(0), do: "  "
   defp indent(depth), do: "  " <> indent(depth - 1)
 
+  def hex_package_url(package, version) do
+    "#{Hex.url}/packages/#{package}/#{version}"
+  end
+
   def hexdocs_url(package, version) do
     "http://hexdocs.pm/#{package}/#{version}/"
   end
