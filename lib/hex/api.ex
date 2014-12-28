@@ -11,7 +11,7 @@ defmodule Hex.API do
       'user-agent' => user_agent()}
     headers = Dict.merge(default_headers, headers)
 
-    http_opts = [ssl: ssl_opts(url)]
+    http_opts = [ssl: ssl_opts(url), relaxed: true]
     opts = [body_format: :binary]
     url = String.to_char_list(url)
 
@@ -71,7 +71,7 @@ defmodule Hex.API do
       'user-agent' => user_agent(),
       'content-length' => to_char_list(byte_size(body))}
     headers = Dict.merge(default_headers, headers)
-    http_opts = [ssl: ssl_opts(url)]
+    http_opts = [ssl: ssl_opts(url), relaxed: true]
     opts = [body_format: :binary]
     url = String.to_char_list(url)
 

@@ -3,6 +3,7 @@
 * Enhancements
   * Add PKIX hostname verification according to RFC6125
   * Improve error messages from HTTP error codes
+  * Improve HTTP performance
 
 ## v0.6.1 (2014-12-11)
 

@@ -27,7 +27,9 @@ defmodule Hex do
     if http_proxy,  do: proxy(http_proxy)
     if https_proxy, do: proxy(https_proxy)
 
-    Hex.Parallel.start_link(:hex_fetcher, max_parallel: 4)
+    http_opts()
+
+    Hex.Parallel.start_link(:hex_fetcher, max_parallel: 8)
   end
 
   defp start_mix do
@@ -66,7 +68,7 @@ defmodule Hex do
   def elixir_version, do: unquote(System.version)
 
   defp proxy(proxy) do
-    uri  = URI.parse(proxy)
+    uri = URI.parse(proxy)
 
     if uri.host && uri.port do
       host = String.to_char_list(uri.host)
@@ -79,5 +81,17 @@ defmodule Hex do
       "http" -> :proxy
       "https" -> :https_proxy
     end
+  end
+
+  defp http_opts do
+    opts = [
+      max_sessions: 4,
+      max_keep_alive_length: 4,
+      keep_alive_timeout: 120_000,
+      max_pipeline_length: 4,
+      pipeline_timeout: 60_000,
+    ]
+
+    :httpc.set_options(opts, :hex)
   end
 end

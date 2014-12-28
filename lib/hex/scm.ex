@@ -208,7 +208,7 @@ defmodule Hex.SCM do
       headers = headers ++ [{'if-none-match', etag}]
     end
 
-    http_opts = [ssl: Hex.API.ssl_opts(url)]
+    http_opts = [ssl: Hex.API.ssl_opts(url), relaxed: true]
     url = String.to_char_list(url)
 
     case :httpc.request(:get, {url, headers}, http_opts, opts, :hex) do
