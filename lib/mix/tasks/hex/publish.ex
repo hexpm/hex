@@ -147,10 +147,11 @@ defmodule Mix.Tasks.Hex.Publish do
     version = Util.clean_version(version)
 
     case Hex.API.Release.delete(meta[:name], version, auth) do
-      {204, _} ->
+      {code, _} when code in 200..299 ->
         Mix.shell.info("Reverted #{meta[:name]} v#{version}")
       {code, body} ->
-        Mix.shell.error("Reverting #{meta[:name]} v#{version} failed! (#{code})")
+        Mix.shell.error("Reverting #{meta[:name]} v#{version} failed")
+        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -160,7 +161,8 @@ defmodule Mix.Tasks.Hex.Publish do
       {code, _} when code in 200..299 ->
         true
       {code, body} ->
-        Mix.shell.error("Updating package #{meta[:name]} failed (#{code})")
+        Mix.shell.error("Updating package #{meta[:name]} failed")
+        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
         false
     end
@@ -181,7 +183,8 @@ defmodule Mix.Tasks.Hex.Publish do
         Mix.shell.info("Published at #{Hex.Util.hex_package_url(meta[:name], meta[:version])}")
         Mix.shell.info("Don't forget to upload your documentation with `mix hex.docs`")
       {code, body} ->
-        Mix.shell.error("Pushing #{meta[:name]} v#{meta[:version]} failed (#{code})")
+        Mix.shell.error("Pushing #{meta[:name]} v#{meta[:version]} failed")
+        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end

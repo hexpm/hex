@@ -110,10 +110,11 @@ defmodule Mix.Tasks.Hex.User do
     auth = [user: username, pass: password]
 
     case Hex.API.User.update(new_email, new_password, auth) do
-      {200, _} ->
+      {code, _} when code in 200..299 ->
         Hex.Config.update([username: username])
       {code, body} ->
-        Mix.shell.error("Updating user options for #{auth[:user]} failed (#{code})")
+        Mix.shell.error("Updating user options for #{auth[:user]} failed")
+        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -138,12 +139,13 @@ defmodule Mix.Tasks.Hex.User do
 
   defp create_user(username, email, password) do
     case Hex.API.User.new(username, email, password) do
-      {201, _} ->
+      {code, _} when code in 200..299 ->
         Util.generate_key(username, password)
         Mix.shell.info("You are required to confirm your email to access your account, " <>
                        "a confirmation email has been sent to #{email}")
       {code, body} ->
-        Mix.shell.error("Registration of user #{username} failed (#{code})")
+        Mix.shell.error("Registration of user #{username} failed")
+        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end

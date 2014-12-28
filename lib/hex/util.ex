@@ -185,6 +185,13 @@ defmodule Hex.Util do
     end)
   end
 
+  def print_http_code(code), do: Mix.shell.info(pretty_http_code(code))
+
+  defp pretty_http_code(401), do: "Authentication failed (401)"
+  defp pretty_http_code(404), do: "Entity not found (404)"
+  defp pretty_http_code(422), do: "Validation failed (422)"
+  defp pretty_http_code(code), do: "HTTP status code: #{code}"
+
   defp indent(0), do: "  "
   defp indent(depth), do: "  " <> indent(depth - 1)
 

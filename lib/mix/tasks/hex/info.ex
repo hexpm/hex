@@ -48,24 +48,26 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp package(package) do
     case Hex.API.Package.get(package) do
-      {200, body} ->
+      {code, body} when code in 200..299 ->
         pretty_package(body)
       {404, _} ->
         Mix.shell.error("No package with name #{package}")
       {code, body} ->
-        Mix.shell.error("Failed to retrieve package information! (#{code})")
+        Mix.shell.error("Failed to retrieve package information")
+        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end
 
   defp release(package, version) do
     case Hex.API.Release.get(package, version) do
-      {200, body} ->
+      {code, body} when code in 200..299 ->
         pretty_release(package, body)
       {404, _} ->
         Mix.shell.error("No release with name #{package} v#{version}")
       {code, body} ->
-        Mix.shell.error("Failed to retrieve release information! (#{code})")
+        Mix.shell.error("Failed to retrieve release information")
+        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end

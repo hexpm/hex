@@ -53,10 +53,11 @@ defmodule Mix.Tasks.Hex.Owner do
   defp add_owner(package, owner, opts) do
     Mix.shell.info("Adding owner #{owner} to #{package}")
     case Hex.API.Package.Owner.add(package, owner, opts) do
-      {204, _body} ->
+      {code, _body} when code in 200..299->
         :ok
       {code, body} ->
-        Mix.shell.error("Adding owner failed (#{code})")
+        Mix.shell.error("Adding owner failed")
+        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -64,20 +65,22 @@ defmodule Mix.Tasks.Hex.Owner do
   defp remove_owner(package, owner, opts) do
     Mix.shell.info("Removing owner #{owner} from #{package}")
     case Hex.API.Package.Owner.delete(package, owner, opts) do
-      {204, _body} ->
+      {code, _body} when code in 200..299->
         :ok
       {code, body} ->
-        Mix.shell.error("Removing owner failed (#{code})")
+        Mix.shell.error("Removing owner failed")
+        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end
 
   defp list_owners(package, opts) do
     case Hex.API.Package.Owner.get(package, opts) do
-      {200, body} ->
+      {code, body} when code in 200..299->
         Enum.each(body, &Mix.shell.info(&1["email"]))
       {code, body} ->
-        Mix.shell.error("Package owner fetching failed (#{code})")
+        Mix.shell.error("Package owner fetching failed")
+        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end
