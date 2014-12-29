@@ -23,19 +23,14 @@ defmodule Hex.Config do
     Hex.Util.move_home
     path = config_path
 
-    File.mkdir_p!(Path.dirname(path))
-
     string = encode_term(config)
 
+    File.mkdir_p!(Path.dirname(path))
     File.write!(path, string)
   end
 
   defp config_path do
     Path.join(Hex.home, "hex.config")
-  end
-
-  defp encode_elixir(string) do
-    Macro.to_string(string) <> "\n"
   end
 
   defp decode_elixir(string) do
@@ -45,7 +40,7 @@ defmodule Hex.Config do
 
   defp encode_term(list) do
     list
-    |> Enum.map(&[:io_lib.print(&1) | ".\n\n"])
+    |> Enum.map(&[:io_lib.print(&1) | ".\n"])
     |> IO.iodata_to_binary
   end
 

@@ -105,6 +105,13 @@ defmodule Hex.Util do
     end
   end
 
+  def encode_term(list) do
+    list
+    |> Enum.map(&binarify/1)
+    |> Enum.map(&[:io_lib.print(&1) | ".\n"])
+    |> IO.iodata_to_binary
+  end
+
   def safe_deserialize_elixir("") do
     nil
   end

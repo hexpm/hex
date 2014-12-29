@@ -1,7 +1,8 @@
 defmodule Hex.Tar do
   @supported ["2", "3"]
   @version "2"
-  @required_files ~w(VERSION CHECKSUM metadata.exs contents.tar.gz)c
+  @required_files_2 ~w(VERSION CHECKSUM metadata.exs contents.tar.gz)c
+  @required_files_3 ~w(VERSION CHECKSUM metadata.config contents.tar.gz)c
 
   def create(meta, files) do
     contents_path = "#{meta[:name]}-#{meta[:version]}-contents.tar.gz"
@@ -24,7 +25,7 @@ defmodule Hex.Tar do
       {'VERSION', @version},
       {'CHECKSUM', checksum},
       {'metadata.exs', meta_string},
-      {'contents.tar.gz', contents} ]
+      {'contents.tar.gz', contents}]
     :ok = :erl_tar.create(path, files)
 
     tar = File.read!(path)
@@ -37,8 +38,9 @@ defmodule Hex.Tar do
     case :erl_tar.extract(path, [:memory]) do
       {:ok, files} ->
         files = Enum.into(files, %{})
-        check_files(files, path)
-        check_version(files['VERSION'], path)
+        version = files['VERSION']
+        check_version(version, path)
+        check_files(version, files, path)
         checksum(files, path, {name, version})
         extract_contents(files['contents.tar.gz'], dest, path)
 
@@ -50,8 +52,16 @@ defmodule Hex.Tar do
     end
   end
 
-  defp check_files(files, path) do
-    diff = @required_files -- Dict.keys(files)
+  defp check_files("2", files, path) do
+    check_required_files(@required_files_2, files, path)
+  end
+
+  defp check_files("3", files, path) do
+    check_required_files(@required_files_3, files, path)
+  end
+
+  defp check_required_files(required_files, files, path) do
+    diff = required_files -- Dict.keys(files)
     if diff != [] do
       diff = Enum.join(diff, ", ")
       Mix.raise "Missing files #{diff} in #{path}"
@@ -69,7 +79,7 @@ defmodule Hex.Tar do
   defp checksum(files, path, {name, version}) do
     case Base.decode16(files['CHECKSUM'], case: :mixed) do
       {:ok, tar_checksum} ->
-        blob = files['VERSION'] <> files['metadata.exs'] <> files['contents.tar.gz']
+        blob = files['VERSION'] <> files['metadata.config'] <> files['contents.tar.gz']
         registry_checksum = Hex.Registry.get_checksum(to_string(name), version)
         checksum = :crypto.hash(:sha256, blob)
 
