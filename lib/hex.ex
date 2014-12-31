@@ -3,7 +3,6 @@ defmodule Hex do
   @default_cdn "https://s3.amazonaws.com/s3.hex.pm"
   @default_home "~/.hex"
 
-
   def start do
     unless Application.get_env(:hex, :started) do
       start_api()
@@ -18,12 +17,26 @@ defmodule Hex do
     :inets.start()
     :inets.start(:httpc, profile: :hex)
 
+    # API configuration from environment variables
     if url  = System.get_env("HEX_API"),  do: url(url)
     if cdn  = System.get_env("HEX_CDN"),  do: cdn(cdn)
     if home = System.get_env("HEX_HOME"), do: home(home)
 
-    http_proxy  = System.get_env("HTTP_PROXY")  || System.get_env("http_proxy")
-    https_proxy = System.get_env("HTTPS_PROXY") || System.get_env("https_proxy")
+    # API configuration from Hex config file
+    # Excludes `home` because Hex.Config.read depends on it
+    config = Hex.Config.read
+    if url  = Keyword.get(config, :api_url), do: url(url)
+    if cdn  = Keyword.get(config, :cdn_url), do: cdn(cdn)
+
+    # HTTP proxy configuration from both environment variables and Hex config
+    http_proxy  = Keyword.get(config, :http_proxy)
+                  || System.get_env("http_proxy")
+                  || System.get_env("HTTP_PROXY")
+
+    https_proxy = Keyword.get(config, :https_proxy)
+                  || System.get_env("https_proxy")
+                  || System.get_env("HTTPS_PROXY")
+
     if http_proxy,  do: proxy(http_proxy)
     if https_proxy, do: proxy(https_proxy)
 
