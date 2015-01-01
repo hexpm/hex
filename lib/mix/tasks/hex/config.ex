@@ -7,6 +7,14 @@ defmodule Mix.Tasks.Hex.Config do
   Reads or updates hex configuration file.
 
   `mix hex.config KEY [VALUE]`
+
+ ## Config keys
+  - `username` - Hex username
+  - `key` - Hex API key
+  - `api_url` - Hex API base URL (without trailing slash)
+  - `cdn_url` - Hex CDN base URL (without trailing slash)
+  - `http_proxy` - HTTP proxy server
+  - `https_proxy` - HTTPS proxy server
   """
 
   def run(args) do
@@ -21,6 +29,7 @@ defmodule Mix.Tasks.Hex.Config do
         end
       [key, value] ->
         Hex.Config.update([{:"#{key}", value}])
+        Mix.shell.info("#{key}: #{inspect(value, pretty: true)}")
       _ ->
         Mix.raise "Invalid arguments, expected: mix hex.config KEY [VALUE]"
     end

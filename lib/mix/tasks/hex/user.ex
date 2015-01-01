@@ -60,7 +60,8 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp whoami() do
-    case Keyword.fetch(Hex.Config.read, :username) do
+    config = Hex.Config.read
+    case Keyword.fetch(config, :username) do
        {:ok, username} ->
         Mix.shell.info(username)
        :error ->
