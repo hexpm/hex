@@ -41,7 +41,7 @@ defmodule Hex.Tar do
         version = files['VERSION']
         check_version(version, path)
         check_files(version, files, path)
-        checksum(files, path, {name, version})
+        checksum(version, files, path, {name, version})
         extract_contents(files['contents.tar.gz'], dest, path)
 
       :ok ->
@@ -76,10 +76,10 @@ defmodule Hex.Tar do
     end
   end
 
-  defp checksum(files, path, {name, version}) do
+  defp checksum(version, files, path, {name, version}) do
     case Base.decode16(files['CHECKSUM'], case: :mixed) do
       {:ok, tar_checksum} ->
-        blob = files['VERSION'] <> files['metadata.config'] <> files['contents.tar.gz']
+        blob = files['VERSION'] <> metadata(version, files) <> files['contents.tar.gz']
         registry_checksum = Hex.Registry.get_checksum(to_string(name), version)
         checksum = :crypto.hash(:sha256, blob)
 
@@ -107,4 +107,7 @@ defmodule Hex.Tar do
         Mix.raise "Unpacking #{path}/contents.tar.gz failed: #{inspect reason}"
     end
   end
+
+  defp metadata("2", files), do: files['metadata.exs']
+  defp metadata("3", files), do: files['metadata.config']
 end
