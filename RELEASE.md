@@ -20,7 +20,7 @@ This document simply outlines the release process:
 
 8. Add new release to `installs` table in the hex.pm database (see below for SQL)
 
-9. Rebuild the registry file by running `HexWeb.RegistryBuilder.sync_rebuild` on the hex.pm server
+9. Rebuild the registry file by running `HexWeb.RegistryBuilder.rebuild` on the hex.pm server
 
 9. Increment version and add `-dev` extension to versions (see below for all files)
 
