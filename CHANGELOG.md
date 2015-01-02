@@ -5,6 +5,7 @@
   * Improve error messages from HTTP error codes
   * Improve HTTP performance
   * Add config options `api_url`, `cdn_url`, `http_proxy` and `https_proxy`
+  * Support both doc/ and docs/ as documentation directory
 
 ## v0.6.1 (2014-12-11)
 
