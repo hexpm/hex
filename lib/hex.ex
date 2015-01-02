@@ -17,28 +17,12 @@ defmodule Hex do
     :inets.start()
     :inets.start(:httpc, profile: :hex)
 
-    # API configuration from environment variables
-    if url  = System.get_env("HEX_API"),  do: url(url)
-    if cdn  = System.get_env("HEX_CDN"),  do: cdn(cdn)
-    if home = System.get_env("HEX_HOME"), do: home(home)
-
-    # API configuration from Hex config file
-    # Excludes `home` because Hex.Config.read depends on it
     config = Hex.Config.read
-    if url  = Keyword.get(config, :api_url), do: url(url)
-    if cdn  = Keyword.get(config, :cdn_url), do: cdn(cdn)
-
-    # HTTP proxy configuration from both environment variables and Hex config
-    http_proxy  = Keyword.get(config, :http_proxy)
-                  || System.get_env("http_proxy")
-                  || System.get_env("HTTP_PROXY")
-
-    https_proxy = Keyword.get(config, :https_proxy)
-                  || System.get_env("https_proxy")
-                  || System.get_env("HTTPS_PROXY")
-
-    if http_proxy,  do: proxy(http_proxy)
-    if https_proxy, do: proxy(https_proxy)
+    if home = System.get_env("HEX_HOME"), do: home(home)
+    config(config, ["HEX_API"], :api_url, &url/1)
+    config(config, ["HEX_CDN"], :cdn_url, &cdn/1)
+    config(config, ["http_proxy", "HTTP_PROXY"], :http_proxy, &proxy/1)
+    config(config, ["https_proxy", "HTTPS_PROXY"], :https_proxy, &proxy/1)
 
     http_opts()
 
@@ -79,6 +63,12 @@ defmodule Hex do
 
   def version,        do: unquote(Mix.Project.config[:version])
   def elixir_version, do: unquote(System.version)
+
+  defp config(config, envs, config_key, fun) do
+    value = envs |> Enum.map(&System.get_env/1) |> Enum.find(& not is_nil &1)
+    value = value || Keyword.get(config, config_key)
+    if value, do: fun.(value)
+  end
 
   defp proxy(proxy) do
     uri = URI.parse(proxy)
