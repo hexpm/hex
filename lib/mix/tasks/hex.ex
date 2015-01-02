@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Hex.Info do
+defmodule Mix.Tasks.Hex do
   use Mix.Task
 
   @shortdoc "Print hex information"
@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Hex.Info do
   @moduledoc """
   Prints hex package or system information.
 
-  `mix hex.info [PACKAGE [VERSION]]`
+  `mix hex [PACKAGE [VERSION]]`
 
   If `package` is not given, print system information. This includes when
   registry was last updated and current system version.
@@ -34,7 +34,7 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp general() do
     Mix.shell.info("Hex v" <> Hex.version)
-    Mix.shell.info("")
+    line_break()
 
     path = Hex.Registry.path()
     stat = File.stat!(path)
@@ -44,6 +44,16 @@ defmodule Mix.Tasks.Hex.Info do
     Mix.shell.info("Size: #{div stat.size, 1024}kB")
     Mix.shell.info("Packages #: #{packages}")
     Mix.shell.info("Versions #: #{releases}")
+
+    if Version.match?(System.version, ">= 1.1.0-dev") do
+      line_break()
+      Mix.shell.info("Available tasks:")
+      line_break()
+      Mix.Task.run("help", ["--search", "hex."])
+    end
+
+    line_break()
+    Mix.shell.info("Further information can be found here: https://hex.pm/docs/tasks")
   end
 
   defp package(package) do
@@ -75,7 +85,7 @@ defmodule Mix.Tasks.Hex.Info do
   defp pretty_package(package) do
     Mix.shell.info(package["name"])
     Mix.shell.info("  Releases: " <> Enum.map_join(package["releases"], ", ", &(&1["version"])))
-    Mix.shell.info("")
+    line_break()
     pretty_meta(package["meta"])
   end
 
@@ -85,7 +95,7 @@ defmodule Mix.Tasks.Hex.Info do
     pretty_dict(meta, "links")
 
     if descr = meta["description"] do
-      Mix.shell.info("")
+      line_break()
       Mix.shell.info(descr)
     end
   end
@@ -139,4 +149,6 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp do_pad(str, 0), do: str
   defp do_pad(str, n), do: do_pad("0" <> str, n-1)
+
+  defp line_break(), do: Mix.shell.info("")
 end

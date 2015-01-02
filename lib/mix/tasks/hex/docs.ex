@@ -40,19 +40,21 @@ defmodule Mix.Tasks.Hex.Docs do
     else
       Mix.Task.run("docs", args)
 
-      unless File.exists?("docs/index.html") do
-        Mix.raise "File not found: docs/index.html"
+      directory = docs_dir()
+
+      unless File.exists?("#{directory}/index.html") do
+        Mix.raise "File not found: #{directory}/index.html"
       end
 
       progress? = Keyword.get(opts, :progress, true)
-      tarball = build_tarball(app, version)
+      tarball = build_tarball(app, version, directory)
       send_tarball(app, version, tarball, auth, progress?)
     end
   end
 
-  defp build_tarball(app, version) do
+  defp build_tarball(app, version, directory) do
     tarball = "#{app}-#{version}-docs.tar.gz"
-    files = files()
+    files = files(directory)
     :ok = :erl_tar.create(tarball, files, [:compressed])
     data = File.read!(tarball)
 
@@ -69,7 +71,7 @@ defmodule Mix.Tasks.Hex.Docs do
 
     case Hex.API.ReleaseDocs.new(app, version, tarball, auth, progress) do
       {code, _} when code in 200..299 ->
-        Mix.shell.info("")
+        line_break()
         Mix.shell.info("Published docs for #{app} v#{version}")
         Mix.shell.info("Hosted at #{Hex.Util.hexdocs_url(app, version)}")
       {code, body} ->
@@ -92,15 +94,28 @@ defmodule Mix.Tasks.Hex.Docs do
     end
   end
 
-  defp files do
-    "docs/**"
+  defp files(directory) do
+    "#{directory}/**"
     |> Path.wildcard
     |> Enum.filter(&File.regular?/1)
-    |> Enum.map(&{relative_path(&1, "docs"), File.read!(&1)})
+    |> Enum.map(&{relative_path(&1, directory), File.read!(&1)})
   end
 
   defp relative_path(file, dir) do
     Path.relative_to(file, dir)
     |> String.to_char_list
   end
+
+  defp docs_dir do
+    cond do
+      File.exists?("doc") ->
+        "doc"
+      File.exists?("docs") ->
+        "docs"
+      true ->
+        Mix.raise("Documentation could not be found. Please ensure documentation is in the doc/ or docs/ directory.")
+    end
+  end
+
+  defp line_break(), do: Mix.shell.info("")
 end
