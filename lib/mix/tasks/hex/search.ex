@@ -1,5 +1,6 @@
 defmodule Mix.Tasks.Hex.Search do
   use Mix.Task
+  alias Mix.Tasks.Hex.Util
 
   @shortdoc "Search for package names"
 
@@ -15,7 +16,11 @@ defmodule Mix.Tasks.Hex.Search do
 
     case args do
       [package] ->
+        spinner = Util.start_spinner()
+
         Hex.Util.ensure_registry!()
+
+        Util.stop_spinner(spinner)
 
         Enum.each(Hex.Registry.search(package), fn pkg ->
           Mix.shell.info(pkg)

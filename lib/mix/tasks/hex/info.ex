@@ -1,5 +1,6 @@
 defmodule Mix.Tasks.Hex.Info do
   use Mix.Task
+  alias Mix.Tasks.Hex.Util
 
   @shortdoc "Print hex information"
 
@@ -19,9 +20,13 @@ defmodule Mix.Tasks.Hex.Info do
   """
 
   def run(args) do
+    spinner = Util.start_spinner
+
     {_opts, args, _} = OptionParser.parse(args)
     Hex.start
     Hex.Util.ensure_registry(cache: false)
+
+    Util.stop_spinner(spinner)
 
     case args do
       [] -> general()
@@ -34,7 +39,11 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp general() do
     Mix.shell.info("Hex v" <> Hex.version)
-    Mix.shell.info("")
+    line_break()
+
+    Mix.shell.info("Hex is a package manager for the Erlang ecosystem.")
+    Mix.shell.info("This is a basic help message containing pointers to more information.")
+    line_break()
 
     path = Hex.Registry.path()
     stat = File.stat!(path)
@@ -44,6 +53,16 @@ defmodule Mix.Tasks.Hex.Info do
     Mix.shell.info("Size: #{div stat.size, 1024}kB")
     Mix.shell.info("Packages #: #{packages}")
     Mix.shell.info("Versions #: #{releases}")
+
+    if Version.match?(System.version, ">= 1.1.0-dev") do
+      line_break()
+      Mix.shell.info("Available tasks:")
+      line_break()
+      Mix.Task.run("help", ["--search", "hex."])
+    end
+
+    line_break()
+    Mix.shell.info("Further information can be found here: https://hex.pm/docs/tasks")
   end
 
   defp package(package) do
@@ -75,7 +94,7 @@ defmodule Mix.Tasks.Hex.Info do
   defp pretty_package(package) do
     Mix.shell.info(package["name"])
     Mix.shell.info("  Releases: " <> Enum.map_join(package["releases"], ", ", &(&1["version"])))
-    Mix.shell.info("")
+    line_break()
     pretty_meta(package["meta"])
   end
 
@@ -85,7 +104,7 @@ defmodule Mix.Tasks.Hex.Info do
     pretty_dict(meta, "links")
 
     if descr = meta["description"] do
-      Mix.shell.info("")
+      line_break()
       Mix.shell.info(descr)
     end
   end
@@ -139,4 +158,6 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp do_pad(str, 0), do: str
   defp do_pad(str, n), do: do_pad("0" <> str, n-1)
+
+  defp line_break(), do: Mix.shell.info("")
 end
