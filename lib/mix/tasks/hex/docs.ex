@@ -40,24 +40,21 @@ defmodule Mix.Tasks.Hex.Docs do
     else
       Mix.Task.run("docs", args)
 
-      if File.exists?("docs/") do
-          Mix.shell.info([IO.ANSI.yellow, "Your documentation was generated in the docs/ directory.", IO.ANSI.reset])
-          Mix.shell.info([IO.ANSI.yellow, "If you are using ex_doc, please update to the latest release which will generate the documentation correctly at the doc/ directory.", IO.ANSI.reset])
-      end
+      directory = docs_dir()
 
-      unless File.exists?("#{folder()}/index.html") do
-        Mix.raise "File not found: #{folder()}/index.html"
+      unless File.exists?("#{directory}/index.html") do
+        Mix.raise "File not found: #{directory}/index.html"
       end
 
       progress? = Keyword.get(opts, :progress, true)
-      tarball = build_tarball(app, version)
+      tarball = build_tarball(app, version, directory)
       send_tarball(app, version, tarball, auth, progress?)
     end
   end
 
-  defp build_tarball(app, version) do
+  defp build_tarball(app, version, directory) do
     tarball = "#{app}-#{version}-docs.tar.gz"
-    files = files()
+    files = files(directory)
     :ok = :erl_tar.create(tarball, files, [:compressed])
     data = File.read!(tarball)
 
@@ -97,11 +94,11 @@ defmodule Mix.Tasks.Hex.Docs do
     end
   end
 
-  defp files do
-    "#{folder()}/**"
+  defp files(directory) do
+    "#{directory}/**"
     |> Path.wildcard
     |> Enum.filter(&File.regular?/1)
-    |> Enum.map(&{relative_path(&1, "#{folder()}"), File.read!(&1)})
+    |> Enum.map(&{relative_path(&1, directory), File.read!(&1)})
   end
 
   defp relative_path(file, dir) do
@@ -109,14 +106,14 @@ defmodule Mix.Tasks.Hex.Docs do
     |> String.to_char_list
   end
 
-  defp folder() do
+  defp docs_dir do
     cond do
-      File.exists?("doc/") ->
+      File.exists?("doc") ->
         "doc"
-      File.exists?("docs/") ->
+      File.exists?("docs") ->
         "docs"
       true ->
-        Mix.raise("Documentation could not be found. Please ensure documentation is in the doc/ directory.")
+        Mix.raise("Documentation could not be found. Please ensure documentation is in the doc/ or docs/ directory.")
     end
   end
 end

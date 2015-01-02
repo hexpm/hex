@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Docs do
   def run(_) do
-    File.mkdir_p!("docs")
-    File.write!("docs/index.html", "the index")
+    File.mkdir_p!("doc")
+    File.write!("doc/index.html", "the index")
   end
 end
 
