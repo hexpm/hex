@@ -4,6 +4,7 @@
   * Add PKIX hostname verification according to RFC6125
   * Improve error messages from HTTP error codes
   * Improve HTTP performance
+  * Add config options `api_url`, `cdn_url`, `http_proxy` and `https_proxy`
 
 ## v0.6.1 (2014-12-11)
 
