@@ -82,6 +82,28 @@ defmodule Mix.Tasks.Hex.Util do
     IO.write(:stderr, str <> " #{percent}%")
   end
 
+  def spin(interval) do
+    chars = ["|", "/", "-", "\\"]
+
+    chars |> Enum.map(fn c ->
+      IO.write(:stderr, "\r#{c}")
+      :timer.sleep(interval)
+    end)
+
+    spin(interval)
+  end
+
+  def start_spinner(interval \\ 100) do
+    %Task{pid: pid} = Task.async(__MODULE__, :spin, [interval])
+
+    pid
+  end
+
+  def stop_spinner(pid) do
+    Process.exit(pid, :normal) # kill the process
+    IO.write(:stderr, "\r") # clear line
+  end
+
   def clean_version("v" <> version), do: version
   def clean_version(version),        do: version
 end

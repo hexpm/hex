@@ -69,7 +69,7 @@ defmodule Mix.Tasks.Hex.Docs do
 
     case Hex.API.ReleaseDocs.new(app, version, tarball, auth, progress) do
       {code, _} when code in 200..299 ->
-        Mix.shell.info("")
+        line_break()
         Mix.shell.info("Published docs for #{app} v#{version}")
         Mix.shell.info("Hosted at #{Hex.Util.hexdocs_url(app, version)}")
       {code, body} ->
@@ -103,4 +103,6 @@ defmodule Mix.Tasks.Hex.Docs do
     Path.relative_to(file, dir)
     |> String.to_char_list
   end
+
+  defp line_break(), do: Mix.shell.info("")
 end
