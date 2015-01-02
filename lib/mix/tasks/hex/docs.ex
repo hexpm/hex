@@ -40,8 +40,13 @@ defmodule Mix.Tasks.Hex.Docs do
     else
       Mix.Task.run("docs", args)
 
-      unless File.exists?("docs/index.html") do
-        Mix.raise "File not found: docs/index.html"
+      if File.exists?("docs/") do
+          Mix.shell.info([IO.ANSI.yellow, "Your documentation was generated in the docs/ directory.", IO.ANSI.reset])
+          Mix.shell.info([IO.ANSI.yellow, "If you are using ex_doc, please update to the latest release which will generate the documentation correctly at the doc/ directory.", IO.ANSI.reset])
+      end
+
+      unless File.exists?("#{folder()}/index.html") do
+        Mix.raise "File not found: #{folder()}/index.html"
       end
 
       progress? = Keyword.get(opts, :progress, true)
@@ -93,14 +98,25 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp files do
-    "docs/**"
+    "#{folder()}/**"
     |> Path.wildcard
     |> Enum.filter(&File.regular?/1)
-    |> Enum.map(&{relative_path(&1, "docs"), File.read!(&1)})
+    |> Enum.map(&{relative_path(&1, "#{folder()}"), File.read!(&1)})
   end
 
   defp relative_path(file, dir) do
     Path.relative_to(file, dir)
     |> String.to_char_list
+  end
+
+  defp folder() do
+    cond do
+      File.exists?("doc/") ->
+        "doc"
+      File.exists?("docs/") ->
+        "docs"
+      true ->
+        Mix.raise("Documentation could not be found. Please ensure documentation is in the doc/ directory.")
+    end
   end
 end
