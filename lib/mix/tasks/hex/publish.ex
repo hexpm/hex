@@ -122,16 +122,11 @@ defmodule Mix.Tasks.Hex.Publish do
       end)
     end
 
-    if exclude_deps != [] do
-      Mix.shell.info("  Excluded dependencies (not part of the Hex package):")
-      Enum.each(exclude_deps, &Mix.shell.info("    #{&1}"))
-    end
-
     if meta[:files] != [] do
       Mix.shell.info("  Included files:")
       Enum.each(meta[:files], &Mix.shell.info("    #{&1}"))
     else
-      Mix.shell.info("  WARNING! No included files")
+      warning("  WARNING! No included files")
     end
 
     fields = Dict.take(meta, @warn_fields) |> Dict.keys
@@ -139,7 +134,12 @@ defmodule Mix.Tasks.Hex.Publish do
 
     if missing != [] do
       missing = Enum.join(missing, ", ")
-      Mix.shell.info("  WARNING! Missing metadata fields: #{missing}")
+      warning("  WARNING! Missing metadata fields: #{missing}")
+    end
+
+    if exclude_deps != [] do
+      warning("  WARNING! Excluded dependencies (not part of the Hex package):")
+      Enum.each(exclude_deps, &warning("    #{&1}"))
     end
   end
 
@@ -252,4 +252,6 @@ defmodule Mix.Tasks.Hex.Publish do
 
     Map.take(package, @meta_fields)
   end
+
+  defp warning(message), do: Mix.shell.info([IO.ANSI.yellow, message, IO.ANSI.reset])
 end
