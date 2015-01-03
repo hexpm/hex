@@ -16,17 +16,19 @@ This document simply outlines the release process:
 
 6. Build Hex with `MIX_ENV=prod mix archive.build` against supported Elixir versions (see below)
 
-7. Upload builds to S3 (see below for paths)
+7. Build Hex with `MIX_ENV=prod mix archive.build -o hex.ez` giving the correct name in `-o` is important, renaming the file afterwards doesn't work
 
-8. Add new release to `installs` table in the hex.pm database (see below for SQL)
+8. Upload builds to S3 (see below for paths)
 
-9. Rebuild the registry file by running `HexWeb.RegistryBuilder.rebuild` on the hex.pm server
+9. Add new release to `installs` table in the hex.pm database (see below for SQL)
 
-9. Increment version and add `-dev` extension to versions (see below for all files)
+10. Rebuild the registry file by running `HexWeb.RegistryBuilder.rebuild` on the hex.pm server
 
-10. Commit changes above with title "Bump to vVERSION-dev"
+11. Increment version and add `-dev` extension to versions (see below for all files)
 
-11. Push master
+12. Commit changes above with title "Bump to vVERSION-dev"
+
+13. Push master
 
 ## All builds
 
@@ -35,6 +37,7 @@ Hex needs to built for every Elixir supported vMAJOR.MINOR version. Currently th
 ## S3 paths
 
 * s3.hex.pm/installs/hex.ez (latest Hex built against oldest supported Elixir)
+* s3.hex.pm/installs/[ELIXIR VERSION]/hex.ez
 * s3.hex.pm/installs/[ELIXIR VERSION]/hex-[HEX VERSION].ez
 
 ## SQL script
