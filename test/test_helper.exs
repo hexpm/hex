@@ -194,6 +194,13 @@ defmodule HexTest.Case do
     end
   end
 
+  setup context do
+    if context[:integration] && System.get_env("SLOW_HTTP") == "true" do
+      :timer.sleep(1000)
+    end
+    :ok
+  end
+
   setup_all do
     File.mkdir_p!(tmp_path)
     ets_path = tmp_path("registry.ets")

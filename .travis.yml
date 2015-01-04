@@ -13,8 +13,11 @@ before_script:
 script:
   - mix test --include integration
 env:
-  - ELIXIRVERSION=v1.0.0
-  - ELIXIRVERSION=master
+  global:
+    - SLOW_HTTP=true
+  matrix:
+    - ELIXIRVERSION=v1.0.0
+    - ELIXIRVERSION=master
 notifications:
   recipients:
     - eric.meadows.jonsson@gmail.com
