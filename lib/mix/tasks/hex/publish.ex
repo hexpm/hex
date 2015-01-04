@@ -253,5 +253,5 @@ defmodule Mix.Tasks.Hex.Publish do
     Map.take(package, @meta_fields)
   end
 
-  defp warning(message), do: Mix.shell.info([IO.ANSI.yellow, message, IO.ANSI.reset])
+  defp warning(message), do: Mix.shell.info([:yellow, message, :reset])
 end
