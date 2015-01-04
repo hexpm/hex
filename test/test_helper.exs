@@ -195,9 +195,12 @@ defmodule HexTest.Case do
   end
 
   setup context do
+    # Slow down tests to work around race condition in httpc that occurs during
+    # heavy load. Useful when running CI.
     if context[:integration] && System.get_env("SLOW_HTTP") == "true" do
       :timer.sleep(1000)
     end
+
     :ok
   end
 
