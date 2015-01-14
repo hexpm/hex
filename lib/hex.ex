@@ -3,6 +3,8 @@ defmodule Hex do
   @default_cdn "https://s3.amazonaws.com/s3.hex.pm"
   @default_home "~/.hex"
 
+  @logged_keys ["http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY"]
+
   def start do
     unless Application.get_env(:hex, :started) do
       start_api()
@@ -65,9 +67,43 @@ defmodule Hex do
   def elixir_version, do: unquote(System.version)
 
   defp config(config, envs, config_key, fun) do
-    value = envs |> Enum.map(&System.get_env/1) |> Enum.find(& not is_nil &1)
-    value = value || Keyword.get(config, config_key)
-    if value, do: fun.(value)
+    result = envs 
+             |> Enum.map(& exists(:env, &1) )
+             |> Enum.find(& not is_nil &1)
+    result = result || exists(:config, config_key)
+
+    if result do
+      {key, value} = result
+
+      log_value(key, value)
+      fun.(value)
+    end
+  end
+
+
+  defp exists(:env, key) do
+    if value = System.get_env(key) do
+      {key, value}
+    else
+      nil
+    end
+  end
+
+  defp exists(:config, key) do
+    config = Hex.Config.read
+
+    if value = Keyword.get(config, key) do
+      {Atom.to_string(key), value}
+    else
+      nil
+    end
+  end
+
+
+  defp log_value(key, value) do
+    if Enum.member?(@logged_keys, key) do
+      Mix.shell.info("Using #{key} = #{value}")
+    end
   end
 
   defp proxy(proxy) do
