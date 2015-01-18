@@ -1,5 +1,8 @@
 ## v0.6.3-dev
 
+* Enhancements
+  * Print proxy options on startup
+
 ## v0.6.2 (2015-01-02)
 
 * Enhancements

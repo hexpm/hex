@@ -67,9 +67,10 @@ defmodule Hex do
   def elixir_version, do: unquote(System.version)
 
   defp config(config, envs, config_key, fun) do
-    result = envs 
-             |> Enum.map(& exists(:env, &1) )
-             |> Enum.find(& not is_nil &1)
+    result =
+      envs
+      |> Enum.map(& exists(:env, &1) )
+      |> Enum.find(& not is_nil &1)
     result = result || exists(:config, config_key)
 
     if result do
@@ -93,7 +94,7 @@ defmodule Hex do
     config = Hex.Config.read
 
     if value = Keyword.get(config, key) do
-      {Atom.to_string(key), value}
+      {"config[:#{key}]", value}
     else
       nil
     end
