@@ -12,10 +12,6 @@ defmodule Hex.APITest do
     auth = [user: "test_user", pass: "hunter42"]
     assert {200, body} = Hex.API.User.get("test_user", auth)
     assert body["username"] == "test_user"
-
-    assert {200, _} = Hex.API.User.update("new_mail@mail.com", nil, auth)
-    assert {200, body} = Hex.API.User.get("test_user", auth)
-    assert body["email"] == "new_mail@mail.com"
   end
 
   test "package" do
