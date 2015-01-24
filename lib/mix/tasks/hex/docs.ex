@@ -75,9 +75,9 @@ defmodule Mix.Tasks.Hex.Docs do
         Mix.shell.info("Published docs for #{app} v#{version}")
         Mix.shell.info("Hosted at #{Hex.Util.hexdocs_url(app, version)}")
       {code, body} ->
+        Mix.shell.info("")
         Mix.shell.error("Pushing docs for #{app} v#{version} failed")
         Hex.Util.print_http_code(code)
-        Hex.Util.print_error_result(code, body)
     end
   end
 
