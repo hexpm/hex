@@ -58,21 +58,6 @@ defmodule Mix.Tasks.Hex.UserTest do
     end
   end
 
-  test "update" do
-    {:ok, _} = HexWeb.User.create("update_user", "old@mail.com", "hunter42", true)
-
-    send self, {:mix_shell_input, :prompt, "update_user"}
-
-    send self, {:mix_shell_input, :prompt, "new@mail.com"}
-    send self, {:mix_shell_input, :yes?, false}
-
-    capture_io "hunter42\n\n", fn ->
-      Mix.Tasks.Hex.User.run(["update", "--no-clean-pass"])
-    end
-
-    assert HexWeb.User.get(username: "update_user").email == "new@mail.com"
-  end
-
   test "update config" do
     in_tmp fn ->
       Hex.home(System.cwd!)

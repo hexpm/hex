@@ -10,13 +10,7 @@ defmodule Hex.API.User do
             %{username: username, email: email, password: password})
   end
 
-  def update(email, password, auth) do
-    body = %{}
-    if email, do: body = Map.merge(body, %{email: email})
-    if password, do: body = Map.merge(body, %{password: password})
-
-    headers = Dict.merge(API.auth(auth), %{'x-http-method-override' => 'PATCH'})
-
-    API.request(:post, API.api_url("users/#{auth[:user]}"), headers, body)
+  def password_reset(name) do
+    API.request(:post, API.api_url("/users/#{name}/reset"), [], %{})
   end
 end

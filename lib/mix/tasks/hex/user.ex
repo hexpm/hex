@@ -29,9 +29,9 @@ defmodule Mix.Tasks.Hex.User do
 
   `mix hex.user deauth`
 
-  ### Update user configuration
+  ### Reset user password
 
-  `mix hex.user update`
+  `mix hex.user reset password`
   """
 
   @switches [clean_pass: :boolean]
@@ -51,11 +51,11 @@ defmodule Mix.Tasks.Hex.User do
         create_key(opts)
       ["deauth"] ->
         deauth()
-      ["update"] ->
-        update(opts)
+      ["reset", "password"] ->
+        reset_password()
       _ ->
         Mix.raise "Invalid arguments, expected one of:\nmix hex.user register\n" <>
-                  "mix hex.user auth\nmix hex.user update\nmix hex.user whoami\nmix hex.user deauth"
+                  "mix hex.user auth\nmix hex.user whoami\nmix hex.user deauth\nmix hex.user reset password"
     end
   end
 
@@ -67,6 +67,20 @@ defmodule Mix.Tasks.Hex.User do
        :error ->
         Mix.raise "No user authorised on the local machine. Run `mix hex.user auth` " <>
                   "or create a new user with `mix hex.user register`"
+    end
+  end
+
+  defp reset_password() do
+    name = Mix.shell.prompt("Username or Email:") |> String.strip
+
+    case Hex.API.User.password_reset(name) do
+      {code, _} when code in 200..299 ->
+        Mix.shell.info "We’ve sent you an email containing a link that will allow you to reset your password for the next 24 hours. " <>
+                       "Please check your spam folder if the email doesn’t appear within a few minutes."
+      {code, body} ->
+        Mix.shell.error("Initiating password reset for #{name} failed")
+        Hex.Util.print_http_code(code)
+        Hex.Util.print_error_result(code, body)
     end
   end
 
@@ -84,39 +98,6 @@ defmodule Mix.Tasks.Hex.User do
       :error ->
         Mix.raise "No user authorised on the local machine. Run `mix hex.user auth` " <>
                   "or create a new user with `mix hex.user register`"
-    end
-  end
-
-  defp update(opts) do
-    clean? = Keyword.get(opts, :clean_pass, true)
-
-    username = Mix.shell.prompt("Username:")          |> String.strip
-    password = Util.password_get("Password:", clean?) |> String.strip
-
-    Mix.shell.info("Update user options (leave blank to not change an option)")
-    new_email    = Mix.shell.prompt("New email:")             |> String.strip |> nillify
-    new_password = Util.password_get("New password:", clean?) |> String.strip |> nillify
-
-    unless is_nil(new_password) do
-      confirm = Util.password_get("New password (confirm):", clean?) |> String.strip |> nillify
-      if new_password != confirm do
-        Mix.raise "Entered passwords do not match"
-      end
-    end
-
-    update_user(username, password, new_email, new_password)
-  end
-
-  defp update_user(username, password, new_email, new_password) do
-    auth = [user: username, pass: password]
-
-    case Hex.API.User.update(new_email, new_password, auth) do
-      {code, _} when code in 200..299 ->
-        Hex.Config.update([username: username])
-      {code, body} ->
-        Mix.shell.error("Updating user options for #{auth[:user]} failed")
-        Hex.Util.print_http_code(code)
-        Hex.Util.print_error_result(code, body)
     end
   end
 
@@ -159,7 +140,4 @@ defmodule Mix.Tasks.Hex.User do
 
     Util.generate_key(username, password)
   end
-
-  defp nillify(""), do: nil
-  defp nillify(str), do: str
 end
