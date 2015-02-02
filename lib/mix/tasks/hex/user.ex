@@ -31,7 +31,7 @@ defmodule Mix.Tasks.Hex.User do
 
   ### Reset user password
 
-  `mix hex.user update`
+  `mix hex.user reset password`
   """
 
   @switches [clean_pass: :boolean]
@@ -51,11 +51,11 @@ defmodule Mix.Tasks.Hex.User do
         create_key(opts)
       ["deauth"] ->
         deauth()
-      ["reset"] ->
-        reset()
+      ["reset", "password"] ->
+        reset_password()
       _ ->
         Mix.raise "Invalid arguments, expected one of:\nmix hex.user register\n" <>
-                  "mix hex.user auth\nmix hex.user whoami\nmix hex.user deauth\nmix hex.user reset"
+                  "mix hex.user auth\nmix hex.user whoami\nmix hex.user deauth\nmix hex.user reset password"
     end
   end
 
@@ -70,7 +70,7 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp reset() do
+  defp reset_password() do
     name = Mix.shell.prompt("Username or Email:") |> String.strip
 
     case Hex.API.User.password_reset(name) do
