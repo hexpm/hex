@@ -32,8 +32,6 @@ defmodule Hex.Util do
   end
 
   defp update_registry(opts) do
-    Hex.Util.move_home
-
     if Application.get_env(:hex, :registry_updated) do
       {:ok, :cached}
     else
@@ -75,23 +73,6 @@ defmodule Hex.Util do
 
       result
     end
-  end
-
-  def move_home do
-    unless Application.get_env(:hex, :moved_home) do
-      mix_home = Mix.Utils.mix_home
-      hex_home = Hex.home
-
-      File.mkdir_p!(hex_home)
-      :file.rename(Path.join(mix_home, "hex.config"), Path.join(hex_home, "hex.config"))
-      :file.rename(Path.join(mix_home, "hex.ets"), Path.join(hex_home, "registry.ets"))
-      :file.rename(Path.join(mix_home, "hex.ets.gz"), Path.join(hex_home, "registry.ets.gz"))
-      :file.rename(Path.join(mix_home, ".package-cache"), Path.join(hex_home, "packages"))
-
-      Application.put_env(:hex, :moved_home, true)
-    end
-
-    :ok
   end
 
   def etag(path) do

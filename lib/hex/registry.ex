@@ -4,8 +4,6 @@ defmodule Hex.Registry do
   @filename     "registry.ets"
 
   def start(opts \\ []) do
-    Hex.Util.move_home
-
     if Application.get_env(:hex, @registry_tid) do
       :ok
     else

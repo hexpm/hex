@@ -7,16 +7,13 @@ defmodule Hex.API do
   require Record
 
   Record.defrecordp :certificate, :OTPCertificate,
-    Record.extract(:Certificate, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
+    Record.extract(:OTPCertificate, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
 
   Record.defrecordp :tbs_certificate, :OTPTBSCertificate,
     Record.extract(:OTPTBSCertificate, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
 
   Record.defrecordp :subject_public_key_info, :OTPSubjectPublicKeyInfo,
     Record.extract(:OTPSubjectPublicKeyInfo, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
-
-  Record.defrecordp :algorithm_identifier, :AlgorithmIdentifier,
-    Record.extract(:AlgorithmIdentifier, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
 
   def request(method, url, headers, body \\ nil) when body == nil or is_map(body) do
     default_headers = %{
@@ -179,12 +176,12 @@ defmodule Hex.API do
   end
 
   defp warn_ssl_version(_version) do
-    # Don't emit the warning just yet.
-    # Wait ~2 weeks (2014-09-17)
+    # Don't emit the warning just yet
+    # Wait for OTP 17.4 to be out for a while
 
     # if version < @secure_ssl_version do
     #   Mix.shell.error("Insecure HTTPS request (peer verification disabled), " <>
-    #                   "please update to OTP 17.3 or later")
+    #                   "please update to OTP 17.4 or later")
     # end
   end
 

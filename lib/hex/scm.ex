@@ -72,8 +72,6 @@ defmodule Hex.SCM do
   end
 
   def checkout(opts) do
-    Hex.Util.move_home
-
     {_name, version} = get_lock(opts[:lock])
     name     = opts[:hex]
     dest     = opts[:dest]

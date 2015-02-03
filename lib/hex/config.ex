@@ -1,7 +1,5 @@
 defmodule Hex.Config do
   def read do
-    Hex.Util.move_home
-
     case File.read(config_path) do
       {:ok, binary} ->
         case decode_term(binary) do
@@ -20,7 +18,6 @@ defmodule Hex.Config do
   end
 
   def write(config) do
-    Hex.Util.move_home
     path = config_path
 
     string = encode_term(config)
