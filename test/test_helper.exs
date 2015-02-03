@@ -277,11 +277,5 @@ if :integration in ExUnit.configuration[:include] do
   Case.init_project("depend_name", "0.2.0", [{:app_name, nil, optional: true, hex: :package_name}], %{}, auth)
 end
 
-Mix.shell(Mix.Shell.Process)
-Mix.Task.clear
-Mix.Shell.Process.flush
-Mix.ProjectStack.clear_cache
-Mix.ProjectStack.clear_stack
-
 Mix.SCM.append(Hex.SCM)
 Mix.RemoteConverger.register(Hex.RemoteConverger)

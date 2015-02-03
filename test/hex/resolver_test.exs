@@ -17,7 +17,6 @@ defmodule Hex.ResolverTest do
 
   setup do
     Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
-    Application.put_env(:hex, :registry_updated, true)
   end
 
   test "simple" do
