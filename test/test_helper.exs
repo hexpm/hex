@@ -205,7 +205,6 @@ defmodule HexTest.Case do
   end
 
   setup_all do
-    File.mkdir_p!(tmp_path)
     ets_path = tmp_path("registry.ets")
     File.rm(ets_path)
     create_test_registry(ets_path)
@@ -223,10 +222,7 @@ defmodule HexTest.Case do
     Mix.ProjectStack.clear_cache
     Mix.ProjectStack.clear_stack
     Application.put_env(:hex, :registry_updated, true)
-
-    on_exit fn ->
-      Application.delete_env(:hex, @registry_tid)
-    end
+    Application.delete_env(:hex, @registry_tid)
 
     :ok
   end
