@@ -3,6 +3,9 @@
 * Enhancements
   * Print proxy options on startup
 
+* Bug fixes
+  * Verify peer certificate against CA certificate public key in `partial_chain`
+
 ## v0.6.2 (2015-01-02)
 
 * Enhancements

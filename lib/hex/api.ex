@@ -4,6 +4,20 @@ defmodule Hex.API do
 
   @secure_ssl_version {5, 3, 6}
 
+  require Record
+
+  Record.defrecordp :certificate, :OTPCertificate,
+    Record.extract(:Certificate, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
+
+  Record.defrecordp :tbs_certificate, :OTPTBSCertificate,
+    Record.extract(:OTPTBSCertificate, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
+
+  Record.defrecordp :subject_public_key_info, :OTPSubjectPublicKeyInfo,
+    Record.extract(:OTPSubjectPublicKeyInfo, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
+
+  Record.defrecordp :algorithm_identifier, :AlgorithmIdentifier,
+    Record.extract(:AlgorithmIdentifier, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
+
   def request(method, url, headers, body \\ nil) when body == nil or is_map(body) do
     default_headers = %{
       'accept' => 'application/vnd.hex.beta+elixir',
@@ -52,7 +66,13 @@ defmodule Hex.API do
 
     trusted =
       Enum.find_value(certs, fn {der, cert} ->
-        trust? = Enum.any?(cacerts, &:public_key.pkix_is_issuer(cert, &1))
+        trust? = Enum.any?(cacerts, fn cacert ->
+          if :public_key.pkix_is_issuer(cert, cacert) do
+            key = extract_key(cacert)
+            :public_key.pkix_verify(der, key)
+          end
+        end)
+
         if trust?, do: der
       end)
 
@@ -61,6 +81,13 @@ defmodule Hex.API do
     else
       :unknown_ca
     end
+  end
+
+  defp extract_key(cert) do
+    cert
+    |> certificate(:tbsCertificate)
+    |> tbs_certificate(:subjectPublicKeyInfo)
+    |> subject_public_key_info(:subjectPublicKey)
   end
 
   @chunk 10_000
