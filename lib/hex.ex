@@ -69,9 +69,9 @@ defmodule Hex do
   defp config(config, envs, config_key, fun) do
     result =
       envs
-      |> Enum.map(& exists(:env, &1) )
-      |> Enum.find(& not is_nil &1)
-    result = result || exists(:config, config_key)
+      |> Enum.map(&env_exists/1)
+      |> Enum.find(&(not is_nil &1))
+    result = result || config_exists(config, config_key)
 
     if result do
       {key, value} = result
@@ -82,7 +82,7 @@ defmodule Hex do
   end
 
 
-  defp exists(:env, key) do
+  defp env_exists(key) do
     if value = System.get_env(key) do
       {key, value}
     else
@@ -90,9 +90,7 @@ defmodule Hex do
     end
   end
 
-  defp exists(:config, key) do
-    config = Hex.Config.read
-
+  defp config_exists(config, key) do
     if value = Keyword.get(config, key) do
       {"config[:#{key}]", value}
     else
