@@ -125,20 +125,27 @@ defmodule Hex.Util do
     |> inspect(limit: :infinity, records: false, binaries: :as_strings)
   end
 
-  def binarify(binary) when is_binary(binary),
+  def binarify(term, opts \\ [])
+
+  def binarify(binary, _opts) when is_binary(binary),
     do: binary
-  def binarify(number) when is_number(number),
+  def binarify(number, _opts) when is_number(number),
     do: number
-  def binarify(atom) when is_nil(atom) or is_boolean(atom),
+  def binarify(atom, _opts) when is_nil(atom) or is_boolean(atom),
     do: atom
-  def binarify(atom) when is_atom(atom),
+  def binarify(atom, _opts) when is_atom(atom),
     do: Atom.to_string(atom)
-  def binarify(list) when is_list(list),
-    do: for(elem <- list, do: binarify(elem))
-  def binarify(map) when is_map(map),
-    do: for(elem <- map, into: %{}, do: binarify(elem))
-  def binarify(tuple) when is_tuple(tuple),
-    do: for(elem <- Tuple.to_list(tuple), do: binarify(elem)) |> List.to_tuple
+  def binarify(list, opts) when is_list(list),
+    do: for(elem <- list, do: binarify(elem, opts))
+  def binarify(tuple, opts) when is_tuple(tuple),
+    do: for(elem <- Tuple.to_list(tuple), do: binarify(elem, opts)) |> List.to_tuple
+  def binarify(map, opts) when is_map(map) do
+    if Keyword.get(opts, :maps, true) do
+      for(elem <- map, into: %{}, do: binarify(elem, opts))
+    else
+      for(elem <- map, do: binarify(elem, opts))
+    end
+  end
 
   def print_error_result(:http_error, reason) do
     Mix.shell.info(inspect(reason))
