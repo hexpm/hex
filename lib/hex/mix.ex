@@ -21,8 +21,8 @@ defmodule Hex.Mix do
   def deps_to_requests(deps) do
     overridden =
       for %Mix.Dep{app: app, scm: scm, opts: opts} <- deps,
-        scm != Hex.SCM and opts[:override],
-        do: app
+          scm != Hex.SCM and opts[:override],
+          do: app
 
     for %Mix.Dep{app: app, requirement: req, scm: Hex.SCM, opts: opts} <- deps,
         not app in overridden,
@@ -30,13 +30,11 @@ defmodule Hex.Mix do
   end
 
   @doc """
-  Returns the names of all given overriding dependencies.
+  Returns all top level dependencies.
   """
-  @spec deps_to_overridden([Mix.Dep.t]) :: [String.t]
-  def deps_to_overridden(deps) do
-    for %Mix.Dep{app: app, top_level: true, opts: opts} <- deps,
-        opts[:override],
-        do: "#{app}"
+  @spec top_level([Mix.Dep.t]) :: [Mix.Dep.t]
+  def top_level(deps) do
+    Enum.filter(deps, & &1.top_level)
   end
 
   @doc """

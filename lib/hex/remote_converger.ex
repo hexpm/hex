@@ -23,13 +23,13 @@ defmodule Hex.RemoteConverger do
     old_lock = Mix.Dep.Lock.read
 
     reqs       = Hex.Mix.deps_to_requests(deps)
-    overridden = Hex.Mix.deps_to_overridden(deps)
+    top_level  = Hex.Mix.top_level(deps)
     locked     = prepare_locked(lock, old_lock, deps)
 
     check_input(reqs, locked)
-    print_info(reqs, locked, overridden)
+    print_info(reqs, locked, [])# overridden)
 
-    if resolved = Hex.Resolver.resolve(reqs, overridden, locked) do
+    if resolved = Hex.Resolver.resolve(reqs, top_level, locked) do
       print_success(resolved, locked)
       new_lock = Hex.Mix.to_lock(resolved)
       Hex.SCM.prefetch(new_lock)

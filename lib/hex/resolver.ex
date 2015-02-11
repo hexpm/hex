@@ -4,13 +4,13 @@ defmodule Hex.Resolver do
   import Hex.Mix, only: [version_match?: 2]
 
   require Record
-  Record.defrecordp :info, [:overridden]
+  Record.defrecordp :info, [:top_level]
   Record.defrecordp :state, [:activated, :pending, :optional]
   Record.defrecordp :request, [:app, :name, :req, :parent]
   Record.defrecordp :active, [:app, :name, :version, :state, :parents, :possibles]
 
-  def resolve(requests, overridden, locked) do
-    info = info(overridden: Enum.into(overridden, HashSet.new))
+  def resolve(requests, top_level, locked) do
+    info = info(top_level: top_level)
 
     {activated, pending, optional} =
       Enum.reduce(locked, {HashDict.new, [], HashDict.new}, &locked(&1, &2, info))
@@ -128,15 +128,17 @@ defmodule Hex.Resolver do
     end
   end
 
-  def get_deps(package, version, info(overridden: overridden)) do
+  def get_deps(package, version, info(top_level: top_level)) do
     if deps = Registry.get_deps(package, version) do
+      parents = down_to(top_level, String.to_atom(package))
+
       {reqs, opts} =
         Enum.reduce(deps, {[], []}, fn {name, app, req, optional}, {reqs, opts} ->
           request = request(app: app, name: name, req: compile_requirement(req, name),
                             parent: package)
 
           cond do
-            Set.member?(overridden, name) ->
+            was_overriden?(parents, String.to_atom(app)) ->
               {reqs, opts}
             optional ->
               {reqs, [request|opts]}
@@ -148,6 +150,28 @@ defmodule Hex.Resolver do
         {Enum.reverse(reqs), Enum.reverse(opts)}
     else
       Mix.raise "Unable to find package version #{package} v#{version} in registry"
+    end
+  end
+
+  defp was_overriden?(parents, app) do
+    Enum.any?(parents, fn parent ->
+      app == parent.app && parent.opts[:override]
+    end)
+  end
+
+  defp down_to(level, parent) do
+    children =
+      Enum.flat_map level, fn dep ->
+        down_to(dep.deps, parent)
+      end
+
+    cond do
+      children != [] ->
+        level ++ children
+      parent in Enum.map(level, & &1.app) ->
+        level
+      true ->
+        []
     end
   end
 

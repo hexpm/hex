@@ -34,12 +34,20 @@ defmodule Hex.MixTest do
     end
   end
 
-  defmodule OverrideWithGit do
+  defmodule OverrideWithPath do
     def project do
-      [ app: :override_with_git,
+      [ app: :override_with_path,
         version: "0.1.0",
         deps: [ {:postgrex, nil},
                 {:ex_doc, path: fixture_path("ex_doc"), override: true}] ]
+    end
+  end
+
+  defmodule OverrideWithPathParent do
+    def project do
+      [ app: :override_with_path_parent,
+        version: "0.1.0",
+        deps: [ {:override_with_path, path: fixture_path("override_with_path")} ] ]
     end
   end
 
@@ -244,8 +252,8 @@ defmodule Hex.MixTest do
   end
 
   @tag :integration
-  test "override hex dependency with path dependency" do
-    Mix.Project.push OverrideWithGit
+  test "override hex dependency with path dependency at top level" do
+    Mix.Project.push OverrideWithPath
 
     in_tmp fn ->
       Hex.home(System.cwd!)
@@ -258,9 +266,34 @@ defmodule Hex.MixTest do
       assert_received {:mix_shell, :info, ["* postgrex (Hex package)"]}
       refute_received {:mix_shell, :info, ["* ex_doc (Hex package)"]}
       assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
+
+      assert Mix.Dep.Lock.read == %{postgrex: {:hex, :postgrex, "0.2.1"}}
     end
   after
-    purge [ Postgrex.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
+    purge [ Postgrex.NoConflict.Mixfile, ExDoc.NoConflict.Mixfile ]
+  end
+
+  @tag :integration
+  test "override hex dependency with path dependency from dependency" do
+    Mix.Project.push OverrideWithPathParent
+
+    in_tmp fn ->
+      Hex.home(System.cwd!)
+      Mix.Task.run "deps.get"
+
+      assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
+
+      Mix.Task.run "deps"
+
+      assert_received {:mix_shell, :info, ["* postgrex (Hex package)"]}
+      refute_received {:mix_shell, :info, ["* ex_doc (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
+
+      assert Mix.Dep.Lock.read == %{postgrex: {:hex, :postgrex, "0.2.1"}}
+    end
+  after
+    purge [OverrideWithPath.NoConflict.Mixfile, ExDoc.NoConflict.Mixfile,
+           Postgrex.NoConflict.Mixfile]
   end
 
   @tag :integration

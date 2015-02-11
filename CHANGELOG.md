@@ -5,6 +5,7 @@
 
 * Bug fixes
   * Verify peer certificate against CA certificate public key in `partial_chain`
+  * Fix a bug where overriding a Hex dependency with a non-Hex dependency was ignored when the overriding happened in a sub-dependency
 
 ## v0.6.2 (2015-01-02)
 
