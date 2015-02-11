@@ -2,6 +2,7 @@
 
 * Enhancements
   * Print proxy options on startup
+  * Add `mix hex.user password reset` and remove `mix hex.user update`
   * Create version 3 tarballs with erlang term encoded metadata
 
 * Bug fixes
