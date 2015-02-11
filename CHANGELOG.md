@@ -2,6 +2,7 @@
 
 * Enhancements
   * Print proxy options on startup
+  * Create version 3 tarballs with erlang term encoded metadata
 
 * Bug fixes
   * Verify peer certificate against CA certificate public key in `partial_chain`

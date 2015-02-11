@@ -1,6 +1,6 @@
 defmodule Hex.Tar do
   @supported ["2", "3"]
-  @version "2"
+  @version "3"
   @required_files_2 ~w(VERSION CHECKSUM metadata.exs contents.tar.gz)c
   @required_files_3 ~w(VERSION CHECKSUM metadata.config contents.tar.gz)c
 
@@ -17,15 +17,15 @@ defmodule Hex.Tar do
     :ok = :erl_tar.create(contents_path, files, [:compressed])
     contents = File.read!(contents_path)
 
-    meta_string = Hex.Util.safe_serialize_elixir(meta)
+    meta_string = encode_term(meta)
     blob = @version <> meta_string <> contents
     checksum = :crypto.hash(:sha256, blob) |> Base.encode16
 
     files = [
       {'VERSION', @version},
       {'CHECKSUM', checksum},
-      {'metadata.exs', meta_string},
-      {'contents.tar.gz', contents}]
+      {'metadata.config', meta_string},
+      {'contents.tar.gz', contents} ]
     :ok = :erl_tar.create(path, files)
 
     tar = File.read!(path)
@@ -38,10 +38,10 @@ defmodule Hex.Tar do
     case :erl_tar.extract(path, [:memory]) do
       {:ok, files} ->
         files = Enum.into(files, %{})
-        version = files['VERSION']
-        check_version(version, path)
-        check_files(version, files, path)
-        checksum(version, files, path, {name, version})
+        tar_version = files['VERSION']
+        check_files(tar_version, files, path)
+        check_version(tar_version, path)
+        checksum(tar_version, files, path, {name, version})
         extract_contents(files['contents.tar.gz'], dest, path)
 
       :ok ->
@@ -52,16 +52,21 @@ defmodule Hex.Tar do
     end
   end
 
-  defp check_files("2", files, path) do
-    check_required_files(@required_files_2, files, path)
+  defp check_files(version, files, path) do
+    files = Dict.keys(files)
+
+    cond do
+      version == "2" ->
+        diff_files(@required_files_2, files, path)
+      version == "3" ->
+        diff_files(@required_files_3, files, path)
+      true ->
+        :ok
+    end
   end
 
-  defp check_files("3", files, path) do
-    check_required_files(@required_files_3, files, path)
-  end
-
-  defp check_required_files(required_files, files, path) do
-    diff = required_files -- Dict.keys(files)
+  defp diff_files(required, given, path) do
+    diff = required -- given
     if diff != [] do
       diff = Enum.join(diff, ", ")
       Mix.raise "Missing files #{diff} in #{path}"
@@ -76,10 +81,11 @@ defmodule Hex.Tar do
     end
   end
 
-  defp checksum(version, files, path, {name, version}) do
+  defp checksum(tar_version, files, path, {name, version}) do
     case Base.decode16(files['CHECKSUM'], case: :mixed) do
       {:ok, tar_checksum} ->
-        blob = files['VERSION'] <> metadata(version, files) <> files['contents.tar.gz']
+        meta = metadata(tar_version, files)
+        blob = files['VERSION'] <> meta <> files['contents.tar.gz']
         registry_checksum = Hex.Registry.get_checksum(to_string(name), version)
         checksum = :crypto.hash(:sha256, blob)
 
@@ -110,4 +116,11 @@ defmodule Hex.Tar do
 
   defp metadata("2", files), do: files['metadata.exs']
   defp metadata("3", files), do: files['metadata.config']
+
+  defp encode_term(list) do
+    list
+    |> Hex.Util.binarify
+    |> Enum.map(&[:io_lib.print(&1) | ".\n"])
+    |> IO.iodata_to_binary
+  end
 end

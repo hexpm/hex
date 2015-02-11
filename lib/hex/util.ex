@@ -86,13 +86,6 @@ defmodule Hex.Util do
     end
   end
 
-  def encode_term(list) do
-    list
-    |> Enum.map(&binarify/1)
-    |> Enum.map(&[:io_lib.print(&1) | ".\n"])
-    |> IO.iodata_to_binary
-  end
-
   def safe_deserialize_elixir("") do
     nil
   end
@@ -132,19 +125,19 @@ defmodule Hex.Util do
     |> inspect(limit: :infinity, records: false, binaries: :as_strings)
   end
 
-  defp binarify(binary) when is_binary(binary),
+  def binarify(binary) when is_binary(binary),
     do: binary
-  defp binarify(number) when is_number(number),
+  def binarify(number) when is_number(number),
     do: number
-  defp binarify(atom) when is_nil(atom) or is_boolean(atom),
+  def binarify(atom) when is_nil(atom) or is_boolean(atom),
     do: atom
-  defp binarify(atom) when is_atom(atom),
+  def binarify(atom) when is_atom(atom),
     do: Atom.to_string(atom)
-  defp binarify(list) when is_list(list),
+  def binarify(list) when is_list(list),
     do: for(elem <- list, do: binarify(elem))
-  defp binarify(map) when is_map(map),
+  def binarify(map) when is_map(map),
     do: for(elem <- map, into: %{}, do: binarify(elem))
-  defp binarify(tuple) when is_tuple(tuple),
+  def binarify(tuple) when is_tuple(tuple),
     do: for(elem <- Tuple.to_list(tuple), do: binarify(elem)) |> List.to_tuple
 
   def print_error_result(:http_error, reason) do
