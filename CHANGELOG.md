@@ -1,4 +1,4 @@
-## v0.6.3-dev
+## v0.7.0-dev
 
 * Enhancements
   * Print proxy options on startup
