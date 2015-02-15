@@ -51,7 +51,7 @@ defmodule Hex.Util do
         result =
           case Hex.API.Registry.get(api_opts) do
             {200, body} ->
-              File.mkdir_p!(Paht.basename(path))
+              File.mkdir_p!(Path.dirname(path))
               File.write!(path_gz, body)
               data = :zlib.gunzip(body)
               File.write!(path, data)

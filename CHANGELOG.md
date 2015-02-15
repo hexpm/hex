@@ -1,5 +1,8 @@
 ## v0.7.1-dev
 
+* Bug fixes
+  * Fix updating the registry
+
 ## v0.7.0 (2015-02-15)
 
 * Enhancements
