@@ -1,4 +1,4 @@
-## v0.7.1-dev
+## v0.7.1 (2015-02-15)
 
 * Bug fixes
   * Fix updating the registry
