@@ -1,15 +1,12 @@
 defmodule Mix.Tasks.Hex.Info do
   use Mix.Task
 
-  @shortdoc "Print hex information"
+  @shortdoc "Print hex package information"
 
   @moduledoc """
-  Prints hex package or system information.
+  Prints hex package information.
 
-  `mix hex.info [PACKAGE [VERSION]]`
-
-  If `package` is not given, print system information. This includes when
-  registry was last updated and current system version.
+  `mix hex.info PACKAGE [VERSION]`
 
   If `package` is given, print information about the package. This includes all
   released versions and package metadata.
@@ -24,26 +21,11 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Util.ensure_registry(cache: false)
 
     case args do
-      [] -> general()
       [package] -> package(package)
       [package, version] -> release(package, version)
       _ ->
-        Mix.raise "Invalid arguments, expected: mix hex.info [PACKAGE [VERSION]]"
+        Mix.raise "Invalid arguments, expected: mix hex.info PACKAGE [VERSION]"
     end
-  end
-
-  defp general() do
-    Mix.shell.info("Hex v" <> Hex.version)
-    Mix.shell.info("")
-
-    path = Hex.Registry.path()
-    stat = File.stat!(path)
-    {packages, releases} = Hex.Registry.stat()
-
-    Mix.shell.info("Registry file available (last updated: #{pretty_date(stat.mtime)})")
-    Mix.shell.info("Size: #{div stat.size, 1024}kB")
-    Mix.shell.info("Packages #: #{packages}")
-    Mix.shell.info("Versions #: #{releases}")
   end
 
   defp package(package) do
@@ -75,7 +57,7 @@ defmodule Mix.Tasks.Hex.Info do
   defp pretty_package(package) do
     Mix.shell.info(package["name"])
     Mix.shell.info("  Releases: " <> Enum.map_join(package["releases"], ", ", &(&1["version"])))
-    Mix.shell.info("")
+    line_break()
     pretty_meta(package["meta"])
   end
 
@@ -85,7 +67,7 @@ defmodule Mix.Tasks.Hex.Info do
     pretty_dict(meta, "links")
 
     if descr = meta["description"] do
-      Mix.shell.info("")
+      line_break()
       Mix.shell.info(descr)
     end
   end
@@ -126,17 +108,6 @@ defmodule Mix.Tasks.Hex.Info do
     end
   end
 
-  defp pretty_date({{year, month, day}, {hour, min, sec}}) do
-    "#{pad(year, 4)}-#{pad(month, 2)}-#{pad(day, 2)} " <>
-    "#{pad(hour, 2)}:#{pad(min, 2)}:#{pad(sec, 2)}"
-  end
-
-  defp pad(int, padding) do
-    str = to_string(int)
-    padding = max(padding-byte_size(str), 0)
-    do_pad(str, padding)
-  end
-
-  defp do_pad(str, 0), do: str
-  defp do_pad(str, n), do: do_pad("0" <> str, n-1)
+  defp line_break(), do: Mix.shell.info("")
 end
+
