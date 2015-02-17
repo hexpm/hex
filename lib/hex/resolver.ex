@@ -56,7 +56,7 @@ defmodule Hex.Resolver do
           activated = Dict.put(activated, name, active)
           do_resolve(activated, pending, optional, info)
         else
-          backtrack_msg_activated(name, version, parent, parents)
+          backtrack_message(name, version, [parent|parents])
           backtrack(active, activated, info)
         end
 
@@ -67,7 +67,7 @@ defmodule Hex.Resolver do
 
         case get_versions(name, requests) do
           {:error, request(parent: parent)} ->
-            backtrack_msg_new_request(name, parent, opts)
+            backtrack_message(name, nil, [parent|opts])
             backtrack(activated[parent], activated, info)
 
           {:ok, [version|possibles]} ->
@@ -85,34 +85,6 @@ defmodule Hex.Resolver do
     end
   end
 
-  defp backtrack_msg_activated(name, version, parent, parents) do
-    s = Mix.shell
-    newline = "\n                         "
-    parents = Enum.map_join(parents, newline, &parent/1)
-    s.info ~s(Backtracking on already activated request "#{name}" because new requirement didn't match activated version)
-    s.info ~s(  From parent: #{parent(parent)})
-    s.info ~s(  Activated version: "#{version})
-    s.info ~s(  Activated from parents: #{parents})
-    s.info ""
-  end
-
-  defp backtrack_msg_new_request(name, parent, optionals) do
-    s = Mix.shell
-    newline = "\n                      "
-    optionals = Enum.map_join(optionals, newline, &parent(request(&1, :parent)))
-    s.info ~s(Backtracking on new request "#{name}" because no versions matched the parent's requirement or optionals' requirements)
-    s.info ~s(  From parent: #{parent(parent)})
-    s.info ~s(  Optionals' parents: #{optionals})
-    s.info ""
-  end
-
-  defp parent({:mix_exs, req}),  do: ~s(mix.exs #{requirement(req)})
-  defp parent({:mix_lock, req}), do: ~s(mix.lock #{requirement(req)})
-  defp parent({parent, req}),    do: ~s("#{parent}" #{requirement(req)})
-
-  defp requirement(nil), do: ""
-  defp requirement(req), do: ~s(with requirement "#{req.source}")
-
   defp backtrack(nil, _activated, _info) do
     nil
   end
@@ -121,9 +93,9 @@ defmodule Hex.Resolver do
     case possibles do
       [] ->
         Enum.find_value(parents, fn
-          {parent, _req} when not parent in ~w(mix_exs mix_lock)a ->
+          {{parent, _version}, _req} when not parent in ~w(mix_exs mix_lock)a ->
             backtrack(activated[parent], activated, info)
-          {_parent, _req} ->
+          _ ->
             nil
         end)
 
@@ -140,7 +112,7 @@ defmodule Hex.Resolver do
     end
   end
 
-  def get_versions(package, requests) do
+  defp get_versions(package, requests) do
     if versions = Registry.get_versions(package) do
       try do
         versions =
@@ -164,14 +136,15 @@ defmodule Hex.Resolver do
     end
   end
 
-  def get_deps(package, version, info(top_level: top_level)) do
+  defp get_deps(package, version, info(top_level: top_level)) do
     if deps = Registry.get_deps(package, version) do
       parents = down_to(top_level, String.to_atom(package))
 
       {reqs, opts} =
         Enum.reduce(deps, {[], []}, fn {name, app, req, optional}, {reqs, opts} ->
           req = compile_requirement(req, name)
-          request = request(app: app, name: name, req: req, parent: {package, req})
+          parent = {{package, version}, req}
+          request = request(app: app, name: name, req: req, parent: parent)
 
           cond do
             was_overriden?(parents, String.to_atom(app)) ->
@@ -235,4 +208,23 @@ defmodule Hex.Resolver do
   defp compile_requirement(req, package) do
     Mix.raise "Invalid requirement #{inspect req} defined for package #{package}"
   end
+
+  defp backtrack_message(name, version, parents) do
+    s = Mix.shell
+    parents = Enum.map_join(parents, "\n  ", &parent/1)
+    s.info "Looking up alternatives for conflicting requirements on #{name}"
+    if version, do: s.info "  Activated version: #{version}"
+    s.info "  #{parents}"
+    s.info ""
+  end
+
+  defp parent({:mix_exs, req}),
+    do: "From mix.exs: #{requirement(req)}"
+  defp parent({:mix_lock, req}),
+    do: "From mix.lock: #{requirement(req)}"
+  defp parent({{parent, version}, req}),
+    do: "From #{parent} v#{version}: #{requirement(req)}"
+
+  defp requirement(nil), do: ""
+  defp requirement(req), do: req.source
 end
