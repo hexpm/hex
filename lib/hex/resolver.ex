@@ -17,7 +17,8 @@ defmodule Hex.Resolver do
 
     req_requests =
       Enum.map(requests, fn {name, app, req} ->
-        request(name: name, app: app, req: compile_requirement(req, name))
+        req = compile_requirement(req, name)
+        request(name: name, app: app, req: req, parent: {:mix_exs, req})
       end)
 
     pending = pending ++ req_requests
@@ -32,7 +33,8 @@ defmodule Hex.Resolver do
     pending = pending ++ new_pending
     optional = merge_optional(optional, new_optional)
 
-    active = active(name: name, app: app, version: version, parents: [], possibles: [])
+    {:ok, req} = Version.parse_requirement(version)
+    active = active(name: name, app: app, version: version, parents: [{:mix_lock, req}], possibles: [])
     activated = Dict.put(activated, name, active)
 
     {activated, pending, optional}
@@ -48,21 +50,24 @@ defmodule Hex.Resolver do
     case activated[name] do
       active(version: version, possibles: possibles, parents: parents) = active ->
         possibles = Enum.filter(possibles, &version_match?(&1, req))
-        active = active(active, possibles: possibles, parents: wrap(parent) ++ parents)
+        active = active(active, possibles: possibles, parents: [parent|parents])
 
         if version_match?(version, req) do
           activated = Dict.put(activated, name, active)
           do_resolve(activated, pending, optional, info)
         else
+          backtrack_msg_activated(name, version, parent, parents)
           backtrack(active, activated, info)
         end
 
       nil ->
         {opts, optional} = Dict.pop(optional, name)
-        requests = [request] ++ (opts || [])
+        opts = opts || []
+        requests = [request] ++ opts
 
         case get_versions(name, requests) do
           {:error, request(parent: parent)} ->
+            backtrack_msg_new_request(name, parent, opts)
             backtrack(activated[parent], activated, info)
 
           {:ok, [version|possibles]} ->
@@ -72,13 +77,41 @@ defmodule Hex.Resolver do
 
             state = state(activated: activated, pending: pending, optional: optional)
             new_active = active(app: app, name: name, version: version, state: state,
-                                possibles: possibles, parents: wrap(parent))
+                                possibles: possibles, parents: [parent])
             activated = Dict.put(activated, name, new_active)
 
             do_resolve(activated, new_pending, new_optional, info)
         end
     end
   end
+
+  defp backtrack_msg_activated(name, version, parent, parents) do
+    s = Mix.shell
+    newline = "\n                         "
+    parents = Enum.map_join(parents, newline, &parent/1)
+    s.info ~s(Backtracking on already activated request "#{name}" because new requirement didn't match activated version)
+    s.info ~s(  From parent: #{parent(parent)})
+    s.info ~s(  Activated version: "#{version})
+    s.info ~s(  Activated from parents: #{parents})
+    s.info ""
+  end
+
+  defp backtrack_msg_new_request(name, parent, optionals) do
+    s = Mix.shell
+    newline = "\n                      "
+    optionals = Enum.map_join(optionals, newline, &parent(request(&1, :parent)))
+    s.info ~s(Backtracking on new request "#{name}" because no versions matched the parent's requirement or optionals' requirements)
+    s.info ~s(  From parent: #{parent(parent)})
+    s.info ~s(  Optionals' parents: #{optionals})
+    s.info ""
+  end
+
+  defp parent({:mix_exs, req}),  do: ~s(mix.exs #{requirement(req)})
+  defp parent({:mix_lock, req}), do: ~s(mix.lock #{requirement(req)})
+  defp parent({parent, req}),    do: ~s("#{parent}" #{requirement(req)})
+
+  defp requirement(nil), do: ""
+  defp requirement(req), do: ~s(with requirement "#{req.source}")
 
   defp backtrack(nil, _activated, _info) do
     nil
@@ -87,8 +120,11 @@ defmodule Hex.Resolver do
   defp backtrack(active(name: name, possibles: possibles, parents: parents, state: state) = active, activated, info) do
     case possibles do
       [] ->
-        Enum.find_value(parents, fn parent ->
-          backtrack(activated[parent], activated, info)
+        Enum.find_value(parents, fn
+          {parent, _req} when not parent in ~w(mix_exs mix_lock)a ->
+            backtrack(activated[parent], activated, info)
+          {_parent, _req} ->
+            nil
         end)
 
       [version|possibles] ->
@@ -134,8 +170,8 @@ defmodule Hex.Resolver do
 
       {reqs, opts} =
         Enum.reduce(deps, {[], []}, fn {name, app, req, optional}, {reqs, opts} ->
-          request = request(app: app, name: name, req: compile_requirement(req, name),
-                            parent: package)
+          req = compile_requirement(req, name)
+          request = request(app: app, name: name, req: req, parent: {package, req})
 
           cond do
             was_overriden?(parents, String.to_atom(app)) ->
@@ -199,7 +235,4 @@ defmodule Hex.Resolver do
   defp compile_requirement(req, package) do
     Mix.raise "Invalid requirement #{inspect req} defined for package #{package}"
   end
-
-  defp wrap(nil), do: []
-  defp wrap(arg), do: [arg]
 end

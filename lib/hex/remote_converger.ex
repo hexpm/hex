@@ -95,12 +95,14 @@ defmodule Hex.RemoteConverger do
 
     if unlocked != [] do
       Mix.shell.info "Running dependency resolution"
-      Mix.shell.info "Unlocked:   " <> Enum.join(unlocked, ", ")
+      Mix.shell.info "Unlocked: " <> Enum.join(unlocked, ", ")
 
       if overridden != [],
         do: Mix.shell.info "Overridden: " <> Enum.join(overridden, ", ")
       if skipping != [],
-        do: Mix.shell.info "Skipping:   " <> Enum.join(skipping, ", ")
+        do: Mix.shell.info "Skipping: " <> Enum.join(skipping, ", ")
+
+      Mix.shell.info ""
     end
   end
 
