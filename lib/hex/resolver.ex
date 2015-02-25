@@ -138,10 +138,9 @@ defmodule Hex.Resolver do
 
   defp get_deps(package, version, info(top_level: top_level)) do
     if deps = Registry.get_deps(package, version) do
-      parents = down_to(top_level, String.to_atom(package))
-
       {reqs, opts} =
         Enum.reduce(deps, {[], []}, fn {name, app, req, optional}, {reqs, opts} ->
+          parents = down_to(top_level, String.to_atom(app))
           req = compile_requirement(req, name)
           parent = {{package, version}, req}
           request = request(app: app, name: name, req: req, parent: parent)
@@ -168,19 +167,18 @@ defmodule Hex.Resolver do
     end)
   end
 
-  defp down_to(level, parent) do
-    children =
-      Enum.flat_map level, fn dep ->
-        down_to(dep.deps, parent)
+  defp down_to(level, package) do
+    Enum.flat_map level, fn dep ->
+      if dep.app == package do
+        [dep]
+      else
+        children = down_to(dep.deps, package)
+        if children == [] do
+          []
+        else
+          [dep|children]
+        end
       end
-
-    cond do
-      children != [] ->
-        level ++ children
-      parent in Enum.map(level, & &1.app) ->
-        level
-      true ->
-        []
     end
   end
 

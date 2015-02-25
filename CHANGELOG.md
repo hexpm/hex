@@ -1,5 +1,8 @@
 ## v0.7.2-dev
 
+* Bug fixes
+  * Fix a bug where a dependency wasn't detected as overridden if was being overridden in another branch of the dependency tree
+
 ## v0.7.1 (2015-02-15)
 
 * Bug fixes
