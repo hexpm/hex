@@ -42,9 +42,6 @@ defmodule Hex.RemoteConverger do
 
   def deps(%Mix.Dep{app: app}, lock) do
     case Dict.fetch(lock, app) do
-      # Support everything pre Hex 0.6.0 (2014-10-13)
-      {:ok, {:package, version}} ->
-        get_deps(app, version)
       {:ok, {:hex, name, version}} ->
         get_deps(name, version)
       _ ->
@@ -121,10 +118,7 @@ defmodule Hex.RemoteConverger do
 
   defp verify_lock(lock) do
     Enum.each(lock, fn
-      # Support everything pre Hex 0.6.0 (2014-10-13)
-      {app, {:package, version}} ->
-        verify_dep(Atom.to_string(app), version)
-      {_app, {:package, name, version}} ->
+      {_app, {:hex, name, version}} ->
         verify_dep(Atom.to_string(name), version)
       _ ->
         :ok
@@ -149,11 +143,6 @@ defmodule Hex.RemoteConverger do
   defp do_with_children(names, lock) do
     Enum.map(names, fn name ->
       case Dict.fetch(lock, String.to_atom(name)) do
-        # Support everything pre Hex 0.6.0 (2014-10-13)
-        {:ok, {:package, version}} ->
-          deps = Registry.get_deps(name, version)
-                 |> Enum.map(&elem(&1, 0))
-          [deps, do_with_children(deps, lock)]
         {:ok, {:hex, name, version}} ->
           deps = Registry.get_deps(Atom.to_string(name), version)
                  |> Enum.map(&elem(&1, 0))
@@ -175,10 +164,6 @@ defmodule Hex.RemoteConverger do
         %Mix.Dep{scm: Hex.SCM, app: app, requirement: req, opts: opts} ->
           # Make sure to handle deps that were previously locked as Git
           case Dict.fetch(old_lock, app) do
-            # Support everything pre Hex 0.6.0 (2014-10-13)
-            {:ok, {:package, version}} ->
-              req && !Version.match?(version, req)
-
             {:ok, {:hex, name, version}} ->
               req && !Version.match?(version, req) && name == opts[:hex]
 

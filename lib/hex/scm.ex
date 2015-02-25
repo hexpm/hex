@@ -14,8 +14,6 @@ defmodule Hex.SCM do
 
   def format_lock(opts) do
     case opts[:lock] do
-      {:package, version} ->
-        version
       {:hex, name, version} ->
         "#{version} (#{name})"
       _ ->
@@ -33,9 +31,6 @@ defmodule Hex.SCM do
 
   def lock_status(opts) do
     case opts[:lock] do
-      # Support everything pre Hex 0.6.0 (2014-10-13)
-      {:package, version} ->
-        lock_status(opts[:dest], nil, version)
       {:hex, name, version} ->
         lock_status(opts[:dest], Atom.to_string(name), version)
       nil ->
@@ -107,12 +102,8 @@ defmodule Hex.SCM do
     checkout(opts)
   end
 
-  defp get_lock(lock) do
-    case lock do
-      # Support everything pre Hex 0.6.0 (2014-10-13)
-      {:package, version} -> {nil, version}
-      {:hex, name, version} -> {name, version}
-    end
+  defp get_lock({:hex, name, version}) do
+    {name, version}
   end
 
   defp parse_manifest(file) do
@@ -155,10 +146,6 @@ defmodule Hex.SCM do
 
     Enum.flat_map(lock, fn entry ->
       case entry do
-        # Support everything pre Hex 0.6.0 (2014-10-13)
-        {app, {:package, version}} ->
-          name = app
-          version = version
         {_app, {:hex, name, version}} ->
           name = name
           version = version
