@@ -1,5 +1,8 @@
 ## v0.7.2-dev
 
+* Enhancements
+  * Print messages on backtracks if dependency resolution failed, this is intended to help users resolve conflicts
+
 * Bug fixes
   * Fix a bug where a dependency wasn't detected as overridden if was being overridden in another branch of the dependency tree
 

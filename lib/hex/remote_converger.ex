@@ -27,16 +27,19 @@ defmodule Hex.RemoteConverger do
     locked     = prepare_locked(lock, old_lock, deps)
 
     check_input(reqs, locked)
-    print_info(reqs, locked, [])# overridden)
 
-    if resolved = Hex.Resolver.resolve(reqs, top_level, locked) do
-      print_success(resolved, locked)
-      new_lock = Hex.Mix.to_lock(resolved)
-      Hex.SCM.prefetch(new_lock)
+    Mix.shell.info "Running dependency resolution"
 
-      Dict.merge(lock, new_lock)
-    else
-      Mix.raise "Hex dependency resolution failed, relax the version requirements or unlock dependencies"
+    case Hex.Resolver.resolve(reqs, top_level, locked) do
+      {:ok, resolved} ->
+        print_success(resolved, locked)
+        new_lock = Hex.Mix.to_lock(resolved)
+        Hex.SCM.prefetch(new_lock)
+        Dict.merge(lock, new_lock)
+
+      {:error, messages} ->
+        Mix.shell.error messages
+        Mix.raise "Hex dependency resolution failed, relax the version requirements or unlock dependencies"
     end
   end
 
@@ -79,27 +82,6 @@ defmodule Hex.RemoteConverger do
       end
     else
       Mix.raise "No package with name #{name}#{message} in registry"
-    end
-  end
-
-  defp print_info(reqs, locked, overridden) do
-    reqs   = Enum.into(reqs, HashSet.new, &elem(&1, 0))
-    locked = Enum.into(locked, HashSet.new, &elem(&1, 0))
-
-    unlocked = Enum.reject(reqs, &HashSet.member?(locked, &1))
-
-    {overridden, skipping} = Enum.partition(overridden, &HashSet.member?(reqs, &1))
-
-    if unlocked != [] do
-      Mix.shell.info "Running dependency resolution"
-      Mix.shell.info "Unlocked: " <> Enum.join(unlocked, ", ")
-
-      if overridden != [],
-        do: Mix.shell.info "Overridden: " <> Enum.join(overridden, ", ")
-      if skipping != [],
-        do: Mix.shell.info "Skipping: " <> Enum.join(skipping, ", ")
-
-      Mix.shell.info ""
     end
   end
 

@@ -4,13 +4,14 @@ defmodule Hex.Resolver do
   import Hex.Mix, only: [version_match?: 2]
 
   require Record
-  Record.defrecordp :info, [:top_level]
+  Record.defrecordp :info, [:top_level, :backtrack_agent]
   Record.defrecordp :state, [:activated, :pending, :optional]
   Record.defrecordp :request, [:app, :name, :req, :parent]
   Record.defrecordp :active, [:app, :name, :version, :state, :parents, :possibles]
 
   def resolve(requests, top_level, locked) do
-    info = info(top_level: top_level)
+    {:ok, agent_pid} = Agent.start_link(fn -> [] end)
+    info = info(top_level: top_level, backtrack_agent: agent_pid)
 
     {activated, pending, optional} =
       Enum.reduce(locked, {HashDict.new, [], HashDict.new}, &locked(&1, &2, info))
@@ -22,7 +23,14 @@ defmodule Hex.Resolver do
       end)
 
     pending = pending ++ req_requests
-    do_resolve(activated, pending, optional, info)
+    if activated = do_resolve(activated, pending, optional, info) do
+      Agent.stop(agent_pid)
+      {:ok, activated}
+    else
+      messages = Agent.get(agent_pid, & &1)
+      Agent.stop(agent_pid)
+      {:error, Enum.join(messages, "\n\n")}
+    end
   end
 
   defp locked({name, app, version}, {activated, pending, optional}, info) do
@@ -56,18 +64,18 @@ defmodule Hex.Resolver do
           activated = Dict.put(activated, name, active)
           do_resolve(activated, pending, optional, info)
         else
-          backtrack_message(name, version, [parent|parents])
+          backtrack_message(name, version, [parent|parents], info)
           backtrack(active, activated, info)
         end
 
       nil ->
         {opts, optional} = Dict.pop(optional, name)
         opts = opts || []
-        requests = [request] ++ opts
+        requests = [request|opts]
 
         case get_versions(name, requests) do
           {:error, request(parent: parent)} ->
-            backtrack_message(name, nil, [parent|opts])
+            backtrack_message(name, nil, [parent|opts], info)
             backtrack(activated[parent], activated, info)
 
           {:ok, [version|possibles]} ->
@@ -207,13 +215,15 @@ defmodule Hex.Resolver do
     Mix.raise "Invalid requirement #{inspect req} defined for package #{package}"
   end
 
-  defp backtrack_message(name, version, parents) do
-    s = Mix.shell
-    parents = Enum.map_join(parents, "\n  ", &parent/1)
-    s.info "Looking up alternatives for conflicting requirements on #{name}"
-    if version, do: s.info "  Activated version: #{version}"
-    s.info "  #{parents}"
-    s.info ""
+  defp backtrack_message(name, version, parents, info(backtrack_agent: agent)) do
+    string = [
+      "Looking up alternatives for conflicting requirements on #{name}",
+      if(version, do: "  Activated version: #{version}"),
+      "  " <> Enum.map_join(parents, "\n  ", &parent/1)]
+      |> Enum.filter(& &1)
+      |> Enum.join
+
+    Agent.cast(agent, &[string|&1])
   end
 
   defp parent({:mix_exs, req}),
