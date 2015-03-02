@@ -22,10 +22,10 @@ defmodule Hex.RemoteConverger do
     # We need the old lock to get the children of Hex packages
     old_lock = Mix.Dep.Lock.read
 
-    deps       = Hex.Mix.flatten_deps(deps)
-    reqs       = Hex.Mix.deps_to_requests(deps)
     top_level  = Hex.Mix.top_level(deps)
     locked     = prepare_locked(lock, old_lock, deps)
+    deps       = Hex.Mix.flatten_deps(deps)
+    reqs       = Hex.Mix.deps_to_requests(deps)
 
     check_input(reqs, locked)
 
