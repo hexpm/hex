@@ -19,8 +19,9 @@ defmodule Hex.Resolver do
     req_requests =
       Enum.map(requests, fn {name, app, req, from} ->
         req = compile_requirement(req, name)
-        request(name: name, app: app, req: req, parent: {:mix_exs, req})
+        request(name: name, app: app, req: req, parent: {from, req})
       end)
+      |> Enum.uniq
 
     pending = pending ++ req_requests
     if activated = do_resolve(activated, pending, optional, info) do
@@ -42,7 +43,7 @@ defmodule Hex.Resolver do
     optional = merge_optional(optional, new_optional)
 
     {:ok, req} = Version.parse_requirement(version)
-    active = active(name: name, app: app, version: version, parents: [{:mix_lock, req}], possibles: [])
+    active = active(name: name, app: app, version: version, parents: [{"mix.lock", req}], possibles: [])
     activated = Dict.put(activated, name, active)
 
     {activated, pending, optional}
@@ -221,17 +222,15 @@ defmodule Hex.Resolver do
       if(version, do: "  Activated version: #{version}"),
       "  " <> Enum.map_join(parents, "\n  ", &parent/1)]
       |> Enum.filter(& &1)
-      |> Enum.join
+      |> Enum.join("\n")
 
     Agent.cast(agent, &[string|&1])
   end
 
-  defp parent({:mix_exs, req}),
-    do: "From mix.exs: #{requirement(req)}"
-  defp parent({:mix_lock, req}),
-    do: "From mix.lock: #{requirement(req)}"
+  defp parent({path, req}) when is_binary(path),
+    do: "From #{path} : #{requirement(req)}"
   defp parent({{parent, version}, req}),
-    do: "From #{parent} v#{version}: #{requirement(req)}"
+    do: "From #{parent} v#{version} : #{requirement(req)}"
 
   defp requirement(nil), do: ""
   defp requirement(req), do: req.source
