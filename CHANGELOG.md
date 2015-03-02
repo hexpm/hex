@@ -4,7 +4,6 @@
   * Print messages on backtracks if dependency resolution failed, this is intended to help users resolve conflicts
 
 * Bug fixes
-  * Fix a bug where a dependency wasn't detected as overridden if was being overridden in another branch of the dependency tree
   * Fix a bug where a dependency converged in mix did not consider all its requirements
 
 ## v0.7.1 (2015-02-15)

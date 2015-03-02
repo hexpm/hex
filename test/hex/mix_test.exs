@@ -60,31 +60,6 @@ defmodule Hex.MixTest do
     end
   end
 
-  defmodule ExDocOverridden do
-    def project do
-      [ app: :ex_doc_overridden,
-        version: "0.1.0",
-        deps: [ {:ex_doc, "0.0.1", override: true}] ]
-    end
-  end
-
-  defmodule ExDocGrandParent do
-    def project do
-      [ app: :ex_doc_grand_parent,
-        version: "0.1.0",
-        deps: [ {:ex_doc_parent, nil},
-                {:ex_doc_overridden, path: fixture_path("ex_doc_overridden")}] ]
-    end
-  end
-
-  defmodule ExDocParent do
-    def project do
-      [ app: :ex_doc_parent,
-        version: "0.1.0",
-        deps: [ {:ex_doc, "~> 0.1.0"}] ]
-    end
-  end
-
   defmodule Optional do
     def project do
       [ app: :optional,
@@ -340,28 +315,6 @@ defmodule Hex.MixTest do
       assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
 
       assert Mix.Dep.Lock.read == %{postgrex: {:hex, :postgrex, "0.2.1"}}
-    end
-  after
-    purge [OverrideWithPath.NoConflict.Mixfile, ExDoc.Mixfile,
-           Postgrex.NoConflict.Mixfile]
-  end
-
-  @tag :integration
-  test "override hex dependency in another branch" do
-    Mix.Project.push ExDocGrandParent
-
-    in_tmp fn ->
-      Hex.home(System.cwd!)
-      Mix.Task.run "deps.get"
-
-      assert_received {:mix_shell, :info, ["* Getting ex_doc (Hex package)"]}
-
-      Mix.Task.run "deps"
-
-      assert_received {:mix_shell, :info, ["* ex_doc (Hex package)"]}
-      assert_received {:mix_shell, :info, ["  locked at 0.0.1 (ex_doc)"]}
-
-      assert %{ex_doc: {:hex, :ex_doc, "0.0.1"}} = Mix.Dep.Lock.read
     end
   after
     purge [OverrideWithPath.NoConflict.Mixfile, ExDoc.Mixfile,

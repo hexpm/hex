@@ -176,8 +176,6 @@ defmodule HexTest.Case do
 
       {:only_doc, "0.1.0", [{:ex_doc, nil, true}]},
 
-      {:ex_doc_parent, "0.1.0", [ex_doc: "~> 0.1.0"]},
-
       {:package_name, "0.1.0", []},
       {:depend_name, "0.2.0", [{:package_name, nil, false, :app_name}]} ]
   end
@@ -270,13 +268,11 @@ if :integration in ExUnit.configuration[:include] do
   Case.init_project("ex_doc", "0.0.1", [], meta, auth)
   Case.init_project("ex_doc", "0.0.1", [], meta, auth)
   Case.init_project("ex_doc", "0.1.0", [], meta, auth)
-  Case.init_project("ex_doc_parent", "0.1.0", [], meta, auth)
   Case.init_project("postgrex", "0.2.1", [ex_doc: "~> 0.1.0"], %{}, auth)
   Case.init_project("postgrex", "0.2.0", [ex_doc: "0.0.1"], %{}, auth)
   Case.init_project("ecto", "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"], %{}, auth)
   Case.init_project("ecto", "0.2.1", [{:sample, "0.0.1", path: Case.fixture_path("sample")}, postgrex: "~> 0.2.1", ex_doc: "0.1.0"], %{}, auth)
   Case.init_project("only_doc", "0.1.0", [{:ex_doc, nil, optional: true}], %{}, auth)
-  Case.init_project("ex_doc_parent", "0.1.0", [ex_doc: "~> 0.1.0"], meta, auth)
   Case.init_project("package_name", "0.1.0", [], %{app: "app_name"}, auth)
   Case.init_project("depend_name", "0.2.0", [{:app_name, nil, optional: true, hex: :package_name}], %{}, auth)
 end
