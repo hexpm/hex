@@ -18,9 +18,14 @@ defmodule Hex.Mix do
   """
   @spec flatten_deps([Mix.Dep.t]) :: [Mix.Dep.t]
   def flatten_deps(deps) do
-    Enum.flat_map(deps, fn %Mix.Dep{deps: deps} = dep ->
-      [dep|flatten_deps(deps)]
-    end)
+    top_level = top_level(deps)
+
+    deps ++
+      for(dep <- deps,
+          upper_breadths = down_to(top_level, deps, dep.app),
+          child <- dep.deps,
+          not was_overridden?(upper_breadths, child.app),
+          do: child)
   end
 
   @doc """
