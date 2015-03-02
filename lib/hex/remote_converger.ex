@@ -22,16 +22,15 @@ defmodule Hex.RemoteConverger do
     # We need the old lock to get the children of Hex packages
     old_lock = Mix.Dep.Lock.read
 
-    top_level  = Hex.Mix.top_level(deps)
     locked     = prepare_locked(lock, old_lock, deps)
-    deps       = Hex.Mix.flatten_deps(deps)
-    reqs       = Hex.Mix.deps_to_requests(deps)
+    flat_deps  = Hex.Mix.flatten_deps(deps)
+    reqs       = Hex.Mix.deps_to_requests(flat_deps)
 
     check_input(reqs, locked)
 
     Mix.shell.info "Running dependency resolution"
 
-    case Hex.Resolver.resolve(reqs, top_level, locked) do
+    case Hex.Resolver.resolve(reqs, deps, locked) do
       {:ok, resolved} ->
         print_success(resolved, locked)
         new_lock = Hex.Mix.to_lock(resolved)

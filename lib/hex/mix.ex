@@ -24,6 +24,38 @@ defmodule Hex.Mix do
   end
 
   @doc """
+  Returns all the upper breadths for the parent of a dependency.
+  """
+  @spec down_to([Mix.Dep.t], [Mix.Dep.t], atom) :: [Mix.Dep.t]
+  def down_to(level, deps, parent) do
+    children =
+      Enum.flat_map(level, fn dep ->
+        children = Enum.map(dep.deps, & &1.app)
+        children = Enum.filter(deps, fn dep -> dep.app in children end)
+        down_to(children, deps, parent)
+      end)
+
+    cond do
+      children != [] ->
+        level ++ children
+      parent in Enum.map(level, & &1.app) ->
+        level
+      true ->
+        []
+    end
+  end
+
+  @doc """
+  Returns true if the dependency was overridden in any of the upper breadths.
+  """
+  @spec was_overridden?([Mix.Dep.t], atom) :: boolean
+  def was_overridden?(upper_breadths, app) do
+    Enum.any?(upper_breadths, fn dep ->
+      app == dep.app && dep.opts[:override]
+    end)
+  end
+
+  @doc """
   Converts a list of dependencies to a requests to the resolver. Skips
   dependencies overriding with another SCM (but include dependencies
   overriding with Hex) and dependencies that are not Hex packages.

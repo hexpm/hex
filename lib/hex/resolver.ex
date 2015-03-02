@@ -1,17 +1,18 @@
 defmodule Hex.Resolver do
   alias Hex.Registry
-
-  import Hex.Mix, only: [version_match?: 2]
-
+  import Hex.Mix
   require Record
-  Record.defrecordp :info, [:top_level, :backtrack_agent]
+
+  Record.defrecordp :info, [:deps, :top_level, :backtrack_agent]
   Record.defrecordp :state, [:activated, :pending, :optional]
   Record.defrecordp :request, [:app, :name, :req, :parent]
   Record.defrecordp :active, [:app, :name, :version, :state, :parents, :possibles]
 
-  def resolve(requests, top_level, locked) do
+  def resolve(requests, deps, locked) do
     {:ok, agent_pid} = Agent.start_link(fn -> [] end)
-    info = info(top_level: top_level, backtrack_agent: agent_pid)
+
+    top_level = top_level(deps)
+    info = info(deps: deps, top_level: top_level, backtrack_agent: agent_pid)
 
     {activated, pending, optional} =
       Enum.reduce(locked, {HashDict.new, [], HashDict.new}, &locked(&1, &2, info))
@@ -145,9 +146,9 @@ defmodule Hex.Resolver do
     end
   end
 
-  defp get_deps(package, version, info(top_level: top_level)) do
+  defp get_deps(package, version, info(top_level: top_level, deps: all_deps)) do
     if deps = Registry.get_deps(package, version) do
-      parents = down_to(top_level, String.to_atom(package))
+      upper_breadths = down_to(top_level, all_deps, String.to_atom(package))
 
       {reqs, opts} =
         Enum.reduce(deps, {[], []}, fn {name, app, req, optional}, {reqs, opts} ->
@@ -156,7 +157,7 @@ defmodule Hex.Resolver do
           request = request(app: app, name: name, req: req, parent: parent)
 
           cond do
-            was_overriden?(parents, String.to_atom(app)) ->
+            was_overridden?(upper_breadths, String.to_atom(app)) ->
               {reqs, opts}
             optional ->
               {reqs, [request|opts]}
@@ -168,28 +169,6 @@ defmodule Hex.Resolver do
         {Enum.reverse(reqs), Enum.reverse(opts)}
     else
       Mix.raise "Unable to find package version #{package} v#{version} in registry"
-    end
-  end
-
-  defp was_overriden?(parents, app) do
-    Enum.any?(parents, fn parent ->
-      app == parent.app && parent.opts[:override]
-    end)
-  end
-
-  defp down_to(level, parent) do
-    children =
-      Enum.flat_map level, fn dep ->
-        down_to(dep.deps, parent)
-      end
-
-    cond do
-      children != [] ->
-        level ++ children
-      parent in Enum.map(level, & &1.app) ->
-        level
-      true ->
-        []
     end
   end
 
@@ -230,9 +209,9 @@ defmodule Hex.Resolver do
   end
 
   defp parent({path, req}) when is_binary(path),
-    do: "From #{path} : #{requirement(req)}"
+    do: "From #{path}: #{requirement(req)}"
   defp parent({{parent, version}, req}),
-    do: "From #{parent} v#{version} : #{requirement(req)}"
+    do: "From #{parent} v#{version}: #{requirement(req)}"
 
   defp requirement(nil), do: ""
   defp requirement(req), do: req.source
