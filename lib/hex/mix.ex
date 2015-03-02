@@ -19,13 +19,7 @@ defmodule Hex.Mix do
   """
   @spec deps_to_requests([Mix.Dep.t]) :: [{String.t, String.t}]
   def deps_to_requests(deps) do
-    overridden =
-      for %Mix.Dep{app: app, scm: scm, opts: opts} <- deps,
-          scm != Hex.SCM and opts[:override],
-          do: app
-
     for %Mix.Dep{app: app, requirement: req, scm: Hex.SCM, opts: opts} <- deps,
-        not app in overridden,
         do: {Atom.to_string(opts[:hex]), Atom.to_string(app), req}
   end
 
