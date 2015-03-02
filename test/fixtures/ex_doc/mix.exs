@@ -1,4 +1,4 @@
-defmodule ExDoc.NoConflict.Mixfile do
+defmodule ExDoc.Mixfile do
   use Mix.Project
 
   def project do

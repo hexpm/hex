@@ -22,6 +22,7 @@ defmodule Hex.RemoteConverger do
     # We need the old lock to get the children of Hex packages
     old_lock = Mix.Dep.Lock.read
 
+    deps       = Hex.Mix.flatten_deps(deps)
     reqs       = Hex.Mix.deps_to_requests(deps)
     top_level  = Hex.Mix.top_level(deps)
     locked     = prepare_locked(lock, old_lock, deps)
@@ -65,23 +66,23 @@ defmodule Hex.RemoteConverger do
   end
 
   defp check_input(reqs, locked) do
-    Enum.each(reqs, fn {name, _app, req} ->
-      check_package_req(name, req, nil)
+    Enum.each(reqs, fn {name, _app, req, from} ->
+      check_package_req(name, req, from)
     end)
 
     Enum.each(locked, fn {name, _app, req} ->
-      check_package_req(name, req, " (from lock)")
+      check_package_req(name, req, "mix.lock")
     end)
   end
 
-  defp check_package_req(name, req, message) do
+  defp check_package_req(name, req, from) do
     if versions = Registry.get_versions(name) do
       versions = Enum.filter(versions, &Hex.Mix.version_match?(&1, req))
       if versions == [] do
-        Mix.raise "No package version in registry matches #{name} #{req}#{message}"
+        Mix.raise "No package version in registry matches #{name} #{req} (from: #{from})"
       end
     else
-      Mix.raise "No package with name #{name}#{message} in registry"
+      Mix.raise "No package with name #{name} (from: #{from}) in registry"
     end
   end
 

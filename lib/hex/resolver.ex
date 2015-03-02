@@ -17,7 +17,7 @@ defmodule Hex.Resolver do
       Enum.reduce(locked, {HashDict.new, [], HashDict.new}, &locked(&1, &2, info))
 
     req_requests =
-      Enum.map(requests, fn {name, app, req} ->
+      Enum.map(requests, fn {name, app, req, from} ->
         req = compile_requirement(req, name)
         request(name: name, app: app, req: req, parent: {:mix_exs, req})
       end)

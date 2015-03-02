@@ -13,14 +13,27 @@ defmodule Hex.Mix do
   def version_match?(version, req),  do: Version.match?(version, req)
 
   @doc """
+  Given a tree of dependencies return a flat list of all dependencies in
+  the tree.
+  """
+  @spec flatten_deps([Mix.Dep.t]) :: [Mix.Dep.t]
+  def flatten_deps(deps) do
+    Enum.flat_map(deps, fn %Mix.Dep{deps: deps} = dep ->
+      [dep|flatten_deps(deps)]
+    end)
+  end
+
+  @doc """
   Converts a list of dependencies to a requests to the resolver. Skips
   dependencies overriding with another SCM (but include dependencies
   overriding with Hex) and dependencies that are not Hex packages.
   """
   @spec deps_to_requests([Mix.Dep.t]) :: [{String.t, String.t}]
   def deps_to_requests(deps) do
-    for %Mix.Dep{app: app, requirement: req, scm: Hex.SCM, opts: opts} <- deps,
-        do: {Atom.to_string(opts[:hex]), Atom.to_string(app), req}
+    for %Mix.Dep{app: app, requirement: req, scm: Hex.SCM, opts: opts, from: from} <- deps do
+      from = Path.relative_to_cwd(from)
+      {Atom.to_string(opts[:hex]), Atom.to_string(app), req, from}
+    end
   end
 
   @doc """

@@ -34,6 +34,15 @@ defmodule Hex.MixTest do
     end
   end
 
+  defmodule EctoPathDep do
+    def project do
+      [ app: :ecto_path_dep,
+        version: "0.1.0",
+        deps: [ {:postgrex, ">= 0.0.0"},
+                {:ecto, path: fixture_path("ecto")} ] ]
+    end
+  end
+
   defmodule OverrideWithPath do
     def project do
       [ app: :override_with_path,
@@ -257,6 +266,22 @@ defmodule Hex.MixTest do
   end
 
   @tag :integration
+  test "converged hex dependency considers all requirements" do
+    Mix.Project.push EctoPathDep
+
+    in_tmp fn ->
+      Hex.home(System.cwd!)
+      Mix.Task.run "deps.get"
+
+      assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
+
+      assert %{postgrex: {:hex, :postgrex, "0.2.0"}} = Mix.Dep.Lock.read
+    end
+  after
+    purge [ Ecto.Mixfile, Postgrex.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
+  end
+
+  @tag :integration
   test "do not fetch git children of hex dependencies" do
     Mix.Project.push SimpleOld
 
@@ -295,7 +320,7 @@ defmodule Hex.MixTest do
       assert Mix.Dep.Lock.read == %{postgrex: {:hex, :postgrex, "0.2.1"}}
     end
   after
-    purge [ Postgrex.NoConflict.Mixfile, ExDoc.NoConflict.Mixfile ]
+    purge [ Postgrex.NoConflict.Mixfile, ExDoc.Mixfile ]
   end
 
   @tag :integration
@@ -317,7 +342,7 @@ defmodule Hex.MixTest do
       assert Mix.Dep.Lock.read == %{postgrex: {:hex, :postgrex, "0.2.1"}}
     end
   after
-    purge [OverrideWithPath.NoConflict.Mixfile, ExDoc.NoConflict.Mixfile,
+    purge [OverrideWithPath.NoConflict.Mixfile, ExDoc.Mixfile,
            Postgrex.NoConflict.Mixfile]
   end
 
@@ -339,7 +364,7 @@ defmodule Hex.MixTest do
       assert %{ex_doc: {:hex, :ex_doc, "0.0.1"}} = Mix.Dep.Lock.read
     end
   after
-    purge [OverrideWithPath.NoConflict.Mixfile, ExDoc.NoConflict.Mixfile,
+    purge [OverrideWithPath.NoConflict.Mixfile, ExDoc.Mixfile,
            Postgrex.NoConflict.Mixfile]
   end
 
