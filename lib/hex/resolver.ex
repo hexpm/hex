@@ -28,7 +28,7 @@ defmodule Hex.Resolver do
       end)
       |> Enum.uniq
 
-    if activated = do_resolve(HashDict.new, pending, optional, info) do
+    if activated = do_resolve(pending, optional, info, HashDict.new) do
       Agent.stop(agent_pid)
       {:ok, activated}
     else
@@ -38,13 +38,13 @@ defmodule Hex.Resolver do
     end
   end
 
-  defp do_resolve(activated, [], _optional, _info) do
+  defp do_resolve([], _optional, _info, activated) do
     Enum.map(activated, fn {name, active(app: app, version: version)} ->
       {name, app, version}
     end) |> Enum.reverse
   end
 
-  defp do_resolve(activated, [request(app: app, name: name, req: req, parent: parent) = request|pending], optional, info) do
+  defp do_resolve([request(app: app, name: name, req: req, parent: parent) = request|pending], optional, info, activated) do
     case activated[name] do
       active(version: version, possibles: possibles, parents: parents) = active ->
         possibles = Enum.filter(possibles, &version_match?(&1, req))
@@ -52,10 +52,10 @@ defmodule Hex.Resolver do
 
         if version_match?(version, req) do
           activated = HashDict.put(activated, name, active)
-          do_resolve(activated, pending, optional, info)
+          do_resolve(pending, optional, info, activated)
         else
           backtrack_message(name, version, [parent|parents], info)
-          backtrack(active, activated, info)
+          backtrack(active, info, activated)
         end
 
       nil ->
@@ -66,7 +66,7 @@ defmodule Hex.Resolver do
         case get_versions(name, requests) do
           {:error, request(parent: parent)} ->
             backtrack_message(name, nil, [parent|opts], info)
-            backtrack(activated[parent], activated, info)
+            backtrack(activated[parent], info, activated)
 
           {:ok, [version|possibles]} ->
             {new_pending, new_optional} = get_deps(name, version, info)
@@ -78,21 +78,21 @@ defmodule Hex.Resolver do
                                 possibles: possibles, parents: [parent])
             activated = HashDict.put(activated, name, new_active)
 
-            do_resolve(activated, new_pending, new_optional, info)
+            do_resolve(new_pending, new_optional, info, activated)
         end
     end
   end
 
-  defp backtrack(nil, _activated, _info) do
+  defp backtrack(nil, _info, _activated) do
     nil
   end
 
-  defp backtrack(active(name: name, possibles: possibles, parents: parents, state: state) = active, activated, info) do
+  defp backtrack(active(name: name, possibles: possibles, parents: parents, state: state) = active, info, activated) do
     case possibles do
       [] ->
         Enum.find_value(parents, fn
           {{parent, _version}, _req} when not parent in ~w(mix_exs mix_lock)a ->
-            backtrack(activated[parent], activated, info)
+            backtrack(activated[parent], info, activated)
           _ ->
             nil
         end)
@@ -106,7 +106,7 @@ defmodule Hex.Resolver do
         optional = merge_optional(optional, new_optional)
 
         activated = HashDict.put(activated, name, active)
-        do_resolve(activated, pending, optional, info)
+        do_resolve(pending, optional, info, activated)
     end
   end
 
