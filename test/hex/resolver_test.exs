@@ -95,6 +95,6 @@ defmodule Hex.ResolverTest do
 
     locked = [ex_plex: "0.1.0", decimal: "0.1.0"]
     deps = []
-    assert Dict.equal? locked([decimal: "0.1.0", ex_plex: "0.1.0"]), resolve(deps, locked)
+    assert Dict.equal? [], resolve(deps, locked)
   end
 end

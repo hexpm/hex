@@ -14,18 +14,21 @@ defmodule Hex.Resolver do
     top_level = top_level(deps)
     info = info(deps: deps, top_level: top_level, backtrack_agent: agent_pid)
 
-    {activated, pending, optional} =
-      Enum.reduce(locked, {HashDict.new, [], HashDict.new}, &locked(&1, &2, info))
+    optional =
+      Enum.reduce(locked, HashDict.new, fn {name, app, version}, acc ->
+        {:ok, req} = Version.parse_requirement(version)
+        request = request(app: app, name: name, req: req, parent: {"mix.lock", req})
+        HashDict.put(acc, name, request)
+      end)
 
-    req_requests =
+    pending =
       Enum.map(requests, fn {name, app, req, from} ->
         req = compile_requirement(req, name)
         request(name: name, app: app, req: req, parent: {from, req})
       end)
       |> Enum.uniq
 
-    pending = pending ++ req_requests
-    if activated = do_resolve(activated, pending, optional, info) do
+    if activated = do_resolve(HashDict.new, pending, optional, info) do
       Agent.stop(agent_pid)
       {:ok, activated}
     else
@@ -33,21 +36,6 @@ defmodule Hex.Resolver do
       Agent.stop(agent_pid)
       {:error, Enum.join(messages, "\n\n")}
     end
-  end
-
-  defp locked({name, app, version}, {activated, pending, optional}, info) do
-    # Make sure to add children of locked dependencies, they may be missing
-    # from the lock for multiple reasons
-
-    {new_pending, new_optional} = get_deps(name, version, info)
-    pending = pending ++ new_pending
-    optional = merge_optional(optional, new_optional)
-
-    {:ok, req} = Version.parse_requirement(version)
-    active = active(name: name, app: app, version: version, parents: [{"mix.lock", req}], possibles: [])
-    activated = Dict.put(activated, name, active)
-
-    {activated, pending, optional}
   end
 
   defp do_resolve(activated, [], _optional, _info) do
@@ -63,7 +51,7 @@ defmodule Hex.Resolver do
         active = active(active, possibles: possibles, parents: [parent|parents])
 
         if version_match?(version, req) do
-          activated = Dict.put(activated, name, active)
+          activated = HashDict.put(activated, name, active)
           do_resolve(activated, pending, optional, info)
         else
           backtrack_message(name, version, [parent|parents], info)
@@ -71,8 +59,8 @@ defmodule Hex.Resolver do
         end
 
       nil ->
-        {opts, optional} = Dict.pop(optional, name)
-        opts = opts || []
+        {opts, optional} = HashDict.pop(optional, name)
+        opts = List.wrap(opts || [])
         requests = [request|opts]
 
         case get_versions(name, requests) do
@@ -88,7 +76,7 @@ defmodule Hex.Resolver do
             state = state(activated: activated, pending: pending, optional: optional)
             new_active = active(app: app, name: name, version: version, state: state,
                                 possibles: possibles, parents: [parent])
-            activated = Dict.put(activated, name, new_active)
+            activated = HashDict.put(activated, name, new_active)
 
             do_resolve(activated, new_pending, new_optional, info)
         end
@@ -117,7 +105,7 @@ defmodule Hex.Resolver do
         pending = pending ++ new_pending
         optional = merge_optional(optional, new_optional)
 
-        activated = Dict.put(activated, name, active)
+        activated = HashDict.put(activated, name, active)
         do_resolve(activated, pending, optional, info)
     end
   end

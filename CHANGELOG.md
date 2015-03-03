@@ -5,6 +5,7 @@
 
 * Bug fixes
   * Fix a bug where a dependency converged in mix did not consider all its requirements
+  * Fix a bug where dependencies in the lock was considered even if they weren't requested
 
 ## v0.7.1 (2015-02-15)
 
