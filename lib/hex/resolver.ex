@@ -18,7 +18,7 @@ defmodule Hex.Resolver do
       Enum.reduce(locked, HashDict.new, fn {name, app, version}, acc ->
         {:ok, req} = Version.parse_requirement(version)
         request = request(app: app, name: name, req: req, parent: {"mix.lock", req})
-        HashDict.put(acc, name, request)
+        HashDict.put(acc, name, [request])
       end)
 
     pending =
@@ -60,7 +60,7 @@ defmodule Hex.Resolver do
 
       nil ->
         {opts, optional} = HashDict.pop(optional, name)
-        opts = List.wrap(opts || [])
+        opts = opts || []
         requests = [request|opts]
 
         case get_versions(name, requests) do

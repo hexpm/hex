@@ -1,5 +1,8 @@
 ## v0.7.3-dev
 
+* Bug fixes
+  * Fix an error when merging locked and optional dependencies
+
 ## v0.7.2 (2015-03-04)
 
 * Enhancements
