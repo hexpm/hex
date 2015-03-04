@@ -1,4 +1,4 @@
-## v0.7.2-dev
+## v0.7.2 (2015-03-04)
 
 * Enhancements
   * Print messages on backtracks if dependency resolution failed, this is intended to help users resolve conflicts
