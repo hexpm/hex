@@ -16,8 +16,6 @@ before_script:
 script:
   - mix test --include integration
 env:
-  global:
-    - SLOW_HTTP=true
   matrix:
     - ELIXIRVERSION=v1.0.0
     - ELIXIRVERSION=master
