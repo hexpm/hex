@@ -64,8 +64,9 @@ defmodule Hex.Resolver do
         requests = [request|opts]
 
         case get_versions(name, requests) do
-          {:error, request(parent: parent)} ->
-            backtrack_message(name, nil, [parent|opts], info)
+          {:error, requests} ->
+            parents = Enum.map(requests, &request(&1, :parent))
+            backtrack_message(name, nil, parents, info)
             backtrack(activated[parent], info, activated)
 
           {:ok, [version|possibles]} ->
@@ -113,20 +114,21 @@ defmodule Hex.Resolver do
   defp get_versions(package, requests) do
     if versions = Registry.get_versions(package) do
       try do
-        versions =
-          Enum.reduce(requests, versions, fn request(req: req) = request, versions ->
+        {versions, _requests} =
+          Enum.reduce(requests, {versions, []}, fn request, {versions, requests} ->
+            req = request(request, :req)
             versions = Enum.filter(versions, &version_match?(&1, req))
             if versions == [] do
-              throw request
+              throw [request|requests]
             else
-              versions
+              {versions, [request|requests]}
             end
           end)
 
         {:ok, Enum.reverse(versions)}
       catch
-        :throw, request ->
-          {:error, request}
+        :throw, requests ->
+          {:error, requests}
       end
 
     else

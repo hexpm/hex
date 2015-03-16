@@ -1,5 +1,9 @@
 ## v0.7.4-dev
 
+* Bug fixes
+  * Include all conflicting requirements in backtrack message
+  * Fix a bug where backtrack message failed on optional requests
+
 ## v0.7.3 (2015-03-04)
 
 * Bug fixes
