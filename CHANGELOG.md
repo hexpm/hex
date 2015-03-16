@@ -1,4 +1,4 @@
-## v0.7.4-dev
+## v0.7.4 (2015-03-16)
 
 * Bug fixes
   * Include all conflicting requirements in backtrack message
