@@ -21,7 +21,6 @@ defmodule Mix.Tasks.Hex.Info do
   def run(args) do
     {_opts, args, _} = OptionParser.parse(args)
     Hex.start
-    Hex.Util.ensure_registry(cache: false)
 
     case args do
       [] -> general()
@@ -36,6 +35,9 @@ defmodule Mix.Tasks.Hex.Info do
     Mix.shell.info("Hex v" <> Hex.version)
     Mix.shell.info("")
 
+    # Make sure to fetch registry after showing hex version. Issues with the
+    # registry should not prevent printing the version.
+    Hex.Util.ensure_registry(cache: false)
     path = Hex.Registry.path()
     stat = File.stat!(path)
     {packages, releases} = Hex.Registry.stat()
@@ -47,6 +49,8 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp package(package) do
+    Hex.Util.ensure_registry(cache: false)
+
     case Hex.API.Package.get(package) do
       {code, body} when code in 200..299 ->
         pretty_package(body)
@@ -60,6 +64,8 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp release(package, version) do
+    Hex.Util.ensure_registry(cache: false)
+
     case Hex.API.Release.get(package, version) do
       {code, body} when code in 200..299 ->
         pretty_release(package, body)
