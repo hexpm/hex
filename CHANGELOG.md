@@ -1,5 +1,8 @@
 ## v0.7.5-dev
 
+* Enhancements
+  * Add task `hex.user test` for testing user authentication.
+
 ## v0.7.4 (2015-03-16)
 
 * Bug fixes

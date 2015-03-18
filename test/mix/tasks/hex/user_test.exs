@@ -58,6 +58,23 @@ defmodule Mix.Tasks.Hex.UserTest do
     end
   end
 
+  test "test" do
+    in_tmp fn ->
+      Hex.home(System.cwd!)
+
+      user = HexWeb.User.get(username: "user")
+      {:ok, key} = HexWeb.API.Key.create("computer", user)
+      Hex.Config.update(username: "user", key: key.user_secret)
+      Mix.Tasks.Hex.User.run(["test"])
+
+      assert_received {:mix_shell, :info, ["Successfully authed. Your key works."]}
+
+      Hex.Config.update(username: "user", key: "wrong_key")
+      Mix.Tasks.Hex.User.run(["test"])
+      assert_received {:mix_shell, :error, ["Failed to auth"]}
+    end
+  end
+
   test "update config" do
     in_tmp fn ->
       Hex.home(System.cwd!)

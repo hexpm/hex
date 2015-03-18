@@ -29,6 +29,12 @@ defmodule Mix.Tasks.Hex.User do
 
   `mix hex.user deauth`
 
+  ### Test authentication
+
+  Tests if authentication works with the stored API key.
+
+  `mix hex.user test`
+
   ### Reset user password
 
   `mix hex.user reset password`
@@ -53,6 +59,8 @@ defmodule Mix.Tasks.Hex.User do
         deauth()
       ["reset", "password"] ->
         reset_password()
+      ["test"] ->
+        test()
       _ ->
         Mix.raise "Invalid arguments, expected one of:\nmix hex.user register\n" <>
                   "mix hex.user auth\nmix hex.user whoami\nmix hex.user deauth\nmix hex.user reset password"
@@ -61,13 +69,8 @@ defmodule Mix.Tasks.Hex.User do
 
   defp whoami() do
     config = Hex.Config.read
-    case Keyword.fetch(config, :username) do
-       {:ok, username} ->
-        Mix.shell.info(username)
-       :error ->
-        Mix.raise "No user authorised on the local machine. Run `mix hex.user auth` " <>
-                  "or create a new user with `mix hex.user register`"
-    end
+    username = local_user(config)
+    Mix.shell.info(username)
   end
 
   defp reset_password() do
@@ -86,19 +89,15 @@ defmodule Mix.Tasks.Hex.User do
 
   defp deauth() do
     config = Hex.Config.read
-    case Keyword.fetch(config, :username) do
-      {:ok, username} ->
-        config
-        |> Keyword.drop([:username, :key])
-        |> Hex.Config.write
+    username = local_user(config)
 
-        Mix.shell.info "User `" <> username <> "` removed from the local machine. " <>
-                       "To authenticate again, run `mix hex.user auth` " <>
-                       "or create a new user with `mix hex.user register`"
-      :error ->
-        Mix.raise "No user authorised on the local machine. Run `mix hex.user auth` " <>
-                  "or create a new user with `mix hex.user register`"
-    end
+    config
+    |> Keyword.drop([:username, :key])
+    |> Hex.Config.write
+
+    Mix.shell.info "User `" <> username <> "` removed from the local machine. " <>
+                   "To authenticate again, run `mix hex.user auth` " <>
+                   "or create a new user with `mix hex.user register`"
   end
 
   defp register(opts) do
@@ -139,5 +138,30 @@ defmodule Mix.Tasks.Hex.User do
     password = Util.password_get("Password:", clean?) |> String.strip
 
     Util.generate_key(username, password)
+  end
+
+  defp test do
+    config = Hex.Config.read
+    username = local_user(config)
+    auth = Util.auth_info(config)
+
+    case Hex.API.User.get(username, auth) do
+      {code, _} when code in 200..299 ->
+        Mix.shell.info("Successfully authed. Your key works.")
+      {code, body} ->
+        Mix.shell.error("Failed to auth")
+        Hex.Util.print_http_code(code)
+        Hex.Util.print_error_result(code, body)
+    end
+  end
+
+  defp local_user(config) do
+    case Keyword.fetch(config, :username) do
+      {:ok, username} ->
+        username
+      :error ->
+        Mix.raise "No user authorised on the local machine. Run `mix hex.user auth` " <>
+                  "or create a new user with `mix hex.user register`"
+    end
   end
 end
