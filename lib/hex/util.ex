@@ -156,12 +156,20 @@ defmodule Hex.Util do
   def print_error_result(_status, ""), do: :ok
 
   def print_error_result(status, body) do
-    if body["message"] && body["errors"] do
-      Mix.shell.info(body["message"])
-      pretty_errors(body["errors"])
-    else
+    message = body["message"]
+    errors = body["errors"]
+
+    if message do
+      Mix.shell.info(message)
+    end
+
+    if errors do
+      pretty_errors(errors)
+    end
+
+    unless message or errors do
       print_http_code(status)
-      Mix.shell.info(inspect(body))
+      Mix.shell.info(body)
     end
   end
 
