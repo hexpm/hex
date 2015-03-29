@@ -45,7 +45,6 @@ defmodule Mix.Tasks.Hex.Key do
         :ok
       {code, body} ->
         Mix.shell.error("Key fetching failed")
-        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -56,7 +55,6 @@ defmodule Mix.Tasks.Hex.Key do
         Enum.each(body, &Mix.shell.info(&1["name"]))
       {code, body} ->
         Mix.shell.error("Key fetching failed")
-        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end

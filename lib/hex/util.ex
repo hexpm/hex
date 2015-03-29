@@ -155,11 +155,12 @@ defmodule Hex.Util do
   def print_error_result(_status, nil), do: :ok
   def print_error_result(_status, ""), do: :ok
 
-  def print_error_result(_status, body) do
+  def print_error_result(status, body) do
     if body["message"] && body["errors"] do
       Mix.shell.info(body["message"])
       pretty_errors(body["errors"])
     else
+      print_http_code(status)
       Mix.shell.info(inspect(body))
     end
   end
@@ -174,9 +175,10 @@ defmodule Hex.Util do
     end)
   end
 
-  def print_http_code(code), do: Mix.shell.info(pretty_http_code(code))
+  defp print_http_code(code), do: Mix.shell.info(pretty_http_code(code))
 
   defp pretty_http_code(401), do: "Authentication failed (401)"
+  defp pretty_http_code(403), do: "Forbidden (403)"
   defp pretty_http_code(404), do: "Entity not found (404)"
   defp pretty_http_code(422), do: "Validation failed (422)"
   defp pretty_http_code(code), do: "HTTP status code: #{code}"

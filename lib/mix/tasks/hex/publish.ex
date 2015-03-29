@@ -151,7 +151,6 @@ defmodule Mix.Tasks.Hex.Publish do
         Mix.shell.info("Reverted #{meta[:name]} v#{version}")
       {code, body} ->
         Mix.shell.error("Reverting #{meta[:name]} v#{version} failed")
-        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -162,7 +161,6 @@ defmodule Mix.Tasks.Hex.Publish do
         true
       {code, body} ->
         Mix.shell.error("Updating package #{meta[:name]} failed")
-        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
         false
     end
@@ -184,7 +182,6 @@ defmodule Mix.Tasks.Hex.Publish do
         Mix.shell.info("Don't forget to upload your documentation with `mix hex.docs`")
       {code, body} ->
         Mix.shell.error("Pushing #{meta[:name]} v#{meta[:version]} failed")
-        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end

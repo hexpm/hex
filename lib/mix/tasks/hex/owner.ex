@@ -57,7 +57,6 @@ defmodule Mix.Tasks.Hex.Owner do
         :ok
       {code, body} ->
         Mix.shell.error("Adding owner failed")
-        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -69,7 +68,6 @@ defmodule Mix.Tasks.Hex.Owner do
         :ok
       {code, body} ->
         Mix.shell.error("Removing owner failed")
-        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -80,7 +78,6 @@ defmodule Mix.Tasks.Hex.Owner do
         Enum.each(body, &Mix.shell.info(&1["email"]))
       {code, body} ->
         Mix.shell.error("Package owner fetching failed")
-        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end

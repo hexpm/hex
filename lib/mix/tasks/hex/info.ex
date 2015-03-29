@@ -58,7 +58,6 @@ defmodule Mix.Tasks.Hex.Info do
         Mix.shell.error("No package with name #{package}")
       {code, body} ->
         Mix.shell.error("Failed to retrieve package information")
-        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -73,7 +72,6 @@ defmodule Mix.Tasks.Hex.Info do
         Mix.shell.error("No release with name #{package} v#{version}")
       {code, body} ->
         Mix.shell.error("Failed to retrieve release information")
-        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end

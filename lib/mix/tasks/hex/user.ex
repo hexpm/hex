@@ -82,7 +82,6 @@ defmodule Mix.Tasks.Hex.User do
                        "Please check your spam folder if the email doesn’t appear within a few minutes."
       {code, body} ->
         Mix.shell.error("Initiating password reset for #{name} failed")
-        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -126,7 +125,6 @@ defmodule Mix.Tasks.Hex.User do
                        "a confirmation email has been sent to #{email}")
       {code, body} ->
         Mix.shell.error("Registration of user #{username} failed")
-        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -150,7 +148,6 @@ defmodule Mix.Tasks.Hex.User do
         Mix.shell.info("Successfully authed. Your key works.")
       {code, body} ->
         Mix.shell.error("Failed to auth")
-        Hex.Util.print_http_code(code)
         Hex.Util.print_error_result(code, body)
     end
   end
