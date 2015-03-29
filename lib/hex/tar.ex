@@ -1,5 +1,5 @@
 defmodule Hex.Tar do
-  @supported ["2", "3"]
+  @supported [nil, "2", "3"]
   @version "3"
   @required_files_2 ~w(VERSION CHECKSUM metadata.exs contents.tar.gz)c
   @required_files_3 ~w(VERSION CHECKSUM metadata.config contents.tar.gz)c
@@ -39,8 +39,8 @@ defmodule Hex.Tar do
       {:ok, files} ->
         files = Enum.into(files, %{})
         tar_version = files['VERSION']
-        check_files(tar_version, files, path)
         check_version(tar_version, path)
+        check_files(tar_version, files, path)
         checksum(tar_version, files, path, {name, version})
         extract_contents(files['contents.tar.gz'], dest, path)
 
