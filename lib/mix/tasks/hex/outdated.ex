@@ -4,11 +4,12 @@ defmodule Mix.Tasks.Hex.Outdated do
   @shortdoc "Shows outdated hex deps for the current project"
 
   @moduledoc """
-  Shows all packages that have a version mismatch between the
-  hex.pm registry and your mix.lock file.
+  Shows all packages that have a version mismatch between the registry and
+  your mix.lock file.
 
-  By default, it only shows (top-level) packages explicitly listed in the `mix.exs` file.
-  All outdated packages can be displayed by using the `--all` command line option.
+  By default, it only shows top-level packages explicitly listed in the
+  `mix.exs` file. All outdated packages can be displayed by using the `--all`
+  command line option.
 
   ## Command line options
 
@@ -43,16 +44,16 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp get_versions({package, _name, lock_version}) do
-    latest_version = package
-    |> Hex.Registry.get_versions
-    |> Enum.reverse
-    |> hd
+    latest_version =
+      package
+      |> Hex.Registry.get_versions
+      |> List.last
 
     {package, lock_version, latest_version}
   end
 
   defp outdated?({_package, lock_version, latest_version}) do
-    latest_version != lock_version
+    Version.compare(latest_version, lock_version) == :gt
   end
 
   defp print_results([]) do
@@ -61,8 +62,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp print_results(packages) when is_list(packages) do
     Mix.shell.info "Outdated packages:"
 
-    packages
-    |> Enum.each(&print_package/1)
+    Enum.each(packages, &print_package/1)
   end
 
   defp print_package({package, lock_version, latest_version}) do
