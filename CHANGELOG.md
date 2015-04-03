@@ -2,6 +2,10 @@
 
 * Enhancements
   * Add task `hex.user test` for testing user authentication.
+  * Add task `hex.outdated` for listing outdated packages compared to the registry.
+  * Update CA store as of April 3.
+  * Inform user if authentication failed because they did not confirm email.
+  * Improve error message for unsupported tarball version.
 
 ## v0.7.4 (2015-03-16)
 
