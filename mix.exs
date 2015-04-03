@@ -28,7 +28,8 @@ defmodule Hex.Mixfile do
   defp aliases do
     [compile: [&unload_hex/1, "compile"],
      run: [&unload_hex/1, "run"],
-     install: ["archive.build -o hex.ez", "archive.install hex.ez --force"]]
+     install: ["archive.build -o hex.ez", "archive.install hex.ez --force"],
+     certdata: [&certdata/1]]
   end
 
   defp unload_hex(_) do
@@ -55,5 +56,30 @@ defmodule Hex.Mixfile do
         end
       end)
     end)
+  end
+
+  @mk_ca_bundle_url "https://raw.githubusercontent.com/bagder/curl/master/lib/mk-ca-bundle.pl"
+  @mk_ca_bundle_cmd "mk-ca-bundle.pl"
+  @ca_bundle "ca-bundle.crt"
+  @ca_bundle_target Path.join("lib/hex/api", @ca_bundle)
+
+  defp certdata(_) do
+    cmd("wget", [@mk_ca_bundle_url])
+    File.chmod!(@mk_ca_bundle_cmd, 0o755)
+
+    cmd(Path.expand(@mk_ca_bundle_cmd), ["-u"])
+
+    File.cp!(@ca_bundle, @ca_bundle_target)
+    File.rm!(@ca_bundle)
+    File.rm!(@mk_ca_bundle_cmd)
+  end
+
+  defp cmd(cmd, args) do
+    {_, result} = System.cmd(cmd, args, into: IO.stream(:stdio, :line),
+                                        stderr_to_stdout: true)
+
+    if result != 0 do
+      raise "Non-zero result (#{result}) from: #{cmd} #{Enum.map_join(args, " ", &inspect/1)}"
+    end
   end
 end
