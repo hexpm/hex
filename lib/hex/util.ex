@@ -148,12 +148,12 @@ defmodule Hex.Util do
     end
   end
 
-  def print_error_result(:http_error, reason) do
-    Mix.shell.info(inspect(reason))
-  end
-
-  def print_error_result(_status, nil), do: :ok
-  def print_error_result(_status, ""), do: :ok
+  def print_error_result(:http_error, reason),
+    do: Mix.shell.info(inspect(reason))
+  def print_error_result(status, nil),
+    do: print_http_code(status)
+  def print_error_result(status, ""),
+    do: print_http_code(status)
 
   def print_error_result(status, body) do
     message = body["message"]
