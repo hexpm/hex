@@ -2,20 +2,26 @@ defmodule Hex.ResolverTest do
   use HexTest.Case
 
   defp resolve(reqs, locked \\ []) do
-    case Hex.Resolver.resolve(reqs(reqs), [], locked(locked)) do
+    case Hex.Resolver.resolve(reqs(reqs), deps(reqs), locked(locked)) do
       {:ok, dict} -> dict
       {:error, _} -> nil
     end
   end
 
-  def reqs(reqs) do
+  defp deps(reqs) do
+    Enum.map(reqs, fn {app, _req} ->
+      %Mix.Dep{app: app, opts: [hex: app]}
+    end)
+    end
+
+  defp reqs(reqs) do
     Enum.map(reqs, fn {app, req} ->
       name = Atom.to_string(app)
       {name, name, req, "mix.exs"}
     end)
   end
 
-  def locked(locked) do
+  defp locked(locked) do
     Enum.map(locked, fn {app, req} ->
       name = Atom.to_string(app)
       {name, name, req}

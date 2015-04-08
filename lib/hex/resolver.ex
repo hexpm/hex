@@ -179,8 +179,7 @@ defmodule Hex.Resolver do
   defp attach_dep_and_children(deps, app, name, children) do
     app = String.to_atom(app)
     name = String.to_atom(name)
-    dep = Enum.find(deps, &((package = &1.opts[:hex]) && name == package)) ||
-          %Mix.Dep{app: app, opts: [hex: name]}
+    dep = Enum.find(deps, &((package = &1.opts[:hex]) && name == package))
 
     children =
       Enum.map(children, fn {name, app, _req, _optional} ->
@@ -194,22 +193,16 @@ defmodule Hex.Resolver do
     put_dep(deps, new_dep) ++ children
   end
 
-  # Either replace a dependency or put a new one in
+  # Replace a dependency in the tree
   defp put_dep(deps, new_dep) do
-    {deps, replaced?} =
-      Enum.reduce(deps, {[], false}, fn %Mix.Dep{app: app, opts: opts} = dep, {deps, replaced?} ->
-        if app == new_dep.app && opts[:hex] == new_dep.opts[:hex] do
-          {[new_dep|deps], true}
-        else
-          {[dep|deps], replaced?}
-        end
-      end)
-
-    unless replaced? do
-      deps = [new_dep|deps]
-    end
-
-    Enum.reverse(deps)
+    Enum.reduce(deps, [], fn %Mix.Dep{app: app, opts: opts} = dep, deps ->
+      if app == new_dep.app && opts[:hex] == new_dep.opts[:hex] do
+        [new_dep|deps]
+      else
+        [dep|deps]
+      end
+    end)
+    |> Enum.reverse
   end
 
   defp merge_optional(optional, new_optional) do
