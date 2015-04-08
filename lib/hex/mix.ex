@@ -31,13 +31,18 @@ defmodule Hex.Mix do
   @doc """
   Returns all the upper breadths for the parent of a dependency.
   """
-  @spec down_to([Mix.Dep.t], [Mix.Dep.t], atom) :: [Mix.Dep.t]
-  def down_to(level, deps, parent) do
+  @spec down_to([atom], [Mix.Dep.t], atom) :: [Mix.Dep.t]
+  def down_to(top_level, deps, parent) do
+    Enum.filter(deps, &(&1.app in top_level))
+    |> do_down_to(deps, parent)
+  end
+
+  def do_down_to(level, deps, parent) do
     children =
       Enum.flat_map(level, fn dep ->
         children = Enum.map(dep.deps, & &1.app)
         children = Enum.filter(deps, fn dep -> dep.app in children end)
-        down_to(children, deps, parent)
+        do_down_to(children, deps, parent)
       end)
 
     cond do
@@ -76,9 +81,9 @@ defmodule Hex.Mix do
   @doc """
   Returns all top level dependencies.
   """
-  @spec top_level([Mix.Dep.t]) :: [Mix.Dep.t]
+  @spec top_level([Mix.Dep.t]) :: [atom]
   def top_level(deps) do
-    Enum.filter(deps, & &1.top_level)
+    Enum.filter_map(deps, & &1.top_level, & &1.app)
   end
 
   @doc """

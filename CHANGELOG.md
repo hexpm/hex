@@ -7,6 +7,9 @@
   * Inform user if authentication failed because they did not confirm email.
   * Improve error message for unsupported tarball version.
 
+* Bug fixes
+  * Fix a bug where overriding a Hex dependency with a non-Hex dependency was ignored when the overriding at least two levels deep in the dependency tree
+
 ## v0.7.4 (2015-03-16)
 
 * Bug fixes

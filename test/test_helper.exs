@@ -173,6 +173,7 @@ defmodule HexTest.Case do
       {:postgrex, "0.2.1", [ex_doc: "~> 0.1.0"]},
       {:ecto, "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"]},
       {:ecto, "0.2.1", [postgrex: "~> 0.2.1", ex_doc: "0.1.0"]},
+      {:phoenix, "0.0.1", [postgrex: "~> 0.2"]},
 
       {:only_doc, "0.1.0", [{:ex_doc, nil, true}]},
 
@@ -262,6 +263,7 @@ if :integration in ExUnit.configuration[:include] do
   Case.init_project("postgrex", "0.2.0", [ex_doc: "0.0.1"], %{}, auth)
   Case.init_project("ecto", "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"], %{}, auth)
   Case.init_project("ecto", "0.2.1", [{:sample, "0.0.1", path: Case.fixture_path("sample")}, postgrex: "~> 0.2.1", ex_doc: "0.1.0"], %{}, auth)
+  Case.init_project("phoenix", "0.0.1", [postgrex: "~> 0.2"], %{}, auth)
   Case.init_project("only_doc", "0.1.0", [{:ex_doc, nil, optional: true}], %{}, auth)
   Case.init_project("package_name", "0.1.0", [], %{app: "app_name"}, auth)
   Case.init_project("depend_name", "0.2.0", [{:app_name, nil, optional: true, hex: :package_name}], %{}, auth)

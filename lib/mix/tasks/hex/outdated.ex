@@ -22,25 +22,22 @@ defmodule Mix.Tasks.Hex.Outdated do
   def run(args) do
     {opts, _args, _} = OptionParser.parse(args, switches: [all: :boolean])
     Hex.start
-
     Hex.Util.ensure_registry!()
 
-    case opts[:all] do
-      true -> Mix.Dep.Lock.read
-      _ -> Mix.Dep.Lock.read |> Enum.filter(&top_level?/1)
+    lock = Mix.Dep.Lock.read
+
+    if opts[:all] do
+      lock
+    else
+      deps = Mix.Dep.loaded([])
+      top_level = Hex.Mix.top_level(deps)
+      Enum.filter(lock, fn {app, _} -> app in top_level end)
     end
     |> Enum.into(%{})
     |> Hex.Mix.from_lock
     |> Enum.map(&get_versions/1)
     |> Enum.filter(&outdated?/1)
     |> print_results
-  end
-
-  defp top_level?({app, _details}) do
-    Mix.Dep.loaded([])
-    |> Hex.Mix.top_level
-    |> Enum.map(fn(dep) -> dep.app end)
-    |> Enum.member?(app)
   end
 
   defp get_versions({package, _name, lock_version}) do

@@ -4,7 +4,7 @@ defmodule Hex.Resolver do
   require Record
 
   Record.defrecordp :info, [:deps, :top_level, :backtrack_agent]
-  Record.defrecordp :state, [:activated, :pending, :optional]
+  Record.defrecordp :state, [:activated, :pending, :optional, :deps]
   Record.defrecordp :request, [:app, :name, :req, :parent]
   Record.defrecordp :active, [:app, :name, :version, :state, :parents, :possibles]
 
@@ -44,7 +44,7 @@ defmodule Hex.Resolver do
     end) |> Enum.reverse
   end
 
-  defp do_resolve([request(app: app, name: name, req: req, parent: parent) = request|pending], optional, info, activated) do
+  defp do_resolve([request(name: name, req: req, parent: parent) = request|pending], optional, info, activated) do
     case activated[name] do
       active(version: version, possibles: possibles, parents: parents) = active ->
         possibles = Enum.filter(possibles, &version_match?(&1, req))
@@ -69,17 +69,8 @@ defmodule Hex.Resolver do
             backtrack_message(name, nil, parents, info)
             backtrack(activated[parent], info, activated)
 
-          {:ok, [version|possibles]} ->
-            {new_pending, new_optional} = get_deps(name, version, info)
-            new_pending = pending ++ new_pending
-            new_optional = merge_optional(optional, new_optional)
-
-            state = state(activated: activated, pending: pending, optional: optional)
-            new_active = active(app: app, name: name, version: version, state: state,
-                                possibles: possibles, parents: [parent])
-            activated = HashDict.put(activated, name, new_active)
-
-            do_resolve(new_pending, new_optional, info, activated)
+          {:ok, versions} ->
+            activate([request|pending], versions, optional, info, activated)
         end
     end
   end
@@ -88,7 +79,7 @@ defmodule Hex.Resolver do
     nil
   end
 
-  defp backtrack(active(name: name, possibles: possibles, parents: parents, state: state) = active, info, activated) do
+  defp backtrack(active(app: app, name: name, possibles: possibles, parents: parents, state: state) = active, info, activated) do
     case possibles do
       [] ->
         Enum.find_value(parents, fn
@@ -99,16 +90,34 @@ defmodule Hex.Resolver do
         end)
 
       [version|possibles] ->
-        state(activated: activated, pending: pending, optional: optional) = state
+        state(activated: activated, pending: pending, optional: optional, deps: deps) = state
 
         active = active(active, possibles: possibles, version: version)
-        {new_pending, new_optional} = get_deps(name, version, info)
+        info = info(info, deps: deps)
+        {new_pending, new_optional, new_deps} = get_deps(app, name, version, info)
         pending = pending ++ new_pending
         optional = merge_optional(optional, new_optional)
+        info = info(info, deps: new_deps)
 
         activated = HashDict.put(activated, name, active)
         do_resolve(pending, optional, info, activated)
     end
+  end
+
+  defp activate([request(app: app, name: name, parent: parent)|pending], [version|possibles],
+                optional, info(deps: deps) = info, activated) do
+    {new_pending, new_optional, new_deps} = get_deps(app, name, version, info)
+    new_pending = pending ++ new_pending
+    new_optional = merge_optional(optional, new_optional)
+
+    state = state(activated: activated, pending: pending, optional: optional, deps: deps)
+    new_active = active(app: app, name: name, version: version, state: state,
+                        possibles: possibles, parents: [parent])
+    activated = HashDict.put(activated, name, new_active)
+
+    info = info(info, deps: new_deps)
+
+    do_resolve(new_pending, new_optional, info, activated)
   end
 
   defp get_versions(package, requests) do
@@ -136,9 +145,11 @@ defmodule Hex.Resolver do
     end
   end
 
-  defp get_deps(package, version, info(top_level: top_level, deps: all_deps)) do
+  defp get_deps(app, package, version, info(top_level: top_level, deps: all_deps)) do
     if deps = Registry.get_deps(package, version) do
-      upper_breadths = down_to(top_level, all_deps, String.to_atom(package))
+      all_deps = attach_dep_and_children(all_deps, app, package, deps)
+
+      upper_breadths = down_to(top_level, all_deps, String.to_atom(app))
 
       {reqs, opts} =
         Enum.reduce(deps, {[], []}, fn {name, app, req, optional}, {reqs, opts} ->
@@ -156,10 +167,49 @@ defmodule Hex.Resolver do
           end
         end)
 
-        {Enum.reverse(reqs), Enum.reverse(opts)}
+        {Enum.reverse(reqs), Enum.reverse(opts), all_deps}
     else
       Mix.raise "Unable to find package version #{package} v#{version} in registry"
     end
+  end
+
+  # Add a potentially new dependency and its children.
+  # This function is used to add Hex packages to the dependency tree which
+  # we use in down_to to check overridden status.
+  defp attach_dep_and_children(deps, app, name, children) do
+    app = String.to_atom(app)
+    name = String.to_atom(name)
+    dep = Enum.find(deps, &((package = &1.opts[:hex]) && name == package)) ||
+          %Mix.Dep{app: app, opts: [hex: name]}
+
+    children =
+      Enum.map(children, fn {name, app, _req, _optional} ->
+        app = String.to_atom(app)
+        name = String.to_atom(name)
+        %Mix.Dep{app: app, opts: [hex: name]}
+      end)
+
+    new_dep = put_in(dep.deps, children)
+
+    put_dep(deps, new_dep) ++ children
+  end
+
+  # Either replace a dependency or put a new one in
+  defp put_dep(deps, new_dep) do
+    {deps, replaced?} =
+      Enum.reduce(deps, {[], false}, fn %Mix.Dep{app: app, opts: opts} = dep, {deps, replaced?} ->
+        if app == new_dep.app && opts[:hex] == new_dep.opts[:hex] do
+          {[new_dep|deps], true}
+        else
+          {[dep|deps], replaced?}
+        end
+      end)
+
+    unless replaced? do
+      deps = [new_dep|deps]
+    end
+
+    Enum.reverse(deps)
   end
 
   defp merge_optional(optional, new_optional) do

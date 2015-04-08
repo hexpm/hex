@@ -52,6 +52,15 @@ defmodule Hex.MixTest do
     end
   end
 
+  defmodule OverrideTwoLevelsWithPath do
+    def project do
+      [ app: :override_two_levels_with_path,
+        version: "0.1.0",
+        deps: [ {:phoenix, nil},
+                {:ex_doc, path: fixture_path("ex_doc"), override: true}] ]
+    end
+  end
+
   defmodule OverrideWithPathParent do
     def project do
       [ app: :override_with_path_parent,
@@ -277,14 +286,12 @@ defmodule Hex.MixTest do
   end
 
   @tag :integration
-  test "override hex dependency with path dependency at top level" do
+  test "override hex dependency with path dependency" do
     Mix.Project.push OverrideWithPath
 
     in_tmp fn ->
       Hex.home(System.cwd!)
       Mix.Task.run "deps.get"
-
-      assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
 
       Mix.Task.run "deps"
 
@@ -296,6 +303,29 @@ defmodule Hex.MixTest do
     end
   after
     purge [ Postgrex.NoConflict.Mixfile, ExDoc.Mixfile ]
+  end
+
+  @tag :integration
+  test "override hex dependency two levels down with path dependency" do
+    Mix.Project.push OverrideTwoLevelsWithPath
+
+    in_tmp fn ->
+      Hex.home(System.cwd!)
+      Mix.Task.run "deps.get"
+
+      Mix.Task.run "deps"
+
+      assert_received {:mix_shell, :info, ["* phoenix (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* postgrex (Hex package)"]}
+      refute_received {:mix_shell, :info, ["* ex_doc (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
+
+      assert Mix.Dep.Lock.read == %{phoenix: {:hex, :phoenix, "0.0.1"},
+                                    postgrex: {:hex, :postgrex, "0.2.1"}}
+    end
+  after
+    purge [ Phoenix.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+            ExDoc.Mixfile ]
   end
 
   @tag :integration
