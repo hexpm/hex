@@ -1,4 +1,4 @@
-## v0.7.5-dev
+## v0.7.5 (2015-04-12)
 
 * Enhancements
   * Add task `hex.user test` for testing user authentication.
