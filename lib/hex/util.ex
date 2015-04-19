@@ -167,7 +167,7 @@ defmodule Hex.Util do
       pretty_errors(errors)
     end
 
-    unless message or errors do
+    unless message || errors do
       print_http_code(status)
       Mix.shell.info(body)
     end

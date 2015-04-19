@@ -1,7 +1,6 @@
 language: erlang
 otp_release:
   - 17.0
-  - 17.3
   - 17.4
 sudo: false
 addons:
@@ -17,7 +16,7 @@ script:
   - mix test --include integration
 env:
   matrix:
-    - ELIXIRVERSION=v1.0.0
+    - ELIXIRVERSION=v1.0.4
     - ELIXIRVERSION=master
 notifications:
   recipients:
