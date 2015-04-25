@@ -48,8 +48,7 @@ defmodule Hex.Registry do
     case :ets.lookup(get_tid(), :"$$installs2$$") do
       [{:"$$installs2$$", installs}] ->
         if version = latest_version(installs) do
-          # TODO: print yellow
-          Mix.shell.error("A new Hex version is available (v#{version}), please update with `mix local.hex`")
+          Hex.Util.yellow_error("A new Hex version is available (v#{version}), please update with `mix local.hex`")
         else
           check_elixir_version(installs)
         end
