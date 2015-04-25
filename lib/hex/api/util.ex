@@ -5,8 +5,8 @@ defmodule Hex.API.Util do
   def handle_hex_message(header) do
     {message, level} = :binary.list_to_bin(header) |> parse_hex_message
     case level do
-      "warn"  -> Mix.shell.info("API warning: " <> message)
-      "fatal" -> Mix.shell.error("API error: " <> message)
+      "warn"  -> Hex.Shell.info "API warning: " <> message
+      "fatal" -> Hex.Shell.error "API error: " <> message
       _       -> :ok
     end
   end

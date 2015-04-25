@@ -101,7 +101,7 @@ defmodule Hex do
 
   defp log_value(key, value) do
     if Enum.member?(@logged_keys, key) do
-      Mix.shell.info("Using #{key} = #{value}")
+      Hex.Shell.info "Using #{key} = #{value}"
     end
   end
 

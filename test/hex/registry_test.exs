@@ -18,10 +18,10 @@ defmodule Hex.RegistryTest do
 
       Hex.Registry.start!
       Hex.Util.ensure_registry!(fetch: false)
-      assert_received {:mix_shell, :error, ["\e[33mA new Hex version is available" <> _]}
+      assert_received {:mix_shell, :info, ["\e[33mA new Hex version is available" <> _]}
 
       Hex.Util.ensure_registry!(fetch: false)
-      refute_received {:mix_shell, :error, ["\e[33mA new Hex version is available" <> _]}
+      refute_received {:mix_shell, :info, ["\e[33mA new Hex version is available" <> _]}
     end
   end
 
@@ -37,7 +37,7 @@ defmodule Hex.RegistryTest do
 
       Hex.Registry.start!
       Hex.Util.ensure_registry!(fetch: false)
-      assert_received {:mix_shell, :error, ["\e[33mA new Hex version is available (v100.0.0), please update with `mix local.hex`\e[0m"]}
+      assert_received {:mix_shell, :info, ["\e[33mA new Hex version is available (v100.0.0), please update with `mix local.hex`\e[0m"]}
     end
   end
 
@@ -52,7 +52,7 @@ defmodule Hex.RegistryTest do
 
       Hex.Registry.start!
       Hex.Util.ensure_registry!(fetch: false)
-      refute_received {:mix_shell, :error, ["A new Hex version is available" <> _]}
+      refute_received {:mix_shell, :info, ["A new Hex version is available" <> _]}
     end
   end
 
@@ -67,7 +67,7 @@ defmodule Hex.RegistryTest do
 
       Hex.Registry.start!
       Hex.Util.ensure_registry!(fetch: false)
-      refute_received {:mix_shell, :error, ["A new Hex version is available" <> _]}
+      refute_received {:mix_shell, :info, ["A new Hex version is available" <> _]}
     end
   end
 end

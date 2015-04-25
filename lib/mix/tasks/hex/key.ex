@@ -39,12 +39,12 @@ defmodule Mix.Tasks.Hex.Key do
   end
 
   defp remove_key(key, auth) do
-    Mix.shell.info("Removing key #{key}...")
+    Hex.Shell.info "Removing key #{key}..."
     case Hex.API.Key.delete(key, auth) do
       {code, _body} when code in 200..299 ->
         :ok
       {code, body} ->
-        Mix.shell.error("Key fetching failed")
+        Hex.Shell.error "Key fetching failed"
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -52,9 +52,9 @@ defmodule Mix.Tasks.Hex.Key do
   defp list_keys(auth) do
     case Hex.API.Key.get(auth) do
       {code, body} when code in 200..299 ->
-        Enum.each(body, &Mix.shell.info(&1["name"]))
+        Enum.each(body, &Hex.Shell.info(&1["name"]))
       {code, body} ->
-        Mix.shell.error("Key fetching failed")
+        Hex.Shell.error "Key fetching failed"
         Hex.Util.print_error_result(code, body)
     end
   end

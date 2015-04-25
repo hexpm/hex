@@ -74,19 +74,19 @@ defmodule Hex.SCM do
     path     = cache_path(filename)
     url      = Hex.API.cdn_url("tarballs/#{filename}")
 
-    Mix.shell.info("Checking package (#{url})")
+    Hex.Shell.info "Checking package (#{url})"
 
     case Hex.Parallel.await(:hex_fetcher, {name, version}) do
       {:ok, :cached} ->
-        Mix.shell.info("Using locally cached package")
+        Hex.Shell.info "Using locally cached package"
       {:ok, :new} ->
-        Mix.shell.info("Fetched package")
+        Hex.Shell.info "Fetched package"
       {:error, reason} ->
-        Mix.shell.error(reason)
+        Hex.Shell.error(reason)
         unless File.exists?(path) do
           Mix.raise "Package fetch failed and no cached copy available"
         end
-        Mix.shell.info("Check failed. Using locally cached package")
+        Hex.Shell.info "Check failed. Using locally cached package"
     end
 
     File.rm_rf!(dest)
@@ -94,7 +94,7 @@ defmodule Hex.SCM do
     manifest = encode_manifest(name, version)
     File.write!(Path.join(dest, ".hex"), manifest)
 
-    Mix.shell.info("Unpacked package tarball (#{path})")
+    Hex.Shell.info "Unpacked package tarball (#{path})"
     opts[:lock]
   end
 

@@ -32,8 +32,8 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp general() do
-    Mix.shell.info("Hex v" <> Hex.version)
-    Mix.shell.info("")
+    Hex.Shell.info "Hex v" <> Hex.version
+    Hex.Shell.info ""
 
     # Make sure to fetch registry after showing hex version. Issues with the
     # registry should not prevent printing the version.
@@ -42,10 +42,10 @@ defmodule Mix.Tasks.Hex.Info do
     stat = File.stat!(path)
     {packages, releases} = Hex.Registry.stat()
 
-    Mix.shell.info("Registry file available (last updated: #{pretty_date(stat.mtime)})")
-    Mix.shell.info("Size: #{div stat.size, 1024}kB")
-    Mix.shell.info("Packages #: #{packages}")
-    Mix.shell.info("Versions #: #{releases}")
+    Hex.Shell.info "Registry file available (last updated: #{pretty_date(stat.mtime)})"
+    Hex.Shell.info "Size: #{div stat.size, 1024}kB"
+    Hex.Shell.info "Packages #: #{packages}"
+    Hex.Shell.info "Versions #: #{releases}"
   end
 
   defp package(package) do
@@ -55,9 +55,9 @@ defmodule Mix.Tasks.Hex.Info do
       {code, body} when code in 200..299 ->
         pretty_package(body)
       {404, _} ->
-        Mix.shell.error("No package with name #{package}")
+        Hex.Shell.error "No package with name #{package}"
       {code, body} ->
-        Mix.shell.error("Failed to retrieve package information")
+        Hex.Shell.error "Failed to retrieve package information"
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -69,17 +69,17 @@ defmodule Mix.Tasks.Hex.Info do
       {code, body} when code in 200..299 ->
         pretty_release(package, body)
       {404, _} ->
-        Mix.shell.error("No release with name #{package} v#{version}")
+        Hex.Shell.error "No release with name #{package} v#{version}"
       {code, body} ->
-        Mix.shell.error("Failed to retrieve release information")
+        Hex.Shell.error "Failed to retrieve release information"
         Hex.Util.print_error_result(code, body)
     end
   end
 
   defp pretty_package(package) do
-    Mix.shell.info(package["name"])
-    Mix.shell.info("  Releases: " <> Enum.map_join(package["releases"], ", ", &(&1["version"])))
-    Mix.shell.info("")
+    Hex.Shell.info package["name"]
+    Hex.Shell.info "  Releases: " <> Enum.map_join(package["releases"], ", ", &(&1["version"]))
+    Hex.Shell.info ""
     pretty_meta(package["meta"])
   end
 
@@ -89,33 +89,33 @@ defmodule Mix.Tasks.Hex.Info do
     pretty_dict(meta, "links")
 
     if descr = meta["description"] do
-      Mix.shell.info("")
-      Mix.shell.info(descr)
+      Hex.Shell.info ""
+      Hex.Shell.info descr
     end
   end
 
   defp pretty_release(package, release) do
     version = release["version"]
-    Mix.shell.info(package <> " v" <> version)
+    Hex.Shell.info package <> " v" <> version
 
     if release["has_docs"] do
-      Mix.shell.info("  Documentation at: #{Hex.Util.hexdocs_url(package, version)}")
+      Hex.Shell.info "  Documentation at: #{Hex.Util.hexdocs_url(package, version)}"
     end
 
     if release["requirements"] do
-      Mix.shell.info("  Dependencies:")
+      Hex.Shell.info "  Dependencies:"
       Enum.each(release["requirements"], fn {name, req} ->
         if req["optional"] do
           optional = " (optional)"
         end
-        Mix.shell.info("    #{name}: #{req["requirement"]}#{optional}")
+        Hex.Shell.info "    #{name}: #{req["requirement"]}#{optional}"
       end)
     end
   end
 
   defp pretty_list(meta, name) do
     if (list = meta[name]) && list != [] do
-      Mix.shell.info("  #{String.capitalize(name)}: " <> Enum.join(list, ", "))
+      Hex.Shell.info("  #{String.capitalize(name)}: " <> Enum.join(list, ", "))
     end
   end
 
@@ -123,9 +123,9 @@ defmodule Mix.Tasks.Hex.Info do
     title = title || String.capitalize(name)
 
     if (dict = meta[name]) && dict != [] do
-      Mix.shell.info("  #{title}:")
+      Hex.Shell.info "  #{title}:"
       Enum.each(dict, fn {name, url} ->
-        Mix.shell.info("    #{name}: #{url}")
+        Hex.Shell.info "    #{name}: #{url}"
       end)
     end
   end

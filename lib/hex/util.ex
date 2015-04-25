@@ -59,7 +59,7 @@ defmodule Hex.Util do
             {304, _} ->
               {:ok, :new}
             {code, body} ->
-              Mix.shell.error("Registry update failed (#{code})")
+              Hex.Shell.error "Registry update failed (#{code})"
               print_error_result(code, body)
               :error
           end
@@ -149,7 +149,7 @@ defmodule Hex.Util do
   end
 
   def print_error_result(:http_error, reason),
-    do: Mix.shell.info(inspect(reason))
+    do: Hex.Shell.info inspect(reason)
   def print_error_result(status, nil),
     do: print_http_code(status)
   def print_error_result(status, ""),
@@ -160,7 +160,7 @@ defmodule Hex.Util do
     errors = body["errors"]
 
     if message do
-      Mix.shell.info(message)
+      Hex.Shell.info message
     end
 
     if errors do
@@ -169,21 +169,21 @@ defmodule Hex.Util do
 
     unless message || errors do
       print_http_code(status)
-      Mix.shell.info(body)
+      Hex.Shell.info body
     end
   end
 
   defp pretty_errors(errors, depth \\ 0) do
     Enum.each(errors, fn
       {key, map} when is_map(map) ->
-        Mix.shell.info(indent(depth) <> key <> ":")
+        Hex.Shell.info indent(depth) <> key <> ":"
         pretty_errors(map, depth + 1)
       {key, value} ->
-        Mix.shell.info(indent(depth) <> key <> ": " <> value)
+        Hex.Shell.info indent(depth) <> key <> ": " <> value
     end)
   end
 
-  defp print_http_code(code), do: Mix.shell.info(pretty_http_code(code))
+  defp print_http_code(code), do: Hex.Shell.info pretty_http_code(code)
 
   defp pretty_http_code(401), do: "Authentication failed (401)"
   defp pretty_http_code(403), do: "Forbidden (403)"
@@ -200,9 +200,5 @@ defmodule Hex.Util do
 
   def hexdocs_url(package, version) do
     "http://hexdocs.pm/#{package}/#{version}/"
-  end
-
-  def yellow_error(msg) do
-    Mix.shell.error [IO.ANSI.yellow, msg, IO.ANSI.reset]
   end
 end

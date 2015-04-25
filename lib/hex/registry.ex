@@ -48,7 +48,8 @@ defmodule Hex.Registry do
     case :ets.lookup(get_tid(), :"$$installs2$$") do
       [{:"$$installs2$$", installs}] ->
         if version = latest_version(installs) do
-          Hex.Util.yellow_error("A new Hex version is available (v#{version}), please update with `mix local.hex`")
+          Hex.Shell.warn "A new Hex version is available (v#{version}), " <>
+                         "please update with `mix local.hex`"
         else
           check_elixir_version(installs)
         end
@@ -146,7 +147,7 @@ defmodule Hex.Registry do
 
     versions
     |> Enum.filter(fn {hex, _} -> Version.compare(hex, current_hex) == :gt end)
-    |> Enum.filter(fn {_, elixirs} -> Version.compare(List.first(elixirs), current_elixir) != :gt end)
+    |> Enum.filter(fn {_, elixirs} -> Version.compare(hd(elixirs), current_elixir) != :gt end)
     |> Enum.map(&elem(&1, 0))
     |> Enum.sort(&(Version.compare(&1, &2) == :gt))
     |> List.first
@@ -160,7 +161,7 @@ defmodule Hex.Registry do
       case :lists.keyfind(Hex.version, 1, versions) do
         {_, elixirs} ->
           if match_elixir_version?(elixirs, current) do
-            Mix.shell.error "Hex was built against against Elixir v#{Hex.elixir_version} " <>
+            Hex.Shell.warn "Hex was built against against Elixir v#{Hex.elixir_version} " <>
               "and you are running v#{System.version}, please run `mix local.hex` " <>
               "to update to a matching version"
           end

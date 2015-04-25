@@ -21,19 +21,19 @@ defmodule Mix.Tasks.Hex do
   end
 
   defp general() do
-    Mix.shell.info("Hex v" <> Hex.version)
-    Mix.shell.info("Hex is a package manager for the Erlang ecosystem.")
+    Hex.Shell.info "Hex v" <> Hex.version
+    Hex.Shell.info "Hex is a package manager for the Erlang ecosystem."
     line_break()
 
     if Version.match?(System.version, ">= 1.1.0-dev") do
-      Mix.shell.info("Available tasks:")
+      Hex.Shell.info "Available tasks:"
       line_break()
       Mix.Task.run("help", ["--search", "hex."])
       line_break()
     end
 
-    Mix.shell.info("Further information can be found here: https://hex.pm/docs/tasks")
+    Hex.Shell.info "Further information can be found here: https://hex.pm/docs/tasks"
   end
 
-  def line_break(), do: Mix.shell.info("")
+  def line_break(), do: Hex.Shell.info ""
 end

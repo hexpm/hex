@@ -54,15 +54,15 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp print_results([]) do
-    Mix.shell.info "All packages are up-to-date."
+    Hex.Shell.info "All packages are up-to-date."
   end
   defp print_results(packages) when is_list(packages) do
-    Mix.shell.info "Outdated packages:"
+    Hex.Shell.info "Outdated packages:"
 
     Enum.each(packages, &print_package/1)
   end
 
   defp print_package({package, lock_version, latest_version}) do
-    Mix.shell.info " * #{package} (#{latest_version} > #{lock_version})"
+    Hex.Shell.info " * #{package} (#{latest_version} > #{lock_version})"
   end
 end

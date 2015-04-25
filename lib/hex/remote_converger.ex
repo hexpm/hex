@@ -28,7 +28,7 @@ defmodule Hex.RemoteConverger do
 
     check_input(reqs, locked)
 
-    Mix.shell.info "Running dependency resolution"
+    Hex.Shell.info "Running dependency resolution"
 
     case Hex.Resolver.resolve(reqs, deps, locked) do
       {:ok, resolved} ->
@@ -38,7 +38,7 @@ defmodule Hex.RemoteConverger do
         Dict.merge(lock, new_lock)
 
       {:error, messages} ->
-        Mix.shell.error messages
+        HexShell.error messages
         Mix.raise "Hex dependency resolution failed, relax the version requirements or unlock dependencies"
     end
   end
@@ -91,9 +91,9 @@ defmodule Hex.RemoteConverger do
     resolved = HashDict.drop(resolved, locked)
 
     if resolved != [] do
-      Mix.shell.info "Dependency resolution completed successfully"
+      Hex.Shell.info "Dependency resolution completed successfully"
       Enum.each(resolved, fn {name, version} ->
-        Mix.shell.info "  #{name}: v#{version}"
+        Hex.Shell.info "  #{name}: v#{version}"
       end)
     end
   end
