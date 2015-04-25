@@ -177,9 +177,8 @@ defmodule Hex.API do
 
   defp warn_ssl_version(version) do
     if version < @secure_ssl_version do
-      # TODO: print yellow
-      Mix.shell.error("Insecure HTTPS request (peer verification disabled), " <>
-                      "please update to OTP 17.4 or later")
+      Hex.Util.yellow_error("Insecure HTTPS request (peer verification disabled), " <>
+                            "please update to OTP 17.4 or later")
     end
   end
 

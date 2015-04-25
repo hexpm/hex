@@ -201,4 +201,8 @@ defmodule Hex.Util do
   def hexdocs_url(package, version) do
     "http://hexdocs.pm/#{package}/#{version}/"
   end
+
+  def yellow_error(msg) do
+    Mix.shell.error [IO.ANSI.yellow, msg, IO.ANSI.reset]
+  end
 end
