@@ -175,14 +175,12 @@ defmodule Hex.API do
     end
   end
 
-  defp warn_ssl_version(_version) do
-    # Don't emit the warning just yet
-    # Wait for OTP 17.4 to be out for a while
-
-    # if version < @secure_ssl_version do
-    #   Mix.shell.error("Insecure HTTPS request (peer verification disabled), " <>
-    #                   "please update to OTP 17.4 or later")
-    # end
+  defp warn_ssl_version(version) do
+    if version < @secure_ssl_version do
+      # TODO: print yellow
+      Mix.shell.error("Insecure HTTPS request (peer verification disabled), " <>
+                      "please update to OTP 17.4 or later")
+    end
   end
 
   defp parse_ssl_version(version) do
@@ -191,8 +189,18 @@ defmodule Hex.API do
     |> String.split(".")
     |> Enum.take(3)
     |> Enum.map(&to_integer/1)
+    |> version_pad
     |> List.to_tuple
   end
+
+  defp version_pad([major]),
+    do: [major, 0, 0]
+  defp version_pad([major, minor]),
+    do: [major, minor, 0]
+  defp version_pad([major, minor, patch]),
+    do: [major, minor, patch]
+  defp version_pad([major, minor, patch | _]),
+    do: [major, minor, patch]
 
   defp to_integer(string) do
     {int, _} = Integer.parse(string)
