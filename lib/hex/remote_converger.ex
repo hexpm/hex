@@ -38,7 +38,7 @@ defmodule Hex.RemoteConverger do
         Dict.merge(lock, new_lock)
 
       {:error, messages} ->
-        HexShell.error messages
+        Hex.Shell.error messages
         Mix.raise "Hex dependency resolution failed, relax the version requirements or unlock dependencies"
     end
   end
