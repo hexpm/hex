@@ -44,7 +44,7 @@ defmodule Mix.Tasks.Hex.User do
 
   def run(args) do
     Hex.start
-    Hex.Util.ensure_registry(fetch: false)
+    Hex.Util.ensure_registry(update: false)
 
     {opts, rest, _} = OptionParser.parse(args, switches: @switches)
 

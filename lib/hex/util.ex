@@ -2,7 +2,7 @@ defmodule Hex.Util do
   def ensure_registry(opts \\ []) do
     update_result = update_registry(opts)
 
-    if update_result == :error and not File.exists?(Hex.Registry.path()) do
+    if update_result == :error and not File.exists?(Hex.Registry.path) do
       {:error, :update_failed}
     else
       start_result = Hex.Registry.start
@@ -19,7 +19,7 @@ defmodule Hex.Util do
   def ensure_registry!(opts \\ []) do
     update_result = update_registry(opts)
 
-    if update_result == :error and not File.exists?(Hex.Registry.path()) do
+    if update_result == :error and not File.exists?(Hex.Registry.path) do
       Mix.raise "Failed to fetch registry"
     end
 
@@ -37,11 +37,12 @@ defmodule Hex.Util do
     else
       stopped? = Hex.Registry.stop
       Application.put_env(:hex, :registry_updated, true)
+      path    = Hex.Registry.path
+      path_gz = Hex.Registry.path <> ".gz"
+      fetch?  = Keyword.get(opts, :fetch, true) and
+                 (Keyword.get(opts, :update, true) or not week_fresh?(path_gz))
 
-      if Keyword.get(opts, :fetch, true) do
-        path    = Hex.Registry.path
-        path_gz = Hex.Registry.path <> ".gz"
-
+      if fetch? do
         if Keyword.get(opts, :cache, true) do
           api_opts = [etag: etag(path_gz)]
         else
@@ -73,6 +74,20 @@ defmodule Hex.Util do
       end
 
       result
+    end
+  end
+
+  @week_seconds 7 * 24 * 60 * 60
+
+  def week_fresh?(path) do
+    case File.stat(path) do
+      {:ok, %File.Stat{mtime: mtime}} ->
+        now   = :calendar.local_time |> :calendar.datetime_to_gregorian_seconds
+        mtime = mtime                |> :calendar.datetime_to_gregorian_seconds
+
+        now - mtime < @week_seconds
+      {:error, _} ->
+        false
     end
   end
 
