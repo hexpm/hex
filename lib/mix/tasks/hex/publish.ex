@@ -72,8 +72,9 @@ defmodule Mix.Tasks.Hex.Publish do
   @default_files ~w(lib priv mix.exs README* readme* LICENSE*
                     license* CHANGELOG* changelog* src)
 
+  @error_fields ~w(build_tools files name)
   @warn_fields ~w(description licenses contributors links)a
-  @meta_fields @warn_fields ++ ~w(files name)a
+  @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir)a
 
   def run(args) do
     Hex.start
@@ -125,21 +126,36 @@ defmodule Mix.Tasks.Hex.Publish do
     if meta[:files] != [] do
       Mix.shell.info("  Included files:")
       Enum.each(meta[:files], &Mix.shell.info("    #{&1}"))
-    else
-      warning("  WARNING! No included files")
     end
 
-    fields = Dict.take(meta, @warn_fields) |> Dict.keys
-    missing = @warn_fields -- fields
+    warn_fields(meta)
+    error_fields(meta)
+
+    if exclude_deps != [] do
+      Hex.Shell.warn("  WARNING! Excluded dependencies (not part of the Hex package):")
+      Enum.each(exclude_deps, &Hex.Shell.warn("    #{&1}"))
+    end
+  end
+
+  defp error_missing(meta) do
+    missing(meta, @error_fields, true, &Hex.Shell.error("  ERROR! #{&1}"))
+  end
+
+  defp warn_missing(meta) do
+    missing(meta, @warn_fields, false, &Hex.Shell.warn("  WARNING! #{&1}"))
+  end
+
+  defp missing(meta, fields, stop?, printer) do
+    taken_fields = Dict.take(meta, fields) |> Dict.keys
+    missing = fields -- taken_fields
 
     if missing != [] do
       missing = Enum.join(missing, ", ")
-      warning("  WARNING! Missing metadata fields: #{missing}")
-    end
+      printer.("Missing metadata fields: #{missing}")
 
-    if exclude_deps != [] do
-      warning("  WARNING! Excluded dependencies (not part of the Hex package):")
-      Enum.each(exclude_deps, &warning("    #{&1}"))
+      if stop? do
+        System.exit(1)
+      end
     end
   end
 
@@ -247,8 +263,30 @@ defmodule Mix.Tasks.Hex.Publish do
       package = Map.put(package, :name, name)
     end
 
+    unless package[:build_tools] do
+      build_tool = guess_build_tool(files)
+      package = Map.put(package, :build_tools, [build_tool])
+    end
+
     Map.take(package, @meta_fields)
   end
 
-  defp warning(message), do: Mix.shell.info([:yellow, message, :reset])
+  @build_tools [
+    {"mix.exs"     , "mix"},
+    {"rebar.config", "rebar"},
+    {"rebar"       , "rebar"},
+    {"Makefile"    , "make"},
+    {"Makefile.win", "make}"
+  ]
+
+  defp guess_build_tool(paths) do
+    base_files =
+      paths
+      |> Enum.filter(&(Path.dirname(&1) == "."))
+      |> Enum.into(HashSet.new)
+
+    Enum.find_value(@build_tools, fn {file, tool} ->
+      if file in base_files, do: tool
+    end)
+  end
 end
