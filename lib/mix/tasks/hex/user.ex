@@ -70,18 +70,18 @@ defmodule Mix.Tasks.Hex.User do
   defp whoami() do
     config = Hex.Config.read
     username = local_user(config)
-    Mix.shell.info(username)
+    Hex.Shell.info(username)
   end
 
   defp reset_password() do
-    name = Mix.shell.prompt("Username or Email:") |> String.strip
+    name = Hex.Shell.prompt("Username or Email:") |> String.strip
 
     case Hex.API.User.password_reset(name) do
       {code, _} when code in 200..299 ->
-        Mix.shell.info "We’ve sent you an email containing a link that will allow you to reset your password for the next 24 hours. " <>
+        Hex.Shell.info "We’ve sent you an email containing a link that will allow you to reset your password for the next 24 hours. " <>
                        "Please check your spam folder if the email doesn’t appear within a few minutes."
       {code, body} ->
-        Mix.shell.error("Initiating password reset for #{name} failed")
+        Hex.Shell.error("Initiating password reset for #{name} failed")
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -94,7 +94,7 @@ defmodule Mix.Tasks.Hex.User do
     |> Keyword.drop([:username, :key])
     |> Hex.Config.write
 
-    Mix.shell.info "User `" <> username <> "` removed from the local machine. " <>
+    Hex.Shell.info "User `" <> username <> "` removed from the local machine. " <>
                    "To authenticate again, run `mix hex.user auth` " <>
                    "or create a new user with `mix hex.user register`"
   end
@@ -102,8 +102,8 @@ defmodule Mix.Tasks.Hex.User do
   defp register(opts) do
     clean? = Keyword.get(opts, :clean_pass, true)
 
-    username = Mix.shell.prompt("Username:")  |> String.strip
-    email    = Mix.shell.prompt("Email:")     |> String.strip
+    username = Hex.Shell.prompt("Username:")  |> String.strip
+    email    = Hex.Shell.prompt("Email:")     |> String.strip
     password = Util.password_get("Password:", clean?) |> String.strip
 
     unless is_nil(password) do
@@ -113,7 +113,7 @@ defmodule Mix.Tasks.Hex.User do
       end
     end
 
-    Mix.shell.info("Registering...")
+    Hex.Shell.info("Registering...")
     create_user(username, email, password)
   end
 
@@ -121,10 +121,10 @@ defmodule Mix.Tasks.Hex.User do
     case Hex.API.User.new(username, email, password) do
       {code, _} when code in 200..299 ->
         Util.generate_key(username, password)
-        Mix.shell.info("You are required to confirm your email to access your account, " <>
+        Hex.Shell.info("You are required to confirm your email to access your account, " <>
                        "a confirmation email has been sent to #{email}")
       {code, body} ->
-        Mix.shell.error("Registration of user #{username} failed")
+        Hex.Shell.error("Registration of user #{username} failed")
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -132,7 +132,7 @@ defmodule Mix.Tasks.Hex.User do
   defp create_key(opts) do
     clean? = Keyword.get(opts, :clean_pass, true)
 
-    username = Mix.shell.prompt("Username:")          |> String.strip
+    username = Hex.Shell.prompt("Username:")          |> String.strip
     password = Util.password_get("Password:", clean?) |> String.strip
 
     Util.generate_key(username, password)
@@ -145,9 +145,9 @@ defmodule Mix.Tasks.Hex.User do
 
     case Hex.API.User.get(username, auth) do
       {code, _} when code in 200..299 ->
-        Mix.shell.info("Successfully authed. Your key works.")
+        Hex.Shell.info("Successfully authed. Your key works.")
       {code, body} ->
-        Mix.shell.error("Failed to auth")
+        Hex.Shell.error("Failed to auth")
         Hex.Util.print_error_result(code, body)
     end
   end

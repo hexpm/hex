@@ -72,7 +72,6 @@ defmodule Mix.Tasks.Hex.Publish do
   @default_files ~w(lib priv mix.exs README* readme* LICENSE*
                     license* CHANGELOG* changelog* src)
 
-  @error_fields ~w(build_tools files name)
   @warn_fields ~w(description licenses contributors links)a
   @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir)a
 
@@ -104,7 +103,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
       print_info(meta, exclude_deps)
 
-      if Mix.shell.yes?("Proceed?") and create_package?(meta, auth) do
+      if Hex.Shell.yes?("Proceed?") and create_package?(meta, auth) do
         progress? = Keyword.get(opts, :progress, true)
         create_release(meta, auth, progress?)
       end
@@ -112,14 +111,14 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp print_info(meta, exclude_deps) do
-    Mix.shell.info("Publishing #{meta[:name]} v#{meta[:version]}")
+    Hex.Shell.info("Publishing #{meta[:name]} v#{meta[:version]}")
 
     if meta[:requirements] != [] do
-      Mix.shell.info("  Dependencies:")
+      Hex.Shell.info("  Dependencies:")
       Enum.each(meta[:requirements], fn {app, %{requirement: req, optional: opt}} ->
         message = "    #{app} #{req}"
         if opt, do: message = message <> " (optional)"
-        Mix.shell.info(message)
+        Hex.Shell.info(message)
       end)
     end
 
@@ -164,9 +163,9 @@ defmodule Mix.Tasks.Hex.Publish do
 
     case Hex.API.Release.delete(meta[:name], version, auth) do
       {code, _} when code in 200..299 ->
-        Mix.shell.info("Reverted #{meta[:name]} v#{version}")
+        Hex.Shell.info("Reverted #{meta[:name]} v#{version}")
       {code, body} ->
-        Mix.shell.error("Reverting #{meta[:name]} v#{version} failed")
+        Hex.Shell.error("Reverting #{meta[:name]} v#{version} failed")
         Hex.Util.print_error_result(code, body)
     end
   end
@@ -193,11 +192,11 @@ defmodule Mix.Tasks.Hex.Publish do
 
     case Hex.API.Release.new(meta[:name], tarball, auth, progress) do
       {code, _} when code in 200..299 ->
-        Mix.shell.info("")
-        Mix.shell.info("Published at #{Hex.Util.hex_package_url(meta[:name], meta[:version])}")
-        Mix.shell.info("Don't forget to upload your documentation with `mix hex.docs`")
+        Hex.Shell.info("")
+        Hex.Shell.info("Published at #{Hex.Util.hex_package_url(meta[:name], meta[:version])}")
+        Hex.Shell.info("Don't forget to upload your documentation with `mix hex.docs`")
       {code, body} ->
-        Mix.shell.error("Pushing #{meta[:name]} v#{meta[:version]} failed")
+        Hex.Shell.error("Pushing #{meta[:name]} v#{meta[:version]} failed")
         Hex.Util.print_error_result(code, body)
     end
   end

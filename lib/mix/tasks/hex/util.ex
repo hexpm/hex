@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Hex.Util do
   def generate_key(username, password) do
-    Mix.shell.info("Generating API key...")
+    Hex.Shell.info("Generating API key...")
     {:ok, name} = :inet.gethostname()
     name = List.to_string(name)
 

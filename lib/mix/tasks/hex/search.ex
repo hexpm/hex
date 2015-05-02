@@ -18,7 +18,7 @@ defmodule Mix.Tasks.Hex.Search do
         Hex.Util.ensure_registry!()
 
         Enum.each(Hex.Registry.search(package), fn pkg ->
-          Mix.shell.info(pkg)
+          Hex.Shell.info(pkg)
         end)
       _ ->
         Mix.raise "Invalid arguments, expected: mix hex.search PACKAGE"

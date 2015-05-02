@@ -10,4 +10,7 @@ defmodule Hex.Shell do
 
   def yes?(output),
     do: Mix.shell.yes?(output)
+
+  def prompt(output),
+    do: Mix.shell.prompt(output)
 end
