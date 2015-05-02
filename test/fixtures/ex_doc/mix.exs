@@ -1,4 +1,4 @@
-defmodule ExDoc.Mixfile do
+defmodule ExDoc.Fixture.Mixfile do
   use Mix.Project
 
   def project do

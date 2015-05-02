@@ -302,7 +302,7 @@ defmodule Hex.MixTest do
       assert Mix.Dep.Lock.read == %{postgrex: {:hex, :postgrex, "0.2.1"}}
     end
   after
-    purge [ Postgrex.NoConflict.Mixfile, ExDoc.Mixfile ]
+    purge [ Postgrex.NoConflict.Mixfile, ExDoc.Fixture.Mixfile ]
   end
 
   @tag :integration
@@ -325,7 +325,7 @@ defmodule Hex.MixTest do
     end
   after
     purge [ Phoenix.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-            ExDoc.Mixfile ]
+            ExDoc.Fixture.Mixfile ]
   end
 
   @tag :integration
@@ -347,7 +347,7 @@ defmodule Hex.MixTest do
       assert Mix.Dep.Lock.read == %{postgrex: {:hex, :postgrex, "0.2.1"}}
     end
   after
-    purge [OverrideWithPath.NoConflict.Mixfile, ExDoc.Mixfile,
+    purge [OverrideWithPath.NoConflict.Mixfile, ExDoc.Fixture.Mixfile,
            Postgrex.NoConflict.Mixfile]
   end
 

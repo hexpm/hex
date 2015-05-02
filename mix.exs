@@ -4,13 +4,13 @@ defmodule Hex.Mixfile do
   def project do
     [app: :hex,
      version: "0.7.6-dev",
-     aliases: aliases,
+     aliases: aliases(Mix.env),
      deps: deps,
      elixirc_options: elixirc_options(Mix.env)]
   end
 
   def application do
-    []
+    [applications: [:logger]]
   end
 
   defp deps do
@@ -25,8 +25,12 @@ defmodule Hex.Mixfile do
     []
   end
 
-  defp aliases do
-    [compile: [&unload_hex/1, "compile"],
+  defp aliases(:test) do
+    []
+  end
+
+  defp aliases(_) do
+    [compile: ["deps.compile", &unload_hex/1, "compile"],
      run: [&unload_hex/1, "run"],
      install: ["archive.build -o hex.ez", "archive.install hex.ez --force"],
      certdata: [&certdata/1]]
@@ -60,7 +64,7 @@ defmodule Hex.Mixfile do
 
   @mk_ca_bundle_url "https://raw.githubusercontent.com/bagder/curl/master/lib/mk-ca-bundle.pl"
   @mk_ca_bundle_cmd "mk-ca-bundle.pl"
-  @ca_bundle "ca-bundle.crt"
+  @ca_bundle        "ca-bundle.crt"
   @ca_bundle_target Path.join("lib/hex/api", @ca_bundle)
 
   defp certdata(_) do

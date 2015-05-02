@@ -85,7 +85,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Hex.home(tmp_path())
 
       user = HexWeb.User.get(username: "user")
-      {:ok, key} = HexWeb.API.Key.create("computer", user)
+      {:ok, key} = HexWeb.API.Key.create(user, %{"name" => "computer"})
       Hex.Config.update(username: "user", key: key.user_secret)
 
       send self, {:mix_shell_input, :yes?, true}
@@ -106,8 +106,8 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self, {:mix_shell_input, :yes?, true}
       Mix.Tasks.Hex.Publish.run(["--no-progress"])
 
-      assert_received {:mix_shell, :info, ["  WARNING! No included files"]}
-      assert_received {:mix_shell, :info, ["  WARNING! Missing metadata fields: description, licenses, contributors, links"]}
+      assert_received {:mix_shell, :info, ["\e[33m  WARNING! No files\e[0m"]}
+      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: description, licenses, contributors, links\e[0m"]}
       assert HexWeb.Release.get(HexWeb.Package.get("releaseb"), "0.0.2")
     end
   after
@@ -126,9 +126,9 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["--no-progress"])
 
       assert_received {:mix_shell, :info, ["Publishing releasec v0.0.3"]}
-      assert_received {:mix_shell, :info, ["  Included files:"]}
+      assert_received {:mix_shell, :info, ["  Files:"]}
       assert_received {:mix_shell, :info, ["    myfile.txt"]}
-      refute_received {:mix_shell, :info, ["  WARNING! Missing metadata fields" <> _]}
+      refute_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields" <> _]}
     end
   end
 end

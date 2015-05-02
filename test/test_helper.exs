@@ -185,7 +185,7 @@ defmodule HexTest.Case do
     user = HexWeb.User.get(username: username)
     key  = :crypto.rand_bytes(4) |> Base.encode16
 
-    {:ok, key} = HexWeb.API.Key.create(key, user)
+    {:ok, key} = HexWeb.API.Key.create(user, %{"name" => key})
     Hex.Config.update([key: key.user_secret])
   end
 
@@ -231,9 +231,9 @@ if :integration in ExUnit.configuration[:include] do
   System.put_env("DATABASE_URL", db_url)
 
   File.cd! "_build/test/lib/hex_web", fn ->
-    Mix.Task.run "ecto.drop", ["HexWeb.Repo"]
-    Mix.Task.run "ecto.create", ["HexWeb.Repo"]
-    Mix.Task.run "ecto.migrate", ["HexWeb.Repo"]
+    Mix.Task.run "ecto.drop", ["-r", "HexWeb.Repo"]
+    Mix.Task.run "ecto.create", ["-r", "HexWeb.Repo"]
+    Mix.Task.run "ecto.migrate", ["-r", "HexWeb.Repo"]
   end
   HexWeb.Repo.stop
 
@@ -249,9 +249,11 @@ if :integration in ExUnit.configuration[:include] do
     "links" => %{"docs" => "http://docs", "repo" => "http://repo"},
     "description" => "builds docs"}
 
-  {:ok, user}    = HexWeb.User.create("user", "user@mail.com", "hunter42", true)
-  {:ok, package} = HexWeb.Package.create("ex_doc", user, meta)
-  {:ok, _}       = HexWeb.Release.create(package, "0.0.1", "ex_doc", %{}, "")
+  {:ok, user}    = HexWeb.User.create(%{"username" => "user", "email" => "user@mail.com", "password" => "hunter42"})
+  {:ok, package} = HexWeb.Package.create(user, %{"name" => "ex_doc", "meta" => meta})
+  {:ok, _}       = HexWeb.Release.create(package, %{"version" => "0.0.1", "app" => "ex_doc", "requirements" => %{}}, "")
+
+  HexWeb.User.confirm(user)
 
   {201, %{"secret" => secret}} = Hex.API.Key.new("my_key", [user: "user", pass: "hunter42"])
   auth = [key: secret]

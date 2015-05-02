@@ -3,8 +3,10 @@ defmodule Mix.Tasks.Hex.OwnerTest do
   @moduletag :integration
 
   test "add owner" do
-    {:ok, user}    = HexWeb.User.create("owner_user", "owner_user@mail.com", "hunter42", true)
-    {:ok, package} = HexWeb.Package.create("owner_package", user, %{})
+    {:ok, user}    = HexWeb.User.create(%{"username" => "owner_user", "email" => "owner_user@mail.com", "password" => "hunter42"})
+    {:ok, package} = HexWeb.Package.create(user, %{"name" => "owner_package", "meta" => %{}})
+
+    HexWeb.User.confirm(user)
 
     Hex.home(tmp_path())
     setup_auth("owner_user")
@@ -18,7 +20,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
 
   test "remove owner" do
     user = HexWeb.User.get(username: "user")
-    {:ok, package} = HexWeb.Package.create("owner_package2", user, %{})
+    {:ok, package} = HexWeb.Package.create(user, %{"name" => "owner_package2", "meta" => %{}})
 
     Hex.home(tmp_path())
     setup_auth("user")

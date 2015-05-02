@@ -1,4 +1,4 @@
-defmodule OverrideWithPath.NoConflict.Mixfile do
+defmodule OverrideWithPath.Fixture.Mixfile do
   use Mix.Project
 
   def project do

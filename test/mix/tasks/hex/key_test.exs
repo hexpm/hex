@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.KeyTest do
       Hex.home(System.cwd!)
 
       user = HexWeb.User.get(username: "user")
-      {:ok, key} = HexWeb.API.Key.create("list_keys", user)
+      {:ok, key} = HexWeb.API.Key.create(user, %{"name" => "list_keys"})
       Hex.Config.update([key: key.user_secret])
 
       Mix.Tasks.Hex.Key.run(["list"])
@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Hex.KeyTest do
       Hex.home(System.cwd!)
 
       user = HexWeb.User.get(username: "user")
-      {:ok, key} = HexWeb.API.Key.create("drop_key", user)
+      {:ok, key} = HexWeb.API.Key.create(user, %{"name" => "drop_key"})
       Hex.Config.update([key: key.user_secret])
 
       Mix.Tasks.Hex.Key.run(["remove", "drop_key"])

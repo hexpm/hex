@@ -63,7 +63,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       Hex.home(System.cwd!)
 
       user = HexWeb.User.get(username: "user")
-      {:ok, key} = HexWeb.API.Key.create("computer", user)
+      {:ok, key} = HexWeb.API.Key.create(user, %{"name" => "computer"})
       Hex.Config.update(username: "user", key: key.user_secret)
       Mix.Tasks.Hex.User.run(["test"])
 
