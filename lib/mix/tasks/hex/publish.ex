@@ -72,6 +72,7 @@ defmodule Mix.Tasks.Hex.Publish do
   @default_files ~w(lib priv mix.exs README* readme* LICENSE*
                     license* CHANGELOG* changelog* src)
 
+  @error_fields ~w(files app name version build_tools)a
   @warn_fields ~w(description licenses contributors links)a
   @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir)a
 
@@ -84,14 +85,15 @@ defmodule Mix.Tasks.Hex.Publish do
 
     Mix.Project.get!
     config = Mix.Project.config
+    package = Enum.into(config[:package] || [], %{})
 
     {deps, exclude_deps} = dependencies(config)
-    package = package(config)
 
     meta = Keyword.take(config, [:app, :version, :elixir, :description])
            |> Enum.into(%{})
-           |> Map.put(:requirements, deps)
            |> Map.merge(package)
+           |> package(config)
+           |> Map.put(:requirements, deps)
 
     if Mix.Project.umbrella?(config) do
       Mix.raise "Hex does not support umbrella projects"
@@ -122,13 +124,10 @@ defmodule Mix.Tasks.Hex.Publish do
       end)
     end
 
-    if meta[:files] != [] do
-      Mix.shell.info("  Included files:")
-      Enum.each(meta[:files], &Mix.shell.info("    #{&1}"))
-    end
+    Enum.each(@meta_fields, &print_meta(meta, &1))
 
-    warn_fields(meta)
-    error_fields(meta)
+    warn_missing(meta)
+    error_missing(meta)
 
     if exclude_deps != [] do
       Hex.Shell.warn("  WARNING! Excluded dependencies (not part of the Hex package):")
@@ -136,25 +135,45 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
+  defp print_meta(meta, :files) do
+    if meta[:files] != [] do
+      Hex.Shell.info("  Files:")
+      Enum.each(meta[:files], &Hex.Shell.info("    #{&1}"))
+    else
+      Hex.Shell.warn("  WARNING! No files")
+    end
+  end
+
+  defp print_meta(meta, key) do
+    if value = meta[key] do
+      key = key |> Atom.to_string |> String.replace("_", " ") |> String.capitalize
+      value = meta_value(value)
+      Hex.Shell.info("  #{key}: #{value}")
+    end
+  end
+
+  defp meta_value(list) when is_list(list),
+    do: Enum.join(list, ", ")
+  defp meta_value(map) when is_map(map),
+    do: "\n    " <> Enum.map_join(map, "\n    ", fn {k, v} -> "#{k}: #{v}" end)
+  defp meta_value(value),
+    do: value
+
   defp error_missing(meta) do
-    missing(meta, @error_fields, true, &Hex.Shell.error("  ERROR! #{&1}"))
+    missing(meta, @error_fields, &Hex.Shell.error("  ERROR! #{&1}"))
   end
 
   defp warn_missing(meta) do
-    missing(meta, @warn_fields, false, &Hex.Shell.warn("  WARNING! #{&1}"))
+    missing(meta, @warn_fields, &Hex.Shell.warn("  WARNING! #{&1}"))
   end
 
-  defp missing(meta, fields, stop?, printer) do
+  defp missing(meta, fields, printer) do
     taken_fields = Dict.take(meta, fields) |> Dict.keys
     missing = fields -- taken_fields
 
     if missing != [] do
       missing = Enum.join(missing, ", ")
       printer.("Missing metadata fields: #{missing}")
-
-      if stop? do
-        System.exit(1)
-      end
     end
   end
 
@@ -170,6 +189,7 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
+  # TODO: Remove
   defp create_package?(meta, auth) do
     case Hex.API.Package.new(meta[:name], meta, auth) do
       {code, _} when code in 200..299 ->
@@ -250,8 +270,10 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp package(config) do
-    package = Enum.into(config[:package] || [], %{})
+  defp package(package, config) do
+    if description = package[:description] do
+      package = Map.put(package, :description, String.strip(description))
+    end
 
     if files = package[:files] || @default_files do
       files = expand_paths(files, File.cwd!)
@@ -263,8 +285,9 @@ defmodule Mix.Tasks.Hex.Publish do
     end
 
     unless package[:build_tools] do
-      build_tool = guess_build_tool(files)
-      package = Map.put(package, :build_tools, [build_tool])
+      if build_tool = guess_build_tool(files) do
+        package = Map.put(package, :build_tools, [build_tool])
+      end
     end
 
     Map.take(package, @meta_fields)
@@ -275,7 +298,7 @@ defmodule Mix.Tasks.Hex.Publish do
     {"rebar.config", "rebar"},
     {"rebar"       , "rebar"},
     {"Makefile"    , "make"},
-    {"Makefile.win", "make}"
+    {"Makefile.win", "make"}
   ]
 
   defp guess_build_tool(paths) do
