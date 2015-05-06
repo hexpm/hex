@@ -1,0 +1,29 @@
+Collect stats
+  Check status code [X]
+   - packages
+   - registry
+
+  Check user agent
+   - packages + registry
+   - hex archive
+
+
+Registry format
+ - Binary log format (see issue and gist)
+ - Base file + log files which chunks (100, 1000, 10000) latest changes
+ - Plain text format separated by type
+  - One file with list of all package names
+  - Each package has a file with list of all versions
+  - Each release has a file with dependencies and metadata
+
+
+Cloudflare
+ - Doesn't provide logs (would need API endpoint)
+ - SSL support doesn't work on old browsers
+ - Custom SSL?
+ - Invalidation doesn't matter (version package changes in registry)
+
+
+Why did we add :async_connect ?
+
+Improve "A new Hex version is available" message
