@@ -1,5 +1,15 @@
 ## v0.8.0-dev
 
+* Enhancements
+  * Warn if using insecure SSL because of old OTP version
+  * Use yellow test for warning text
+  * Include build_tools in release metadata
+  * Print more metadata when publishing
+
+* Bug fixes
+  * Fix an error when printing an http status codes
+  * Always fetch new registry if it's older than 7 days
+
 ## v0.7.5 (2015-04-12)
 
 * Enhancements
