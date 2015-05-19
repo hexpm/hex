@@ -1,4 +1,4 @@
-## v0.8.0-dev
+## v0.8.0 (2015-05-19)
 
 * Enhancements
   * Warn if using insecure SSL because of old OTP version
