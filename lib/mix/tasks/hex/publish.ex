@@ -23,15 +23,15 @@ defmodule Mix.Tasks.Hex.Publish do
 
   ## Configuration
 
-    * `:app` - Package name (required)
+    * `:app` - Package name (required).
 
-    * `:version` - Package version (required)
+    * `:version` - Package version (required).
 
-    * `:deps` - List of package dependencies (see Dependencies below)
+    * `:deps` - List of package dependencies (see Dependencies below).
 
-    * `:description` - Description of the project in a few paragraphs
+    * `:description` - Short description of the project.
 
-    * `:package` - Hex specific configuration (see Package configuration below)
+    * `:package` - Hex specific configuration (see Package configuration below).
 
   ## Dependencies
 
@@ -55,16 +55,23 @@ defmodule Mix.Tasks.Hex.Publish do
   recommended to do so.
 
     * `:name` - Set this if the package name is not the same as the application
-       name
+       name.
 
     * `:files` - List of files and directories to include in the package,
-      can include wildcards
+      can include wildcards. Defaults to `["lib", "priv", "mix.exs", "README*",
+      "readme*", "LICENSE*", "license*", "CHANGELOG*", "changelog*", "src"]`.
 
-    * `:contributors` - List of names of contributors
+    * `:contributors` - List of names of contributors.
 
-    * `:licenses` - List of licenses used by the package
+    * `:licenses` - List of licenses used by the package.
 
-    * `:links` - Map of links
+    * `:links` - Map of links relevant to the package.
+
+    * `:build_tools` - List of build tools that can build the package. Hex will
+      try to automatically detect the build tools, it will do this based on the
+      files in the package. If a "rebar" or "rebar.config" file is present Hex
+      will mark it as able to build with rebar. This detection can be overridden
+      by setting this field.
   """
 
   @switches [revert: :string, progress: :boolean]
