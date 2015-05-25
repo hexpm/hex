@@ -61,8 +61,8 @@ defmodule Hex.RemoteConverger do
       end
     else
       if File.exists?(Hex.Registry.path),
-          do: Hex.Shell.warn "Missing Hex registry file, run `mix hex.info` to fetch",
-        else: Hex.Shell.warn "Failed to open Hex registry file "
+          do: Hex.Shell.warn("Missing Hex registry file, run `mix hex.info` to fetch"),
+        else: Hex.Shell.warn("Failed to open Hex registry file")
       []
     end
   end
