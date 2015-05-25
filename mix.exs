@@ -4,7 +4,7 @@ defmodule Hex.Mixfile do
   def project do
     [app: :hex,
      version: "0.8.1-dev",
-     aliases: aliases(Mix.env),
+     aliases: aliases,
      deps: deps,
      elixirc_options: elixirc_options(Mix.env)]
   end
@@ -25,12 +25,8 @@ defmodule Hex.Mixfile do
     []
   end
 
-  defp aliases(:test) do
-    []
-  end
-
-  defp aliases(_) do
-    [compile: ["deps.compile", &unload_hex/1, "compile"],
+  defp aliases do
+    [compile: ["deps.check", &unload_hex/1, "compile"],
      run: [&unload_hex/1, "run"],
      install: ["archive.build -o hex.ez", "archive.install hex.ez --force"],
      certdata: [&certdata/1]]
