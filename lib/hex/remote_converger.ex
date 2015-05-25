@@ -60,6 +60,9 @@ defmodule Hex.RemoteConverger do
         {String.to_atom(app), req, optional: optional, hex: String.to_atom(name)}
       end
     else
+      if File.exists?(Hex.Registry.path),
+          do: Hex.Shell.warn "Missing Hex registry file, run `mix hex.info` to fetch",
+        else: Hex.Shell.warn "Failed to open Hex registry file "
       []
     end
   end

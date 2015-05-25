@@ -1,5 +1,8 @@
 ## v0.8.1-dev
 
+* Enhancements
+  * Warn if registry file is missing when loading deps
+
 ## v0.8.0 (2015-05-19)
 
 * Enhancements
