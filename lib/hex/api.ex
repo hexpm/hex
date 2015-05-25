@@ -1,5 +1,5 @@
 defmodule Hex.API do
-  alias Hex.API.Util
+  alias Hex.API.Utils
   alias Hex.API.VerifyHostname
 
   @secure_ssl_version {5, 3, 6}
@@ -28,7 +28,7 @@ defmodule Hex.API do
 
     cond do
       body ->
-        body = Hex.Util.safe_serialize_elixir(body)
+        body = Hex.Utils.safe_serialize_elixir(body)
         request = {url, Map.to_list(headers), 'application/vnd.hex+elixir', body}
       method in [:put, :post] ->
         request = {url, Map.to_list(headers), 'application/vnd.hex+elixir', '%{}'}
@@ -123,14 +123,14 @@ defmodule Hex.API do
     headers = Enum.into(headers, %{})
     content_encoding = :binary.list_to_bin(headers['content-encoding'] || '')
     content_type = :binary.list_to_bin(headers['content-type'] || '')
-    Util.handle_hex_message(headers['x-hex-message'])
+    Utils.handle_hex_message(headers['x-hex-message'])
 
     if String.contains?(content_encoding, "gzip") do
       body = :zlib.gunzip(body)
     end
 
     if String.contains?(content_type, "application/vnd.hex+elixir") do
-      body = Hex.Util.safe_deserialize_elixir(body)
+      body = Hex.Utils.safe_deserialize_elixir(body)
     end
 
     {code, body}

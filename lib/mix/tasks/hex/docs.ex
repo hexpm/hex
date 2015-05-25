@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Hex.Docs do
   use Mix.Task
-  alias Mix.Tasks.Hex.Util
+  alias Mix.Tasks.Hex.Utils
 
   @shortdoc "Publish docs for package"
 
@@ -28,7 +28,7 @@ defmodule Mix.Tasks.Hex.Docs do
     Hex.start
 
     {opts, _, _} = OptionParser.parse(args, switches: @switches)
-    auth = Util.auth_info()
+    auth = Utils.auth_info()
 
     Mix.Project.get!
     config  = Mix.Project.config
@@ -64,32 +64,32 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp send_tarball(app, version, tarball, auth, progress?) do
     if progress? do
-      progress = Util.progress(byte_size(tarball))
+      progress = Utils.progress(byte_size(tarball))
     else
-      progress = Util.progress(nil)
+      progress = Utils.progress(nil)
     end
 
     case Hex.API.ReleaseDocs.new(app, version, tarball, auth, progress) do
       {code, _} when code in 200..299 ->
         Hex.Shell.info ""
         Hex.Shell.info "Published docs for #{app} v#{version}"
-        Hex.Shell.info "Hosted at #{Hex.Util.hexdocs_url(app, version)}"
+        Hex.Shell.info "Hosted at #{Hex.Utils.hexdocs_url(app, version)}"
       {code, body} ->
         Hex.Shell.info ""
         Hex.Shell.error "Pushing docs for #{app} v#{version} failed"
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
     end
   end
 
   defp revert(app, version, auth) do
-    version = Util.clean_version(version)
+    version = Utils.clean_version(version)
 
     case Hex.API.ReleaseDocs.delete(app, version, auth) do
       {code, _} when code in 200..299 ->
         Hex.Shell.info "Reverted docs for #{app} v#{version}"
       {code, body} ->
         Hex.Shell.error "Reverting docs for #{app} v#{version} failed"
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
     end
   end
 

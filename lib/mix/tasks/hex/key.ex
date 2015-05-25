@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Hex.Key do
   use Mix.Task
-  alias Mix.Tasks.Hex.Util
+  alias Mix.Tasks.Hex.Utils
 
   @shortdoc "Hex API key tasks"
 
@@ -24,9 +24,9 @@ defmodule Mix.Tasks.Hex.Key do
 
   def run(args) do
     Hex.start
-    Hex.Util.ensure_registry(update: false)
+    Hex.Utils.ensure_registry(update: false)
 
-    auth = Util.auth_info()
+    auth = Utils.auth_info()
 
     case args do
       ["remove", key] ->
@@ -45,7 +45,7 @@ defmodule Mix.Tasks.Hex.Key do
         :ok
       {code, body} ->
         Hex.Shell.error "Key fetching failed"
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
     end
   end
 
@@ -55,7 +55,7 @@ defmodule Mix.Tasks.Hex.Key do
         Enum.each(body, &Hex.Shell.info(&1["name"]))
       {code, body} ->
         Hex.Shell.error "Key fetching failed"
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
     end
   end
 end

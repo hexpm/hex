@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Hex.Config do
 
   def run(args) do
     Hex.start
-    Hex.Util.ensure_registry(update: false)
+    Hex.Utils.ensure_registry(update: false)
 
     case args do
       [key] ->

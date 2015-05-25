@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Hex.Owner do
   use Mix.Task
-  alias Mix.Tasks.Hex.Util
+  alias Mix.Tasks.Hex.Utils
 
   @shortdoc "Hex package ownership tasks"
 
@@ -33,9 +33,9 @@ defmodule Mix.Tasks.Hex.Owner do
 
   def run(args) do
     Hex.start
-    Hex.Util.ensure_registry(update: false)
+    Hex.Utils.ensure_registry(update: false)
 
-    auth = Util.auth_info()
+    auth = Utils.auth_info()
 
     case args do
       ["add", package, owner] ->
@@ -57,7 +57,7 @@ defmodule Mix.Tasks.Hex.Owner do
         :ok
       {code, body} ->
         Hex.Shell.error "Adding owner failed"
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
     end
   end
 
@@ -68,7 +68,7 @@ defmodule Mix.Tasks.Hex.Owner do
         :ok
       {code, body} ->
         Hex.Shell.error "Removing owner failed"
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
     end
   end
 
@@ -78,7 +78,7 @@ defmodule Mix.Tasks.Hex.Owner do
         Enum.each(body, &Hex.Shell.info(&1["email"]))
       {code, body} ->
         Hex.Shell.error "Package owner fetching failed"
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
     end
   end
 end

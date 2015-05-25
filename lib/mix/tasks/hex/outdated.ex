@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   def run(args) do
     {opts, _args, _} = OptionParser.parse(args, switches: [all: :boolean])
     Hex.start
-    Hex.Util.ensure_registry!()
+    Hex.Utils.ensure_registry!()
 
     lock = Mix.Dep.Lock.read
 

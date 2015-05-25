@@ -119,7 +119,7 @@ defmodule Hex.Tar do
 
   defp encode_term(list) do
     list
-    |> Hex.Util.binarify(maps: false)
+    |> Hex.Utils.binarify(maps: false)
     |> Enum.map(&[:io_lib.print(&1) | ".\n"])
     |> IO.iodata_to_binary
   end

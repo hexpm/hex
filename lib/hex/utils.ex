@@ -1,4 +1,4 @@
-defmodule Hex.Util do
+defmodule Hex.Utils do
   def ensure_registry(opts \\ []) do
     update_result = update_registry(opts)
 

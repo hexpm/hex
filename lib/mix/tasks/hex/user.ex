@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Hex.User do
   use Mix.Task
-  alias Mix.Tasks.Hex.Util
+  alias Mix.Tasks.Hex.Utils
 
   @shortdoc "Hex user tasks"
 
@@ -44,7 +44,7 @@ defmodule Mix.Tasks.Hex.User do
 
   def run(args) do
     Hex.start
-    Hex.Util.ensure_registry(update: false)
+    Hex.Utils.ensure_registry(update: false)
 
     {opts, rest, _} = OptionParser.parse(args, switches: @switches)
 
@@ -82,7 +82,7 @@ defmodule Mix.Tasks.Hex.User do
                        "Please check your spam folder if the email doesn’t appear within a few minutes."
       {code, body} ->
         Hex.Shell.error("Initiating password reset for #{name} failed")
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
     end
   end
 
@@ -104,10 +104,10 @@ defmodule Mix.Tasks.Hex.User do
 
     username = Hex.Shell.prompt("Username:")  |> String.strip
     email    = Hex.Shell.prompt("Email:")     |> String.strip
-    password = Util.password_get("Password:", clean?) |> String.strip
+    password = Utils.password_get("Password:", clean?) |> String.strip
 
     unless is_nil(password) do
-      confirm = Util.password_get("Password (confirm):", clean?) |> String.strip
+      confirm = Utils.password_get("Password (confirm):", clean?) |> String.strip
       if password != confirm do
         Mix.raise "Entered passwords do not match"
       end
@@ -120,12 +120,12 @@ defmodule Mix.Tasks.Hex.User do
   defp create_user(username, email, password) do
     case Hex.API.User.new(username, email, password) do
       {code, _} when code in 200..299 ->
-        Util.generate_key(username, password)
+        Utils.generate_key(username, password)
         Hex.Shell.info("You are required to confirm your email to access your account, " <>
                        "a confirmation email has been sent to #{email}")
       {code, body} ->
         Hex.Shell.error("Registration of user #{username} failed")
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
     end
   end
 
@@ -133,22 +133,22 @@ defmodule Mix.Tasks.Hex.User do
     clean? = Keyword.get(opts, :clean_pass, true)
 
     username = Hex.Shell.prompt("Username:")          |> String.strip
-    password = Util.password_get("Password:", clean?) |> String.strip
+    password = Utils.password_get("Password:", clean?) |> String.strip
 
-    Util.generate_key(username, password)
+    Utils.generate_key(username, password)
   end
 
   defp test do
     config = Hex.Config.read
     username = local_user(config)
-    auth = Util.auth_info(config)
+    auth = Utils.auth_info(config)
 
     case Hex.API.User.get(username, auth) do
       {code, _} when code in 200..299 ->
         Hex.Shell.info("Successfully authed. Your key works.")
       {code, body} ->
         Hex.Shell.error("Failed to auth")
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
     end
   end
 

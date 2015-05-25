@@ -13,7 +13,7 @@ defmodule Hex.RemoteConverger do
 
   def converge(deps, lock) do
     Hex.start
-    Hex.Util.ensure_registry!()
+    Hex.Utils.ensure_registry!()
 
     verify_lock(lock)
 

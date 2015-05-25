@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Hex.Info do
 
     # Make sure to fetch registry after showing hex version. Issues with the
     # registry should not prevent printing the version.
-    Hex.Util.ensure_registry(cache: false)
+    Hex.Utils.ensure_registry(cache: false)
     path = Hex.Registry.path()
     stat = File.stat!(path)
     {packages, releases} = Hex.Registry.stat()
@@ -49,7 +49,7 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp package(package) do
-    Hex.Util.ensure_registry(cache: false)
+    Hex.Utils.ensure_registry(cache: false)
 
     case Hex.API.Package.get(package) do
       {code, body} when code in 200..299 ->
@@ -58,12 +58,12 @@ defmodule Mix.Tasks.Hex.Info do
         Hex.Shell.error "No package with name #{package}"
       {code, body} ->
         Hex.Shell.error "Failed to retrieve package information"
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
     end
   end
 
   defp release(package, version) do
-    Hex.Util.ensure_registry(cache: false)
+    Hex.Utils.ensure_registry(cache: false)
 
     case Hex.API.Release.get(package, version) do
       {code, body} when code in 200..299 ->
@@ -72,7 +72,7 @@ defmodule Mix.Tasks.Hex.Info do
         Hex.Shell.error "No release with name #{package} v#{version}"
       {code, body} ->
         Hex.Shell.error "Failed to retrieve release information"
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
     end
   end
 
@@ -99,7 +99,7 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Shell.info package <> " v" <> version
 
     if release["has_docs"] do
-      Hex.Shell.info "  Documentation at: #{Hex.Util.hexdocs_url(package, version)}"
+      Hex.Shell.info "  Documentation at: #{Hex.Utils.hexdocs_url(package, version)}"
     end
 
     if release["requirements"] do

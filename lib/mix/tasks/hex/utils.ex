@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Hex.Util do
+defmodule Mix.Tasks.Hex.Utils do
   def generate_key(username, password) do
     Hex.Shell.info("Generating API key...")
     {:ok, name} = :inet.gethostname()
@@ -9,7 +9,7 @@ defmodule Mix.Tasks.Hex.Util do
         Hex.Config.update([username: username, key: body["secret"]])
       {code, body} ->
         Mix.shell.error("Generation of API key failed (#{code})")
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
     end
   end
 

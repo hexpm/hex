@@ -173,7 +173,7 @@ defmodule Hex.SCM do
   end
 
   defp fetch(name, path) do
-    etag = Hex.Util.etag(path)
+    etag = Hex.Utils.etag(path)
     url  = Hex.API.cdn_url("tarballs/#{name}")
     File.mkdir_p!(cache_path)
 

@@ -1,4 +1,4 @@
-defmodule Hex.API.Util do
+defmodule Hex.API.Utils do
   @doc false
   def handle_hex_message(nil), do: :ok
 

@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Hex.Publish do
   use Mix.Task
-  alias Mix.Tasks.Hex.Util
+  alias Mix.Tasks.Hex.Utils
 
   @shortdoc "Publish a new package version"
 
@@ -85,10 +85,10 @@ defmodule Mix.Tasks.Hex.Publish do
 
   def run(args) do
     Hex.start
-    Hex.Util.ensure_registry(update: false)
+    Hex.Utils.ensure_registry(update: false)
 
     {opts, _, _} = OptionParser.parse(args, switches: @switches)
-    auth         = Util.auth_info()
+    auth         = Utils.auth_info()
 
     Mix.Project.get!
     config = Mix.Project.config
@@ -185,14 +185,14 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp revert(meta, version, auth) do
-    version = Util.clean_version(version)
+    version = Utils.clean_version(version)
 
     case Hex.API.Release.delete(meta[:name], version, auth) do
       {code, _} when code in 200..299 ->
         Hex.Shell.info("Reverted #{meta[:name]} v#{version}")
       {code, body} ->
         Hex.Shell.error("Reverting #{meta[:name]} v#{version} failed")
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
     end
   end
 
@@ -203,7 +203,7 @@ defmodule Mix.Tasks.Hex.Publish do
         true
       {code, body} ->
         Mix.shell.error("Updating package #{meta[:name]} failed")
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
         false
     end
   end
@@ -212,19 +212,19 @@ defmodule Mix.Tasks.Hex.Publish do
     tarball = Hex.Tar.create(meta, meta[:files])
 
     if progress? do
-      progress = Util.progress(byte_size(tarball))
+      progress = Utils.progress(byte_size(tarball))
     else
-      progress = Util.progress(nil)
+      progress = Utils.progress(nil)
     end
 
     case Hex.API.Release.new(meta[:name], tarball, auth, progress) do
       {code, _} when code in 200..299 ->
         Hex.Shell.info("")
-        Hex.Shell.info("Published at #{Hex.Util.hex_package_url(meta[:name], meta[:version])}")
+        Hex.Shell.info("Published at #{Hex.Utils.hex_package_url(meta[:name], meta[:version])}")
         Hex.Shell.info("Don't forget to upload your documentation with `mix hex.docs`")
       {code, body} ->
         Hex.Shell.error("Pushing #{meta[:name]} v#{meta[:version]} failed")
-        Hex.Util.print_error_result(code, body)
+        Hex.Utils.print_error_result(code, body)
     end
   end
 
