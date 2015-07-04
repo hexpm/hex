@@ -111,6 +111,7 @@ defmodule Mix.Tasks.Hex.Publish do
     else
 
       print_info(meta, exclude_deps)
+      print_link_to_coc()
 
       if Hex.Shell.yes?("Proceed?") and create_package?(meta, auth) do
         progress? = Keyword.get(opts, :progress, true)
@@ -157,6 +158,11 @@ defmodule Mix.Tasks.Hex.Publish do
       value = meta_value(value)
       Hex.Shell.info("  #{key}: #{value}")
     end
+  end
+
+  defp print_link_to_coc() do
+    Hex.Shell.info "Before publishing the package, make sure you've read " <>
+      "the Hex Code of Conduct, available at https://hex.pm/docs/codeofconduct."
   end
 
   defp meta_value(list) when is_list(list),
