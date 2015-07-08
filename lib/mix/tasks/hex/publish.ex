@@ -320,8 +320,10 @@ defmodule Mix.Tasks.Hex.Publish do
       |> Enum.filter(&(Path.dirname(&1) == "."))
       |> Enum.into(HashSet.new)
 
-    Enum.find_value(@build_tools, fn {file, tool} ->
-      if file in base_files, do: tool
+    Enum.flat_map(@build_tools, fn {file, tool} ->
+      if file in base_files,
+        do: [tool],
+      else: []
     end)
   end
 end
