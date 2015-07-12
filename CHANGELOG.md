@@ -1,10 +1,11 @@
-## v0.8.1-dev
+## v0.8.1 (2015-07-12)
 
 * Enhancements
   * Warn if registry file is missing when loading deps
 
 * Bug fixes
   * Consider new optional requirements for already activated dependency
+  * Add multiple build tools to metadata
 
 ## v0.8.0 (2015-05-19)
 

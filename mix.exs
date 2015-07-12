@@ -3,7 +3,7 @@ defmodule Hex.Mixfile do
 
   def project do
     [app: :hex,
-     version: "0.8.1-dev",
+     version: "0.8.1",
      aliases: aliases,
      deps: deps,
      elixirc_options: elixirc_options(Mix.env)]
