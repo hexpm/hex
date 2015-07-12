@@ -177,6 +177,8 @@ defmodule HexTest.Case do
 
       {:only_doc, "0.1.0", [{:ex_doc, nil, true}]},
 
+      {:has_optional, "0.1.0", [{:ex_doc, "~> 0.0.1", true}]},
+
       {:package_name, "0.1.0", []},
       {:depend_name, "0.2.0", [{:package_name, nil, false, :app_name}]} ]
   end

@@ -208,7 +208,7 @@ defmodule Mix.Tasks.Hex.Publish do
       {code, _} when code in 200..299 ->
         true
       {code, body} ->
-        Mix.shell.error("Updating package #{meta[:name]} failed")
+        Mix.shell.error("\nUpdating package #{meta[:name]} failed")
         Hex.Utils.print_error_result(code, body)
         false
     end
@@ -225,11 +225,10 @@ defmodule Mix.Tasks.Hex.Publish do
 
     case Hex.API.Release.new(meta[:name], tarball, auth, progress) do
       {code, _} when code in 200..299 ->
-        Hex.Shell.info("")
-        Hex.Shell.info("Published at #{Hex.Utils.hex_package_url(meta[:name], meta[:version])}")
+        Hex.Shell.info("\nPublished at #{Hex.Utils.hex_package_url(meta[:name], meta[:version])}")
         Hex.Shell.info("Don't forget to upload your documentation with `mix hex.docs`")
       {code, body} ->
-        Hex.Shell.error("Pushing #{meta[:name]} v#{meta[:version]} failed")
+        Hex.Shell.error("\nPushing #{meta[:name]} v#{meta[:version]} failed")
         Hex.Utils.print_error_result(code, body)
     end
   end
@@ -246,7 +245,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
     include = for {app, req, opts} <- include, into: %{} do
       name = opts[:hex] || app
-      {name, %{app: app, requirement: req, optional: opts[:optional]}}
+      {name, %{app: app, requirement: req, optional: opts[:optional] || false}}
     end
     exclude = for {app, _req, _opts} <- exclude, do: app
     {include, exclude}

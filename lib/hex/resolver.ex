@@ -94,7 +94,7 @@ defmodule Hex.Resolver do
 
         active = active(active, possibles: possibles, version: version)
         info = info(info, deps: deps)
-        {new_pending, new_optional, new_deps} = get_deps(app, name, version, info)
+        {new_pending, new_optional, new_deps} = get_deps(app, name, version, info, activated)
         pending = pending ++ new_pending
         optional = merge_optional(optional, new_optional)
         info = info(info, deps: new_deps)
@@ -106,7 +106,7 @@ defmodule Hex.Resolver do
 
   defp activate([request(app: app, name: name, parent: parent)|pending], [version|possibles],
                 optional, info(deps: deps) = info, activated) do
-    {new_pending, new_optional, new_deps} = get_deps(app, name, version, info)
+    {new_pending, new_optional, new_deps} = get_deps(app, name, version, info, activated)
     new_pending = pending ++ new_pending
     new_optional = merge_optional(optional, new_optional)
 
@@ -145,7 +145,7 @@ defmodule Hex.Resolver do
     end
   end
 
-  defp get_deps(app, package, version, info(top_level: top_level, deps: all_deps)) do
+  defp get_deps(app, package, version, info(top_level: top_level, deps: all_deps), activated) do
     if deps = Registry.get_deps(package, version) do
       all_deps = attach_dep_and_children(all_deps, package, deps)
 
@@ -160,7 +160,7 @@ defmodule Hex.Resolver do
           cond do
             was_overridden?(upper_breadths, String.to_atom(app)) ->
               {reqs, opts}
-            optional ->
+            optional && !activated[name] ->
               {reqs, [request|opts]}
             true ->
               {[request|reqs], opts}

@@ -103,4 +103,9 @@ defmodule Hex.ResolverTest do
     deps = []
     assert Dict.equal? [], resolve(deps, locked)
   end
+
+  test "optional" do
+    deps = [ex_doc: nil, has_optional: nil]
+    assert Dict.equal? locked([ex_doc: "0.0.2", has_optional: "0.1.0"]), resolve(deps)
+  end
 end

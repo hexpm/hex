@@ -3,6 +3,9 @@
 * Enhancements
   * Warn if registry file is missing when loading deps
 
+* Bug fixes
+  * Consider new optional requirements for already activated dependency
+
 ## v0.8.0 (2015-05-19)
 
 * Enhancements
