@@ -297,8 +297,8 @@ defmodule Mix.Tasks.Hex.Publish do
     end
 
     unless package[:build_tools] do
-      if build_tool = guess_build_tool(files) do
-        package = Map.put(package, :build_tools, [build_tool])
+      if build_tools = guess_build_tools(files) do
+        package = Map.put(package, :build_tools, build_tools)
       end
     end
 
@@ -313,7 +313,7 @@ defmodule Mix.Tasks.Hex.Publish do
     {"Makefile.win", "make"}
   ]
 
-  defp guess_build_tool(paths) do
+  defp guess_build_tools(paths) do
     base_files =
       paths
       |> Enum.filter(&(Path.dirname(&1) == "."))
