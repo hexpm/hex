@@ -93,8 +93,9 @@ defmodule Hex.RemoteConverger do
     resolved = Enum.into(resolved, HashDict.new, fn {name, _app, version} -> {name, version} end)
     resolved = HashDict.drop(resolved, locked)
 
-    if resolved != [] do
+    if HashDict.size(resolved) != 0 do
       Hex.Shell.info "Dependency resolution completed successfully"
+      resolved = Enum.sort(resolved)
       Enum.each(resolved, fn {name, version} ->
         Hex.Shell.info "  #{name}: v#{version}"
       end)
