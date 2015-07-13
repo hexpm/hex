@@ -84,6 +84,7 @@ defmodule HexTest.Case do
 
     meta = Map.merge(meta, %{name: name, version: version, requirements: reqs})
     meta = Map.put_new(meta, :app, name)
+    meta = Map.put_new(meta, :build_tools, ["mix"])
 
     deps = inspect(deps, pretty: true)
     module = String.capitalize(name)
@@ -242,27 +243,32 @@ if :integration in ExUnit.configuration[:include] do
   {:ok, _} = Application.ensure_all_started(:hex_web)
 
   Hex.start()
-  Hex.url("http://localhost:4000")
+  Hex.url("http://localhost:4043")
   unless System.get_env("HEX_CDN"), do: Hex.cdn(Hex.url)
 
-  meta = %{
+  pkg_meta = %{
     "contributors" => ["John Doe", "Jane Doe"],
     "licenses" => ["GPL2", "MIT", "Apache"],
     "links" => %{"docs" => "http://docs", "repo" => "http://repo"},
     "description" => "builds docs"}
 
+  rel_meta = %{
+    "app" => "ex_doc",
+    "build_tools" => ["mix"]
+  }
+
   {:ok, user}    = HexWeb.User.create(%{"username" => "user", "email" => "user@mail.com", "password" => "hunter42"})
-  {:ok, package} = HexWeb.Package.create(user, %{"name" => "ex_doc", "meta" => meta})
-  {:ok, _}       = HexWeb.Release.create(package, %{"version" => "0.0.1", "app" => "ex_doc", "requirements" => %{}}, "")
+  {:ok, package} = HexWeb.Package.create(user, %{"name" => "ex_doc", "meta" => pkg_meta})
+  {:ok, _}       = HexWeb.Release.create(package, %{"version" => "0.0.1", "requirements" => %{}, "meta" => rel_meta}, "")
 
   HexWeb.User.confirm(user)
 
   {201, %{"secret" => secret}} = Hex.API.Key.new("my_key", [user: "user", pass: "hunter42"])
   auth = [key: secret]
 
-  Case.init_project("ex_doc", "0.0.1", [], meta, auth)
-  Case.init_project("ex_doc", "0.0.1", [], meta, auth)
-  Case.init_project("ex_doc", "0.1.0", [], meta, auth)
+  Case.init_project("ex_doc", "0.0.1", [], pkg_meta, auth)
+  Case.init_project("ex_doc", "0.0.1", [], pkg_meta, auth)
+  Case.init_project("ex_doc", "0.1.0", [], pkg_meta, auth)
   Case.init_project("postgrex", "0.2.1", [ex_doc: "~> 0.1.0"], %{}, auth)
   Case.init_project("postgrex", "0.2.0", [ex_doc: "0.0.1"], %{}, auth)
   Case.init_project("ecto", "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"], %{}, auth)

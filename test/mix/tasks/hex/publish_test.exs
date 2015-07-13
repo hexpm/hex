@@ -78,7 +78,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self, {:mix_shell_input, :yes?, true}
       Mix.Tasks.Hex.Publish.run(["--no-progress"])
       release = HexWeb.Release.get(HexWeb.Package.get("released_name"), "0.0.1")
-      assert release.app == "released"
+      assert release.meta["app"] == "released"
     end
   end
 

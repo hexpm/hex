@@ -4,7 +4,8 @@ if Mix.env == :test do
   config :hex_web,
     password_work_factor: 4,
     url: "http://localhost:4000",
-    secret: "796f75666f756e64746865686578"
+    secret: "796f75666f756e64746865686578",
+    port: "4043"
 
   config :hex_web, HexWeb.Repo,
     adapter: Ecto.Adapters.Postgres,
