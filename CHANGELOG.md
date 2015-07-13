@@ -1,4 +1,10 @@
-## v0.8.2-dev
+## v0.8.2 (2015-07-13)
+
+* Enhancements
+  * Sort dependency resolver results
+
+* Bug fixes
+  * Fix build_tools metadata being sent incorrectly
 
 ## v0.8.1 (2015-07-12)
 
