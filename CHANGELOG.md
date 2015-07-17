@@ -1,5 +1,8 @@
 ## v0.8.3-dev
 
+* Security fixes
+  * Fix a bug that would trust any certificate in the certificate chain signed by a trusted CA, this could allow the certificate, that is not a CA, to issue and sign new certificates for any host
+
 ## v0.8.2 (2015-07-13)
 
 * Enhancements
