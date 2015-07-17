@@ -41,36 +41,39 @@ defmodule Hex.API do
     end
   end
 
-  def is_secure_ssl() do
+  def secure_ssl? do
     ssl_version() >= @secure_ssl_version
   end
 
   def ssl_opts(url) do
-    if is_secure_ssl() do
-      hostname = String.to_char_list(URI.parse(url).host)
-      verify_fun = {&VerifyHostname.verify_fun/3, check_hostname: hostname}
+    if secure_ssl?() do
+      hostname      = String.to_char_list(URI.parse(url).host)
+      verify_fun    = {&VerifyHostname.verify_fun/3, check_hostname: hostname}
+      partial_chain = &partial_chain(Hex.API.Certs.cacerts, &1)
 
-      [verify: :verify_peer, depth: 2, partial_chain: &partial_chain/1,
+      [verify: :verify_peer, depth: 2, partial_chain: partial_chain,
        cacerts: Hex.API.Certs.cacerts(), verify_fun: verify_fun]
     else
       [verify: :verify_none]
     end
   end
 
-  defp partial_chain(certs) do
+  def partial_chain(cacerts, certs) do
     certs = Enum.map(certs, &{&1, :public_key.pkix_decode_cert(&1, :otp)})
-    cacerts = Hex.API.Certs.cacerts()
     cacerts = Enum.map(cacerts, &:public_key.pkix_decode_cert(&1, :otp))
 
     trusted =
-      Enum.find(certs, fn {_, cert} ->
-        Enum.find(cacerts, fn cacert ->
-          extract_public_key_info(cacert) == extract_public_key_info(cert)
-        end)
+      Enum.find_value(certs, fn {der, cert} ->
+        trusted? =
+          Enum.find(cacerts, fn cacert ->
+            extract_public_key_info(cacert) == extract_public_key_info(cert)
+          end)
+
+        if trusted?, do: der
       end)
 
     if trusted do
-      {:trusted_ca, elem(trusted, 0)}
+      {:trusted_ca, trusted}
     else
       :unknown_ca
     end

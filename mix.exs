@@ -14,7 +14,7 @@ defmodule Hex.Mixfile do
   end
 
   defp deps do
-    [{:hex_web, github: "hexpm/hex_web", only: :test, env: :test}, {:meck, github: "eproxus/meck", only: :test}]
+    [{:hex_web, github: "hexpm/hex_web", only: :test, env: :test}]
   end
 
   defp elixirc_options(:prod) do
