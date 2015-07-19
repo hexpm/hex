@@ -9,34 +9,43 @@ defmodule Hex.API.ValidateCertTest do
     &Hex.API.partial_chain([der_encoded_ca_cert], &1)
   end
 
+  def cert_path(name) do
+    Path.join(["test", "fixtures", "certs", name])
+  end
+
+  def read_cert(name) do
+    cert_path(name)
+    |> File.read!
+  end
+
   def der_encoded_ca_cert,
-    do: File.read!("test/ca.cert.der")
+    do: read_cert("ca.cert.der")
 
   def server_cert,
-    do: File.read!("test/server.der")
+    do: read_cert("server.der")
 
   def server_sub_cert,
-    do: File.read!("test/server_sub.der")
+    do: read_cert("server_sub.der")
 
   def untrusted_cert,
-    do: File.read!("test/untrusted.der")
+    do: read_cert("untrusted.der")
 
   def amazon_cert,
-    do: File.read!("test/amazon.der")
+    do: read_cert("amazon.der")
 
   def verisigng5,
-    do: File.read!("test/verisigng5.der")
+    do: read_cert("verisigng5.der")
 
   def verisign_g3,
-    do: File.read!("test/verisign_g3.der")
+    do: read_cert("verisign_g3.der")
 
   def run_validation(chain, partial_chain) do
     Process.put(:ssl_manager, :ssl_manager.manager_name(:normal))
 
     if function_exported?(:ssl_manager, :connection_init, 2) do
-      {:ok, cert_db_ref, cert_db_handle, _, _, _} = :ssl_manager.connection_init("test/ca.cert.pem", :client)
+      {:ok, cert_db_ref, cert_db_handle, _, _, _} = :ssl_manager.connection_init(cert_path("ca.cert.pem"), :client)
     else
-      {:ok, cert_db_ref, cert_db_handle, _, _, _, _} = :ssl_manager.connection_init("test/ca.cert.pem", :client, {:ssl_crl_cache, {:internal, []}})
+      {:ok, cert_db_ref, cert_db_handle, _, _, _, _} = :ssl_manager.connection_init(cert_path("ca.cert.pem"), :client, {:ssl_crl_cache, {:internal, []}})
     end
 
     if function_exported?(:ssl_certificate, :validate_extension, 3) do
