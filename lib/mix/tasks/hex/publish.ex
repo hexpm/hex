@@ -161,8 +161,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp print_link_to_coc() do
-    Hex.Shell.info "Before publishing the package, make sure you've read " <>
-      "the Hex Code of Conduct, available at https://hex.pm/docs/codeofconduct."
+    Hex.Shell.info "Before publishing, please read Hex Code of Conduct: https://hex.pm/docs/codeofconduct"
   end
 
   defp meta_value(list) when is_list(list),

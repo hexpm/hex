@@ -58,8 +58,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["--no-progress"])
       assert HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
 
-      msg = "Before publishing the package, make sure you've read the Hex " <>
-        "Code of Conduct, available at https://hex.pm/docs/codeofconduct."
+      msg = "Before publishing, please read Hex Code of Conduct: https://hex.pm/docs/codeofconduct"
       assert_received {:mix_shell, :info, [^msg]}
 
       send self, {:mix_shell_input, :yes?, true}
