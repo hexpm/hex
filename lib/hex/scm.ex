@@ -60,6 +60,16 @@ defmodule Hex.SCM do
     opts1[:hex] == opts2[:hex]
   end
 
+  def managers(opts) do
+    case opts[:lock] do
+      {:hex, name, version} ->
+        (Hex.Registry.get_build_tools(Atom.to_string(name), version) || [])
+        |> Enum.map(&String.to_atom/1)
+      _ ->
+        []
+    end
+  end
+
   def checkout(opts) do
     {_name, version} = get_lock(opts[:lock])
     name     = opts[:hex]
