@@ -45,11 +45,6 @@ defmodule Hex.SCM do
       {:ok, file} ->
         manifest = parse_manifest(file)
 
-        # Support everything pre Hex 0.6.0 (2014-10-13)
-        if name == nil do
-          manifest = put_elem(manifest, 0, nil)
-        end
-
         if {name, version} == manifest do
           :ok
         else
@@ -60,7 +55,6 @@ defmodule Hex.SCM do
         :mismatch
     end
   end
-
 
   def equal?(opts1, opts2) do
     opts1[:hex] == opts2[:hex]
@@ -102,19 +96,14 @@ defmodule Hex.SCM do
     checkout(opts)
   end
 
-  defp get_lock({:hex, name, version}) do
-    {name, version}
-  end
+  defp get_lock({:hex, name, version}),
+    do: {name, version}
 
   defp parse_manifest(file) do
-    contents = file |> String.strip |> String.split(",")
-
-    case contents do
-      [name, version] ->
-        {name, version}
-      [version] ->
-        {nil, version}
-    end
+    file
+    |> String.strip
+    |> String.split(",")
+    |> List.to_tuple
   end
 
   defp encode_manifest(name, version) do
