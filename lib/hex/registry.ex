@@ -125,6 +125,15 @@ defmodule Hex.Registry do
     end
   end
 
+  def get_build_tools(package, version) do
+    case :ets.lookup(get_tid(), {package, version}) do
+      [] ->
+        nil
+      [{{^package, ^version}, [_, _, build_tools | _]}] when is_list(build_tools) ->
+        build_tools
+    end
+  end
+
   defp get_tid do
     {:ok, tid} = Application.fetch_env(:hex, @registry_tid)
     tid
