@@ -10,7 +10,8 @@ defmodule Hex.Mixfile do
   end
 
   def application do
-    [applications: [:logger]]
+    [applications: [:ssl, :inets],
+     mod: {Hex, []}]
   end
 
   defp deps do
@@ -28,11 +29,18 @@ defmodule Hex.Mixfile do
   defp aliases do
     [compile: ["deps.check", &unload_hex/1, "compile"],
      run: [&unload_hex/1, "run"],
+     "app.start": [&app_start/1],
      install: ["archive.build -o hex.ez", "archive.install hex.ez --force"],
      certdata: [&certdata/1]]
   end
 
   defp unload_hex(_) do
+    # TODO: Drop this check in the future, it is for compatibility with
+    #       Hex <= 0.8.3, we will still need the Hex.stop in the future
+    if Code.ensure_loaded?(Hex) && function_exported?(Hex, :stop, 0) do
+      no_log fn -> Hex.stop end
+    end
+
     paths = Path.join(Mix.Local.archives_path, "hex*.ez")
             |> Path.wildcard
 
@@ -56,6 +64,26 @@ defmodule Hex.Mixfile do
         end
       end)
     end)
+  end
+
+  # TODO: Drop this alias in the future, it is for compatibility with
+  #       Hex <= 0.8.3
+  defp app_start(opts) do
+    if pid = Process.whereis(:hex_fetcher) do
+      Process.unlink(pid)
+      Process.exit(pid, :kill)
+    end
+
+    Mix.Task.run("app.start", opts)
+  end
+
+  defp no_log(fun) do
+    Logger.remove_backend(:console, flush: true)
+    try do
+      fun.()
+    after
+      Logger.add_backend(:console, flush: true)
+    end
   end
 
   @mk_ca_bundle_url "https://raw.githubusercontent.com/bagder/curl/master/lib/mk-ca-bundle.pl"

@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
     Mix.Project.push DocsSimple.Mixfile
 
     in_tmp fn ->
-      Hex.home(tmp_path())
+      Hex.State.put(:home, tmp_path())
       setup_auth("user")
 
       Mix.Tasks.Hex.Docs.run(["--no-progress"])

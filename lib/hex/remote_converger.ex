@@ -1,11 +1,9 @@
 defmodule Hex.RemoteConverger do
   @moduledoc false
 
-  alias Hex.Registry
-
   @behaviour Mix.RemoteConverger
 
-  @registry_updated :registry_updated
+  alias Hex.Registry
 
   def remote?(dep) do
     !! dep.opts[:hex]
@@ -41,6 +39,8 @@ defmodule Hex.RemoteConverger do
         Hex.Shell.error messages
         Mix.raise "Hex dependency resolution failed, relax the version requirements or unlock dependencies"
     end
+  after
+    Hex.Registry.clean_pdict
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
@@ -53,7 +53,7 @@ defmodule Hex.RemoteConverger do
   end
 
   defp get_deps(name, version) do
-    if Hex.Registry.start() == :ok do
+    if Hex.Registry.open() == :ok do
       name = Atom.to_string(name)
       deps = Registry.get_deps(name, version) || []
       for {name, app, req, optional} <- deps do

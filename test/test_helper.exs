@@ -208,15 +208,16 @@ defmodule HexTest.Case do
   @registry_tid :registry_tid
 
   setup do
-    Hex.home(tmp_path("hex_home"))
+    Hex.State.put(:home, tmp_path("hex_home"))
+    Hex.State.put(:registry_updated, true)
     Hex.Parallel.clear(:hex_fetcher)
+    Hex.Registry.close
+
     Mix.shell(Mix.Shell.Process)
     Mix.Task.clear
     Mix.Shell.Process.flush
     Mix.ProjectStack.clear_cache
     Mix.ProjectStack.clear_stack
-    Application.put_env(:hex, :registry_updated, true)
-    Application.delete_env(:hex, @registry_tid)
 
     :ok
   end
@@ -225,6 +226,10 @@ end
 alias HexTest.Case
 File.rm_rf!(Case.tmp_path)
 File.mkdir_p!(Case.tmp_path)
+
+Application.start(:logger)
+Hex.State.put(:url, "http://localhost:4043")
+unless System.get_env("HEX_CDN"), do: Hex.State.put(:cdn, "http://localhost:4043")
 
 
 if :integration in ExUnit.configuration[:include] do
@@ -241,10 +246,6 @@ if :integration in ExUnit.configuration[:include] do
   HexWeb.Repo.stop
 
   {:ok, _} = Application.ensure_all_started(:hex_web)
-
-  Hex.start()
-  Hex.url("http://localhost:4043")
-  unless System.get_env("HEX_CDN"), do: Hex.cdn(Hex.url)
 
   pkg_meta = %{
     "contributors" => ["John Doe", "Jane Doe"],
@@ -278,6 +279,3 @@ if :integration in ExUnit.configuration[:include] do
   Case.init_project("package_name", "0.1.0", [], %{app: "app_name"}, auth)
   Case.init_project("depend_name", "0.2.0", [{:app_name, nil, optional: true, hex: :package_name}], %{}, auth)
 end
-
-Mix.SCM.append(Hex.SCM)
-Mix.RemoteConverger.register(Hex.RemoteConverger)

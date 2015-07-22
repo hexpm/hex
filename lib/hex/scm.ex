@@ -3,6 +3,7 @@ defmodule Hex.SCM do
 
   @behaviour Mix.SCM
   @packages_dir "packages"
+  @fetch_timeout 60_000
 
   def fetchable? do
     true
@@ -63,8 +64,10 @@ defmodule Hex.SCM do
   def managers(opts) do
     case opts[:lock] do
       {:hex, name, version} ->
-        (Hex.Registry.get_build_tools(Atom.to_string(name), version) || [])
-        |> Enum.map(&String.to_atom/1)
+        name        = Atom.to_string(name)
+        build_tools = Hex.Registry.get_build_tools(name, version) || []
+        Hex.Registry.clean_pdict
+        Enum.map(build_tools, &String.to_atom/1)
       _ ->
         []
     end
@@ -80,7 +83,7 @@ defmodule Hex.SCM do
 
     Hex.Shell.info "Checking package (#{url})"
 
-    case Hex.Parallel.await(:hex_fetcher, {name, version}) do
+    case Hex.Parallel.await(:hex_fetcher, {name, version}, @fetch_timeout) do
       {:ok, :cached} ->
         Hex.Shell.info "Using locally cached package"
       {:ok, :new} ->
@@ -121,11 +124,11 @@ defmodule Hex.SCM do
   end
 
   defp cache_path do
-    Path.join(Hex.home, @packages_dir)
+    Path.join(Hex.State.fetch!(:home), @packages_dir)
   end
 
   defp cache_path(name) do
-    Path.join([Hex.home, @packages_dir, name])
+    Path.join([Hex.State.fetch!(:home), @packages_dir, name])
   end
 
   def prefetch(lock) do

@@ -5,7 +5,7 @@ defmodule Hex.Utils do
     if update_result == :error and not File.exists?(Hex.Registry.path) do
       {:error, :update_failed}
     else
-      start_result = Hex.Registry.start
+      start_result = Hex.Registry.open
 
       # Show available newer versions
       if update_result in [{:ok, :new}, {:ok, :no_fetch}] and start_result == :ok do
@@ -23,7 +23,7 @@ defmodule Hex.Utils do
       Mix.raise "Failed to fetch registry"
     end
 
-    Hex.Registry.start!
+    Hex.Registry.open!
 
     # Show available newer versions
     if update_result in [{:ok, :new}, {:ok, :no_fetch}] do
@@ -32,11 +32,12 @@ defmodule Hex.Utils do
   end
 
   defp update_registry(opts) do
-    if Application.get_env(:hex, :registry_updated) do
+    if Hex.State.fetch!(:registry_updated) do
       {:ok, :cached}
     else
-      stopped? = Hex.Registry.stop
-      Application.put_env(:hex, :registry_updated, true)
+      Hex.State.put(:registry_updated, true)
+
+      closed? = Hex.Registry.close
       path    = Hex.Registry.path
       path_gz = Hex.Registry.path <> ".gz"
       fetch?  = Keyword.get(opts, :fetch, true) and
@@ -68,9 +69,9 @@ defmodule Hex.Utils do
         result = {:ok, :no_fetch}
       end
 
-      # Start registry if it was already started when update began
-      if stopped? do
-        Hex.Registry.start!
+      # Open registry if it was already open when update began
+      if closed? do
+        Hex.Registry.open!
       end
 
       result
@@ -210,7 +211,7 @@ defmodule Hex.Utils do
   defp indent(depth), do: "  " <> indent(depth - 1)
 
   def hex_package_url(package, version) do
-    "#{Hex.url}/packages/#{package}/#{version}"
+    "#{Hex.State.fetch!(:url)}/packages/#{package}/#{version}"
   end
 
   def hexdocs_url(package, version) do

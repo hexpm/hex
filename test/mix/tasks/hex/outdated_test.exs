@@ -12,7 +12,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
   end
 
   setup do
-    Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
+    Hex.Registry.open!(registry_path: tmp_path("registry.ets"))
     :ok
   end
 
@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     Mix.Project.push OutdatedDeps.Mixfile
 
     in_tmp fn ->
-      Hex.home(tmp_path())
+      Hex.State.put(:home, tmp_path())
       Mix.Dep.Lock.write %{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}}
 
       Mix.Task.run "hex.outdated"
@@ -35,7 +35,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     Mix.Project.push OutdatedDeps.Mixfile
 
     in_tmp fn ->
-      Hex.home(tmp_path())
+      Hex.State.put(:home, tmp_path())
       Mix.Dep.Lock.write %{eric: "0.2.0"}
 
       Mix.Task.run "hex.outdated"
@@ -48,7 +48,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     Mix.Project.push OutdatedDeps.Mixfile
 
     in_tmp fn ->
-      Hex.home(tmp_path())
+      Hex.State.put(:home, tmp_path())
       Mix.Dep.Lock.write %{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}}
 
       Mix.Task.run "hex.outdated", ["--all"]

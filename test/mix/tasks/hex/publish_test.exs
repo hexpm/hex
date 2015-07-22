@@ -34,13 +34,13 @@ defmodule Mix.Tasks.Hex.PublishTest do
   end
 
   setup do
-    Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
+    Hex.Registry.open!(registry_path: tmp_path("registry.ets"))
     :ok
   end
 
   test "validate" do
     Mix.Project.push ReleaseSimple.Mixfile
-    Hex.home("does_not_exist")
+    Hex.State.put(:home, "does_not_exist")
 
     assert_raise Mix.Error, "No authorized user found. Run 'mix hex.user auth'", fn ->
       Mix.Tasks.Hex.Publish.run([])
@@ -51,7 +51,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push ReleaseSimple.Mixfile
 
     in_tmp fn ->
-      Hex.home(tmp_path())
+      Hex.State.put(:home, tmp_path())
       setup_auth("user")
 
       send self, {:mix_shell_input, :yes?, true}
@@ -71,7 +71,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push ReleaseName.Mixfile
 
     in_tmp fn ->
-      Hex.home(tmp_path())
+      Hex.State.put(:home, tmp_path())
       setup_auth("user")
 
       send self, {:mix_shell_input, :yes?, true}
@@ -85,7 +85,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push ReleaseSimple.Mixfile
 
     in_tmp fn ->
-      Hex.home(tmp_path())
+      Hex.State.put(:home, tmp_path())
 
       user = HexWeb.User.get(username: "user")
       {:ok, key} = HexWeb.API.Key.create(user, %{"name" => "computer"})
@@ -101,7 +101,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push ReleaseDeps.Mixfile
 
     in_tmp fn ->
-      Hex.home(tmp_path())
+      Hex.State.put(:home, tmp_path())
       setup_auth("user")
 
       Mix.Tasks.Deps.Get.run([])
@@ -121,7 +121,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push ReleaseMeta.Mixfile
 
     in_tmp fn ->
-      Hex.home(tmp_path())
+      Hex.State.put(:home, tmp_path())
       setup_auth("user")
 
       File.write!("myfile.txt", "hello")

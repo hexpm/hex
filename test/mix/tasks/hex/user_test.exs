@@ -28,7 +28,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "auth" do
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
 
       send self, {:mix_shell_input, :prompt, "user"}
 
@@ -48,7 +48,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "deauth" do
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
 
       Hex.Config.update(username: "johndoe", key: "qwertyuiop",
                         xyz: "other", foo: :bar)
@@ -60,7 +60,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "test" do
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
 
       user = HexWeb.User.get(username: "user")
       {:ok, key} = HexWeb.API.Key.create(user, %{"name" => "computer"})
@@ -77,7 +77,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "update config" do
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
 
       send self, {:mix_shell_input, :prompt, "config"}
       send self, {:mix_shell_input, :prompt, "config@mail.com"}
@@ -94,7 +94,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "whoami" do
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
       Hex.Config.update([username: "ausername"])
 
       Mix.Tasks.Hex.User.run(["whoami"])

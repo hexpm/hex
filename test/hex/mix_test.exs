@@ -103,7 +103,7 @@ defmodule Hex.MixTest do
   end
 
   setup do
-    Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
+    Hex.Registry.open!(registry_path: tmp_path("registry.ets"))
     :ok
   end
 
@@ -112,7 +112,7 @@ defmodule Hex.MixTest do
     Mix.Project.push Simple
 
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
       Mix.Task.run "deps.get"
 
       assert_received {:mix_shell, :info, ["* Getting ecto (Hex package)"]}
@@ -144,7 +144,7 @@ defmodule Hex.MixTest do
     Mix.Project.push Simple
 
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
       Mix.Task.run "deps.get"
       Mix.Task.clear
 
@@ -166,7 +166,7 @@ defmodule Hex.MixTest do
     Mix.Project.push Simple
 
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
 
       # `deps.get` to set up lock
       Mix.Task.run "deps.get"
@@ -209,7 +209,7 @@ defmodule Hex.MixTest do
     Mix.Project.push Override
 
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
 
       Mix.Task.run "deps.get"
       Mix.Task.run "deps.compile"
@@ -237,7 +237,7 @@ defmodule Hex.MixTest do
     Mix.Project.push NonHexDep
 
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
       Mix.Task.run "deps.get"
 
       assert_received {:mix_shell, :info, ["* Getting ecto (Hex package)"]}
@@ -254,7 +254,7 @@ defmodule Hex.MixTest do
     Mix.Project.push EctoPathDep
 
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
       Mix.Task.run "deps.get"
 
       assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
@@ -270,7 +270,7 @@ defmodule Hex.MixTest do
     Mix.Project.push SimpleOld
 
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
       Mix.Task.run "deps.get"
 
       assert_received {:mix_shell, :info, ["* Getting ecto (Hex package)"]}
@@ -290,7 +290,7 @@ defmodule Hex.MixTest do
     Mix.Project.push OverrideWithPath
 
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
       Mix.Task.run "deps.get"
 
       Mix.Task.run "deps"
@@ -310,7 +310,7 @@ defmodule Hex.MixTest do
     Mix.Project.push OverrideTwoLevelsWithPath
 
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
       Mix.Task.run "deps.get"
 
       Mix.Task.run "deps"
@@ -333,7 +333,7 @@ defmodule Hex.MixTest do
     Mix.Project.push OverrideWithPathParent
 
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
       Mix.Task.run "deps.get"
 
       assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
@@ -356,7 +356,7 @@ defmodule Hex.MixTest do
     Mix.Project.push Optional
 
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
 
       Mix.Task.run "deps.get"
 
@@ -377,7 +377,7 @@ defmodule Hex.MixTest do
     Mix.Project.push WithOptional
 
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
 
       Mix.Task.run "deps.get"
 
@@ -399,7 +399,7 @@ defmodule Hex.MixTest do
     Mix.Project.push WithPackageName
 
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
 
       Mix.Task.run "deps.get"
 
@@ -419,7 +419,7 @@ defmodule Hex.MixTest do
     Mix.Project.push WithDependName
 
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
 
       Mix.Task.run "deps.get"
 

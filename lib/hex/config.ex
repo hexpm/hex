@@ -1,6 +1,6 @@
 defmodule Hex.Config do
   def read do
-    case File.read(config_path) do
+    case File.read(config_path()) do
       {:ok, binary} ->
         case decode_term(binary) do
           {:ok, term} -> term
@@ -26,7 +26,15 @@ defmodule Hex.Config do
   end
 
   defp config_path do
-    Path.join(Hex.home, "hex.config")
+    Path.join(hex_home(), "hex.config")
+  end
+
+  defp hex_home do
+    if Process.whereis(Hex.State) do
+      Hex.State.fetch!(:home)
+    else
+      Path.expand(System.get_env("HEX_HOME") || "~/.hex")
+    end
   end
 
   defp encode_term(list) do

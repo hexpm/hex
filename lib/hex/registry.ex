@@ -1,28 +1,34 @@
 defmodule Hex.Registry do
-  @registry_tid :registry_tid
-  @versions     [3, 4]
-  @filename     "registry.ets"
+  @name     __MODULE__
+  @versions [3, 4]
+  @filename "registry.ets"
+  @pdict_id :"$hex_registry"
 
-  def start(opts \\ []) do
-    if Application.get_env(:hex, @registry_tid) do
-      :ok
-    else
-      path = opts[:registry_path] || path()
-
-      case :ets.file2tab(String.to_char_list(path)) do
-        {:ok, tid} ->
-          Application.put_env(:hex, @registry_tid, tid)
-          check_version(tid)
-          :ok
-
-        {:error, reason} ->
-          {:error, reason}
-      end
-    end
+  def start_link do
+    Agent.start_link(fn -> nil end, name: @name)
   end
 
-  def start!(opts \\ []) do
-    case start(opts) do
+  def open(opts \\ []) do
+    Agent.get_and_update(@name, fn
+      nil ->
+        path = opts[:registry_path] || path()
+
+        case :ets.file2tab(String.to_char_list(path)) do
+          {:ok, tid} ->
+            check_version(tid)
+            {:ok, tid}
+
+          {:error, reason} ->
+            {{:error, reason}, nil}
+        end
+
+      tid ->
+        {:ok, tid}
+    end)
+  end
+
+  def open!(opts \\ []) do
+    case open(opts) do
       {:error, reason} ->
         Mix.raise "Failed to open hex registry file (#{inspect reason})"
       _ ->
@@ -30,18 +36,22 @@ defmodule Hex.Registry do
     end
   end
 
-  def stop do
-    if tid = Application.get_env(:hex, @registry_tid) do
-      :ets.delete(tid)
-      Application.delete_env(:hex, @registry_tid)
-      true
-    else
-      false
-    end
+  def close do
+    Agent.get_and_update(@name, fn
+      nil ->
+        {false, nil}
+      tid ->
+        :ets.delete(tid)
+        {true, nil}
+    end)
   end
 
   def path do
-    Path.join(Hex.home, @filename)
+    Path.join(Hex.State.fetch!(:home), @filename)
+  end
+
+  def clean_pdict do
+    Process.delete(@pdict_id)
   end
 
   def info_installs do
@@ -135,8 +145,13 @@ defmodule Hex.Registry do
   end
 
   defp get_tid do
-    {:ok, tid} = Application.fetch_env(:hex, @registry_tid)
-    tid
+    if tid = Process.get(@pdict_id) do
+      tid
+    else
+      tid = Agent.get(@name, & &1)
+      Process.put(@pdict_id, tid)
+      tid
+    end
   end
 
   defp check_version(tid) do

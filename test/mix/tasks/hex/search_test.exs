@@ -3,8 +3,8 @@ defmodule Mix.Tasks.Hex.SearchTest do
   @moduletag :integration
 
   test "search" do
-    Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
-    Hex.home(tmp_path())
+    Hex.Registry.open!(registry_path: tmp_path("registry.ets"))
+    Hex.State.put(:home, tmp_path())
 
     Mix.Tasks.Hex.Search.run(["ex"])
     assert_received {:mix_shell, :info, ["ex_doc"]}
