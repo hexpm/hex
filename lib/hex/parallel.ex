@@ -19,8 +19,8 @@ defmodule Hex.Parallel do
 
   @doc """
   """
-  @spec await(GenServer.server, timeout) :: any
-  def await(name, id, timeout \\ :infinity) do
+  @spec await(GenServer.server, any, timeout) :: any
+  def await(name, id, timeout) do
     GenServer.call(name, {:await, id}, timeout)
   end
 

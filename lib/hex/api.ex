@@ -139,15 +139,15 @@ defmodule Hex.API do
   end
 
   def cdn_url(path) do
-    Hex.cdn <> "/" <> path
+    Hex.State.fetch!(:cdn) <> "/" <> path
   end
 
   def url(path) do
-    Hex.url <> "/" <> path
+    Hex.State.fetch!(:url) <> "/" <> path
   end
 
   def api_url(path) do
-    Hex.url <> "/api/" <> path
+    Hex.State.fetch!(:url) <> "/api/" <> path
   end
 
   def auth(key: secret) do

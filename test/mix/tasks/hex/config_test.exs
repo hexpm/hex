@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
 
   test "config" do
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
 
       assert_raise Mix.Error, "Config does not contain a key foo", fn ->
         Mix.Tasks.Hex.Config.run(["foo"])
@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
 
   test "direct api" do
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
       assert Hex.Config.read == []
 
       Hex.Config.update([key: "value"])

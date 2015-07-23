@@ -29,7 +29,7 @@ defmodule Hex.ResolverTest do
   end
 
   setup do
-    Hex.Registry.start!(registry_path: tmp_path("registry.ets"))
+    Hex.Registry.open!(registry_path: tmp_path("registry.ets"))
   end
 
   test "simple" do

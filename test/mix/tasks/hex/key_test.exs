@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Hex.KeyTest do
 
   test "list keys" do
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
 
       user = HexWeb.User.get(username: "user")
       {:ok, key} = HexWeb.API.Key.create(user, %{"name" => "list_keys"})
@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Hex.KeyTest do
 
   test "remove key" do
     in_tmp fn ->
-      Hex.home(System.cwd!)
+      Hex.State.put(:home, System.cwd!)
 
       user = HexWeb.User.get(username: "user")
       {:ok, key} = HexWeb.API.Key.create(user, %{"name" => "drop_key"})

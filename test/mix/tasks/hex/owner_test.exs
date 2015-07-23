@@ -8,7 +8,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
 
     HexWeb.User.confirm(user)
 
-    Hex.home(tmp_path())
+    Hex.State.put(:home, tmp_path())
     setup_auth("owner_user")
 
     Mix.Tasks.Hex.Owner.run(["add", "owner_package", "user@mail.com"])
@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     user = HexWeb.User.get(username: "user")
     {:ok, package} = HexWeb.Package.create(user, %{"name" => "owner_package2", "meta" => %{}})
 
-    Hex.home(tmp_path())
+    Hex.State.put(:home, tmp_path())
     setup_auth("user")
 
     Mix.Tasks.Hex.Owner.run(["remove", "owner_package2", "user@mail.com"])
@@ -32,7 +32,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
   end
 
   test "list owners" do
-    Hex.home(tmp_path())
+    Hex.State.put(:home, tmp_path())
     setup_auth("user")
 
     Mix.Tasks.Hex.Owner.run(["list", "ex_doc"])

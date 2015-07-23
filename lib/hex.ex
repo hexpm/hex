@@ -6,52 +6,33 @@ defmodule Hex do
   @logged_keys ["http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY"]
 
   def start do
-    unless Application.get_env(:hex, :started) do
-      start_api()
-      start_mix()
-    else
-      Application.put_env(:hex, :started, true)
+    {:ok, _} = Application.ensure_all_started(:hex)
+  end
+
+  def stop do
+    case Application.stop(:hex) do
+      :ok -> :ok
+      {:error, {:not_started, :hex}} -> :ok
     end
   end
 
-  defp start_api do
-    :ssl.start()
-    :inets.start()
-    :inets.start(:httpc, profile: :hex)
+  def start(_, _) do
+    import Supervisor.Spec
 
-    config = Hex.Config.read
-    if home = System.get_env("HEX_HOME"), do: home(home)
-    config(config, ["HEX_API"], :api_url, &url/1)
-    config(config, ["HEX_CDN"], :cdn_url, &cdn/1)
-    config(config, ["http_proxy", "HTTP_PROXY"], :http_proxy, &proxy/1)
-    config(config, ["https_proxy", "HTTPS_PROXY"], :https_proxy, &proxy/1)
-
-    http_opts()
-
-    Hex.Parallel.start_link(:hex_fetcher, max_parallel: 8)
-  end
-
-  defp start_mix do
     Mix.SCM.append(Hex.SCM)
     Mix.RemoteConverger.register(Hex.RemoteConverger)
-  end
 
-  def url do
-    Application.get_env(:hex, :url) || @default_url
-  end
+    :inets.start(:httpc, profile: :hex)
+    http_opts()
 
-  def url(url) do
-    url = String.rstrip(url, ?/)
-    Application.put_env(:hex, :url, url)
-  end
+    children = [
+      worker(Hex.State, []),
+      worker(Hex.Registry, []),
+      worker(Hex.Parallel, [:hex_fetcher, [max_parallel: 8]]),
+    ]
 
-  def cdn do
-    Application.get_env(:hex, :cdn) || @default_cdn
-  end
-
-  def cdn(cdn) do
-    cdn = String.rstrip(cdn, ?/)
-    Application.put_env(:hex, :cdn, cdn)
+    opts = [strategy: :one_for_one, name: Hex.Supervisor]
+    Supervisor.start_link(children, opts)
   end
 
   def home do
@@ -65,61 +46,6 @@ defmodule Hex do
 
   def version,        do: unquote(Mix.Project.config[:version])
   def elixir_version, do: unquote(System.version)
-
-  defp config(config, envs, config_key, fun) do
-    result =
-      envs
-      |> Enum.map(&env_exists/1)
-      |> Enum.find(&(not is_nil &1))
-    result = result || config_exists(config, config_key)
-
-    if result do
-      {key, value} = result
-
-      log_value(key, value)
-      fun.(value)
-    end
-  end
-
-
-  defp env_exists(key) do
-    if value = System.get_env(key) do
-      {key, value}
-    else
-      nil
-    end
-  end
-
-  defp config_exists(config, key) do
-    if value = Keyword.get(config, key) do
-      {"config[:#{key}]", value}
-    else
-      nil
-    end
-  end
-
-
-  defp log_value(key, value) do
-    if Enum.member?(@logged_keys, key) do
-      Hex.Shell.info "Using #{key} = #{value}"
-    end
-  end
-
-  defp proxy(proxy) do
-    uri = URI.parse(proxy)
-
-    if uri.host && uri.port do
-      host = String.to_char_list(uri.host)
-      :httpc.set_options([{proxy_scheme(uri.scheme), {{host, uri.port}, []}}], :hex)
-    end
-  end
-
-  defp proxy_scheme(scheme) do
-    case scheme do
-      "http" -> :proxy
-      "https" -> :https_proxy
-    end
-  end
 
   defp http_opts do
     opts = [
