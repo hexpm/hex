@@ -95,6 +95,7 @@ defmodule Mix.Tasks.Hex.Publish do
     package = Enum.into(config[:package] || [], %{})
 
     {deps, exclude_deps} = dependencies(config)
+    missing_files = missing_files(package[:files] || @default_files)
 
     meta = Keyword.take(config, [:app, :version, :elixir, :description])
            |> Enum.into(%{})
@@ -110,7 +111,7 @@ defmodule Mix.Tasks.Hex.Publish do
       revert(meta, version, auth)
     else
 
-      print_info(meta, exclude_deps)
+      print_info(meta, exclude_deps, missing_files)
       print_link_to_coc()
 
       if Hex.Shell.yes?("Proceed?") and create_package?(meta, auth) do
@@ -120,7 +121,7 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp print_info(meta, exclude_deps) do
+  defp print_info(meta, exclude_deps, missing_files) do
     Hex.Shell.info("Publishing #{meta[:name]} v#{meta[:version]}")
 
     if meta[:requirements] != [] do
@@ -135,6 +136,7 @@ defmodule Mix.Tasks.Hex.Publish do
     Enum.each(@meta_fields, &print_meta(meta, &1))
 
     warn_missing(meta)
+    warn_missing_files(missing_files)
     error_missing(meta)
 
     if exclude_deps != [] do
@@ -175,8 +177,21 @@ defmodule Mix.Tasks.Hex.Publish do
     missing(meta, @error_fields, &Hex.Shell.error("  ERROR! #{&1}"))
   end
 
+  defp missing_files(nil), do: []
+  defp missing_files(files) do
+    {missing, _} =  Enum.partition(files, &Path.wildcard(&1) == [])
+    missing
+  end
+
   defp warn_missing(meta) do
     missing(meta, @warn_fields, &Hex.Shell.warn("  WARNING! #{&1}"))
+  end
+
+  defp warn_missing_files(missing_files) do
+    if missing_files != [] do
+      missing = Enum.join(missing_files, ", ")
+      Hex.Shell.warn("  WARNING! Missing files: #{missing}")
+    end
   end
 
   defp missing(meta, fields, printer) do

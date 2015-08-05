@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     def project do
       [ app: :releasec, version: "0.0.3",
         description: "foo",
-        package: [files: ["myfile.txt"],
+        package: [files: ["myfile.txt", "missing.txt", "missing/*"],
                   licenses: ["Apache"],
                   links: %{"a" => "b"},
                   contributors: ["contributors"]] ]
@@ -131,6 +131,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert_received {:mix_shell, :info, ["Publishing releasec v0.0.3"]}
       assert_received {:mix_shell, :info, ["  Files:"]}
       assert_received {:mix_shell, :info, ["    myfile.txt"]}
+      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing files: missing.txt, missing/*" <> _]}
       refute_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields" <> _]}
     end
   end
