@@ -62,15 +62,15 @@ defmodule Hex.Resolver do
         {opts, optional} = HashDict.pop(optional, name)
         opts = opts || []
         requests = [request|opts]
+        parents = Enum.map(requests, &request(&1, :parent))
 
         case get_versions(name, requests) do
           {:error, requests} ->
-            parents = Enum.map(requests, &request(&1, :parent))
             backtrack_message(name, nil, parents, info)
             backtrack(activated[parent], info, activated)
 
           {:ok, versions} ->
-            activate([request|pending], versions, optional, info, activated)
+            activate([request|pending], versions, optional, info, activated, parents)
         end
     end
   end
@@ -104,15 +104,15 @@ defmodule Hex.Resolver do
     end
   end
 
-  defp activate([request(app: app, name: name, parent: parent)|pending], [version|possibles],
-                optional, info(deps: deps) = info, activated) do
+  defp activate([request(app: app, name: name)|pending], [version|possibles],
+                optional, info(deps: deps) = info, activated, parents) do
     {new_pending, new_optional, new_deps} = get_deps(app, name, version, info, activated)
     new_pending = pending ++ new_pending
     new_optional = merge_optional(optional, new_optional)
 
     state = state(activated: activated, pending: pending, optional: optional, deps: deps)
     new_active = active(app: app, name: name, version: version, state: state,
-                        possibles: possibles, parents: [parent])
+                        possibles: possibles, parents: parents)
     activated = HashDict.put(activated, name, new_active)
 
     info = info(info, deps: new_deps)
