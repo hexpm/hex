@@ -18,8 +18,7 @@ defmodule Hex do
     Mix.SCM.append(Hex.SCM)
     Mix.RemoteConverger.register(Hex.RemoteConverger)
 
-    :inets.start(:httpc, profile: :hex)
-    http_opts()
+    start_httpc()
 
     children = [
       worker(Hex.State, []),
@@ -34,15 +33,14 @@ defmodule Hex do
   def version,        do: unquote(Mix.Project.config[:version])
   def elixir_version, do: unquote(System.version)
 
-  defp http_opts do
+  defp start_httpc() do
+    :inets.start(:httpc, profile: :hex)
     opts = [
       max_sessions: 4,
       max_keep_alive_length: 4,
       keep_alive_timeout: 120_000,
       max_pipeline_length: 4,
-      pipeline_timeout: 60_000,
-    ]
-
+      pipeline_timeout: 60_000,]
     :httpc.set_options(opts, :hex)
   end
 end
