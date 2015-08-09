@@ -110,7 +110,6 @@ defmodule Mix.Tasks.Hex.Publish do
     if version = opts[:revert] do
       revert(meta, version, auth)
     else
-
       print_info(meta, exclude_deps, missing_files)
       print_link_to_coc()
 
@@ -179,8 +178,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp missing_files(nil), do: []
   defp missing_files(files) do
-    {missing, _} =  Enum.partition(files, &Path.wildcard(&1) == [])
-    missing
+    Enum.filter(files, &(Path.wildcard(&1) == []))
   end
 
   defp warn_missing(meta) do
