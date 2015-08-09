@@ -1,10 +1,4 @@
 defmodule Hex do
-  @default_url "https://hex.pm"
-  @default_cdn "https://s3.amazonaws.com/s3.hex.pm"
-  @default_home "~/.hex"
-
-  @logged_keys ["http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY"]
-
   def start do
     {:ok, _} = Application.ensure_all_started(:hex)
   end
@@ -33,15 +27,6 @@ defmodule Hex do
 
     opts = [strategy: :one_for_one, name: Hex.Supervisor]
     Supervisor.start_link(children, opts)
-  end
-
-  def home do
-    Application.get_env(:hex, :home) || Path.expand(@default_home)
-  end
-
-  def home(home) do
-    home = Path.expand(home)
-    Application.put_env(:hex, :home, home)
   end
 
   def version,        do: unquote(Mix.Project.config[:version])

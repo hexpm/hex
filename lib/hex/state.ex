@@ -1,6 +1,9 @@
 defmodule Hex.State do
   @name __MODULE__
   @logged_keys ~w(http_proxy HTTP_PROXY https_proxy HTTPS_PROXY)
+  @default_home "~/.hex"
+  @default_url "https://hex.pm"
+  @default_cdn "https://s3.amazonaws.com/s3.hex.pm"
 
   def start_link do
     config = Hex.Config.read
@@ -8,9 +11,9 @@ defmodule Hex.State do
   end
 
   def init(config) do
-    %{home: Path.expand(System.get_env("HEX_HOME") || "~/.hex"),
-      api: load_config(config, ["HEX_API"], :api_url) || "https://hex.pm",
-      cdn: load_config(config, ["HEX_CDN"], :cdn_url) || "https://s3.amazonaws.com/s3.hex.pm",
+    %{home: Path.expand(System.get_env("HEX_HOME") || @default_home),
+      api: load_config(config, ["HEX_API"], :api_url) || @default_url,
+      cdn: load_config(config, ["HEX_CDN"], :cdn_url) || @default_cdn,
       registry_updated: false}
   end
 
