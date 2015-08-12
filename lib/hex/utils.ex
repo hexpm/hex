@@ -211,7 +211,7 @@ defmodule Hex.Utils do
   defp indent(depth), do: "  " <> indent(depth - 1)
 
   def hex_package_url(package, version) do
-    "#{Hex.State.fetch!(:url)}/packages/#{package}/#{version}"
+    "https://hex.pm/packages/#{package}/#{version}"
   end
 
   def hexdocs_url(package, version) do

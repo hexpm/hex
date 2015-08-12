@@ -142,12 +142,8 @@ defmodule Hex.API do
     Hex.State.fetch!(:cdn) <> "/" <> path
   end
 
-  def url(path) do
-    Hex.State.fetch!(:url) <> "/" <> path
-  end
-
   def api_url(path) do
-    Hex.State.fetch!(:url) <> "/api/" <> path
+    Hex.State.fetch!(:api) <> "/" <> path
   end
 
   def auth(key: secret) do

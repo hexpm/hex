@@ -99,6 +99,7 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Shell.info package <> " v" <> version
 
     if release["has_docs"] do
+      # TODO: Only print this URL if we use the default API URL
       Hex.Shell.info "  Documentation at: #{Hex.Utils.hexdocs_url(package, version)}"
     end
 
