@@ -47,7 +47,7 @@ defmodule Hex.MixTest do
     def project do
       [ app: :override_with_path,
         version: "0.1.0",
-        deps: [ {:postgrex, nil},
+        deps: [ {:postgrex, []},
                 {:ex_doc, path: fixture_path("ex_doc"), override: true}] ]
     end
   end
@@ -56,7 +56,7 @@ defmodule Hex.MixTest do
     def project do
       [ app: :override_two_levels_with_path,
         version: "0.1.0",
-        deps: [ {:phoenix, nil},
+        deps: [ {:phoenix, []},
                 {:ex_doc, path: fixture_path("ex_doc"), override: true}] ]
     end
   end
@@ -73,7 +73,7 @@ defmodule Hex.MixTest do
     def project do
       [ app: :optional,
         version: "0.1.0",
-        deps: [ {:only_doc, nil} ] ]
+        deps: [ {:only_doc, []} ] ]
     end
   end
 
@@ -81,7 +81,7 @@ defmodule Hex.MixTest do
     def project do
       [ app: :with_optional,
         version: "0.1.0",
-        deps: [ {:only_doc, nil},
+        deps: [ {:only_doc, []},
                 {:ex_doc, "0.0.1"} ] ]
     end
   end
@@ -90,7 +90,7 @@ defmodule Hex.MixTest do
     def project do
       [ app: :with_package_name,
         version: "0.1.0",
-        deps: [ {:app_name, nil, hex: :package_name} ] ]
+        deps: [ {:app_name, hex: :package_name} ] ]
     end
   end
 
@@ -98,7 +98,7 @@ defmodule Hex.MixTest do
     def project do
       [ app: :with_depend_name,
         version: "0.1.0",
-        deps: [ {:depend_name, nil} ] ]
+        deps: [ {:depend_name, []} ] ]
     end
   end
 

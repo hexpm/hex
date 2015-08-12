@@ -176,12 +176,12 @@ defmodule HexTest.Case do
       {:ecto, "0.2.1", [postgrex: "~> 0.2.1", ex_doc: "0.1.0"]},
       {:phoenix, "0.0.1", [postgrex: "~> 0.2"]},
 
-      {:only_doc, "0.1.0", [{:ex_doc, nil, true}]},
+      {:only_doc, "0.1.0", [{:ex_doc, ">= 0.0.0", true}]},
 
       {:has_optional, "0.1.0", [{:ex_doc, "~> 0.0.1", true}]},
 
       {:package_name, "0.1.0", []},
-      {:depend_name, "0.2.0", [{:package_name, nil, false, :app_name}]} ]
+      {:depend_name, "0.2.0", [{:package_name, ">= 0.0.0", false, :app_name}]} ]
   end
 
   def setup_auth(username) do
@@ -275,7 +275,7 @@ if :integration in ExUnit.configuration[:include] do
   Case.init_project("ecto", "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"], %{}, auth)
   Case.init_project("ecto", "0.2.1", [{:sample, "0.0.1", path: Case.fixture_path("sample")}, postgrex: "~> 0.2.1", ex_doc: "0.1.0"], %{}, auth)
   Case.init_project("phoenix", "0.0.1", [postgrex: "~> 0.2"], %{}, auth)
-  Case.init_project("only_doc", "0.1.0", [{:ex_doc, nil, optional: true}], %{}, auth)
+  Case.init_project("only_doc", "0.1.0", [{:ex_doc, ">= 0.0.0", optional: true}], %{}, auth)
   Case.init_project("package_name", "0.1.0", [], %{app: "app_name"}, auth)
-  Case.init_project("depend_name", "0.2.0", [{:app_name, nil, optional: true, hex: :package_name}], %{}, auth)
+  Case.init_project("depend_name", "0.2.0", [{:app_name, ">= 0.0.0", optional: true, hex: :package_name}], %{}, auth)
 end
