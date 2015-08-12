@@ -8,13 +8,13 @@ defmodule Mix.Tasks.Hex.Config do
 
   `mix hex.config KEY [VALUE]`
 
- ## Config keys
-  - `username` - Hex username
-  - `key` - Hex API key
-  - `api_url` - Hex API base URL (without trailing slash)
-  - `cdn_url` - Hex CDN base URL (without trailing slash)
-  - `http_proxy` - HTTP proxy server
-  - `https_proxy` - HTTPS proxy server
+   ## Config keys
+    * `username` - Hex username
+    * `key` - Hex API key
+    * `api_url` - Hex API base URL (without trailing slash)
+    * `cdn_url` - Hex CDN base URL (without trailing slash)
+    * `http_proxy` - HTTP proxy server
+    * `https_proxy` - HTTPS proxy server
   """
 
   def run(args) do

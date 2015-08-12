@@ -228,7 +228,7 @@ File.rm_rf!(Case.tmp_path)
 File.mkdir_p!(Case.tmp_path)
 
 Application.start(:logger)
-Hex.State.put(:api_url, "http://localhost:4043/api")
+Hex.State.put(:api, "http://localhost:4043/api")
 unless System.get_env("HEX_CDN"), do: Hex.State.put(:cdn, "http://localhost:4043")
 
 

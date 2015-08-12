@@ -7,6 +7,14 @@ defmodule Mix.Tasks.Hex do
   Prints hex tasks and their information.
 
   `mix hex`
+
+  Hex and some Mix tasks can be configured with the following environment
+  variables:
+
+    * `HEX_HOME` - Sets the directory where Hex stores the cache and
+      configuration (Default: `~/.hex`)
+    * `HEX_API` - Sets the API URL (Default: `https://hex.pm/api`)
+    * `HEX_CDN` - Sets the CDN URL (Default: `https://s3.amazonaws.com/s3.hex.pm`)
   """
 
   def run(args) do
