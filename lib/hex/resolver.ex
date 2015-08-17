@@ -65,7 +65,7 @@ defmodule Hex.Resolver do
         parents = Enum.map(requests, &request(&1, :parent))
 
         case get_versions(name, requests) do
-          {:error, requests} ->
+          {:error, _requests} ->
             backtrack_message(name, nil, parents, info)
             backtrack(activated[parent], info, activated)
 
