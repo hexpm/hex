@@ -4,7 +4,7 @@ defmodule Hex.Tar do
   @required_files_2 ~w(VERSION CHECKSUM metadata.exs contents.tar.gz)c
   @required_files_3 ~w(VERSION CHECKSUM metadata.config contents.tar.gz)c
 
-  def create(meta, files) do
+  def create(meta, files, cleanup_tarball? \\ true) do
     contents_path = "#{meta[:name]}-#{meta[:version]}-contents.tar.gz"
     path = "#{meta[:name]}-#{meta[:version]}.tar"
 
@@ -30,7 +30,7 @@ defmodule Hex.Tar do
 
     tar = File.read!(path)
     File.rm!(contents_path)
-    File.rm!(path)
+    if cleanup_tarball?, do: File.rm!(path)
     tar
   end
 
