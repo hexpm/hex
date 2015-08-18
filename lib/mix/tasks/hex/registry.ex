@@ -23,6 +23,11 @@ defmodule Mix.Tasks.Hex.Registry do
   Takes registry file from the given path.
 
   `mix hex.registry load <path>`
+
+  The purpose of dumping and loading registry file
+  is to assist with isolate dependency resolution.
+  There is `HEX_OFFLINE` environment variable available
+  to run Hex in offline mode.
   """
 
   def run(args) do

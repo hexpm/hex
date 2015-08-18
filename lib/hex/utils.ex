@@ -32,49 +32,48 @@ defmodule Hex.Utils do
   end
 
   defp update_registry(opts) do
-    if Hex.State.fetch!(:registry_updated) do
-      {:ok, :cached}
-    else
-      Hex.State.put(:registry_updated, true)
+    cond do
+      Hex.State.fetch!(:offline?) ->
+        {:ok, :offline}
+      Hex.State.fetch!(:registry_updated) ->
+        {:ok, :cached}
+      true ->
+        Hex.State.put(:registry_updated, true)
 
-      closed? = Hex.Registry.close
-      path    = Hex.Registry.path
-      path_gz = Hex.Registry.path <> ".gz"
-      fetch?  = Keyword.get(opts, :fetch, true) and
-                 (Keyword.get(opts, :update, true) or not week_fresh?(path_gz))
+        closed? = Hex.Registry.close
+        path    = Hex.Registry.path
+        path_gz = path <> ".gz"
+        fetch?  = Keyword.get(opts, :fetch, true) and
+                  (Keyword.get(opts, :update, true) or not week_fresh?(path_gz))
+        try do
+          if fetch? do
+            if Keyword.get(opts, :cache, true) do
+              api_opts = [etag: etag(path_gz)]
+            else
+              api_opts = []
+            end
 
-      if fetch? do
-        if Keyword.get(opts, :cache, true) do
-          api_opts = [etag: etag(path_gz)]
-        else
-          api_opts = []
-        end
-
-        result =
-          case Hex.API.Registry.get(api_opts) do
-            {200, body} ->
-              File.mkdir_p!(Path.dirname(path))
-              File.write!(path_gz, body)
-              data = :zlib.gunzip(body)
-              File.write!(path, data)
-              {:ok, :new}
-            {304, _} ->
-              {:ok, :new}
-            {code, body} ->
-              Hex.Shell.error "Registry update failed (#{code})"
-              print_error_result(code, body)
-              :error
+            case Hex.API.Registry.get(api_opts) do
+              {200, body} ->
+                File.mkdir_p!(Path.dirname(path))
+                File.write!(path_gz, body)
+                data = :zlib.gunzip(body)
+                File.write!(path, data)
+                {:ok, :new}
+              {304, _} ->
+                {:ok, :new}
+              {code, body} ->
+                Hex.Shell.error "Registry update failed (#{code})"
+                print_error_result(code, body)
+                :error
+            end
+          else
+            {:ok, :no_fetch}
           end
-      else
-        result = {:ok, :no_fetch}
-      end
-
-      # Open registry if it was already open when update began
-      if closed? do
-        Hex.Registry.open!
-      end
-
-      result
+        after
+          # Open registry if it was already open when update began
+          if closed?, do: Hex.Registry.open!
+        end
     end
   end
 
