@@ -48,7 +48,7 @@ defmodule Hex.Tar do
         Mix.raise "Unpacking #{path} failed: tarball empty"
 
       {:error, reason} ->
-        Mix.raise "Unpacking #{path} failed: #{inspect reason}"
+        Mix.raise "Unpacking #{path} failed: " <> format_error(reason)
     end
   end
 
@@ -110,7 +110,7 @@ defmodule Hex.Tar do
         |> Enum.each(&File.touch!/1)
         :ok
       {:error, reason} ->
-        Mix.raise "Unpacking #{path}/contents.tar.gz failed: #{inspect reason}"
+        Mix.raise "Unpacking #{path}/contents.tar.gz failed: " <> format_error(reason)
     end
   end
 
@@ -122,5 +122,14 @@ defmodule Hex.Tar do
     |> Hex.Utils.binarify(maps: false)
     |> Enum.map(&[:io_lib.print(&1) | ".\n"])
     |> IO.iodata_to_binary
+  end
+
+  defp format_error({_path, reason}) do
+    format_error(reason)
+  end
+
+  defp format_error(reason) do
+    :erl_tar.format_error(reason)
+    |> List.to_string
   end
 end
