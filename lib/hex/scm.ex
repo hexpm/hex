@@ -86,6 +86,8 @@ defmodule Hex.SCM do
     case Hex.Parallel.await(:hex_fetcher, {name, version}, @fetch_timeout) do
       {:ok, :cached} ->
         Hex.Shell.info "Using locally cached package"
+      {:ok, :offline} ->
+        Hex.Shell.info "[OFFLINE] Using locally cached package"
       {:ok, :new} ->
         Hex.Shell.info "Fetched package"
       {:error, reason} ->
@@ -175,16 +177,20 @@ defmodule Hex.SCM do
   end
 
   defp fetch(name, path) do
-    etag = Hex.Utils.etag(path)
-    url  = Hex.API.cdn_url("tarballs/#{name}")
-    File.mkdir_p!(cache_path)
+    if Hex.State.fetch!(:offline?) do
+      {:ok, :offline}
+    else
+      etag = Hex.Utils.etag(path)
+      url  = Hex.API.cdn_url("tarballs/#{name}")
+      File.mkdir_p!(cache_path)
 
-    case request(url, etag) do
-      {:ok, body} when is_binary(body) ->
-        File.write!(path, body)
-        {:ok, :new}
-      other ->
-        other
+      case request(url, etag) do
+        {:ok, body} when is_binary(body) ->
+          File.write!(path, body)
+          {:ok, :new}
+        other ->
+          other
+      end
     end
   end
 
