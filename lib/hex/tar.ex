@@ -53,7 +53,7 @@ defmodule Hex.Tar do
   end
 
   defp check_files(version, files, path) do
-    files = Dict.keys(files)
+    files = Map.keys(files)
 
     cond do
       version == "2" ->

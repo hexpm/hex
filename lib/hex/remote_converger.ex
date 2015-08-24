@@ -33,7 +33,7 @@ defmodule Hex.RemoteConverger do
         print_success(resolved, locked)
         new_lock = Hex.Mix.to_lock(resolved)
         Hex.SCM.prefetch(new_lock)
-        Dict.merge(lock, new_lock)
+        Map.merge(lock, new_lock)
 
       {:error, messages} ->
         Hex.Shell.error messages
@@ -44,7 +44,7 @@ defmodule Hex.RemoteConverger do
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
-    case Dict.fetch(lock, app) do
+    case Map.fetch(lock, app) do
       {:ok, {:hex, name, version}} ->
         get_deps(name, version)
       _ ->
@@ -128,7 +128,7 @@ defmodule Hex.RemoteConverger do
 
   defp do_with_children(names, lock) do
     Enum.map(names, fn name ->
-      case Dict.fetch(lock, String.to_atom(name)) do
+      case Map.fetch(lock, String.to_atom(name)) do
         {:ok, {:hex, name, version}} ->
           deps = Registry.get_deps(Atom.to_string(name), version)
                  |> Enum.map(&elem(&1, 0))
@@ -149,7 +149,7 @@ defmodule Hex.RemoteConverger do
       Enum.filter(deps, fn
         %Mix.Dep{scm: Hex.SCM, app: app, requirement: req, opts: opts} ->
           # Make sure to handle deps that were previously locked as Git
-          case Dict.fetch(old_lock, app) do
+          case Map.fetch(old_lock, app) do
             {:ok, {:hex, name, version}} ->
               req && !Version.match?(version, req) && name == opts[:hex]
 
@@ -164,7 +164,7 @@ defmodule Hex.RemoteConverger do
 
     unlock = unlock ++
       for({app, _} <- old_lock,
-          not Dict.has_key?(lock, app),
+          not Map.has_key?(lock, app),
           do: Atom.to_string(app))
 
     unlock = unlock

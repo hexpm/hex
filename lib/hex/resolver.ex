@@ -206,10 +206,10 @@ defmodule Hex.Resolver do
 
   defp merge_optional(optional, new_optional) do
     new_optional =
-      Enum.map(new_optional, fn request(name: name) = request ->
+      Enum.into(new_optional, HashDict.new, fn request(name: name) = request ->
         {name, [request]}
       end)
-    Dict.merge(optional, new_optional, fn _, v1, v2 -> v1 ++ v2 end)
+    HashDict.merge(optional, new_optional, fn _, v1, v2 -> v1 ++ v2 end)
   end
 
   defp compile_requirement(nil, _package) do

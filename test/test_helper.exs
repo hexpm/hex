@@ -110,7 +110,7 @@ defmodule HexTest.Case do
   def create_test_registry(path) do
     packages =
       Enum.reduce(test_registry, HashDict.new, fn {name, vsn, _}, dict ->
-        Dict.update(dict, "#{name}", [vsn], &[vsn|&1])
+        HashDict.update(dict, "#{name}", [vsn], &[vsn|&1])
       end)
 
     packages =

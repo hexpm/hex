@@ -178,7 +178,7 @@ defmodule Mix.Hex.Build do
   end
 
   defp missing(meta, fields, printer) do
-    taken_fields = Dict.take(meta, fields) |> Dict.keys
+    taken_fields = Map.take(meta, fields) |> Map.keys
     missing = fields -- taken_fields
 
     if missing != [] do
