@@ -147,7 +147,7 @@ defmodule Hex.Resolver do
 
   defp get_deps(app, package, version, info(top_level: top_level, deps: all_deps), activated) do
     if deps = Registry.get_deps(package, version) do
-      all_deps = attach_dep_and_children(all_deps, package, deps)
+      all_deps = attach_dep_and_children(all_deps, app, deps)
 
       upper_breadths = down_to(top_level, all_deps, String.to_atom(app))
 
@@ -176,9 +176,9 @@ defmodule Hex.Resolver do
   # Add a potentially new dependency and its children.
   # This function is used to add Hex packages to the dependency tree which
   # we use in down_to to check overridden status.
-  defp attach_dep_and_children(deps, name, children) do
-    name = String.to_atom(name)
-    dep = Enum.find(deps, &((package = &1.opts[:hex]) && name == package))
+  defp attach_dep_and_children(deps, app, children) do
+    app = String.to_atom(app)
+    dep = Enum.find(deps, &(&1.app == app))
 
     children =
       Enum.map(children, fn {name, app, _req, _optional} ->
@@ -194,8 +194,8 @@ defmodule Hex.Resolver do
 
   # Replace a dependency in the tree
   defp put_dep(deps, new_dep) do
-    Enum.reduce(deps, [], fn %Mix.Dep{app: app, opts: opts} = dep, deps ->
-      if app == new_dep.app && opts[:hex] == new_dep.opts[:hex] do
+    Enum.reduce(deps, [], fn dep, deps ->
+      if dep.app == new_dep.app do
         [new_dep|deps]
       else
         [dep|deps]
