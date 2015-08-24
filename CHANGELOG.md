@@ -1,5 +1,19 @@
 ## v0.8.4-dev
 
+* Enhancements
+  * Pass build tool information to Mix (supported in Elixir 1.1.0)
+  * Make Hex a proper OTP application
+  * Update CA store
+  * Warn if files are missing when building package
+  * Improve error message when resolution fails because of a locked dependency
+  * Add `hex.registry` task for loading and dumping registry
+  * Add `HEX_OFFLINE` for running in offline mode which skips fetching registry and packages
+  * Add `hex.build` task for building package without publishing
+
+* Bug fixes
+  * `HEX_API` no longer automatically adds `api/` to URL
+  * Fix crash when user doesn't explicitly override Hex package when needed
+
 ## v0.8.3 (2015-07-17)
 
 * Security fixes
