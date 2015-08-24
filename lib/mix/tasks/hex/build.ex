@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.Build do
   use Mix.Task
-  alias Mix.Hex.Utils
   alias Mix.Hex.Build
 
   @shortdoc "Build a new package version locally"
@@ -66,7 +65,7 @@ defmodule Mix.Tasks.Hex.Build do
       this field.
   """
 
-  def run(args) do
+  def run(_args) do
     build = Build.prepare_package!
 
     meta = build[:meta]
