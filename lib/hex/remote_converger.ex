@@ -90,10 +90,10 @@ defmodule Hex.RemoteConverger do
 
   defp print_success(resolved, locked) do
     locked = Enum.map(locked, &elem(&1, 0))
-    resolved = Enum.into(resolved, HashDict.new, fn {name, _app, version} -> {name, version} end)
-    resolved = HashDict.drop(resolved, locked)
+    resolved = Enum.into(resolved, %{}, fn {name, _app, version} -> {name, version} end)
+    resolved = Map.drop(resolved, locked)
 
-    if HashDict.size(resolved) != 0 do
+    if Map.size(resolved) != 0 do
       Hex.Shell.info "Dependency resolution completed successfully"
       resolved = Enum.sort(resolved)
       Enum.each(resolved, fn {name, version} ->

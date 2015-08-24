@@ -15,10 +15,10 @@ defmodule Hex.Resolver do
     info = info(deps: deps, top_level: top_level, backtrack_agent: agent_pid)
 
     optional =
-      Enum.reduce(locked, HashDict.new, fn {name, app, version}, acc ->
+      Enum.into(locked, %{}, fn {name, app, version} ->
         {:ok, req} = Version.parse_requirement(version)
         request = request(app: app, name: name, req: req, parent: {"mix.lock", req})
-        HashDict.put(acc, name, [request])
+        {name, [request]}
       end)
 
     pending =
@@ -28,7 +28,7 @@ defmodule Hex.Resolver do
       end)
       |> Enum.uniq
 
-    if activated = do_resolve(pending, optional, info, HashDict.new) do
+    if activated = do_resolve(pending, optional, info, %{}) do
       Agent.stop(agent_pid)
       {:ok, activated}
     else
@@ -51,7 +51,7 @@ defmodule Hex.Resolver do
         active = active(active, possibles: possibles, parents: [parent|parents])
 
         if version_match?(version, req) do
-          activated = HashDict.put(activated, name, active)
+          activated = Map.put(activated, name, active)
           do_resolve(pending, optional, info, activated)
         else
           backtrack_message(name, version, [parent|parents], info)
@@ -59,7 +59,7 @@ defmodule Hex.Resolver do
         end
 
       nil ->
-        {opts, optional} = HashDict.pop(optional, name)
+        {opts, optional} = Map.pop(optional, name)
         opts = opts || []
         requests = [request|opts]
         parents = Enum.map(requests, &request(&1, :parent))
@@ -99,7 +99,7 @@ defmodule Hex.Resolver do
         optional = merge_optional(optional, new_optional)
         info = info(info, deps: new_deps)
 
-        activated = HashDict.put(activated, name, active)
+        activated = Map.put(activated, name, active)
         do_resolve(pending, optional, info, activated)
     end
   end
@@ -113,7 +113,7 @@ defmodule Hex.Resolver do
     state = state(activated: activated, pending: pending, optional: optional, deps: deps)
     new_active = active(app: app, name: name, version: version, state: state,
                         possibles: possibles, parents: parents)
-    activated = HashDict.put(activated, name, new_active)
+    activated = Map.put(activated, name, new_active)
 
     info = info(info, deps: new_deps)
 
@@ -206,10 +206,10 @@ defmodule Hex.Resolver do
 
   defp merge_optional(optional, new_optional) do
     new_optional =
-      Enum.into(new_optional, HashDict.new, fn request(name: name) = request ->
+      Enum.into(new_optional, %{}, fn request(name: name) = request ->
         {name, [request]}
       end)
-    HashDict.merge(optional, new_optional, fn _, v1, v2 -> v1 ++ v2 end)
+    Map.merge(optional, new_optional, fn _, v1, v2 -> v1 ++ v2 end)
   end
 
   defp compile_requirement(nil, _package) do
