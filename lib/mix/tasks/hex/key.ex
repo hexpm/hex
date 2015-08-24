@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Hex.Key do
   use Mix.Task
-  alias Mix.Tasks.Hex.Utils
+  alias Mix.Hex.Utils
 
   @shortdoc "Hex API key tasks"
 
