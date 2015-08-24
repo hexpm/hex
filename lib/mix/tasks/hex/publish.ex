@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Hex.Publish do
   use Mix.Task
-  alias Mix.Tasks.Hex.Utils
+  alias Mix.Hex.Utils
   alias Mix.Hex.Build
 
   @shortdoc "Publish a new package version"

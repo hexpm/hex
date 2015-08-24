@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Hex.Build do
   use Mix.Task
-  alias Mix.Tasks.Hex.Utils
+  alias Mix.Hex.Utils
   alias Mix.Hex.Build
 
   @shortdoc "Build a new package version locally"

@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Hex.Owner do
   use Mix.Task
-  alias Mix.Tasks.Hex.Utils
+  alias Mix.Hex.Utils
 
   @shortdoc "Hex package ownership tasks"
 

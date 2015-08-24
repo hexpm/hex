@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Hex.User do
   use Mix.Task
-  alias Mix.Tasks.Hex.Utils
+  alias Mix.Hex.Utils
 
   @shortdoc "Hex user tasks"
 
