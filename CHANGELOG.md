@@ -1,4 +1,4 @@
-## v0.8.4-dev
+## v0.9.0-dev
 
 * Enhancements
   * Pass build tool information to Mix (supported in Elixir 1.1.0)
