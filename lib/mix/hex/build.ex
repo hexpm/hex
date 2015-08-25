@@ -24,14 +24,6 @@ defmodule Mix.Hex.Build do
       exclude_deps: exclude_deps, meta: meta]
   end
 
-  def meta_for(config, package, deps) do
-    Keyword.take(config, [:app, :version, :elixir, :description])
-    |> Enum.into(%{})
-    |> Map.merge(package)
-    |> package(config)
-    |> Map.put(:requirements, deps)
-  end
-
   def print_info(meta, exclude_deps, package_files) do
     if meta[:requirements] != [] do
       Hex.Shell.info("  Dependencies:")
@@ -52,6 +44,14 @@ defmodule Mix.Hex.Build do
       Hex.Shell.warn("  WARNING! Excluded dependencies (not part of the Hex package):")
       Enum.each(exclude_deps, &Hex.Shell.warn("    #{&1}"))
     end
+  end
+
+  defp meta_for(config, package, deps) do
+    Keyword.take(config, [:app, :version, :elixir, :description])
+    |> Enum.into(%{})
+    |> Map.merge(package)
+    |> package(config)
+    |> Map.put(:requirements, deps)
   end
 
   defp dependencies(meta) do
@@ -160,8 +160,8 @@ defmodule Mix.Hex.Build do
     missing(meta, @error_fields, &Hex.Shell.error("  ERROR! #{&1}"))
   end
 
-  defp list_missing_files(nil), do: list_missing_files(@default_files)
-  defp list_missing_files(files) do
+  defp missing_files(nil), do: []
+  defp missing_files(files) do
     Enum.filter(files, &(Path.wildcard(&1) == []))
   end
 
@@ -170,7 +170,7 @@ defmodule Mix.Hex.Build do
   end
 
   defp warn_missing_files(package_files) do
-    missing_files = list_missing_files(package_files)
+    missing_files = missing_files(package_files)
     if missing_files != [] do
       missing = Enum.join(missing_files, ", ")
       Hex.Shell.warn("  WARNING! Missing files: #{missing}")
