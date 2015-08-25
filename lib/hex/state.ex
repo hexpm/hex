@@ -2,7 +2,7 @@ defmodule Hex.State do
   @name __MODULE__
   @logged_keys ~w(http_proxy HTTP_PROXY https_proxy HTTPS_PROXY)
   @default_home "~/.hex"
-  @default_url "https://hex.pm"
+  @default_url "https://hex.pm/api"
   @default_cdn "https://s3.amazonaws.com/s3.hex.pm"
 
   def start_link do
