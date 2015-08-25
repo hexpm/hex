@@ -120,8 +120,8 @@ defmodule Hex.Tar do
   defp encode_term(list) do
     list
     |> Hex.Utils.binarify(maps: false)
-    |> Enum.map(&[:io_lib.print(&1) | ".\n"])
-    |> IO.iodata_to_binary
+    |> Enum.map(&[:io_lib_pretty.print(&1, encoding: :utf8) | ".\n"])
+    |> IO.chardata_to_string
   end
 
   defp format_error({_path, reason}) do
