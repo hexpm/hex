@@ -95,7 +95,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
       print_link_to_coc()
 
-      if Hex.Shell.yes?("Proceed?") and create_package?(meta, auth) do
+      if Hex.Shell.yes?("Proceed?") do
         progress? = Keyword.get(opts, :progress, true)
         create_release(meta, auth, progress?)
       end
@@ -115,18 +115,6 @@ defmodule Mix.Tasks.Hex.Publish do
       {code, body} ->
         Hex.Shell.error("Reverting #{meta[:name]} v#{version} failed")
         Hex.Utils.print_error_result(code, body)
-    end
-  end
-
-  # TODO: Remove
-  defp create_package?(meta, auth) do
-    case Hex.API.Package.new(meta[:name], meta, auth) do
-      {code, _} when code in 200..299 ->
-        true
-      {code, body} ->
-        Mix.shell.error("\nUpdating package #{meta[:name]} failed")
-        Hex.Utils.print_error_result(code, body)
-        false
     end
   end
 
