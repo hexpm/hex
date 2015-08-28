@@ -32,8 +32,10 @@ defmodule Hex.Resolver do
       Agent.stop(agent_pid)
       {:ok, activated}
     else
-      messages = Agent.get(agent_pid, & &1)
+      backtrack_info = Agent.get(agent_pid, & &1)
       Agent.stop(agent_pid)
+      backtrack_info = remove_useless_backtracks(backtrack_info)
+      messages = Enum.map(backtrack_info, &backtrack_message/1) |> Enum.reverse
       {:error, Enum.join(messages, "\n\n")}
     end
   end
@@ -54,7 +56,7 @@ defmodule Hex.Resolver do
           activated = Map.put(activated, name, active)
           do_resolve(pending, optional, info, activated)
         else
-          backtrack_message(name, version, [parent|parents], info)
+          add_backtrack_info(name, version, [parent|parents], info)
           backtrack(active, info, activated)
         end
 
@@ -66,7 +68,7 @@ defmodule Hex.Resolver do
 
         case get_versions(name, requests) do
           {:error, _requests} ->
-            backtrack_message(name, nil, parents, info)
+            add_backtrack_info(name, nil, parents, info)
             backtrack(activated[parent], info, activated)
 
           {:ok, versions} ->
@@ -229,15 +231,33 @@ defmodule Hex.Resolver do
     Mix.raise "Invalid requirement #{inspect req} defined for package #{package}"
   end
 
-  defp backtrack_message(name, version, parents, info(backtrack_agent: agent)) do
-    string = [
-      "Looking up alternatives for conflicting requirements on #{name}",
+  defp add_backtrack_info(name, version, parents, info(backtrack_agent: agent)) do
+    info = {name, version, parents}
+    Agent.cast(agent, &[info|&1])
+  end
+
+  defp remove_useless_backtracks(backtracks) do
+    backtracks = Enum.map(backtracks, fn {name, version, parents} ->
+      {name, version, new_set(parents)}
+    end)
+
+    Enum.reject(backtracks, fn {name, version, parents} ->
+      count = Enum.count(backtracks, fn {name2, version2, parents2} ->
+        name == name2 and
+          version == version2 and
+          MapSet.subset?(parents, parents2)
+      end)
+      # We will always match ourselves once
+      count > 1
+    end)
+  end
+
+  defp backtrack_message({name, version, parents}) do
+    [ "Looking up alternatives for conflicting requirements on #{name}",
       if(version, do: "  Activated version: #{version}"),
       "  " <> Enum.map_join(parents, "\n  ", &parent/1)]
-      |> Enum.filter(& &1)
-      |> Enum.join("\n")
-
-    Agent.cast(agent, &[string|&1])
+    |> Enum.filter(& &1)
+    |> Enum.join("\n")
   end
 
   defp parent({path, req}) when is_binary(path),
@@ -247,4 +267,10 @@ defmodule Hex.Resolver do
 
   defp requirement(nil), do: ""
   defp requirement(req), do: req.source
+
+  if Version.compare("1.1.0", System.version) == :lt do
+    defp new_set(enum), do: Enum.into(enum, HashSet.new)
+  else
+    defp new_set(enum), do: Enum.into(enum, MapSet.new)
+  end
 end
