@@ -32,11 +32,7 @@ defmodule Hex.Resolver do
       Agent.stop(agent_pid)
       {:ok, activated}
     else
-      backtrack_info = Agent.get(agent_pid, & &1)
-      Agent.stop(agent_pid)
-      backtrack_info = remove_useless_backtracks(backtrack_info)
-      messages = Enum.map(backtrack_info, &backtrack_message/1) |> Enum.reverse
-      {:error, Enum.join(messages, "\n\n")}
+      {:error, error_message(agent_pid)}
     end
   end
 
@@ -231,6 +227,18 @@ defmodule Hex.Resolver do
     Mix.raise "Invalid requirement #{inspect req} defined for package #{package}"
   end
 
+  defp error_message(agent_pid) do
+    backtrack_info = Agent.get(agent_pid, & &1)
+    Agent.stop(agent_pid)
+    backtrack_info = remove_useless_backtracks(backtrack_info)
+    messages =
+      backtrack_info
+      |> Enum.map(fn {name, version, parents} -> {name, version, Enum.sort(parents, &sort_parents/2)} end)
+      |> Enum.sort()
+      |> Enum.map(&backtrack_message/1)
+    Enum.join(messages, "\n\n") <> "\n"
+  end
+
   defp add_backtrack_info(name, version, parents, info(backtrack_agent: agent)) do
     info = {name, version, parents}
     Agent.cast(agent, &[info|&1])
@@ -241,15 +249,25 @@ defmodule Hex.Resolver do
       {name, version, new_set(parents)}
     end)
 
-    Enum.reject(backtracks, fn {name, version, parents} ->
+    Enum.reject(backtracks, fn {name1, version1, parents1} ->
       count = Enum.count(backtracks, fn {name2, version2, parents2} ->
-        name == name2 and
-          version == version2 and
-          Set.subset?(parents, parents2)
+        name1 == name2 and version1 == version2 and Set.subset?(parents1, parents2)
       end)
       # We will always match ourselves once
       count > 1
     end)
+  end
+
+  defp sort_parents(parent1, parent2) do
+    parents = [elem(parent1, 0), elem(parent2, 0)]
+    cond do
+      "mix.exs" in parents ->
+        true
+      "mix.lock" in parents ->
+        true
+      true ->
+        parent1 <= parent2
+    end
   end
 
   defp backtrack_message({name, version, parents}) do
@@ -260,12 +278,12 @@ defmodule Hex.Resolver do
     |> Enum.join("\n")
   end
 
-  defp parent({path, req}) when is_binary(path),
-    do: "From #{path}: #{requirement(req)}"
   defp parent({{parent, version}, req}),
     do: "From #{parent} v#{version}: #{requirement(req)}"
+  defp parent({path, req}),
+    do: "From #{path}: #{requirement(req)}"
 
-  defp requirement(nil), do: ""
+  defp requirement(nil), do: ">= 0.0.0"
   defp requirement(req), do: req.source
 
   if Version.compare("1.1.0", System.version) == :gt do

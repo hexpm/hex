@@ -43,10 +43,16 @@ defmodule Hex.ResolverTest do
     assert Dict.equal? locked([foo: "0.2.0", bar: "0.2.0"]), resolve(deps)
 
     deps = [foo: "~> 0.3.0", bar: nil]
-    assert resolve(deps) == "Looking up alternatives for conflicting requirements on foo\n  From mix.exs: ~> 0.3.0"
+    assert resolve(deps) == """
+    Looking up alternatives for conflicting requirements on foo
+      From mix.exs: ~> 0.3.0
+    """
 
     deps = [foo: nil, bar: "~> 0.3.0"]
-    assert resolve(deps) == "Looking up alternatives for conflicting requirements on bar\n  From mix.exs: ~> 0.3.0"
+    assert resolve(deps) == """
+    Looking up alternatives for conflicting requirements on bar
+      From mix.exs: ~> 0.3.0
+    """
   end
 
   test "backtrack" do
@@ -63,10 +69,20 @@ defmodule Hex.ResolverTest do
     assert Dict.equal? locked([decimal: "0.1.0", ex_plex: "0.0.1"]), resolve(deps)
 
     deps = [decimal: "0.1.0", ex_plex: "~> 0.0.2"]
-    assert resolve(deps) == "Looking up alternatives for conflicting requirements on decimal\n  Activated version: 0.1.0\n  From ex_plex v0.0.2: 0.1.1\n  From mix.exs: 0.1.0"
+    assert resolve(deps) == """
+    Looking up alternatives for conflicting requirements on decimal
+      Activated version: 0.1.0
+      From mix.exs: 0.1.0
+      From ex_plex v0.0.2: 0.1.1
+    """
 
     deps = [decimal: nil, ex_plex: "0.0.2"]
-    assert resolve(deps) == "Looking up alternatives for conflicting requirements on decimal\n  Activated version: 0.2.1\n  From ex_plex v0.0.2: 0.1.1\n  From mix.exs: "
+    assert resolve(deps) == """
+    Looking up alternatives for conflicting requirements on decimal
+      Activated version: 0.2.1
+      From mix.exs: >= 0.0.0
+      From ex_plex v0.0.2: 0.1.1
+    """
   end
 
   test "complete backtrack" do
@@ -107,11 +123,23 @@ defmodule Hex.ResolverTest do
   test "failure due to locked dep" do
     locked = [decimal: "0.0.1"]
     deps = [decimal: nil, ex_plex: "0.1.0" ]
-    assert resolve(deps, locked) == "Looking up alternatives for conflicting requirements on decimal\n  Activated version: 0.0.1\n  From ex_plex v0.1.0: ~> 0.1.0\n  From mix.exs: \n  From mix.lock: 0.0.1"
+    assert resolve(deps, locked) == """
+    Looking up alternatives for conflicting requirements on decimal
+      Activated version: 0.0.1
+      From mix.exs: >= 0.0.0
+      From mix.lock: 0.0.1
+      From ex_plex v0.1.0: ~> 0.1.0
+    """
 
     locked = [decimal: "0.0.1"]
     deps = [decimal: "~> 0.0.1", ex_plex: "0.1.0" ]
-    assert resolve(deps, locked) == "Looking up alternatives for conflicting requirements on decimal\n  Activated version: 0.0.1\n  From ex_plex v0.1.0: ~> 0.1.0\n  From mix.exs: ~> 0.0.1\n  From mix.lock: 0.0.1"
+    assert resolve(deps, locked) == """
+    Looking up alternatives for conflicting requirements on decimal
+      Activated version: 0.0.1
+      From mix.exs: ~> 0.0.1
+      From mix.lock: 0.0.1
+      From ex_plex v0.1.0: ~> 0.1.0
+    """
   end
 
   test "optional" do
