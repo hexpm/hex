@@ -245,7 +245,7 @@ defmodule Hex.Resolver do
       count = Enum.count(backtracks, fn {name2, version2, parents2} ->
         name == name2 and
           version == version2 and
-          MapSet.subset?(parents, parents2)
+          Set.subset?(parents, parents2)
       end)
       # We will always match ourselves once
       count > 1
