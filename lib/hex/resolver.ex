@@ -258,17 +258,11 @@ defmodule Hex.Resolver do
     end)
   end
 
-  defp sort_parents(parent1, parent2) do
-    parents = [elem(parent1, 0), elem(parent2, 0)]
-    cond do
-      "mix.exs" in parents ->
-        true
-      "mix.lock" in parents ->
-        true
-      true ->
-        parent1 <= parent2
-    end
-  end
+  defp sort_parents({"mix.exs", _}, _),  do: true
+  defp sort_parents(_, {"mix.exs", _}),  do: false
+  defp sort_parents({"mix.lock", _}, _), do: true
+  defp sort_parents(_, {"mix.lock", _}), do: false
+  defp sort_parents(parent1, parent2),   do: parent1 <= parent2
 
   defp backtrack_message({name, version, parents}) do
     [ "Looking up alternatives for conflicting requirements on #{name}",
