@@ -53,17 +53,20 @@ defmodule Hex.RemoteConverger do
   end
 
   defp get_deps(name, version) do
-    if Hex.Registry.open() == :ok do
-      name = Atom.to_string(name)
-      deps = Registry.get_deps(name, version) || []
-      for {name, app, req, optional} <- deps do
-        {String.to_atom(app), req, optional: optional, hex: String.to_atom(name)}
-      end
-    else
-      if File.exists?(Hex.Registry.path),
-          do: Hex.Shell.warn("Missing Hex registry file, run `mix hex.info` to fetch"),
-        else: Hex.Shell.warn("Failed to open Hex registry file")
-      []
+    case Hex.Registry.open() do
+      :ok ->
+        name = Atom.to_string(name)
+        deps = Registry.get_deps(name, version) || []
+        for {name, app, req, optional} <- deps do
+          {String.to_atom(app), req, optional: optional, hex: String.to_atom(name)}
+        end
+      {:error, reason} ->
+        if File.exists?(Hex.Registry.path) do
+          Hex.Shell.warn("Failed to open Hex registry file (#{inspect reason})")
+        else
+          Hex.Shell.warn("Missing Hex registry file, run `mix hex.info` to fetch")
+        end
+        []
     end
   end
 
