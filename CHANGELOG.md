@@ -9,11 +9,12 @@
   * Add `hex.registry` task for loading and dumping registry
   * Add `HEX_OFFLINE` for running in offline mode which skips fetching registry and packages
   * Add `hex.build` task for building package without publishing
-  * Reduce noise when users gets lots of resolution errors
+  * Reduce noise when users gets lots of resolution errors and generally improve their output
 
 * Bug fixes
   * `HEX_API` no longer automatically adds `api/` to URL
   * Fix crash when user doesn't explicitly override Hex package when needed
+  * Fix bug where metadata in package tarball was not properly UTF8 encoded
 
 ## v0.8.3 (2015-07-17)
 
