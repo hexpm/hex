@@ -19,6 +19,8 @@ defmodule Mix.Tasks.Hex.Outdated do
   `mix hex.outdated --all`
   """
 
+  @recursive true
+
   def run(args) do
     {opts, _args, _} = OptionParser.parse(args, switches: [all: :boolean])
     Hex.start
