@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Hex do
   @shortdoc "Prints Hex help information"
 
   @moduledoc """
-  Prints hex tasks and their information.
+  Prints Hex tasks and their information.
 
   `mix hex`
 

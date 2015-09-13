@@ -7,25 +7,25 @@ defmodule Mix.Tasks.Hex.User do
   @moduledoc """
   Hex user tasks.
 
-  ### Registers a new user
+  ### Register a new user
 
   `mix hex.user register`
 
-  ### Prints the current user
+  ### Print the current user
 
   `mix hex.user whoami`
 
   ### Authorize a new user
 
   Authorizes a new user on the local machine by generating a new API key and
-  storing it in the hex config.
+  storing it in the Hex config.
 
   `mix hex.user auth`
 
   ### Deauthorize the user
 
   Deauthorizes the user from the local machine by removing the API key from the
-  hex config.
+  Hex config.
 
   `mix hex.user deauth`
 

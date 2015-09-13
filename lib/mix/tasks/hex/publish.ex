@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Hex.Publish do
   @shortdoc "Publishes a new package version"
 
   @moduledoc """
-  Publish a new version of your package and update the package.
+  Publishes a new version of your package and update the package.
 
   `mix hex.publish`
 

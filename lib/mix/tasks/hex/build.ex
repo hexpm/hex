@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Hex.Build do
   @shortdoc "Builds a new package version locally"
 
   @moduledoc """
-  Build a new local version of your package.
+  Builds a new local version of your package.
 
   The package .tar file is created in the current directory, but is not pushed
   to the repository. An app named `foo` at version `1.2.3` will be built as

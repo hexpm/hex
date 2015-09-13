@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Hex.Search do
   @shortdoc "Searches for package names"
 
   @moduledoc """
-  Display packages matching the given search query.
+  Displays packages matching the given search query.
 
   `mix hex.search PACKAGE`
   """

@@ -1,7 +1,7 @@
 defmodule Hex.Parallel do
   @moduledoc """
-  Run a number of jobs (with an upper bound) in parallel and
-  await their finish.
+  Runs a number of jobs (with an upper bound) in parallel and
+  awaits them to finish.
   """
 
   use GenServer

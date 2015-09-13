@@ -5,11 +5,11 @@ defmodule Mix.Tasks.Hex.Key do
   @shortdoc "Hex API key tasks"
 
   @moduledoc """
-  Remove or list API keys associated with your account.
+  Removes or lists API keys associated with your account.
 
   ### Remove key
 
-  Remove given API key from account.
+  Removes given API key from account.
 
   The key can no longer be used to authenticate API requests.
 
@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Hex.Key do
 
   ### List keys
 
-  List all API keys associated with your account.
+  Lists all API keys associated with your account.
 
   `mix hex.key list`
   """

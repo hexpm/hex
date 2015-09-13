@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Hex.Info do
   @shortdoc "Prints Hex information"
 
   @moduledoc """
-  Prints hex package or system information.
+  Prints Hex package or system information.
 
   `mix hex.info [PACKAGE [VERSION]]`
 
@@ -35,7 +35,7 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Shell.info "Hex v" <> Hex.version
     Hex.Shell.info ""
 
-    # Make sure to fetch registry after showing hex version. Issues with the
+    # Make sure to fetch registry after showing Hex version. Issues with the
     # registry should not prevent printing the version.
     Hex.Utils.ensure_registry(cache: false)
     path = Hex.Registry.path()
