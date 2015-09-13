@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Hex.Docs do
   use Mix.Task
   alias Mix.Hex.Utils
 
-  @shortdoc "Publish docs for package"
+  @shortdoc "Publishes docs for package"
 
   @moduledoc """
   Publishes documentation for the current project and version.

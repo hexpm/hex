@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Hex.Info do
   use Mix.Task
 
-  @shortdoc "Print hex information"
+  @shortdoc "Prints Hex information"
 
   @moduledoc """
   Prints hex package or system information.

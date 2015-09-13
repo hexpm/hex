@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Hex.Build do
   use Mix.Task
   alias Mix.Hex.Build
 
-  @shortdoc "Build a new package version locally"
+  @shortdoc "Builds a new package version locally"
 
   @moduledoc """
   Build a new local version of your package.
