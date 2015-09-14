@@ -1,10 +1,10 @@
 defmodule Mix.Tasks.Hex.Config do
   use Mix.Task
 
-  @shortdoc "Read or update hex config"
+  @shortdoc "Reads or updates Hex config"
 
   @moduledoc """
-  Reads or updates hex configuration file.
+  Reads or updates Hex configuration file.
 
   `mix hex.config KEY [VALUE]`
 

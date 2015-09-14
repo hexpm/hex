@@ -1,10 +1,10 @@
 defmodule Mix.Tasks.Hex do
   use Mix.Task
 
-  @shortdoc "Print hex help information"
+  @shortdoc "Prints Hex help information"
 
   @moduledoc """
-  Prints hex tasks and their information.
+  Prints Hex tasks and their information.
 
   `mix hex`
 

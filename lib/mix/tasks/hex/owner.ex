@@ -5,28 +5,28 @@ defmodule Mix.Tasks.Hex.Owner do
   @shortdoc "Hex package ownership tasks"
 
   @moduledoc """
-  Add, remove or list package owners.
+  Adds, removes or lists package owners.
 
-  A package owner have full permissions to the package. They can publish and
+  Package owners have full permissions to the package. They can publish and
   revert releases and even remove other package owners.
 
   ### Add owner
 
-  Add an owner to package by specifying the package name and email of the new
+  Adds an owner to package by specifying the package name and email of the new
   owner.
 
   `mix hex.owner add PACKAGE EMAIL`
 
   ### Remove owner
 
-  Remove an owner to package by specifying the package name and email of the new
+  Removes an owner to package by specifying the package name and email of the new
   owner.
 
   `mix hex.owner remove PACKAGE EMAIL`
 
   ### List owners
 
-  List all owners of given package.
+  Lists all owners of given package.
 
   `mix hex.owner list PACKAGE`
   """

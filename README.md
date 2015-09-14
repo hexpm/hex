@@ -10,7 +10,7 @@ See [hex.pm](https://hex.pm) for installation instructions and other documentati
 
 ## Contributing
 
-Install hex locally for development with: `mix install`.
+Install Hex locally for development with: `mix install`.
 
 ### Bundled CA certs
 

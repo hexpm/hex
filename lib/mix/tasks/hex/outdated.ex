@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Hex.Outdated do
   use Mix.Task
 
-  @shortdoc "Shows outdated hex deps for the current project"
+  @shortdoc "Shows outdated Hex deps for the current project"
 
   @moduledoc """
   Shows all packages that have a version mismatch between the registry and

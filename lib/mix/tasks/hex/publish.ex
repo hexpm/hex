@@ -3,10 +3,10 @@ defmodule Mix.Tasks.Hex.Publish do
   alias Mix.Hex.Utils
   alias Mix.Hex.Build
 
-  @shortdoc "Publish a new package version"
+  @shortdoc "Publishes a new package version"
 
   @moduledoc """
-  Publish a new version of your package and update the package.
+  Publishes a new version of your package and update the package.
 
   `mix hex.publish`
 

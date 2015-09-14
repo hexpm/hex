@@ -30,7 +30,7 @@ defmodule Hex.Registry do
   def open!(opts \\ []) do
     case open(opts) do
       {:error, reason} ->
-        Mix.raise "Failed to open hex registry file (#{inspect reason})"
+        Mix.raise "Failed to open Hex registry file (#{inspect reason})"
       _ ->
         :ok
     end
