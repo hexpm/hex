@@ -133,9 +133,14 @@ defmodule Hex.RemoteConverger do
     Enum.map(names, fn name ->
       case Map.fetch(lock, String.to_atom(name)) do
         {:ok, {:hex, name, version}} ->
-          deps = Registry.get_deps(Atom.to_string(name), version)
-                 |> Enum.map(&elem(&1, 0))
-          [deps, do_with_children(deps, lock)]
+          # Do not error on bad data in the old lock because we should just
+          # fix it automatically
+          if deps = Registry.get_deps(Atom.to_string(name), version) do
+            apps = Enum.map(deps, &elem(&1, 0))
+            [apps, do_with_children(apps, lock)]
+          else
+            []
+          end
         _ ->
           []
       end

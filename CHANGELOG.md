@@ -15,6 +15,9 @@
   * `HEX_API` no longer automatically adds `api/` to URL
   * Fix crash when user doesn't explicitly override Hex package when needed
   * Fix bug where metadata in package tarball was not properly UTF8 encoded
+  * Fix error message when registry file is missing
+  * Support `hex.outdated` task for umbrella projects
+  * Do not raise on bad data in a users old lock
 
 ## v0.8.3 (2015-07-17)
 
