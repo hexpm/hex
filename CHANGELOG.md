@@ -11,6 +11,7 @@
   * Add `hex.build` task for building package without publishing
   * Reduce noise when users gets lots of resolution errors and generally improve their output
   * Add Server Name Indication support for HTTPS requests
+  * Add `HEX_UNSAFE_HTTPS` for disabling certificate checking
 
 * Bug fixes
   * `HEX_API` no longer automatically adds `api/` to URL

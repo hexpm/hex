@@ -15,6 +15,7 @@ defmodule Hex.State do
       api: load_config(config, ["HEX_API"], :api_url) || @default_url,
       cdn: load_config(config, ["HEX_CDN"], :cdn_url) || @default_cdn,
       offline?: !!System.get_env("HEX_OFFLINE"),
+      cert_check?: !System.get_env("HEX_UNSAFE_HTTPS"),
       registry_updated: false}
   end
 

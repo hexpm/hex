@@ -42,7 +42,7 @@ defmodule Hex.API do
   end
 
   def secure_ssl? do
-    ssl_version() >= @secure_ssl_version
+    ssl_version() >= @secure_ssl_version and Hex.State.fetch!(:cert_check?)
   end
 
   def ssl_opts(url) do
