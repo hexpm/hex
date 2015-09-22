@@ -52,7 +52,8 @@ defmodule Hex.API do
       partial_chain = &partial_chain(Hex.API.Certs.cacerts, &1)
 
       [verify: :verify_peer, depth: 2, partial_chain: partial_chain,
-       cacerts: Hex.API.Certs.cacerts(), verify_fun: verify_fun]
+       cacerts: Hex.API.Certs.cacerts(), verify_fun: verify_fun,
+       server_name_indication: hostname]
     else
       [verify: :verify_none]
     end

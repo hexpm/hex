@@ -10,6 +10,7 @@
   * Add `HEX_OFFLINE` for running in offline mode which skips fetching registry and packages
   * Add `hex.build` task for building package without publishing
   * Reduce noise when users gets lots of resolution errors and generally improve their output
+  * Add Server Name Indication support for HTTPS requests
 
 * Bug fixes
   * `HEX_API` no longer automatically adds `api/` to URL
