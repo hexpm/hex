@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
         package: [files: ["myfile.txt", "missing.txt", "missing/*"],
                   licenses: ["Apache"],
                   links: %{"a" => "b"},
-                  contributors: ["contributors"]] ]
+                  maintainers: ["maintainers"]] ]
     end
   end
 
@@ -110,7 +110,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["--no-progress"])
 
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! No files\e[0m"]}
-      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: description, licenses, contributors, links\e[0m"]}
+      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: description, licenses, maintainers, links\e[0m"]}
       assert HexWeb.Release.get(HexWeb.Package.get("releaseb"), "0.0.2")
     end
   after

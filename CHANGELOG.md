@@ -12,6 +12,7 @@
   * Reduce noise when users gets lots of resolution errors and generally improve their output
   * Add Server Name Indication support for HTTPS requests
   * Add `HEX_UNSAFE_HTTPS` for disabling certificate checking
+  * Renamed `:contributors` metadata to `:maintainers` to better reflect purpose of field
 
 * Bug fixes
   * `HEX_API` no longer automatically adds `api/` to URL

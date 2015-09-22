@@ -3,7 +3,7 @@ defmodule Mix.Hex.Build do
                     license* CHANGELOG* changelog* src)
 
   @error_fields ~w(files app name version build_tools)a
-  @warn_fields ~w(description licenses contributors links)a
+  @warn_fields ~w(description licenses maintainers links)a
   @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir)a
 
   def prepare_package! do
@@ -90,6 +90,10 @@ defmodule Mix.Hex.Build do
       if build_tools = guess_build_tools(files) do
         package = Map.put(package, :build_tools, build_tools)
       end
+    end
+
+    if package[:contributors] do
+      Mix.raise "The :contributors field is deprecated, change to :maintainers"
     end
 
     Map.take(package, @meta_fields)

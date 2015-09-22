@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
         package: [files: ["myfile.txt", "missing.txt", "missing/*"],
                   licenses: ["Apache"],
                   links: %{"a" => "b"},
-                  contributors: ["contributors"]] ]
+                  maintainers: ["maintainers"]] ]
     end
   end
 
@@ -75,7 +75,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       Mix.Tasks.Hex.Build.run([])
 
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! No files\e[0m"]}
-      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: description, licenses, contributors, links\e[0m"]}
+      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: description, licenses, maintainers, links\e[0m"]}
       assert package_created?("releaseb-0.0.2")
     end
   after

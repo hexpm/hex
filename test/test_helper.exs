@@ -248,7 +248,7 @@ if :integration in ExUnit.configuration[:include] do
   {:ok, _} = Application.ensure_all_started(:hex_web)
 
   pkg_meta = %{
-    "contributors" => ["John Doe", "Jane Doe"],
+    "maintainers" => ["John Doe", "Jane Doe"],
     "licenses" => ["GPL2", "MIT", "Apache"],
     "links" => %{"docs" => "http://docs", "repo" => "http://repo"},
     "description" => "builds docs"}

@@ -85,6 +85,7 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp pretty_meta(meta) do
     pretty_list(meta, "contributors")
+    pretty_list(meta, "maintainers")
     pretty_list(meta, "licenses")
     pretty_dict(meta, "links")
 

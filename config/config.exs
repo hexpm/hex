@@ -2,6 +2,8 @@ use Mix.Config
 
 if Mix.env == :test do
   config :hex_web,
+    store: HexWeb.Store.Local,
+    email: HexWeb.Email.Local,
     password_work_factor: 4,
     url: "http://localhost:4000",
     secret: "796f75666f756e64746865686578",

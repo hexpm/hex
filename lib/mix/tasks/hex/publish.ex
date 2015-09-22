@@ -62,7 +62,7 @@ defmodule Mix.Tasks.Hex.Publish do
       can include wildcards. Defaults to `["lib", "priv", "mix.exs", "README*",
       "readme*", "LICENSE*", "license*", "CHANGELOG*", "changelog*", "src"]`.
 
-    * `:contributors` - List of names of contributors.
+    * `:maintainers` - List of names and/or emails of maintainers.
 
     * `:licenses` - List of licenses used by the package.
 

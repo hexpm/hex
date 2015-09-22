@@ -11,7 +11,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
       Mix.Tasks.Hex.Info.run(["ex_doc"])
 
       assert_received {:mix_shell, :info, ["ex_doc"]}
-      assert_received {:mix_shell, :info, ["  Contributors: John Doe, Jane Doe"]}
+      assert_received {:mix_shell, :info, ["  Maintainers: John Doe, Jane Doe"]}
       assert_received {:mix_shell, :info, ["builds docs"]}
 
       Mix.Tasks.Hex.Info.run(["no_package"])
