@@ -9,7 +9,7 @@
   "ex_aws": {:hex, :ex_aws, "0.4.10"},
   "gen_smtp": {:hex, :gen_smtp, "0.9.0"},
   "hackney": {:hex, :hackney, "1.3.2"},
-  "hex_web": {:git, "https://github.com/hexpm/hex_web.git", "6ef5f90a9fbd5b4faf049b7545ec5a204b6b7b0e", []},
+  "hex_web": {:git, "https://github.com/hexpm/hex_web.git", "84e687bd87b2874f434b4618810cd64b8ad4f37a", []},
   "httpoison": {:hex, :httpoison, "0.7.3"},
   "ibrowse": {:git, "git://github.com/opscode/ibrowse", "8f3f6a3a30730b193cc340a8885a960586dc98de", [tag: "v4.0.1.1"]},
   "idna": {:hex, :idna, "1.0.2"},
