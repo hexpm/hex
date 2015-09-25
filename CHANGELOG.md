@@ -1,4 +1,4 @@
-## v0.9.0-dev
+## v0.9.0 (2015-09-25)
 
 * Enhancements
   * Pass build tool information to Mix (supported in Elixir 1.1.0)
@@ -12,7 +12,7 @@
   * Reduce noise when users gets lots of resolution errors and generally improve their output
   * Add Server Name Indication support for HTTPS requests
   * Add `HEX_UNSAFE_HTTPS` for disabling certificate checking
-  * Renamed `:contributors` metadata to `:maintainers` to better reflect purpose of field
+  * Rename `:contributors` metadata to `:maintainers` to better reflect purpose of field
 
 * Bug fixes
   * `HEX_API` no longer automatically adds `api/` to URL
