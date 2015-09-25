@@ -280,7 +280,7 @@ defmodule Hex.Resolver do
   defp requirement(nil), do: ">= 0.0.0"
   defp requirement(req), do: req.source
 
-  if Version.compare("1.1.0", System.version) == :gt do
+  if Version.compare("1.2.0", System.version) == :gt do
     defp new_set(enum), do: Enum.into(enum, HashSet.new)
   else
     defp new_set(enum), do: Enum.into(enum, MapSet.new)

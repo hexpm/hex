@@ -17,6 +17,7 @@ script:
 env:
   matrix:
     - ELIXIRVERSION=v1.0.5
+    - ELIXIRVERSION=v1.1.0
     - ELIXIRVERSION=master
 notifications:
   recipients:
