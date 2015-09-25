@@ -14,6 +14,8 @@ defmodule Hex.State do
     %{home: Path.expand(System.get_env("HEX_HOME") || @default_home),
       api: load_config(config, ["HEX_API"], :api_url) || @default_url,
       cdn: load_config(config, ["HEX_CDN"], :cdn_url) || @default_cdn,
+      http_proxy: load_config(config, ["http_proxy", "HTTP_PROXY"], :http_proxy),
+      https_proxy: load_config(config, ["https_proxy", "HTTPS_PROXY"], :https_proxy),
       offline?: !!System.get_env("HEX_OFFLINE"),
       cert_check?: !System.get_env("HEX_UNSAFE_HTTPS"),
       registry_updated: false}

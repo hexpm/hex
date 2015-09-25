@@ -40,7 +40,8 @@ defmodule Hex do
       max_keep_alive_length: 4,
       keep_alive_timeout: 120_000,
       max_pipeline_length: 4,
-      pipeline_timeout: 60_000,]
+      pipeline_timeout: 60_000
+    ]
     :httpc.set_options(opts, :hex)
   end
 end
