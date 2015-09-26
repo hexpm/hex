@@ -22,11 +22,13 @@ This document simply outlines the release process:
 
 10. Add new release by running `mix run scripts/add_install.exs HEX_VERSION ELIXIR_VERSION [, ELIXIR_VERSION]`
 
-11. Increment version and add `-dev` extension to versions (see below for all files)
+11. Update hex release csv, sign and upload to S3 (see below for instructions)
 
-12. Commit changes above with title "Bump to vVERSION-dev"
+12. Increment version and add `-dev` extension to versions (see below for all files)
 
-13. Push master
+13. Commit changes above with title "Bump to vVERSION-dev"
+
+14. Push master
 
 ## All builds
 
@@ -39,8 +41,39 @@ Always build on the latest patch version and make sure tests pass before buildin
 * s3.hex.pm/installs/hex.ez (latest Hex built against oldest supported Elixir)
 * s3.hex.pm/installs/[ELIXIR VERSION]/hex.ez
 * s3.hex.pm/installs/[ELIXIR VERSION]/hex-[HEX VERSION].ez
+* s3.hex.pm/installs/hex-1.x.csv
+* s3.hex.pm/installs/hex-1.x.csv.signed
 
 ## Places where version is mentioned
 
 * mix.exs `:version` option
 * CHANGELOG.md
+
+
+## Hex release CSV
+
+
+### CSV format
+
+```
+hex_version,sha512(hex-vsn.ez),elixir_version
+```
+
+Example:
+
+```
+0.9.0,4f6eae32124500117691740358df2a078d014f4d396a56a73b3e553e0b112b3f0ac9e0f7e0763feb85c889bac20571c6e028e5f4c252ac158cbb3c586efe992f,1.0.0
+0.9.0,21fd3dbff18b2d2d51b41e147ac8bd13188a9840dae8f4ced6c150e227df64c3c6c5a472c3fd74e170f14fcf7cbeb7d85e12a520438bf0731c1ac55d2f6a4a8a,1.1.0
+```
+
+### Generate sha
+
+```
+shasum -a 512 hex-vsn.ez
+```
+
+### Sign CSV
+
+```
+openssl dgst -sha512 -sign elixir.pem hex-1.x.csv | openssl base64 > hex-1.x.csv.signed
+```
