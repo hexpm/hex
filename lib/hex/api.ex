@@ -227,18 +227,15 @@ defmodule Hex.API do
     end
   end
 
-  defp proxy_auth(%URI{scheme: "http"}, http_proxy, _https_proxy) do
-    proxy_auth(http_proxy)
-  end
+  defp proxy_auth(%URI{scheme: "http"}, http_proxy, _https_proxy),
+    do: proxy_auth(http_proxy)
+  defp proxy_auth(%URI{scheme: "https"}, _http_proxy, https_proxy),
+    do: proxy_auth(https_proxy)
 
-  defp proxy_auth(%URI{scheme: "https"}, _http_proxy, https_proxy) do
-    proxy_auth(https_proxy)
-  end
-
-  defp proxy_auth(nil) do
-    []
-  end
-
+  defp proxy_auth(nil),
+    do: []
+  defp proxy_auth(%URI{userinfo: nil}),
+    do: []
   defp proxy_auth(url) do
     destructure [username, password], String.split(url.userinfo, ":", parts: 2)
     [proxy_auth: {username, password || ""}]
