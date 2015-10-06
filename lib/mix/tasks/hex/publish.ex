@@ -8,7 +8,7 @@ defmodule Mix.Tasks.Hex.Publish do
   @moduledoc """
   Publishes a new version of your package and update the package.
 
-  `mix hex.publish`
+  `mix hex.publish package`
 
   If it is a new package being published it will be created and the user
   specified in `username` will be the package owner. Only package owners can
@@ -80,25 +80,38 @@ defmodule Mix.Tasks.Hex.Publish do
   def run(args) do
     build = Build.prepare_package!
 
+    {opts, rest, _} = OptionParser.parse(args, switches: @switches)
+    auth         = Utils.auth_info()
+
+    if version = opts[:revert] do
+      revert(build, version, auth)
+    else
+      case rest do
+        ["package"] ->
+          create(build, auth, opts)
+        _otherwise ->
+          message = """
+            Invalid arguments, expected one of:
+              mix hex.publish package
+            """
+          Mix.raise message
+      end
+    end
+  end
+
+  defp create(build, auth, opts) do
     meta = build[:meta]
     package = build[:package]
     exclude_deps = build[:exclude_deps]
 
-    {opts, _, _} = OptionParser.parse(args, switches: @switches)
-    auth         = Utils.auth_info()
+    Hex.Shell.info("Publishing #{meta[:name]} v#{meta[:version]}")
+    Build.print_info(meta, exclude_deps, package[:files])
 
-    if version = opts[:revert] do
-      revert(meta, version, auth)
-    else
-      Hex.Shell.info("Publishing #{meta[:name]} v#{meta[:version]}")
-      Build.print_info(meta, exclude_deps, package[:files])
+    print_link_to_coc()
 
-      print_link_to_coc()
-
-      if Hex.Shell.yes?("Proceed?") do
-        progress? = Keyword.get(opts, :progress, true)
-        create_release(meta, auth, progress?)
-      end
+    if Hex.Shell.yes?("Proceed?") do
+      progress? = Keyword.get(opts, :progress, true)
+      create_release(meta, auth, progress?)
     end
   end
 
@@ -106,8 +119,9 @@ defmodule Mix.Tasks.Hex.Publish do
     Hex.Shell.info "Before publishing, please read Hex Code of Conduct: https://hex.pm/docs/codeofconduct"
   end
 
-  defp revert(meta, version, auth) do
+  defp revert(build, version, auth) do
     version = Utils.clean_version(version)
+    meta = build[:meta]
 
     case Hex.API.Release.delete(meta[:name], version, auth) do
       {code, _} when code in 200..299 ->
