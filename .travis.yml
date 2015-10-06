@@ -1,7 +1,6 @@
 language: erlang
 otp_release:
   - 17.5
-  - 18.0
 sudo: false
 addons:
   postgresql: "9.4"
@@ -12,14 +11,19 @@ before_script:
   - export PATH=`pwd`/elixir/bin:$PATH
   - mix archive.install http://s3.hex.pm/installs/hex.ez --force
   - mix deps.get
+  - MIX_ENV=test mix deps.compile
 script:
+  - MIX_ENV=test mix compile
   - mix test --include integration
 env:
   matrix:
     - ELIXIRVERSION=v1.0.5
     - ELIXIRVERSION=v1.1.0
     - ELIXIRVERSION=master
+matrix:
+  include:
+    - otp_release: 18.1
+      env: ELIXIRVERSION=master
 notifications:
   recipients:
     - eric.meadows.jonsson@gmail.com
-    - jamess237@icloud.com
