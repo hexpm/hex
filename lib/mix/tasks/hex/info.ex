@@ -42,12 +42,15 @@ defmodule Mix.Tasks.Hex.Info do
     # Make sure to fetch registry after showing Hex version. Issues with the
     # registry should not prevent printing the version.
     Hex.Utils.ensure_registry(cache: false)
-    path = Hex.Registry.path()
-    stat = File.stat!(path)
+    path            = Hex.Registry.path()
+    stat            = File.stat!(path)
+    compressed_stat = File.stat!(path <> ".gz")
+    size            = stat.size |> div(1024)
+    compressed_size = compressed_stat.size |> div(1024)
     {packages, releases} = Hex.Registry.stat()
 
     Hex.Shell.info "Registry file available (last updated: #{pretty_date(stat.mtime)})"
-    Hex.Shell.info "Size: #{div stat.size, 1024}kB"
+    Hex.Shell.info "Size: #{size}kB (compressed #{compressed_size}kb)"
     Hex.Shell.info "Packages #: #{packages}"
     Hex.Shell.info "Versions #: #{releases}"
   end

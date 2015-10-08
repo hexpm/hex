@@ -40,10 +40,11 @@ defmodule Mix.Tasks.Hex.InfoTest do
       HexWeb.RegistryBuilder.rebuild
 
       assert {200, data} = Hex.API.Registry.get
+      File.write!(Hex.Registry.path <> ".gz", data)
       File.write!(Hex.Registry.path, :zlib.gunzip(data))
       Mix.Tasks.Hex.Info.run([])
 
-      message = "Hex v" <> Hex.version
+      message = "Hex:    v" <> Hex.version
       assert_received {:mix_shell, :info, [^message]}
       assert_received {:mix_shell, :info, ["Registry file available (last updated: " <> _]}
       assert_received {:mix_shell, :info, ["Size: " <> _]}
