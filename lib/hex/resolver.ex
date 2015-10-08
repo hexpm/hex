@@ -181,7 +181,7 @@ defmodule Hex.Resolver do
           end
         end)
 
-        {Enum.reverse(reqs), Enum.reverse(opts), all_deps}
+      {Enum.reverse(reqs), Enum.reverse(opts), all_deps}
     else
       Mix.raise "Unable to find package version #{package} v#{version} in registry"
     end
@@ -261,16 +261,20 @@ defmodule Hex.Resolver do
   end
 
   defp remove_useless_backtracks(backtracks) do
-    backtracks = Enum.map(backtracks, fn {name, version, parents} ->
+    backtracks = Enum.into(backtracks, new_set(), fn {name, version, parents} ->
       {name, version, new_set(parents)}
     end)
 
-    Enum.reject(backtracks, fn {name1, version1, parents1} ->
+    Enum.reduce(backtracks, backtracks, fn {name1, version1, parents1}=item, backtracks ->
       count = Enum.count(backtracks, fn {name2, version2, parents2} ->
         name1 == name2 and version1 == version2 and Set.subset?(parents1, parents2)
       end)
       # We will always match ourselves once
-      count > 1
+      if count > 1 do
+        Set.delete(backtracks, item)
+      else
+        backtracks
+      end
     end)
   end
 
@@ -298,6 +302,8 @@ defmodule Hex.Resolver do
 
   defp parent(parent, version, req, state),
     do: %{name: parent, version: version, req: req, state: state}
+
+  defp new_set, do: new_set([])
 
   if Version.compare("1.2.0", System.version) == :gt do
     defp new_set(enum), do: Enum.into(enum, HashSet.new)
