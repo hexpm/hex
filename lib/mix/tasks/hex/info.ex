@@ -32,7 +32,11 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp general() do
-    Hex.Shell.info "Hex v" <> Hex.version
+    Hex.Shell.info "Hex:    v#{Hex.version}"
+    Hex.Shell.info "Elixir: v#{System.version}"
+    Hex.Shell.info "ERTS:   v#{:erlang.system_info(:version)}"
+    Hex.Shell.info ""
+    Hex.Shell.info "Built with: Elixir v#{Hex.elixir_version} & ERTS v#{Hex.erts_version}"
     Hex.Shell.info ""
 
     # Make sure to fetch registry after showing Hex version. Issues with the
