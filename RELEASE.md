@@ -18,11 +18,11 @@ This document simply outlines the release process:
 
 8. Build Hex with `MIX_ENV=prod mix archive.build -o hex.ez` giving the correct name in `-o` is important, renaming the file afterwards doesn't work
 
-9. Upload builds to S3 (see below for paths)
+9. Update hex release csv, sign and upload to S3 (see below for instructions)
 
-10. Add new release by running `mix run scripts/add_install.exs HEX_VERSION ELIXIR_VERSION [, ELIXIR_VERSION]`
+10. Upload builds, csv and signed files to S3 (see below for paths)
 
-11. Update hex release csv, sign and upload to S3 (see below for instructions)
+11. Add new release by running `mix run scripts/add_install.exs HEX_VERSION ELIXIR_VERSION [, ELIXIR_VERSION]`
 
 12. Increment version and add `-dev` extension to versions (see below for all files)
 
@@ -36,27 +36,40 @@ Hex needs to built for every Elixir supported vMAJOR.MINOR version. Currently th
 
 Always build on the latest patch version and make sure tests pass before building the archive.
 
-## S3 paths
-
-* s3.hex.pm/installs/hex.ez (latest Hex built against oldest supported Elixir)
-* s3.hex.pm/installs/[ELIXIR VERSION]/hex.ez
-* s3.hex.pm/installs/[ELIXIR VERSION]/hex-[HEX VERSION].ez
-* s3.hex.pm/installs/hex-1.x.csv
-* s3.hex.pm/installs/hex-1.x.csv.signed
-
 ## Places where version is mentioned
 
 * mix.exs `:version` option
 * CHANGELOG.md
 
+## S3 paths
+
+* s3.hex.pm/installs/hex.ez (latest Hex built against oldest supported Elixir)
+* s3.hex.pm/installs/[ELIXIR]/hex.ez
+* s3.hex.pm/installs/[ELIXIR]/hex-[HEX].ez
+* s3.hex.pm/installs/hex-1.x.csv
+* s3.hex.pm/installs/hex-1.x.csv.signed
+
+## S3 upload commands
+
+Only for oldest elixir and OTP version:
+
+```
+aws s3 cp hex.ez s3://s3.hex.pm/installs/hex.ez --acl public-read
+```
+
+```
+aws s3 cp hex.ez             s3://s3.hex.pm/installs/[ELIXIR]/hex.ez       --acl public-read &&
+aws s3 cp hex-[HEX].ez       s3://s3.hex.pm/installs/[ELIXIR]/hex-[HEX].ez --acl public-read &&
+aws s3 cp hex-1.x.csv        s3://s3.hex.pm/installs/hex-1.x.csv           --acl public-read &&
+aws s3 cp hex-1.x.csv.signed s3://s3.hex.pm/installs/hex-1.x.csv.signed    --acl public-read
+```
 
 ## Hex release CSV
-
 
 ### CSV format
 
 ```
-hex_version,sha512(hex-vsn.ez),elixir_version
+hex_version,sha512(hex-[HEX].ez),elixir_version
 ```
 
 Example:
@@ -69,7 +82,7 @@ Example:
 ### Generate sha
 
 ```
-shasum -a 512 hex-vsn.ez
+shasum -a 512 hex-[HEX].ez
 ```
 
 ### Sign CSV
