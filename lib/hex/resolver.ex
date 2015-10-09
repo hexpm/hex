@@ -46,7 +46,7 @@ defmodule Hex.Resolver do
 
   defp do_resolve([request(name: name, req: req, parent: parent) = request|pending], optional, info, activated) do
     case activated[name] do
-      active(version: version, possibles: possibles, parents: parents, state: state) = active ->
+      active(version: version, possibles: possibles, parents: parents) = active ->
         possibles = Enum.filter(possibles, &version_match?(&1, req))
         parents   = [parent|parents]
         active    = active(active, possibles: possibles, parents: parents)
@@ -56,49 +56,36 @@ defmodule Hex.Resolver do
           do_resolve(pending, optional, info, activated)
         else
           add_backtrack_info(name, version, parents, info)
-          backtrack(active, state, info, activated)
+          backtrack(active, info, activated)
         end
 
       nil ->
         {opts, optional} = Map.pop(optional, name)
-        opts = opts || []
-        requests = [request|opts]
-        parents = Enum.map(requests, &request(&1, :parent))
+        opts             = opts || []
+        requests         = [request|opts]
+        parents          = Enum.map(requests, &request(&1, :parent))
 
         case get_versions(name, requests) do
           {:ok, versions} ->
-            activate([request|pending], versions, optional, info, activated, parents)
+            activate(request, pending, versions, optional, info, activated, parents)
 
           {:error, _requests} ->
             add_backtrack_info(name, nil, parents, info)
-            case Map.fetch(activated, parent) do
-              {:ok, active(state: state) = parent} ->
-                backtrack(parent, state, info, activated)
-              :error ->
-                nil
-            end
+            backtrack(activated[parent.name], info, activated)
         end
     end
   end
 
-  defp backtrack(nil, nil, _info, _activated) do
+  defp backtrack(nil, _info, _activated) do
     nil
   end
 
-  defp backtrack(nil, _state, _info, _activated) do
-    nil
-  end
-
-  defp backtrack(active(state: state) = active, nil, info, activated) do
-    backtrack(active, state, info, activated)
-  end
-
-  defp backtrack(active(app: app, name: name, possibles: possibles, parents: parents) = active, state, info, activated) do
+  defp backtrack(active(app: app, name: name, possibles: possibles, parents: parents, state: state) = active, info, activated) do
     case possibles do
       [] ->
         Enum.find_value(parents, fn
-          %{name: parent, state: state} when not parent in ~w(mix.exs mix.lock) ->
-            backtrack(activated[parent], state, info, activated)
+          %{name: name} when not name in ~w(mix.exs mix.lock) ->
+            backtrack(activated[name], info, activated)
           _ ->
             nil
         end)
@@ -118,7 +105,7 @@ defmodule Hex.Resolver do
     end
   end
 
-  defp activate([request(app: app, name: name)|pending], [version|possibles],
+  defp activate(request(app: app, name: name), pending, [version|possibles],
                 optional, info(deps: deps) = info, activated, parents) do
     {new_pending, new_optional, new_deps} = get_deps(app, name, version, info, activated)
     new_pending = pending ++ new_pending
@@ -287,14 +274,14 @@ defmodule Hex.Resolver do
   defp backtrack_message({name, version, parents}) do
     [ "Looking up alternatives for conflicting requirements on #{name}",
       if(version, do: "  Activated version: #{version}"),
-      "  " <> Enum.map_join(parents, "\n  ", &parent/1)]
+      "  " <> Enum.map_join(parents, "\n  ", &parent_message/1)]
     |> Enum.filter(& &1)
     |> Enum.join("\n")
   end
 
-  defp parent(%{name: path, version: nil, req: req}),
+  defp parent_message(%{name: path, version: nil, req: req}),
     do: "From #{path}: #{requirement(req)}"
-  defp parent(%{name: parent, version: version, req: req}),
+  defp parent_message(%{name: parent, version: version, req: req}),
     do: "From #{parent} v#{version}: #{requirement(req)}"
 
   defp requirement(nil), do: ">= 0.0.0"
