@@ -3,38 +3,44 @@ defmodule Hex.Resolver do
   import Hex.Mix
   require Record
 
-  Record.defrecordp :info, [:deps, :top_level, :backtrack_agent]
+  Record.defrecordp :info, [:deps, :top_level, :state, :backtrack]
   Record.defrecordp :state, [:activated, :pending, :optional, :deps]
   Record.defrecordp :request, [:app, :name, :req, :parent]
   Record.defrecordp :active, [:app, :name, :version, :state, :parents, :possibles]
+  Record.defrecordp :parent, [:name, :version, :requirement]
 
   def resolve(requests, deps, locked) do
-    {:ok, agent_pid} = Agent.start_link(fn -> [] end)
+    {:ok, state}     = Agent.start_link(fn -> new_set() end)
+    {:ok, backtrack} = Agent.start_link(fn -> [] end)
 
-    top_level = top_level(deps)
-    info = info(deps: deps, top_level: top_level, backtrack_agent: agent_pid)
+    try do
+      top_level = top_level(deps)
+      info = info(deps: deps, top_level: top_level, state: state, backtrack: backtrack)
 
-    optional =
-      Enum.into(locked, %{}, fn {name, app, version} ->
-        {:ok, req} = Version.parse_requirement(version)
-        parent     = parent("mix.lock", nil, req, nil)
-        request    = request(app: app, name: name, req: req, parent: parent)
-        {name, [request]}
-      end)
+      optional =
+        Enum.into(locked, %{}, fn {name, app, version} ->
+          {:ok, req} = Version.parse_requirement(version)
+          parent     = parent(name: "mix.lock", requirement: req)
+          request    = request(app: app, name: name, req: req, parent: parent)
+          {name, [request]}
+        end)
 
-    pending =
-      Enum.map(requests, fn {name, app, req, from} ->
-        req    = compile_requirement(req, name)
-        parent = parent(from, nil, req, nil)
-        request(name: name, app: app, req: req, parent: parent)
-      end)
-      |> Enum.uniq
+      pending =
+        Enum.map(requests, fn {name, app, req, from} ->
+          req    = compile_requirement(req, name)
+          parent = parent(name: from, requirement: req)
+          request(name: name, app: app, req: req, parent: parent)
+        end)
+        |> Enum.uniq
 
-    if activated = do_resolve(pending, optional, info, %{}) do
-      Agent.stop(agent_pid)
-      {:ok, activated}
-    else
-      {:error, error_message(agent_pid)}
+      if activated = do_resolve(pending, optional, info, %{}) do
+        {:ok, activated}
+      else
+        {:error, error_message(backtrack)}
+      end
+    after
+      Agent.stop(backtrack)
+      Agent.stop(state)
     end
   end
 
@@ -71,7 +77,7 @@ defmodule Hex.Resolver do
 
           {:error, _requests} ->
             add_backtrack_info(name, nil, parents, info)
-            backtrack(activated[parent.name], info, activated)
+            backtrack(activated[parent(parent, :name)], info, activated)
         end
     end
   end
@@ -83,11 +89,8 @@ defmodule Hex.Resolver do
   defp backtrack(active(app: app, name: name, possibles: possibles, parents: parents, state: state) = active, info, activated) do
     case possibles do
       [] ->
-        Enum.find_value(parents, fn
-          %{name: name} when not name in ~w(mix.exs mix.lock) ->
-            backtrack(activated[name], info, activated)
-          _ ->
-            nil
+        Enum.find_value(parents, fn parent(name: name) ->
+          backtrack(activated[name], info, activated)
         end)
 
       [version|possibles] ->
@@ -112,13 +115,16 @@ defmodule Hex.Resolver do
     new_optional = merge_optional(optional, new_optional)
 
     state = state(activated: activated, pending: pending, optional: optional, deps: deps)
-    new_active = active(app: app, name: name, version: version, state: state,
-                        possibles: possibles, parents: parents)
-    activated = Map.put(activated, name, new_active)
 
-    info = info(info, deps: new_deps)
+    if track_state(state, info) do
+      new_active = active(app: app, name: name, version: version, state: state,
+                          possibles: possibles, parents: parents)
+      activated = Map.put(activated, name, new_active)
 
-    do_resolve(new_pending, new_optional, info, activated)
+      info = info(info, deps: new_deps)
+
+      do_resolve(new_pending, new_optional, info, activated)
+    end
   end
 
   defp get_versions(package, requests) do
@@ -155,7 +161,7 @@ defmodule Hex.Resolver do
       {reqs, opts} =
         Enum.reduce(deps, {[], []}, fn {name, app, req, optional}, {reqs, opts} ->
           req = compile_requirement(req, name)
-          parent = parent(package, version, req, nil)
+          parent = parent(name: package, version: version, requirement: req)
           request = request(app: app, name: name, req: req, parent: parent)
 
           cond do
@@ -213,6 +219,16 @@ defmodule Hex.Resolver do
     Map.merge(optional, new_optional, fn _, v1, v2 -> v1 ++ v2 end)
   end
 
+  defp track_state(state(activated: activated), info(state: agent)) do
+    activated = Enum.map(activated, fn {_, active} ->
+      active(active, state: nil)
+    end)
+
+    Agent.get_and_update(agent, fn set ->
+      {not Set.member?(set, activated), Set.put(set, activated)}
+    end)
+  end
+
   defp compile_requirement(nil, _package) do
     nil
   end
@@ -230,10 +246,15 @@ defmodule Hex.Resolver do
     Mix.raise "Invalid requirement #{inspect req} defined for package #{package}"
   end
 
+  # TODO: Duplicate backtracks are pruned but we can also merge backtracks
+  #       where the message only differs in a single version. This is often
+  #       the case because many times packages don't change requirements
+  #       between releases causing them to generate a message only differing
+  #       in the package version. These messages should be rolled up into a
+  #       single message.
   defp error_message(agent_pid) do
     backtrack_info = Agent.get(agent_pid, & &1)
-    Agent.stop(agent_pid)
-    backtrack_info = remove_useless_backtracks(backtrack_info)
+    backtrack_info = prune_duplicate_backtracks(backtrack_info)
     messages =
       backtrack_info
       |> Enum.map(fn {name, version, parents} -> {name, version, Enum.sort(parents, &sort_parents/2)} end)
@@ -242,12 +263,12 @@ defmodule Hex.Resolver do
     Enum.join(messages, "\n\n") <> "\n"
   end
 
-  defp add_backtrack_info(name, version, parents, info(backtrack_agent: agent)) do
+  defp add_backtrack_info(name, version, parents, info(backtrack: agent)) do
     info = {name, version, parents}
     Agent.cast(agent, &[info|&1])
   end
 
-  defp remove_useless_backtracks(backtracks) do
+  defp prune_duplicate_backtracks(backtracks) do
     backtracks = Enum.into(backtracks, new_set(), fn {name, version, parents} ->
       {name, version, new_set(parents)}
     end)
@@ -265,11 +286,12 @@ defmodule Hex.Resolver do
     end)
   end
 
-  defp sort_parents(%{name: "mix.exs"}, _),  do: true
-  defp sort_parents(_, %{name: "mix.exs"}),  do: false
-  defp sort_parents(%{name: "mix.lock"}, _), do: true
-  defp sort_parents(_, %{name: "mix.lock"}), do: false
-  defp sort_parents(parent1, parent2),       do: parent1 <= parent2
+  # TODO: Handle sorting of mix.exs from umbrellas
+  defp sort_parents(parent(name: "mix.exs"), _),  do: true
+  defp sort_parents(_, parent(name: "mix.exs")),  do: false
+  defp sort_parents(parent(name: "mix.lock"), _), do: true
+  defp sort_parents(_, parent(name: "mix.lock")), do: false
+  defp sort_parents(parent1, parent2),            do: parent1 <= parent2
 
   defp backtrack_message({name, version, parents}) do
     [ "Looking up alternatives for conflicting requirements on #{name}",
@@ -279,16 +301,13 @@ defmodule Hex.Resolver do
     |> Enum.join("\n")
   end
 
-  defp parent_message(%{name: path, version: nil, req: req}),
+  defp parent_message(parent(name: path, version: nil, requirement: req)),
     do: "From #{path}: #{requirement(req)}"
-  defp parent_message(%{name: parent, version: version, req: req}),
+  defp parent_message(parent(name: parent, version: version, requirement: req)),
     do: "From #{parent} v#{version}: #{requirement(req)}"
 
   defp requirement(nil), do: ">= 0.0.0"
   defp requirement(req), do: req.source
-
-  defp parent(parent, version, req, state),
-    do: %{name: parent, version: version, req: req, state: state}
 
   defp new_set, do: new_set([])
 
