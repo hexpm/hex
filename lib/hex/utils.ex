@@ -170,6 +170,10 @@ defmodule Hex.Utils do
   def print_error_result(status, ""),
     do: print_http_code(status)
 
+  def print_error_result(_status, body) when is_binary(body) do
+    Hex.Shell.info body
+  end
+
   def print_error_result(status, body) do
     message = body["message"]
     errors = body["errors"]
