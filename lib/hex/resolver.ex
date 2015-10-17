@@ -3,19 +3,17 @@ defmodule Hex.Resolver do
   import Hex.Mix
   require Record
 
-  Record.defrecordp :info, [:deps, :top_level, :state, :backtrack]
-  Record.defrecordp :state, [:activated, :pending, :optional, :deps]
+  Record.defrecordp :info, [:deps, :top_level, :backtrack]
   Record.defrecordp :request, [:app, :name, :req, :parent]
-  Record.defrecordp :active, [:app, :name, :version, :state, :parents, :possibles]
+  Record.defrecordp :active, [:app, :name, :version, :parents]
   Record.defrecordp :parent, [:name, :version, :requirement]
 
   def resolve(requests, deps, locked) do
-    {:ok, state}     = Agent.start_link(fn -> new_set() end)
     {:ok, backtrack} = Agent.start_link(fn -> [] end)
 
     try do
       top_level = top_level(deps)
-      info = info(deps: deps, top_level: top_level, state: state, backtrack: backtrack)
+      info = info(deps: deps, top_level: top_level, backtrack: backtrack)
 
       optional =
         Enum.into(locked, %{}, fn {name, app, version} ->
@@ -40,7 +38,6 @@ defmodule Hex.Resolver do
       end
     after
       Agent.stop(backtrack)
-      Agent.stop(state)
     end
   end
 
@@ -52,17 +49,16 @@ defmodule Hex.Resolver do
 
   defp do_resolve([request(name: name, req: req, parent: parent) = request|pending], optional, info, activated) do
     case activated[name] do
-      active(version: version, possibles: possibles, parents: parents) = active ->
-        possibles = Enum.filter(possibles, &version_match?(&1, req))
-        parents   = [parent|parents]
-        active    = active(active, possibles: possibles, parents: parents)
+      active(version: version, parents: parents) = active ->
+        parents = [parent|parents]
+        active  = active(active, parents: parents)
 
         if version_match?(version, req) do
           activated = Map.put(activated, name, active)
           do_resolve(pending, optional, info, activated)
         else
           add_backtrack_info(name, version, parents, info)
-          backtrack(active, info, activated)
+          nil
         end
 
       nil ->
@@ -77,54 +73,25 @@ defmodule Hex.Resolver do
 
           {:error, _requests} ->
             add_backtrack_info(name, nil, parents, info)
-            backtrack(activated[parent(parent, :name)], info, activated)
+            nil
         end
     end
   end
 
-  defp backtrack(nil, _info, _activated) do
-    nil
-  end
+  defp activate(request(app: app, name: name), pending, versions,
+                optional, info, activated, parents) do
+    Enum.find_value(versions, fn version ->
+      {new_pending, new_optional, new_deps} = get_deps(app, name, version, info, activated)
+      new_pending = pending ++ new_pending
+      new_optional = merge_optional(optional, new_optional)
 
-  defp backtrack(active(app: app, name: name, possibles: possibles, parents: parents, state: state) = active, info, activated) do
-    case possibles do
-      [] ->
-        Enum.find_value(parents, fn parent(name: name) ->
-          backtrack(activated[name], info, activated)
-        end)
-
-      [version|possibles] ->
-        state(activated: activated, pending: pending, optional: optional, deps: deps) = state
-
-        active = active(active, possibles: possibles, version: version)
-        info = info(info, deps: deps)
-        {new_pending, new_optional, new_deps} = get_deps(app, name, version, info, activated)
-        pending = pending ++ new_pending
-        optional = merge_optional(optional, new_optional)
-        info = info(info, deps: new_deps)
-
-        activated = Map.put(activated, name, active)
-        do_resolve(pending, optional, info, activated)
-    end
-  end
-
-  defp activate(request(app: app, name: name), pending, [version|possibles],
-                optional, info(deps: deps) = info, activated, parents) do
-    {new_pending, new_optional, new_deps} = get_deps(app, name, version, info, activated)
-    new_pending = pending ++ new_pending
-    new_optional = merge_optional(optional, new_optional)
-
-    state = state(activated: activated, pending: pending, optional: optional, deps: deps)
-
-    if track_state(state, info) do
-      new_active = active(app: app, name: name, version: version, state: state,
-                          possibles: possibles, parents: parents)
+      new_active = active(app: app, name: name, version: version, parents: parents)
       activated = Map.put(activated, name, new_active)
 
       info = info(info, deps: new_deps)
 
       do_resolve(new_pending, new_optional, info, activated)
-    end
+    end)
   end
 
   defp get_versions(package, requests) do
@@ -217,16 +184,6 @@ defmodule Hex.Resolver do
         {name, [request]}
       end)
     Map.merge(optional, new_optional, fn _, v1, v2 -> v1 ++ v2 end)
-  end
-
-  defp track_state(state(activated: activated), info(state: agent)) do
-    activated = Enum.map(activated, fn {_, active} ->
-      active(active, state: nil)
-    end)
-
-    Agent.get_and_update(agent, fn set ->
-      {not Set.member?(set, activated), Set.put(set, activated)}
-    end)
   end
 
   defp compile_requirement(nil, _package) do

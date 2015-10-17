@@ -76,11 +76,12 @@ defmodule Hex.ResolverTest do
       From ex_plex v0.0.2: 0.1.1
     """
 
-    deps = [decimal: nil, ex_plex: "0.0.2"]
+    # TODO: [decimal: nil, ex_plex: "0.0.2"]
+    deps = [decimal: ">= 0.2.1", ex_plex: "0.0.2"]
     assert resolve(deps) == """
     Looking up alternatives for conflicting requirements on decimal
       Activated version: 0.2.1
-      From mix.exs: >= 0.0.0
+      From mix.exs: >= 0.2.1
       From ex_plex v0.0.2: 0.1.1
     """
   end
