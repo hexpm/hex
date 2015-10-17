@@ -35,10 +35,10 @@ defmodule Hex.Parallel do
 
   def handle_call({:await, id}, from, state) do
     if result = state.finished[id] do
-      state = update_in(state.finished, &Map.delete(&1, id))
+      state = %{state | finished: Map.delete(state.finished, id)}
       {:reply, result, state}
     else
-      state = update_in(state.waiting_reply, &Map.put(&1, id, from))
+      state = %{state | waiting_reply: Map.put(state.waiting_reply, id, from)}
       {:noreply, state}
     end
   end
@@ -58,18 +58,18 @@ defmodule Hex.Parallel do
     case Task.find(tasks, message) do
       {result, task} ->
         id = state.running[task]
-        state = update_in(state.running, &Map.delete(&1, task))
+        state = %{state | running: Map.delete(state.running, task)}
 
         if from = state.waiting_reply[id] do
           GenServer.reply(from, result)
-          state = update_in(state.waiting_reply, &Map.delete(&1, id))
+          state = %{state | waiting_reply: Map.delete(state.waiting_reply, id)}
         else
-          state = update_in(state.finished, &Map.put(&1, id, result))
+          state = %{state | finished: Map.put(state.finished, id, result)}
         end
 
         case :queue.out(state.waiting) do
           {{:value, {id, fun}}, waiting} ->
-            state = put_in(state.waiting, waiting)
+            state = %{state | waiting: waiting}
             state = run_task(id, fun, state)
           {:empty, _} ->
             :ok
@@ -83,10 +83,10 @@ defmodule Hex.Parallel do
 
   defp run_task(id, fun, state) do
     if Map.size(state.running) >= state.max_jobs do
-      state = update_in(state.waiting, &:queue.in({id, fun}, &1))
+      state = %{state | waiting: :queue.in({id, fun}, state.waiting)}
     else
       task = Task.async(fun)
-      state = update_in(state.running, &Map.put(&1, task, id))
+      state = %{state | running: Map.put(state.running, task, id)}
     end
 
     state

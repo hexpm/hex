@@ -194,7 +194,7 @@ defmodule Hex.Resolver do
         %Mix.Dep{app: app, opts: [hex: name]}
       end)
 
-    new_dep = put_in(dep.deps, children)
+    new_dep = %{dep | deps: children}
 
     put_dep(deps, new_dep) ++ children
   end
