@@ -203,19 +203,11 @@ defmodule Hex.Resolver do
     Mix.raise "Invalid requirement #{inspect req} defined for package #{package}"
   end
 
-  # TODO: Duplicate backtracks are pruned but we can also merge backtracks
-  #       where the message only differs in a single version. This is often
-  #       the case because many times packages don't change requirements
-  #       between releases causing them to generate a message only differing
-  #       in the package version. These messages should be rolled up into a
-  #       single message.
   defp error_message(agent_pid) do
-    backtrack_info = Agent.get(agent_pid, & &1)
-    backtrack_info = prune_duplicate_backtracks(backtrack_info)
     messages =
-      backtrack_info
-      |> Enum.map(fn {name, version, parents} -> {name, version, Enum.sort(parents, &sort_parents/2)} end)
-      |> Enum.sort()
+      Agent.get(agent_pid, & &1)
+      |> merge_backtracks([])
+      |> sort_backtracks
       |> Enum.map(&backtrack_message/1)
     Enum.join(messages, "\n\n") <> "\n"
   end
@@ -225,22 +217,41 @@ defmodule Hex.Resolver do
     Agent.cast(agent, &[info|&1])
   end
 
-  defp prune_duplicate_backtracks(backtracks) do
-    backtracks = Enum.into(backtracks, new_set(), fn {name, version, parents} ->
-      {name, version, new_set(parents)}
-    end)
+  defp merge_backtracks([], acc) do
+    acc
+  end
 
-    Enum.reduce(backtracks, backtracks, fn {name1, version1, parents1}=item, backtracks ->
-      count = Enum.count(backtracks, fn {name2, version2, parents2} ->
-        name1 == name2 and version1 == version2 and Set.subset?(parents1, parents2)
+  defp merge_backtracks([{name, version, parents}|rest], acc) do
+    similar_versions =
+      Enum.flat_map(rest, fn {name2, version2, parents2} ->
+        if name == name2 and parents == parents2 do
+          [version2]
+        else
+          []
+        end
       end)
-      # We will always match ourselves once
-      if count > 1 do
-        Set.delete(backtracks, item)
-      else
-        backtracks
-      end
-    end)
+      |> Kernel.++([version])
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq
+
+    rest =
+      Enum.reject(rest, fn {name2, version, _} ->
+        name == name2 and (version in similar_versions or is_nil(version))
+      end)
+
+    acc = [{name, similar_versions, parents}|acc]
+
+    merge_backtracks(rest, acc)
+  end
+
+  defp sort_backtracks(backtracks) do
+    backtracks
+    |> Enum.map(fn {name, versions, parents} ->
+         versions = Enum.sort(versions, &>=/2)
+         parents  = Enum.sort(parents, &sort_parents/2)
+         {name, versions, parents}
+       end)
+    |> Enum.sort()
   end
 
   # TODO: Handle sorting of mix.exs from umbrellas
@@ -250,9 +261,9 @@ defmodule Hex.Resolver do
   defp sort_parents(_, parent(name: "mix.lock")), do: false
   defp sort_parents(parent1, parent2),            do: parent1 <= parent2
 
-  defp backtrack_message({name, version, parents}) do
-    [ "Looking up alternatives for conflicting requirements on #{name}",
-      if(version, do: "  Activated version: #{version}"),
+  defp backtrack_message({name, versions, parents}) do
+    versions = "#{if versions != [], do: " "}#{Enum.join(versions, ", ")}"
+    [ "Conflict on #{name}#{versions}",
       "  " <> Enum.map_join(parents, "\n  ", &parent_message/1)]
     |> Enum.filter(& &1)
     |> Enum.join("\n")
@@ -265,12 +276,4 @@ defmodule Hex.Resolver do
 
   defp requirement(nil), do: ">= 0.0.0"
   defp requirement(req), do: req.source
-
-  defp new_set, do: new_set([])
-
-  if Version.compare("1.2.0", System.version) == :gt do
-    defp new_set(enum), do: Enum.into(enum, HashSet.new)
-  else
-    defp new_set(enum), do: Enum.into(enum, MapSet.new)
-  end
 end
