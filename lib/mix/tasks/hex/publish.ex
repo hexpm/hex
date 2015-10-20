@@ -81,6 +81,7 @@ defmodule Mix.Tasks.Hex.Publish do
     build = Build.prepare_package!
 
     meta = build[:meta]
+    raise_if_missing_description!(meta)
     package = build[:package]
     exclude_deps = build[:exclude_deps]
 
@@ -99,6 +100,12 @@ defmodule Mix.Tasks.Hex.Publish do
         progress? = Keyword.get(opts, :progress, true)
         create_release(meta, auth, progress?)
       end
+    end
+  end
+
+  defp raise_if_missing_description!(meta) do
+    unless is_binary(meta[:description]) and meta[:description] != "" do
+      Mix.raise "Failed to publish package (missing description)."
     end
   end
 

@@ -4,13 +4,13 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
   defmodule ReleaseSimple.Mixfile do
     def project do
-      [ app: :releasea, version: "0.0.1" ]
+      [ app: :releasea, description: "baz", version: "0.0.1" ]
     end
   end
 
   defmodule ReleaseDeps.Mixfile do
     def project do
-      [ app: :releaseb, version: "0.0.2",
+      [ app: :releaseb, description: "bar", version: "0.0.2",
         deps: [{:ex_doc, "0.0.1", package: true}] ]
     end
   end
@@ -28,7 +28,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
   defmodule ReleaseName.Mixfile do
     def project do
-      [ app: :released, version: "0.0.1",
+      [ app: :released, description: "baz", version: "0.0.1",
         package: [name: :released_name] ]
     end
   end
@@ -110,7 +110,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["--no-progress"])
 
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! No files\e[0m"]}
-      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: description, licenses, maintainers, links\e[0m"]}
+      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: licenses, maintainers, links\e[0m"]}
       assert HexWeb.Release.get(HexWeb.Package.get("releaseb"), "0.0.2")
     end
   after
