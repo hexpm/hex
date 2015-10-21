@@ -75,7 +75,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       Mix.Tasks.Hex.Build.run([])
 
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! No files\e[0m"]}
-      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: description, licenses, maintainers, links\e[0m"]}
+      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: licenses, maintainers, links\e[0m"]}
       assert package_created?("releaseb-0.0.2")
     end
   after
@@ -99,4 +99,19 @@ defmodule Mix.Tasks.Hex.BuildTest do
       assert package_created?("releasec-0.0.3")
     end
   end
+
+  #test "reject package if description is missing" do
+    #Mix.Project.push ReleaseSimple.Mixfile
+
+    #in_tmp fn ->
+      #Hex.State.put(:home, tmp_path())
+
+      #Mix.Tasks.Hex.Build.run([])
+
+      #assert_received {:mix_shell, :info, ["Building releasea v0.0.1"]}
+      #assert_received {:mix_shell, :error, ["  ERROR! Missing metadata fields: description"]}
+          
+      #refute package_created?("releasea-0.0.1")
+    #end
+  #end
 end

@@ -2,8 +2,8 @@ defmodule Mix.Hex.Build do
   @default_files ~w(lib priv mix.exs README* readme* LICENSE*
                     license* CHANGELOG* changelog* src)
 
-  @error_fields ~w(files app name version build_tools)a
-  @warn_fields ~w(description licenses maintainers links)a
+  @error_fields ~w(files app name description version build_tools)a
+  @warn_fields ~w(licenses maintainers links)a
   @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir)a
 
   def prepare_package! do
