@@ -38,7 +38,7 @@ defmodule Mix.Hex.Build do
 
     warn_missing(meta)
     warn_missing_files(package_files)
-    error_missing(meta)
+    error_missing!(meta)
 
     if exclude_deps != [] do
       Hex.Shell.warn("  WARNING! Excluded dependencies (not part of the Hex package):")
@@ -160,17 +160,28 @@ defmodule Mix.Hex.Build do
   defp meta_value(value),
     do: value
 
-  defp error_missing(meta) do
-    missing(meta, @error_fields, &Hex.Shell.error("  ERROR! #{&1}"))
-  end
-
   defp missing_files(nil), do: []
   defp missing_files(files) do
     Enum.filter(files, &(Path.wildcard(&1) == []))
   end
 
+  defp error_missing!(meta) do
+    missing_fields = missing(meta, @error_fields)
+
+    if missing_fields != [] do
+      fields = Enum.join(missing_fields, ", ")
+      Hex.Shell.error("  ERROR! Missing metadata fields: #{fields}")
+      Mix.raise("Stopping package build due to errors")
+    end
+  end
+
   defp warn_missing(meta) do
-    missing(meta, @warn_fields, &Hex.Shell.warn("  WARNING! #{&1}"))
+    missing_fields = missing(meta, @warn_fields)
+
+    if missing_fields != [] do
+      fields = Enum.join(missing_fields, ", ")
+      Hex.Shell.warn("  WARNING! Missing metadata fields: #{fields}")
+    end
   end
 
   defp warn_missing_files(package_files) do
@@ -181,14 +192,9 @@ defmodule Mix.Hex.Build do
     end
   end
 
-  defp missing(meta, fields, printer) do
+  defp missing(meta, fields) do
     taken_fields = Map.take(meta, fields) |> Map.keys
-    missing = fields -- taken_fields
-
-    if missing != [] do
-      missing = Enum.join(missing, ", ")
-      printer.("Missing metadata fields: #{missing}")
-    end
+    fields -- taken_fields
   end
 
   @build_tools [

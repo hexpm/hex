@@ -4,13 +4,13 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
   defmodule ReleaseSimple.Mixfile do
     def project do
-      [ app: :releasea, version: "0.0.1" ]
+      [ app: :releasea, description: "baz", version: "0.0.1" ]
     end
   end
 
   defmodule ReleaseDeps.Mixfile do
     def project do
-      [ app: :releaseb, version: "0.0.2",
+      [ app: :releaseb, description: "bar", version: "0.0.2",
         deps: [{:ex_doc, "0.0.1", package: true}] ]
     end
   end
@@ -28,8 +28,14 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
   defmodule ReleaseName.Mixfile do
     def project do
-      [ app: :released, version: "0.0.1",
+      [ app: :released, description: "Whatever", version: "0.0.1",
         package: [name: :released_name] ]
+    end
+  end
+
+  defmodule ReleaseNoDescription.Mixfile do
+    def project do
+      [ app: :releasee, version: "0.0.1" ]
     end
   end
 
@@ -100,18 +106,20 @@ defmodule Mix.Tasks.Hex.BuildTest do
     end
   end
 
-  #test "reject package if description is missing" do
-    #Mix.Project.push ReleaseSimple.Mixfile
+  test "reject package if description is missing" do
+    Mix.Project.push ReleaseNoDescription.Mixfile
 
-    #in_tmp fn ->
-      #Hex.State.put(:home, tmp_path())
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
 
-      #Mix.Tasks.Hex.Build.run([])
+      assert_raise Mix.Error, "Stopping package build due to errors", fn ->
+        Mix.Tasks.Hex.Build.run([])
 
-      #assert_received {:mix_shell, :info, ["Building releasea v0.0.1"]}
-      #assert_received {:mix_shell, :error, ["  ERROR! Missing metadata fields: description"]}
-          
-      #refute package_created?("releasea-0.0.1")
-    #end
-  #end
+        assert_received {:mix_shell, :info, ["Building releasee v0.0.1"]}
+        assert_received {:mix_shell, :error, ["  ERROR! Missing metadata fields: description"]}
+
+        refute package_created?("releasee-0.0.1")
+      end
+    end
+  end
 end
