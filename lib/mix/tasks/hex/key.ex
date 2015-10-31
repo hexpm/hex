@@ -34,7 +34,7 @@ defmodule Mix.Tasks.Hex.Key do
       ["list"] ->
         list_keys(auth)
       _ ->
-        Mix.raise "Invalid arguments, expected one of:\nmix hex.key remove KEY\nmix hex.key list'"
+        Mix.raise "Invalid arguments, expected one of:\nmix hex.key remove KEY\nmix hex.key list"
     end
   end
 
