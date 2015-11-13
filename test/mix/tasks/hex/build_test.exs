@@ -4,13 +4,13 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
   defmodule ReleaseSimple.Mixfile do
     def project do
-      [ app: :releasea, version: "0.0.1" ]
+      [ app: :releasea, description: "baz", version: "0.0.1" ]
     end
   end
 
   defmodule ReleaseDeps.Mixfile do
     def project do
-      [ app: :releaseb, version: "0.0.2",
+      [ app: :releaseb, description: "bar", version: "0.0.2",
         deps: [{:ex_doc, "0.0.1", package: true}] ]
     end
   end
@@ -28,8 +28,14 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
   defmodule ReleaseName.Mixfile do
     def project do
-      [ app: :released, version: "0.0.1",
+      [ app: :released, description: "Whatever", version: "0.0.1",
         package: [name: :released_name] ]
+    end
+  end
+
+  defmodule ReleaseNoDescription.Mixfile do
+    def project do
+      [ app: :releasee, version: "0.0.1" ]
     end
   end
 
@@ -75,7 +81,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       Mix.Tasks.Hex.Build.run([])
 
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! No files\e[0m"]}
-      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: description, licenses, maintainers, links\e[0m"]}
+      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: licenses, maintainers, links\e[0m"]}
       assert package_created?("releaseb-0.0.2")
     end
   after
@@ -97,6 +103,23 @@ defmodule Mix.Tasks.Hex.BuildTest do
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing files: missing.txt, missing/*" <> _]}
       refute_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields" <> _]}
       assert package_created?("releasec-0.0.3")
+    end
+  end
+
+  test "reject package if description is missing" do
+    Mix.Project.push ReleaseNoDescription.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+
+      assert_raise Mix.Error, "Stopping package build due to errors", fn ->
+        Mix.Tasks.Hex.Build.run([])
+
+        assert_received {:mix_shell, :info, ["Building releasee v0.0.1"]}
+        assert_received {:mix_shell, :error, ["  ERROR! Missing metadata fields: description"]}
+
+        refute package_created?("releasee-0.0.1")
+      end
     end
   end
 end
