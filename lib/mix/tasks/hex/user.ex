@@ -132,7 +132,7 @@ defmodule Mix.Tasks.Hex.User do
   defp create_key(opts) do
     clean? = Keyword.get(opts, :clean_pass, true)
 
-    username = Hex.Shell.prompt("Username:")          |> String.strip
+    username = Hex.Shell.prompt("Username:")           |> String.strip
     password = Utils.password_get("Password:", clean?) |> String.strip
 
     Utils.generate_key(username, password)

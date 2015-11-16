@@ -103,7 +103,7 @@ defmodule Hex.Mixfile do
 
   defp cmd(cmd, args) do
     {_, result} = System.cmd(cmd, args, into: IO.stream(:stdio, :line),
-                                        stderr_to_stdout: true)
+                             stderr_to_stdout: true)
 
     if result != 0 do
       raise "Non-zero result (#{result}) from: #{cmd} #{Enum.map_join(args, " ", &inspect/1)}"
