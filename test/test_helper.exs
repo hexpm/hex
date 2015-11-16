@@ -3,6 +3,18 @@ ExUnit.start
 defmodule HexTest.Case do
   use ExUnit.CaseTemplate
 
+  def flush do
+    flush([])
+  end
+
+  defp flush(acc) do
+    receive do
+      any -> flush([any|acc])
+    after
+      0 -> Enum.reverse(acc)
+    end
+  end
+
   def tmp_path do
     Path.expand("../tmp", __DIR__)
   end
@@ -278,4 +290,6 @@ unless :integration in ExUnit.configuration[:exclude] do
   Case.init_project("only_doc", "0.1.0", [{:ex_doc, ">= 0.0.0", optional: true}], %{}, auth)
   Case.init_project("package_name", "0.1.0", [], %{app: "app_name"}, auth)
   Case.init_project("depend_name", "0.2.0", [{:app_name, ">= 0.0.0", optional: true, hex: :package_name}], %{}, auth)
+  Case.init_project("foo", "0.1.0", [], pkg_meta, auth)
+  Case.init_project("bar", "0.1.0", [foo: "~> 0.1.0"], pkg_meta, auth)
 end

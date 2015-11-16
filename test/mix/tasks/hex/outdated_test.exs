@@ -4,10 +4,10 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
   defmodule OutdatedDeps.Mixfile do
     def project do
-      [ app: :outdated_app,
-        version: "0.0.2",
-        deps: [ {:bar, "0.0.1"},
-                {:eric, "0.2.0"} ]]
+      [app: :outdated_app,
+       version: "0.0.2",
+       deps: [{:bar, "0.1.0"},
+              {:ex_doc, "0.1.0"}]]
     end
   end
 
@@ -23,24 +23,13 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Hex.State.put(:home, tmp_path())
       Mix.Dep.Lock.write %{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}}
 
-      Mix.Task.run "hex.outdated"
-
-      assert_received {:mix_shell, :info, ["Outdated packages:"]}
-      assert_received {:mix_shell, :info, [" * bar (0.2.0 > 0.1.0)"]}
-      refute_received {:mix_shell, :info, [" * foo (0.2.1 > 0.1.0)"]}
-    end
-  end
-
-  test "non outdated" do
-    Mix.Project.push OutdatedDeps.Mixfile
-
-    in_tmp fn ->
-      Hex.State.put(:home, tmp_path())
-      Mix.Dep.Lock.write %{eric: "0.2.0"}
+      Mix.Task.run "deps.get"
+      flush
 
       Mix.Task.run "hex.outdated"
 
-      assert_received {:mix_shell, :info, ["All packages are up-to-date."]}
+      assert_received {:mix_shell, :info, ["\e[1mbar\e[0m         \e[31m0.1.0\e[0m   0.2.0    \e[31m0.1.0\e[0m\e[0m"]}
+      refute_received {:mix_shell, :info, ["\e[1mfoo\e[0m         \e[31m0.2.1\e[0m   0.2.0    \e[31m~> 0.1.0\e[0m\e[0m"]}
     end
   end
 
@@ -51,11 +40,13 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Hex.State.put(:home, tmp_path())
       Mix.Dep.Lock.write %{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}}
 
+      Mix.Task.run "deps.get"
+      flush
+
       Mix.Task.run "hex.outdated", ["--all"]
 
-      assert_received {:mix_shell, :info, ["Outdated packages:"]}
-      assert_received {:mix_shell, :info, [" * bar (0.2.0 > 0.1.0)"]}
-      assert_received {:mix_shell, :info, [" * foo (0.2.1 > 0.1.0)"]}
+      assert_received {:mix_shell, :info, ["\e[1mbar\e[0m         \e[31m0.1.0\e[0m   0.2.0    \e[31m0.1.0\e[0m\e[0m"]}
+      assert_received {:mix_shell, :info, ["\e[1mfoo\e[0m         \e[31m0.1.0\e[0m   0.2.1    \e[31m~> 0.1.0\e[0m\e[0m"]}
     end
   end
 end
