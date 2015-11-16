@@ -62,7 +62,7 @@ defmodule Mix.Hex.Utils do
   @progress_steps 25
 
   def progress(nil) do
-    fn _ -> end
+    fn _ -> nil end
   end
 
   def progress(max) do
