@@ -97,7 +97,7 @@ defmodule Hex.RemoteConverger do
     resolved = Map.drop(resolved, locked)
 
     if Map.size(resolved) != 0 do
-      Hex.Shell.info "Dependency resolution completed successfully"
+      Hex.Shell.info "Dependency resolution completed"
       resolved = Enum.sort(resolved)
       Enum.each(resolved, fn {name, version} ->
         Hex.Shell.info "  #{name}: v#{version}"
