@@ -85,6 +85,7 @@ defmodule Hex.API.ValidateCertTest do
       assert {:error, {:bad_cert, :unknown_ca}} = run_validation([amazon_cert, verisign_g3, verisigng5], :undefined)
     end
 
+    @tag :skip
     test "succeeds to validate with partial chain that is correct" do
       partial_chain_fun = &Hex.API.partial_chain(Hex.API.Certs.cacerts, &1)
       assert {:ok, _} = run_validation([amazon_cert, verisign_g3, verisigng5], partial_chain_fun)
