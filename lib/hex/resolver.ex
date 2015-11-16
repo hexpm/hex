@@ -247,7 +247,7 @@ defmodule Hex.Resolver do
   defp sort_backtracks(backtracks) do
     backtracks
     |> Enum.map(fn {name, versions, parents} ->
-         versions = Enum.sort(versions, &>=/2)
+         versions = Enum.sort(versions, &(Version.compare(&1, &2) != :lt))
          parents  = Enum.sort(parents, &sort_parents/2)
          {name, versions, parents}
        end)
