@@ -1,4 +1,4 @@
-ExUnit.start exclude: [:integration]
+ExUnit.start
 
 defmodule HexTest.Case do
   use ExUnit.CaseTemplate
@@ -232,7 +232,7 @@ Hex.State.put(:api, "http://localhost:4043/api")
 unless System.get_env("HEX_CDN"), do: Hex.State.put(:cdn, "http://localhost:4043")
 
 
-if :integration in ExUnit.configuration[:include] do
+unless :integration in ExUnit.configuration[:exclude] do
   db = "hex_test"
   db_url = "ecto://postgres:postgres@localhost/#{db}"
 

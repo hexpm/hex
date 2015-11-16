@@ -14,7 +14,7 @@ before_script:
   - MIX_ENV=test mix deps.compile
 script:
   - MIX_ENV=test mix compile
-  - mix test --include integration
+  - mix test
 env:
   matrix:
     - ELIXIRVERSION=v1.0.5
