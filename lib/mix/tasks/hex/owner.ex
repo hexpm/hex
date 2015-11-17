@@ -29,13 +29,20 @@ defmodule Mix.Tasks.Hex.Owner do
   Lists all owners of given package.
 
   `mix hex.owner list PACKAGE`
+
+  ### List owned packages
+
+  Lists all packages owned by the current user.
+
+  `mix hex.owner packages`
   """
 
   def run(args) do
     Hex.start
     Hex.Utils.ensure_registry(update: false)
 
-    auth = Utils.auth_info()
+    config = Hex.Config.read
+    auth = Utils.auth_info(config)
 
     case args do
       ["add", package, owner] ->
@@ -44,9 +51,12 @@ defmodule Mix.Tasks.Hex.Owner do
         remove_owner(package, owner, auth)
       ["list", package] ->
         list_owners(package, auth)
+      ["packages"] ->
+        list_owned_packages(config, auth)
       _ ->
         Mix.raise "Invalid arguments, expected one of:\nmix hex.owner add PACKAGE EMAIL\n" <>
-                  "mix hex.owner remove PACKAGE EMAIL\nmix hex.owner list PACKAGE"
+                  "mix hex.owner remove PACKAGE EMAIL\nmix hex.owner list PACKAGE\n" <>
+                  "mix hex.owner packages"
     end
   end
 
@@ -78,6 +88,19 @@ defmodule Mix.Tasks.Hex.Owner do
         Enum.each(body, &Hex.Shell.info(&1["email"]))
       {code, body} ->
         Hex.Shell.error "Package owner fetching failed"
+        Hex.Utils.print_error_result(code, body)
+    end
+  end
+
+  def list_owned_packages(config, auth) do
+    {:ok, username} = Keyword.fetch(config, :username)
+    case Hex.API.User.get(username, auth) do
+      {code, body} when code in 200..299 ->
+        Enum.each(body["owned_packages"], fn({name, url}) ->
+          Hex.Shell.info("#{name} - #{url}")
+        end)
+      {code, body} ->
+        Hex.Shell.error("Listing owned packages failed")
         Hex.Utils.print_error_result(code, body)
     end
   end
