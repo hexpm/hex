@@ -1,4 +1,4 @@
-ExUnit.start
+ExUnit.start exclude: [:skip]
 
 defmodule HexTest.Case do
   use ExUnit.CaseTemplate
