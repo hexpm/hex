@@ -281,6 +281,7 @@ unless :integration in ExUnit.configuration[:exclude] do
 
   Case.init_project("ex_doc", "0.0.1", [], pkg_meta, auth)
   Case.init_project("ex_doc", "0.0.1", [], pkg_meta, auth)
+  Case.init_project("ex_doc", "0.0.3", [], pkg_meta, auth)
   Case.init_project("ex_doc", "0.1.0", [], pkg_meta, auth)
   Case.init_project("postgrex", "0.2.1", [ex_doc: "~> 0.1.0"], %{}, auth)
   Case.init_project("postgrex", "0.2.0", [ex_doc: "0.0.1"], %{}, auth)

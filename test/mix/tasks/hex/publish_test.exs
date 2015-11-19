@@ -1,6 +1,25 @@
+defmodule Mix.Tasks.Docs do
+  def run(_) do
+    File.mkdir_p!("doc")
+    File.write!("doc/index.html", "the index")
+  end
+end
+
 defmodule Mix.Tasks.Hex.PublishTest do
   use HexTest.Case
   @moduletag :integration
+
+  defmodule DocsSimple.Mixfile do
+    def project do
+      [ app: :ex_doc, version: "0.0.3" ]
+    end
+  end
+
+  defmodule DocsError.Mixfile do
+    def project do
+      [ app: :ex_doc, version: "0.0.4" ]
+    end
+  end
 
   defmodule ReleaseSimple.Mixfile do
     def project do
@@ -47,7 +66,56 @@ defmodule Mix.Tasks.Hex.PublishTest do
     end
   end
 
-  test "create and revert" do
+  test "run without a command or revert option" do
+    Mix.Project.push ReleaseSimple.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user")
+
+      raised_message = """
+        Invalid arguments, expected one of:
+          mix hex.publish package
+          mix hex.publish docs
+        """
+      assert_raise Mix.Error, raised_message, fn ->
+        Mix.Tasks.Hex.Publish.run(["--no-progress"])
+      end
+    end
+  end
+
+  test "docs create and revert" do
+    Mix.Project.push DocsSimple.Mixfile
+
+    in_tmp fn ->
+
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user")
+
+      Mix.Tasks.Hex.Publish.run(["docs", "--no-progress"])
+      assert_received {:mix_shell, :info, ["Published docs for ex_doc v0.0.3"]}
+
+      Mix.Tasks.Hex.Publish.run(["--revert", "0.0.3"])
+      assert_received {:mix_shell, :info, ["Reverted docs for ex_doc v0.0.3"]}
+    end
+  end
+
+  test "docs when package is not published yet" do
+    Mix.Project.push DocsError.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user")
+
+      Mix.Tasks.Hex.Publish.run(["docs", "--no-progress"])
+      assert_received {:mix_shell, :error, ["Pushing docs for ex_doc v0.0.4 is not possible due to the package not be published"]}
+
+      Mix.Tasks.Hex.Publish.run(["--revert", "0.0.4"])
+      assert_received {:mix_shell, :error, ["Reverting docs for ex_doc v0.0.4 failed"]}
+    end
+  end
+
+  test "package create and revert" do
     Mix.Project.push ReleaseSimple.Mixfile
 
     in_tmp fn ->
@@ -55,7 +123,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       setup_auth("user")
 
       send self, {:mix_shell_input, :yes?, true}
-      Mix.Tasks.Hex.Publish.run(["--no-progress"])
+      Mix.Tasks.Hex.Publish.run(["package","--no-progress"])
       assert HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
 
       msg = "Before publishing, please read Hex Code of Conduct: https://hex.pm/docs/codeofconduct"
@@ -75,7 +143,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       setup_auth("user")
 
       send self, {:mix_shell_input, :yes?, true}
-      Mix.Tasks.Hex.Publish.run(["--no-progress"])
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
       release = HexWeb.Release.get(HexWeb.Package.get("released_name"), "0.0.1")
       assert release.meta["app"] == "released"
     end
@@ -92,7 +160,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Hex.Config.update(username: "user", key: key.user_secret)
 
       send self, {:mix_shell_input, :yes?, true}
-      Mix.Tasks.Hex.Publish.run(["--no-progress"])
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
       assert HexWeb.Release.get(HexWeb.Package.get("releasea"), "0.0.1")
     end
   end
@@ -107,7 +175,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Deps.Get.run([])
 
       send self, {:mix_shell_input, :yes?, true}
-      Mix.Tasks.Hex.Publish.run(["--no-progress"])
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
 
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! No files\e[0m"]}
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: licenses, maintainers, links\e[0m"]}
@@ -126,7 +194,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
       File.write!("myfile.txt", "hello")
       send self, {:mix_shell_input, :yes?, true}
-      Mix.Tasks.Hex.Publish.run(["--no-progress"])
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
 
       assert_received {:mix_shell, :info, ["Publishing releasec v0.0.3"]}
       assert_received {:mix_shell, :info, ["  Files:"]}
