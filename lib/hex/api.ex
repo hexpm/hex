@@ -25,15 +25,16 @@ defmodule Hex.API do
     opts = [body_format: :binary]
     url = String.to_char_list(url)
 
-    cond do
-      body ->
-        body = Hex.Utils.safe_serialize_elixir(body)
-        request = {url, Map.to_list(headers), 'application/vnd.hex+elixir', body}
-      method in [:put, :post] ->
-        request = {url, Map.to_list(headers), 'application/vnd.hex+elixir', '%{}'}
-      true ->
-        request = {url, Map.to_list(headers)}
-    end
+    request =
+      cond do
+        body ->
+          body = Hex.Utils.safe_serialize_elixir(body)
+          {url, Map.to_list(headers), 'application/vnd.hex+elixir', body}
+        method in [:put, :post] ->
+          {url, Map.to_list(headers), 'application/vnd.hex+elixir', '%{}'}
+        true ->
+          {url, Map.to_list(headers)}
+      end
 
     case :httpc.request(method, request, http_opts, opts, :hex) do
       {:ok, response} ->

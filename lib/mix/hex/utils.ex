@@ -31,18 +31,16 @@ defmodule Mix.Hex.Utils do
 
   # Password prompt that hides input by every 1ms
   # clearing the line with stderr
-  def password_get(prompt, clean?) do
-    if clean? do
-      pid = spawn_link fn -> loop(prompt) end
-      ref = make_ref()
-    end
-
+  def password_get(prompt, false) do
+    IO.gets(prompt <> " ")
+  end
+  def password_get(prompt, true) do
+    pid   = spawn_link(fn -> loop(prompt) end)
+    ref   = make_ref()
     value = IO.gets(prompt <> " ")
 
-    if clean? do
-      send pid, {:done, self(), ref}
-      receive do: ({:done, ^pid, ^ref}  -> :ok)
-    end
+    send pid, {:done, self(), ref}
+    receive do: ({:done, ^pid, ^ref}  -> :ok)
 
     value
   end

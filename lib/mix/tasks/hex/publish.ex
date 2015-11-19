@@ -121,11 +121,12 @@ defmodule Mix.Tasks.Hex.Publish do
   defp create_release(meta, auth, progress?) do
     tarball = Hex.Tar.create(meta, meta[:files])
 
-    if progress? do
-      progress = Utils.progress(byte_size(tarball))
-    else
-      progress = Utils.progress(nil)
-    end
+    progress =
+      if progress? do
+        Utils.progress(byte_size(tarball))
+      else
+        Utils.progress(nil)
+      end
 
     case Hex.API.Release.new(meta[:name], tarball, auth, progress) do
       {code, _} when code in 200..299 ->

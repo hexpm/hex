@@ -47,11 +47,12 @@ defmodule Hex.Utils do
                   (Keyword.get(opts, :update, true) or not week_fresh?(path_gz))
         try do
           if fetch? do
-            if Keyword.get(opts, :cache, true) do
-              api_opts = [etag: etag(path_gz)]
-            else
-              api_opts = []
-            end
+            api_opts =
+              if Keyword.get(opts, :cache, true) do
+                [etag: etag(path_gz)]
+              else
+                []
+              end
 
             case Hex.API.Registry.get(api_opts) do
               {200, body} ->

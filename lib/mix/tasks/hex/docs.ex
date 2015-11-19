@@ -63,11 +63,12 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp send_tarball(app, version, tarball, auth, progress?) do
-    if progress? do
-      progress = Utils.progress(byte_size(tarball))
-    else
-      progress = Utils.progress(nil)
-    end
+    progress =
+      if progress? do
+        Utils.progress(byte_size(tarball))
+      else
+        Utils.progress(nil)
+      end
 
     case Hex.API.ReleaseDocs.new(app, version, tarball, auth, progress) do
       {code, _} when code in 200..299 ->

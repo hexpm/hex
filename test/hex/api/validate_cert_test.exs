@@ -42,17 +42,20 @@ defmodule Hex.API.ValidateCertTest do
   def run_validation(chain, partial_chain) do
     Process.put(:ssl_manager, :ssl_manager.manager_name(:normal))
 
-    if function_exported?(:ssl_manager, :connection_init, 2) do
-      {:ok, cert_db_ref, cert_db_handle, _, _, _} = :ssl_manager.connection_init(cert_path("ca.cert.pem"), :client)
-    else
-      {:ok, cert_db_ref, cert_db_handle, _, _, _, _} = :ssl_manager.connection_init(cert_path("ca.cert.pem"), :client, {:ssl_crl_cache, {:internal, []}})
-    end
+    [:ok, cert_db_ref, cert_db_handle | _] =
+      if function_exported?(:ssl_manager, :connection_init, 2) do
+        :ssl_manager.connection_init(cert_path("ca.cert.pem"), :client)
+      else
+        :ssl_manager.connection_init(cert_path("ca.cert.pem"), :client, {:ssl_crl_cache, {:internal, []}})
+      end
+      |> Tuple.to_list
 
-    if function_exported?(:ssl_certificate, :validate_extension, 3) do
-      verify_fun = {&:ssl_certificate.validate_extension/3, :client}
-    else
-      verify_fun = {&:ssl_certificate.validate/3, :client}
-    end
+    verify_fun =
+      if function_exported?(:ssl_certificate, :validate_extension, 3) do
+        {&:ssl_certificate.validate_extension/3, :client}
+      else
+        {&:ssl_certificate.validate/3, :client}
+      end
 
     {trusted_cert, cert_path} =
       :ssl_certificate.trusted_cert_and_path(chain, cert_db_handle, cert_db_ref, partial_chain)

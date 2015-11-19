@@ -151,16 +151,13 @@ defmodule Hex.SCM do
     Enum.flat_map(lock, fn entry ->
       case entry do
         {_app, {:hex, name, version}} ->
-          name = name
-          version = version
+          if fetch?(name, version, deps_path) do
+            [{name, version}]
+          else
+            []
+          end
         _ ->
-          :ok
-      end
-
-      if name && fetch?(name, version, deps_path) do
-        [{name, version}]
-      else
-        []
+          []
       end
     end)
   end
