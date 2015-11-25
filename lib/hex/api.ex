@@ -13,15 +13,13 @@ defmodule Hex.API do
     Record.extract(:OTPTBSCertificate, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
 
   def request(method, url, headers, body \\ nil) when body == nil or is_map(body) do
-    {http_proxy, https_proxy} = setup_proxy()
-
     default_headers = %{
       'accept' => 'application/vnd.hex.beta+elixir',
       'accept-encoding' => 'gzip',
       'user-agent' => user_agent()}
     headers = Dict.merge(default_headers, headers)
 
-    http_opts = [ssl: ssl_opts(url), relaxed: true] ++ proxy_auth(URI.parse(url), http_proxy, https_proxy)
+    http_opts = [ssl: ssl_opts(url), relaxed: true] ++ Hex.Utils.proxy_config(url)
     opts = [body_format: :binary]
     url = String.to_char_list(url)
 
@@ -97,7 +95,7 @@ defmodule Hex.API do
       'user-agent' => user_agent(),
       'content-length' => to_char_list(byte_size(body))}
     headers = Dict.merge(default_headers, headers)
-    http_opts = [ssl: ssl_opts(url), relaxed: true]
+    http_opts = [ssl: ssl_opts(url), relaxed: true] ++ Hex.Utils.proxy_config(url)
     opts = [body_format: :binary]
     url = String.to_char_list(url)
 
@@ -202,43 +200,5 @@ defmodule Hex.API do
   defp to_integer(string) do
     {int, _} = Integer.parse(string)
     int
-  end
-
-  defp setup_proxy do
-    http_proxy  = (proxy = Hex.State.fetch!(:http_proxy))  && proxy(:http, proxy)
-    https_proxy = (proxy = Hex.State.fetch!(:https_proxy)) && proxy(:https, proxy)
-    {http_proxy, https_proxy}
-  end
-
-  defp proxy(scheme, proxy) do
-    uri = URI.parse(proxy)
-
-    if uri.host && uri.port do
-      host = String.to_char_list(uri.host)
-      :httpc.set_options([{proxy_scheme(scheme), {{host, uri.port}, []}}], :hex)
-    end
-
-    uri
-  end
-
-  defp proxy_scheme(scheme) do
-    case scheme do
-      :http  -> :proxy
-      :https -> :https_proxy
-    end
-  end
-
-  defp proxy_auth(%URI{scheme: "http"}, http_proxy, _https_proxy),
-    do: proxy_auth(http_proxy)
-  defp proxy_auth(%URI{scheme: "https"}, _http_proxy, https_proxy),
-    do: proxy_auth(https_proxy)
-
-  defp proxy_auth(nil),
-    do: []
-  defp proxy_auth(%URI{userinfo: nil}),
-    do: []
-  defp proxy_auth(url) do
-    destructure [username, password], String.split(url.userinfo, ":", parts: 2)
-    [proxy_auth: {username, password || ""}]
   end
 end
