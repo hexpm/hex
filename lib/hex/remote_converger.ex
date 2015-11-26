@@ -24,6 +24,7 @@ defmodule Hex.RemoteConverger do
     flat_deps  = Hex.Mix.flatten_deps(deps)
     reqs       = Hex.Mix.deps_to_requests(flat_deps)
 
+    check_deps(deps)
     check_input(reqs, locked)
 
     Hex.Shell.info "Running dependency resolution"
@@ -57,9 +58,19 @@ defmodule Hex.RemoteConverger do
       :ok ->
         name = Atom.to_string(name)
         deps = Registry.get_deps(name, version) || []
+
         for {name, app, req, optional} <- deps do
-          {String.to_atom(app), req, optional: optional, hex: String.to_atom(name)}
+          app = String.to_atom(app)
+          opts = [optional: optional, hex: String.to_atom(name)]
+
+          # Support old packages where requirement could be missing
+          if req do
+            {app, req, opts}
+          else
+            {app, opts}
+          end
         end
+
       {:error, reason} ->
         if File.exists?(Hex.Registry.path) do
           Hex.Shell.warn("Failed to open Hex registry file (#{inspect reason})")
@@ -68,6 +79,19 @@ defmodule Hex.RemoteConverger do
         end
         []
     end
+  end
+
+  defp check_deps(deps) do
+    top_level = Hex.Mix.top_level(deps)
+
+    Enum.each(deps, fn dep ->
+      if dep.app in top_level and
+         is_nil(dep.requirement) and
+         dep.scm == Hex.SCM do
+        Mix.raise "#{dep.app} is missing its version requirement, " <>
+                  "use \">= 0.0.0\" if it should match any version"
+      end
+    end)
   end
 
   defp check_input(reqs, locked) do
