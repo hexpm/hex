@@ -30,8 +30,8 @@ defmodule Hex.API.ValidateCertTest do
   def untrusted_cert,
     do: read_cert("untrusted.der")
 
-  def amazon_cert,
-    do: read_cert("amazon.der")
+  def icq_cert,
+    do: read_cert("icq.der")
 
   def verisigng5,
     do: read_cert("verisigng5.der")
@@ -85,13 +85,12 @@ defmodule Hex.API.ValidateCertTest do
     end
 
     test "fails to validate a partial chain without the partial chain option" do
-      assert {:error, {:bad_cert, :unknown_ca}} = run_validation([amazon_cert, verisign_g3, verisigng5], :undefined)
+      assert {:error, {:bad_cert, :unknown_ca}} = run_validation([icq_cert, verisign_g3, verisigng5], :undefined)
     end
 
-    @tag :skip
     test "succeeds to validate with partial chain that is correct" do
       partial_chain_fun = &Hex.API.partial_chain(Hex.API.Certs.cacerts, &1)
-      assert {:ok, _} = run_validation([amazon_cert, verisign_g3, verisigng5], partial_chain_fun)
+      assert {:ok, _} = run_validation([icq_cert, verisign_g3, verisigng5], partial_chain_fun)
     end
   end
 end
