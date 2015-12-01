@@ -10,6 +10,8 @@ before_install:
 before_script:
   - export PATH=`pwd`/elixir/bin:$PATH
   - mix local.hex --force
+  - cd .. && git clone https://github.com/hexpm/hex_web.git
+  - cd ../hex_web && mix deps.get && mix compile
   - mix deps.get
   - MIX_ENV=test mix deps.compile
 script:
