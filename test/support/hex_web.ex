@@ -45,8 +45,6 @@ defmodule HexTest.HexWeb do
                      cd: "../hex_web",
                      args: ["run", "--no-halt"]])
 
-    wait_on_start()
-
     fun = fn fun ->
       receive do
         {^port, {:data, data}} ->
@@ -59,6 +57,8 @@ defmodule HexTest.HexWeb do
     end
 
     spawn(fn -> fun.(fun) end)
+
+    wait_on_start()
   end
 
   defp wait_on_start do
