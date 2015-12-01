@@ -23,7 +23,9 @@ defmodule Mix.Tasks.Hex.UserTest do
       Mix.Tasks.Hex.User.run(["register", "--no-clean-pass"])
     end
 
-    assert HexWeb.User.get(username: "eric").email == "mail@mail.com"
+    auth = get_auth("eric", "hunter42")
+    assert {200, body} = Hex.API.User.get("eric", auth)
+    assert body["email"] == "mail@mail.com"
   end
 
   test "auth" do
@@ -38,11 +40,12 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       {:ok, name} = :inet.gethostname()
       name = List.to_string(name)
-      user = HexWeb.User.get(username: "user")
-      assert HexWeb.API.Key.get(name, user)
+      config = Hex.Config.read
+      assert {200, body} = Hex.API.Key.get([key: config[:key]])
+      assert name in Enum.map(body, &(&1["name"]))
 
-      assert Hex.Config.read[:username] == "user"
-      assert byte_size(Hex.Config.read[:key]) == 32
+      assert config[:username] == "user"
+      assert byte_size(config[:key]) == 32
     end
   end
 
@@ -61,15 +64,13 @@ defmodule Mix.Tasks.Hex.UserTest do
   test "test" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
+      setup_auth("user", "hunter42")
+      Hex.Config.update([username: "user"])
 
-      user = HexWeb.User.get(username: "user")
-      {:ok, key} = HexWeb.API.Key.create(user, %{"name" => "computer"})
-      Hex.Config.update(username: "user", key: key.user_secret)
       Mix.Tasks.Hex.User.run(["test"])
-
       assert_received {:mix_shell, :info, ["Successfully authed. Your key works."]}
 
-      Hex.Config.update(username: "user", key: "wrong_key")
+      Hex.Config.update([username: "user", key: "wrong_key"])
       Mix.Tasks.Hex.User.run(["test"])
       assert_received {:mix_shell, :error, ["Failed to auth"]}
     end

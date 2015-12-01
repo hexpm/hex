@@ -102,11 +102,6 @@ defmodule Hex.MixTest do
     end
   end
 
-  setup do
-    Hex.Registry.open!(registry_path: tmp_path("registry.ets"))
-    :ok
-  end
-
   @tag :integration
   test "deps.get" do
     Mix.Project.push Simple

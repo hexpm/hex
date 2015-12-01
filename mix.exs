@@ -11,12 +11,15 @@ defmodule Hex.Mixfile do
   end
 
   def application do
-    [applications: [:ssl, :inets],
+    [applications: applications(Mix.env),
      mod: {Hex, []}]
   end
 
+  defp applications(:test), do: [:ssl, :inets, :logger]
+  defp applications(_),     do: [:ssl, :inets]
+
   defp deps do
-    [{:hex_web, github: "hexpm/hex_web", only: :test, env: :test}]
+    []
   end
 
   defp elixirc_options(:prod), do: [debug_info: false]

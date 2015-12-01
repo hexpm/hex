@@ -11,7 +11,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   defmodule ReleaseDeps.Mixfile do
     def project do
       [ app: :releaseb, description: "bar", version: "0.0.2",
-        deps: [{:ex_doc, "0.0.1", package: true}] ]
+        deps: [{:ex_doc, "0.0.1"}] ]
     end
   end
 
@@ -41,11 +41,6 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
   defp package_created?(name) do
     File.exists?("#{name}.tar")
-  end
-
-  setup do
-    Hex.Registry.open!(registry_path: tmp_path("registry.ets"))
-    :ok
   end
 
   test "create" do

@@ -1,6 +1,14 @@
 defmodule HexTest.Case do
   use ExUnit.CaseTemplate
 
+  using do
+    quote do
+      import unquote(__MODULE__)
+      alias HexTest.Case
+      # alias HexTest.HexWeb
+    end
+  end
+
   def flush do
     flush([])
   end
@@ -59,52 +67,6 @@ defmodule HexTest.Case do
     File.cp_r!(which, tmp)
 
     File.cd!(tmp, function)
-  end
-
-  @template """
-  defmodule ~s.NoConflict.Mixfile do
-    use Mix.Project
-
-    def project do
-      [ app: :~s,
-        version: "~s",
-        deps: deps() ]
-    end
-
-    defp deps do
-      ~s
-    end
-  end
-  """
-
-  def init_project(name, version, deps, meta, auth) do
-    reqs =
-      Enum.filter(deps, fn
-        {_app, _req, opts} -> !(opts[:path] || opts[:git] || opts[:github])
-        _ -> true
-      end)
-
-    reqs = Enum.into(reqs, %{}, fn
-      {app, req} ->
-        {app, %{app: app, requirement: req, optional: false}}
-      {app, req, opts} ->
-        default_opts = %{app: app, requirement: req, optional: false}
-        {opts[:hex] || app, Dict.merge(default_opts, opts)}
-    end)
-
-    meta = Map.merge(meta, %{name: name, version: version, requirements: reqs})
-    meta = Map.put_new(meta, :app, name)
-    meta = Map.put_new(meta, :build_tools, ["mix"])
-
-    deps = inspect(deps, pretty: true)
-    module = String.capitalize(name)
-    mixfile = :io_lib.format(@template, [module, name, version, deps])
-
-    files = [{"mix.exs", List.to_string(mixfile)}]
-    tar = Hex.Tar.create(meta, files)
-
-    {_, %{"name" => ^name}}       = Hex.API.Package.new(name, meta, auth)
-    {_, %{"version" => ^version}} = Hex.API.Release.new(name, tar, auth)
   end
 
   def purge(modules) do
@@ -194,18 +156,14 @@ defmodule HexTest.Case do
       {:depend_name, "0.2.0", [{:package_name, ">= 0.0.0", false, :app_name}]} ]
   end
 
-  def setup_auth(username) do
-    user = HexWeb.User.get(username: username)
-    key  = :crypto.rand_bytes(4) |> Base.encode16
-
-    {:ok, key} = HexWeb.API.Key.create(user, %{"name" => key})
-    Hex.Config.update([key: key.user_secret])
+  def setup_auth(username, password) do
+    {201, body} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
+    Hex.Config.update([key: body["secret"]])
   end
 
-  using do
-    quote do
-      import unquote(__MODULE__)
-    end
+  def get_auth(username, password) do
+    {201, body} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
+    [key: body["secret"]]
   end
 
   setup_all do
@@ -215,11 +173,9 @@ defmodule HexTest.Case do
     :ok
   end
 
-  @registry_tid :registry_tid
-
   setup do
     Hex.State.put(:home, tmp_path("hex_home"))
-    Hex.State.put(:registry_updated, true)
+    Hex.State.put(:registry_updated, false)
     Hex.Parallel.clear(:hex_fetcher)
     Hex.Registry.close
 
