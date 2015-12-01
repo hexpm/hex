@@ -23,16 +23,6 @@ defmodule HexTest.HexWeb do
     cmd("mix", ["ecto.migrate", "-r", "HexWeb.Repo"])
   end
 
-  defp cmd(command, args) do
-    opts = [
-        stderr_to_stdout: true,
-        into: IO.stream(:stdio, :line),
-        env: [{"MIX_ENV", "hex"}],
-        cd: "../hex_web"]
-
-    0 = System.cmd(command, args, opts) |> elem(1)
-  end
-
   def start do
     mix = :os.find_executable('mix')
     port = Port.open({:spawn_executable, mix}, [
@@ -42,7 +32,7 @@ defmodule HexTest.HexWeb do
                      :binary,
                      :hide,
                      env: [{'MIX_ENV', 'hex'}],
-                     cd: "../hex_web",
+                     cd: hex_web_dir,
                      args: ["run", "--no-halt"]])
 
     fun = fn fun ->
@@ -59,6 +49,20 @@ defmodule HexTest.HexWeb do
     spawn(fn -> fun.(fun) end)
 
     wait_on_start()
+  end
+
+  defp hex_web_dir do
+    System.get_env("HEX_WEB_DIR") || "../hex_web"
+  end
+
+  defp cmd(command, args) do
+    opts = [
+        stderr_to_stdout: true,
+        into: IO.stream(:stdio, :line),
+        env: [{"MIX_ENV", "hex"}],
+        cd: hex_web_dir]
+
+    0 = System.cmd(command, args, opts) |> elem(1)
   end
 
   defp wait_on_start do

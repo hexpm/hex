@@ -3,9 +3,6 @@ ExUnit.start exclude: [:skip]
 alias HexTest.Case
 alias HexTest.HexWeb
 
-HexWeb.init
-HexWeb.start
-
 # Set up temp directory
 File.rm_rf!(Case.tmp_path)
 File.mkdir_p!(Case.tmp_path)
@@ -15,6 +12,8 @@ unless System.get_env("HEX_CDN"), do: Hex.State.put(:cdn, "http://localhost:4043
 
 # Set up package fixtures
 unless :integration in ExUnit.configuration[:exclude] do
+  HexWeb.init
+  HexWeb.start
 
   pkg_meta = %{
     "maintainers" => ["John Doe", "Jane Doe"],
