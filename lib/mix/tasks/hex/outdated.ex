@@ -67,7 +67,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp print_results(packages) do
-    header = ["Dependency", "Latest", "Current", "Requirement"]
+    header = ["Dependency", "Current", "Latest", "Requirement"]
     table  = [header|packages]
     widths = widths(table)
 
@@ -98,7 +98,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     [:bright, package, :reset, p1, lock_color, lock, :reset, p2,
      latest, p3, req_color, req, :reset]
-    |>IO.ANSI.format
+    |> IO.ANSI.format
     |> Hex.Shell.info
   end
 
