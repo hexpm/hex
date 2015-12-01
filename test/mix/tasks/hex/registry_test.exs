@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.RegistryTest do
   use HexTest.Case
-
   alias Mix.Tasks.Hex.Registry
 
   test "dump" do

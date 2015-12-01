@@ -1,5 +1,5 @@
 defmodule Hex.API.ValidateCertTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   setup_all do
     {:ok, _} = Application.ensure_all_started(:ssl)
