@@ -7,8 +7,8 @@ defmodule Mix.Tasks.Hex.SearchTest do
     Hex.State.put(:home, tmp_path())
 
     Mix.Tasks.Hex.Search.run(["ex"])
-    assert_received {:mix_shell, :info, ["ex_doc"]}
-    assert_received {:mix_shell, :info, ["ex_plex"]}
-    assert_received {:mix_shell, :info, ["postgrex"]}
+    assert_received {:mix_shell, :info, ["ex_doc   v0.1.0"]}
+    assert_received {:mix_shell, :info, ["ex_plex  v0.2.0"]}
+    assert_received {:mix_shell, :info, ["postgrex v0.2.1"]}
   end
 end
