@@ -7,13 +7,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       [app: :outdated_app,
        version: "0.0.2",
        deps: [{:bar, "0.1.0"},
-              {:ex_doc, "0.1.0"}]]
+              {:ex_doc, "~> 0.0.1"}]]
     end
-  end
-
-  setup do
-    Hex.Registry.open!(registry_path: tmp_path("registry.ets"))
-    :ok
   end
 
   test "outdated" do
@@ -28,8 +23,12 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
       Mix.Task.run "hex.outdated"
 
-      assert_received {:mix_shell, :info, ["\e[1mbar\e[0m         \e[31m0.1.0\e[0m   0.2.0    \e[31m0.1.0\e[0m\e[0m"]}
-      refute_received {:mix_shell, :info, ["\e[1mfoo\e[0m         \e[31m0.2.1\e[0m   0.2.0    \e[31m~> 0.1.0\e[0m\e[0m"]}
+      bar = [:bright, "bar", :reset, "         ", :green, "0.1.0", :reset, "    ", "0.1.0", "   ", :green, "0.1.0", :reset]
+            |> IO.ANSI.format
+            |> List.to_string
+
+      assert_received {:mix_shell, :info, [^bar]}
+      refute_received {:mix_shell, :info, ["\e[1mfoo" <> _]}
     end
   end
 
@@ -45,8 +44,21 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
       Mix.Task.run "hex.outdated", ["--all"]
 
-      assert_received {:mix_shell, :info, ["\e[1mbar\e[0m         \e[31m0.1.0\e[0m   0.2.0    \e[31m0.1.0\e[0m\e[0m"]}
-      assert_received {:mix_shell, :info, ["\e[1mfoo\e[0m         \e[31m0.1.0\e[0m   0.2.1    \e[31m~> 0.1.0\e[0m\e[0m"]}
+      bar = [:bright, "bar", :reset, "         ", :green, "0.1.0", :reset, "    ", "0.1.0", "   ", :green, "0.1.0", :reset]
+            |> IO.ANSI.format
+            |> List.to_string
+
+      foo = [:bright, "foo", :reset, "         ", :red, "0.1.0", :reset, "    ", "0.1.1", "   ", :green, "~> 0.1.0", :reset]
+            |> IO.ANSI.format
+            |> List.to_string
+
+      ex_doc = [:bright, "ex_doc", :reset, "      ", :red, "0.0.1", :reset, "    ", "0.1.0", "   ", :red, "~> 0.0.1", :reset]
+               |> IO.ANSI.format
+               |> List.to_string
+
+      assert_received {:mix_shell, :info, [^bar]}
+      assert_received {:mix_shell, :info, [^foo]}
+      assert_received {:mix_shell, :info, [^ex_doc]}
     end
   end
 end

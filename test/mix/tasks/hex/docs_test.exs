@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
-      setup_auth("user")
+      setup_auth("user", "hunter42")
 
       Mix.Tasks.Hex.Docs.run(["--no-progress"])
       assert_received {:mix_shell, :info, ["Published docs for ex_doc v0.0.1"]}

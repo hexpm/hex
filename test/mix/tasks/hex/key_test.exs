@@ -6,9 +6,10 @@ defmodule Mix.Tasks.Hex.KeyTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      user = HexWeb.User.get(username: "user")
-      {:ok, key} = HexWeb.API.Key.create(user, %{"name" => "list_keys"})
-      Hex.Config.update([key: key.user_secret])
+      auth = HexTest.HexWeb.new_user("list_keys", "list_keys@mail.com", "password", "list_keys")
+      Hex.Config.update(auth)
+
+      assert {200, [%{"name" => "list_keys"}]} = Hex.API.Key.get(auth)
 
       Mix.Tasks.Hex.Key.run(["list"])
       assert_received {:mix_shell, :info, ["list_keys"]}
@@ -19,14 +20,13 @@ defmodule Mix.Tasks.Hex.KeyTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      user = HexWeb.User.get(username: "user")
-      {:ok, key} = HexWeb.API.Key.create(user, %{"name" => "drop_key"})
-      Hex.Config.update([key: key.user_secret])
+      auth = HexTest.HexWeb.new_user("remove_key", "remove_key@mail.com", "password", "remove_key")
+      Hex.Config.update(auth)
 
-      Mix.Tasks.Hex.Key.run(["remove", "drop_key"])
+      Mix.Tasks.Hex.Key.run(["remove", "remove_key"])
+      assert_received {:mix_shell, :info, ["Removing key remove_key..."]}
 
-      assert_received {:mix_shell, :info, ["Removing key drop_key..."]}
-      refute HexWeb.API.Key.get("drop_key", user)
+      assert {200, []} = Hex.API.Key.get([user: "remove_key", pass: "password"])
     end
   end
 end

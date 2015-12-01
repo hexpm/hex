@@ -3,39 +3,41 @@ defmodule Mix.Tasks.Hex.OwnerTest do
   @moduletag :integration
 
   test "add owner" do
-    {:ok, user}    = HexWeb.User.create(%{"username" => "owner_user", "email" => "owner_user@mail.com", "password" => "hunter42"})
-    {:ok, package} = HexWeb.Package.create(user, %{"name" => "owner_package", "meta" => %{}})
-
-    HexWeb.User.confirm(user)
+    auth1 = HexTest.HexWeb.new_user("owner_user1", "owner_user1@mail.com", "pass", "key")
+    auth2 = HexTest.HexWeb.new_user("owner_user2", "owner_user2@mail.com", "pass", "key")
+    HexTest.HexWeb.new_package("owner_package1", "0.0.1", [], %{}, auth1)
 
     Hex.State.put(:home, tmp_path())
-    setup_auth("owner_user")
+    Hex.Config.update(auth1)
 
-    Mix.Tasks.Hex.Owner.run(["add", "owner_package", "user@mail.com"])
+    Mix.Tasks.Hex.Owner.run(["add", "owner_package1", "owner_user2@mail.com"])
 
-    assert_received {:mix_shell, :info, ["Adding owner user@mail.com to owner_package"]}
-    assert [%HexWeb.User{username: "user"}, %HexWeb.User{username: "owner_user"}] =
-           HexWeb.Package.owners(package)
+    assert_received {:mix_shell, :info, ["Adding owner owner_user2@mail.com to owner_package1"]}
+    assert {200, %{"owned_packages" => %{"owner_package1" => _}}} = Hex.API.User.get("owner_user2", auth2)
   end
 
   test "remove owner" do
-    user = HexWeb.User.get(username: "user")
-    {:ok, package} = HexWeb.Package.create(user, %{"name" => "owner_package2", "meta" => %{}})
+    auth = HexTest.HexWeb.new_user("owner_user3", "owner_user3@mail.com", "pass", "key")
+    HexTest.HexWeb.new_package("owner_package2", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
-    setup_auth("user")
+    Hex.Config.update(auth)
 
-    Mix.Tasks.Hex.Owner.run(["remove", "owner_package2", "user@mail.com"])
+    Mix.Tasks.Hex.Owner.run(["remove", "owner_package2", "owner_user3@mail.com"])
 
-    assert_received {:mix_shell, :info, ["Removing owner user@mail.com from owner_package2"]}
-    assert [] = HexWeb.Package.owners(package)
+    assert_received {:mix_shell, :info, ["Removing owner owner_user3@mail.com from owner_package2"]}
+    assert {200, %{"owned_packages" => owned}} = Hex.API.User.get("owner_user3", auth)
+    assert owned == %{}
   end
 
   test "list owners" do
-    Hex.State.put(:home, tmp_path())
-    setup_auth("user")
+    auth = HexTest.HexWeb.new_user("owner_user4", "owner_user4@mail.com", "pass", "key")
+    HexTest.HexWeb.new_package("owner_package3", "0.0.1", [], %{}, auth)
 
-    Mix.Tasks.Hex.Owner.run(["list", "ex_doc"])
-    assert_received {:mix_shell, :info, ["user@mail.com"]}
+    Hex.State.put(:home, tmp_path())
+    Hex.Config.update(auth)
+
+    Mix.Tasks.Hex.Owner.run(["list", "owner_package3"])
+    assert_received {:mix_shell, :info, ["owner_user4@mail.com"]}
   end
 end

@@ -6,25 +6,27 @@ defmodule Hex.Mixfile do
      version: "0.9.1-dev",
      aliases: aliases,
      deps: deps,
-     elixirc_options: elixirc_options(Mix.env)]
+     elixirc_options: elixirc_options(Mix.env),
+     elixirc_paths: elixirc_paths(Mix.env)]
   end
 
   def application do
-    [applications: [:ssl, :inets],
+    [applications: applications(Mix.env),
      mod: {Hex, []}]
   end
 
+  defp applications(:test), do: [:ssl, :inets, :logger]
+  defp applications(_),     do: [:ssl, :inets]
+
   defp deps do
-    [{:hex_web, github: "hexpm/hex_web", only: :test, env: :test}]
-  end
-
-  defp elixirc_options(:prod) do
-    [debug_info: false]
-  end
-
-  defp elixirc_options(_) do
     []
   end
+
+  defp elixirc_options(:prod), do: [debug_info: false]
+  defp elixirc_options(_),     do: []
+
+  defp elixirc_paths(:test), do: ["lib", "web", "test/support"]
+  defp elixirc_paths(_),     do: ["lib", "web"]
 
   defp aliases do
     [compile: ["deps.check", &unload_hex/1, "compile"],
