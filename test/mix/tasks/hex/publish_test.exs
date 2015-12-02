@@ -2,37 +2,6 @@ defmodule Mix.Tasks.Hex.PublishTest do
   use HexTest.Case
   @moduletag :integration
 
-  defmodule ReleaseSimple.Mixfile do
-    def project do
-      [ app: :releasea, description: "baz", version: "0.0.1" ]
-    end
-  end
-
-  defmodule ReleaseDeps.Mixfile do
-    def project do
-      [ app: :releaseb, description: "bar", version: "0.0.2",
-        deps: [{:ex_doc, "0.0.1"}] ]
-    end
-  end
-
-  defmodule ReleaseMeta.Mixfile do
-    def project do
-      [ app: :releasec, version: "0.0.3",
-        description: "foo",
-        package: [files: ["myfile.txt", "missing.txt", "missing/*"],
-                  licenses: ["Apache"],
-                  links: %{"a" => "b"},
-                  maintainers: ["maintainers"]] ]
-    end
-  end
-
-  defmodule ReleaseName.Mixfile do
-    def project do
-      [ app: :released, description: "baz", version: "0.0.1",
-        package: [name: :released_name] ]
-    end
-  end
-
   test "validate" do
     Mix.Project.push ReleaseSimple.Mixfile
     Hex.State.put(:home, tmp_path("does_not_exist"))
