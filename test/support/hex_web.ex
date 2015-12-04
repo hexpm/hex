@@ -18,6 +18,8 @@ defmodule HexTest.HexWeb do
   """
 
   def init do
+    check_hexweb()
+
     cmd("mix", ["ecto.drop", "-r", "HexWeb.Repo", "--quiet"])
     cmd("mix", ["ecto.create", "-r", "HexWeb.Repo", "--quiet"])
     cmd("mix", ["ecto.migrate", "-r", "HexWeb.Repo"])
@@ -32,7 +34,7 @@ defmodule HexTest.HexWeb do
                      :binary,
                      :hide,
                      env: [{'MIX_ENV', 'hex'}],
-                     cd: hex_web_dir,
+                     cd: hexweb_dir(),
                      args: ["run", "--no-halt"]])
 
     fun = fn fun ->
@@ -51,7 +53,17 @@ defmodule HexTest.HexWeb do
     wait_on_start()
   end
 
-  defp hex_web_dir do
+  defp check_hexweb do
+    dir = hexweb_dir()
+
+    unless File.exists?(dir) do
+      IO.puts "Unable to find #{dir}, make sure to clone the hex_web repository " <>
+              "into it to run integration tests"
+      System.exit(1)
+    end
+  end
+
+  defp hexweb_dir do
     System.get_env("HEX_WEB_DIR") || "../hex_web"
   end
 
@@ -60,7 +72,7 @@ defmodule HexTest.HexWeb do
         stderr_to_stdout: true,
         into: IO.stream(:stdio, :line),
         env: [{"MIX_ENV", "hex"}],
-        cd: hex_web_dir]
+        cd: hexweb_dir()]
 
     0 = System.cmd(command, args, opts) |> elem(1)
   end
