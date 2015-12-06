@@ -117,15 +117,15 @@ defmodule Hex.MixTaskTest do
       Mix.Task.run "deps.compile"
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* ecto 0.2.0 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* ecto 0.2.0 (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["  locked at 0.2.0 (ecto)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
-      assert_received {:mix_shell, :info, ["* postgrex 0.2.0 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* postgrex 0.2.0 (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["  locked at 0.2.0 (postgrex)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
-      assert_received {:mix_shell, :info, ["* ex_doc 0.0.1 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* ex_doc 0.0.1 (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["  locked at 0.0.1 (ex_doc)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
     end
@@ -146,9 +146,9 @@ defmodule Hex.MixTaskTest do
       Mix.Task.run "deps.compile"
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* ecto 0.2.0 (Hex package)"]}
-      assert_received {:mix_shell, :info, ["* postgrex 0.2.0 (Hex package)"]}
-      assert_received {:mix_shell, :info, ["* ex_doc 0.0.1 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* ecto 0.2.0 (Hex package)" <> _]}
+      assert_received {:mix_shell, :info, ["* postgrex 0.2.0 (Hex package)" <> _]}
+      assert_received {:mix_shell, :info, ["* ex_doc 0.0.1 (Hex package)" <> _]}
     end
   after
     purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
@@ -180,15 +180,15 @@ defmodule Hex.MixTaskTest do
       Mix.Task.run "deps.compile"
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* ecto 0.2.1 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* ecto 0.2.1 (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["  locked at 0.2.1 (ecto)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
-      assert_received {:mix_shell, :info, ["* postgrex 0.2.1 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* postgrex 0.2.1 (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["  locked at 0.2.1 (postgrex)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
-      assert_received {:mix_shell, :info, ["* ex_doc 0.1.0 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* ex_doc 0.1.0 (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["  locked at 0.1.0 (ex_doc)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
     end
@@ -207,15 +207,15 @@ defmodule Hex.MixTaskTest do
       Mix.Task.run "deps.compile"
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* ecto 0.2.0 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* ecto 0.2.0 (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["  locked at 0.2.0 (ecto)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
-      assert_received {:mix_shell, :info, ["* postgrex 0.2.1 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* postgrex 0.2.1 (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["  locked at 0.2.1 (postgrex)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
-      assert_received {:mix_shell, :info, ["* ex_doc 0.1.0 (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* ex_doc 0.1.0 (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["  locked at 0.1.0 (ex_doc)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
     end
@@ -266,7 +266,7 @@ defmodule Hex.MixTaskTest do
 
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* ecto (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* ecto (Hex package)" <> _]}
       refute_received {:mix_shell, :info, ["* sample" <> _]}
     end
   after
@@ -283,8 +283,8 @@ defmodule Hex.MixTaskTest do
 
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* postgrex (Hex package)"]}
-      refute_received {:mix_shell, :info, ["* ex_doc (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* postgrex (Hex package)" <> _]}
+      refute_received {:mix_shell, :info, ["* ex_doc (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
 
       assert Mix.Dep.Lock.read == %{postgrex: {:hex, :postgrex, "0.2.1"}}
@@ -302,9 +302,9 @@ defmodule Hex.MixTaskTest do
 
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* phoenix (Hex package)"]}
-      assert_received {:mix_shell, :info, ["* postgrex (Hex package)"]}
-      refute_received {:mix_shell, :info, ["* ex_doc (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* phoenix (Hex package)" <> _]}
+      assert_received {:mix_shell, :info, ["* postgrex (Hex package)" <> _]}
+      refute_received {:mix_shell, :info, ["* ex_doc (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
 
       assert Mix.Dep.Lock.read == %{phoenix: {:hex, :phoenix, "0.0.1"},
@@ -326,8 +326,8 @@ defmodule Hex.MixTaskTest do
 
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* postgrex (Hex package)"]}
-      refute_received {:mix_shell, :info, ["* ex_doc (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* postgrex (Hex package)" <> _]}
+      refute_received {:mix_shell, :info, ["* ex_doc (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
 
       assert Mix.Dep.Lock.read == %{postgrex: {:hex, :postgrex, "0.2.1"}}
@@ -350,8 +350,8 @@ defmodule Hex.MixTaskTest do
 
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* only_doc (Hex package)"]}
-      refute_received {:mix_shell, :info, ["* ex_doc (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* only_doc (Hex package)" <> _]}
+      refute_received {:mix_shell, :info, ["* ex_doc (Hex package)" <> _]}
     end
   after
     purge [ Only_doc.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
@@ -370,8 +370,8 @@ defmodule Hex.MixTaskTest do
 
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* only_doc (Hex package)"]}
-      assert_received {:mix_shell, :info, ["* ex_doc (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* only_doc (Hex package)" <> _]}
+      assert_received {:mix_shell, :info, ["* ex_doc (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["  locked at 0.0.1 (ex_doc)"]}
     end
   after
@@ -390,7 +390,7 @@ defmodule Hex.MixTaskTest do
 
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* app_name (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* app_name (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["  locked at 0.1.0 (package_name)"]}
     end
   after
@@ -410,9 +410,9 @@ defmodule Hex.MixTaskTest do
 
       Mix.Task.run "deps"
 
-      assert_received {:mix_shell, :info, ["* depend_name (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* depend_name (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["  locked at 0.2.0 (depend_name)"]}
-      assert_received {:mix_shell, :info, ["* app_name (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* app_name (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["  locked at 0.1.0 (package_name)"]}
     end
   after
