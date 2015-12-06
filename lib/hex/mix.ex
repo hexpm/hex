@@ -105,7 +105,7 @@ defmodule Hex.Mix do
   def from_lock(lock) do
     Enum.flat_map(lock, fn
       {app, {:hex, name, version}} ->
-        [{Atom.to_string(app), Atom.to_string(name), version}]
+        [{Atom.to_string(name), Atom.to_string(app), version}]
       _ ->
         []
     end)
