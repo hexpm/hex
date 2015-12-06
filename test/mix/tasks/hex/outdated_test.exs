@@ -23,7 +23,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
       Mix.Task.run "hex.outdated"
 
-      bar = [:bright, "bar", :reset, "         ", :green, "0.1.0", :reset, "    ", "0.1.0", "   ", :green, "0.1.0", :reset]
+      bar = [:bright, "bar", :reset, "         ", "0.1.0", "    ", :green, "0.1.0", :reset, "   ", :green, "0.1.0", :reset]
             |> IO.ANSI.format
             |> List.to_string
 
@@ -44,15 +44,15 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
       Mix.Task.run "hex.outdated", ["--all"]
 
-      bar = [:bright, "bar", :reset, "         ", :green, "0.1.0", :reset, "    ", "0.1.0", "   ", :green, "0.1.0", :reset]
+      bar = [:bright, "bar", :reset, "         ", "0.1.0", "    ", :green, "0.1.0", :reset, "   ", :green, "0.1.0", :reset]
             |> IO.ANSI.format
             |> List.to_string
 
-      foo = [:bright, "foo", :reset, "         ", :red, "0.1.0", :reset, "    ", "0.1.1", "   ", :green, "~> 0.1.0", :reset]
+      foo = [:bright, "foo", :reset, "         ", "0.1.0", "    ", :red, "0.1.1", :reset, "   ", :green, "~> 0.1.0", :reset]
             |> IO.ANSI.format
             |> List.to_string
 
-      ex_doc = [:bright, "ex_doc", :reset, "      ", :red, "0.0.1", :reset, "    ", "0.1.0", "   ", :red, "~> 0.0.1", :reset]
+      ex_doc = [:bright, "ex_doc", :reset, "      ", "0.0.1", "    ", :red, "0.1.0", :reset, "   ", :red, "~> 0.0.1", :reset]
                |> IO.ANSI.format
                |> List.to_string
 

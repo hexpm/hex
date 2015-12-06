@@ -34,6 +34,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     else
       Enum.filter(deps, & &1.top_level)
     end
+    |> sort
     |> get_versions(lock)
     |> print_results
 
@@ -41,6 +42,10 @@ defmodule Mix.Tasks.Hex.Outdated do
     Hex.Shell.info "A green version in latest means you have the latest " <>
                    "version of a given package. A green requirement means " <>
                    "your current requirement matches the latest version."
+  end
+
+  defp sort(deps) do
+    Enum.sort(deps, &(&1.app <= &2.app))
   end
 
   defp get_versions(deps, lock) do
@@ -90,14 +95,16 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   defp print_row([{package, p1}, {lock, p2}, {latest, p3}, {req, _p4}]) do
     outdated? = Version.compare(lock, latest) == :lt
-    lock_color = if outdated?, do: :red, else: :green
+    latest_color = if outdated?, do: :red, else: :green
 
     req_matches? = version_match?(latest, req)
     req = req || ""
     req_color = if req_matches?, do: :green, else: :red
 
-    [:bright, package, :reset, p1, lock_color, lock, :reset, p2,
-     latest, p3, req_color, req, :reset]
+    [:bright, package, :reset, p1,
+     lock, p2,
+     latest_color, latest, :reset, p3,
+     req_color, req, :reset]
     |> IO.ANSI.format
     |> Hex.Shell.info
   end
