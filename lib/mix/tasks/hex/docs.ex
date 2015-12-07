@@ -38,7 +38,13 @@ defmodule Mix.Tasks.Hex.Docs do
     if revert = opts[:revert] do
       revert(app, revert, auth)
     else
-      Mix.Task.run("docs", args)
+      try do
+        Mix.Task.run("docs", args)
+      rescue e in Mix.NoTaskError ->
+        stacktrace = System.stacktrace
+        Mix.raise(~s(The "docs" task is unavailable, add {:ex_doc, ">= x.y.z", only: [:dev]} to your dependencies or if ex_doc already added make sure you run the task in the same environment it is available in))
+        reraise e, stacktrace
+      end
 
       directory = docs_dir()
 
@@ -114,7 +120,7 @@ defmodule Mix.Tasks.Hex.Docs do
       File.exists?("docs") ->
         "docs"
       true ->
-        Mix.raise("Documentation could not be found. Please ensure documentation is in the doc/ or docs/ directory.")
+        Mix.raise("Documentation could not be found. Please ensure documentation is in the doc/ or docs/ directory")
     end
   end
 end
