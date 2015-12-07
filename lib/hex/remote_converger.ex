@@ -27,6 +27,8 @@ defmodule Hex.RemoteConverger do
     check_deps(deps)
     check_input(reqs, locked)
 
+    Hex.Shell.info "Running dependency resolution"
+
     case Hex.Resolver.resolve(reqs, deps, locked) do
       {:ok, resolved} ->
         print_success(resolved, locked)
