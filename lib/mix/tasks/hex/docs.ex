@@ -42,7 +42,9 @@ defmodule Mix.Tasks.Hex.Docs do
         Mix.Task.run("docs", args)
       rescue e in Mix.NoTaskError ->
         stacktrace = System.stacktrace
-        Mix.raise(~s(The "docs" task is unavailable, add {:ex_doc, ">= x.y.z", only: [:dev]} to your dependencies or if ex_doc already added make sure you run the task in the same environment it is available in))
+        Mix.raise ~s(The "docs" task is unavailable, add {:ex_doc, ">= x.y.z", only: [:dev]} ) <>
+                  ~s(to your dependencies or if ex_doc was already added make sure you run ) <>
+                  ~s(the task in the same environment it is configured to)
         reraise e, stacktrace
       end
 
