@@ -40,12 +40,12 @@ defmodule Mix.Tasks.Hex.Docs do
     else
       try do
         Mix.Task.run("docs", args)
-      rescue e in Mix.NoTaskError ->
+      rescue ex in [Mix.NoTaskError] ->
         stacktrace = System.stacktrace
-        Mix.raise ~s(The "docs" task is unavailable, add {:ex_doc, ">= x.y.z", only: [:dev]} ) <>
-                  ~s(to your dependencies or if ex_doc was already added make sure you run ) <>
-                  ~s(the task in the same environment it is configured to)
-        reraise e, stacktrace
+        Mix.shell.error ~s(The "docs" task is unavailable, add {:ex_doc, ">= x.y.z", only: [:dev]}) <>
+                        ~s( to your dependencies or if ex_doc was already added make sure you run) <>
+                        ~s( the task in the same environment it is configured to)
+        reraise ex, stacktrace
       end
 
       directory = docs_dir()
