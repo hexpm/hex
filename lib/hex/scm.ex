@@ -44,14 +44,10 @@ defmodule Hex.SCM do
   defp lock_status(dest, name, version) do
     case File.read(Path.join(dest, ".hex")) do
       {:ok, file} ->
-        manifest = parse_manifest(file)
-
-        if {name, version} == manifest do
-          :ok
-        else
-          :mismatch
+        case parse_manifest(file) do
+          {^name, ^version} -> :ok
+          _ -> :mismatch
         end
-
       {:error, _} ->
         :mismatch
     end
@@ -74,7 +70,7 @@ defmodule Hex.SCM do
   end
 
   def checkout(opts) do
-    {_name, version} = get_lock(opts[:lock])
+    {:hex, _name, version} = opts[:lock]
     name     = opts[:hex]
     dest     = opts[:dest]
     filename = "#{name}-#{version}.tar"
@@ -110,9 +106,6 @@ defmodule Hex.SCM do
     checkout(opts)
   end
 
-  defp get_lock({:hex, name, version}),
-    do: {name, version}
-
   defp parse_manifest(file) do
     file
     |> String.strip
@@ -147,17 +140,15 @@ defmodule Hex.SCM do
   defp fetch_from_lock(lock) do
     deps_path = Mix.Project.deps_path
 
-    Enum.flat_map(lock, fn entry ->
-      case entry do
-        {_app, {:hex, name, version}} ->
-          if fetch?(name, version, deps_path) do
-            [{name, version}]
-          else
-            []
-          end
-        _ ->
+    Enum.flat_map(lock, fn
+      {_app, {:hex, name, version}} ->
+        if fetch?(name, version, deps_path) do
+          [{name, version}]
+        else
           []
-      end
+        end
+      _ ->
+        []
     end)
   end
 
@@ -196,7 +187,6 @@ defmodule Hex.SCM do
     if etag do
       headers = headers ++ [{'if-none-match', etag}]
     end
-
     http_opts = [ssl: Hex.API.ssl_opts(url), relaxed: true] ++ Hex.Utils.proxy_config(url)
     url = String.to_char_list(url)
 
