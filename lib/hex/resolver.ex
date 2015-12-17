@@ -100,11 +100,11 @@ defmodule Hex.Resolver do
         {versions, _requests} =
           Enum.reduce(requests, {versions, []}, fn request, {versions, requests} ->
             req = request(request, :req)
-            versions = Enum.filter(versions, &version_match?(&1, req))
-            if versions == [] do
-              throw [request|requests]
-            else
-              {versions, [request|requests]}
+            case Enum.filter(versions, &version_match?(&1, req)) do
+              [] ->
+                throw [request | requests]
+              versions ->
+                {versions, [request | requests]}
             end
           end)
 
@@ -168,14 +168,10 @@ defmodule Hex.Resolver do
 
   # Replace a dependency in the tree
   defp put_dep(deps, new_dep) do
-    Enum.reduce(deps, [], fn dep, deps ->
-      if dep.app == new_dep.app do
-        [new_dep|deps]
-      else
-        [dep|deps]
-      end
+    app = new_dep.app
+    Enum.map(deps, fn dep ->
+      if dep.app == app, do: new_dep, else: dep
     end)
-    |> Enum.reverse
   end
 
   defp merge_optional(optional, new_optional) do
@@ -204,12 +200,11 @@ defmodule Hex.Resolver do
   end
 
   defp error_message(agent_pid) do
-    messages =
-      Agent.get(agent_pid, & &1)
-      |> merge_backtracks([])
-      |> sort_backtracks
-      |> Enum.map(&backtrack_message/1)
-    Enum.join(messages, "\n\n") <> "\n"
+    Agent.get(agent_pid, &(&1))
+    |> merge_backtracks([])
+    |> sort_backtracks
+    |> Enum.map_join("\n\n", &backtrack_message/1)
+    |> Kernel.<>("\n")
   end
 
   defp add_backtrack_info(name, version, parents, info(backtrack: agent)) do
@@ -223,14 +218,14 @@ defmodule Hex.Resolver do
 
   defp merge_backtracks([{name, version, parents}|rest], acc) do
     similar_versions =
-      Enum.flat_map(rest, fn {name2, version2, parents2} ->
-        if name == name2 and parents == parents2 do
-          [version2]
-        else
-          []
+      Enum.reduce(rest, [version], fn entry, acc ->
+        case entry do
+          {^name, version2, ^parents} ->
+            [version2 | acc]
+          _ ->
+            acc
         end
       end)
-      |> Kernel.++([version])
       |> Enum.reject(&is_nil/1)
       |> Enum.uniq
 
@@ -262,11 +257,11 @@ defmodule Hex.Resolver do
   defp sort_parents(parent1, parent2),            do: parent1 <= parent2
 
   defp backtrack_message({name, versions, parents}) do
-    versions = "#{if versions != [], do: " "}#{Enum.join(versions, ", ")}"
-    [ "Conflict on #{name}#{versions}",
-      "  " <> Enum.map_join(parents, "\n  ", &parent_message/1)]
-    |> Enum.filter(& &1)
-    |> Enum.join("\n")
+    versions = if versions != [] do
+      " " <> Enum.join(versions, ", ")
+    end
+    "Conflict on #{name}#{versions}" <>
+    "\n  " <> Enum.map_join(parents, "\n  ", &parent_message/1)
   end
 
   defp parent_message(parent(name: path, version: nil, requirement: req)),

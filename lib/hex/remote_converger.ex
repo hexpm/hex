@@ -6,7 +6,7 @@ defmodule Hex.RemoteConverger do
   alias Hex.Registry
 
   def remote?(dep) do
-    !! dep.opts[:hex]
+    !!dep.opts[:hex]
   end
 
   def converge(deps, lock) do
@@ -36,8 +36,8 @@ defmodule Hex.RemoteConverger do
         Hex.SCM.prefetch(new_lock)
         Map.merge(lock, new_lock)
 
-      {:error, messages} ->
-        Hex.Shell.error messages
+      {:error, message} ->
+        Hex.Shell.error message
         Mix.raise "Hex dependency resolution failed, relax the version requirements or unlock dependencies"
     end
   after
