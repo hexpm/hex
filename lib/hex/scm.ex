@@ -103,7 +103,6 @@ defmodule Hex.SCM do
     manifest = encode_manifest(name, version)
     File.write!(Path.join(dest, ".hex"), manifest)
 
-    Hex.Shell.info "Unpacked package tarball (#{path})"
     opts[:lock]
   end
 
