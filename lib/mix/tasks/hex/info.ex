@@ -85,7 +85,7 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp pretty_package(package) do
     Hex.Shell.info package["name"]
-    pretty_package_string(package["name"], package["releases"])
+    pretty_config_string(package["name"], package["releases"])
     Hex.Shell.info "  Releases: " <> Enum.map_join(package["releases"], ", ", &(&1["version"]))
     Hex.Shell.info ""
     pretty_meta(package["meta"])
@@ -106,7 +106,7 @@ defmodule Mix.Tasks.Hex.Info do
   defp pretty_release(package, release) do
     version = release["version"]
     Hex.Shell.info package <> " v" <> version
-    pretty_package_string(package, release)
+    pretty_config_string(package, release)
 
     if release["has_docs"] do
       # TODO: Only print this URL if we use the default API URL
@@ -122,20 +122,19 @@ defmodule Mix.Tasks.Hex.Info do
     end
   end
 
-  defp pretty_package_string(name, [latest_release | _]) do
-    pretty_package_string(name, latest_release)
+  defp pretty_config_string(name, [latest_release | _]) do
+    pretty_config_string(name, latest_release)
   end
 
-  defp pretty_package_string(name, release) do
+  defp pretty_config_string(name, release) do
     app_name = release["meta"]["app"] || name
     {:ok, version} = Version.parse(release["version"])
     snippet  = mix_snippet_version(version)
 
-    Hex.Shell.info "Config:"
     if name == app_name do
-      Hex.Shell.info "{:#{name}, \"#{snippet}\"}"
+      Hex.Shell.info "  Config: {:#{name}, \"#{snippet}\"}"
     else
-      Hex.Shell.info "{:#{app_name}, \"#{snippet}\", hex: :#{name}}"
+      Hex.Shell.info "  Config: {:#{app_name}, \"#{snippet}\", hex: :#{name}}"
     end
   end
 
