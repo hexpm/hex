@@ -26,6 +26,7 @@ unless :integration in ExUnit.configuration[:exclude] do
 
   HexWeb.new_package("ex_doc", "0.0.1", [], pkg_meta, auth)
   HexWeb.new_package("ex_doc", "0.1.0", [], pkg_meta, auth)
+  HexWeb.new_package("ex_doc", "0.1.0-rc1", [], pkg_meta, auth)
   HexWeb.new_package("postgrex", "0.2.1", [ex_doc: "~> 0.1.0"], pkg_meta, auth)
   HexWeb.new_package("postgrex", "0.2.0", [ex_doc: "0.0.1"], pkg_meta, auth)
   HexWeb.new_package("ecto", "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"], pkg_meta, auth)
