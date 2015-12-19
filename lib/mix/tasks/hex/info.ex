@@ -36,7 +36,7 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Shell.info "Elixir: v#{System.version}"
     Hex.Shell.info "ERTS:   v#{:erlang.system_info(:version)}"
     Hex.Shell.info ""
-    Hex.Shell.info "Built with: Elixir v#{Hex.elixir_version} & ERTS v#{Hex.erts_version}"
+    Hex.Shell.info "Built with: Elixir v#{Hex.elixir_version} and ERTS v#{Hex.erts_version}"
     Hex.Shell.info ""
 
     # Make sure to fetch registry after showing Hex version. Issues with the
@@ -49,7 +49,7 @@ defmodule Mix.Tasks.Hex.Info do
     compressed_size = compressed_stat.size |> div(1024)
     {packages, releases} = Hex.Registry.stat()
 
-    Hex.Shell.info "Registry file available (last updated: #{pretty_date(stat.mtime)})"
+    Hex.Shell.info "Registry file available (last updated: #{format_date(stat.mtime)})"
     Hex.Shell.info "Size: #{size}kB (compressed #{compressed_size}kb)"
     Hex.Shell.info "Packages #: #{packages}"
     Hex.Shell.info "Versions #: #{releases}"
@@ -60,7 +60,7 @@ defmodule Mix.Tasks.Hex.Info do
 
     case Hex.API.Package.get(package) do
       {code, body} when code in 200..299 ->
-        pretty_package(body)
+        print_package(body)
       {404, _} ->
         Hex.Shell.error "No package with name #{package}"
       {code, body} ->
@@ -74,7 +74,7 @@ defmodule Mix.Tasks.Hex.Info do
 
     case Hex.API.Release.get(package, version) do
       {code, body} when code in 200..299 ->
-        pretty_release(package, body)
+        print_release(package, body)
       {404, _} ->
         Hex.Shell.error "No release with name #{package} v#{version}"
       {code, body} ->
@@ -83,19 +83,19 @@ defmodule Mix.Tasks.Hex.Info do
     end
   end
 
-  defp pretty_package(package) do
+  defp print_package(package) do
     Hex.Shell.info package["name"]
-    pretty_config_string(package["name"], package["releases"])
+    print_config(package["name"], hd(package["releases"]))
     Hex.Shell.info "  Releases: " <> Enum.map_join(package["releases"], ", ", &(&1["version"]))
     Hex.Shell.info ""
-    pretty_meta(package["meta"])
+    print_meta(package["meta"])
   end
 
-  defp pretty_meta(meta) do
-    pretty_list(meta, "contributors")
-    pretty_list(meta, "maintainers")
-    pretty_list(meta, "licenses")
-    pretty_dict(meta, "links")
+  defp print_meta(meta) do
+    print_list(meta, "contributors")
+    print_list(meta, "maintainers")
+    print_list(meta, "licenses")
+    print_dict(meta, "links")
 
     if descr = meta["description"] do
       Hex.Shell.info ""
@@ -103,50 +103,48 @@ defmodule Mix.Tasks.Hex.Info do
     end
   end
 
-  defp pretty_release(package, release) do
+  defp print_release(package, release) do
     version = release["version"]
     Hex.Shell.info package <> " v" <> version
-    pretty_config_string(package, release)
+    print_config(package, release)
 
     if release["has_docs"] do
       # TODO: Only print this URL if we use the default API URL
       Hex.Shell.info "  Documentation at: #{Hex.Utils.hexdocs_url(package, version)}"
     end
 
-    if release["requirements"] do
+    if requirements = release["requirements"] do
       Hex.Shell.info "  Dependencies:"
-      Enum.each(release["requirements"], fn {name, req} ->
+      Enum.each(requirements, fn {name, req} ->
         optional = if req["optional"], do: " (optional)"
         Hex.Shell.info "    #{name}: #{req["requirement"]}#{optional}"
       end)
     end
   end
 
-  defp pretty_config_string(name, [latest_release | _]) do
-    pretty_config_string(name, latest_release)
-  end
-
-  defp pretty_config_string(name, release) do
+  defp print_config(name, release) do
     app_name = release["meta"]["app"] || name
     {:ok, version} = Version.parse(release["version"])
-    snippet  = mix_snippet_version(version)
-
-    if name == app_name do
-      Hex.Shell.info "  Config: {:#{name}, \"#{snippet}\"}"
-    else
-      Hex.Shell.info "  Config: {:#{app_name}, \"#{snippet}\", hex: :#{name}}"
-    end
+    snippet =
+      format_version(version)
+      |> format_config_snippet(name, app_name)
+    Hex.Shell.info "  Config: #{snippet}"
   end
 
-  defp mix_snippet_version(%Version{major: 0, minor: minor, patch: patch, pre: []}),
-    do: "~> 0.#{minor}.#{patch}"
-  defp mix_snippet_version(%Version{major: major, minor: minor, pre: []}),
-    do: "~> #{major}.#{minor}"
-  defp mix_snippet_version(%Version{major: major, minor: minor, patch: patch, pre: pre}),
-    do: "~> #{major}.#{minor}.#{patch}#{pre_snippet(pre)}"
+  defp format_config_snippet(version, name, name),
+    do: "{:#{name}, \"#{version}\"}"
+  defp format_config_snippet(version, name, app_name),
+    do: "{:#{app_name}, \"#{version}\", hex: :#{name}}"
 
-  defp pre_snippet([]), do: ""
-  defp pre_snippet(pre) do
+  defp format_version(%Version{major: 0, minor: minor, patch: patch, pre: []}),
+    do: "~> 0.#{minor}.#{patch}"
+  defp format_version(%Version{major: major, minor: minor, pre: []}),
+    do: "~> #{major}.#{minor}"
+  defp format_version(%Version{major: major, minor: minor, patch: patch, pre: pre}),
+    do: "~> #{major}.#{minor}.#{patch}#{format_pre(pre)}"
+
+  defp format_pre([]), do: ""
+  defp format_pre(pre) do
     "-" <>
       Enum.map_join(pre, ".", fn
         int when is_integer(int) -> Integer.to_string(int)
@@ -154,13 +152,13 @@ defmodule Mix.Tasks.Hex.Info do
       end)
   end
 
-  defp pretty_list(meta, name) do
+  defp print_list(meta, name) do
     if (list = meta[name]) && list != [] do
       Hex.Shell.info("  #{String.capitalize(name)}: " <> Enum.join(list, ", "))
     end
   end
 
-  defp pretty_dict(meta, name, title \\ nil) do
+  defp print_dict(meta, name, title \\ nil) do
     title = title || String.capitalize(name)
 
     if (dict = meta[name]) && dict != [] do
@@ -171,17 +169,14 @@ defmodule Mix.Tasks.Hex.Info do
     end
   end
 
-  defp pretty_date({{year, month, day}, {hour, min, sec}}) do
-    "#{pad(year, 4)}-#{pad(month, 2)}-#{pad(day, 2)} " <>
-    "#{pad(hour, 2)}:#{pad(min, 2)}:#{pad(sec, 2)}"
+  defp format_date({{year, month, day}, {hour, min, sec}}) do
+    "#{pad0(year, 4)}-#{pad0(month, 2)}-#{pad0(day, 2)} " <>
+    "#{pad0(hour, 2)}:#{pad0(min, 2)}:#{pad0(sec, 2)}"
   end
 
-  defp pad(int, padding) do
+  defp pad0(int, padding) do
     str = to_string(int)
-    padding = max(padding-byte_size(str), 0)
-    do_pad(str, padding)
+    padding = max(padding - byte_size(str), 0)
+    String.duplicate("0", padding) <> str
   end
-
-  defp do_pad(str, 0), do: str
-  defp do_pad(str, n), do: do_pad("0" <> str, n-1)
 end
