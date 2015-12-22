@@ -84,11 +84,19 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp print_package(package) do
-    Hex.Shell.info package["name"]
-    print_config(package["name"], hd(package["releases"]))
-    Hex.Shell.info "  Releases: " <> Enum.map_join(package["releases"], ", ", &(&1["version"]))
+    name = package["name"]
+    Hex.Shell.info name
+    releases = package["releases"]
+    print_config(name, hd(releases))
+    Hex.Shell.info "  Releases: " <> format_releases(releases)
     Hex.Shell.info ""
     print_meta(package["meta"])
+  end
+
+  defp format_releases(releases) do
+    {releases, rest} = Enum.split(releases, 10)
+    Enum.map_join(releases, ", ", &(&1["version"])) <>
+    if(rest != [], do: ", ..." , else: "")
   end
 
   defp print_meta(meta) do
