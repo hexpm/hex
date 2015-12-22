@@ -4,110 +4,110 @@ defmodule Hex.MixTaskTest do
 
   defmodule Simple do
     def project do
-      [ app: :simple,
-        version: "0.1.0",
-        deps: [ {:ecto, "0.2.0"} ] ]
+      [app: :simple,
+       version: "0.1.0",
+       deps: [{:ecto, "0.2.0"}]]
     end
   end
 
   defmodule SimpleOld do
     def project do
-      [ app: :simple,
-        version: "0.1.0",
-        deps: [ {:ecto, "~> 0.2.1"} ] ]
+      [app: :simple,
+       version: "0.1.0",
+       deps: [{:ecto, "~> 0.2.1"}]]
     end
   end
 
   defmodule Override do
     def project do
-      [ app: :override,
-        version: "0.1.0",
-        deps: [ {:ecto, "0.2.0"},
-                {:ex_doc, "~> 0.1.0", override: true}] ]
+      [app: :override,
+       version: "0.1.0",
+       deps: [{:ecto, "0.2.0"},
+              {:ex_doc, "~> 0.1.0", override: true}]]
     end
   end
 
   defmodule NonHexDep do
     def project do
-      [ app: :non_hex_dep,
-        version: "0.1.0",
-        deps: [ {:has_hex_dep, path: fixture_path("has_hex_dep")} ] ]
+      [app: :non_hex_dep,
+       version: "0.1.0",
+       deps: [{:has_hex_dep, path: fixture_path("has_hex_dep")}]]
     end
   end
 
   defmodule EctoPathDep do
     def project do
-      [ app: :ecto_path_dep,
-        version: "0.1.0",
-        deps: [ {:postgrex, ">= 0.0.0"},
-                {:ecto, path: fixture_path("ecto")} ] ]
+      [app: :ecto_path_dep,
+       version: "0.1.0",
+       deps: [{:postgrex, ">= 0.0.0"},
+              {:ecto, path: fixture_path("ecto")}]]
     end
   end
 
   defmodule OverrideWithPath do
     def project do
-      [ app: :override_with_path,
-        version: "0.1.0",
-        deps: [ {:postgrex, ">= 0.0.0"},
-                {:ex_doc, path: fixture_path("ex_doc"), override: true}] ]
+      [app: :override_with_path,
+       version: "0.1.0",
+       deps: [{:postgrex, ">= 0.0.0"},
+              {:ex_doc, path: fixture_path("ex_doc"), override: true}]]
     end
   end
 
   defmodule OverrideTwoLevelsWithPath do
     def project do
-      [ app: :override_two_levels_with_path,
-        version: "0.1.0",
-        deps: [ {:phoenix, ">= 0.0.0"},
-                {:ex_doc, path: fixture_path("ex_doc"), override: true}] ]
+      [app: :override_two_levels_with_path,
+       version: "0.1.0",
+       deps: [{:phoenix, ">= 0.0.0"},
+              {:ex_doc, path: fixture_path("ex_doc"), override: true}]]
     end
   end
 
   defmodule OverrideWithPathParent do
     def project do
-      [ app: :override_with_path_parent,
-        version: "0.1.0",
-        deps: [ {:override_with_path, path: fixture_path("override_with_path")} ] ]
+      [app: :override_with_path_parent,
+       version: "0.1.0",
+       deps: [{:override_with_path, path: fixture_path("override_with_path")}]]
     end
   end
 
   defmodule Optional do
     def project do
-      [ app: :optional,
-        version: "0.1.0",
-        deps: [ {:only_doc, ">= 0.0.0"} ] ]
+      [app: :optional,
+       version: "0.1.0",
+       deps: [{:only_doc, ">= 0.0.0"}]]
     end
   end
 
   defmodule WithOptional do
     def project do
-      [ app: :with_optional,
-        version: "0.1.0",
-        deps: [ {:only_doc, ">= 0.0.0"},
-                {:ex_doc, "0.0.1"} ] ]
+      [app: :with_optional,
+       version: "0.1.0",
+       deps: [{:only_doc, ">= 0.0.0"},
+              {:ex_doc, "0.0.1"}]]
     end
   end
 
   defmodule WithPackageName do
     def project do
-      [ app: :with_package_name,
-        version: "0.1.0",
-        deps: [ {:app_name, ">= 0.0.0", hex: :package_name} ] ]
+      [app: :with_package_name,
+       version: "0.1.0",
+       deps: [{:app_name, ">= 0.0.0", hex: :package_name}]]
     end
   end
 
   defmodule WithDependName do
     def project do
-      [ app: :with_depend_name,
-        version: "0.1.0",
-        deps: [ {:depend_name, ">= 0.0.0"} ] ]
+      [app: :with_depend_name,
+       version: "0.1.0",
+       deps: [{:depend_name, ">= 0.0.0"}]]
     end
   end
 
   defmodule WithIncorrectDepVersion do
     def project do
-      [ app: :simple,
-        version: "0.1.0",
-        deps: [ {:ex_doc, "> hello" } ] ]
+      [app: :with_incorrect_dep_version,
+       version: "0.1.0",
+       deps: [{:ex_doc, "> hello"}]]
     end
   end
 
@@ -138,8 +138,8 @@ defmodule Hex.MixTaskTest do
       assert_received {:mix_shell, :info, ["  ok"]}
     end
   after
-    purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-            Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
+    purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+           Ex_doc.NoConflict.Mixfile, Sample.Mixfile]
   end
 
   test "deps.get with lock" do
@@ -159,8 +159,8 @@ defmodule Hex.MixTaskTest do
       assert_received {:mix_shell, :info, ["* ex_doc 0.0.1 (Hex package)" <> _]}
     end
   after
-    purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-            Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
+    purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+           Ex_doc.NoConflict.Mixfile, Sample.Mixfile]
   end
 
   test "deps.update" do
@@ -172,8 +172,8 @@ defmodule Hex.MixTaskTest do
       # `deps.get` to set up lock
       Mix.Task.run "deps.get"
 
-      purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-              Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
+      purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+             Ex_doc.NoConflict.Mixfile, Sample.Mixfile]
 
       Mix.ProjectStack.clear_cache
       Mix.Project.pop
@@ -201,8 +201,8 @@ defmodule Hex.MixTaskTest do
       assert_received {:mix_shell, :info, ["  ok"]}
     end
   after
-    purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-            Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
+    purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+           Ex_doc.NoConflict.Mixfile, Sample.Mixfile]
   end
 
   test "deps.get with override" do
@@ -228,8 +228,8 @@ defmodule Hex.MixTaskTest do
       assert_received {:mix_shell, :info, ["  ok"]}
     end
   after
-    purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-            Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
+    purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+           Ex_doc.NoConflict.Mixfile, Sample.Mixfile]
   end
 
   test "deps.get with non hex dependency that has hex dependency" do
@@ -244,8 +244,8 @@ defmodule Hex.MixTaskTest do
       assert_received {:mix_shell, :info, ["* Getting ex_doc (Hex package)"]}
     end
   after
-    purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-            Ex_doc.NoConflict.Mixfile, HasHexDep.Mixfile, Sample.Mixfile ]
+    purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+           Ex_doc.NoConflict.Mixfile, HasHexDep.Mixfile, Sample.Mixfile]
   end
 
   test "converged hex dependency considers all requirements" do
@@ -260,7 +260,7 @@ defmodule Hex.MixTaskTest do
       assert %{postgrex: {:hex, :postgrex, "0.2.0"}} = Mix.Dep.Lock.read
     end
   after
-    purge [ Ecto.Mixfile, Postgrex.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
+    purge [Ecto.Mixfile, Postgrex.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile]
   end
 
   test "do not fetch git children of hex dependencies" do
@@ -278,8 +278,8 @@ defmodule Hex.MixTaskTest do
       refute_received {:mix_shell, :info, ["* sample" <> _]}
     end
   after
-    purge [ Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-            Ex_doc.NoConflict.Mixfile, Sample.Mixfile ]
+    purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+           Ex_doc.NoConflict.Mixfile, Sample.Mixfile]
   end
 
   test "override hex dependency with path dependency" do
@@ -298,7 +298,7 @@ defmodule Hex.MixTaskTest do
       assert Mix.Dep.Lock.read == %{postgrex: {:hex, :postgrex, "0.2.1"}}
     end
   after
-    purge [ Postgrex.NoConflict.Mixfile, ExDoc.Fixture.Mixfile ]
+    purge [Postgrex.NoConflict.Mixfile, ExDoc.Fixture.Mixfile]
   end
 
   test "override hex dependency two levels down with path dependency" do
@@ -319,8 +319,8 @@ defmodule Hex.MixTaskTest do
                                     postgrex: {:hex, :postgrex, "0.2.1"}}
     end
   after
-    purge [ Phoenix.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-            ExDoc.Fixture.Mixfile ]
+    purge [Phoenix.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+           ExDoc.Fixture.Mixfile]
   end
 
   test "override hex dependency with path dependency from dependency" do
@@ -362,7 +362,7 @@ defmodule Hex.MixTaskTest do
       refute_received {:mix_shell, :info, ["* ex_doc (Hex package)" <> _]}
     end
   after
-    purge [ Only_doc.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
+    purge [Only_doc.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile]
   end
 
   test "with optional dependency" do
@@ -383,7 +383,7 @@ defmodule Hex.MixTaskTest do
       assert_received {:mix_shell, :info, ["  locked at 0.0.1 (ex_doc)"]}
     end
   after
-    purge [ Only_doc.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile ]
+    purge [Only_doc.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile]
   end
 
   test "with package name" do
@@ -402,7 +402,7 @@ defmodule Hex.MixTaskTest do
       assert_received {:mix_shell, :info, ["  locked at 0.1.0 (package_name)"]}
     end
   after
-    purge [ Package_name.NoConflict.Mixfile ]
+    purge [Package_name.NoConflict.Mixfile]
   end
 
   test "with depend name" do
@@ -424,7 +424,7 @@ defmodule Hex.MixTaskTest do
       assert_received {:mix_shell, :info, ["  locked at 0.1.0 (package_name)"]}
     end
   after
-    purge [ Depend_name.NoConflict.Mixfile, Package_name.NoConflict.Mixfile ]
+    purge [Depend_name.NoConflict.Mixfile, Package_name.NoConflict.Mixfile]
   end
 
   test "deps.get with incorrect version" do
@@ -433,7 +433,8 @@ defmodule Hex.MixTaskTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      assert_raise Mix.Error, ~s[Required version "> hello" for package ex_doc is incorrectly specified (from: mix.exs)], fn ->
+      message = ~s[Required version "> hello" for package ex_doc is incorrectly specified (from: mix.exs)]
+      assert_raise Mix.Error, message, fn ->
         Mix.Task.run "deps.get"
       end
     end
