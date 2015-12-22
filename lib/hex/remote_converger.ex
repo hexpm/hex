@@ -105,10 +105,10 @@ defmodule Hex.RemoteConverger do
   end
 
   defp check_package_req(name, req, from) do
-    if req && Version.parse_requirement(req) == :error do
-        Mix.raise "Required version #{inspect req} for package #{name} is incorrectly specified (from: #{from})"
-    end
     if versions = Registry.get_versions(name) do
+      if req != nil and Version.parse_requirement(req) == :error do
+        Mix.raise "Required version #{inspect req} for package #{name} is incorrectly specified (from: #{from})"
+      end
       versions = Enum.filter(versions, &Hex.Mix.version_match?(&1, req))
       if versions == [] do
         Mix.raise "No package version in registry matches #{name} #{req} (from: #{from})"
