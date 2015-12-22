@@ -103,6 +103,14 @@ defmodule Hex.MixTaskTest do
     end
   end
 
+  defmodule WithEmptyDepVersion do
+    def project do
+      [ app: :simple,
+        version: "0.1.0",
+        deps: [ {:ecto, ""} ] ]
+    end
+  end
+
   test "deps.get" do
     Mix.Project.push Simple
 
@@ -417,5 +425,18 @@ defmodule Hex.MixTaskTest do
     end
   after
     purge [ Depend_name.NoConflict.Mixfile, Package_name.NoConflict.Mixfile ]
+  end
+
+  test "deps.get with empty version" do
+    Mix.Project.push WithEmptyDepVersion
+
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      assert_raise Mix.Error, "ecto's version is not correctly specified, version: ``", fn ->
+        Mix.Task.run "deps.get"
+      end
+    end
+
   end
 end
