@@ -103,6 +103,14 @@ defmodule Hex.MixTaskTest do
     end
   end
 
+  defmodule WithIncorrectDepVersion do
+    def project do
+      [ app: :simple,
+        version: "0.1.0",
+        deps: [ {:ex_doc, "> hello" } ] ]
+    end
+  end
+
   test "deps.get" do
     Mix.Project.push Simple
 
@@ -417,5 +425,17 @@ defmodule Hex.MixTaskTest do
     end
   after
     purge [ Depend_name.NoConflict.Mixfile, Package_name.NoConflict.Mixfile ]
+  end
+
+  test "deps.get with incorrect version" do
+    Mix.Project.push WithIncorrectDepVersion
+
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      assert_raise Mix.Error, ~s[Required version "> hello" for package ex_doc is incorrectly specified (from: mix.exs)], fn ->
+        Mix.Task.run "deps.get"
+      end
+    end
   end
 end
