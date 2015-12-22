@@ -105,13 +105,17 @@ defmodule Hex.RemoteConverger do
   end
 
   defp check_package_req(name, req, from) do
-    if versions = Registry.get_versions(name) do
-      versions = Enum.filter(versions, &Hex.Mix.version_match?(&1, req))
-      if versions == [] do
-        Mix.raise "No package version in registry matches #{name} #{req} (from: #{from})"
+    try do
+      if versions = Registry.get_versions(name) do
+        versions = Enum.filter(versions, &Hex.Mix.version_match?(&1, req))
+        if versions == [] do
+          Mix.raise "No package version in registry matches #{name} #{req} (from: #{from})"
+        end
+      else
+        Mix.raise "No package with name #{name} (from: #{from}) in registry"
       end
-    else
-      Mix.raise "No package with name #{name} (from: #{from}) in registry"
+    catch _, %Version.InvalidRequirementError{message: message} ->
+      Mix.raise "#{name}'s version is not correctly specified, version: `#{message}`"
     end
   end
 
