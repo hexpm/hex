@@ -181,7 +181,7 @@ defmodule Hex.RemoteConverger do
     # 3. If it's a child of another Hex package being unlocked/updated
 
     unlock =
-      Enum.filter(deps, fn
+      Enum.filter_map(deps, fn
         %Mix.Dep{scm: Hex.SCM, app: app, requirement: req, opts: opts} ->
           # Make sure to handle deps that were previously locked as Git
           case Map.fetch(old_lock, app) do
@@ -194,20 +194,21 @@ defmodule Hex.RemoteConverger do
 
         %Mix.Dep{} ->
           true
-      end)
-      |> Enum.map(&Atom.to_string(&1.app))
+      end, &Atom.to_string(&1.app))
 
-    unlock = unlock ++
-      for({app, _} <- old_lock,
+    unlock =
+      for {app, _} <- old_lock,
           not Map.has_key?(lock, app),
-          do: Atom.to_string(app))
+        into: unlock,
+        do: Atom.to_string(app)
 
-    unlock = unlock
-             |> Enum.uniq
-             |> with_children(old_lock)
-             |> Enum.uniq
+    unlock =
+      Enum.uniq(unlock)
+      |> with_children(old_lock)
+      |> Enum.uniq
 
-    Enum.reject(Hex.Mix.from_lock(old_lock), fn {_name, app, _vsn} ->
+    Hex.Mix.from_lock(old_lock)
+    |> Enum.reject(fn {_name, app, _vsn} ->
       app in unlock
     end)
   end
