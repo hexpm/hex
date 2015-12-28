@@ -6,9 +6,9 @@ defmodule HexTest.HexWeb do
     use Mix.Project
 
     def project do
-      [ app: :~s,
-        version: "~s",
-        deps: deps() ]
+      [app: :~s,
+       version: "~s",
+       deps: deps()]
     end
 
     defp deps do

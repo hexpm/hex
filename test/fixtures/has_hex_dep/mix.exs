@@ -2,9 +2,9 @@ defmodule HasHexDep.Fixture.Mixfile do
   use Mix.Project
 
   def project do
-    [ app: :has_hex_dep,
+    [app: :has_hex_dep,
       version: "0.0.1",
-      deps: deps ]
+      deps: deps]
   end
 
   defp deps do
