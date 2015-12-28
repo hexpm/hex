@@ -139,7 +139,7 @@ defmodule Hex.MixTaskTest do
     end
   after
     purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-           Ex_doc.NoConflict.Mixfile, Sample.Mixfile]
+           Ex_doc.NoConflict.Mixfile]
   end
 
   test "deps.get with lock" do
@@ -160,7 +160,7 @@ defmodule Hex.MixTaskTest do
     end
   after
     purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-           Ex_doc.NoConflict.Mixfile, Sample.Mixfile]
+           Ex_doc.NoConflict.Mixfile]
   end
 
   test "deps.update" do
@@ -173,7 +173,7 @@ defmodule Hex.MixTaskTest do
       Mix.Task.run "deps.get"
 
       purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-             Ex_doc.NoConflict.Mixfile, Sample.Mixfile]
+             Ex_doc.NoConflict.Mixfile]
 
       Mix.ProjectStack.clear_cache
       Mix.Project.pop
@@ -202,7 +202,7 @@ defmodule Hex.MixTaskTest do
     end
   after
     purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-           Ex_doc.NoConflict.Mixfile, Sample.Mixfile]
+           Ex_doc.NoConflict.Mixfile, Sample.Fixture.Mixfile]
   end
 
   test "deps.get with override" do
@@ -229,7 +229,7 @@ defmodule Hex.MixTaskTest do
     end
   after
     purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-           Ex_doc.NoConflict.Mixfile, Sample.Mixfile]
+           Ex_doc.NoConflict.Mixfile]
   end
 
   test "deps.get with non hex dependency that has hex dependency" do
@@ -245,7 +245,7 @@ defmodule Hex.MixTaskTest do
     end
   after
     purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-           Ex_doc.NoConflict.Mixfile, HasHexDep.Mixfile, Sample.Mixfile]
+           Ex_doc.NoConflict.Mixfile, HasHexDep.Fixture.Mixfile]
   end
 
   test "converged hex dependency considers all requirements" do
@@ -260,7 +260,7 @@ defmodule Hex.MixTaskTest do
       assert %{postgrex: {:hex, :postgrex, "0.2.0"}} = Mix.Dep.Lock.read
     end
   after
-    purge [Ecto.Mixfile, Postgrex.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile]
+    purge [Ecto.Fixture.Mixfile, Postgrex.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile]
   end
 
   test "do not fetch git children of hex dependencies" do
@@ -279,7 +279,7 @@ defmodule Hex.MixTaskTest do
     end
   after
     purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
-           Ex_doc.NoConflict.Mixfile, Sample.Mixfile]
+           Ex_doc.NoConflict.Mixfile]
   end
 
   test "override hex dependency with path dependency" do
@@ -341,7 +341,7 @@ defmodule Hex.MixTaskTest do
       assert Mix.Dep.Lock.read == %{postgrex: {:hex, :postgrex, "0.2.1"}}
     end
   after
-    purge [OverrideWithPath.NoConflict.Mixfile, ExDoc.Fixture.Mixfile,
+    purge [OverrideWithPath.Fixture.Mixfile, ExDoc.Fixture.Mixfile,
            Postgrex.NoConflict.Mixfile]
   end
 

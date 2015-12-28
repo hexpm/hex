@@ -9,6 +9,8 @@ defmodule Mix.Tasks.Hex.PublishTest do
     assert_raise Mix.Error, "No authorized user found. Run 'mix hex.user auth'", fn ->
       Mix.Tasks.Hex.Publish.run([])
     end
+  after
+    purge [ReleaseSimple.Mixfile]
   end
 
   test "create and revert" do
@@ -29,6 +31,8 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["--revert", "0.0.1"])
       assert {404, _} = Hex.API.Release.get("releasea", "0.0.1")
     end
+  after
+    purge [ReleaseSimple.Mixfile]
   end
 
   test "create with package name" do
@@ -43,6 +47,8 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert {200, body} = Hex.API.Release.get("released_name", "0.0.1")
       assert body["meta"]["app"] == "released"
     end
+  after
+    purge [ReleaseName.Mixfile]
   end
 
   test "create with key" do
@@ -56,6 +62,8 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["--no-progress"])
       assert {200, _} = Hex.API.Release.get("releasea", "0.0.1")
     end
+  after
+    purge [ReleaseSimple.Mixfile]
   end
 
   test "create with deps" do
@@ -75,7 +83,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert {200, _} = Hex.API.Release.get("releaseb", "0.0.2")
     end
   after
-    purge [Ex_doc.NoConflict.Mixfile]
+    purge [ReleaseDeps.Mixfile]
   end
 
   test "create with meta" do
@@ -95,5 +103,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing files: missing.txt, missing/*" <> _]}
       refute_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields" <> _]}
     end
+  after
+    purge [ReleaseMeta.Mixfile]
   end
 end

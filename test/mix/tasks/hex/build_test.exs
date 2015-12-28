@@ -15,6 +15,8 @@ defmodule Mix.Tasks.Hex.BuildTest do
       Mix.Tasks.Hex.Build.run([])
       assert package_created?("releasea-0.0.1")
     end
+  after
+    purge [ReleaseSimple.Mixfile]
   end
 
   test "create with package name" do
@@ -26,6 +28,8 @@ defmodule Mix.Tasks.Hex.BuildTest do
       Mix.Tasks.Hex.Build.run([])
       assert package_created?("released_name-0.0.1")
     end
+  after
+    purge [ReleaseName.Mixfile]
   end
 
   test "create with deps" do
@@ -43,7 +47,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       assert package_created?("releaseb-0.0.2")
     end
   after
-    purge [Ex_doc.NoConflict.Mixfile]
+    purge [ReleaseDeps.Mixfile]
   end
 
   test "create with meta" do
@@ -62,6 +66,8 @@ defmodule Mix.Tasks.Hex.BuildTest do
       refute_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields" <> _]}
       assert package_created?("releasec-0.0.3")
     end
+  after
+    purge [ReleaseMeta.Mixfile]
   end
 
   test "reject package if description is missing" do
@@ -79,5 +85,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
         refute package_created?("releasee-0.0.1")
       end
     end
+  after
+    purge [ReleaseNoDescription.Mixfile]
   end
 end
