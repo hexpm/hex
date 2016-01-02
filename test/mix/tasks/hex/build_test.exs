@@ -13,7 +13,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       Hex.State.put(:home, tmp_path())
 
       Mix.Tasks.Hex.Build.run([])
-      assert package_created?("releasea-0.0.1")
+      assert package_created?("release_a-0.0.1")
     end
   after
     purge [ReleaseSimple.Mixfile]
@@ -44,7 +44,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! No files\e[0m"]}
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: licenses, maintainers, links\e[0m"]}
-      assert package_created?("releaseb-0.0.2")
+      assert package_created?("release_b-0.0.2")
     end
   after
     purge [ReleaseDeps.Mixfile]
@@ -59,12 +59,12 @@ defmodule Mix.Tasks.Hex.BuildTest do
       File.write!("myfile.txt", "hello")
       Mix.Tasks.Hex.Build.run([])
 
-      assert_received {:mix_shell, :info, ["Building releasec v0.0.3"]}
+      assert_received {:mix_shell, :info, ["Building release_c v0.0.3"]}
       assert_received {:mix_shell, :info, ["  Files:"]}
       assert_received {:mix_shell, :info, ["    myfile.txt"]}
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing files: missing.txt, missing/*" <> _]}
       refute_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields" <> _]}
-      assert package_created?("releasec-0.0.3")
+      assert package_created?("release_c-0.0.3")
     end
   after
     purge [ReleaseMeta.Mixfile]
@@ -79,10 +79,10 @@ defmodule Mix.Tasks.Hex.BuildTest do
       assert_raise Mix.Error, "Stopping package build due to errors", fn ->
         Mix.Tasks.Hex.Build.run([])
 
-        assert_received {:mix_shell, :info, ["Building releasee v0.0.1"]}
+        assert_received {:mix_shell, :info, ["Building release_e v0.0.1"]}
         assert_received {:mix_shell, :error, ["  ERROR! Missing metadata fields: description"]}
 
-        refute package_created?("releasee-0.0.1")
+        refute package_created?("release_e-0.0.1")
       end
     end
   after
