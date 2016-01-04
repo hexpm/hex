@@ -34,10 +34,8 @@ defmodule Mix.Tasks.Hex.Info do
   defp general() do
     Hex.Shell.info "Hex:    v#{Hex.version}"
     Hex.Shell.info "Elixir: v#{System.version}"
-    Hex.Shell.info "ERTS:   v#{:erlang.system_info(:version)}"
-    Hex.Shell.info ""
-    Hex.Shell.info "Built with: Elixir v#{Hex.elixir_version} and ERTS v#{Hex.erts_version}"
-    Hex.Shell.info ""
+    Hex.Shell.info "ERTS:   v#{:erlang.system_info(:version)}\n"
+    Hex.Shell.info "Built with: Elixir v#{Hex.elixir_version} and ERTS v#{Hex.erts_version}\n"
 
     # Make sure to fetch registry after showing Hex version. Issues with the
     # registry should not prevent printing the version.
@@ -84,13 +82,13 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp print_package(package) do
-    name = package["name"]
-    Hex.Shell.info name
-    releases = package["releases"]
-    print_config(name, hd(releases))
-    Hex.Shell.info "  Releases: " <> format_releases(releases)
-    Hex.Shell.info ""
-    print_meta(package["meta"])
+    meta = package["meta"]
+    desc = meta["description"] || "No description provided"
+    Hex.Shell.info desc <> "\n"
+    rels = package["releases"]
+    print_config(package["name"], hd(rels))
+    Hex.Shell.info "Releases: " <> format_releases(rels) <> "\n"
+    print_meta(meta)
   end
 
   defp format_releases(releases) do
@@ -104,28 +102,22 @@ defmodule Mix.Tasks.Hex.Info do
     print_list(meta, "maintainers")
     print_list(meta, "licenses")
     print_dict(meta, "links")
-
-    if descr = meta["description"] do
-      Hex.Shell.info ""
-      Hex.Shell.info descr
-    end
   end
 
   defp print_release(package, release) do
     version = release["version"]
-    Hex.Shell.info package <> " v" <> version
     print_config(package, release)
 
     if release["has_docs"] do
       # TODO: Only print this URL if we use the default API URL
-      Hex.Shell.info "  Documentation at: #{Hex.Utils.hexdocs_url(package, version)}"
+      Hex.Shell.info "Documentation at: #{Hex.Utils.hexdocs_url(package, version)}"
     end
 
     if requirements = release["requirements"] do
-      Hex.Shell.info "  Dependencies:"
+      Hex.Shell.info "Dependencies:"
       Enum.each(requirements, fn {name, req} ->
         optional = if req["optional"], do: " (optional)"
-        Hex.Shell.info "    #{name}: #{req["requirement"]}#{optional}"
+        Hex.Shell.info "  #{name}: #{req["requirement"]}#{optional}"
       end)
     end
   end
@@ -136,7 +128,7 @@ defmodule Mix.Tasks.Hex.Info do
     snippet =
       format_version(version)
       |> format_config_snippet(name, app_name)
-    Hex.Shell.info "  Config: #{snippet}"
+    Hex.Shell.info "Config: " <> snippet
   end
 
   defp format_config_snippet(version, name, name),
@@ -162,17 +154,17 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp print_list(meta, name) do
     if (list = meta[name]) && list != [] do
-      Hex.Shell.info("  #{String.capitalize(name)}: " <> Enum.join(list, ", "))
+      Hex.Shell.info(String.capitalize(name) <> ": " <> Enum.join(list, ", "))
     end
   end
 
-  defp print_dict(meta, name, title \\ nil) do
-    title = title || String.capitalize(name)
+  defp print_dict(meta, name) do
+    title = String.capitalize(name)
 
     if (dict = meta[name]) && dict != [] do
-      Hex.Shell.info "  #{title}:"
-      Enum.each(dict, fn {name, url} ->
-        Hex.Shell.info "    #{name}: #{url}"
+      Hex.Shell.info title <> ":"
+      Enum.each(dict, fn {key, val} ->
+        Hex.Shell.info "  #{key}: #{val}"
       end)
     end
   end
