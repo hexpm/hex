@@ -80,6 +80,10 @@ defmodule Hex.Parallel do
     end
   end
 
+  def handle_info(_, state) do
+    {:noreply, state}
+  end
+
   defp run_task(id, fun, state) do
     if Map.size(state.running) >= state.max_jobs do
       state = %{state | waiting: :queue.in({id, fun}, state.waiting)}
