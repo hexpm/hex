@@ -52,32 +52,31 @@ defmodule Hex.Parallel do
     {:reply, :ok, state}
   end
 
-  def handle_info(message, state) do
+  def handle_info({ref, message}, state) when is_reference(ref) do
     tasks = Map.keys(state.running)
 
-    case Task.find(tasks, message) do
-      {result, task} ->
-        id = state.running[task]
-        state = %{state | running: Map.delete(state.running, task)}
+    if task = Enum.find(tasks, &(&1.ref == ref)) do
+      id = state.running[task]
+      state = %{state | running: Map.delete(state.running, task)}
 
-        if from = state.waiting_reply[id] do
-          GenServer.reply(from, result)
-          state = %{state | waiting_reply: Map.delete(state.waiting_reply, id)}
-        else
-          state = %{state | finished: Map.put(state.finished, id, result)}
-        end
+      if from = state.waiting_reply[id] do
+        GenServer.reply(from, message)
+        state = %{state | waiting_reply: Map.delete(state.waiting_reply, id)}
+      else
+        state = %{state | finished: Map.put(state.finished, id, message)}
+      end
 
-        case :queue.out(state.waiting) do
-          {{:value, {id, fun}}, waiting} ->
-            state = %{state | waiting: waiting}
-            state = run_task(id, fun, state)
-          {:empty, _} ->
-            :ok
-        end
+      case :queue.out(state.waiting) do
+        {{:value, {id, fun}}, waiting} ->
+          state = %{state | waiting: waiting}
+          state = run_task(id, fun, state)
+        {:empty, _} ->
+          :ok
+      end
 
-        {:noreply, state}
-      nil ->
-        {:noreply, state}
+      {:noreply, state}
+    else
+      {:noreply, state}
     end
   end
 
