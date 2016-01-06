@@ -15,16 +15,24 @@ defmodule Hex.Mix do
   @doc """
   Given a tree of dependencies return a flat list of all dependencies in
   the tree.
+
+  The returned flattened list is going to contain duplicated dependencies
+  because we want to accumulate all of the different requirements.
+  However we must skip overridden dependencies as their requirements
+  are no longer relevant. We also skip dependencies that are not included
+  in the original list of dependencies as they were likely filtered out
+  due to options like `:only`.
   """
   @spec flatten_deps([Mix.Dep.t]) :: [Mix.Dep.t]
   def flatten_deps(deps) do
+    apps = Enum.map(deps, & &1.app)
     top_level = top_level(deps)
 
     deps ++
       for(dep <- deps,
           upper_breadths = down_to(top_level, deps, dep.app),
-          child <- dep.deps,
-          not was_overridden?(upper_breadths, child.app),
+          %{app: app} = child <- dep.deps,
+          app in apps and not was_overridden?(upper_breadths, app),
           do: child)
   end
 
