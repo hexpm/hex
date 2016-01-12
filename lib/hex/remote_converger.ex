@@ -88,8 +88,8 @@ defmodule Hex.RemoteConverger do
       if dep.app in top_level and
          is_nil(dep.requirement) and
          dep.scm == Hex.SCM do
-        Mix.raise "#{dep.app} is missing its version requirement, " <>
-                  "use \">= 0.0.0\" if it should match any version"
+        Hex.shell.warn "#{dep.app} is missing its version requirement, " <>
+                       "use \">= 0.0.0\" if it should match any version"
       end
     end)
   end
