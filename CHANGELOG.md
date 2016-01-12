@@ -1,5 +1,23 @@
 ## v0.9.1-dev
 
+* Enhancements
+  * Add support for authentication when using HTTP proxies
+  * Add more build information to `hex.info` task to ease debugging
+  * Greatly improve backtracking error messages
+  * Prevent packages for being published without a description
+  * Improve error printing when S3 return errors
+  * Improve output from `hex.outdated` task
+  * Warn if a package dependency is missing its requirement
+  * Improve error message from `hex.docs` task when `ex_doc` dependency is missing
+  * Remove useless output when fetching dependencies
+  * Improve package output in `hex.info` task
+
+* Bug fixes
+  * Fix a rare bug that could cause the resolver to go into an infinite loop
+  * UTF8 encode package metadata
+  * Only list missing files if `:files` is set
+  * Fix bug when umbrella child has dependency with `:only
+
 ## v0.9.0 (2015-09-25)
 
 * Enhancements
