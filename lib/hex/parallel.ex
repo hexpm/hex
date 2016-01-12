@@ -80,8 +80,14 @@ defmodule Hex.Parallel do
     end
   end
 
-  def handle_info(_, state) do
-    {:noreply, state}
+  def handle_info({:DOWN, ref, _, proc, reason}, state) do
+    tasks = Map.keys(state.running)
+
+    if Enum.find(tasks, &(&1.ref == ref)) do
+      {:stop, {proc, reason}, state}
+    else
+      {:noreply, state}
+    end
   end
 
   defp run_task(id, fun, state) do
