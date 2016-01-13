@@ -72,14 +72,14 @@ defmodule Hex.ResolverTest do
     assert resolve(deps) == """
     Conflict on decimal 0.1.0
       From mix.exs: 0.1.0
-      From ex_plex v0.0.2: 0.1.1
+      From ex_plex 0.0.2: 0.1.1
     """
 
     deps = [decimal: nil, ex_plex: "0.0.2"]
     assert resolve(deps) == """
     Conflict on decimal 0.2.1, 0.2.0, 0.1.0, 0.0.1
       From mix.exs: >= 0.0.0
-      From ex_plex v0.0.2: 0.1.1
+      From ex_plex 0.0.2: 0.1.1
     """
   end
 
@@ -125,7 +125,7 @@ defmodule Hex.ResolverTest do
     Conflict on decimal 0.0.1
       From mix.exs: >= 0.0.0
       From mix.lock: 0.0.1
-      From ex_plex v0.1.0: ~> 0.1.0
+      From ex_plex 0.1.0: ~> 0.1.0
     """
 
     locked = [decimal: "0.0.1"]
@@ -134,7 +134,7 @@ defmodule Hex.ResolverTest do
     Conflict on decimal 0.0.1
       From mix.exs: ~> 0.0.1
       From mix.lock: 0.0.1
-      From ex_plex v0.1.0: ~> 0.1.0
+      From ex_plex 0.1.0: ~> 0.1.0
     """
   end
 

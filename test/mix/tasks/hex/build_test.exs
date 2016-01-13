@@ -59,7 +59,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       File.write!("myfile.txt", "hello")
       Mix.Tasks.Hex.Build.run([])
 
-      assert_received {:mix_shell, :info, ["Building release_c v0.0.3"]}
+      assert_received {:mix_shell, :info, ["Building release_c 0.0.3"]}
       assert_received {:mix_shell, :info, ["  Files:"]}
       assert_received {:mix_shell, :info, ["    myfile.txt"]}
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing files: missing.txt, missing/*" <> _]}
@@ -79,7 +79,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       assert_raise Mix.Error, "Stopping package build due to errors", fn ->
         Mix.Tasks.Hex.Build.run([])
 
-        assert_received {:mix_shell, :info, ["Building release_e v0.0.1"]}
+        assert_received {:mix_shell, :info, ["Building release_e 0.0.1"]}
         assert_received {:mix_shell, :error, ["  ERROR! Missing metadata fields: description"]}
 
         refute package_created?("release_e-0.0.1")

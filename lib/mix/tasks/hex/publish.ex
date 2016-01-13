@@ -90,7 +90,7 @@ defmodule Mix.Tasks.Hex.Publish do
     if version = opts[:revert] do
       revert(meta, version, auth)
     else
-      Hex.Shell.info("Publishing #{meta[:name]} v#{meta[:version]}")
+      Hex.Shell.info("Publishing #{meta[:name]} #{meta[:version]}")
       Build.print_info(meta, exclude_deps, package[:files])
 
       print_link_to_coc()
@@ -111,9 +111,9 @@ defmodule Mix.Tasks.Hex.Publish do
 
     case Hex.API.Release.delete(meta[:name], version, auth) do
       {code, _} when code in 200..299 ->
-        Hex.Shell.info("Reverted #{meta[:name]} v#{version}")
+        Hex.Shell.info("Reverted #{meta[:name]} #{version}")
       {code, body} ->
-        Hex.Shell.error("Reverting #{meta[:name]} v#{version} failed")
+        Hex.Shell.error("Reverting #{meta[:name]} #{version} failed")
         Hex.Utils.print_error_result(code, body)
     end
   end
@@ -134,7 +134,7 @@ defmodule Mix.Tasks.Hex.Publish do
         Hex.Shell.info("\nPublished at #{Hex.Utils.hex_package_url(meta[:name], meta[:version])}")
         Hex.Shell.info("Don't forget to upload your documentation with `mix hex.docs`")
       {code, body} ->
-        Hex.Shell.error("\nPushing #{meta[:name]} v#{meta[:version]} failed")
+        Hex.Shell.error("\nPushing #{meta[:name]} #{meta[:version]} failed")
         Hex.Utils.print_error_result(code, body)
     end
   end

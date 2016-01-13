@@ -37,7 +37,7 @@ defmodule Hex.RegistryTest do
 
       Hex.Registry.open!
       Hex.Utils.ensure_registry!(fetch: false)
-      assert_received {:mix_shell, :info, ["\e[33mA new Hex version is available (v100.0.0), please update with `mix local.hex`\e[0m"]}
+      assert_received {:mix_shell, :info, ["\e[33mA new Hex version is available (100.0.0), please update with `mix local.hex`\e[0m"]}
     end
   end
 

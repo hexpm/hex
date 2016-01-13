@@ -22,8 +22,8 @@ defmodule Mix.Tasks.Hex.Search do
 
         Enum.each(packages, fn pkg ->
           vsn = Hex.Registry.get_versions(pkg) |> List.last
-          pkg_name = String.ljust(pkg, pkg_max_length + 1)
-          Hex.Shell.info "#{pkg_name}v#{vsn}"
+          pkg_name = String.ljust(pkg, pkg_max_length)
+          Hex.Shell.info "#{pkg_name} #{vsn}"
         end)
       _ ->
         Mix.raise "Invalid arguments, expected: mix hex.search PACKAGE"

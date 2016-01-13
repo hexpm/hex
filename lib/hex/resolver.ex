@@ -143,7 +143,7 @@ defmodule Hex.Resolver do
 
       {Enum.reverse(reqs), Enum.reverse(opts), all_deps}
     else
-      Mix.raise "Unable to find package version #{package} v#{version} in registry"
+      Mix.raise "Unable to find package version #{package} #{version} in registry"
     end
   end
 
@@ -267,7 +267,7 @@ defmodule Hex.Resolver do
   defp parent_message(parent(name: path, version: nil, requirement: req)),
     do: "From #{path}: #{requirement(req)}"
   defp parent_message(parent(name: parent, version: version, requirement: req)),
-    do: "From #{parent} v#{version}: #{requirement(req)}"
+    do: "From #{parent} #{version}: #{requirement(req)}"
 
   defp requirement(nil), do: ">= 0.0.0"
   defp requirement(req), do: req.source

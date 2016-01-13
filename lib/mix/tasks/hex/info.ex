@@ -35,7 +35,7 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Shell.info "Hex:    #{Hex.version}"
     Hex.Shell.info "Elixir: #{System.version}"
     Hex.Shell.info "OTP:    #{Hex.Utils.otp_version}\n"
-    Hex.Shell.info "Built with: Elixir #{Hex.elixir_version} & OTP #{Hex.otp_version}\n"
+    Hex.Shell.info "Built with: Elixir #{Hex.elixir_version} and OTP #{Hex.otp_version}\n"
 
     # Make sure to fetch registry after showing Hex version. Issues with the
     # registry should not prevent printing the version.
@@ -74,7 +74,7 @@ defmodule Mix.Tasks.Hex.Info do
       {code, body} when code in 200..299 ->
         print_release(package, body)
       {404, _} ->
-        Hex.Shell.error "No release with name #{package} v#{version}"
+        Hex.Shell.error "No release with name #{package} #{version}"
       {code, body} ->
         Hex.Shell.error "Failed to retrieve release information"
         Hex.Utils.print_error_result(code, body)

@@ -97,7 +97,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self, {:mix_shell_input, :yes?, true}
       Mix.Tasks.Hex.Publish.run(["--no-progress"])
 
-      assert_received {:mix_shell, :info, ["Publishing release_c v0.0.3"]}
+      assert_received {:mix_shell, :info, ["Publishing release_c 0.0.3"]}
       assert_received {:mix_shell, :info, ["  Files:"]}
       assert_received {:mix_shell, :info, ["    myfile.txt"]}
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing files: missing.txt, missing/*" <> _]}

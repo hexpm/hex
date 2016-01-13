@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
     assert_received {:mix_shell, :info, ["Config: {:ex_doc, \"~> 0.1.0-rc1\"}"]}
 
     Mix.Tasks.Hex.Info.run(["ex_doc", "1.2.3"])
-    assert_received {:mix_shell, :error, ["No release with name ex_doc v1.2.3"]}
+    assert_received {:mix_shell, :error, ["No release with name ex_doc 1.2.3"]}
   end
 
   test "general" do
@@ -32,7 +32,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
       File.write!(Hex.Registry.path, :zlib.gunzip(data))
       Mix.Tasks.Hex.Info.run([])
 
-      message = "Hex:    v" <> Hex.version
+      message = "Hex:    " <> Hex.version
       assert_received {:mix_shell, :info, [^message]}
       assert_received {:mix_shell, :info, ["Registry file available (last updated: " <> _]}
       assert_received {:mix_shell, :info, ["Size: " <> _]}

@@ -72,7 +72,7 @@ defmodule Mix.Tasks.Hex.Build do
     package = build[:package]
     exclude_deps = build[:exclude_deps]
 
-    Hex.Shell.info("Building #{meta[:name]} v#{meta[:version]}")
+    Hex.Shell.info("Building #{meta[:name]} #{meta[:version]}")
     Build.print_info(meta, exclude_deps, package[:files])
 
     Hex.Tar.create(meta, meta[:files], false)

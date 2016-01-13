@@ -127,7 +127,7 @@ defmodule Hex.RemoteConverger do
       Hex.Shell.info "Dependency resolution completed"
       resolved = Enum.sort(resolved)
       Enum.each(resolved, fn {name, version} ->
-        Hex.Shell.info "  #{name}: v#{version}"
+        Hex.Shell.info "  #{name}: #{version}"
       end)
     end
   end
@@ -144,7 +144,7 @@ defmodule Hex.RemoteConverger do
   defp verify_dep(app, version) do
     if versions = Registry.get_versions(app) do
       unless version in versions do
-        Mix.raise "Unknown package version #{app} v#{version} in lockfile"
+        Mix.raise "Unknown package version #{app} #{version} in lockfile"
       end
     else
       Mix.raise "Unknown package #{app} in lockfile"

@@ -23,10 +23,10 @@ defmodule Mix.Tasks.Hex.DocsTest do
       setup_auth("user", "hunter42")
 
       Mix.Tasks.Hex.Docs.run(["--no-progress"])
-      assert_received {:mix_shell, :info, ["Published docs for ex_doc v0.0.1"]}
+      assert_received {:mix_shell, :info, ["Published docs for ex_doc 0.0.1"]}
 
       Mix.Tasks.Hex.Docs.run(["--revert", "0.0.1"])
-      assert_received {:mix_shell, :info, ["Reverted docs for ex_doc v0.0.1"]}
+      assert_received {:mix_shell, :info, ["Reverted docs for ex_doc 0.0.1"]}
     end
   end
 end
