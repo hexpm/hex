@@ -32,7 +32,7 @@ defmodule Hex do
 
   def version,        do: unquote(Mix.Project.config[:version])
   def elixir_version, do: unquote(System.version)
-  def erts_version,   do: unquote(:erlang.system_info(:version) |> List.to_string)
+  def otp_version,    do: unquote(Hex.Utils.otp_version)
 
   defp start_httpc() do
     :inets.start(:httpc, profile: :hex)
