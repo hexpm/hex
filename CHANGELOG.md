@@ -1,4 +1,4 @@
-## v0.9.1-dev
+## v0.10.0 (2016-01-14)
 
 * Enhancements
   * Add support for authentication when using HTTP proxies
