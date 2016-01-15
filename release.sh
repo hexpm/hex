@@ -48,7 +48,7 @@ function hex_csv {
 # $1 = source
 # $2 = target
 function s3cp {
-  aws s3 cp ${1} s3://s3.hex.pm/temp/${2} --acl public-read
+  aws s3 cp ${1} s3://s3.hex.pm/installs/${2} --acl public-read
 }
 
 # $1   = hex version
