@@ -111,6 +111,14 @@ defmodule Hex.MixTaskTest do
     end
   end
 
+  defmodule WithMissingDepVersion do
+    def project do
+      [app: :with_missing_dep_version,
+       version: "0.1.0",
+       deps: [{:ex_doc, []}]]
+    end
+  end
+
   test "deps.get" do
     Mix.Project.push Simple
 
@@ -437,6 +445,17 @@ defmodule Hex.MixTaskTest do
       assert_raise Mix.Error, message, fn ->
         Mix.Task.run "deps.get"
       end
+    end
+  end
+
+  test "deps.get with missing version" do
+    Mix.Project.push WithMissingDepVersion
+
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      Mix.Task.run "deps.get"
+      assert_received {:mix_shell, :info, ["\e[33mex_doc is missing its version requirement, use \">= 0.0.0\"" <> _]}
     end
   end
 end
