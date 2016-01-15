@@ -1,4 +1,7 @@
-## v0.10.1-dev
+## v0.10.1 (2016-01-15)
+
+* Bug fixes
+  * Fix a crash when a dependency is missing its version requirement
 
 ## v0.10.0 (2016-01-14)
 
