@@ -1,43 +1,41 @@
 defmodule Hex.Resolver do
-  alias Hex.Registry
   import Hex.Mix
   require Record
+  alias Hex.Registry
+  alias Hex.Resolver.Backtracks
 
-  Record.defrecordp :info, [:deps, :top_level, :backtrack]
+  Record.defrecordp :info, [:deps, :top_level]
   Record.defrecordp :request, [:app, :name, :req, :parent]
   Record.defrecordp :active, [:app, :name, :version, :parents]
   Record.defrecordp :parent, [:name, :version, :requirement]
 
   def resolve(requests, deps, top_level, locked) do
-    {:ok, backtrack} = Agent.start_link(fn -> [] end)
+    Backtracks.start
+    info = info(deps: deps, top_level: top_level)
 
-    try do
-      info = info(deps: deps, top_level: top_level, backtrack: backtrack)
+    optional =
+      Enum.into(locked, %{}, fn {name, app, version} ->
+        {:ok, req} = Hex.Version.parse_requirement(version)
+        parent     = parent(name: "mix.lock", requirement: req)
+        request    = request(app: app, name: name, req: req, parent: parent)
+        {name, [request]}
+      end)
 
-      optional =
-        Enum.into(locked, %{}, fn {name, app, version} ->
-          {:ok, req} = Hex.Version.parse_requirement(version)
-          parent     = parent(name: "mix.lock", requirement: req)
-          request    = request(app: app, name: name, req: req, parent: parent)
-          {name, [request]}
-        end)
+    pending =
+      Enum.map(requests, fn {name, app, req, from} ->
+        req    = compile_requirement(req, name)
+        parent = parent(name: from, requirement: req)
+        request(name: name, app: app, req: req, parent: parent)
+      end)
+      |> Enum.uniq
 
-      pending =
-        Enum.map(requests, fn {name, app, req, from} ->
-          req    = compile_requirement(req, name)
-          parent = parent(name: from, requirement: req)
-          request(name: name, app: app, req: req, parent: parent)
-        end)
-        |> Enum.uniq
-
-      if activated = do_resolve(pending, optional, info, %{}) do
-        {:ok, activated}
-      else
-        {:error, error_message(backtrack)}
-      end
-    after
-      Agent.stop(backtrack)
+    if activated = do_resolve(pending, optional, info, %{}) do
+      {:ok, activated}
+    else
+      {:error, error_message()}
     end
+  after
+    Backtracks.stop
   end
 
   defp do_resolve([], _optional, _info, activated) do
@@ -56,7 +54,7 @@ defmodule Hex.Resolver do
           activated = Map.put(activated, name, active)
           do_resolve(pending, optional, info, activated)
         else
-          add_backtrack_info(name, version, parents, info)
+          add_backtrack_info(name, version, parents)
           nil
         end
 
@@ -71,7 +69,7 @@ defmodule Hex.Resolver do
             activate(request, pending, versions, optional, info, activated, parents)
 
           {:error, _requests} ->
-            add_backtrack_info(name, nil, parents, info)
+            add_backtrack_info(name, nil, parents)
             nil
         end
     end
@@ -197,62 +195,15 @@ defmodule Hex.Resolver do
     Mix.raise "Invalid requirement #{inspect req} defined for package #{package}"
   end
 
-  defp error_message(agent_pid) do
-    Agent.get(agent_pid, &(&1))
-    |> merge_backtracks([])
-    |> sort_backtracks
+  defp error_message do
+    Backtracks.collect
     |> Enum.map_join("\n\n", &backtrack_message/1)
     |> Kernel.<>("\n")
   end
 
-  defp add_backtrack_info(name, version, parents, info(backtrack: agent)) do
-    info = {name, version, parents}
-    Agent.cast(agent, &[info|&1])
+  defp add_backtrack_info(name, version, parents) do
+    Backtracks.add(name, version, parents)
   end
-
-  defp merge_backtracks([], acc) do
-    acc
-  end
-
-  defp merge_backtracks([{name, version, parents}|rest], acc) do
-    similar_versions =
-      Enum.reduce(rest, [version], fn entry, acc ->
-        case entry do
-          {^name, version2, ^parents} ->
-            [version2 | acc]
-          _ ->
-            acc
-        end
-      end)
-      |> Enum.reject(&is_nil/1)
-      |> Enum.uniq
-
-    rest =
-      Enum.reject(rest, fn {name2, version, _} ->
-        name == name2 and (version in similar_versions or is_nil(version))
-      end)
-
-    acc = [{name, similar_versions, parents}|acc]
-
-    merge_backtracks(rest, acc)
-  end
-
-  defp sort_backtracks(backtracks) do
-    backtracks
-    |> Enum.map(fn {name, versions, parents} ->
-         parents  = Enum.sort(parents, &sort_parents/2)
-         versions = Enum.sort(versions, &(Hex.Version.compare(&1, &2) != :lt))
-         {name, versions, parents}
-       end)
-    |> Enum.sort()
-  end
-
-  # TODO: Handle sorting of mix.exs from umbrellas
-  defp sort_parents(parent(name: "mix.exs"), _),  do: true
-  defp sort_parents(_, parent(name: "mix.exs")),  do: false
-  defp sort_parents(parent(name: "mix.lock"), _), do: true
-  defp sort_parents(_, parent(name: "mix.lock")), do: false
-  defp sort_parents(parent1, parent2),            do: parent1 <= parent2
 
   defp backtrack_message({name, versions, parents}) do
     versions = if versions != [] do
