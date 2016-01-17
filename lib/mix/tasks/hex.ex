@@ -33,7 +33,7 @@ defmodule Mix.Tasks.Hex do
     Hex.Shell.info "Hex is a package manager for the Erlang ecosystem."
     line_break()
 
-    if Version.match?(System.version, ">= 1.1.0-dev") do
+    if Hex.Version.match?(System.version, ">= 1.1.0-dev") do
       Hex.Shell.info "Available tasks:"
       line_break()
       Mix.Task.run("help", ["--search", "hex."])

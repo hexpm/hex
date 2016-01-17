@@ -106,7 +106,7 @@ defmodule Hex.RemoteConverger do
 
   defp check_package_req(name, req, from) do
     if versions = Registry.get_versions(name) do
-      if req != nil and Version.parse_requirement(req) == :error do
+      if req != nil and Hex.Version.parse_requirement(req) == :error do
         Mix.raise "Required version #{inspect req} for package #{name} is incorrectly specified (from: #{from})"
       end
       versions = Enum.filter(versions, &Hex.Mix.version_match?(&1, req))
@@ -186,7 +186,7 @@ defmodule Hex.RemoteConverger do
           # Make sure to handle deps that were previously locked as Git
           case Map.fetch(old_lock, app) do
             {:ok, {:hex, name, version}} ->
-              req && !Version.match?(version, req) && name == opts[:hex]
+              req && !Hex.Version.match?(version, req) && name == opts[:hex]
 
             _ ->
               true

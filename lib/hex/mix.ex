@@ -10,7 +10,7 @@ defmodule Hex.Mix do
   """
   @spec version_match?(String.t, String.t) :: boolean
   def version_match?(_version, nil), do: true
-  def version_match?(version, req),  do: Version.match?(version, req)
+  def version_match?(version, req),  do: Hex.Version.match?(version, req)
 
   @doc """
   Given a tree of dependencies return a flat list of all dependencies in

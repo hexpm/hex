@@ -124,7 +124,7 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp print_config(name, release) do
     app_name = release["meta"]["app"] || name
-    {:ok, version} = Version.parse(release["version"])
+    {:ok, version} = Hex.Version.parse(release["version"])
     snippet =
       format_version(version)
       |> format_config_snippet(name, app_name)

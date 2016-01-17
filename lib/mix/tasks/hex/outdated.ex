@@ -94,7 +94,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp print_row([{package, p1}, {lock, p2}, {latest, p3}, {req, _p4}]) do
-    outdated? = Version.compare(lock, latest) == :lt
+    outdated? = Hex.Version.compare(lock, latest) == :lt
     latest_color = if outdated?, do: :red, else: :green
 
     req_matches? = version_match?(latest, req)
@@ -122,5 +122,5 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp size(str), do: byte_size(str)
 
   defp version_match?(_version, nil), do: true
-  defp version_match?(version, req),  do: Version.match?(version, req)
+  defp version_match?(version, req),  do: Hex.Version.match?(version, req)
 end

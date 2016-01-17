@@ -17,7 +17,7 @@ defmodule Hex.Resolver do
 
       optional =
         Enum.into(locked, %{}, fn {name, app, version} ->
-          {:ok, req} = Version.parse_requirement(version)
+          {:ok, req} = Hex.Version.parse_requirement(version)
           parent     = parent(name: "mix.lock", requirement: req)
           request    = request(app: app, name: name, req: req, parent: parent)
           {name, [request]}
@@ -187,7 +187,7 @@ defmodule Hex.Resolver do
   end
 
   defp compile_requirement(req, package) when is_binary(req) do
-    case Version.parse_requirement(req) do
+    case Hex.Version.parse_requirement(req) do
       {:ok, req} ->
         req
       :error ->
@@ -242,8 +242,8 @@ defmodule Hex.Resolver do
   defp sort_backtracks(backtracks) do
     backtracks
     |> Enum.map(fn {name, versions, parents} ->
-         versions = Enum.sort(versions, &(Version.compare(&1, &2) != :lt))
          parents  = Enum.sort(parents, &sort_parents/2)
+         versions = Enum.sort(versions, &(Hex.Version.compare(&1, &2) != :lt))
          {name, versions, parents}
        end)
     |> Enum.sort()
