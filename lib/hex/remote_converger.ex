@@ -20,16 +20,17 @@ defmodule Hex.RemoteConverger do
     # We need the old lock to get the children of Hex packages
     old_lock = Mix.Dep.Lock.read
 
-    locked     = prepare_locked(lock, old_lock, deps)
-    flat_deps  = Hex.Mix.flatten_deps(deps)
-    reqs       = Hex.Mix.deps_to_requests(flat_deps)
+    locked    = prepare_locked(lock, old_lock, deps)
+    top_level = Hex.Mix.top_level(deps)
+    flat_deps = Hex.Mix.flatten_deps(deps, top_level)
+    reqs      = Hex.Mix.deps_to_requests(flat_deps)
 
-    check_deps(deps)
+    check_deps(deps, top_level)
     check_input(reqs, locked)
 
     Hex.Shell.info "Running dependency resolution"
 
-    case Hex.Resolver.resolve(reqs, deps, locked) do
+    case Hex.Resolver.resolve(reqs, deps, top_level, locked) do
       {:ok, resolved} ->
         print_success(resolved, locked)
         new_lock = Hex.Mix.to_lock(resolved)
@@ -81,9 +82,7 @@ defmodule Hex.RemoteConverger do
     end
   end
 
-  defp check_deps(deps) do
-    top_level = Hex.Mix.top_level(deps)
-
+  defp check_deps(deps, top_level) do
     Enum.each(deps, fn dep ->
       if dep.app in top_level and
          is_nil(dep.requirement) and

@@ -23,11 +23,8 @@ defmodule Hex.Mix do
   in the original list of dependencies as they were likely filtered out
   due to options like `:only`.
   """
-  @spec flatten_deps([Mix.Dep.t]) :: [Mix.Dep.t]
-  def flatten_deps(deps) do
-    apps = Enum.map(deps, & &1.app)
-    top_level = top_level(deps)
-
+  @spec flatten_deps([Mix.Dep.t], [atom]) :: [Mix.Dep.t]
+  def flatten_deps(deps, top_level) do
     deps ++
       for(dep <- deps,
           overridden_map = overridden_parents(top_level, deps, dep.app),

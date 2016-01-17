@@ -8,11 +8,10 @@ defmodule Hex.Resolver do
   Record.defrecordp :active, [:app, :name, :version, :parents]
   Record.defrecordp :parent, [:name, :version, :requirement]
 
-  def resolve(requests, deps, locked) do
+  def resolve(requests, deps, top_level, locked) do
     {:ok, backtrack} = Agent.start_link(fn -> [] end)
 
     try do
-      top_level = top_level(deps)
       info = info(deps: deps, top_level: top_level, backtrack: backtrack)
 
       optional =
@@ -122,7 +121,6 @@ defmodule Hex.Resolver do
   defp get_deps(app, package, version, info(top_level: top_level, deps: all_deps), activated) do
     if deps = Registry.get_deps(package, version) do
       all_deps = attach_dep_and_children(all_deps, app, deps)
-
       overridden_map = overridden_parents(top_level, all_deps, String.to_atom(app))
 
       {reqs, opts} =
