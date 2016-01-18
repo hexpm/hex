@@ -123,7 +123,7 @@ defmodule Hex.Resolver do
     if deps = Registry.get_deps(package, version) do
       all_deps = attach_dep_and_children(all_deps, app, deps)
 
-      upper_breadths = down_to(top_level, all_deps, String.to_atom(app))
+      overridden_map = overridden_parents(top_level, all_deps, String.to_atom(app))
 
       {reqs, opts} =
         Enum.reduce(deps, {[], []}, fn {name, app, req, optional}, {reqs, opts} ->
@@ -132,7 +132,7 @@ defmodule Hex.Resolver do
           request = request(app: app, name: name, req: req, parent: parent)
 
           cond do
-            was_overridden?(upper_breadths, String.to_atom(app)) ->
+            overridden_map[String.to_atom(app)] ->
               {reqs, opts}
             optional && !activated[name] ->
               {reqs, [request|opts]}
@@ -149,7 +149,7 @@ defmodule Hex.Resolver do
 
   # Add a potentially new dependency and its children.
   # This function is used to add Hex packages to the dependency tree which
-  # we use in down_to to check overridden status.
+  # we use in overridden_parents to check overridden status.
   defp attach_dep_and_children(deps, app, children) do
     app = String.to_atom(app)
     dep = Enum.find(deps, &(&1.app == app))

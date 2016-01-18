@@ -30,37 +30,49 @@ defmodule Hex.Mix do
 
     deps ++
       for(dep <- deps,
-          upper_breadths = down_to(top_level, deps, dep.app),
+          overridden_map = overridden_parents(top_level, deps, dep.app),
           %{app: app} = child <- dep.deps,
-          app in apps and not was_overridden?(upper_breadths, app),
+          !overridden_map[app],
           do: child)
   end
 
   @doc """
-  Returns all the upper breadths for the parent of a dependency.
+  Returns a map with the overridden upper breadths dependencies of
+  the given parent (including the parent level itself).
   """
-  @spec down_to([atom], [Mix.Dep.t], atom) :: [Mix.Dep.t]
-  def down_to(top_level, deps, parent) do
-    Enum.filter(deps, &(&1.app in top_level))
-    |> do_down_to(deps, parent)
+  @spec overridden_parents([atom], [Mix.Dep.t], atom) :: [Mix.Dep.t]
+  def overridden_parents(top_level, deps, parent) do
+    deps
+    |> Enum.filter(&(&1.app in top_level))
+    |> do_overridden_parents(deps, parent)
+    |> elem(0)
   end
 
-  def do_down_to(level, deps, parent) do
-    children =
-      Enum.flat_map(level, fn dep ->
-        children = Enum.map(dep.deps, & &1.app)
-        children = Enum.filter(deps, fn dep -> dep.app in children end)
-        do_down_to(children, deps, parent)
+  def do_overridden_parents(level, deps, parent) do
+    {children_maps, found?} =
+      Enum.map_reduce(level, false, fn dep, acc_found? ->
+        children_apps = Enum.map(dep.deps, & &1.app)
+        children_deps = Enum.filter(deps, & &1.app in children_apps)
+        {children_map, found?} = do_overridden_parents(children_deps, deps, parent)
+        {children_map, found? or acc_found?}
       end)
 
     cond do
-      children != [] ->
-        level ++ children
+      found? ->
+        maps = [level_to_overridden_map(level)|children_maps]
+        {Enum.reduce(maps, &Map.merge/2), true}
       parent in Enum.map(level, & &1.app) ->
-        level
+        {level_to_overridden_map(level), true}
       true ->
-        []
+        {%{}, false}
     end
+  end
+
+  defp level_to_overridden_map(level) do
+    for %{app: app, opts: opts} <- level,
+        opts[:override],
+        do: {app, true},
+        into: %{}
   end
 
   @doc """
