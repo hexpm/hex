@@ -19,7 +19,6 @@ defmodule Hex.Resolver.Backtracks do
 
     case :ets.lookup(@ets, {name, parents}) do
       [{_, old_versions}] ->
-        # TODO: Check this
         unless is_nil(version) or version in old_versions do
           :ets.insert(@ets, {{name, parents}, new_versions ++ old_versions})
         end

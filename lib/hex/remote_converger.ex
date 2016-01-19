@@ -30,7 +30,7 @@ defmodule Hex.RemoteConverger do
 
     Hex.Shell.info "Running dependency resolution"
 
-    case Hex.Resolver.resolve(reqs, deps, top_level, locked) do
+    case resolve(reqs, deps, top_level, locked) do
       {:ok, resolved} ->
         print_success(resolved, locked)
         new_lock = Hex.Mix.to_lock(resolved)
@@ -43,6 +43,58 @@ defmodule Hex.RemoteConverger do
     end
   after
     Hex.Registry.clean_pdict
+  end
+
+  defp resolve(reqs, deps, top_level, locked) do
+    case Hex.State.fetch!(:resolver) do
+      :standard ->
+        {:ok, pid} = Task.start_link(&resolver_wait/0)
+        result = Hex.Resolver.resolve(reqs, deps, top_level, locked)
+        send(pid, :done)
+        result
+      :experimental ->
+        Hex.Resolver.Experimental.resolve(reqs, deps, top_level, locked)
+      :both ->
+        resolve_both(reqs, deps, top_level, locked)
+    end
+  end
+
+  def resolve_both(reqs, deps, top_level, locked) do
+    Hex.Shell.info "Running standard resolver"
+    standard = Hex.Resolver.resolve(reqs, deps, top_level, locked)
+    Hex.Shell.info "Running experimental resolver"
+    experiment = Hex.Resolver.Experimental.resolve(reqs, deps, top_level, locked)
+
+    if standard != experiment do
+      Hex.Shell.error "Standard"
+      IO.inspect standard
+      Hex.Shell.error "Experimental"
+      IO.inspect experiment
+      Mix.raise "Different results from resolvers"
+    end
+
+    standard
+  end
+
+  @resolver_wait 15_000
+  @resolver_wait_message """
+   __        _____________________________________________
+  /  \\      /                                             \\
+  |  |      | It looks like the dependency resolution is  |
+  @  @      | taking a long time to complete. You can try |
+  || ||  <--| the experimental resolver by exiting with   |
+  || ||     | CTRL-C + CTRL-C and running the mix task    |
+  |\\_/|     | again with HEX_EXPERIMENTAL_RESOLVER=1 set. |
+  \\___/     | Please report this at github.com/hexpm/hex. |
+            \\_____________________________________________/
+  """
+
+  defp resolver_wait do
+    receive do
+      :done -> :ok
+    after @resolver_wait ->
+      Hex.Shell.info @resolver_wait_message
+    end
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
