@@ -59,18 +59,16 @@ defmodule Hex.Resolver do
         end
 
       nil ->
-        {opts, optional} = Map.pop(optional, name)
-        opts             = opts || []
+        {opts, optional} = Map.pop(optional, name, [])
         requests         = [request|opts]
         parents          = Enum.map(requests, &request(&1, :parent))
 
         case get_versions(name, requests) do
-          {:ok, versions} ->
-            activate(request, pending, versions, optional, info, activated, parents)
-
-          {:error, _requests} ->
+          [] ->
             add_backtrack_info(name, nil, parents)
             nil
+          versions ->
+            activate(request, pending, versions, optional, info, activated, parents)
         end
     end
   end
@@ -79,7 +77,7 @@ defmodule Hex.Resolver do
                 optional, info, activated, parents) do
     Enum.find_value(versions, fn version ->
       {new_pending, new_optional, new_deps} = get_deps(app, name, version, info, activated)
-      new_pending = pending ++ new_pending
+      new_pending = new_pending ++ pending
       new_optional = merge_optional(optional, new_optional)
 
       new_active = active(app: app, name: name, version: version, parents: parents)
@@ -93,24 +91,11 @@ defmodule Hex.Resolver do
 
   defp get_versions(package, requests) do
     if versions = Registry.get_versions(package) do
-      try do
-        {versions, _requests} =
-          Enum.reduce(requests, {versions, []}, fn request, {versions, requests} ->
-            req = request(request, :req)
-            case Enum.filter(versions, &version_match?(&1, req)) do
-              [] ->
-                throw [request | requests]
-              versions ->
-                {versions, [request | requests]}
-            end
-          end)
-
-        {:ok, Enum.reverse(versions)}
-      catch
-        :throw, requests ->
-          {:error, requests}
-      end
-
+      Enum.reduce(requests, versions, fn request, versions ->
+        req = request(request, :req)
+        Enum.filter(versions, &version_match?(&1, req))
+      end)
+      |> Enum.reverse
     else
       Mix.raise "Unable to find package #{package} in registry"
     end
@@ -123,8 +108,8 @@ defmodule Hex.Resolver do
 
       {reqs, opts} =
         Enum.reduce(deps, {[], []}, fn {name, app, req, optional}, {reqs, opts} ->
-          req = compile_requirement(req, name)
-          parent = parent(name: package, version: version, requirement: req)
+          req     = compile_requirement(req, name)
+          parent  = parent(name: package, version: version, requirement: req)
           request = request(app: app, name: name, req: req, parent: parent)
 
           cond do
@@ -141,33 +126,6 @@ defmodule Hex.Resolver do
     else
       Mix.raise "Unable to find package version #{package} #{version} in registry"
     end
-  end
-
-  # Add a potentially new dependency and its children.
-  # This function is used to add Hex packages to the dependency tree which
-  # we use in overridden_parents to check overridden status.
-  defp attach_dep_and_children(deps, app, children) do
-    app = String.to_atom(app)
-    dep = Enum.find(deps, &(&1.app == app))
-
-    children =
-      Enum.map(children, fn {name, app, _req, _optional} ->
-        app = String.to_atom(app)
-        name = String.to_atom(name)
-        %Mix.Dep{app: app, opts: [hex: name]}
-      end)
-
-    new_dep = %{dep | deps: children}
-
-    put_dep(deps, new_dep) ++ children
-  end
-
-  # Replace a dependency in the tree
-  defp put_dep(deps, new_dep) do
-    app = new_dep.app
-    Enum.map(deps, fn dep ->
-      if dep.app == app, do: new_dep, else: dep
-    end)
   end
 
   defp merge_optional(optional, new_optional) do

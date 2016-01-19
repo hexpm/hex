@@ -73,12 +73,31 @@ defmodule Hex.Mix do
   end
 
   @doc """
-  Returns true if the dependency was overridden in any of the upper breadths.
+  Add a potentially new dependency and its children.
+  This function is used to add Hex packages to the dependency tree which
+  we use in overridden_parents to check overridden status.
   """
-  @spec was_overridden?([Mix.Dep.t], atom) :: boolean
-  def was_overridden?(upper_breadths, app) do
-    Enum.any?(upper_breadths, fn dep ->
-      app == dep.app && dep.opts[:override]
+  def attach_dep_and_children(deps, app, children) do
+    app = String.to_atom(app)
+    dep = Enum.find(deps, &(&1.app == app))
+
+    children =
+      Enum.map(children, fn {name, app, _req, _optional} ->
+        app = String.to_atom(app)
+        name = String.to_atom(name)
+        %Mix.Dep{app: app, opts: [hex: name]}
+      end)
+
+    new_dep = %{dep | deps: children}
+
+    put_dep(deps, new_dep) ++ children
+  end
+
+  # Replace a dependency in the tree
+  defp put_dep(deps, new_dep) do
+    app = new_dep.app
+    Enum.map(deps, fn dep ->
+      if dep.app == app, do: new_dep, else: dep
     end)
   end
 
