@@ -170,16 +170,16 @@ defmodule Hex.Registry do
     current_hex    = Hex.version
 
     versions
-    |> Enum.filter(fn {hex, _} -> Version.compare(hex, current_hex) == :gt end)
-    |> Enum.filter(fn {_, elixirs} -> Version.compare(hd(elixirs), current_elixir) != :gt end)
+    |> Enum.filter(fn {hex, _} -> Hex.Version.compare(hex, current_hex) == :gt end)
+    |> Enum.filter(fn {_, elixirs} -> Hex.Version.compare(hd(elixirs), current_elixir) != :gt end)
     |> Enum.map(&elem(&1, 0))
-    |> Enum.sort(&(Version.compare(&1, &2) == :gt))
+    |> Enum.sort(&(Hex.Version.compare(&1, &2) == :gt))
     |> List.first
   end
 
   defp check_elixir_version(versions) do
-    {:ok, built}   = Version.parse(Hex.elixir_version())
-    {:ok, current} = Version.parse(System.version)
+    {:ok, built}   = Hex.Version.parse(Hex.elixir_version())
+    {:ok, current} = Hex.Version.parse(System.version)
 
     if built.major != current.major or built.minor != current.minor do
       case :lists.keyfind(Hex.version, 1, versions) do
@@ -198,7 +198,7 @@ defmodule Hex.Registry do
 
   defp match_elixir_version?(elixirs, current) do
     Enum.any?(elixirs, fn elixir ->
-      {:ok, elixir} = Version.parse(elixir)
+      {:ok, elixir} = Hex.Version.parse(elixir)
       elixir.major == current.major and elixir.minor == current.minor
     end)
   end

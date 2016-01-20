@@ -176,6 +176,7 @@ defmodule HexTest.Case do
   setup do
     Hex.State.put(:home, tmp_path("hex_home"))
     Hex.State.put(:registry_updated, false)
+    Hex.State.put(:resolver, :both)
     Hex.Parallel.clear(:hex_fetcher)
     Hex.Registry.close
 

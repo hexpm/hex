@@ -20,16 +20,17 @@ defmodule Hex.RemoteConverger do
     # We need the old lock to get the children of Hex packages
     old_lock = Mix.Dep.Lock.read
 
-    locked     = prepare_locked(lock, old_lock, deps)
-    flat_deps  = Hex.Mix.flatten_deps(deps)
-    reqs       = Hex.Mix.deps_to_requests(flat_deps)
+    locked    = prepare_locked(lock, old_lock, deps)
+    top_level = Hex.Mix.top_level(deps)
+    flat_deps = Hex.Mix.flatten_deps(deps, top_level)
+    reqs      = Hex.Mix.deps_to_requests(flat_deps)
 
-    check_deps(deps)
+    check_deps(deps, top_level)
     check_input(reqs, locked)
 
     Hex.Shell.info "Running dependency resolution"
 
-    case Hex.Resolver.resolve(reqs, deps, locked) do
+    case resolve(reqs, deps, top_level, locked) do
       {:ok, resolved} ->
         print_success(resolved, locked)
         new_lock = Hex.Mix.to_lock(resolved)
@@ -42,6 +43,58 @@ defmodule Hex.RemoteConverger do
     end
   after
     Hex.Registry.clean_pdict
+  end
+
+  defp resolve(reqs, deps, top_level, locked) do
+    case Hex.State.fetch!(:resolver) do
+      :standard ->
+        {:ok, pid} = Task.start_link(&resolver_wait/0)
+        result = Hex.Resolver.resolve(reqs, deps, top_level, locked)
+        send(pid, :done)
+        result
+      :experimental ->
+        Hex.Resolver.Experimental.resolve(reqs, deps, top_level, locked)
+      :both ->
+        resolve_both(reqs, deps, top_level, locked)
+    end
+  end
+
+  def resolve_both(reqs, deps, top_level, locked) do
+    Hex.Shell.info "Running standard resolver"
+    standard = Hex.Resolver.resolve(reqs, deps, top_level, locked)
+    Hex.Shell.info "Running experimental resolver"
+    experiment = Hex.Resolver.Experimental.resolve(reqs, deps, top_level, locked)
+
+    if standard != experiment do
+      Hex.Shell.error "Standard"
+      IO.inspect standard
+      Hex.Shell.error "Experimental"
+      IO.inspect experiment
+      Mix.raise "Different results from resolvers"
+    end
+
+    standard
+  end
+
+  @resolver_wait 15_000
+  @resolver_wait_message """
+   __        _____________________________________________
+  /  \\      /                                             \\
+  |  |      | It looks like the dependency resolution is  |
+  @  @      | taking a long time to complete. You can try |
+  || ||  <--| the experimental resolver by exiting with   |
+  || ||     | CTRL-C + CTRL-C and running the mix task    |
+  |\\_/|     | again with HEX_EXPERIMENTAL_RESOLVER=1 set. |
+  \\___/     | Please report this at github.com/hexpm/hex. |
+            \\_____________________________________________/
+  """
+
+  defp resolver_wait do
+    receive do
+      :done -> :ok
+    after @resolver_wait ->
+      Hex.Shell.info @resolver_wait_message
+    end
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
@@ -81,9 +134,7 @@ defmodule Hex.RemoteConverger do
     end
   end
 
-  defp check_deps(deps) do
-    top_level = Hex.Mix.top_level(deps)
-
+  defp check_deps(deps, top_level) do
     Enum.each(deps, fn dep ->
       if dep.app in top_level and
          is_nil(dep.requirement) and
@@ -106,7 +157,7 @@ defmodule Hex.RemoteConverger do
 
   defp check_package_req(name, req, from) do
     if versions = Registry.get_versions(name) do
-      if req != nil and Version.parse_requirement(req) == :error do
+      if req != nil and Hex.Version.parse_requirement(req) == :error do
         Mix.raise "Required version #{inspect req} for package #{name} is incorrectly specified (from: #{from})"
       end
       versions = Enum.filter(versions, &Hex.Mix.version_match?(&1, req))
@@ -186,7 +237,7 @@ defmodule Hex.RemoteConverger do
           # Make sure to handle deps that were previously locked as Git
           case Map.fetch(old_lock, app) do
             {:ok, {:hex, name, version}} ->
-              req && !Version.match?(version, req) && name == opts[:hex]
+              req && !Hex.Version.match?(version, req) && name == opts[:hex]
 
             _ ->
               true

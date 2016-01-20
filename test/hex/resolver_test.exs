@@ -2,7 +2,10 @@ defmodule Hex.ResolverTest do
   use HexTest.Case
 
   defp resolve(reqs, locked \\ []) do
-    case Hex.Resolver.resolve(reqs(reqs), deps(reqs), locked(locked)) do
+    deps      = deps(reqs)
+    top_level = Hex.Mix.top_level(deps)
+
+    case Hex.Resolver.resolve(reqs(reqs), deps, top_level, locked(locked)) do
       {:ok, dict} -> dict
       {:error, messages} -> messages
     end

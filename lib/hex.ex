@@ -18,6 +18,7 @@ defmodule Hex do
     Mix.SCM.append(Hex.SCM)
     Mix.RemoteConverger.register(Hex.RemoteConverger)
 
+    Hex.Version.start
     start_httpc()
 
     children = [
