@@ -3,11 +3,7 @@ defmodule Hex.Version do
 
   @ets :hex_version
 
-  def start_link do
-    GenServer.start_link(__MODULE__, [])
-  end
-
-  def init([]) do
+  def start do
     :ets.new(@ets, [:named_table, :public])
     {:ok, []}
   end

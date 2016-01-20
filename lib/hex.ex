@@ -18,11 +18,11 @@ defmodule Hex do
     Mix.SCM.append(Hex.SCM)
     Mix.RemoteConverger.register(Hex.RemoteConverger)
 
+    Hex.Version.start
     start_httpc()
 
     children = [
       worker(Hex.State, []),
-      worker(Hex.Version, []),
       worker(Hex.Registry, []),
       worker(Hex.Parallel, [:hex_fetcher, [max_parallel: 8]]),
     ]
