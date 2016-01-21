@@ -48,13 +48,13 @@ defmodule Hex.ResolverTest do
     deps = [foo: "~> 0.3.0", bar: nil]
     assert resolve(deps) == """
     Conflict on foo
-      From mix.exs: ~> 0.3.0
+      mix.exs: ~> 0.3.0
     """
 
     deps = [foo: nil, bar: "~> 0.3.0"]
     assert resolve(deps) == """
     Conflict on bar
-      From mix.exs: ~> 0.3.0
+      mix.exs: ~> 0.3.0
     """
   end
 
@@ -74,15 +74,15 @@ defmodule Hex.ResolverTest do
     deps = [decimal: "0.1.0", ex_plex: "~> 0.0.2"]
     assert resolve(deps) == """
     Conflict on decimal 0.1.0
-      From mix.exs: 0.1.0
-      From ex_plex 0.0.2: 0.1.1
+      mix.exs: 0.1.0
+      ex_plex 0.0.2: 0.1.1
     """
 
     deps = [decimal: nil, ex_plex: "0.0.2"]
     assert resolve(deps) == """
-    Conflict on decimal 0.2.1, 0.2.0, 0.1.0, 0.0.1
-      From mix.exs: >= 0.0.0
-      From ex_plex 0.0.2: 0.1.1
+    Conflict on decimal from 0.0.1 to 0.2.1
+      mix.exs: >= 0.0.0
+      ex_plex 0.0.2: 0.1.1
     """
   end
 
@@ -126,18 +126,18 @@ defmodule Hex.ResolverTest do
     deps = [decimal: nil, ex_plex: "0.1.0" ]
     assert resolve(deps, locked) == """
     Conflict on decimal 0.0.1
-      From mix.exs: >= 0.0.0
-      From mix.lock: 0.0.1
-      From ex_plex 0.1.0: ~> 0.1.0
+      mix.exs: >= 0.0.0
+      mix.lock: 0.0.1
+      ex_plex 0.1.0: ~> 0.1.0
     """
 
     locked = [decimal: "0.0.1"]
     deps = [decimal: "~> 0.0.1", ex_plex: "0.1.0" ]
     assert resolve(deps, locked) == """
     Conflict on decimal 0.0.1
-      From mix.exs: ~> 0.0.1
-      From mix.lock: 0.0.1
-      From ex_plex 0.1.0: ~> 0.1.0
+      mix.exs: ~> 0.0.1
+      mix.lock: 0.0.1
+      ex_plex 0.1.0: ~> 0.1.0
     """
   end
 

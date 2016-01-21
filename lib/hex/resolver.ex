@@ -153,29 +153,13 @@ defmodule Hex.Resolver do
     Mix.raise "Invalid requirement #{inspect req} defined for package #{package}"
   end
 
-  defp error_message do
-    Backtracks.collect
-    |> Enum.map_join("\n\n", &backtrack_message/1)
-    |> Kernel.<>("\n")
-  end
-
   defp add_backtrack_info(name, version, parents) do
     Backtracks.add(name, version, parents)
   end
 
-  defp backtrack_message({name, versions, parents}) do
-    versions = if versions != [] do
-      " " <> Enum.join(versions, ", ")
-    end
-    "Conflict on #{name}#{versions}" <>
-    "\n  " <> Enum.map_join(parents, "\n  ", &parent_message/1)
+  defp error_message do
+    Backtracks.collect
+    |> Enum.map_join("\n\n", &Backtracks.message/1)
+    |> Kernel.<>("\n")
   end
-
-  defp parent_message(parent(name: path, version: nil, requirement: req)),
-    do: "From #{path}: #{requirement(req)}"
-  defp parent_message(parent(name: parent, version: version, requirement: req)),
-    do: "From #{parent} #{version}: #{requirement(req)}"
-
-  defp requirement(nil), do: ">= 0.0.0"
-  defp requirement(req), do: req.source
 end
