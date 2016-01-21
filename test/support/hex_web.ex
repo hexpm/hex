@@ -19,21 +19,23 @@ defmodule HexTest.HexWeb do
 
   def init do
     check_hexweb()
+    mix = hexweb_mix() |> List.to_string
 
-    cmd("mix", ["ecto.drop", "-r", "HexWeb.Repo", "--quiet"])
-    cmd("mix", ["ecto.create", "-r", "HexWeb.Repo", "--quiet"])
-    cmd("mix", ["ecto.migrate", "-r", "HexWeb.Repo"])
+    cmd(mix, ["ecto.drop", "-r", "HexWeb.Repo", "--quiet"])
+    cmd(mix, ["ecto.create", "-r", "HexWeb.Repo", "--quiet"])
+    cmd(mix, ["ecto.migrate", "-r", "HexWeb.Repo"])
   end
 
   def start do
-    mix = :os.find_executable('mix')
-    port = Port.open({:spawn_executable, mix}, [
+    path = String.to_char_list(path)
+
+    port = Port.open({:spawn_executable, hexweb_mix()}, [
                      :exit_status,
                      :use_stdio,
                      :stderr_to_stdout,
                      :binary,
                      :hide,
-                     env: [{'MIX_ENV', 'hex'}],
+                     env: [{'MIX_ENV', 'hex'}, {'PATH', path}],
                      cd: hexweb_dir(),
                      args: ["run", "--no-halt"]])
 
@@ -64,17 +66,43 @@ defmodule HexTest.HexWeb do
   end
 
   defp hexweb_dir do
-    System.get_env("HEX_WEB_DIR") || "../hex_web"
+    System.get_env("HEXWEB_PATH") || "../hex_web"
+  end
+
+  defp hexweb_mix do
+    if path = hexweb_elixir() do
+      path = String.to_char_list(path)
+      :os.find_executable('mix', path)
+    else
+      :os.find_executable('mix')
+    end
+  end
+
+  defp hexweb_elixir do
+    if path = System.get_env("HEXWEB_ELIXIR_PATH") do
+      path |> Path.expand |> Path.join("bin")
+    end
+  end
+
+  defp hexweb_otp do
+    if path = System.get_env("HEXWEB_OTP_PATH") do
+      path |> Path.expand |> Path.join("bin")
+    end
   end
 
   defp cmd(command, args) do
     opts = [
         stderr_to_stdout: true,
         into: IO.stream(:stdio, :line),
-        env: [{"MIX_ENV", "hex"}],
+        env: [{"MIX_ENV", "hex"}, {"PATH", path()}],
         cd: hexweb_dir()]
 
     0 = System.cmd(command, args, opts) |> elem(1)
+  end
+
+  defp path do
+    [hexweb_elixir(), hexweb_otp(), System.get_env("PATH")]
+    |> Enum.join(":")
   end
 
   defp wait_on_start do
