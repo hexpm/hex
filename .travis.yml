@@ -1,30 +1,48 @@
 language: erlang
-otp_release:
-  - 17.5
+otp_release: 18.2
 sudo: false
 addons:
   postgresql: "9.4"
 before_install:
-  - wget http://s3.hex.pm/builds/elixir/$ELIXIRVERSION.zip
-  - unzip -d elixir $ELIXIRVERSION.zip
-before_script:
-  - export PATH=`pwd`/elixir/bin:$PATH
+  - wget https://s3.amazonaws.com/travis-otp-releases/binaries/ubuntu/12.04/x86_64/erlang-${HEXWEB_OTP}-nonroot.tar.bz2
+  - mkdir -p ${HEXWEB_OTP_PATH}
+  - tar -xf erlang-${HEXWEB_OTP}-nonroot.tar.bz2 -C ${HEXWEB_OTP_PATH} --strip-components=1
+  - ${HEXWEB_OTP_PATH}/Install -minimal $(pwd)/${HEXWEB_OTP_PATH}
+
+  - wget http://s3.hex.pm/builds/elixir/${HEXWEB_ELIXIR}.zip
+  - unzip -d ${HEXWEB_ELIXIR_PATH} ${HEXWEB_ELIXIR}.zip
+
+  - wget http://s3.hex.pm/builds/elixir/${ELIXIR}.zip
+  - unzip -d elixir ${ELIXIR}.zip
+  - export PATH=$(pwd)/elixir/bin:${PATH}
   - mix local.hex --force
+before_script:
   - git clone https://github.com/hexpm/hex_web.git
-  - cd hex_web; mix deps.get; MIX_ENV=hex mix compile; cd ..
+  - cd hex_web; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH} ../${HEXWEB_ELIXIR_PATH}/bin/mix deps.get; cd ..
+  - cd hex_web; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH} MIX_ENV=hex ../${HEXWEB_ELIXIR_PATH}/bin/mix compile; cd ..
   - mix deps.get
   - MIX_ENV=test mix deps.compile
 script:
   - MIX_ENV=test mix compile
-  - HEX_WEB_DIR=hex_web mix test
+  - mix test
 env:
+  global:
+    - HEXWEB_OTP=18.2
+    - HEXWEB_ELIXIR=v1.2.1
+    - HEXWEB_PATH=hex_web
+    - HEXWEB_ELIXIR_PATH=hexweb_elixir
+    - HEXWEB_OTP_PATH=hexweb_otp
   matrix:
-    - ELIXIRVERSION=v1.0.5
-    - ELIXIRVERSION=v1.1.0
+    - ELIXIR=v1.0.5
+    - ELIXIR=v1.1.1
+    - ELIXIR=v1.2.1
+    - ELIXIR=master
 matrix:
   include:
-    - otp_release: 18.1
-      env: ELIXIRVERSION=master
+    - otp_release: 17.5
+      env: ELIXIR=v1.0.5
+    - otp_release: 17.5
+      env: ELIXIR=v1.1.1
 notifications:
   recipients:
     - eric.meadows.jonsson@gmail.com
