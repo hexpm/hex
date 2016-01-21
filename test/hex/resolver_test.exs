@@ -80,7 +80,7 @@ defmodule Hex.ResolverTest do
 
     deps = [decimal: nil, ex_plex: "0.0.2"]
     assert resolve(deps) == """
-    Conflict on decimal 0.2.1, 0.2.0, 0.1.0, 0.0.1
+    Conflict on decimal from 0.0.1 to 0.2.1
       From mix.exs: >= 0.0.0
       From ex_plex 0.0.2: 0.1.1
     """

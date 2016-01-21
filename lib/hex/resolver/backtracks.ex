@@ -28,8 +28,6 @@ defmodule Hex.Resolver.Backtracks do
   end
 
   def collect do
-    # TODO: If a length(version range) > 2 try to change it into >= 1.0.0 and <= 2.0.0
-
     :ets.tab2list(@ets)
     |> normalize
     |> merge_similar_parents
@@ -116,4 +114,45 @@ defmodule Hex.Resolver.Backtracks do
   defp parent_cmp(parent(name: "mix.lock"), _), do: true
   defp parent_cmp(_, parent(name: "mix.lock")), do: false
   defp parent_cmp(parent1, parent2),            do: parent1 <= parent2
+
+  def message({name, versions, parents}) do
+    "Conflict on #{name}#{versions_message(name, versions)}\n" <>
+    "  " <> Enum.map_join(parents, "\n  ", &parent_message/1)
+  end
+
+  defp parent_message(parent(name: name, version: versions, requirement: req)) do
+    "From #{name}#{versions_message(name, versions)}: #{requirement(req)}"
+  end
+
+  # Try converting lists of versions to a version range if the list is
+  # a complete range of versions of the package.
+  # For example ["0.1.0", "0.1.1", "0.2.0", "0.3.0"] can be converted
+  # to "to 0.1.0 from 0.3.0" if there are no other releases of the package
+  # between 0.1.0 and 0.3.0.
+  defp versions_message(package, versions) do
+    case {length(versions), merge_versions?(package, versions)} do
+      {0, _} ->
+        ""
+      {x, true} when x > 2 ->
+        " from #{List.first(versions)} to #{List.last(versions)}"
+      _ ->
+        " " <> Enum.join(versions, ", ")
+    end
+  end
+
+  defp merge_versions?(_package, []), do: false
+  defp merge_versions?(package, versions) do
+    all_versions = Hex.Registry.get_versions(package)
+    sub_range?(all_versions, versions, false)
+  end
+
+  # Assumes lists are sorted
+  defp sub_range?(_, [], _),                do: true
+  defp sub_range?([], _, _),                do: false
+  defp sub_range?([x|outer], [x|inner], _), do: sub_range?(outer, inner, true)
+  defp sub_range?(_, _, true),              do: false
+  defp sub_range?([_|outer], inner, false), do: sub_range?(outer, inner, false)
+
+  defp requirement(nil), do: ">= 0.0.0"
+  defp requirement(req), do: req.source
 end
