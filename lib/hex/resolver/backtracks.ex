@@ -121,7 +121,7 @@ defmodule Hex.Resolver.Backtracks do
   end
 
   defp parent_message(parent(name: name, version: versions, requirement: req)) do
-    "From #{name}#{versions_message(name, versions)}: #{requirement(req)}"
+    "#{name}#{versions_message(name, versions)}: #{requirement(req)}"
   end
 
   # Try converting lists of versions to a version range if the list is
