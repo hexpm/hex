@@ -28,18 +28,87 @@ defmodule Hex.Resolver.Backtracks do
   end
 
   def collect do
+    # TODO: If a length(version range) > 2 try to change it into >= 1.0.0 and <= 2.0.0
+
     :ets.tab2list(@ets)
+    |> normalize
+    |> merge_similar_parents
     |> sort_backtracks
   end
 
+  defp normalize(backtracks) do
+    Enum.map(backtracks, fn {{name, parents}, versions} ->
+      {name, versions, parents}
+    end)
+  end
+
   defp sort_backtracks(backtracks) do
-    backtracks
-    |> Enum.map(fn {{name, parents}, versions} ->
-         versions = Enum.sort(versions, &(Hex.Version.compare(&1, &2) != :lt))
-         {name, versions, parents}
-       end)
+    Enum.map(backtracks, fn {name, versions, parents} ->
+      versions = Enum.sort(versions, &version_cmp/2)
+      parents =
+        Enum.map(parents, fn parent(version: versions) = parent ->
+          parent(parent, version: Enum.sort(versions, &version_cmp/2))
+        end)
+        |> Enum.sort(&parent_cmp/2)
+      {name, versions, parents}
+    end)
     |> Enum.sort()
   end
+
+  # Merge lists of parents that are identical except they differ only in
+  # the version of a parent
+  defp merge_similar_parents(backtracks) do
+    # Collect all lists of parents for each unique pair of {name, version}
+    # from conflicts
+    backtracks =
+      group_by(backtracks, fn {name, versions, parents} ->
+        {{name, versions}, parents}
+      end)
+
+    Enum.flat_map(backtracks, fn {{name, versions}, parents} ->
+      # Collect all lists of parents that have the same parents in the name
+      # and requirement, so they only differ in the version of each parent
+      parents_map =
+        group_by(parents, fn parents ->
+          Enum.reduce(parents, {[], []}, fn parent(name: name, requirement: req, version: version), {keys, versions} ->
+            {[{name, req}|keys], [version|versions]}
+          end)
+        end)
+
+      # Rebuild the parents by inserting the grouped versions to each parent
+      Enum.map(parents_map, fn {keys, parent_versions} ->
+        parent_versions = unzip(parent_versions, [])
+        zipped = Enum.zip(keys, parent_versions)
+
+        parents =
+          Enum.map(zipped, fn {{name, req}, parent_versions} ->
+            parent_versions = Enum.reject(parent_versions, &is_nil/1)
+            parent(name: name, requirement: req, version: parent_versions)
+          end)
+
+        {name, versions, parents}
+      end)
+    end)
+  end
+
+  defp group_by(enum, fun) do
+    Enum.reduce(enum, %{}, fn elem, map ->
+      {key, value} = fun.(elem)
+      Map.update(map, key, [value], &[value|&1])
+    end)
+  end
+
+  def unzip([head|tail], acc) do
+    acc = do_unzip(head, acc)
+    unzip(tail, acc)
+  end
+  def unzip([], acc), do: acc
+
+  defp do_unzip([x|xs], [y|ys]), do: [[x|y]|do_unzip(xs, ys)]
+  defp do_unzip([x|xs], []), do: [[x]|do_unzip(xs, [])]
+  defp do_unzip([], []), do: []
+
+  defp version_cmp(a, b), do: Hex.Version.compare(a, b) != :gt
 
   # TODO: Handle sorting of mix.exs from umbrellas
   defp parent_cmp(parent(name: "mix.exs"), _),  do: true
