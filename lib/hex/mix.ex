@@ -25,11 +25,12 @@ defmodule Hex.Mix do
   """
   @spec flatten_deps([Mix.Dep.t], [atom]) :: [Mix.Dep.t]
   def flatten_deps(deps, top_level) do
+    apps = Enum.map(deps, & &1.app)
     deps ++
       for(dep <- deps,
           overridden_map = overridden_parents(top_level, deps, dep.app),
           %{app: app} = child <- dep.deps,
-          !overridden_map[app],
+          app in deps and !overridden_map[app],
           do: child)
   end
 
