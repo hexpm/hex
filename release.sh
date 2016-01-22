@@ -72,13 +72,13 @@ function upload {
 # UPDATE THIS FOR EVERY RELEASE
 hex_version=$1
 
-build $(hex_version) 18.2.2   1.2.1 1.2.0
-build $(hex_version) 17.5.6.7 1.1.1 1.1.0
-build $(hex_version) 17.5.6.7 1.0.5 1.0.0
+build ${hex_version} 18.2.2   1.2.1 1.2.0
+build ${hex_version} 17.5.6.7 1.1.1 1.1.0
+build ${hex_version} 17.5.6.7 1.0.5 1.0.0
 
-list_csv $(hex_version) 1.0.0 1.1.0 1.2.0
-hex_csv  $(hex_version) 1.0.0 1.1.0 1.2.0
-upload   $(hex_version) 1.0.0 1.1.0 1.2.0
+list_csv ${hex_version} 1.0.0 1.1.0 1.2.0
+hex_csv  ${hex_version} 1.0.0 1.1.0 1.2.0
+upload   ${hex_version} 1.0.0 1.1.0 1.2.0
 
 
 rm -rf _build
