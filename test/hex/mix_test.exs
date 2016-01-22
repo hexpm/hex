@@ -9,17 +9,32 @@ defmodule Hex.MixTest do
   end
 
   test "flatten_deps with only dependencies" do
-    child_dep_1 = %Mix.Dep{app: :child_dep_1, deps: [], top_level: false}
-    child_dep_2 = %Mix.Dep{app: :child_dep_2, deps: [], top_level: false}
-    dev_child_dep = %Mix.Dep{app: :dev_child_dep, deps: [], top_level: false, opts: [only: :dev]}
-    dep = %Mix.Dep{app: :dep, deps: [child_dep_1, child_dep_2, dev_child_dep], top_level: true}
+    ecto = %Mix.Dep{app: :ecto, deps: [], top_level: false}
+    postgrex = %Mix.Dep{app: :postgrex, deps: [], top_level: false}
+    ex_doc = %Mix.Dep{app: :ex_doc, deps: [], top_level: false, opts: [only: :doc]}
+    phoenix = %Mix.Dep{app: :phoenix, deps: [ecto, postgrex, ex_doc], top_level: true}
 
-    deps = [dep, child_dep_1, child_dep_2]
+    deps = [phoenix, ecto, postgrex]
 
-    flattened_deps = Hex.Mix.flatten_deps(deps, [:dep])
-    assert dep in flattened_deps
-    assert child_dep_1 in flattened_deps
-    assert child_dep_2 in flattened_deps
-    refute dev_child_dep in flattened_deps
+    flattened_deps = Hex.Mix.flatten_deps(deps, [:phoenix])
+    assert phoenix in flattened_deps
+    assert ecto in flattened_deps
+    assert postgrex in flattened_deps
+    refute ex_doc in flattened_deps
+  end
+
+  test "flatten_deps with overridden dependencies" do
+    ecto = %Mix.Dep{app: :ecto, deps: [], top_level: false}
+    postgrex = %Mix.Dep{app: :postgrex, deps: [], top_level: false, opts: [override: true]}
+    overridden_postgrex = %Mix.Dep{app: :postgrex, deps: [], top_level: false}
+    phoenix = %Mix.Dep{app: :phoenix, deps: [ecto, overridden_postgrex], top_level: true}
+
+    deps = [ecto, postgrex, phoenix]
+
+    flattened_deps = Hex.Mix.flatten_deps(deps, [:phoenix, :postgrex])
+    assert phoenix in flattened_deps
+    assert ecto in flattened_deps
+    assert postgrex in flattened_deps
+    refute overridden_postgrex in flattened_deps
   end
 end
