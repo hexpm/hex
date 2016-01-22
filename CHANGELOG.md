@@ -1,4 +1,13 @@
-## v0.10.2-dev
+## v0.10.2 (2016-01-22)
+
+* Enhancements
+  * General optimizations in dependency resolver
+  * Add experimental faster backtracker that does more aggressive backtracking, set environment variable `HEX_EXPERIMENTAL_RESOLVER=1` to use it
+  * Merge backtrack messages that have similar parents
+  * Merge multiple versions into version ranges when possible for more succinct backtrack messages
+
+* Bug fixes
+  * Reduce memory usage when resolver produces many backtrack messages
 
 ## v0.10.1 (2016-01-15)
 
