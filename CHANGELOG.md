@@ -1,4 +1,7 @@
-## v0.10.3-dev
+## v0.10.3 (2016-01-23)
+
+* Bug fixes
+  * Fix bug when umbrella child has dependency with `:only
 
 ## v0.10.2 (2016-01-22)
 
