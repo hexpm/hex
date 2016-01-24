@@ -153,7 +153,17 @@ defmodule HexTest.Case do
       {:has_optional, "0.1.0", [{:ex_doc, "~> 0.0.1", true}]},
 
       {:package_name, "0.1.0", []},
-      {:depend_name, "0.2.0", [{:package_name, ">= 0.0.0", false, :app_name}]} ]
+      {:depend_name, "0.2.0", [{:package_name, ">= 0.0.0", false, :app_name}]},
+
+      {:poison, "1.5.2", []},
+      {:poison, "2.0.0", []},
+      {:phoenix, "1.1.3", [poison: "~> 1.5 or ~> 2.0"]},
+      {:phoenix, "1.1.2", [poison: "~> 1.5 or ~> 2.0"]},
+      {:phoenix_live_reload, "1.0.0", [phoenix: "~> 0.16 or ~> 1.0"]},
+      {:phoenix_live_reload, "1.0.3", [phoenix: "~> 0.16 or ~> 1.0"]},
+      {:phoenix_ecto, "2.0.0", [ecto: "~> 1.1", poison: "~> 1.3"]},
+      {:phoenix_ecto, "2.0.1", [ecto: "~> 1.1", poison: "~> 1.3"]},
+      {:ecto, "1.1.0", [poison: "~> 1.0"]}]
   end
 
   def setup_auth(username, password) do

@@ -2,10 +2,18 @@ defmodule Hex.ResolverTest do
   use HexTest.Case
 
   defp resolve(reqs, locked \\ []) do
+    reqs      = Enum.reverse(reqs)
     deps      = deps(reqs)
     top_level = Hex.Mix.top_level(deps)
+    reqs      = reqs(reqs)
+    locked    = locked(locked)
 
-    case Hex.Resolver.resolve(reqs(reqs), deps, top_level, locked(locked)) do
+    standard = Hex.Resolver.resolve(reqs, deps, top_level, locked)
+    experimental = Hex.Resolver.Experimental.resolve(reqs, deps, top_level, locked)
+
+    assert standard == experimental
+
+    case standard do
       {:ok, dict} -> dict
       {:error, messages} -> messages
     end
@@ -45,9 +53,29 @@ defmodule Hex.ResolverTest do
     deps = [foo: "0.2.0", bar: "0.2.0"]
     assert Dict.equal? locked([foo: "0.2.0", bar: "0.2.0"]), resolve(deps)
 
+    deps = [bar: nil, foo: "~> 0.3.0"]
+    assert resolve(deps) == """
+    Conflict on foo
+      mix.exs: ~> 0.3.0
+    """
+
     deps = [foo: "~> 0.3.0", bar: nil]
     assert resolve(deps) == """
     Conflict on foo
+      mix.exs: ~> 0.3.0
+
+    Conflict on foo 0.1.0
+      mix.exs: ~> 0.3.0
+      bar 0.1.0: ~> 0.1.0
+
+    Conflict on foo 0.2.0, 0.2.1
+      mix.exs: ~> 0.3.0
+      bar 0.2.0: ~> 0.2.0
+    """
+
+    deps = [bar: "~> 0.3.0", foo: nil]
+    assert resolve(deps) == """
+    Conflict on bar
       mix.exs: ~> 0.3.0
     """
 
@@ -71,17 +99,29 @@ defmodule Hex.ResolverTest do
     deps = [decimal: "0.1.0", ex_plex: "< 0.1.0"]
     assert Dict.equal? locked([decimal: "0.1.0", ex_plex: "0.0.1"]), resolve(deps)
 
-    deps = [decimal: "0.1.0", ex_plex: "~> 0.0.2"]
+    deps = [ex_plex: "~> 0.0.2", decimal: "0.1.0", ]
     assert resolve(deps) == """
     Conflict on decimal 0.1.0
       mix.exs: 0.1.0
       ex_plex 0.0.2: 0.1.1
     """
 
-    deps = [decimal: nil, ex_plex: "0.0.2"]
+    deps = [decimal: "0.1.0", ex_plex: "~> 0.0.2"]
+    assert resolve(deps) == """
+    Conflict on decimal
+      ex_plex 0.0.2: 0.1.1
+    """
+
+    deps = [ex_plex: "0.0.2", decimal: nil]
     assert resolve(deps) == """
     Conflict on decimal from 0.0.1 to 0.2.1
       mix.exs: >= 0.0.0
+      ex_plex 0.0.2: 0.1.1
+    """
+
+    deps = [decimal: nil, ex_plex: "0.0.2"]
+    assert resolve(deps) == """
+    Conflict on decimal
       ex_plex 0.0.2: 0.1.1
     """
   end
@@ -89,6 +129,16 @@ defmodule Hex.ResolverTest do
   test "complete backtrack" do
     deps = [jose: nil, eric: nil]
     assert Dict.equal? locked([jose: "0.2.1", eric: "0.0.2"]), resolve(deps)
+  end
+
+  test "backtrack with multiple parents" do
+    deps = [phoenix: "~> 1.1.3", phoenix_ecto: "~> 2.0", phoenix_live_reload: "~> 1.0"]
+    assert Dict.equal? locked([ecto: "1.1.0", phoenix: "1.1.3", phoenix_ecto: "2.0.1",
+                               phoenix_live_reload: "1.0.3", poison: "1.5.2"]),  resolve(deps)
+
+    deps = [phoenix: nil, phoenix_ecto: "~> 2.0", phoenix_live_reload: "~> 1.0"]
+    assert Dict.equal? locked([ecto: "1.1.0", phoenix: "1.1.3", phoenix_ecto: "2.0.1",
+                               phoenix_live_reload: "1.0.3", poison: "1.5.2"]), resolve(deps)
   end
 
   test "locked" do
@@ -123,7 +173,7 @@ defmodule Hex.ResolverTest do
 
   test "failure due to locked dep" do
     locked = [decimal: "0.0.1"]
-    deps = [decimal: nil, ex_plex: "0.1.0" ]
+    deps = [ex_plex: "0.1.0", decimal: nil]
     assert resolve(deps, locked) == """
     Conflict on decimal 0.0.1
       mix.exs: >= 0.0.0
@@ -131,11 +181,26 @@ defmodule Hex.ResolverTest do
       ex_plex 0.1.0: ~> 0.1.0
     """
 
+    deps = [decimal: nil, ex_plex: "0.1.0"]
+    assert resolve(deps, locked) == """
+    Conflict on decimal
+      mix.lock: 0.0.1
+      ex_plex 0.1.0: ~> 0.1.0
+    """
+
     locked = [decimal: "0.0.1"]
-    deps = [decimal: "~> 0.0.1", ex_plex: "0.1.0" ]
+    deps = [ex_plex: "0.1.0", decimal: "~> 0.0.1"]
     assert resolve(deps, locked) == """
     Conflict on decimal 0.0.1
       mix.exs: ~> 0.0.1
+      mix.lock: 0.0.1
+      ex_plex 0.1.0: ~> 0.1.0
+    """
+
+    locked = [decimal: "0.0.1"]
+    deps = [decimal: "~> 0.0.1", ex_plex: "0.1.0"]
+    assert resolve(deps, locked) == """
+    Conflict on decimal
       mix.lock: 0.0.1
       ex_plex 0.1.0: ~> 0.1.0
     """

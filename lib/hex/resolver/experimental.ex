@@ -56,8 +56,8 @@ defmodule Hex.Resolver.Experimental do
           do_resolve(pending, optional, info, activated)
         else
           add_backtrack_info(name, version, parents)
-          backtrack_parents(parents, info, activated)
-            || backtrack(name, info, activated)
+          backtrack_parents([parent], info, activated) ||
+            backtrack(name, info, activated)
         end
 
       nil ->

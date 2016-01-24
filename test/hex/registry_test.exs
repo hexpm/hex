@@ -4,7 +4,7 @@ defmodule Hex.RegistryTest do
   test "stat" do
     Hex.Registry.open!(registry_path: tmp_path("registry.ets"))
 
-    assert Hex.Registry.stat == {14, 35}
+    assert Hex.Registry.stat == {17, 44}
   end
 
   test "install info output once" do
