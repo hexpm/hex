@@ -81,6 +81,7 @@ defmodule Hex.Resolver.Backtracks do
         parents =
           Enum.map(zipped, fn {{name, req}, parent_versions} ->
             parent_versions = Enum.reject(parent_versions, &is_nil/1)
+                              |> Enum.uniq
             parent(name: name, requirement: req, version: parent_versions)
           end)
 
