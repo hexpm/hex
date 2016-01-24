@@ -13,4 +13,9 @@ defmodule Mix.Tasks.Hex.SearchTest do
     assert_received {:mix_shell, :info, ["ex_plex  0.2.0"]}
     assert_received {:mix_shell, :info, ["postgrex 0.2.1"]}
   end
+
+  test "empty search" do
+    Mix.Tasks.Hex.Search.run(["bloopdoopbloop"])
+    assert_received {:mix_shell, :info, ["No packages found"]}
+  end
 end
