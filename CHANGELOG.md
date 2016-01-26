@@ -1,4 +1,13 @@
-## v0.10.4-dev
+## v0.10.4 (2016-01-26)
+
+* Enhancements
+  * Make the experimental resolver the default
+
+* Bug fixes
+  * Ensure registry can be opened/closed multiple times
+  * Ensure `hex.search` task handles empty results
+  * Fix experimental resolvers only backtracking on parents that had requirements that failed
+  * Fix merging of overlapping parent and package versions in backtrack messages
 
 ## v0.10.3 (2016-01-23)
 
