@@ -18,7 +18,6 @@ defmodule Hex.State do
       https_proxy: load_config(config, ["https_proxy", "HTTPS_PROXY"], :https_proxy),
       offline?: System.get_env("HEX_OFFLINE") == "1",
       cert_check?: System.get_env("HEX_UNSAFE_HTTPS") != "1",
-      resolver: resolver(System.get_env("HEX_EXPERIMENTAL_RESOLVER")),
       registry_updated: false}
   end
 
@@ -74,8 +73,4 @@ defmodule Hex.State do
       Hex.Shell.info "Using #{key} = #{value}"
     end
   end
-
-  defp resolver("1"), do: :experimental
-  defp resolver("2"), do: :both
-  defp resolver(_), do: :standard
 end

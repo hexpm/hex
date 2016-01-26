@@ -6,8 +6,9 @@ defmodule Hex.Resolver do
 
   Record.defrecordp :info, [:deps, :top_level]
   Record.defrecordp :request, [:app, :name, :req, :parent]
-  Record.defrecordp :active, [:app, :name, :version, :parents]
+  Record.defrecordp :active, [:app, :name, :version, :versions, :parents, :state]
   Record.defrecordp :parent, [:name, :version, :requirement]
+  Record.defrecordp :state, [:activated, :requests, :optional, :deps]
 
   def resolve(requests, deps, top_level, locked) do
     Backtracks.start
@@ -55,7 +56,8 @@ defmodule Hex.Resolver do
           do_resolve(pending, optional, info, activated)
         else
           add_backtrack_info(name, version, parents)
-          nil
+          backtrack_parents([parent], info, activated) ||
+            backtrack(name, info, activated)
         end
 
       nil ->
@@ -66,26 +68,50 @@ defmodule Hex.Resolver do
         case get_versions(name, requests) do
           [] ->
             add_backtrack_info(name, nil, parents)
-            nil
+            backtrack_parents(parents, info, activated)
           versions ->
             activate(request, pending, versions, optional, info, activated, parents)
         end
     end
   end
 
-  defp activate(request(app: app, name: name), pending, versions,
+  defp activate(request(app: app, name: name), pending, [version|versions],
                 optional, info, activated, parents) do
-    Enum.find_value(versions, fn version ->
-      {new_pending, new_optional, new_deps} = get_deps(app, name, version, info, activated)
-      new_pending = new_pending ++ pending
-      new_optional = merge_optional(optional, new_optional)
 
-      new_active = active(app: app, name: name, version: version, parents: parents)
-      activated = Map.put(activated, name, new_active)
+    {new_pending, new_optional, new_deps} = get_deps(app, name, version, info, activated)
+    new_pending = new_pending ++ pending
+    new_optional = merge_optional(optional, new_optional)
 
-      info = info(info, deps: new_deps)
+    state = state(activated: activated, requests: pending, optional: optional, deps: info(info, :deps))
+    new_active = active(app: app, name: name, version: version, versions: versions, parents: parents, state: state)
+    activated = Map.put(activated, name, new_active)
 
-      do_resolve(new_pending, new_optional, info, activated)
+    info = info(info, deps: new_deps)
+
+    do_resolve(new_pending, new_optional, info, activated)
+  end
+
+  defp activate(_request, _pending, [], _optional, info, activated, parents) do
+    backtrack_parents(parents, info, activated)
+  end
+
+  defp backtrack(name, info, activated) do
+    case activated[name] do
+      active(state: state, app: app, name: name, versions: versions, parents: parents) ->
+        state(activated: activated, requests: requests, optional: optional, deps: deps) = state
+
+        info    = info(info, deps: deps)
+        request = request(app: app, name: name)
+
+        activate(request, requests, versions, optional, info, activated, parents)
+      nil ->
+        nil
+    end
+  end
+
+  defp backtrack_parents(parents, info, activated) do
+    Enum.find_value(parents, fn parent(name: name) ->
+      backtrack(name, info, activated)
     end)
   end
 

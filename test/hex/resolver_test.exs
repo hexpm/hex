@@ -8,12 +8,7 @@ defmodule Hex.ResolverTest do
     reqs      = reqs(reqs)
     locked    = locked(locked)
 
-    standard = Hex.Resolver.resolve(reqs, deps, top_level, locked)
-    experimental = Hex.Resolver.Experimental.resolve(reqs, deps, top_level, locked)
-
-    assert standard == experimental
-
-    case standard do
+    case Hex.Resolver.resolve(reqs, deps, top_level, locked) do
       {:ok, dict} -> dict
       {:error, messages} -> messages
     end
