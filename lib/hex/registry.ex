@@ -37,6 +37,7 @@ defmodule Hex.Registry do
   end
 
   def close do
+    Process.delete(@pdict_id)
     Agent.get_and_update(@name, fn
       nil ->
         {false, nil}
