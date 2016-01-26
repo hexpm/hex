@@ -15,97 +15,143 @@ defmodule Hex.Resolver.Backtracks do
 
   def add(name, version, parents) do
     parents = Enum.sort(parents, &parent_cmp/2)
-    new_versions = if version, do: [version], else: []
 
     case :ets.lookup(@ets, {name, parents}) do
-      [{_, old_versions}] ->
-        unless is_nil(version) or version in old_versions do
-          :ets.insert(@ets, {{name, parents}, new_versions ++ old_versions})
+      [{_, versions}] ->
+        unless version in versions do
+          :ets.insert(@ets, {{name, parents}, [version|versions]})
         end
       [] ->
-        :ets.insert(@ets, {{name, parents}, new_versions})
+        :ets.insert(@ets, {{name, parents}, [version]})
     end
   end
 
   def collect do
     :ets.tab2list(@ets)
     |> normalize
-    |> merge_similar_parents
+    |> merge_versions
     |> sort_backtracks
   end
 
   defp normalize(backtracks) do
-    Enum.map(backtracks, fn {{name, parents}, versions} ->
-      {name, versions, parents}
+    # Expand versions into individual backtracks again
+    Enum.flat_map(backtracks, fn
+      {{name, parents}, []} ->
+        [{name, nil, parents}]
+      {{name, parents}, versions} ->
+        Enum.map(versions, &{name, &1, parents})
     end)
   end
 
   defp sort_backtracks(backtracks) do
     Enum.map(backtracks, fn {name, versions, parents} ->
-      versions = Enum.sort(versions, &version_cmp/2)
-      parents =
-        Enum.map(parents, fn parent(version: versions) = parent ->
-          parent(parent, version: Enum.sort(versions, &version_cmp/2))
-        end)
-        |> Enum.sort(&parent_cmp/2)
+      # If nil is in versions it means any version of the dependency
+      # will fail with the given parents. nil is from when the resolver
+      # failed to activate ANY version of the dependency.
+      versions = if nil in versions, do: [], else: Enum.sort(versions, &version_cmp/2)
+      parents = sort_parents(parents)
       {name, versions, parents}
     end)
     |> Enum.sort()
   end
 
-  # Merge lists of parents that are identical except they differ only in
-  # the version of a parent
-  defp merge_similar_parents(backtracks) do
-    # Collect all lists of parents for each unique pair of {name, version}
-    # from conflicts
-    backtracks =
-      group_by(backtracks, fn {name, versions, parents} ->
-        {{name, versions}, parents}
-      end)
+  defp sort_parents(parents) do
+    Enum.map(parents, fn parent(version: versions) = parent ->
+      versions =
+        versions
+        |> List.wrap
+        |> Enum.reject(&is_nil/1)
+        |> Enum.uniq
+        |> Enum.sort(&version_cmp/2)
+      parent(parent, version: versions)
+    end)
+    |> Enum.sort(&parent_cmp/2)
+  end
 
-    Enum.flat_map(backtracks, fn {{name, versions}, parents} ->
-      # Collect all lists of parents that have the same parents in the name
-      # and requirement, so they only differ in the version of each parent
-      parents_map =
-        group_by(parents, fn parents ->
-          Enum.reduce(parents, {[], []}, fn parent(name: name, requirement: req, version: version), {keys, versions} ->
-            {[{name, req}|keys], [version|versions]}
-          end)
-        end)
+  defp merge_versions(backtracks) do
+    merged = do_merge_versions(backtracks)
 
-      # Rebuild the parents by inserting the grouped versions to each parent
-      Enum.map(parents_map, fn {keys, parent_versions} ->
-        parent_versions = unzip(parent_versions, [])
-        zipped = Enum.zip(keys, parent_versions)
-
-        parents =
-          Enum.map(zipped, fn {{name, req}, parent_versions} ->
-            parent_versions = Enum.reject(parent_versions, &is_nil/1)
-                              |> Enum.uniq
-            parent(name: name, requirement: req, version: parent_versions)
-          end)
-
+    Enum.flat_map(merged, fn {name, list} ->
+      Enum.map(list, fn {versions, parents} ->
         {name, versions, parents}
       end)
     end)
   end
 
-  defp group_by(enum, fun) do
-    Enum.reduce(enum, %{}, fn elem, map ->
-      {key, value} = fun.(elem)
-      Map.update(map, key, [value], &[value|&1])
+  defp do_merge_versions(backtracks) do
+    # For each package try to merge the merge similar backtrack messages
+    # from conflicts in the resolver.
+    # Complete duplicates are skipped when inserting into the ets table.
+    # If two backtracks have similar parents (only differing in the
+    # parents versions) we merge them. Finally if a package has the exact
+    # same conflicts for two different versions we also merge those.
+    Enum.reduce(backtracks, %{}, fn {name, version, parents}, map ->
+      parents = Enum.sort(parents)
+
+      case Map.fetch(map, name) do
+        {:ok, list} ->
+          case try_merge_package_version(list, version, parents) do
+            {:ok, list} ->
+              Map.put(map, name, list)
+            :error ->
+              Map.put(map, name, [{[version], parents}|list])
+          end
+
+        :error ->
+          Map.put(map, name, [{[version], parents}])
+      end
     end)
   end
 
-  def unzip([head|tail], acc) do
-    acc = do_unzip(head, acc)
-    unzip(tail, acc)
+  # For a given a package try to merge this version and parents
+  # into the existing ones
+  defp try_merge_package_version(list, version, parents) do
+    update_one(list, [], fn {versions, existing_parents} ->
+      case try_merge_parents(existing_parents, parents, []) do
+        {:ok, parents} ->
+          {:ok, {insert_new(versions, version), parents}}
+        :error ->
+          :error
+      end
+    end)
   end
-  def unzip([], acc), do: acc
 
-  defp do_unzip([x|xs], [y|ys]), do: [[x|y]|do_unzip(xs, ys)]
-  defp do_unzip([x|xs], []), do: [[x]|do_unzip(xs, [])]
-  defp do_unzip([], []), do: []
+  # If two lists of parents match (in package name and requirement)
+  # merge them and append the versions
+  defp try_merge_parents([], [], acc), do: {:ok, Enum.reverse(acc)}
+  defp try_merge_parents([parent(name: name, requirement: req, version: versions)|existing],
+                         [parent(name: name, requirement: req, version: version)|new],
+                         acc) do
+    versions = [version|List.wrap(versions)]
+    parent = parent(name: name, requirement: req, version: versions)
+    try_merge_parents(existing, new, [parent|acc])
+  end
+  defp try_merge_parents(_, _, _), do: :error
+
+  # Update a single element in a list
+  defp update_one([], _acc, _fun), do: :error
+  defp update_one([head|tail], acc, fun) do
+    case fun.(head) do
+      {:ok, new} -> {:ok, [new|acc] ++ tail}
+      :error     -> update_one(tail, [head|acc], fun)
+    end
+  end
+
+  defp insert_new(list, elem) do
+    if elem in list, do: list, else: [elem|list]
+  end
+
+  def unzip(list), do: do_unzip(list, [])
+
+  def do_unzip([head|tail], acc) do
+    acc = inner_unzip(head, acc)
+    do_unzip(tail, acc)
+  end
+  def do_unzip([], acc), do: acc
+
+  defp inner_unzip([x|xs], [y|ys]), do: [[x|y]|inner_unzip(xs, ys)]
+  defp inner_unzip([x|xs], []), do: [[x]|inner_unzip(xs, [])]
+  defp inner_unzip([], []), do: []
 
   defp version_cmp(a, b), do: Hex.Version.compare(a, b) != :gt
 
@@ -144,15 +190,17 @@ defmodule Hex.Resolver.Backtracks do
   defp merge_versions?(_package, []), do: false
   defp merge_versions?(package, versions) do
     all_versions = Hex.Registry.get_versions(package)
-    sub_range?(all_versions, versions, false)
+    sub_range?(all_versions, versions)
   end
 
   # Assumes lists are sorted
-  defp sub_range?(_, [], _),                do: true
-  defp sub_range?([], _, _),                do: false
-  defp sub_range?([x|outer], [x|inner], _), do: sub_range?(outer, inner, true)
-  defp sub_range?(_, _, true),              do: false
-  defp sub_range?([_|outer], inner, false), do: sub_range?(outer, inner, false)
+  defp sub_range?(outer, inner), do: do_sub_range?(outer, inner, false)
+
+  defp do_sub_range?(_, [], _),                do: true
+  defp do_sub_range?([], _, _),                do: false
+  defp do_sub_range?([x|outer], [x|inner], _), do: do_sub_range?(outer, inner, true)
+  defp do_sub_range?(_, _, true),              do: false
+  defp do_sub_range?([_|outer], inner, false), do: do_sub_range?(outer, inner, false)
 
   defp requirement(nil), do: ">= 0.0.0"
   defp requirement(req), do: req.source
