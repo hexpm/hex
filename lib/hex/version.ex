@@ -1,5 +1,7 @@
 defmodule Hex.Version do
   use GenServer
+  alias Version.InvalidVersionError
+  alias Version.InvalidRequirementError
 
   @ets :hex_version
 
