@@ -182,7 +182,7 @@ defmodule Hex.Registry do
     {:ok, built}   = Hex.Version.parse(Hex.elixir_version())
     {:ok, current} = Hex.Version.parse(System.version)
 
-    if built.major != current.major or built.minor != current.minor do
+    if match_minor?(current, built) do
       case :lists.keyfind(Hex.version, 1, versions) do
         {_, elixirs} ->
           if match_elixir_version?(elixirs, current) do
@@ -202,5 +202,13 @@ defmodule Hex.Registry do
       {:ok, elixir} = Hex.Version.parse(elixir)
       elixir.major == current.major and elixir.minor == current.minor
     end)
+  end
+
+  defp match_minor?(current, %Version{major: major, minor: minor}) do
+    lower = %Version{major: major, minor: minor,     patch: 0, pre: [],  build: nil}
+    upper = %Version{major: major, minor: minor + 1, patch: 0, pre: [0], build: nil}
+
+    Hex.Version.compare(current, lower) in [:gt, :eq] and
+      Hex.Version.compare(current, upper) == :lt
   end
 end
