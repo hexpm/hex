@@ -148,13 +148,13 @@ defmodule Hex.API do
     Hex.State.fetch!(:api) <> "/" <> path
   end
 
-  def auth(key: secret) do
-    %{'authorization' => String.to_char_list(secret)}
-  end
-
-  def auth(info) do
-    base64 = :base64.encode_to_string(info[:user] <> ":" <> info[:pass])
-    %{'authorization' => 'Basic ' ++ base64}
+  def auth(opts) do
+    if key = opts[:key] do
+      %{'authorization' => String.to_char_list(key)}
+    else
+      base64 = :base64.encode_to_string(opts[:user] <> ":" <> opts[:pass])
+      %{'authorization' => 'Basic ' ++ base64}
+    end
   end
 
   defp ssl_version do

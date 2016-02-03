@@ -6,13 +6,12 @@ defmodule Hex.APITest do
     assert {401, _} = Hex.API.User.get("test_user", [key: "something wrong"])
     assert {201, _} = Hex.API.User.new("test_user", "test_user@mail.com", "hunter42")
 
-    auth = [user: "test_user", pass: "hunter42"]
-    assert {200, body} = Hex.API.User.get("test_user", auth)
-    assert body["username"] == "test_user"
+    auth = HexTest.HexWeb.new_key([user: "test_user", pass: "hunter42"])
+    assert {200, %{"username" => "test_user"}} = Hex.API.User.get("test_user", auth)
   end
 
   test "release" do
-    auth = [user: "user", pass: "hunter42"]
+    auth = HexTest.HexWeb.new_key([user: "user", pass: "hunter42"])
 
     meta = %{name: :pear, app: :pear, version: "0.0.1", build_tools: [], requirements: %{}, description: "pear"}
     tar = Hex.Tar.create(meta, [])
@@ -33,7 +32,7 @@ defmodule Hex.APITest do
   end
 
   test "docs" do
-    auth = [user: "user", pass: "hunter42"]
+    auth = HexTest.HexWeb.new_key([user: "user", pass: "hunter42"])
 
     meta = %{name: :tangerine, app: :tangerine, version: "0.0.1", build_tools: [], requirements: %{}, description: "tangerine"}
     tar = Hex.Tar.create(meta, [])
@@ -44,10 +43,10 @@ defmodule Hex.APITest do
     tar = File.read!(tarball)
 
     assert {201, _} = Hex.API.ReleaseDocs.new("tangerine", "0.0.1", tar, auth)
-    assert {200, ^tar} = Hex.API.ReleaseDocs.get("tangerine", "0.0.1")
+    assert {200, %{"has_docs" => true}} = Hex.API.Release.get("tangerine", "0.0.1")
 
     assert {204, _} = Hex.API.ReleaseDocs.delete("tangerine", "0.0.1", auth)
-    assert {404, _} = Hex.API.ReleaseDocs.get("tangerine", "0.0.1")
+    assert {200, %{"has_docs" => false}} = Hex.API.Release.get("tangerine", "0.0.1")
   end
 
   test "registry" do
@@ -56,8 +55,10 @@ defmodule Hex.APITest do
 
   test "keys" do
     auth = [user: "user", pass: "hunter42"]
-    assert {201, body} = Hex.API.Key.new("macbook", auth)
-    assert byte_size(body["secret"]) == 32
+
+    assert {201, %{"secret" => key}} = Hex.API.Key.new("macbook", auth)
+    assert byte_size(key) == 32
+    auth = [key: key]
 
     HexTest.HexWeb.new_package("melon", "0.0.1", %{}, %{}, auth)
 
@@ -65,13 +66,12 @@ defmodule Hex.APITest do
     assert Enum.find(body, &(&1["name"] == "macbook"))
 
     assert {204, _} = Hex.API.Key.delete("macbook", auth)
-
-    assert {200, body} = Hex.API.Key.get(auth)
-    refute Enum.find(body, &(&1["name"] == "macbook"))
+    assert {401, _} = Hex.API.Key.get(auth)
   end
 
   test "owners" do
-    auth = [user: "user", pass: "hunter42"]
+    auth = HexTest.HexWeb.new_key([user: "user", pass: "hunter42"])
+
     HexTest.HexWeb.new_package("orange", "0.0.1", %{}, %{}, auth)
     Hex.API.User.new("orange_user", "orange_user@mail.com", "hunter42")
 

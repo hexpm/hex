@@ -27,7 +27,7 @@ defmodule HexTest.HexWeb do
   end
 
   def start do
-    path = String.to_char_list(path)
+    path = String.to_char_list(path())
 
     port = Port.open({:spawn_executable, hexweb_mix()}, [
                      :exit_status,
@@ -37,7 +37,7 @@ defmodule HexTest.HexWeb do
                      :hide,
                      env: [{'MIX_ENV', 'hex'}, {'PATH', path}],
                      cd: hexweb_dir(),
-                     args: ["run", "--no-halt"]])
+                     args: ["phoenix.server"]])
 
     fun = fn fun ->
       receive do
@@ -118,6 +118,11 @@ defmodule HexTest.HexWeb do
   def new_user(username, email, password, key) do
     {201, _} = Hex.API.User.new(username, email, password)
     {201, %{"secret" => secret}} = Hex.API.Key.new(key, [user: username, pass: password])
+    [username: username, key: secret]
+  end
+
+  def new_key(auth) do
+    {201, %{"secret" => secret}} = Hex.API.Key.new("key", auth)
     [key: secret]
   end
 

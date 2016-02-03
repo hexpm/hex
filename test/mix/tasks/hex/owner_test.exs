@@ -18,11 +18,13 @@ defmodule Mix.Tasks.Hex.OwnerTest do
 
   test "remove owner" do
     auth = HexTest.HexWeb.new_user("owner_user3", "owner_user3@mail.com", "pass", "key")
+    HexTest.HexWeb.new_user("owner_user4", "owner_user4@mail.com", "pass", "key")
     HexTest.HexWeb.new_package("owner_package2", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
     Hex.Config.update(auth)
 
+    Mix.Tasks.Hex.Owner.run(["add", "owner_package2", "owner_user4@mail.com"])
     Mix.Tasks.Hex.Owner.run(["remove", "owner_package2", "owner_user3@mail.com"])
 
     assert_received {:mix_shell, :info, ["Removing owner owner_user3@mail.com from owner_package2"]}
@@ -31,13 +33,13 @@ defmodule Mix.Tasks.Hex.OwnerTest do
   end
 
   test "list owners" do
-    auth = HexTest.HexWeb.new_user("owner_user4", "owner_user4@mail.com", "pass", "key")
+    auth = HexTest.HexWeb.new_user("owner_user5", "owner_user5@mail.com", "pass", "key")
     HexTest.HexWeb.new_package("owner_package3", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
     Hex.Config.update(auth)
 
     Mix.Tasks.Hex.Owner.run(["list", "owner_package3"])
-    assert_received {:mix_shell, :info, ["owner_user4@mail.com"]}
+    assert_received {:mix_shell, :info, ["owner_user5@mail.com"]}
   end
 end

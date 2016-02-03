@@ -23,10 +23,12 @@ defmodule Mix.Tasks.Hex.KeyTest do
       auth = HexTest.HexWeb.new_user("remove_key", "remove_key@mail.com", "password", "remove_key")
       Hex.Config.update(auth)
 
+      assert {200, _} = Hex.API.Key.get(auth)
+
       Mix.Tasks.Hex.Key.run(["remove", "remove_key"])
       assert_received {:mix_shell, :info, ["Removing key remove_key..."]}
 
-      assert {200, []} = Hex.API.Key.get([user: "remove_key", pass: "password"])
+      assert {401, _} = Hex.API.Key.get(auth)
     end
   end
 end
