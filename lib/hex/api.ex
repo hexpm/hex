@@ -137,7 +137,7 @@ defmodule Hex.API do
   end
 
   def user_agent do
-    'Hex/#{Hex.version} (Elixir/#{System.version}) (OTP/#{:erlang.system_info(:otp_release)})'
+    'Hex/#{Hex.version} (Elixir/#{System.version}) (OTP/#{Hex.Utils.otp_version})'
   end
 
   def cdn_url(path) do
