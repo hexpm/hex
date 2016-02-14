@@ -121,19 +121,29 @@ defmodule Hex.API do
 
   defp handle_response({{_version, code, _reason}, headers, body}) do
     headers = Enum.into(headers, %{})
-    content_encoding = :binary.list_to_bin(headers['content-encoding'] || '')
-    content_type = :binary.list_to_bin(headers['content-type'] || '')
     Utils.handle_hex_message(headers['x-hex-message'])
 
-    if String.contains?(content_encoding, "gzip") do
-      body = :zlib.gunzip(body)
-    end
-
-    if String.contains?(content_type, "application/vnd.hex+elixir") do
-      body = Hex.Utils.safe_deserialize_elixir(body)
-    end
+    body = body |> unzip(headers) |> decode(headers)
 
     {code, body}
+  end
+
+  defp unzip(body, headers) do
+    content_encoding = List.to_string(headers['content-encoding'] || '')
+    if String.contains?(content_encoding, "gzip") do
+      :zlib.gunzip(body)
+    else
+      body
+    end
+  end
+
+  defp decode(body, headers) do
+    content_type = List.to_string(headers['content-type'] || '')
+    if String.contains?(content_type, "application/vnd.hex+elixir") do
+      Hex.Utils.safe_deserialize_elixir(body)
+    else
+      body
+    end
   end
 
   def user_agent do

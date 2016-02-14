@@ -28,8 +28,7 @@ defmodule Mix.Hex.Build do
     if meta[:requirements] != [] do
       Hex.Shell.info("  Dependencies:")
       Enum.each(meta[:requirements], fn {app, %{requirement: req, optional: opt}} ->
-        message = "    #{app} #{req}"
-        if opt, do: message = message <> " (optional)"
+        message = "    #{app} #{req} #{if opt, do: "(optional)"}"
         Hex.Shell.info(message)
       end)
     end
@@ -73,30 +72,20 @@ defmodule Mix.Hex.Build do
   end
 
   def package(package, config) do
-    if description = package[:description] do
-      package = Map.put(package, :description, String.strip(description))
-    end
+    package
+    |> update(fn _ -> package[:description] end, :description, &String.strip/1)
+    |> update(fn _ -> package[:files] || @default_files end, :files, &expand_paths(&1, File.cwd!))
+    |> update(fn _ -> package[:name] || config[:app] end, :name, & &1)
+    |> update(fn pkg -> !package[:build_tools] && guess_build_tools(pkg.files) end, :build_tools, & &1)
+    |> Map.take(@meta_fields)
+  end
 
-    if files = package[:files] || @default_files do
-      files = expand_paths(files, File.cwd!)
-      package = Map.put(package, :files, files)
+  defp update(package, check, key, value) do
+    if result = check.(package) do
+      Map.put(package, key, value.(result))
+    else
+      package
     end
-
-    if name = package[:name] || config[:app] do
-      package = Map.put(package, :name, name)
-    end
-
-    unless package[:build_tools] do
-      if build_tools = guess_build_tools(files) do
-        package = Map.put(package, :build_tools, build_tools)
-      end
-    end
-
-    if package[:contributors] do
-      Mix.raise "The :contributors field is deprecated, change to :maintainers"
-    end
-
-    Map.take(package, @meta_fields)
   end
 
   def raise_if_umbrella_project!(config) do

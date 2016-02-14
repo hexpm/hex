@@ -22,10 +22,9 @@ defmodule Hex.APITest do
 
     meta = %{name: :grape, app: :grape, version: "0.0.2", build_tools: [], requirements: %{pear: "~> 0.0.1"}, description: "grape"}
     tar = Hex.Tar.create(meta, [])
-    reqs = %{"pear" => %{"app" => "pear", "requirement" => "~> 0.0.1", "optional" => false}}
     assert {201, _} = Hex.API.Release.new("grape", tar, auth)
     assert {200, body} = Hex.API.Release.get("grape", "0.0.2")
-    assert body["requirements"] == reqs
+    assert body["requirements"] == %{"pear" => %{"app" => "pear", "requirement" => "~> 0.0.1", "optional" => false}}
 
     assert {204, _} = Hex.API.Release.delete("grape", "0.0.2", auth)
     assert {404, _} = Hex.API.Release.get("grape", "0.0.2")

@@ -10,15 +10,11 @@ defmodule Hex.Parallel do
     GenServer.start_link(__MODULE__, new_state(opts), name: name)
   end
 
-  @doc """
-  """
   @spec run(GenServer.server, any, (() -> any)) :: :ok
   def run(name, id, fun) do
     GenServer.cast(name, {:run, id, fun})
   end
 
-  @doc """
-  """
   @spec await(GenServer.server, any, timeout) :: any
   def await(name, id, timeout) do
     GenServer.call(name, {:await, id}, timeout)
@@ -59,20 +55,22 @@ defmodule Hex.Parallel do
       id = state.running[task]
       state = %{state | running: Map.delete(state.running, task)}
 
-      if from = state.waiting_reply[id] do
-        GenServer.reply(from, message)
-        state = %{state | waiting_reply: Map.delete(state.waiting_reply, id)}
-      else
-        state = %{state | finished: Map.put(state.finished, id, message)}
-      end
+      state =
+        if from = state.waiting_reply[id] do
+          GenServer.reply(from, message)
+          %{state | waiting_reply: Map.delete(state.waiting_reply, id)}
+        else
+          %{state | finished: Map.put(state.finished, id, message)}
+        end
 
-      case :queue.out(state.waiting) do
-        {{:value, {id, fun}}, waiting} ->
-          state = %{state | waiting: waiting}
-          state = run_task(id, fun, state)
-        {:empty, _} ->
-          :ok
-      end
+      state =
+        case :queue.out(state.waiting) do
+          {{:value, {id, fun}}, waiting} ->
+            state = %{state | waiting: waiting}
+            run_task(id, fun, state)
+          {:empty, _} ->
+            state
+        end
 
       {:noreply, state}
     else
@@ -92,13 +90,11 @@ defmodule Hex.Parallel do
 
   defp run_task(id, fun, state) do
     if Map.size(state.running) >= state.max_jobs do
-      state = %{state | waiting: :queue.in({id, fun}, state.waiting)}
+      %{state | waiting: :queue.in({id, fun}, state.waiting)}
     else
       task = Task.async(fun)
-      state = %{state | running: Map.put(state.running, task, id)}
+      %{state | running: Map.put(state.running, task, id)}
     end
-
-    state
   end
 
   defp new_state(opts) do

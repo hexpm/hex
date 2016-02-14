@@ -184,9 +184,7 @@ defmodule Hex.SCM do
   defp request(url, etag) do
     opts = [body_format: :binary]
     headers = [{'user-agent', Hex.API.user_agent}]
-    if etag do
-      headers = headers ++ [{'if-none-match', etag}]
-    end
+    headers = if etag, do: [{'if-none-match', etag}|headers], else: headers
     http_opts = [ssl: Hex.API.ssl_opts(url), relaxed: true] ++ Hex.Utils.proxy_config(url)
     url = String.to_char_list(url)
 
