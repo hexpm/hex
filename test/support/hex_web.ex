@@ -29,28 +29,30 @@ defmodule HexTest.HexWeb do
   def start do
     path = String.to_char_list(path())
 
-    port = Port.open({:spawn_executable, hexweb_mix()}, [
-                     :exit_status,
-                     :use_stdio,
-                     :stderr_to_stdout,
-                     :binary,
-                     :hide,
-                     env: [{'MIX_ENV', 'hex'}, {'PATH', path}],
-                     cd: hexweb_dir(),
-                     args: ["phoenix.server"]])
+    spawn_link(fn ->
+      port = Port.open({:spawn_executable, hexweb_mix()}, [
+                       :exit_status,
+                       :use_stdio,
+                       :stderr_to_stdout,
+                       :binary,
+                       :hide,
+                       env: [{'MIX_ENV', 'hex'}, {'PATH', path}],
+                       cd: hexweb_dir(),
+                       args: ["phoenix.server"]])
 
-    fun = fn fun ->
-      receive do
-        {^port, {:data, data}} ->
-          IO.write(data)
-          fun.(fun)
-        {^port, {:exit_status, status}} ->
-          IO.puts "HexWeb quit with status #{status}"
-          System.exit(status)
+      fun = fn fun ->
+        receive do
+          {^port, {:data, data}} ->
+            IO.write(data)
+            fun.(fun)
+          {^port, {:exit_status, status}} ->
+            IO.puts "HexWeb quit with status #{status}"
+            System.exit(status)
+        end
       end
-    end
 
-    spawn(fn -> fun.(fun) end)
+      fun.(fun)
+    end)
 
     wait_on_start()
   end
