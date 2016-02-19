@@ -10,42 +10,54 @@ defmodule Hex.Resolver do
   Record.defrecordp :parent, [:name, :version, :requirement]
   Record.defrecordp :state, [:activated, :requests, :optional, :deps]
 
+  @ets_states :hex_ets_states
+
   def resolve(requests, deps, top_level, locked) do
+    info     = info(deps: deps, top_level: top_level)
+    optional = build_optional(locked)
+    pending  = build_pending(requests)
+
+    :ets.new(@ets_states, [:named_table])
     Backtracks.start
-    info = info(deps: deps, top_level: top_level)
 
-    optional =
-      Enum.into(locked, %{}, fn {name, app, version} ->
-        {:ok, req} = Hex.Version.parse_requirement(version)
-        parent     = parent(name: "mix.lock", requirement: req)
-        request    = request(app: app, name: name, req: req, parent: parent)
-        {name, [request]}
-      end)
-
-    pending =
-      Enum.map(requests, fn {name, app, req, from} ->
-        req    = compile_requirement(req, name)
-        parent = parent(name: from, requirement: req)
-        request(name: name, app: app, req: req, parent: parent)
-      end)
-      |> Enum.uniq
-
-    if activated = do_resolve(pending, optional, info, %{}) do
-      {:ok, activated}
-    else
-      {:error, error_message()}
+    try do
+      if activated = run(pending, optional, info, %{}),
+        do: {:ok, activated},
+      else: {:error, error_message()}
+    catch
+      :duplicate_state ->
+        {:error, error_message()}
+    after
+      Backtracks.stop
+      :ets.delete(@ets_states)
     end
-  after
-    Backtracks.stop
   end
 
-  defp do_resolve([], _optional, _info, activated) do
+  defp build_optional(locked) do
+    Enum.into(locked, %{}, fn {name, app, version} ->
+      {:ok, req} = Hex.Version.parse_requirement(version)
+      parent     = parent(name: "mix.lock", requirement: req)
+      request    = request(app: app, name: name, req: req, parent: parent)
+      {name, [request]}
+    end)
+  end
+
+  defp build_pending(requests) do
+    Enum.map(requests, fn {name, app, req, from} ->
+      req    = compile_requirement(req, name)
+      parent = parent(name: from, requirement: req)
+      request(name: name, app: app, req: req, parent: parent)
+    end)
+    |> Enum.uniq
+  end
+
+  defp run([], _optional, _info, activated) do
     Enum.map(activated, fn {name, active(app: app, version: version)} ->
       {name, app, version}
     end) |> Enum.reverse
   end
 
-  defp do_resolve([request(name: name, req: req, parent: parent) = request|pending], optional, info, activated) do
+  defp run([request(name: name, req: req, parent: parent) = request|pending], optional, info, activated) do
     case activated[name] do
       active(version: version, parents: parents) = active ->
         parents = [parent|parents]
@@ -53,7 +65,7 @@ defmodule Hex.Resolver do
 
         if version_match?(version, req) do
           activated = Map.put(activated, name, active)
-          do_resolve(pending, optional, info, activated)
+          run(pending, optional, info, activated)
         else
           add_backtrack_info(name, version, parents)
           backtrack_parents([parent], info, activated) ||
@@ -77,18 +89,22 @@ defmodule Hex.Resolver do
 
   defp activate(request(app: app, name: name), pending, [version|versions],
                 optional, info, activated, parents) do
-
     {new_pending, new_optional, new_deps} = get_deps(app, name, version, info, activated)
     new_pending = new_pending ++ pending
     new_optional = merge_optional(optional, new_optional)
 
     state = state(activated: activated, requests: pending, optional: optional, deps: info(info, :deps))
-    new_active = active(app: app, name: name, version: version, versions: versions, parents: parents, state: state)
-    activated = Map.put(activated, name, new_active)
 
-    info = info(info, deps: new_deps)
+    if :ets.insert_new(@ets_states, [{{name, version, state}}]) do
+      new_active = active(app: app, name: name, version: version, versions: versions, parents: parents, state: state)
+      activated = Map.put(activated, name, new_active)
 
-    do_resolve(new_pending, new_optional, info, activated)
+      info = info(info, deps: new_deps)
+
+      run(new_pending, new_optional, info, activated)
+    else
+      throw :duplicate_state
+    end
   end
 
   defp activate(_request, _pending, [], _optional, info, activated, parents) do
