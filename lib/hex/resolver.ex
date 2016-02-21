@@ -95,7 +95,7 @@ defmodule Hex.Resolver do
 
     state = state(activated: activated, requests: pending, optional: optional, deps: info(info, :deps))
 
-    if :ets.insert_new(@ets_states, [{{name, version, state}}]) do
+    if seen_state?(name, version, state) do
       new_active = active(app: app, name: name, version: version, versions: versions, parents: parents, state: state)
       activated = Map.put(activated, name, new_active)
 
@@ -129,6 +129,12 @@ defmodule Hex.Resolver do
     Enum.find_value(parents, fn parent(name: name) ->
       backtrack(name, info, activated)
     end)
+  end
+
+  defp seen_state?(name, version, state(activated: activated) = state) do
+    activated = Enum.into(activated, %{}, fn {k, v} -> {k, active(v, state: nil)} end)
+    state = state(state, activated: activated, deps: nil)
+    :ets.insert_new(@ets_states, [{{name, version, state}}])
   end
 
   defp get_versions(package, requests) do
