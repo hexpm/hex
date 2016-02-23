@@ -103,43 +103,22 @@ defmodule Hex.Utils do
     end
   end
 
-  def safe_deserialize_elixir("") do
+  def safe_deserialize_erlang("") do
     nil
   end
 
-  def safe_deserialize_elixir(string) do
-    case Code.string_to_quoted(string, existing_atoms_only: true) do
-      {:ok, ast} ->
-        safe_eval(ast)
-      _ ->
-        Mix.raise "Received malformed elixir from Hex API"
+  def safe_deserialize_erlang(binary) do
+    try do
+      :erlang.binary_to_term(binary, [:safe])
+    rescue
+      ArgumentError ->
+        Mix.raise "Received malformed erlang from Hex API"
     end
   end
 
-  def safe_eval(ast) do
-    if safe_term?(ast) do
-      Code.eval_quoted(ast)
-      |> elem(0)
-    else
-      Mix.raise "Received unsafe elixir from Hex API"
-    end
-  end
-
-  def safe_term?({func, _, terms}) when func in [:{}, :%{}] and is_list(terms) do
-    Enum.all?(terms, &safe_term?/1)
-  end
-
-  def safe_term?(nil), do: true
-  def safe_term?(term) when is_number(term), do: true
-  def safe_term?(term) when is_binary(term), do: true
-  def safe_term?(term) when is_boolean(term), do: true
-  def safe_term?(term) when is_list(term), do: Enum.all?(term, &safe_term?/1)
-  def safe_term?(term) when is_tuple(term), do: Enum.all?(Tuple.to_list(term), &safe_term?/1)
-  def safe_term?(_), do: false
-
-  def safe_serialize_elixir(term) do
+  def safe_serialize_erlang(term) do
     binarify(term)
-    |> inspect(limit: :infinity, records: false, binaries: :as_strings)
+    |> :erlang.term_to_binary
   end
 
   def binarify(term, opts \\ [])

@@ -15,7 +15,7 @@ defmodule Hex.API do
 
   def request(method, url, headers, body \\ nil) when body == nil or is_map(body) do
     default_headers = %{
-      'accept' => 'application/vnd.hex.beta+elixir',
+      'accept' => 'application/vnd.hex+erlang',
       'accept-encoding' => 'gzip',
       'user-agent' => user_agent()}
     headers = Dict.merge(default_headers, headers)
@@ -27,10 +27,11 @@ defmodule Hex.API do
     request =
       cond do
         body ->
-          body = Hex.Utils.safe_serialize_elixir(body)
-          {url, Map.to_list(headers), 'application/vnd.hex+elixir', body}
+          body = Hex.Utils.safe_serialize_erlang(body)
+          {url, Map.to_list(headers), 'application/vnd.hex+erlang', body}
         method in [:put, :post] ->
-          {url, Map.to_list(headers), 'application/vnd.hex+elixir', '%{}'}
+          body = :erlang.term_to_binary(%{})
+          {url, Map.to_list(headers), 'application/vnd.hex+erlang', body}
         true ->
           {url, Map.to_list(headers)}
       end
@@ -92,7 +93,7 @@ defmodule Hex.API do
 
   def request_tar(method, url, headers, body, progress) do
     default_headers = %{
-      'accept' => 'application/vnd.hex.beta+elixir',
+      'accept' => 'application/vnd.hex+erlang',
       'user-agent' => user_agent(),
       'content-length' => to_char_list(byte_size(body))}
     headers = Dict.merge(default_headers, headers)
@@ -140,8 +141,8 @@ defmodule Hex.API do
 
   defp decode(body, headers) do
     content_type = List.to_string(headers['content-type'] || '')
-    if String.contains?(content_type, "application/vnd.hex+elixir") do
-      Hex.Utils.safe_deserialize_elixir(body)
+    if String.contains?(content_type, "application/vnd.hex+erlang") do
+      Hex.Utils.safe_deserialize_erlang(body)
     else
       body
     end
