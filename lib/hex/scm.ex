@@ -3,7 +3,8 @@ defmodule Hex.SCM do
 
   @behaviour Mix.SCM
   @packages_dir "packages"
-  @fetch_timeout 60_000
+  @request_timeout 60_000
+  @fetch_timeout @request_timeout * 2
 
   def fetchable? do
     true
@@ -185,7 +186,7 @@ defmodule Hex.SCM do
     opts = [body_format: :binary]
     headers = [{'user-agent', Hex.API.user_agent}]
     headers = if etag, do: [{'if-none-match', etag}|headers], else: headers
-    http_opts = [ssl: Hex.API.ssl_opts(url), relaxed: true] ++ Hex.Utils.proxy_config(url)
+    http_opts = [ssl: Hex.API.ssl_opts(url), relaxed: true, timeout: @request_timeout] ++ Hex.Utils.proxy_config(url)
     url = String.to_char_list(url)
 
     case :httpc.request(:get, {url, headers}, http_opts, opts, :hex) do

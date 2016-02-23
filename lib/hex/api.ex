@@ -2,6 +2,7 @@ defmodule Hex.API do
   alias Hex.API.Utils
   alias Hex.API.VerifyHostname
 
+  @request_timeout 60_000
   @secure_ssl_version {5, 3, 6}
 
   require Record
@@ -19,7 +20,7 @@ defmodule Hex.API do
       'user-agent' => user_agent()}
     headers = Dict.merge(default_headers, headers)
 
-    http_opts = [ssl: ssl_opts(url), relaxed: true] ++ Hex.Utils.proxy_config(url)
+    http_opts = [ssl: ssl_opts(url), relaxed: true, timeout: @request_timeout] ++ Hex.Utils.proxy_config(url)
     opts = [body_format: :binary]
     url = String.to_char_list(url)
 
@@ -95,7 +96,7 @@ defmodule Hex.API do
       'user-agent' => user_agent(),
       'content-length' => to_char_list(byte_size(body))}
     headers = Dict.merge(default_headers, headers)
-    http_opts = [ssl: ssl_opts(url), relaxed: true] ++ Hex.Utils.proxy_config(url)
+    http_opts = [ssl: ssl_opts(url), relaxed: true, timeout: @request_timeout] ++ Hex.Utils.proxy_config(url)
     opts = [body_format: :binary]
     url = String.to_char_list(url)
 
