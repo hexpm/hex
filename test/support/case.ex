@@ -81,7 +81,7 @@ defmodule HexTest.Case do
 
   def create_test_registry(path) do
     packages =
-      Enum.reduce(test_registry, %{}, fn {name, vsn, _}, dict ->
+      Enum.reduce(test_registry(), %{}, fn {name, vsn, _}, dict ->
         Map.update(dict, "#{name}", [vsn], &[vsn|&1])
       end)
 
@@ -91,7 +91,7 @@ defmodule HexTest.Case do
       end)
 
     releases =
-      Enum.map(test_registry, fn {name, version, deps} ->
+      Enum.map(test_registry(), fn {name, version, deps} ->
         deps = Enum.map(deps, fn
           {name, req} -> ["#{name}", req, false, "#{name}"]
           {name, req, optional} -> ["#{name}", req, optional, "#{name}"]
@@ -163,7 +163,10 @@ defmodule HexTest.Case do
       {:phoenix_live_reload, "1.0.3", [phoenix: "~> 0.16 or ~> 1.0"]},
       {:phoenix_ecto, "2.0.0", [ecto: "~> 1.1", poison: "~> 1.3"]},
       {:phoenix_ecto, "2.0.1", [ecto: "~> 1.1", poison: "~> 1.3"]},
-      {:ecto, "1.1.0", [poison: "~> 1.0"]}]
+      {:ecto, "1.1.0", [poison: "~> 1.0"]},
+
+      {:beta, "1.0.0", []},
+      {:beta, "1.1.0-beta", []}]
   end
 
   def setup_auth(username, password) do

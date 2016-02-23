@@ -8,7 +8,7 @@ defmodule Hex.Mix do
 
   See `Version.match?/2`.
   """
-  @spec version_match?(String.t, String.t) :: boolean
+  @spec version_match?(String.t, String.t | nil) :: boolean
   def version_match?(_version, nil), do: true
   def version_match?(version, req),  do: Hex.Version.match?(version, req)
 

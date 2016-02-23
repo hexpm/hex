@@ -13,16 +13,17 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   ## Command line options
 
-    * `--all` - shows all outdated packages, including packages in `mix.lock` not specified in `mix.exs`.
+    * `--all` - shows all outdated packages, including children of packages defined in `mix.exs`
+    * `--pre` - include pre-releases when checking for newer versions
 
   `mix hex.outdated`
-  `mix hex.outdated --all`
   """
 
   @recursive true
+  @switches [all: :boolean, pre: :boolean]
 
   def run(args) do
-    {opts, _args, _} = OptionParser.parse(args, switches: [all: :boolean])
+    {opts, _args, _} = OptionParser.parse(args, switches: @switches)
     Hex.start
     Hex.Utils.ensure_registry!()
 
@@ -35,7 +36,7 @@ defmodule Mix.Tasks.Hex.Outdated do
       Enum.filter(deps, & &1.top_level)
     end
     |> sort
-    |> get_versions(lock)
+    |> get_versions(lock, opts[:pre])
     |> print_results
 
     Hex.Shell.info ""
@@ -48,7 +49,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     Enum.sort(deps, &(&1.app <= &2.app))
   end
 
-  defp get_versions(deps, lock) do
+  defp get_versions(deps, lock, pre?) do
     Enum.flat_map(deps, fn dep ->
       case lock[dep.app] do
         {:hex, package, lock_version} ->
@@ -56,7 +57,9 @@ defmodule Mix.Tasks.Hex.Outdated do
             package
             |> Atom.to_string
             |> Hex.Registry.get_versions
-            |> List.last
+            |> latest_version(pre?)
+
+          latest_version = latest_version || lock_version
 
           req = dep.requirement
 
@@ -65,6 +68,19 @@ defmodule Mix.Tasks.Hex.Outdated do
           []
       end
     end)
+  end
+
+  defp latest_version(versions, pre?) do
+    versions = if pre? do
+      versions
+    else
+      Enum.filter(versions, fn version ->
+        {:ok, version} = Version.parse(version)
+        version.pre == []
+      end)
+    end
+
+    List.last(versions)
   end
 
   defp print_results([]) do

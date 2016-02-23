@@ -3,12 +3,12 @@ defmodule Hex.RegistryTest do
 
   test "stat" do
     Hex.Registry.open!(registry_path: tmp_path("registry.ets"))
-    assert Hex.Registry.stat == {17, 44}
+    assert Hex.Registry.stat == {18, 46}
     assert Hex.Registry.close == true
 
     # Multiple open and close should yield the same result
     Hex.Registry.open!(registry_path: tmp_path("registry.ets"))
-    assert Hex.Registry.stat == {17, 44}
+    assert Hex.Registry.stat == {18, 46}
     assert Hex.Registry.close == true
   end
 
