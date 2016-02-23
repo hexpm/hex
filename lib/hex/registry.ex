@@ -3,6 +3,7 @@ defmodule Hex.Registry do
   @versions [3, 4]
   @filename "registry.ets"
   @pdict_id :"$hex_registry"
+  @timeout  60_000
 
   def start_link do
     Agent.start_link(fn -> nil end, name: @name)
@@ -24,7 +25,7 @@ defmodule Hex.Registry do
 
       tid ->
         {:ok, tid}
-    end)
+    end, @timeout)
   end
 
   def open!(opts \\ []) do
@@ -44,7 +45,7 @@ defmodule Hex.Registry do
       tid ->
         :ets.delete(tid)
         {true, nil}
-    end)
+    end, @timeout)
   end
 
   def path do
@@ -149,7 +150,7 @@ defmodule Hex.Registry do
     if tid = Process.get(@pdict_id) do
       tid
     else
-      tid = Agent.get(@name, & &1)
+      tid = Agent.get(@name, & &1, @timeout)
       Process.put(@pdict_id, tid)
       tid
     end
