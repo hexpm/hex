@@ -61,6 +61,14 @@ defmodule Mix.Hex.Build do
       if opts[:override] do
         Mix.raise "Can't build package with overridden dependency #{app}, remove `override: true`"
       end
+
+      if opts[:compile] do
+        Mix.raise "Can't build package when :compile is set for dependency #{app}, remove `compile: ...`"
+      end
+
+      if opts[:manager] do
+        Mix.raise "Can't build package when :manager is set for dependency #{app}, remove `manager: ...`"
+      end
     end)
 
     include = for {app, req, opts} <- include, into: %{} do
