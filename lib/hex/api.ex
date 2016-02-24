@@ -4,6 +4,7 @@ defmodule Hex.API do
 
   @request_timeout 60_000
   @secure_ssl_version {5, 3, 6}
+  @erlang_vendor 'application/vnd.hex+erlang'
 
   require Record
 
@@ -15,7 +16,7 @@ defmodule Hex.API do
 
   def request(method, url, headers, body \\ nil) when body == nil or is_map(body) do
     default_headers = %{
-      'accept' => 'application/vnd.hex+erlang',
+      'accept' => @erlang_vendor,
       'accept-encoding' => 'gzip',
       'user-agent' => user_agent()}
     headers = Dict.merge(default_headers, headers)
@@ -28,10 +29,10 @@ defmodule Hex.API do
       cond do
         body ->
           body = Hex.Utils.safe_serialize_erlang(body)
-          {url, Map.to_list(headers), 'application/vnd.hex+erlang', body}
+          {url, Map.to_list(headers), @erlang_vendor, body}
         method in [:put, :post] ->
           body = :erlang.term_to_binary(%{})
-          {url, Map.to_list(headers), 'application/vnd.hex+erlang', body}
+          {url, Map.to_list(headers), @erlang_vendor, body}
         true ->
           {url, Map.to_list(headers)}
       end
@@ -93,7 +94,7 @@ defmodule Hex.API do
 
   def request_tar(method, url, headers, body, progress) do
     default_headers = %{
-      'accept' => 'application/vnd.hex+erlang',
+      'accept' => @erlang_vendor,
       'user-agent' => user_agent(),
       'content-length' => to_char_list(byte_size(body))}
     headers = Dict.merge(default_headers, headers)
@@ -141,7 +142,9 @@ defmodule Hex.API do
 
   defp decode(body, headers) do
     content_type = List.to_string(headers['content-type'] || '')
-    if String.contains?(content_type, "application/vnd.hex+erlang") do
+    erlang_vendor = List.to_string(@erlang_vendor)
+    
+    if String.contains?(content_type, erlang_vendor) do
       Hex.Utils.safe_deserialize_erlang(body)
     else
       body

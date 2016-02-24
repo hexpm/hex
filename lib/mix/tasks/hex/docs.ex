@@ -32,11 +32,11 @@ defmodule Mix.Tasks.Hex.Docs do
 
     Mix.Project.get!
     config  = Mix.Project.config
-    app     = config[:app]
+    name    = config[:package][:name] || config[:app]
     version = config[:version]
 
     if revert = opts[:revert] do
-      revert(app, revert, auth)
+      revert(name, revert, auth)
     else
       try do
         Mix.Task.run("docs", args)
@@ -55,13 +55,13 @@ defmodule Mix.Tasks.Hex.Docs do
       end
 
       progress? = Keyword.get(opts, :progress, true)
-      tarball = build_tarball(app, version, directory)
-      send_tarball(app, version, tarball, auth, progress?)
+      tarball = build_tarball(name, version, directory)
+      send_tarball(name, version, tarball, auth, progress?)
     end
   end
 
-  defp build_tarball(app, version, directory) do
-    tarball = "#{app}-#{version}-docs.tar.gz"
+  defp build_tarball(name, version, directory) do
+    tarball = "#{name}-#{version}-docs.tar.gz"
     files = files(directory)
     :ok = :erl_tar.create(tarball, files, [:compressed])
     data = File.read!(tarball)
@@ -70,7 +70,7 @@ defmodule Mix.Tasks.Hex.Docs do
     data
   end
 
-  defp send_tarball(app, version, tarball, auth, progress?) do
+  defp send_tarball(name, version, tarball, auth, progress?) do
     progress =
       if progress? do
         Utils.progress(byte_size(tarball))
@@ -78,27 +78,27 @@ defmodule Mix.Tasks.Hex.Docs do
         Utils.progress(nil)
       end
 
-    case Hex.API.ReleaseDocs.new(app, version, tarball, auth, progress) do
+    case Hex.API.ReleaseDocs.new(name, version, tarball, auth, progress) do
       {code, _} when code in 200..299 ->
         Hex.Shell.info ""
-        Hex.Shell.info "Published docs for #{app} #{version}"
+        Hex.Shell.info "Published docs for #{name} #{version}"
         # TODO: Only print this URL if we use the default API URL
-        Hex.Shell.info "Hosted at #{Hex.Utils.hexdocs_url(app, version)}"
+        Hex.Shell.info "Hosted at #{Hex.Utils.hexdocs_url(name, version)}"
       {code, body} ->
         Hex.Shell.info ""
-        Hex.Shell.error "Pushing docs for #{app} v#{version} failed"
+        Hex.Shell.error "Pushing docs for #{name} v#{version} failed"
         Hex.Utils.print_error_result(code, body)
     end
   end
 
-  defp revert(app, version, auth) do
+  defp revert(name, version, auth) do
     version = Utils.clean_version(version)
 
-    case Hex.API.ReleaseDocs.delete(app, version, auth) do
+    case Hex.API.ReleaseDocs.delete(name, version, auth) do
       {code, _} when code in 200..299 ->
-        Hex.Shell.info "Reverted docs for #{app} #{version}"
+        Hex.Shell.info "Reverted docs for #{name} #{version}"
       {code, body} ->
-        Hex.Shell.error "Reverting docs for #{app} #{version} failed"
+        Hex.Shell.error "Reverting docs for #{name} #{version} failed"
         Hex.Utils.print_error_result(code, body)
     end
   end
