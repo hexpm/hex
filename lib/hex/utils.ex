@@ -193,13 +193,15 @@ defmodule Hex.Utils do
   defp indent(0), do: "  "
   defp indent(depth), do: "  " <> indent(depth - 1)
 
-  def hex_package_url(package, version) do
-    "https://hex.pm/packages/#{package}/#{version}"
-  end
-
-  def hexdocs_url(package, version) do
-    "http://hexdocs.pm/#{package}/#{version}/"
-  end
+  def hex_package_url(package),
+    do: "https://hex.pm/packages/#{package}"
+  def hex_package_url(package, version),
+    do: "https://hex.pm/packages/#{package}/#{version}"
+    
+  def hexdocs_url(package),
+    do: "http://hexdocs.pm/#{package}"
+  def hexdocs_url(package, version),
+    do: "http://hexdocs.pm/#{package}/#{version}"
 
   def proxy_config(url) do
     {http_proxy, https_proxy} = proxy_setup

@@ -39,7 +39,8 @@ defmodule Mix.Tasks.Hex.Docs do
       revert(name, revert, auth)
     else
       try do
-        Mix.Task.run("docs", args)
+        docs_args = ["--canonical", Hex.Utils.hexdocs_url(name)|args]
+        Mix.Task.run("docs", docs_args)
       rescue ex in [Mix.NoTaskError] ->
         stacktrace = System.stacktrace
         Mix.shell.error ~s(The "docs" task is unavailable, add {:ex_doc, ">= x.y.z", only: [:dev]}) <>
