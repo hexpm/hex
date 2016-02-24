@@ -197,11 +197,11 @@ defmodule Hex.Utils do
     do: "https://hex.pm/packages/#{package}"
   def hex_package_url(package, version),
     do: "https://hex.pm/packages/#{package}/#{version}"
-    
+
   def hexdocs_url(package),
-    do: "http://hexdocs.pm/#{package}"
+    do: "https://hexdocs.pm/#{package}"
   def hexdocs_url(package, version),
-    do: "http://hexdocs.pm/#{package}/#{version}"
+    do: "https://hexdocs.pm/#{package}/#{version}"
 
   def proxy_config(url) do
     {http_proxy, https_proxy} = proxy_setup
