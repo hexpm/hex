@@ -54,8 +54,10 @@ defmodule Hex.Version do
   def parse_requirement(requirement) do
     cache({:req, requirement}, fn ->
       if allow_pre?() do
-        with {:ok, req} <- Version.parse_requirement(requirement),
-         do: {:ok, Version.compile_requirement(req)}
+        case Version.parse_requirement(requirement) do
+          {:ok, req} -> {:ok, Version.compile_requirement(req)}
+          :error     -> :error
+        end
       else
         custom_requirement(requirement)
       end
