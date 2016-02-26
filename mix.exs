@@ -37,10 +37,12 @@ defmodule Hex.Mixfile do
   end
 
   defp unload_hex(_) do
-    paths = Path.join(Mix.Local.archives_path, "hex*.ez") |> Path.wildcard
+    true = Code.ensure_loaded?(Mix.Local)
+
+    paths = Path.join(archives_path(), "hex*.ez") |> Path.wildcard
 
     Enum.each(paths, fn archive ->
-      ebin = Mix.Archive.ebin(archive)
+      ebin = archive_ebin(archive)
       Code.delete_path(ebin)
 
       {:ok, files} = :erl_prim_loader.list_dir(to_char_list(ebin))
@@ -84,5 +86,17 @@ defmodule Hex.Mixfile do
     if result != 0 do
       raise "Non-zero result (#{result}) from: #{cmd} #{Enum.map_join(args, " ", &inspect/1)}"
     end
+  end
+
+  defp archives_path do
+    if function_exported?(Mix.Local, :path_for, 1),
+      do: Mix.Local.path_for(:archive),
+    else: Mix.Local.archives_path
+  end
+
+  defp archive_ebin(archive) do
+    if function_exported?(Mix.Local, :archive_ebin, 1),
+      do: Mix.Local.archive_ebin(archive),
+    else: Mix.Archive.ebin(archive)
   end
 end

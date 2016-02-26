@@ -20,7 +20,7 @@ defmodule Hex.Version do
       requirement = parse_requirement!(requirement)
 
       if allow_pre?(),
-        do: Version.match?(version, requirement),
+        do: Version.match?(version, requirement, allow_pre: false),
       else: custom_match?(version, requirement)
     end)
   end
@@ -49,12 +49,16 @@ defmodule Hex.Version do
     end
   end
 
-  def parse_requirement(%Requirement{} = requirement), do: {:ok, requirement}
+  def parse_requirement(%Requirement{} = req), do: {:ok, req}
+  def parse_requirement(%Version.Requirement{} = req), do: {:ok, req}
   def parse_requirement(requirement) do
     cache({:req, requirement}, fn ->
-      if allow_pre?(),
-        do: Version.parse_requirement(requirement),
-      else: custom_requirement(requirement)
+      if allow_pre?() do
+        with {:ok, req} <- Version.parse_requirement(requirement),
+         do: {:ok, Version.compile_requirement(req)}
+      else
+        custom_requirement(requirement)
+      end
     end)
   end
 
@@ -93,7 +97,7 @@ defmodule Hex.Version do
 
   defp custom_requirement(requirement) do
     try do
-      req = :binary.split(requirement, " ", [:global, :trim_all]) |> custom_parse
+      req = String.split(requirement, " ", trim: true) |> custom_parse
       {:ok, %Requirement{source: requirement, req: req}}
     catch
       :error ->
@@ -105,7 +109,7 @@ defmodule Hex.Version do
   @bool_ops ~w(and or)
 
   defp custom_parse([op, version]) when op in @version_ops do
-    pre? = :binary.match(version, "-") != :nomatch
+    pre? = String.contains?(version, "-")
     case Version.parse_requirement(op <> " " <> version) do
       {:ok, req} -> {req, pre?}
       :error     -> throw :error
