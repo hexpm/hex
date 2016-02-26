@@ -18,7 +18,10 @@ defmodule Hex.Version do
     cache({:match?, version, requirement}, fn ->
       version     = parse!(version)
       requirement = parse_requirement!(requirement)
-      custom_match?(version, requirement)
+
+      if allow_pre?(),
+        do: Version.match?(version, requirement),
+      else: custom_match?(version, requirement)
     end)
   end
 
@@ -49,7 +52,9 @@ defmodule Hex.Version do
   def parse_requirement(%Requirement{} = requirement), do: {:ok, requirement}
   def parse_requirement(requirement) do
     cache({:req, requirement}, fn ->
-      custom_requirement(requirement)
+      if allow_pre?(),
+        do: Version.parse_requirement(requirement),
+      else: custom_requirement(requirement)
     end)
   end
 
@@ -112,4 +117,8 @@ defmodule Hex.Version do
     do: custom_parse(["==", version])
   defp custom_parse(_),
     do: throw :error
+
+  defp allow_pre? do
+    Code.ensure_loaded?(Version) and function_exported?(Version, :match?, 3)
+  end
 end
