@@ -108,7 +108,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Mix.Task.reenable "hex.outdated"
       Mix.Task.run "hex.outdated", ["--pre"]
 
-      beta = [:bright, "beta", :reset, "        ", "1.0.0", "    ", :red, "1.1.0-beta", :reset, "  ", :green, ">= 0.0.0"]
+      beta = [:bright, "beta", :reset, "        ", "1.0.0", "    ", :red, "1.1.0-beta", :reset, "  ", :red, ">= 0.0.0"]
              |> IO.ANSI.format
              |> List.to_string
       assert_received {:mix_shell, :info, [^beta]}
