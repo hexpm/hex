@@ -15,7 +15,9 @@ defmodule Hex.Version do
   end
 
   def match?(version, requirement) do
-    cache({:match?, version, requirement}, fn ->
+    req_source = requirement_source(requirement)
+
+    cache({:match?, version, req_source}, fn ->
       version     = parse!(version)
       requirement = parse_requirement!(requirement)
 
@@ -83,6 +85,10 @@ defmodule Hex.Version do
         value
     end
   end
+
+  defp requirement_source(%Requirement{source: source}), do: source
+  defp requirement_source(%Version.Requirement{source: source}), do: source
+  defp requirement_source(source), do: source
 
   defp custom_match?(version, %Requirement{req: req}),
     do: custom_match?(version, req)
