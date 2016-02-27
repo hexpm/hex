@@ -97,7 +97,6 @@ defmodule Hex.Registry do
     end
 
     :ets.foldl(fun, [], get_tid())
-    |> Enum.reverse
     |> Enum.sort
   end
 
@@ -108,6 +107,18 @@ defmodule Hex.Registry do
   def exists?(package, version) do
     versions = get_versions(package)
     !! (versions && version in versions)
+  end
+
+  def all_packages do
+    fun = fn
+      {package, list}, packages when is_binary(package) and is_list(list) ->
+        [package|packages]
+      _, packages ->
+        packages
+    end
+
+    :ets.foldl(fun, [], get_tid())
+    |> Enum.sort
   end
 
   def get_versions(package) do
