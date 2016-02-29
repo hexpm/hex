@@ -190,7 +190,7 @@ defmodule HexTest.Case do
     Hex.State.put(:home, tmp_path("hex_home"))
     Hex.State.put(:registry_updated, false)
     Hex.Parallel.clear(:hex_fetcher)
-    Hex.Registry.close
+    Hex.Registry.ETS.close
 
     Mix.shell(Mix.Shell.Process)
     Mix.Task.clear

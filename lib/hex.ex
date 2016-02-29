@@ -23,7 +23,7 @@ defmodule Hex do
 
     children = [
       worker(Hex.State, []),
-      worker(Hex.Registry, []),
+      worker(Hex.Registry.ETS, []),
       worker(Hex.Parallel, [:hex_fetcher, [max_parallel: 8]]),
     ]
 

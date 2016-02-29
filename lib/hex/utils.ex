@@ -2,10 +2,10 @@ defmodule Hex.Utils do
   def ensure_registry(opts \\ []) do
     update_result = update_registry(opts)
 
-    if update_result == :error and not File.exists?(Hex.Registry.path) do
+    if update_result == :error and not File.exists?(Hex.Registry.ETS.path) do
       {:error, :update_failed}
     else
-      start_result = Hex.Registry.open
+      start_result = Hex.Registry.open(Hex.Registry.ETS)
 
       # Show available newer versions
       if update_result in [{:ok, :new}, {:ok, :no_fetch}] and start_result == :ok do
@@ -19,11 +19,11 @@ defmodule Hex.Utils do
   def ensure_registry!(opts \\ []) do
     update_result = update_registry(opts)
 
-    if update_result == :error and not File.exists?(Hex.Registry.path) do
+    if update_result == :error and not File.exists?(Hex.Registry.ETS.path) do
       Mix.raise "Failed to fetch registry"
     end
 
-    Hex.Registry.open!
+    Hex.Registry.open!(Hex.Registry.ETS)
 
     # Show available newer versions
     if update_result in [{:ok, :new}, {:ok, :no_fetch}] do
@@ -41,7 +41,7 @@ defmodule Hex.Utils do
         Hex.State.put(:registry_updated, true)
 
         closed? = Hex.Registry.close
-        path    = Hex.Registry.path
+        path    = Hex.Registry.ETS.path
         path_gz = path <> ".gz"
         fetch?  = Keyword.get(opts, :fetch, true) and
                   (Keyword.get(opts, :update, true) or not week_fresh?(path_gz))
@@ -73,7 +73,7 @@ defmodule Hex.Utils do
           end
         after
           # Open registry if it was already open when update began
-          if closed?, do: Hex.Registry.open!
+          if closed?, do: Hex.Registry.open!(Hex.Registry.ETS)
         end
     end
   end

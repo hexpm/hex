@@ -57,12 +57,12 @@ defmodule Mix.Tasks.Hex.Registry do
   end
 
   defp dump(dest) do
-    path_gz = Hex.Registry.path <> ".gz"
+    path_gz = Hex.Registry.ETS.path <> ".gz"
     File.cp!(path_gz, dest)
   end
 
   defp load(source) do
-    path = Hex.Registry.path
+    path = Hex.Registry.ETS.path
     path_gz = path <> ".gz"
     content = File.read!(source) |> :zlib.gunzip
     File.cp!(source, path_gz)

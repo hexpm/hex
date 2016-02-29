@@ -78,8 +78,10 @@ defmodule Hex.APITest do
 
     assert {204, _} = Hex.API.Package.Owner.add("orange", "orange_user@mail.com", auth)
 
-    assert {200, [%{"username" => "user"}, %{"username" => "orange_user"}]} =
-           Hex.API.Package.Owner.get("orange", auth)
+    assert {200, owners} = Hex.API.Package.Owner.get("orange", auth)
+    assert length(owners) == 2
+    assert Enum.any?(owners, &match?(%{"username" => "user"}, &1))
+    assert Enum.any?(owners, &match?(%{"username" => "orange_user"}, &1))
 
     assert {204, _} = Hex.API.Package.Owner.delete("orange", "orange_user@mail.com", auth)
 

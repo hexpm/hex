@@ -1,180 +1,77 @@
 defmodule Hex.Registry do
-  @name     __MODULE__
-  @versions [3, 4]
-  @filename "registry.ets"
   @pdict_id :"$hex_registry"
-  @timeout  60_000
 
-  def start_link do
-    Agent.start_link(fn -> nil end, name: @name)
+  @callback version(term)                             :: String.t
+  @callback installs(term)                            :: [{String.t, String.t}]
+  @callback stat(term)                                :: {non_neg_integer, non_neg_integer}
+  @callback search(term, String.t)                    :: [String.t]
+  @callback all_packages(term)                        :: [String.t]
+  @callback get_versions(term, String.t)              :: String.t
+  @callback get_deps(term, String.t, String.t)        :: [{String.t, String.t, String.t, boolean}]
+  @callback get_checksum(term, String.t, String.t)    :: binary
+  @callback get_build_tools(term, String.t, String.t) :: [String.t]
+
+  options = quote do [
+    version(),
+    installs(),
+    stat(),
+    search(term),
+    all_packages(),
+    get_versions(package),
+    get_deps(package, version),
+    get_checksum(package, version),
+    get_build_tools(package, version)]
   end
 
-  def open(opts \\ []) do
-    Agent.get_and_update(@name, fn
-      nil ->
-        path = opts[:registry_path] || path()
+  Enum.each(options, fn {function, _, args} ->
+    def unquote(function)(unquote_splicing(args)) do
+      {module, name} = pdict_get()
+      module.unquote(function)(name, unquote_splicing(args))
+    end
+  end)
 
-        case :ets.file2tab(String.to_char_list(path)) do
-          {:ok, tid} ->
-            check_version(tid)
-            {:ok, tid}
+  def  pdict_clean,               do: Process.delete(@pdict_id)
+  defp pdict_setup(module, name), do: Process.put(@pdict_id, {module, name})
+  defp pdict_get,                 do: Process.get(@pdict_id)
 
-          {:error, reason} ->
-            {{:error, reason}, nil}
-        end
-
-      tid ->
-        {:ok, tid}
-    end, @timeout)
-  end
-
-  def open!(opts \\ []) do
-    case open(opts) do
-      {:error, reason} ->
-        Mix.raise "Failed to open Hex registry file (#{inspect reason})"
-      _ ->
+  def open(module, opts \\ []) do
+    case module.open(opts) do
+      {:ok, name} ->
+        pdict_setup(module, name)
         :ok
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def open!(module, opts \\ []) do
+    case module.open(opts) do
+      {:ok, name} ->
+        pdict_setup(module, name)
+        :ok
+      {:error, reason} ->
+        Mix.raise "Failed to open Hex registry (#{inspect reason})"
     end
   end
 
   def close do
-    Process.delete(@pdict_id)
-    Agent.get_and_update(@name, fn
+    case pdict_get() do
+      {module, name} ->
+        result = module.close(name)
+        pdict_clean()
+        result
       nil ->
-        {false, nil}
-      tid ->
-        :ets.delete(tid)
-        {true, nil}
-    end, @timeout)
-  end
-
-  def path do
-    Path.join(Hex.State.fetch!(:home), @filename)
-  end
-
-  def clean_pdict do
-    Process.delete(@pdict_id)
+        false
+    end
   end
 
   def info_installs do
-    case :ets.lookup(get_tid(), :"$$installs2$$") do
-      [{:"$$installs2$$", installs}] ->
-        if version = latest_version(installs) do
-          Hex.Shell.warn "A new Hex version is available (#{version}), " <>
-                         "please update with `mix local.hex`"
-        else
-          check_elixir_version(installs)
-        end
-      _ ->
-        :ok
-    end
-  end
-
-  def stat do
-    fun = fn
-      {{package, version}, _}, {packages, releases}
-          when is_binary(package) and is_binary(version) ->
-        {packages, releases + 1}
-      {package, _}, {packages, releases} when is_binary(package) ->
-        {packages + 1, releases}
-      _, acc ->
-        acc
-    end
-
-    :ets.foldl(fun, {0, 0}, get_tid())
-  end
-
-  def search(term) do
-    fun = fn
-      {package, list}, packages when is_binary(package) and is_list(list) ->
-        if String.contains?(package, term) do
-          [package|packages]
-        else
-          packages
-        end
-      _, packages ->
-        packages
-    end
-
-    :ets.foldl(fun, [], get_tid())
-    |> Enum.sort
-  end
-
-  def exists?(package) do
-    !! get_versions(package)
-  end
-
-  def exists?(package, version) do
-    versions = get_versions(package)
-    !! (versions && version in versions)
-  end
-
-  def all_packages do
-    fun = fn
-      {package, list}, packages when is_binary(package) and is_list(list) ->
-        [package|packages]
-      _, packages ->
-        packages
-    end
-
-    :ets.foldl(fun, [], get_tid())
-    |> Enum.sort
-  end
-
-  def get_versions(package) do
-    case :ets.lookup(get_tid(), package) do
-      [] -> nil
-      [{^package, [versions|_]}] when is_list(versions) -> versions
-    end
-  end
-
-  def get_deps(package, version) do
-    case :ets.lookup(get_tid(), {package, version}) do
-      [] ->
-        nil
-      [{{^package, ^version}, [deps|_]}] when is_list(deps) ->
-        Enum.map(deps, fn
-          [name, req, optional, app | _] -> {name, app, req, optional}
-        end)
-    end
-  end
-
-  def get_checksum(package, version) do
-    case :ets.lookup(get_tid(), {package, version}) do
-      [] ->
-        nil
-      [{{^package, ^version}, [_, checksum | _]}] when is_nil(checksum) or is_binary(checksum) ->
-        checksum
-    end
-  end
-
-  def get_build_tools(package, version) do
-    case :ets.lookup(get_tid(), {package, version}) do
-      [] ->
-        nil
-      [{{^package, ^version}, [_, _, build_tools | _]}] when is_list(build_tools) ->
-        build_tools
-    end
-  end
-
-  defp get_tid do
-    if tid = Process.get(@pdict_id) do
-      tid
+    installs = installs()
+    if version = latest_version(installs) do
+      Hex.Shell.warn "A new Hex version is available (#{version}), " <>
+                     "please update with `mix local.hex`"
     else
-      tid = Agent.get(@name, & &1, @timeout)
-      Process.put(@pdict_id, tid)
-      tid
-    end
-  end
-
-  defp check_version(tid) do
-    case :ets.lookup(tid, :"$$version$$") do
-      [{:"$$version$$", version}] when version in @versions ->
-        :ok
-      _ ->
-        raise Mix.Error,
-          message: "The registry file version is not supported. " <>
-                   "Try updating Hex with `mix local.hex`."
+      check_elixir_version(installs)
     end
   end
 

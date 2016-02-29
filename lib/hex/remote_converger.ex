@@ -12,7 +12,6 @@ defmodule Hex.RemoteConverger do
   def converge(deps, lock) do
     Hex.start
     Hex.Utils.ensure_registry!()
-
     verify_lock(lock)
 
     # We cannot use given lock here, because all deps that are being
@@ -20,6 +19,7 @@ defmodule Hex.RemoteConverger do
     # We need the old lock to get the children of Hex packages
     old_lock = Mix.Dep.Lock.read
 
+    deps      = order_deps(deps)
     locked    = prepare_locked(lock, old_lock, deps)
     top_level = Hex.Mix.top_level(deps)
     flat_deps = Hex.Mix.flatten_deps(deps, top_level)
@@ -41,44 +41,32 @@ defmodule Hex.RemoteConverger do
         Hex.Shell.error message
         Mix.raise "Hex dependency resolution failed, relax the version requirements or unlock dependencies"
     end
-  after
-    Hex.Registry.clean_pdict
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
     case Map.fetch(lock, app) do
       {:ok, {:hex, name, version}} ->
-        get_deps(name, version)
+        deps = get_deps(name, version)
+
       _ ->
         []
     end
   end
 
   defp get_deps(name, version) do
-    case Hex.Registry.open() do
-      :ok ->
-        name = Atom.to_string(name)
-        deps = Registry.get_deps(name, version) || []
+    name = Atom.to_string(name)
+    deps = Registry.get_deps(name, version) || []
 
-        for {name, app, req, optional} <- deps do
-          app = String.to_atom(app)
-          opts = [optional: optional, hex: String.to_atom(name)]
+    for {name, app, req, optional} <- deps do
+      app = String.to_atom(app)
+      opts = [optional: optional, hex: String.to_atom(name)]
 
-          # Support old packages where requirement could be missing
-          if req do
-            {app, req, opts}
-          else
-            {app, opts}
-          end
-        end
-
-      {:error, reason} ->
-        if File.exists?(Hex.Registry.path) do
-          Hex.Shell.warn("Failed to open Hex registry file (#{inspect reason})")
-        else
-          Hex.Shell.warn("Missing Hex registry file, run `mix hex.info` to fetch")
-        end
-        []
+      # Support old packages where requirement could be missing
+      if req do
+        {app, req, opts}
+      else
+        {app, opts}
+      end
     end
   end
 
@@ -147,6 +135,15 @@ defmodule Hex.RemoteConverger do
       end
     else
       Mix.raise "Unknown package #{app} in lockfile"
+    end
+  end
+
+  # Elixir < 1.3.0-dev returned deps in reverse order
+  defp order_deps(deps) do
+    if Version.compare(System.version, "1.3.0-dev") == :lt do
+      Enum.reverse(deps)
+    else
+      deps
     end
   end
 

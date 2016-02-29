@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Hex.SearchTest do
 
   setup do
     Hex.State.put(:registry_updated, true)
-    Hex.Registry.open!(registry_path: tmp_path("registry.ets"))
+    Hex.Registry.open!(Hex.Registry.ETS, registry_path: tmp_path("registry.ets"))
   end
 
   test "search" do

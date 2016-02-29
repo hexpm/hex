@@ -2,12 +2,12 @@ defmodule Hex.RegistryTest do
   use HexTest.Case
 
   test "stat" do
-    Hex.Registry.open!(registry_path: tmp_path("registry.ets"))
+    Hex.Registry.open!(Hex.Registry.ETS, registry_path: tmp_path("registry.ets"))
     assert Hex.Registry.stat == {18, 46}
     assert Hex.Registry.close == true
 
     # Multiple open and close should yield the same result
-    Hex.Registry.open!(registry_path: tmp_path("registry.ets"))
+    Hex.Registry.open!(Hex.Registry.ETS, registry_path: tmp_path("registry.ets"))
     assert Hex.Registry.stat == {18, 46}
     assert Hex.Registry.close == true
   end
@@ -21,7 +21,7 @@ defmodule Hex.RegistryTest do
       versions = [{"100.0.0", ["0.0.1"]}]
       create_registry(path, 3, versions, [], [])
 
-      Hex.Registry.open!
+      Hex.Registry.open!(Hex.Registry.ETS)
       Hex.Utils.ensure_registry!(fetch: false)
       assert_received {:mix_shell, :info, ["\e[33mA new Hex version is available" <> _]}
 
@@ -40,7 +40,7 @@ defmodule Hex.RegistryTest do
                   {"100.0.0", ["0.0.1"]}, {"98.0.0", ["0.0.1"]}]
       create_registry(path, 3, versions, [], [])
 
-      Hex.Registry.open!
+      Hex.Registry.open!(Hex.Registry.ETS)
       Hex.Utils.ensure_registry!(fetch: false)
       assert_received {:mix_shell, :info, ["\e[33mA new Hex version is available (100.0.0), please update with `mix local.hex`\e[0m"]}
     end
@@ -55,7 +55,7 @@ defmodule Hex.RegistryTest do
       versions = [{"100.0.0", ["100.0.0"]}]
       create_registry(path, 3, versions, [], [])
 
-      Hex.Registry.open!
+      Hex.Registry.open!(Hex.Registry.ETS)
       Hex.Utils.ensure_registry!(fetch: false)
       refute_received {:mix_shell, :info, ["A new Hex version is available" <> _]}
     end
@@ -70,7 +70,7 @@ defmodule Hex.RegistryTest do
       versions = [{"0.0.1", ["0.0.1"]}]
       create_registry(path, 3, versions, [], [])
 
-      Hex.Registry.open!
+      Hex.Registry.open!(Hex.Registry.ETS)
       Hex.Utils.ensure_registry!(fetch: false)
       refute_received {:mix_shell, :info, ["A new Hex version is available" <> _]}
     end

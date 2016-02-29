@@ -40,7 +40,7 @@ defmodule Mix.Tasks.Hex.Info do
     # Make sure to fetch registry after showing Hex version. Issues with the
     # registry should not prevent printing the version.
     Hex.Utils.ensure_registry(cache: false)
-    path            = Hex.Registry.path()
+    path            = Hex.Registry.ETS.path
     stat            = File.stat!(path)
     compressed_stat = File.stat!(path <> ".gz")
     size            = stat.size |> div(1024)

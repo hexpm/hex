@@ -63,7 +63,6 @@ defmodule Hex.SCM do
       {:hex, name, version} ->
         name        = Atom.to_string(name)
         build_tools = Hex.Registry.get_build_tools(name, version) || []
-        Hex.Registry.clean_pdict
         Enum.map(build_tools, &String.to_atom/1)
       _ ->
         []

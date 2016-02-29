@@ -18,7 +18,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       source = Path.expand("source.ets.gz")
       File.write!(source, :zlib.gzip("ETS"))
       Registry.run(["load", source])
-      path = Hex.Registry.path
+      path = Hex.Registry.ETS.path
       path_gz = path <> ".gz"
       assert File.read!(path) == "ETS"
       assert File.regular?(path_gz)
