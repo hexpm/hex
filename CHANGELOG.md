@@ -1,4 +1,22 @@
-## v0.10.5-dev
+## v0.11.0-dev
+
+* Enhancements
+  * Append the OTP version to the user_agent function
+  * Improve output of http request timeout errors
+  * Warn if `:manager` or `:compile` is set on dependencies when publishing
+  * Add `--pre` flag to `hex.outdated`
+  * Use erlang binary term encoding for API instead of elixir encoding
+  * Pull package name from correct source when publish docs
+  * Pass canonical url to ex_doc task
+  * Change hexdocs links to use https
+  * Add `hex.outdated APP` to list all requirements on given dependency
+  * Do not allow pre-releases for dependencies unless the requirement uses a pre-release version
+  * Optimize version cache memory usage
+
+* Bug fixes
+  * Fix incorrect build version check for dev versions of Elixir
+  * Fix loop when backtracking in resolver
+  * Fix timeout errors on slow systems
 
 ## v0.10.4 (2016-01-26)
 
@@ -14,7 +32,7 @@
 ## v0.10.3 (2016-01-23)
 
 * Bug fixes
-  * Fix bug when umbrella child has dependency with `:only
+  * Fix bug when umbrella child has dependency with `:only`
 
 ## v0.10.2 (2016-01-22)
 
@@ -50,7 +68,7 @@
   * Fix a rare bug that could cause the resolver to go into an infinite loop
   * UTF8 encode package metadata
   * Only list missing files if `:files` is set
-  * Fix bug when umbrella child has dependency with `:only
+  * Fix bug when umbrella child has dependency with `:only`
 
 ## v0.9.0 (2015-09-25)
 
