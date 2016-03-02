@@ -1,12 +1,14 @@
 defmodule Hex.Registry do
   @pdict_id :"$hex_registry"
 
+  @callback open(Keyword.t)                           :: {:ok, term} | {:error, term}
+  @callback close(term)                               :: boolean
   @callback version(term)                             :: String.t
   @callback installs(term)                            :: [{String.t, String.t}]
   @callback stat(term)                                :: {non_neg_integer, non_neg_integer}
   @callback search(term, String.t)                    :: [String.t]
   @callback all_packages(term)                        :: [String.t]
-  @callback get_versions(term, String.t)              :: String.t
+  @callback get_versions(term, String.t)              :: [String.t]
   @callback get_deps(term, String.t, String.t)        :: [{String.t, String.t, String.t, boolean}]
   @callback get_checksum(term, String.t, String.t)    :: binary
   @callback get_build_tools(term, String.t, String.t) :: [String.t]
