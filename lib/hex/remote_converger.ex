@@ -12,6 +12,7 @@ defmodule Hex.RemoteConverger do
   def converge(deps, lock) do
     Hex.start
     Hex.Utils.ensure_registry!()
+    Hex.Registry.open!(Hex.Registry.ETS)
     verify_lock(lock)
 
     # We cannot use given lock here, because all deps that are being
@@ -43,9 +44,13 @@ defmodule Hex.RemoteConverger do
         Hex.Shell.error message
         Mix.raise "Hex dependency resolution failed, relax the version requirements or unlock dependencies"
     end
+  after
+    Hex.Registry.pdict_clean
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
+    Hex.Registry.open!(Hex.Registry.ETS)
+
     case Map.fetch(lock, app) do
       {:ok, {:hex, name, version}} ->
         deps = get_deps(name, version)
@@ -53,6 +58,8 @@ defmodule Hex.RemoteConverger do
       _ ->
         []
     end
+  after
+    Hex.Registry.pdict_clean
   end
 
   defp get_deps(name, version) do

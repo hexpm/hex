@@ -34,6 +34,9 @@ defmodule Mix.Tasks.Hex.Outdated do
     lock = Mix.Dep.Lock.read
     deps = Mix.Dep.loaded([]) |> Enum.filter(& &1.scm == Hex.SCM)
 
+    # Re-open registry because loading deps cleans the process dict
+    Hex.Utils.ensure_registry!()
+
     case args do
       [app] ->
         single(deps, lock, app, opts)

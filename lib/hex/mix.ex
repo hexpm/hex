@@ -122,6 +122,9 @@ defmodule Hex.Mix do
     else: requests
   end
 
+  @doc """
+  Prepare Mix dependencies for the format the resolver expects.
+  """
   @spec prepare_deps([Mix.Dep.t]) :: [dep]
   def prepare_deps(deps) do
     Enum.map(deps, fn %Mix.Dep{app: app, deps: deps, opts: opts} ->

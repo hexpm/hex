@@ -59,6 +59,8 @@ defmodule Hex.SCM do
   end
 
   def managers(opts) do
+    Hex.Registry.open!(Hex.Registry.ETS)
+
     case opts[:lock] do
       {:hex, name, version} ->
         name        = Atom.to_string(name)
@@ -67,9 +69,13 @@ defmodule Hex.SCM do
       _ ->
         []
     end
+  after
+    Hex.Registry.pdict_clean
   end
 
   def checkout(opts) do
+    Hex.Registry.open!(Hex.Registry.ETS)
+
     {:hex, _name, version} = opts[:lock]
     name     = opts[:hex]
     dest     = opts[:dest]
@@ -100,6 +106,8 @@ defmodule Hex.SCM do
     File.write!(Path.join(dest, ".hex"), manifest)
 
     opts[:lock]
+  after
+    Hex.Registry.pdict_clean
   end
 
   def update(opts) do
