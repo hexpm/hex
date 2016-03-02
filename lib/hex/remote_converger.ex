@@ -19,7 +19,6 @@ defmodule Hex.RemoteConverger do
     # We need the old lock to get the children of Hex packages
     old_lock = Mix.Dep.Lock.read
 
-    deps      = order_deps(deps)
     locked    = prepare_locked(lock, old_lock, deps)
     top_level = Hex.Mix.top_level(deps)
     flat_deps = Hex.Mix.flatten_deps(deps, top_level)
@@ -27,6 +26,9 @@ defmodule Hex.RemoteConverger do
 
     check_deps(deps, top_level)
     check_input(reqs, locked)
+
+    deps      = Hex.Mix.prepare_deps(deps)
+    top_level = Enum.map(top_level, &Atom.to_string/1)
 
     Hex.Shell.info "Running dependency resolution"
 
@@ -138,15 +140,6 @@ defmodule Hex.RemoteConverger do
     end
   end
 
-  # Elixir < 1.3.0-dev returned deps in reverse order
-  defp order_deps(deps) do
-    if Version.compare(System.version, "1.3.0-dev") == :lt do
-      Enum.reverse(deps)
-    else
-      deps
-    end
-  end
-
   defp with_children(apps, lock) do
     [apps, do_with_children(apps, lock)]
     |> List.flatten
@@ -154,7 +147,7 @@ defmodule Hex.RemoteConverger do
 
   defp do_with_children(names, lock) do
     Enum.map(names, fn name ->
-      case Map.fetch(lock, String.to_atom(name)) do
+      case Map.fetch(lock, name) do
         {:ok, {:hex, name, version}} ->
           # Do not error on bad data in the old lock because we should just
           # fix it automatically
@@ -196,7 +189,7 @@ defmodule Hex.RemoteConverger do
       for {app, _} <- old_lock,
           not Map.has_key?(lock, app),
         into: unlock,
-        do: Atom.to_string(app)
+        do: app
 
     unlock =
       Enum.uniq(unlock)

@@ -4,7 +4,7 @@ defmodule Hex.ResolverTest do
   defp resolve(reqs, locked \\ []) do
     reqs      = Enum.reverse(reqs)
     deps      = deps(reqs)
-    top_level = Hex.Mix.top_level(deps)
+    top_level = Enum.map(deps, &elem(&1, 0))
     reqs      = reqs(reqs)
     locked    = locked(locked)
 
@@ -16,9 +16,9 @@ defmodule Hex.ResolverTest do
 
   defp deps(reqs) do
     Enum.map(reqs, fn {app, _req} ->
-      %Mix.Dep{app: app, opts: [hex: app]}
+      {Atom.to_string(app), false, []}
     end)
-    end
+  end
 
   defp reqs(reqs) do
     Enum.map(reqs, fn {app, req} ->

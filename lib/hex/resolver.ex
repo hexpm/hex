@@ -152,7 +152,7 @@ defmodule Hex.Resolver do
   defp get_deps(app, package, version, info(top_level: top_level, deps: all_deps), activated) do
     if deps = Registry.get_deps(package, version) do
       all_deps = attach_dep_and_children(all_deps, app, deps)
-      overridden_map = overridden_parents(top_level, all_deps, String.to_atom(app))
+      overridden_map = overridden_parents(top_level, all_deps, app)
 
       {reqs, opts} =
         Enum.reduce(deps, {[], []}, fn {name, app, req, optional}, {reqs, opts} ->
@@ -161,7 +161,7 @@ defmodule Hex.Resolver do
           request = request(app: app, name: name, req: req, parent: parent)
 
           cond do
-            overridden_map[String.to_atom(app)] ->
+            overridden_map[app] ->
               {reqs, opts}
             optional && !activated[name] ->
               {reqs, [request|opts]}

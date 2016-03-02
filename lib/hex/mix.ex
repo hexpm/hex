@@ -3,6 +3,8 @@ defmodule Hex.Mix do
   Utility functions around Mix dependencies.
   """
 
+  @type dep :: {String.t, boolean, [String.t]}
+
   @doc """
   Returns `true` if the version and requirement match.
 
@@ -26,12 +28,14 @@ defmodule Hex.Mix do
   @spec flatten_deps([Mix.Dep.t], [atom]) :: [Mix.Dep.t]
   def flatten_deps(deps, top_level) do
     apps = Enum.map(deps, & &1.app)
+    top_level = Enum.map(top_level, &Atom.to_string/1)
+    prepared_deps = prepare_deps(deps)
 
     deps ++
       for(dep <- deps,
-          overridden_map = overridden_parents(top_level, deps, dep.app),
+          overridden_map = overridden_parents(top_level, prepared_deps, Atom.to_string(dep.app)),
           %{app: app} = child <- dep.deps,
-          app in apps and !overridden_map[app],
+          app in apps and !overridden_map[Atom.to_string(app)],
           do: child)
   end
 
@@ -39,19 +43,19 @@ defmodule Hex.Mix do
   Returns a map with the overridden upper breadths dependencies of
   the given parent (including the parent level itself).
   """
-  @spec overridden_parents([atom], [Mix.Dep.t], atom) :: [Mix.Dep.t]
+  @spec overridden_parents([String.t], [dep], String.t) :: [dep]
   def overridden_parents(top_level, deps, parent) do
     deps
-    |> Enum.filter(&(&1.app in top_level))
+    |> Enum.filter(fn {app, _override, _deps} -> app in top_level end)
     |> do_overridden_parents(deps, parent)
     |> elem(0)
   end
 
   def do_overridden_parents(level, deps, parent) do
     {children_maps, found?} =
-      Enum.map_reduce(level, false, fn dep, acc_found? ->
-        children_apps = Enum.map(dep.deps, & &1.app)
-        children_deps = Enum.filter(deps, & &1.app in children_apps)
+      Enum.map_reduce(level, false, fn {_app, _override, children}, acc_found? ->
+        children_apps = Enum.map(children, &elem(&1, 0))
+        children_deps = Enum.filter(deps, fn {app, _, _} -> app in children_apps end)
         {children_map, found?} = do_overridden_parents(children_deps, deps, parent)
         {children_map, found? or acc_found?}
       end)
@@ -60,7 +64,7 @@ defmodule Hex.Mix do
       found? ->
         maps = [level_to_overridden_map(level)|children_maps]
         {Enum.reduce(maps, &Map.merge/2), true}
-      parent in Enum.map(level, & &1.app) ->
+      parent in Enum.map(level, &elem(&1, 0)) ->
         {level_to_overridden_map(level), true}
       true ->
         {%{}, false}
@@ -68,8 +72,8 @@ defmodule Hex.Mix do
   end
 
   defp level_to_overridden_map(level) do
-    for %{app: app, opts: opts} <- level,
-        opts[:override],
+    for {app, override, _children} <- level,
+        override,
         do: {app, true},
         into: %{}
   end
@@ -80,26 +84,22 @@ defmodule Hex.Mix do
   we use in overridden_parents to check overridden status.
   """
   def attach_dep_and_children(deps, app, children) do
-    app = String.to_atom(app)
-    dep = Enum.find(deps, &(&1.app == app))
+    {app, override, _} = Enum.find(deps, &(elem(&1, 0) == app))
 
     children =
-      Enum.map(children, fn {name, app, _req, _optional} ->
-        app = String.to_atom(app)
-        name = String.to_atom(name)
-        %Mix.Dep{app: app, opts: [hex: name]}
+      Enum.map(children, fn {_name, app, _req, _optional} ->
+        {app, false, []}
       end)
 
-    new_dep = %{dep | deps: children}
+    new_dep = {app, override, children}
 
     put_dep(deps, new_dep) ++ children
   end
 
   # Replace a dependency in the tree
-  defp put_dep(deps, new_dep) do
-    app = new_dep.app
-    Enum.map(deps, fn dep ->
-      if dep.app == app, do: new_dep, else: dep
+  defp put_dep(deps, {new_app, _, _} = new_dep) do
+    Enum.map(deps, fn {app, _, _} = dep ->
+      if app == new_app, do: new_dep, else: dep
     end)
   end
 
@@ -110,10 +110,27 @@ defmodule Hex.Mix do
   """
   @spec deps_to_requests([Mix.Dep.t]) :: [{String.t, String.t}]
   def deps_to_requests(deps) do
-    for %Mix.Dep{app: app, requirement: req, scm: Hex.SCM, opts: opts, from: from} <- deps do
-      from = Path.relative_to_cwd(from)
-      {Atom.to_string(opts[:hex]), Atom.to_string(app), req, from}
-    end
+    requests =
+      for %Mix.Dep{app: app, requirement: req, scm: Hex.SCM, opts: opts, from: from} <- deps do
+        from = Path.relative_to_cwd(from)
+        {Atom.to_string(opts[:hex]), Atom.to_string(app), req, from}
+      end
+
+    # Elixir < 1.3.0-dev returned deps in reverse order
+    if Version.compare(System.version, "1.3.0-dev") == :lt,
+      do: Enum.reverse(requests),
+    else: requests
+  end
+
+  @spec prepare_deps([Mix.Dep.t]) :: [dep]
+  def prepare_deps(deps) do
+    Enum.map(deps, fn %Mix.Dep{app: app, deps: deps, opts: opts} ->
+      deps =
+        Enum.map(deps, fn %Mix.Dep{app: app, opts: opts} ->
+          {Atom.to_string(app), !!opts[:override], []}
+        end)
+      {Atom.to_string(app), !!opts[:override], deps}
+    end)
   end
 
   @doc """
@@ -121,7 +138,7 @@ defmodule Hex.Mix do
   """
   @spec top_level([Mix.Dep.t]) :: [atom]
   def top_level(deps) do
-    Enum.filter_map(deps, & &1.top_level, & &1.app)
+    Enum.filter_map(deps, &(&1.top_level), &(&1.app))
   end
 
   @doc """
