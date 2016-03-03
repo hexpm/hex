@@ -105,7 +105,9 @@ defmodule Hex.Version do
 
   defp custom_requirement(requirement) do
     try do
-      req = String.split(requirement, " ", trim: true) |> custom_parse
+      req = String.split(requirement, " ", trim: true)
+            |> split_ops
+            |> custom_parse
       {:ok, %Requirement{source: requirement, req: req}}
     catch
       :error ->
@@ -129,6 +131,17 @@ defmodule Hex.Version do
     do: custom_parse(["==", version])
   defp custom_parse(_),
     do: throw :error
+
+  def split_ops([op|rest]) when op in @version_ops,
+    do: [op|split_ops(rest)]
+  def split_ops([<<op::binary-2, version::binary>>|rest]) when op in @version_ops,
+    do: [op, version|split_ops(rest)]
+  def split_ops([<<op::binary-1, version::binary>>|rest]) when op in @version_ops,
+    do: [op, version|split_ops(rest)]
+  def split_ops([version|rest]),
+    do: [version|split_ops(rest)]
+  def split_ops([]),
+    do: []
 
   defp allow_pre? do
     Code.ensure_loaded?(Version) and function_exported?(Version, :match?, 3)
