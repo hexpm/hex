@@ -5,9 +5,9 @@ defmodule Mix.Hex.Utils do
     name = List.to_string(name)
 
     case Hex.API.Key.new(name, [user: username, pass: password]) do
-      {201, body} ->
+      {201, body, _} ->
         Hex.Config.update([username: username, key: body["secret"]])
-      {code, body} ->
+      {code, body, _} ->
         Mix.shell.error("Generation of API key failed (#{code})")
         Hex.Utils.print_error_result(code, body)
     end

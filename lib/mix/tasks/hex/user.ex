@@ -77,10 +77,10 @@ defmodule Mix.Tasks.Hex.User do
     name = Hex.Shell.prompt("Username or Email:") |> String.strip
 
     case Hex.API.User.password_reset(name) do
-      {code, _} when code in 200..299 ->
+      {code, _, _} when code in 200..299 ->
         Hex.Shell.info "We’ve sent you an email containing a link that will allow you to reset your password for the next 24 hours. " <>
                        "Please check your spam folder if the email doesn’t appear within a few minutes."
-      {code, body} ->
+      {code, body, _} ->
         Hex.Shell.error("Initiating password reset for #{name} failed")
         Hex.Utils.print_error_result(code, body)
     end
@@ -119,11 +119,11 @@ defmodule Mix.Tasks.Hex.User do
 
   defp create_user(username, email, password) do
     case Hex.API.User.new(username, email, password) do
-      {code, _} when code in 200..299 ->
+      {code, _, _} when code in 200..299 ->
         Utils.generate_key(username, password)
         Hex.Shell.info("You are required to confirm your email to access your account, " <>
                        "a confirmation email has been sent to #{email}")
-      {code, body} ->
+      {code, body, _} ->
         Hex.Shell.error("Registration of user #{username} failed")
         Hex.Utils.print_error_result(code, body)
     end
@@ -144,9 +144,9 @@ defmodule Mix.Tasks.Hex.User do
     auth = Utils.auth_info(config)
 
     case Hex.API.User.get(username, auth) do
-      {code, _} when code in 200..299 ->
+      {code, _, _} when code in 200..299 ->
         Hex.Shell.info("Successfully authed. Your key works.")
-      {code, body} ->
+      {code, body, _} ->
         Hex.Shell.error("Failed to auth")
         Hex.Utils.print_error_result(code, body)
     end

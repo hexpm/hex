@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      assert {200, data} = Hex.API.Registry.get
+      assert {200, data, _} = Hex.API.Registry.get
       File.write!(Hex.Registry.ETS.path <> ".gz", data)
       File.write!(Hex.Registry.ETS.path, :zlib.gunzip(data))
       Mix.Tasks.Hex.Info.run([])

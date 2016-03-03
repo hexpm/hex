@@ -118,13 +118,13 @@ defmodule HexTest.HexWeb do
   end
 
   def new_user(username, email, password, key) do
-    {201, _} = Hex.API.User.new(username, email, password)
-    {201, %{"secret" => secret}} = Hex.API.Key.new(key, [user: username, pass: password])
+    {201, _, _} = Hex.API.User.new(username, email, password)
+    {201, %{"secret" => secret}, _} = Hex.API.Key.new(key, [user: username, pass: password])
     [username: username, key: secret]
   end
 
   def new_key(auth) do
-    {201, %{"secret" => secret}} = Hex.API.Key.new("key", auth)
+    {201, %{"secret" => secret}, _} = Hex.API.Key.new("key", auth)
     [key: secret]
   end
 
@@ -157,7 +157,7 @@ defmodule HexTest.HexWeb do
     files = [{"mix.exs", List.to_string(mixfile)}]
     tar = Hex.Tar.create(meta, files)
 
-    {result, %{"version" => ^version}} = Hex.API.Release.new(name, tar, auth)
+    {result, %{"version" => ^version}, _} = Hex.API.Release.new(name, tar, auth)
     assert result in [200, 201]
   end
 end

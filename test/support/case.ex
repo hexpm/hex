@@ -170,12 +170,12 @@ defmodule HexTest.Case do
   end
 
   def setup_auth(username, password) do
-    {201, body} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
+    {201, body, _} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
     Hex.Config.update([key: body["secret"]])
   end
 
   def get_auth(username, password) do
-    {201, body} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
+    {201, body, _} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
     [key: body["secret"]]
   end
 

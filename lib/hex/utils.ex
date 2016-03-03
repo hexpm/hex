@@ -55,15 +55,15 @@ defmodule Hex.Utils do
               end
 
             case Hex.API.Registry.get(api_opts) do
-              {200, body} ->
+              {200, body, _} ->
                 File.mkdir_p!(Path.dirname(path))
                 File.write!(path_gz, body)
                 data = :zlib.gunzip(body)
                 File.write!(path, data)
                 {:ok, :new}
-              {304, _} ->
+              {304, _, _} ->
                 {:ok, :new}
-              {code, body} ->
+              {code, body, _} ->
                 Hex.Shell.error "Registry update failed (#{code})"
                 print_error_result(code, body)
                 :error

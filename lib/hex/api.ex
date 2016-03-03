@@ -128,7 +128,7 @@ defmodule Hex.API do
 
     body = body |> unzip(headers) |> decode(headers)
 
-    {code, body}
+    {code, body, headers}
   end
 
   defp unzip(body, headers) do
@@ -143,7 +143,7 @@ defmodule Hex.API do
   defp decode(body, headers) do
     content_type = List.to_string(headers['content-type'] || '')
     erlang_vendor = List.to_string(@erlang_vendor)
-    
+
     if String.contains?(content_type, erlang_vendor) do
       Hex.Utils.safe_deserialize_erlang(body)
     else

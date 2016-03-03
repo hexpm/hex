@@ -57,11 +57,11 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Utils.ensure_registry(cache: false)
 
     case Hex.API.Package.get(package) do
-      {code, body} when code in 200..299 ->
+      {code, body, _} when code in 200..299 ->
         print_package(body)
-      {404, _} ->
+      {404, _, _} ->
         Hex.Shell.error "No package with name #{package}"
-      {code, body} ->
+      {code, body, _} ->
         Hex.Shell.error "Failed to retrieve package information"
         Hex.Utils.print_error_result(code, body)
     end
@@ -71,11 +71,11 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Utils.ensure_registry(cache: false)
 
     case Hex.API.Release.get(package, version) do
-      {code, body} when code in 200..299 ->
+      {code, body, _} when code in 200..299 ->
         print_release(package, body)
-      {404, _} ->
+      {404, _, _} ->
         Hex.Shell.error "No release with name #{package} #{version}"
-      {code, body} ->
+      {code, body, _} ->
         Hex.Shell.error "Failed to retrieve release information"
         Hex.Utils.print_error_result(code, body)
     end
