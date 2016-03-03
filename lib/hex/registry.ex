@@ -93,7 +93,7 @@ defmodule Hex.Registry do
     {:ok, built}   = Hex.Version.parse(Hex.elixir_version())
     {:ok, current} = Hex.Version.parse(System.version)
 
-    if match_minor?(current, built) do
+    unless match_minor?(current, built) do
       case :lists.keyfind(Hex.version, 1, versions) do
         {_, elixirs} ->
           if match_elixir_version?(elixirs, current) do
