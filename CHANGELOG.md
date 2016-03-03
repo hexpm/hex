@@ -1,4 +1,8 @@
-## v0.11.1-dev
+## v0.11.1 (2016-03-03)
+
+* Bug fixes
+  * Fix incorrect build version check
+  * Fix parsing of requirements without spaces
 
 ## v0.11.0 (2016-03-03)
 
