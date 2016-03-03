@@ -1,4 +1,4 @@
-## v0.11.0-dev
+## v0.11.0 (2016-03-03)
 
 * Enhancements
   * Append the OTP version to the user_agent function
