@@ -41,8 +41,8 @@ defmodule Mix.Tasks.Hex.Info do
     # registry should not prevent printing the version.
     Hex.Utils.ensure_registry(cache: false)
     path            = Hex.Registry.ETS.path
-    stat            = File.stat!(path)
-    compressed_stat = File.stat!(path <> ".gz")
+    stat            = File.stat!(path, time: :local)
+    compressed_stat = File.stat!(path <> ".gz", time: :local)
     size            = stat.size |> div(1024)
     compressed_size = compressed_stat.size |> div(1024)
     {packages, releases} = Hex.Registry.stat()
