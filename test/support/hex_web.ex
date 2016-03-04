@@ -28,6 +28,15 @@ defmodule HexTest.HexWeb do
 
   def start do
     path = String.to_char_list(path())
+    key = Path.join(__DIR__, "../fixtures/test_priv.pem")
+          |> File.read!
+          |> String.to_char_list
+
+    env = [
+      {'MIX_ENV', 'hex'},
+      {'PATH', path},
+      {'HEX_SIGNING_KEY', key}
+    ]
 
     spawn_link(fn ->
       port = Port.open({:spawn_executable, hexweb_mix()}, [
@@ -36,7 +45,7 @@ defmodule HexTest.HexWeb do
                        :stderr_to_stdout,
                        :binary,
                        :hide,
-                       env: [{'MIX_ENV', 'hex'}, {'PATH', path}],
+                       env: env,
                        cd: hexweb_dir(),
                        args: ["phoenix.server"]])
 

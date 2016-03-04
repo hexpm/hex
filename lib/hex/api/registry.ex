@@ -7,6 +7,10 @@ defmodule Hex.API.Registry do
         %{'if-none-match' => etag}
       end
 
-    API.request(:get, API.cdn_url("registry.ets.gz"), headers || [])
+    API.request(:get, API.repo_url("registry.ets.gz"), headers || [])
+  end
+
+  def get_signature() do
+    API.request(:get, API.repo_url("registry.ets.gz.signed"), [])
   end
 end

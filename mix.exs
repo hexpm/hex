@@ -20,7 +20,7 @@ defmodule Hex.Mixfile do
   defp applications(_),     do: [:ssl, :inets]
 
   defp deps do
-    []
+    [{:bypass, ">= 0.0.0", only: :test}]
   end
 
   defp elixirc_options(:prod), do: [debug_info: false]
@@ -30,15 +30,15 @@ defmodule Hex.Mixfile do
   defp elixirc_paths(_),     do: ["lib", "web"]
 
   defp aliases do
-    [compile: ["deps.check", &unload_hex/1, "compile"],
+    ["compile.elixir": [&unload_hex/1, "compile.elixir"],
      run: [&unload_hex/1, "run"],
      install: ["archive.build -o hex.ez", "archive.install hex.ez --force"],
      certdata: [&certdata/1]]
   end
 
   defp unload_hex(_) do
+    Application.stop(:hex)
     true = Code.ensure_loaded?(Mix.Local)
-
     paths = Path.join(archives_path(), "hex*.ez") |> Path.wildcard
 
     Enum.each(paths, fn archive ->

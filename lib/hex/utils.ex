@@ -1,4 +1,6 @@
 defmodule Hex.Utils do
+  @public_keys_html "https://hex.pm/docs/public_keys"
+
   def ensure_registry(opts \\ []) do
     update_result = update_registry(opts)
 
@@ -55,12 +57,12 @@ defmodule Hex.Utils do
               end
 
             case Hex.API.Registry.get(api_opts) do
-              {200, body, _} ->
+              {200, body, headers} ->
+                Hex.State.fetch!(:check_registry?) && verify_registry!(body, headers)
                 File.mkdir_p!(Path.dirname(path))
                 File.write!(path_gz, body)
                 data = :zlib.gunzip(body)
                 File.write!(path, data)
-                {:ok, :new}
               {304, _, _} ->
                 {:ok, :new}
               {code, body, _} ->
@@ -77,6 +79,51 @@ defmodule Hex.Utils do
         end
     end
   end
+
+  defp verify_registry!(body, headers) do
+    domain = if repo = Hex.State.fetch!(:repo), do: repo, else: "hex.pm"
+
+    signature = headers['x-hex-signature'] ||
+                headers['x-amz-meta-signature'] ||
+                get_signature(domain)
+
+    signature = signature |> to_string |> Base.decode16!(case: :lower)
+    key = Hex.PublicKey.public_keys(domain)
+
+    unless key do
+      Mix.raise "No public key stored for #{domain}. Either install a public " <>
+                "key with `mix hex.public_keys` or disable the registry " <>
+                "verification check by setting `HEX_UNSAFE_REGISTRY=1`."
+    end
+
+    unless Hex.PublicKey.verify(body, :sha512, signature, [key]) do
+      Mix.raise "Could not verify authenticity of fetched registry file. " <>
+                "This may happen because a proxy or some entity is " <>
+                "interfering with the download or because you don't have a " <>
+                "public key to verify the registry.\n\nYou may try again " <>
+                "later or check if a new public key has been released in " <>
+                "our public keys page: #{@public_keys_html}"
+    end
+  end
+
+  defp get_signature(domain) do
+    case Hex.API.Registry.get_signature do
+      {200, body, _} ->
+        body
+      other ->
+        # TODO: We should be able to disable the registry verification per domain.
+        #       No reason to make all registries unsafe.
+        reason = signature_fetch_fail(other)
+        Mix.raise "The repository at #{domain} did not provide a signature " <>
+                  "for the registry because #{reason}. This could be because " <>
+                  "of a man-in-the-middle attack or simply because the repository " <>
+                  "does not sign its registry. The signature verification check " <>
+                  "can be disabled by setting `HEX_UNSAFE_REGISTRY=1`."
+    end
+  end
+
+  defp signature_fetch_fail({code, _, _}), do: "it returned http status code #{code}"
+  defp signature_fetch_fail({:http_error, reason}), do: "failed with http error #{inspect reason}"
 
   @week_seconds 7 * 24 * 60 * 60
 

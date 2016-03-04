@@ -46,7 +46,7 @@ defmodule Hex.API do
   end
 
   def secure_ssl? do
-    ssl_version() >= @secure_ssl_version and Hex.State.fetch!(:cert_check?)
+    ssl_version() >= @secure_ssl_version and Hex.State.fetch!(:check_cert?)
   end
 
   def ssl_opts(url) do
@@ -155,8 +155,9 @@ defmodule Hex.API do
     'Hex/#{Hex.version} (Elixir/#{System.version}) (OTP/#{Hex.Utils.otp_version})'
   end
 
-  def cdn_url(path) do
-    Hex.State.fetch!(:cdn) <> "/" <> path
+  def repo_url(path) do
+    base = Hex.State.fetch!(:repo) || Hex.State.fetch!(:mirror)
+    base <> "/" <> path
   end
 
   def api_url(path) do

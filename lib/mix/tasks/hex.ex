@@ -14,7 +14,10 @@ defmodule Mix.Tasks.Hex do
     * `HEX_HOME` - Sets the directory where Hex stores the cache and
       configuration (Default: `~/.hex`)
     * `HEX_API` - Sets the API URL (Default: `https://hex.pm/api`)
-    * `HEX_CDN` - Sets the CDN URL (Default: `https://s3.amazonaws.com/s3.hex.pm`)
+    * `HEX_REPO` - Sets the repository URL (not set by default)
+    * `HEX_MIRROR` - Sets the Hex.pm mirror URL (Default: `https://s3.amazonaws.com/s3.hex.pm`).
+      Use this option when using a Hex.pm mirror, unlike when setting `HEX_REPO`
+      this will still use the public key from Hex.pm when verifying the registry
   """
 
   def run(args) do
