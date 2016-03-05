@@ -45,21 +45,26 @@ defmodule Mix.Tasks.Hex.PublicKeysTest do
   """
 
   test "list default keys" do
-    Mix.Tasks.Hex.PublicKeys.run([])
+    Mix.Tasks.Hex.PublicKeys.run(["list"])
     assert_received {:mix_shell, :info, ["* hex.pm"]}
   end
 
-  test "add keys" do
+  test "add and remove keys" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
       File.write!("my_key.pem", @public_key)
-      Mix.Tasks.Hex.PublicKeys.run(["other.repo", "my_key.pem", "--force"])
+      Mix.Tasks.Hex.PublicKeys.run(["add", "other.repo", "my_key.pem", "--force"])
 
-      Mix.Tasks.Hex.PublicKeys.run([])
+      Hex.Utils.ensure_registry!()
+
+      Mix.Tasks.Hex.PublicKeys.run(["list"])
       assert_received {:mix_shell, :info, ["* hex.pm"]}
       assert_received {:mix_shell, :info, ["* other.repo"]}
 
-      Hex.Utils.ensure_registry!()
+      Mix.Tasks.Hex.PublicKeys.run(["remove", "other.repo"])
+      Mix.Tasks.Hex.PublicKeys.run(["list"])
+      assert_received {:mix_shell, :info, ["* hex.pm"]}
+      refute_received {:mix_shell, :info, ["* other.repo"]}
     end
   end
 
@@ -74,9 +79,9 @@ defmodule Mix.Tasks.Hex.PublicKeysTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
       File.write!("my_key.pem", @public_key)
-      Mix.Tasks.Hex.PublicKeys.run(["hex.pm", "my_key.pem", "--force"])
+      Mix.Tasks.Hex.PublicKeys.run(["add", "hex.pm", "my_key.pem", "--force"])
 
-      Mix.Tasks.Hex.PublicKeys.run([])
+      Mix.Tasks.Hex.PublicKeys.run(["list"])
       assert_received {:mix_shell, :info, ["* hex.pm"]}
 
       assert_raise Mix.Error, fn ->
@@ -100,7 +105,7 @@ defmodule Mix.Tasks.Hex.PublicKeysTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
       File.write!("my_key.pem", @public_key)
-      Mix.Tasks.Hex.PublicKeys.run([repo, "my_key.pem", "--force"])
+      Mix.Tasks.Hex.PublicKeys.run(["add", repo, "my_key.pem", "--force"])
       Hex.Utils.ensure_registry!()
     end
   end
@@ -113,7 +118,7 @@ defmodule Mix.Tasks.Hex.PublicKeysTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
       File.write!("my_key.pem", @public_key)
-      Mix.Tasks.Hex.PublicKeys.run([repo, "my_key.pem", "--force"])
+      Mix.Tasks.Hex.PublicKeys.run(["add", repo, "my_key.pem", "--force"])
       Hex.Utils.ensure_registry!()
     end
   end
@@ -126,7 +131,7 @@ defmodule Mix.Tasks.Hex.PublicKeysTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
       File.write!("my_key.pem", @public_key)
-      Mix.Tasks.Hex.PublicKeys.run([repo, "my_key.pem", "--force"])
+      Mix.Tasks.Hex.PublicKeys.run(["add", repo, "my_key.pem", "--force"])
       Hex.Utils.ensure_registry!()
     end
   end
@@ -139,7 +144,7 @@ defmodule Mix.Tasks.Hex.PublicKeysTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
       File.write!("my_key.pem", Hex.State.fetch!(:hexpm_pk))
-      Mix.Tasks.Hex.PublicKeys.run([repo, "my_key.pem", "--force"])
+      Mix.Tasks.Hex.PublicKeys.run(["add", repo, "my_key.pem", "--force"])
       assert_raise Mix.Error, fn ->
         Hex.Utils.ensure_registry!()
       end

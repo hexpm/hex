@@ -11,15 +11,19 @@ defmodule Mix.Tasks.Hex.PublicKeys do
 
   To list all available keys:
 
-      $ mix hex.public_keys
+      $ mix hex.public_keys list
 
   To list all available keys showing the keys themselves:
 
-      $ mix hex.public_keys --detailed
+      $ mix hex.public_keys list --detailed
 
   To add a new key:
 
-      $ mix hex.public_keys URL_TO_REPO LOCAL_PATH_TO_KEY
+      $ mix hex.public_keys add URL_TO_REPO LOCAL_PATH_TO_KEY
+
+  To remove a key:
+
+      $ mix hex.public_keys remove URL_TO_REPO
 
   Be careful when adding new keys. Only add keys from sources you
   trust.
@@ -39,16 +43,21 @@ defmodule Mix.Tasks.Hex.PublicKeys do
     {opts, argv, _} = OptionParser.parse(argv, switches: [force: :boolean, detailed: :boolean])
 
     case argv do
-      [] ->
-        show(opts)
-      [key, path|_] ->
-        install(key, path, opts)
+      ["list"] ->
+        list(opts)
+      ["add", id, path|_] ->
+        add(id, path, opts)
+      ["remove", key|_] ->
+        remove(key, opts)
     _ ->
-      Mix.raise "Invalid arguments, expected one of:\nmix hex.public_keys\nmix hex.public_keys URL_TO_REPO LOCAL_PATH_TO_KEY"
+      Mix.raise "Invalid arguments, expected one of:\n" <>
+                "mix hex.public_keys list\n" <>
+                "mix hex.public_keys add URL_TO_REPO LOCAL_PATH_TO_KEY\n" <>
+                "mix hex.public_keys remove URL_TO_REPO"
     end
   end
 
-  defp show(opts) do
+  defp list(opts) do
     for {id, key} <- Hex.PublicKey.public_keys do
       Hex.Shell.info "* #{id}"
       if opts[:detailed] do
@@ -59,17 +68,29 @@ defmodule Mix.Tasks.Hex.PublicKeys do
     Hex.Shell.info "Public keys (except in-memory ones) installed at: #{Hex.PublicKey.public_keys_path()}"
   end
 
-  defp install(key, source, opts) do
+  defp add(id, source, opts) do
     data = File.read!(source)
-    file = Base.url_encode64(key)
+    file = Base.url_encode64(id)
     dest = Path.join(Hex.PublicKey.public_keys_path, file)
 
     # Validate the key is good
-    _ = Hex.PublicKey.decode!(key, data)
+    _ = Hex.PublicKey.decode!(id, data)
 
-    if opts[:force] || should_install?(key, dest) do
+    if opts[:force] || should_install?(id, dest) do
       File.mkdir_p!(Hex.PublicKey.public_keys_path)
       File.write!(dest, data)
+    end
+  end
+
+  defp remove(id, _opts) do
+    file = Base.url_encode64(id)
+    path = Path.join(Hex.PublicKey.public_keys_path, file)
+
+    if File.exists?(path) do
+      File.rm!(path)
+      Hex.Shell.info "Removed key for #{id}"
+    else
+      Mix.raise "No installed key for #{id}"
     end
   end
 
