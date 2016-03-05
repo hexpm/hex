@@ -170,13 +170,29 @@ defmodule HexTest.Case do
   end
 
   def setup_auth(username, password) do
-    {201, body} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
+    {201, body, _} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
     Hex.Config.update([key: body["secret"]])
   end
 
   def get_auth(username, password) do
-    {201, body} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
+    {201, body, _} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
     [key: body["secret"]]
+  end
+
+  {:ok, _} = Hex.State.start_link
+
+  Hex.State.put(:home, Path.expand("../../tmp/hex_home", __DIR__))
+  Hex.State.put(:registry_updated, false)
+  Hex.State.put(:hexpm_pk, File.read!(Path.join(__DIR__, "../fixtures/test_pub.pem")))
+  Hex.State.put(:api, "http://localhost:4043/api")
+  Hex.State.put(:mirror, System.get_env("HEX_MIRROR") || "http://localhost:4043")
+
+  @hex_state Hex.State.get_all
+
+  Hex.State.stop
+
+  def reset_state do
+    Hex.State.put_all(@hex_state)
   end
 
   setup_all do
@@ -187,8 +203,8 @@ defmodule HexTest.Case do
   end
 
   setup do
-    Hex.State.put(:home, tmp_path("hex_home"))
-    Hex.State.put(:registry_updated, false)
+    reset_state()
+
     Hex.Parallel.clear(:hex_fetcher)
     Hex.Registry.ETS.close
 

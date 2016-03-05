@@ -19,8 +19,11 @@ defmodule Hex.Mixfile do
   defp applications(:test), do: [:ssl, :inets, :logger]
   defp applications(_),     do: [:ssl, :inets]
 
+  # Can't use hex dependencies because the elixir compiler in elixir < 1.2
+  # loads dependencies. This causes us to crash because we have to unload
+  # Hex before compiling it.
   defp deps do
-    []
+    [{:bypass, github: "ericmj/bypass", branch: "emj-multi-bypass", only: :test}]
   end
 
   defp elixirc_options(:prod), do: [debug_info: false]
@@ -30,15 +33,14 @@ defmodule Hex.Mixfile do
   defp elixirc_paths(_),     do: ["lib", "web"]
 
   defp aliases do
-    [compile: ["deps.check", &unload_hex/1, "compile"],
+    ["compile.elixir": [&unload_hex/1, "compile.elixir"],
      run: [&unload_hex/1, "run"],
      install: ["archive.build -o hex.ez", "archive.install hex.ez --force"],
      certdata: [&certdata/1]]
   end
 
   defp unload_hex(_) do
-    true = Code.ensure_loaded?(Mix.Local)
-
+    Application.stop(:hex)
     paths = Path.join(archives_path(), "hex*.ez") |> Path.wildcard
 
     Enum.each(paths, fn archive ->

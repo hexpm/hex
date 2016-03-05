@@ -80,12 +80,12 @@ defmodule Mix.Tasks.Hex.Docs do
       end
 
     case Hex.API.ReleaseDocs.new(name, version, tarball, auth, progress) do
-      {code, _} when code in 200..299 ->
+      {code, _, _} when code in 200..299 ->
         Hex.Shell.info ""
         Hex.Shell.info "Published docs for #{name} #{version}"
         # TODO: Only print this URL if we use the default API URL
         Hex.Shell.info "Hosted at #{Hex.Utils.hexdocs_url(name, version)}"
-      {code, body} ->
+      {code, body, _} ->
         Hex.Shell.info ""
         Hex.Shell.error "Pushing docs for #{name} v#{version} failed"
         Hex.Utils.print_error_result(code, body)
@@ -96,9 +96,9 @@ defmodule Mix.Tasks.Hex.Docs do
     version = Utils.clean_version(version)
 
     case Hex.API.ReleaseDocs.delete(name, version, auth) do
-      {code, _} when code in 200..299 ->
+      {code, _, _} when code in 200..299 ->
         Hex.Shell.info "Reverted docs for #{name} #{version}"
-      {code, body} ->
+      {code, body, _} ->
         Hex.Shell.error "Reverting docs for #{name} #{version} failed"
         Hex.Utils.print_error_result(code, body)
     end

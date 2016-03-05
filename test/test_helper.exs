@@ -1,4 +1,5 @@
 ExUnit.start exclude: [:skip]
+Application.ensure_all_started(:bypass)
 
 alias HexTest.Case
 alias HexTest.HexWeb
@@ -7,8 +8,7 @@ alias HexTest.HexWeb
 File.rm_rf!(Case.tmp_path)
 File.mkdir_p!(Case.tmp_path)
 
-Hex.State.put(:api, "http://localhost:4043/api")
-unless System.get_env("HEX_CDN"), do: Hex.State.put(:cdn, "http://localhost:4043")
+Case.reset_state()
 
 # Set up package fixtures
 unless :integration in ExUnit.configuration[:exclude] do

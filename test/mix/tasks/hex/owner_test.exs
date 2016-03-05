@@ -13,7 +13,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Mix.Tasks.Hex.Owner.run(["add", "owner_package1", "owner_user2@mail.com"])
 
     assert_received {:mix_shell, :info, ["Adding owner owner_user2@mail.com to owner_package1"]}
-    assert {200, %{"owned_packages" => %{"owner_package1" => _}}} = Hex.API.User.get("owner_user2", auth2)
+    assert {200, %{"owned_packages" => %{"owner_package1" => _}}, _} = Hex.API.User.get("owner_user2", auth2)
   end
 
   test "remove owner" do
@@ -28,7 +28,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Mix.Tasks.Hex.Owner.run(["remove", "owner_package2", "owner_user3@mail.com"])
 
     assert_received {:mix_shell, :info, ["Removing owner owner_user3@mail.com from owner_package2"]}
-    assert {200, %{"owned_packages" => owned}} = Hex.API.User.get("owner_user3", auth)
+    assert {200, %{"owned_packages" => owned}, _} = Hex.API.User.get("owner_user3", auth)
     assert owned == %{}
   end
 

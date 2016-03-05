@@ -24,7 +24,7 @@ defmodule Mix.Tasks.Hex.UserTest do
     end
 
     auth = get_auth("eric", "hunter42")
-    assert {200, body} = Hex.API.User.get("eric", auth)
+    assert {200, body, _} = Hex.API.User.get("eric", auth)
     assert body["email"] == "mail@mail.com"
   end
 
@@ -41,7 +41,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       {:ok, name} = :inet.gethostname()
       name = List.to_string(name)
       config = Hex.Config.read
-      assert {200, body} = Hex.API.Key.get([key: config[:key]])
+      assert {200, body, _} = Hex.API.Key.get([key: config[:key]])
       assert name in Enum.map(body, &(&1["name"]))
 
       assert config[:username] == "user"

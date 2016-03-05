@@ -81,7 +81,7 @@ defmodule Hex.SCM do
     dest     = opts[:dest]
     filename = "#{name}-#{version}.tar"
     path     = cache_path(filename)
-    url      = Hex.API.cdn_url("tarballs/#{filename}")
+    url      = Hex.API.repo_url("tarballs/#{filename}")
 
     Hex.Shell.info "Checking package (#{url})"
 
@@ -176,7 +176,7 @@ defmodule Hex.SCM do
       {:ok, :offline}
     else
       etag = Hex.Utils.etag(path)
-      url  = Hex.API.cdn_url("tarballs/#{name}")
+      url  = Hex.API.repo_url("tarballs/#{name}")
       File.mkdir_p!(cache_path)
 
       case request(url, etag) do

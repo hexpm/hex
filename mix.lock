@@ -1,1 +1,5 @@
-%{}
+%{"bypass": {:git, "https://github.com/ericmj/bypass.git", "92f949a5dacbce6b11a76df2600fc7b2076c8bd8", [branch: "emj-multi-bypass"]},
+  "cowboy": {:hex, :cowboy, "1.0.4"},
+  "cowlib": {:hex, :cowlib, "1.0.2"},
+  "plug": {:hex, :plug, "1.1.2"},
+  "ranch": {:hex, :ranch, "1.2.1"}}

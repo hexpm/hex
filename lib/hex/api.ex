@@ -46,7 +46,7 @@ defmodule Hex.API do
   end
 
   def secure_ssl? do
-    ssl_version() >= @secure_ssl_version and Hex.State.fetch!(:cert_check?)
+    ssl_version() >= @secure_ssl_version and Hex.State.fetch!(:check_cert?)
   end
 
   def ssl_opts(url) do
@@ -128,7 +128,7 @@ defmodule Hex.API do
 
     body = body |> unzip(headers) |> decode(headers)
 
-    {code, body}
+    {code, body, headers}
   end
 
   defp unzip(body, headers) do
@@ -143,7 +143,7 @@ defmodule Hex.API do
   defp decode(body, headers) do
     content_type = List.to_string(headers['content-type'] || '')
     erlang_vendor = List.to_string(@erlang_vendor)
-    
+
     if String.contains?(content_type, erlang_vendor) do
       Hex.Utils.safe_deserialize_erlang(body)
     else
@@ -155,8 +155,9 @@ defmodule Hex.API do
     'Hex/#{Hex.version} (Elixir/#{System.version}) (OTP/#{Hex.Utils.otp_version})'
   end
 
-  def cdn_url(path) do
-    Hex.State.fetch!(:cdn) <> "/" <> path
+  def repo_url(path) do
+    base = Hex.State.fetch!(:repo) || Hex.State.fetch!(:mirror)
+    base <> "/" <> path
   end
 
   def api_url(path) do

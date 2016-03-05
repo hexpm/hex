@@ -9,7 +9,7 @@ defmodule Mix.Tasks.Hex.KeyTest do
       auth = HexTest.HexWeb.new_user("list_keys", "list_keys@mail.com", "password", "list_keys")
       Hex.Config.update(auth)
 
-      assert {200, [%{"name" => "list_keys"}]} = Hex.API.Key.get(auth)
+      assert {200, [%{"name" => "list_keys"}], _} = Hex.API.Key.get(auth)
 
       Mix.Tasks.Hex.Key.run(["list"])
       assert_received {:mix_shell, :info, ["list_keys"]}
@@ -23,12 +23,12 @@ defmodule Mix.Tasks.Hex.KeyTest do
       auth = HexTest.HexWeb.new_user("remove_key", "remove_key@mail.com", "password", "remove_key")
       Hex.Config.update(auth)
 
-      assert {200, _} = Hex.API.Key.get(auth)
+      assert {200, _, _} = Hex.API.Key.get(auth)
 
       Mix.Tasks.Hex.Key.run(["remove", "remove_key"])
       assert_received {:mix_shell, :info, ["Removing key remove_key..."]}
 
-      assert {401, _} = Hex.API.Key.get(auth)
+      assert {401, _, _} = Hex.API.Key.get(auth)
     end
   end
 end

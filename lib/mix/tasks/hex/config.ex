@@ -12,22 +12,25 @@ defmodule Mix.Tasks.Hex.Config do
 
     * `username` - Hex username
     * `key` - Hex API key
-    * `api_url` - Hex API base URL (without trailing slash)
-    * `cdn_url` - Hex CDN base URL (without trailing slash)
+    * `api_url` - Hex API URL (without trailing slash)
+    * `repo_url` - Hex repository URL (without trailing slash)
+    * `mirror_url` - Hex.pm repository mirror URL (without trailing slash).
+      Use this option when using a Hex.pm mirror, unlike when setting `repo_url`
+      this will still use the public key from Hex.pm when verifying the registry
     * `http_proxy` - HTTP proxy server
     * `https_proxy` - HTTPS proxy server
-  
-  ## CDN
 
-  Hex provides 3 different CDNs for the following areas:
-  
+  ## Mirrors
+
+  Hex provides 3 different mirrors for the following areas:
+
     * Americas (default) - https://s3.amazonaws.com/s3.hex.pm
     * Europe, Africa - https://s3-eu-west-1.amazonaws.com/s3-eu.hex.pm
     * Asia, Oceania - https://s3-ap-southeast-1.amazonaws.com/s3-asia.hex.pm
-  
-  You can change the default CDN as follows:
-  
-      mix hex.config cdn_url https://s3-eu-west-1.amazonaws.com/s3-eu.hex.pm
+
+  You can change the default mirror as follows:
+
+      mix hex.config mirror_url https://s3-eu-west-1.amazonaws.com/s3-eu.hex.pm
   """
 
   def run(args) do
