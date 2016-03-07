@@ -154,7 +154,7 @@ defmodule Hex.RemoteConverger do
 
   defp do_with_children(names, lock) do
     Enum.map(names, fn name ->
-      case Map.fetch(lock, name) do
+      case Map.fetch(lock, String.to_atom(name)) do
         {:ok, {:hex, name, version}} ->
           # Do not error on bad data in the old lock because we should just
           # fix it automatically
@@ -196,16 +196,15 @@ defmodule Hex.RemoteConverger do
       for {app, _} <- old_lock,
           not Map.has_key?(lock, app),
         into: unlock,
-        do: app
+        do: Atom.to_string(app)
 
     unlock =
       Enum.uniq(unlock)
       |> with_children(old_lock)
       |> Enum.uniq
 
-    Hex.Mix.from_lock(old_lock)
-    |> Enum.reject(fn {_name, app, _vsn} ->
-      app in unlock
-    end)
+    for {name, app, vsn} <- Hex.Mix.from_lock(old_lock),
+        not app in unlock,
+        do: {name, app, vsn}
   end
 end

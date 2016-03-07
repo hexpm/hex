@@ -18,6 +18,14 @@ defmodule Hex.MixTaskTest do
     end
   end
 
+  defmodule EctoDep do
+    def project do
+      [app: :simple,
+       version: "0.1.0",
+       deps: [{:ecto, "~> 0.2.0"}]]
+    end
+  end
+
   defmodule Override do
     def project do
       [app: :override,
@@ -207,6 +215,22 @@ defmodule Hex.MixTaskTest do
       assert_received {:mix_shell, :info, ["* ex_doc 0.1.0 (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["  locked at 0.1.0 (ex_doc)"]}
       assert_received {:mix_shell, :info, ["  ok"]}
+    end
+  after
+    purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+           Ex_doc.NoConflict.Mixfile, Sample.Fixture.Mixfile]
+  end
+
+  test "deps.update locked dependency" do
+    Mix.Project.push EctoDep
+
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      File.write!("mix.lock", ~s(%{"ecto": {:hex, :ecto, "0.2.0"}}))
+      Mix.Task.run "deps.update", ["ecto"]
+
+      assert_received {:mix_shell, :info, ["  ecto: 0.2.1"]}
     end
   after
     purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
