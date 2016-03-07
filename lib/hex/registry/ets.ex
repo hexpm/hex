@@ -14,14 +14,17 @@ defmodule Hex.Registry.ETS do
     Agent.get_and_update(@name, fn
       nil ->
         path = opts[:registry_path] || path()
-
         case :ets.file2tab(String.to_char_list(path)) do
           {:ok, tid} ->
             check_version(tid)
             {{:ok, tid}, tid}
 
           {:error, reason} ->
-            {{:error, reason}, nil}
+            if File.exists?(path) do
+              {{:error, inspect(reason)}, nil}
+            else
+              {{:error, "file does not exist, run `mix hex.info` to fetch it"}, nil}
+            end
         end
 
       tid ->

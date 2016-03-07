@@ -1,7 +1,7 @@
 defmodule Hex.Registry do
   @pdict_id :"$hex_registry"
 
-  @callback open(Keyword.t)                           :: {:ok, term} | {:error, term}
+  @callback open(Keyword.t)                           :: {:ok, term} | {:error, String.t}
   @callback close(term)                               :: boolean
   @callback version(term)                             :: String.t
   @callback installs(term)                            :: [{String.t, String.t}]
@@ -52,7 +52,7 @@ defmodule Hex.Registry do
         pdict_setup(module, name)
         :ok
       {:error, reason} ->
-        Mix.raise "Failed to open Hex registry (#{inspect reason})"
+        Mix.raise "Failed to open Hex registry (#{reason})"
     end
   end
 
