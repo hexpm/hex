@@ -27,12 +27,20 @@ defmodule Hex.State do
   end
 
   def init(config) do
-    repo = load_config(config, ["HEX_REPO"], :repo_url)
+    cdn    = load_config(config, ["HEX_CDN"], :cdn_url)
+    mirror = load_config(config, ["HEX_MIRROR"], :mirror_url)
+
+    if cdn do
+      Hex.Shell.warn "HEX_CDN environment variable and cdn_url config has been " <>
+                     "deprecated in favor of HEX_MIRROR/HEX_REPO and mirror_url/cdn_url " <>
+                     "respectively. Set HEX_MIRROR when using a hex.pm and set HEX_REPO " <>
+                     "when using a repository different than hex.pm." 
+    end
 
     %{home:             System.get_env("HEX_HOME") |> default(@default_home) |> Path.expand,
       api:              load_config(config, ["HEX_API"], :api_url) |> default(@default_url),
-      repo:             repo,
-      mirror:           load_config(config, ["HEX_MIRROR"], :mirror_url) |> default(@default_mirror),
+      repo:             load_config(config, ["HEX_REPO"], :repo_url),
+      mirror:           default(mirror || cdn, @default_mirror),
       http_proxy:       load_config(config, ["http_proxy", "HTTP_PROXY"], :http_proxy),
       https_proxy:      load_config(config, ["https_proxy", "HTTPS_PROXY"], :https_proxy),
       offline?:         load_config(config, ["HEX_OFFLINE"], :offline) |> to_boolean |> default(false),
