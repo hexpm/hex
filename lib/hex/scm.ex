@@ -192,7 +192,7 @@ defmodule Hex.SCM do
   defp request(url, etag) do
     opts = [body_format: :binary]
     headers = [{'user-agent', Hex.API.user_agent}]
-    headers = if etag, do: [{'if-none-match', etag}|headers], else: headers
+    headers = if etag, do: [{'if-none-match', '"' ++ etag ++ '"'}|headers], else: headers
     http_opts = [ssl: Hex.API.ssl_opts(url), relaxed: true, timeout: @request_timeout] ++ Hex.Utils.proxy_config(url)
     url = String.to_char_list(url)
 

@@ -4,7 +4,7 @@ defmodule Hex.API.Registry do
   def get(opts \\ []) do
     headers =
       if etag = opts[:etag] do
-        %{'if-none-match' => etag}
+        %{'if-none-match' => '"' ++ etag ++ '"'}
       end
 
     API.request(:get, API.repo_url("registry.ets.gz"), headers || [])
