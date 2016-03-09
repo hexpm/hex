@@ -17,6 +17,12 @@ defmodule Hex.Config do
     |> write()
   end
 
+  def remove(keys) do
+    read()
+    |> Keyword.drop(keys)
+    |> write()
+  end
+
   def write(config) do
     string = encode_term(config)
 

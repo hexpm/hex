@@ -33,21 +33,45 @@ defmodule Mix.Tasks.Hex.Config do
       mix hex.config mirror_url https://s3-eu-west-1.amazonaws.com/s3-eu.hex.pm
   """
 
+  @switches [delete: :boolean]
+
   def run(args) do
+    {opts, args, _} = OptionParser.parse(args, switches: @switches)
+
     Hex.start
     Hex.Utils.ensure_registry(update: false)
 
     case args do
+      [] ->
+        list()
       [key] ->
-        case Keyword.fetch(Hex.Config.read, :"#{key}") do
-          {:ok, value} -> Hex.Shell.info inspect(value, pretty: true)
-          :error       -> Mix.raise "Config does not contain a key #{key}"
-        end
+        read(key, !!opts[:delete])
       [key, value] ->
-        Hex.Config.update([{:"#{key}", value}])
-        Hex.Shell.info "#{key}: #{inspect(value, pretty: true)}"
+        set(key, value)
       _ ->
         Mix.raise "Invalid arguments, expected: mix hex.config KEY [VALUE]"
     end
+  end
+
+  defp list do
+    Enum.each(Hex.Config.read, fn {key, value} ->
+      Hex.Shell.info "#{key}: #{inspect(value, pretty: true)}"
+    end)
+  end
+
+  def read(key, true) do
+    Hex.Config.remove([String.to_atom(key)])
+    Hex.Shell.info "Deleted config #{key}"
+  end
+  def read(key, false) do
+    case Keyword.fetch(Hex.Config.read, :"#{key}") do
+      {:ok, value} -> Hex.Shell.info inspect(value, pretty: true)
+      :error       -> Mix.raise "Config does not contain a key #{key}"
+    end
+  end
+
+  def set(key, value) do
+    Hex.Config.update([{:"#{key}", value}])
+    Hex.Shell.info "#{key}: #{inspect(value, pretty: true)}"
   end
 end
