@@ -24,7 +24,7 @@ defmodule Hex do
     children = [
       worker(Hex.State, []),
       worker(Hex.Registry.ETS, []),
-      worker(Hex.Parallel, [:hex_fetcher, [max_parallel: 8]]),
+      worker(Hex.Parallel, [:hex_fetcher, [max_parallel: 64]]),
     ]
 
     opts = [strategy: :one_for_one, name: Hex.Supervisor]
@@ -38,7 +38,7 @@ defmodule Hex do
   defp start_httpc() do
     :inets.start(:httpc, profile: :hex)
     opts = [
-      max_sessions: 4,
+      max_sessions: 8,
       max_keep_alive_length: 4,
       keep_alive_timeout: 120_000
     ]

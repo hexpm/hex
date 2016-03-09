@@ -98,7 +98,7 @@ defmodule Hex.Parallel do
   end
 
   defp new_state(opts) do
-    %{max_jobs: opts[:max_parallel] || 4,
+    %{max_jobs: opts[:max_parallel] || 64,
       running: %{},
       finished: %{},
       waiting: :queue.new,
