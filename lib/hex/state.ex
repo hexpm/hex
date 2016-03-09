@@ -31,16 +31,13 @@ defmodule Hex.State do
     mirror = load_config(config, ["HEX_MIRROR"], :mirror_url)
 
     if cdn do
-      Hex.Shell.warn "HEX_CDN environment variable and cdn_url config has been " <>
-                     "deprecated in favor of HEX_MIRROR/HEX_REPO and mirror_url/cdn_url " <>
-                     "respectively. Set HEX_MIRROR when using a hex.pm and set HEX_REPO " <>
-                     "when using a repository different than hex.pm." 
+      Hex.Shell.warn cdn_message()
     end
 
     %{home:             System.get_env("HEX_HOME") |> default(@default_home) |> Path.expand,
-      api:              load_config(config, ["HEX_API"], :api_url) |> default(@default_url),
-      repo:             load_config(config, ["HEX_REPO"], :repo_url),
-      mirror:           default(mirror || cdn, @default_mirror),
+      api:              load_config(config, ["HEX_API"], :api_url) |> default(@default_url) |> trim_slash,
+      repo:             load_config(config, ["HEX_REPO"], :repo_url) |> trim_slash,
+      mirror:           default(mirror || cdn, @default_mirror) |> trim_slash,
       http_proxy:       load_config(config, ["http_proxy", "HTTP_PROXY"], :http_proxy),
       https_proxy:      load_config(config, ["https_proxy", "HTTPS_PROXY"], :https_proxy),
       offline?:         load_config(config, ["HEX_OFFLINE"], :offline) |> to_boolean |> default(false),
@@ -121,4 +118,30 @@ defmodule Hex.State do
 
   defp default(nil, value), do: value
   defp default(value, _),   do: value
+
+  defp trim_slash(nil), do: nil
+  defp trim_slash(string) do
+    if String.ends_with?(string, "/") do
+      string
+      |> :binary.part(0, byte_size(string)-1)
+      |> trim_slash
+    else
+      string
+    end
+  end
+
+  defp cdn_message do
+    "Hex.pm has moved to fastly and no longer uses the cdn " <>
+    "configuration. " <> unset_message() <>
+    "If you would still like to use a mirror or custom repository, read the docs at:\n\n" <>
+    "    mix help hex.config\n"
+  end
+
+  defp unset_message do
+    if System.get_env("HEX_CDN") do
+      "To silence this warning you need to unset the environment variable HEX_CDN. "
+    else
+      "To silence this warning you need to run:\n\n    mix hex.config cdn_url --delete\n\n"
+    end
+  end
 end
