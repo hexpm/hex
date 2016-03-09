@@ -33,8 +33,7 @@ defmodule Mix.Tasks.Hex.Registry do
   def run(args) do
     Hex.start
 
-    {_opts, rest, _} = OptionParser.parse(args)
-    case rest do
+    case args do
       ["fetch"] ->
         fetch()
       ["dump", path] ->

@@ -46,9 +46,9 @@ defmodule Mix.Tasks.Hex.User do
     Hex.start
     Hex.Utils.ensure_registry(update: false)
 
-    {opts, rest, _} = OptionParser.parse(args, switches: @switches)
+    {opts, args, _} = OptionParser.parse(args, switches: @switches)
 
-    case rest do
+    case args do
       ["register"] ->
         register(opts)
       ["whoami"] ->

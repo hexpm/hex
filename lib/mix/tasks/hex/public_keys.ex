@@ -36,13 +36,15 @@ defmodule Mix.Tasks.Hex.PublicKeys do
     * `--force` - forces installation without a shell prompt; primarily
       intended for automation in build systems like `make`
   """
-  @spec run(OptionParser.argv) :: true
-  def run(argv) do
+
+  @switches [force: :boolean, detailed: :boolean]
+  
+  def run(args) do
     Hex.start
 
-    {opts, argv, _} = OptionParser.parse(argv, switches: [force: :boolean, detailed: :boolean])
+    {opts, args, _} = OptionParser.parse(args, switches: @switches)
 
-    case argv do
+    case args do
       ["list"] ->
         list(opts)
       ["add", id, path|_] ->

@@ -78,13 +78,12 @@ defmodule Mix.Tasks.Hex.Publish do
   @switches [revert: :string, progress: :boolean]
 
   def run(args) do
-    build = Build.prepare_package!
-
-    meta = build[:meta]
-    package = build[:package]
-    exclude_deps = build[:exclude_deps]
-
     {opts, _, _} = OptionParser.parse(args, switches: @switches)
+
+    build        = Build.prepare_package!
+    meta         = build[:meta]
+    package      = build[:package]
+    exclude_deps = build[:exclude_deps]
     auth         = Utils.auth_info()
 
     if version = opts[:revert] do

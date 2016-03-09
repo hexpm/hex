@@ -10,7 +10,6 @@ defmodule Mix.Tasks.Hex.Search do
   """
 
   def run(args) do
-    {_opts, args, _} = OptionParser.parse(args)
     Hex.start
 
     case args do

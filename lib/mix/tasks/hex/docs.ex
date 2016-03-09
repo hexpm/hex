@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Hex.Docs do
   def run(args) do
     Hex.start
 
-    {opts, _, _} = OptionParser.parse(args, switches: @switches)
+    {opts, args, _} = OptionParser.parse(args, switches: @switches)
     auth = Utils.auth_info()
 
     Mix.Project.get!
