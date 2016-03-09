@@ -15,7 +15,7 @@ defmodule Mix.Tasks.Hex do
       configuration (Default: `~/.hex`)
     * `HEX_API` - Sets the API URL (Default: `https://hex.pm/api`)
     * `HEX_REPO` - Sets the repository URL (not set by default)
-    * `HEX_MIRROR` - Sets the Hex.pm mirror URL (Default: `https://s3.amazonaws.com/s3.hex.pm`).
+    * `HEX_MIRROR` - Sets the Hex.pm mirror URL (Default: `http://s3.hex.pm.global.prod.fastly.net`).
       Use this option when using a Hex.pm mirror, unlike when setting `HEX_REPO`
       this will still use the public key from Hex.pm when verifying the registry
   """
