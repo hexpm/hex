@@ -111,9 +111,11 @@ defmodule Hex.Mix do
   @spec deps_to_requests([Mix.Dep.t]) :: [{String.t, String.t}]
   def deps_to_requests(deps) do
     requests =
-      for %Mix.Dep{app: app, requirement: req, scm: Hex.SCM, opts: opts, from: from} <- deps do
+      for %Mix.Dep{app: app, requirement: req, scm: scm, opts: opts, from: from} <- deps,
+          Hex.Registry.has_scm?(scm) do
+        {key, _, ^scm, _} = Hex.Registry.by_scm(scm)
         from = Path.relative_to_cwd(from)
-        {Atom.to_string(opts[:hex]), Atom.to_string(app), req, from}
+        {Atom.to_string(opts[key]), Atom.to_string(app), req, from}
       end
 
     # Elixir < 1.3.0-dev returned deps in reverse order
@@ -154,29 +156,4 @@ defmodule Hex.Mix do
     do: {app, req, []}
   def dep({app, req, opts}),
     do: {app, req, opts}
-
-  @doc """
-  Takes all Hex packages from the lock and returns them
-  as `{name, version}` tuples.
-  """
-  @spec from_lock(%{}) :: [{String.t, String.t, String.t}]
-  def from_lock(lock) do
-    Enum.flat_map(lock, fn
-      {app, {:hex, name, version}} ->
-        [{Atom.to_string(name), Atom.to_string(app), version}]
-      _ ->
-        []
-    end)
-  end
-
-  @doc """
-  Takes a map of `{name, version}` and returns them as a
-  lock of Hex packages.
-  """
-  @spec to_lock(%{}) :: %{}
-  def to_lock(result) do
-    Enum.into(result, %{}, fn {name, app, version} ->
-      {String.to_atom(app), {:hex, String.to_atom(name), version}}
-    end)
-  end
 end

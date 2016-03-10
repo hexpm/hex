@@ -189,7 +189,7 @@ defmodule Hex.Resolver.Backtracks do
 
   defp merge_versions?(_package, []), do: false
   defp merge_versions?(package, versions) do
-    all_versions = Hex.Registry.get_versions(package)
+    all_versions = Hex.PackageRegistry.get_versions(package)
     sub_range?(all_versions, versions)
   end
 

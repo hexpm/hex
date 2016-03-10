@@ -15,7 +15,6 @@ defmodule Hex do
   def start(_, _) do
     import Supervisor.Spec
 
-    Mix.SCM.append(Hex.SCM)
     Mix.RemoteConverger.register(Hex.RemoteConverger)
 
     Hex.Version.start
@@ -23,12 +22,19 @@ defmodule Hex do
 
     children = [
       worker(Hex.State, []),
-      worker(Hex.Registry.ETS, []),
       worker(Hex.Parallel, [:hex_fetcher, [max_parallel: 64]]),
+      supervisor(Hex.RegistrySupervisor, []),
     ]
 
     opts = [strategy: :one_for_one, name: Hex.Supervisor]
-    Supervisor.start_link(children, opts)
+    supervisor = Supervisor.start_link(children, opts)
+
+    Mix.Project.config
+    |> Keyword.get(:hex_plugins, [])
+    |> Enum.concat([Hex.Plugin])
+    |> Enum.each(&apply(&1, :init, []))
+
+    supervisor
   end
 
   def version,        do: unquote(Mix.Project.config[:version])

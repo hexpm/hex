@@ -4,15 +4,17 @@ defmodule Hex.RemoteConverger do
   @behaviour Mix.RemoteConverger
 
   alias Hex.Registry
+  alias Hex.PackageRegistry
 
   def remote?(dep) do
-    !!dep.opts[:hex]
+    Hex.Registry.keys
+    |> Enum.any?(&(!!dep.opts[&1]))
   end
 
   def converge(deps, lock) do
     Hex.start
     Hex.Utils.ensure_registry!()
-    Hex.Registry.open!(Hex.Registry.ETS)
+    Hex.PackageRegistry.open!
     verify_lock(lock)
 
     # We cannot use given lock here, because all deps that are being
@@ -36,8 +38,8 @@ defmodule Hex.RemoteConverger do
     case Hex.Resolver.resolve(reqs, deps, top_level, locked) do
       {:ok, resolved} ->
         print_success(resolved, locked)
-        new_lock = Hex.Mix.to_lock(resolved)
-        Hex.SCM.prefetch(new_lock)
+        new_lock = PackageRegistry.to_lock(resolved)
+        Registry.prefetch(new_lock)
         Map.merge(lock, new_lock)
 
       {:error, message} ->
@@ -45,26 +47,27 @@ defmodule Hex.RemoteConverger do
         Mix.raise "Hex dependency resolution failed, relax the version requirements or unlock dependencies"
     end
   after
-    Hex.Registry.pdict_clean
+    Hex.PackageRegistry.pdict_clean
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
-    Hex.Registry.open!(Hex.Registry.ETS)
+    Hex.PackageRegistry.open!
 
     case Map.fetch(lock, app) do
-      {:ok, {:hex, name, version}} ->
-        deps = get_deps(name, version)
-
+      {:ok, lock_tuple} ->
+        Hex.Registry.verify_lock_tuple(lock_tuple, [], fn {_, name, version} ->
+          get_deps(name, version)
+        end)
       _ ->
         []
     end
   after
-    Hex.Registry.pdict_clean
+    Hex.PackageRegistry.pdict_clean
   end
 
   defp get_deps(name, version) do
     name = Atom.to_string(name)
-    deps = Registry.get_deps(name, version) || []
+    deps = PackageRegistry.get_deps(name, version) || []
 
     for {name, app, req, optional} <- deps do
       app = String.to_atom(app)
@@ -101,7 +104,7 @@ defmodule Hex.RemoteConverger do
   end
 
   defp check_package_req(name, req, from) do
-    if versions = Registry.get_versions(name) do
+    if versions = PackageRegistry.get_versions(name) do
       if req != nil and Hex.Version.parse_requirement(req) == :error do
         Mix.raise "Required version #{inspect req} for package #{name} is incorrectly specified (from: #{from})"
       end
@@ -130,15 +133,16 @@ defmodule Hex.RemoteConverger do
 
   defp verify_lock(lock) do
     Enum.each(lock, fn
-      {_app, {:hex, name, version}} ->
-        verify_dep(Atom.to_string(name), version)
+      {_app, lock_tuple} ->
+        Registry.verify_lock_tuple(lock_tuple, :ok, &verify_dep/1)
       _ ->
         :ok
     end)
   end
 
-  defp verify_dep(app, version) do
-    if versions = Registry.get_versions(app) do
+  defp verify_dep({_key, name, version}) do
+    app = Atom.to_string(name)
+    if versions = PackageRegistry.get_versions(app) do
       unless version in versions do
         Mix.raise "Unknown package version #{app} #{version} in lockfile"
       end
@@ -155,15 +159,13 @@ defmodule Hex.RemoteConverger do
   defp do_with_children(names, lock) do
     Enum.map(names, fn name ->
       case Map.fetch(lock, String.to_atom(name)) do
-        {:ok, {:hex, name, version}} ->
-          # Do not error on bad data in the old lock because we should just
-          # fix it automatically
-          if deps = Registry.get_deps(Atom.to_string(name), version) do
-            apps = Enum.map(deps, &elem(&1, 0))
-            [apps, do_with_children(apps, lock)]
-          else
-            []
-          end
+        {:ok, lock_tuple} ->
+          Registry.verify_lock_tuple(lock_tuple, [], fn {_key, name, version} ->
+            if deps = PackageRegistry.get_deps(Atom.to_string(name), version) do
+              apps = Enum.map(deps, &elem(&1, 0))
+              [apps, do_with_children(apps, lock)]
+            end
+          end)
         _ ->
           []
       end
@@ -181,8 +183,10 @@ defmodule Hex.RemoteConverger do
         %Mix.Dep{scm: Hex.SCM, app: app, requirement: req, opts: opts} ->
           # Make sure to handle deps that were previously locked as Git
           case Map.fetch(old_lock, app) do
-            {:ok, {:hex, name, version}} ->
-              req && !Hex.Version.match?(version, req) && name == opts[:hex]
+            {:ok, lock_tuple} ->
+              Registry.verify_lock_tuple(lock_tuple, true, fn {key, name, version} ->
+                req && !Hex.Version.match?(version, req) && name == opts[key]
+              end)
 
             _ ->
               true
@@ -203,7 +207,7 @@ defmodule Hex.RemoteConverger do
       |> with_children(old_lock)
       |> Enum.uniq
 
-    for {name, app, vsn} <- Hex.Mix.from_lock(old_lock),
+    for {name, app, vsn} <- PackageRegistry.from_lock(old_lock),
         not app in unlock,
         do: {name, app, vsn}
   end

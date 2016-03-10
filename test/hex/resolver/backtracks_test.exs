@@ -3,7 +3,7 @@ defmodule Hex.Resolver.BacktracksTest do
   import Hex.Resolver.Backtracks, only: [message: 1]
 
   setup do
-    Hex.Registry.open!(Hex.Registry.ETS, registry_path: tmp_path("registry.ets"))
+    Hex.PackageRegistry.open!(registry_path: tmp_path("registry.ets"))
   end
 
   test "merge versions" do

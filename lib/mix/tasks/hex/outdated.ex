@@ -53,17 +53,18 @@ defmodule Mix.Tasks.Hex.Outdated do
       Mix.raise "No dependency with name #{app}"
     end
 
-    {package, current} =
-      case lock[app] do
-        {:hex, package, lock_version} ->
-          {package, lock_version}
-        _ ->
-          Mix.raise "Dependency #{app} not locked as a Hex package"
-      end
+    verified = Registry.verify_lock_tuple(lock[app], nil, fn {_, name, version} ->
+      {name, version}
+    end)
 
-    latest       = latest_version(package, opts[:pre]) || current
-    outdated?    = Hex.Version.compare(current, latest) == :lt
-    requirements = get_requirements(sort(deps), app)
+    unless verified do
+      Mix.raise "Dependency #{app} not locked as a Hex package"
+    end
+
+    {package, current} = verified
+    latest             = latest_version(package, opts[:pre]) || current
+    outdated?          = Hex.Version.compare(current, latest) == :lt
+    requirements       = get_requirements(sort(deps), app)
 
     requirements =
       if dep.top_level do
@@ -136,22 +137,19 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   defp get_versions(deps, lock, pre?) do
     Enum.flat_map(deps, fn dep ->
-      case lock[dep.app] do
-        {:hex, package, lock_version} ->
-          latest_version = latest_version(package, pre?) || lock_version
-          req = dep.requirement
+      Registry.verify_lock_tuple(lock[dep.app], [], fn {_key, name, version} ->
+        latest_version = latest_version(name, pre?) || version
+        req = dep.requirement
 
-          [[Atom.to_string(dep.app), lock_version, latest_version, req]]
-        _ ->
-          []
-      end
+        [[Atom.to_string(dep.app), version, latest_version, req]]
+      end)
     end)
   end
 
   defp latest_version(package, pre?) do
     package
     |> Atom.to_string
-    |> Hex.Registry.get_versions
+    |> Hex.PackageRegistry.get_versions
     |> highest_version(pre?)
   end
 
