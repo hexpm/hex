@@ -35,7 +35,7 @@ defmodule Hex.ResolverTest do
   end
 
   setup do
-    Hex.Registry.open!(Hex.Registry.ETS, registry_path: tmp_path("registry.ets"))
+    Hex.PackageRegistry.open!(registry_path: tmp_path("registry.ets"))
   end
 
   test "simple" do

@@ -86,7 +86,7 @@ defmodule Hex.Tar do
       {:ok, tar_checksum} ->
         meta = metadata(tar_version, files)
         blob = files['VERSION'] <> meta <> files['contents.tar.gz']
-        registry_checksum = Hex.Registry.get_checksum(to_string(name), version)
+        registry_checksum = Hex.PackageRegistry.get_checksum(to_string(name), version)
         checksum = :crypto.hash(:sha256, blob)
 
         if checksum != tar_checksum do

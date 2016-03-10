@@ -1,7 +1,7 @@
 defmodule Hex.Resolver do
   import Hex.Mix
   require Record
-  alias Hex.Registry
+  alias Hex.PackageRegistry
   alias Hex.Resolver.Backtracks
 
   Record.defrecordp :info, [:deps, :top_level]
@@ -138,7 +138,7 @@ defmodule Hex.Resolver do
   end
 
   defp get_versions(package, requests) do
-    if versions = Registry.get_versions(package) do
+    if versions = PackageRegistry.get_versions(package) do
       Enum.reduce(requests, versions, fn request, versions ->
         req = request(request, :req)
         Enum.filter(versions, &version_match?(&1, req))
@@ -150,7 +150,7 @@ defmodule Hex.Resolver do
   end
 
   defp get_deps(app, package, version, info(top_level: top_level, deps: all_deps), activated) do
-    if deps = Registry.get_deps(package, version) do
+    if deps = PackageRegistry.get_deps(package, version) do
       all_deps = attach_dep_and_children(all_deps, app, deps)
       overridden_map = overridden_parents(top_level, all_deps, app)
 

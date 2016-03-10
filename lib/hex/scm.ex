@@ -59,22 +59,22 @@ defmodule Hex.SCM do
   end
 
   def managers(opts) do
-    Hex.Registry.open!(Hex.Registry.ETS)
+    Hex.PackageRegistry.open!
 
     case opts[:lock] do
       {:hex, name, version} ->
         name        = Atom.to_string(name)
-        build_tools = Hex.Registry.get_build_tools(name, version) || []
+        build_tools = Hex.PackageRegistry.get_build_tools(name, version) || []
         Enum.map(build_tools, &String.to_atom/1)
       _ ->
         []
     end
   after
-    Hex.Registry.pdict_clean
+    Hex.PackageRegistry.pdict_clean
   end
 
   def checkout(opts) do
-    Hex.Registry.open!(Hex.Registry.ETS)
+    Hex.PackageRegistry.open!
 
     {:hex, _name, version} = opts[:lock]
     name     = opts[:hex]
@@ -107,7 +107,7 @@ defmodule Hex.SCM do
 
     opts[:lock]
   after
-    Hex.Registry.pdict_clean
+    Hex.PackageRegistry.pdict_clean
   end
 
   def update(opts) do

@@ -1,5 +1,5 @@
 defmodule Hex.Registry.ETS do
-  @behaviour Hex.Registry
+  @behaviour Hex.PackageRegistry
 
   @name     __MODULE__
   @versions [3, 4]
@@ -58,18 +58,18 @@ defmodule Hex.Registry.ETS do
   def version(tid) do
     case :ets.lookup(tid, :"$$version$$") do
       [{:"$$version$$", version}] ->
-        version
+        {:ok, version}
       _ ->
-        nil
+        {:ok, nil}
     end
   end
 
   def installs(tid) do
     case :ets.lookup(tid, :"$$installs2$$") do
       [{:"$$installs2$$", installs}] ->
-        installs
+        {:ok, installs}
       _ ->
-        []
+        {:ok, []}
     end
   end
 
@@ -84,75 +84,83 @@ defmodule Hex.Registry.ETS do
         acc
     end
 
-    :ets.foldl(fun, {0, 0}, tid)
+    {:ok, :ets.foldl(fun, {0, 0}, tid)}
   end
 
   def search(tid, term) do
     fun = fn
       {package, list}, packages when is_binary(package) and is_list(list) ->
         if String.contains?(package, term) do
-          [package|packages]
+          {:ok, [package|packages]}
         else
-          packages
+          {:ok, packages}
         end
       _, packages ->
-        packages
+        {:ok, packages}
     end
 
-    :ets.foldl(fun, [], tid)
-    |> Enum.sort
+    {:ok, :ets.foldl(fun, [], tid) |> Enum.sort}
   end
 
   def all_packages(tid) do
     fun = fn
       {package, list}, packages when is_binary(package) and is_list(list) ->
-        [package|packages]
+        {:ok, [package|packages]}
       _, packages ->
-        packages
+        {:ok, packages}
     end
 
-    :ets.foldl(fun, [], tid)
-    |> Enum.sort
+    {:ok, :ets.foldl(fun, [], tid) |> Enum.sort}
   end
 
   def get_versions(tid, package) do
     case :ets.lookup(tid, package) do
-      [] -> nil
-      [{^package, [versions|_]}] when is_list(versions) -> versions
+      [] -> {:ok, nil}
+      [{^package, [versions|_]}] when is_list(versions) -> {:ok, versions}
     end
   end
 
   def get_deps(tid, package, version) do
     case :ets.lookup(tid, {package, version}) do
       [] ->
-        nil
+        {:ok, nil}
       [{{^package, ^version}, [deps|_]}] when is_list(deps) ->
-        Enum.map(deps, fn
+        {:ok, Enum.map(deps, fn
           [name, req, optional, app | _] -> {name, app, req, optional}
-        end)
+        end)}
     end
   end
 
   def get_checksum(tid, package, version) do
     case :ets.lookup(tid, {package, version}) do
       [] ->
-        nil
+        {:ok, nil}
       [{{^package, ^version}, [_, checksum | _]}] when is_nil(checksum) or is_binary(checksum) ->
-        checksum
+        {:ok, checksum}
     end
   end
 
   def get_build_tools(tid, package, version) do
     case :ets.lookup(tid, {package, version}) do
       [] ->
-        nil
+        {:ok, nil}
       [{{^package, ^version}, [_, _, build_tools | _]}] when is_list(build_tools) ->
-        build_tools
+        {:ok, build_tools}
     end
   end
 
+  def to_lock(_tid, {name, app, version}) do
+    {:ok, {String.to_atom(app), {:hex, String.to_atom(name), version}}}
+  end
+
+  def from_lock(_tid, {app, {:hex, name, version}}) do
+    {:ok, [{Atom.to_string(name), Atom.to_string(app), version}]}
+  end
+  def from_lock(_tid, _), do: {:ok, []}
+
   defp check_version(tid) do
-    unless version(tid) in @versions do
+    {:ok, vsn} = version(tid)
+    unless vsn in @versions do
       raise Mix.Error,
         message: "The registry file version is not supported. " <>
                  "Try updating Hex with `mix local.hex`."

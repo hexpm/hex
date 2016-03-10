@@ -44,7 +44,7 @@ defmodule Mix.Tasks.Hex.Info do
     compressed_stat = File.stat!(path <> ".gz", time: :local)
     size            = stat.size |> div(1024)
     compressed_size = compressed_stat.size |> div(1024)
-    {packages, releases} = Hex.Registry.stat()
+    {packages, releases} = Hex.PackageRegistry.stat()
 
     Hex.Shell.info "Registry file available (last updated: #{format_date(stat.mtime)})"
     Hex.Shell.info "Size: #{size}kB (compressed #{compressed_size}kb)"
