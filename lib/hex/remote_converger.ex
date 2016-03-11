@@ -49,7 +49,7 @@ defmodule Hex.RemoteConverger do
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
-    Hex.Registry.open!(Hex.Registry.ETS)
+    Hex.Utils.ensure_registry!(update: false)
 
     case Map.fetch(lock, app) do
       {:ok, {:hex, name, version}} ->
@@ -64,7 +64,7 @@ defmodule Hex.RemoteConverger do
 
   defp get_deps(name, version) do
     name = Atom.to_string(name)
-    deps = Registry.get_deps(name, version) || []
+    deps = try_get_deps(name, version)
 
     for {name, app, req, optional} <- deps do
       app = String.to_atom(app)
@@ -76,6 +76,15 @@ defmodule Hex.RemoteConverger do
       else
         {app, opts}
       end
+    end
+  end
+
+  defp try_get_deps(name, version) do
+    if deps = Registry.get_deps(name, version) do
+      deps
+    else
+      Hex.Utils.ensure_registry!()
+      Registry.get_deps(name, version) || []
     end
   end
 

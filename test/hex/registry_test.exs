@@ -12,24 +12,6 @@ defmodule Hex.RegistryTest do
     assert Hex.Registry.close == true
   end
 
-  test "install info output once" do
-    in_tmp fn ->
-      Hex.State.put(:registry_updated, false)
-      Hex.State.put(:home, System.cwd!)
-
-      path = "registry.ets"
-      versions = [{"100.0.0", ["0.0.1"]}]
-      create_registry(path, 3, versions, [], [])
-
-      Hex.Registry.open!(Hex.Registry.ETS)
-      Hex.Utils.ensure_registry!(fetch: false)
-      assert_received {:mix_shell, :info, ["\e[33mA new Hex version is available" <> _]}
-
-      Hex.Utils.ensure_registry!(fetch: false)
-      refute_received {:mix_shell, :info, ["\e[33mA new Hex version is available" <> _]}
-    end
-  end
-
   test "install info, find correct version" do
     in_tmp fn ->
       Hex.State.put(:registry_updated, false)

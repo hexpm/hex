@@ -34,44 +34,43 @@ defmodule Hex.Utils do
   end
 
   defp update_registry(opts) do
+    path    = Hex.Registry.ETS.path
+    path_gz = path <> ".gz"
+
     cond do
       Hex.State.fetch!(:offline?) ->
         {:ok, :offline}
       Hex.State.fetch!(:registry_updated) ->
         {:ok, :cached}
+      not Keyword.get(opts, :fetch, true) ->
+        {:ok, :no_fetch}
+      not Keyword.get(opts, :update, true) and not week_fresh?(path_gz) ->
+        {:ok, :no_fetch}
       true ->
         Hex.State.put(:registry_updated, true)
-
         closed? = Hex.Registry.close
-        path    = Hex.Registry.ETS.path
-        path_gz = path <> ".gz"
-        fetch?  = Keyword.get(opts, :fetch, true) and
-                  (Keyword.get(opts, :update, true) or not week_fresh?(path_gz))
-        try do
-          if fetch? do
-            api_opts =
-              if Keyword.get(opts, :cache, true) do
-                [etag: etag(path_gz)]
-              else
-                []
-              end
 
-            case Hex.API.Registry.get(api_opts) do
-              {200, body, headers} ->
-                Hex.State.fetch!(:check_registry?) && verify_registry!(body, headers)
-                File.mkdir_p!(Path.dirname(path))
-                File.write!(path_gz, body)
-                data = :zlib.gunzip(body)
-                File.write!(path, data)
-              {304, _, _} ->
-                {:ok, :new}
-              {code, body, _} ->
-                Hex.Shell.error "Registry update failed (#{code})"
-                print_error_result(code, body)
-                :error
+        try do
+          api_opts =
+            if Keyword.get(opts, :cache, true) do
+              [etag: etag(path_gz)]
+            else
+              []
             end
-          else
-            {:ok, :no_fetch}
+
+          case Hex.API.Registry.get(api_opts) do
+            {200, body, headers} ->
+              Hex.State.fetch!(:check_registry?) && verify_registry!(body, headers)
+              File.mkdir_p!(Path.dirname(path))
+              File.write!(path_gz, body)
+              data = :zlib.gunzip(body)
+              File.write!(path, data)
+            {304, _, _} ->
+              {:ok, :new}
+            {code, body, _} ->
+              Hex.Shell.error "Registry update failed (#{code})"
+              print_error_result(code, body)
+              :error
           end
         after
           # Open registry if it was already open when update began
