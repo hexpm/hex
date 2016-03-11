@@ -1,4 +1,18 @@
-## v0.11.2-dev
+## v0.11.2 (2016-03-11)
+
+* Enhancements
+  * Verify registry signature against public key
+  * Improve missing registry error message
+  * Deprecate `HEX_CDN` in favor of `HEX_REPO` and `HEX_MIRROR`. See the `hex` task for more information
+  * Deprecate `:cdn_url` config in favor of `:repo_url` and `mirror_url`. See the `hex.config` task for more information
+  * Improve performance of parallel package fetching
+  * Use fastly instead of S3 for the Hex.pm repository
+  * Add `--delete` option to `hex.config` task
+
+* Bug fixes
+  * Show local time in hex.info
+  * Correctly unlock all dependencies on `deps.update`
+  * Always fetch registry if it's missing or known to be old
 
 ## v0.11.1 (2016-03-03)
 

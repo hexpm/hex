@@ -3,7 +3,7 @@ defmodule Hex.Mixfile do
 
   def project do
     [app: :hex,
-     version: "0.11.2-dev",
+     version: "0.11.2",
      elixir: "~> 1.0",
      aliases: aliases,
      deps: deps,
@@ -29,8 +29,8 @@ defmodule Hex.Mixfile do
   defp elixirc_options(:prod), do: [debug_info: false]
   defp elixirc_options(_),     do: []
 
-  defp elixirc_paths(:test), do: ["lib", "web", "test/support"]
-  defp elixirc_paths(_),     do: ["lib", "web"]
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_),     do: ["lib"]
 
   defp aliases do
     ["compile.elixir": [&unload_hex/1, "compile.elixir"],
