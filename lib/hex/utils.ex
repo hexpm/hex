@@ -119,10 +119,10 @@ defmodule Hex.Utils do
     end
   end
 
-  defp signature_fetch_fail({code, _, _}),
-    do: "returned http status code #{code}"
   defp signature_fetch_fail({:http_error, reason, _}),
     do: "failed with http error #{inspect reason}"
+  defp signature_fetch_fail({code, _, _}),
+    do: "returned http status code #{code}"
 
   def etag(path) do
     case File.read(path) do
