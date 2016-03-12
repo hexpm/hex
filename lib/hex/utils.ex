@@ -44,8 +44,6 @@ defmodule Hex.Utils do
         {:ok, :cached}
       not Keyword.get(opts, :fetch, true) ->
         {:ok, :no_fetch}
-      not Keyword.get(opts, :update, true) ->
-        {:ok, :no_fetch}
       true ->
         Hex.State.put(:registry_updated, true)
         closed? = Hex.Registry.close

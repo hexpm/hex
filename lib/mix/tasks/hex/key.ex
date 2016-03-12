@@ -24,7 +24,7 @@ defmodule Mix.Tasks.Hex.Key do
 
   def run(args) do
     Hex.start
-    Hex.Utils.ensure_registry(update: false)
+    Hex.Utils.ensure_registry(fetch: false)
 
     auth = Utils.auth_info()
 

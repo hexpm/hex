@@ -30,7 +30,7 @@ defmodule Mix.Tasks.Hex.Config do
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
 
     Hex.start
-    Hex.Utils.ensure_registry(update: false)
+    Hex.Utils.ensure_registry(fetch: false)
 
     case args do
       [] ->

@@ -49,7 +49,7 @@ defmodule Hex.RemoteConverger do
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
-    Hex.Utils.ensure_registry!(update: false)
+    Hex.Utils.ensure_registry!(fetch: false)
 
     case Map.fetch(lock, app) do
       {:ok, {:hex, name, version}} ->

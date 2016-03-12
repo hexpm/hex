@@ -8,7 +8,7 @@ defmodule Mix.Hex.Build do
 
   def prepare_package! do
     Hex.start
-    Hex.Utils.ensure_registry(update: false)
+    Hex.Utils.ensure_registry(fetch: false)
     Mix.Project.get!
 
     config = Mix.Project.config
