@@ -44,7 +44,7 @@ defmodule Hex.Utils do
         {:ok, :cached}
       not Keyword.get(opts, :fetch, true) ->
         {:ok, :no_fetch}
-      not Keyword.get(opts, :update, true) and not week_fresh?(path_gz) ->
+      not Keyword.get(opts, :update, true) ->
         {:ok, :no_fetch}
       true ->
         Hex.State.put(:registry_updated, true)
@@ -114,29 +114,17 @@ defmodule Hex.Utils do
         #       No reason to make all registries unsafe.
         reason = signature_fetch_fail(other)
         Mix.raise "The repository at #{domain} did not provide a signature " <>
-                  "for the registry because #{reason}. This could be because " <>
+                  "for the registry because it #{reason}. This could be because " <>
                   "of a man-in-the-middle attack or simply because the repository " <>
                   "does not sign its registry. The signature verification check " <>
                   "can be disabled by setting `HEX_UNSAFE_REGISTRY=1`."
     end
   end
 
-  defp signature_fetch_fail({code, _, _}), do: "it returned http status code #{code}"
-  defp signature_fetch_fail({:http_error, reason}), do: "failed with http error #{inspect reason}"
-
-  @week_seconds 7 * 24 * 60 * 60
-
-  def week_fresh?(path) do
-    case File.stat(path) do
-      {:ok, %File.Stat{mtime: mtime}} ->
-        now   = :calendar.local_time |> :calendar.datetime_to_gregorian_seconds
-        mtime = mtime                |> :calendar.datetime_to_gregorian_seconds
-
-        now - mtime < @week_seconds
-      {:error, _} ->
-        false
-    end
-  end
+  defp signature_fetch_fail({code, _, _}),
+    do: "returned http status code #{code}"
+  defp signature_fetch_fail({:http_error, reason, _}),
+    do: "failed with http error #{inspect reason}"
 
   def etag(path) do
     case File.read(path) do
