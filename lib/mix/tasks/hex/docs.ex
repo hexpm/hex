@@ -26,6 +26,7 @@ defmodule Mix.Tasks.Hex.Docs do
 
   def run(args) do
     Hex.start
+    Hex.Utils.ensure_registry(update: false)
 
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
     auth = Utils.auth_info()

@@ -38,9 +38,10 @@ defmodule Mix.Tasks.Hex.PublicKeys do
   """
 
   @switches [force: :boolean, detailed: :boolean]
-  
+
   def run(args) do
     Hex.start
+    Hex.Utils.ensure_registry(update: false)
 
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
 

@@ -204,7 +204,7 @@ defmodule Hex.SCM do
       {:ok, {{_version, code, _reason}, _headers, _body}} ->
         {:error, "Request failed (#{code})"}
       {:error, reason} ->
-        {:error, "Request failed: #{inspect reason}"}
+        {:error, "Request failed (#{inspect reason})"}
     end
   end
 end

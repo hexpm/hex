@@ -41,7 +41,7 @@ defmodule Hex.API do
       {:ok, response} ->
         handle_response(response)
       {:error, reason} ->
-        {:http_error, reason}
+        {:http_error, reason, []}
     end
   end
 
@@ -118,7 +118,7 @@ defmodule Hex.API do
       {:ok, response} ->
         handle_response(response)
       {:error, reason} ->
-        {:http_error, reason}
+        {:http_error, reason, []}
     end
   end
 
