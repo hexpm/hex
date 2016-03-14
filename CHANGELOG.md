@@ -1,4 +1,8 @@
-## v0.11.3-dev
+## v0.11.3 (2016-03-14)
+
+* Bug fixes
+  * Do not crash if registry fails to fetch
+  * Remove force update of registry if it is more than a week old
 
 ## v0.11.2 (2016-03-11)
 
