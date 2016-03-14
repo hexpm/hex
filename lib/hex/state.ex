@@ -44,7 +44,17 @@ defmodule Hex.State do
       check_cert?:      load_config(config, ["HEX_UNSAFE_HTTPS"], :unsafe_https) |> to_boolean |> default(true),
       check_registry?:  load_config(config, ["HEX_UNSAFE_REGISTRY"], :unsafe_registry) |> to_boolean |> default(true),
       hexpm_pk:         @hexpm_pk,
-      registry_updated: false}
+      registry_updated: false,
+      httpc_profile:    :hex}
+  end
+
+  # Work around for :socket_closed_remotely errors in httpc
+  # Use a unique profile for each request to avoid races
+  if Mix.env == :test do
+    def fetch(:httpc_profile) do
+      profile = make_ref() |> :erlang.ref_to_list |> List.to_atom
+      {:ok, _pid} = :httpc_manager.start_link(profile, :only_session_cookies, :stand_alone)
+    end
   end
 
   def fetch(key) do
@@ -52,11 +62,17 @@ defmodule Hex.State do
   end
 
   def fetch!(key) do
-    Agent.get(@name, Map, :fetch!, [key])
+    case fetch(key) do
+      {:ok, value} -> value
+      :error -> raise KeyError, key: key, term: Hex.State
+    end
   end
 
   def get(key, default \\ nil) do
-    Agent.get(@name, Map, :get, [key, default])
+    case fetch(key) do
+      {:ok, value} -> value
+      :error -> default
+    end
   end
 
   def put(key, value) do
