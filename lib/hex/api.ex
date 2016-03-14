@@ -24,6 +24,7 @@ defmodule Hex.API do
     http_opts = [ssl: ssl_opts(url), relaxed: true, timeout: @request_timeout] ++ Hex.Utils.proxy_config(url)
     opts = [body_format: :binary]
     url = String.to_char_list(url)
+    profile = Hex.State.fetch!(:httpc_profile)
 
     request =
       cond do
@@ -37,7 +38,7 @@ defmodule Hex.API do
           {url, Map.to_list(headers)}
       end
 
-    case :httpc.request(method, request, http_opts, opts, :hex) do
+    case :httpc.request(method, request, http_opts, opts, profile) do
       {:ok, response} ->
         handle_response(response)
       {:error, reason} ->
@@ -101,6 +102,7 @@ defmodule Hex.API do
     http_opts = [ssl: ssl_opts(url), relaxed: true, timeout: @request_timeout] ++ Hex.Utils.proxy_config(url)
     opts = [body_format: :binary]
     url = String.to_char_list(url)
+    profile = Hex.State.fetch!(:httpc_profile)
 
     body = fn
       size when size < byte_size(body) ->
@@ -114,7 +116,7 @@ defmodule Hex.API do
 
     request = {url, Map.to_list(headers), 'application/octet-stream', {body, 0}}
 
-    case :httpc.request(method, request, http_opts, opts, :hex) do
+    case :httpc.request(method, request, http_opts, opts, profile) do
       {:ok, response} ->
         handle_response(response)
       {:error, reason} ->
