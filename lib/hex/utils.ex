@@ -63,6 +63,7 @@ defmodule Hex.Utils do
               File.write!(path_gz, body)
               data = :zlib.gunzip(body)
               File.write!(path, data)
+              {:ok, :new}
             {304, _, _} ->
               {:ok, :new}
             {code, body, _} ->
