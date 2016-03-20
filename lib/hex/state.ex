@@ -3,7 +3,7 @@ defmodule Hex.State do
   @logged_keys ~w(http_proxy HTTP_PROXY https_proxy HTTPS_PROXY)
   @default_home "~/.hex"
   @default_url "https://hex.pm/api"
-  @default_mirror "http://s3.hex.pm.global.prod.fastly.net"
+  @default_mirror "https://hexpmrepo.global.ssl.fastly.net"
 
   @hexpm_pk """
   -----BEGIN PUBLIC KEY-----
