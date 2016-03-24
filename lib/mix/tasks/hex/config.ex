@@ -20,6 +20,11 @@ defmodule Mix.Tasks.Hex.Config do
       the environment variable `HEX_MIRROR`.
       Use this option when using a Hex.pm mirror, unlike when setting `repo_url`
       this will still use the public key from Hex.pm when verifying the registry
+    * `offline` - If set to true Hex will not fetch the regsitry or packages and
+      will instead the locally cached files if they are available
+    * `unsafe_https` - If set to true Hex will not verify HTTPS certificates
+    * `unsafe_registry` - If set to true Hex will not verify the registry
+      signature against the repository's public key
     * `http_proxy` - HTTP proxy server
     * `https_proxy` - HTTPS proxy server
   """

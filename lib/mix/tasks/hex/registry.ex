@@ -4,30 +4,25 @@ defmodule Mix.Tasks.Hex.Registry do
   @shortdoc "Hex registry tasks"
 
   @moduledoc """
-  Hex registry tasks.
+  Tasks for working with the locally cached registry file. 
 
   ### Fetch registry
 
-  Updates registry file.
+  Updates the locally cached registry file.
 
   `mix hex.registry fetch`
 
   ### Dump registry
 
-  Copies registry file to the given path.
+  Copies the cached registry file to the given path.
 
   `mix hex.registry dump <path>`
 
   ### Load registry
 
-  Takes registry file from the given path.
+  Copies given regsitry file to the cache.
 
   `mix hex.registry load <path>`
-
-  The purpose of dumping and loading registry file
-  is to assist with isolate dependency resolution.
-  There is `HEX_OFFLINE` environment variable available
-  to run Hex in offline mode.
   """
 
   def run(args) do
