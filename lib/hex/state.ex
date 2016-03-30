@@ -139,7 +139,7 @@ defmodule Hex.State do
   defp trim_slash(string) do
     if String.ends_with?(string, "/") do
       string
-      |> :binary.part(0, byte_size(string)-1)
+      |> :binary.part(0, byte_size(string) - 1)
       |> trim_slash
     else
       string

@@ -178,7 +178,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   defp pad_row(row, widths) do
     Enum.map(Enum.zip(row, widths), fn {string, width} ->
-      {string, :binary.copy(" ", width-size(string)+2)}
+      {string, :binary.copy(" ", width-size(string) + 2)}
     end)
   end
 
