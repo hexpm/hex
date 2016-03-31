@@ -39,7 +39,6 @@ defmodule Hex.RemoteConverger do
         new_lock = Hex.Mix.to_lock(resolved)
         Hex.SCM.prefetch(new_lock)
         Map.merge(lock, new_lock)
-
       {:error, message} ->
         Hex.Shell.error message
         Mix.raise "Hex dependency resolution failed, relax the version requirements or unlock dependencies"
@@ -53,8 +52,7 @@ defmodule Hex.RemoteConverger do
 
     case Map.fetch(lock, app) do
       {:ok, {:hex, name, version}} ->
-        deps = get_deps(name, version)
-
+        get_deps(name, version)
       _ ->
         []
     end

@@ -148,8 +148,8 @@ defmodule Hex.API.VerifyHostname do
   defp check_two_labels_after_wildcard(string) do
     {_, positions} =
       Enum.reduce(string, {1, []}, fn
-        ?., {ix, acc} -> {ix+1, [ix|acc]}
-        _,  {ix, acc} -> {ix+1, acc}
+        ?., {ix, acc} -> {ix + 1, [ix|acc]}
+        _,  {ix, acc} -> {ix + 1, acc}
       end)
 
     if length(positions) >= 2 do
