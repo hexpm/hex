@@ -61,7 +61,7 @@ defmodule Mix.Tasks.Hex.Outdated do
           Mix.raise "Dependency #{app} not locked as a Hex package"
       end
 
-    latest       = latest_version(package, opts[:pre]) || current
+    latest       = latest_version(package, current, opts[:pre])
     outdated?    = Hex.Version.compare(current, latest) == :lt
     requirements = get_requirements(sort(deps), app)
 
@@ -138,7 +138,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     Enum.flat_map(deps, fn dep ->
       case lock[dep.app] do
         {:hex, package, lock_version} ->
-          latest_version = latest_version(package, pre?) || lock_version
+          latest_version = latest_version(package, lock_version, pre?)
           req = dep.requirement
 
           [[Atom.to_string(dep.app), lock_version, latest_version, req]]
@@ -148,11 +148,17 @@ defmodule Mix.Tasks.Hex.Outdated do
     end)
   end
 
-  defp latest_version(package, pre?) do
-    package
-    |> Atom.to_string
-    |> Hex.Registry.get_versions
-    |> highest_version(pre?)
+  defp latest_version(package, default, pre?) do
+    {:ok, default} = Hex.Version.parse(default)
+    pre? = pre? || default.pre != []
+
+    latest =
+      package
+      |> Atom.to_string
+      |> Hex.Registry.get_versions
+      |> highest_version(pre?)
+
+    latest || default
   end
 
   defp highest_version(versions, pre?) do
@@ -160,7 +166,7 @@ defmodule Mix.Tasks.Hex.Outdated do
       versions
     else
       Enum.filter(versions, fn version ->
-        {:ok, version} = Version.parse(version)
+        {:ok, version} = Hex.Version.parse(version)
         version.pre == []
       end)
     end
