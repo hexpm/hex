@@ -14,7 +14,10 @@ defmodule Hex.Resolver.Backtracks do
   end
 
   def add(name, version, parents) do
-    parents = Enum.sort(parents, &parent_cmp/2)
+    parents =
+      parents
+      |> Enum.uniq
+      |> Enum.sort(&parent_cmp/2)
 
     case :ets.lookup(@ets, {name, parents}) do
       [{_, versions}] ->
