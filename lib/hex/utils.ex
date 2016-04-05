@@ -7,7 +7,10 @@ defmodule Hex.Utils do
     if update_result == :error and not File.exists?(Hex.Registry.ETS.path) do
       {:error, :update_failed}
     else
-      start_result = Hex.Registry.open(Hex.Registry.ETS)
+      start_result =
+        if Keyword.get(opts, :open, true),
+          do: Hex.Registry.open(Hex.Registry.ETS),
+        else: :nope
 
       # Show available newer versions
       if update_result in [{:ok, :new}, {:ok, :no_fetch}] and start_result == :ok do
@@ -25,10 +28,13 @@ defmodule Hex.Utils do
       Mix.raise "Failed to fetch registry"
     end
 
-    Hex.Registry.open!(Hex.Registry.ETS)
+    start_result =
+      if Keyword.get(opts, :open, true),
+        do: Hex.Registry.open!(Hex.Registry.ETS),
+      else: :nope
 
     # Show available newer versions
-    if update_result in [{:ok, :new}, {:ok, :no_fetch}] do
+    if update_result in [{:ok, :new}, {:ok, :no_fetch}] and start_result == :ok do
       Hex.Registry.info_installs
     end
   end

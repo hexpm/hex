@@ -38,7 +38,8 @@ defmodule Mix.Tasks.Hex.Info do
 
     # Make sure to fetch registry after showing Hex version. Issues with the
     # registry should not prevent printing the version.
-    Hex.Utils.ensure_registry!(cache: false)
+    {fetch_time, _} = :timer.tc fn -> Hex.Utils.ensure_registry!(cache: false, open: false) end
+    {load_time, _}  = :timer.tc fn -> Hex.Registry.open(Hex.Registry.ETS) end
     path            = Hex.Registry.ETS.path
     stat            = File.stat!(path, time: :local)
     compressed_stat = File.stat!(path <> ".gz", time: :local)
@@ -47,7 +48,9 @@ defmodule Mix.Tasks.Hex.Info do
     {packages, releases} = Hex.Registry.stat()
 
     Hex.Shell.info "Registry file available (last updated: #{format_date(stat.mtime)})"
-    Hex.Shell.info "Size: #{size}kB (compressed #{compressed_size}kb)"
+    Hex.Shell.info "Size:       #{size}kB (compressed #{compressed_size}kb)"
+    Hex.Shell.info "Fetch time: #{div fetch_time, 1000}ms"
+    Hex.Shell.info "Load time:  #{div load_time, 1000}ms"
     Hex.Shell.info "Packages #: #{packages}"
     Hex.Shell.info "Versions #: #{releases}"
   end
