@@ -1,4 +1,4 @@
-## v0.11.4-dev
+## v0.11.4 (2016-04-06)
 
 * Enhancements
   * Use HTTPS to Hex.pm repository
