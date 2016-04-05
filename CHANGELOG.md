@@ -1,5 +1,14 @@
 ## v0.11.4-dev
 
+* Enhancements
+  * Use HTTPS to Hex.pm repository
+  * Make lock backwards compatible by treating it as a list and only matching on the front
+
+* Bug fixes
+  * Correctly show update notification
+  * Remove duplicate parents from backtrack messages
+  * Fix invalid message in `hex outdated` if locked version is a pre-release
+
 ## v0.11.3 (2016-03-14)
 
 * Bug fixes
