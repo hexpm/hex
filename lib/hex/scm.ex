@@ -15,8 +15,8 @@ defmodule Hex.SCM do
   end
 
   def format_lock(opts) do
-    case opts[:lock] do
-      {:hex, name, version} ->
+    case Hex.Utils.to_list(opts[:lock]) do
+      [:hex, name, version] ->
         "#{version} (#{name})"
       _ ->
         nil
@@ -32,8 +32,8 @@ defmodule Hex.SCM do
   end
 
   def lock_status(opts) do
-    case opts[:lock] do
-      {:hex, name, version} ->
+    case Hex.Utils.to_list(opts[:lock]) do
+      [:hex, name, version] ->
         lock_status(opts[:dest], Atom.to_string(name), version)
       nil ->
         :mismatch
@@ -61,8 +61,8 @@ defmodule Hex.SCM do
   def managers(opts) do
     Hex.Registry.open!(Hex.Registry.ETS)
 
-    case opts[:lock] do
-      {:hex, name, version} ->
+    case Hex.Utils.to_list(opts[:lock]) do
+      [:hex, name, version] ->
         name        = Atom.to_string(name)
         build_tools = Hex.Registry.get_build_tools(name, version) || []
         Enum.map(build_tools, &String.to_atom/1)
@@ -76,7 +76,7 @@ defmodule Hex.SCM do
   def checkout(opts) do
     Hex.Registry.open!(Hex.Registry.ETS)
 
-    {:hex, _name, version} = opts[:lock]
+    [:hex, _name, version] = Hex.Utils.to_list(opts[:lock])
     name     = opts[:hex]
     dest     = opts[:dest]
     filename = "#{name}-#{version}.tar"
@@ -148,15 +148,13 @@ defmodule Hex.SCM do
   defp fetch_from_lock(lock) do
     deps_path = Mix.Project.deps_path
 
-    Enum.flat_map(lock, fn
-      {_app, {:hex, name, version}} ->
-        if fetch?(name, version, deps_path) do
-          [{name, version}]
-        else
+    Enum.flat_map(lock, fn {_app, info} ->
+      case Hex.Utils.to_list(info) do
+        [:hex, name, version] ->
+          if fetch?(name, version, deps_path), do: [{name, version}], else: []
+        _ ->
           []
-        end
-      _ ->
-        []
+      end
     end)
   end
 
