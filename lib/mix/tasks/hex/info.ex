@@ -42,17 +42,19 @@ defmodule Mix.Tasks.Hex.Info do
     {load_time, _}  = :timer.tc fn -> Hex.Registry.open(Hex.Registry.ETS) end
     path            = Hex.Registry.ETS.path
     stat            = File.stat!(path, time: :local)
-    compressed_stat = File.stat!(path <> ".gz", time: :local)
-    size            = stat.size |> div(1024)
-    compressed_size = compressed_stat.size |> div(1024)
+    stat_gz         = File.stat!(path <> ".gz", time: :local)
+    file_size       = stat.size |> div(1024)
+    file_gz_size    = stat_gz.size |> div(1024)
+    mem_size        = Hex.Registry.ETS.memory |> div(1024)
     {packages, releases} = Hex.Registry.stat()
 
     Hex.Shell.info "Registry file available (last updated: #{format_date(stat.mtime)})"
-    Hex.Shell.info "Size:       #{size}kB (compressed #{compressed_size}kb)"
-    Hex.Shell.info "Fetch time: #{div fetch_time, 1000}ms"
-    Hex.Shell.info "Load time:  #{div load_time, 1000}ms"
-    Hex.Shell.info "Packages #: #{packages}"
-    Hex.Shell.info "Versions #: #{releases}"
+    Hex.Shell.info "File size:   #{file_size}kB (compressed #{file_gz_size}kb)"
+    Hex.Shell.info "Memory size: #{mem_size}kB"
+    Hex.Shell.info "Fetch time:  #{div fetch_time, 1000}ms"
+    Hex.Shell.info "Load time:   #{div load_time, 1000}ms"
+    Hex.Shell.info "Packages #:  #{packages}"
+    Hex.Shell.info "Versions #:  #{releases}"
   end
 
   defp package(package) do

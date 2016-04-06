@@ -51,6 +51,11 @@ defmodule Hex.Registry.ETS do
     end, @timeout)
   end
 
+  def memory do
+    tid = Agent.get(@name, & &1)
+    :ets.info(tid, :memory) * :erlang.system_info(:wordsize)
+  end
+
   def path do
     Path.join(Hex.State.fetch!(:home), @filename)
   end

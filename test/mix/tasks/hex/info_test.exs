@@ -35,9 +35,9 @@ defmodule Mix.Tasks.Hex.InfoTest do
       message = "Hex:    " <> Hex.version
       assert_received {:mix_shell, :info, [^message]}
       assert_received {:mix_shell, :info, ["Registry file available (last updated: " <> _]}
-      assert_received {:mix_shell, :info, ["Size: " <> _]}
-      assert_received {:mix_shell, :info, ["Packages #: " <> _]}
-      assert_received {:mix_shell, :info, ["Versions #: " <> _]}
+      assert_received {:mix_shell, :info, ["File size:   " <> _]}
+      assert_received {:mix_shell, :info, ["Packages #:  " <> _]}
+      assert_received {:mix_shell, :info, ["Versions #:  " <> _]}
     end
   end
 end
