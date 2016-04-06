@@ -38,9 +38,9 @@ defmodule Hex.Registry do
 
   def open(module, opts \\ []) do
     case module.open(opts) do
-      {:ok, name} ->
+      {ok, name} when ok in [:ok, :already_open] ->
         pdict_setup(module, name)
-        :ok
+        ok
       {:error, reason} ->
         {:error, reason}
     end
@@ -48,9 +48,9 @@ defmodule Hex.Registry do
 
   def open!(module, opts \\ []) do
     case module.open(opts) do
-      {:ok, name} ->
+      {ok, name} when ok in [:ok, :already_open] ->
         pdict_setup(module, name)
-        :ok
+        ok
       {:error, reason} ->
         Mix.raise "Failed to open Hex registry (#{reason})"
     end

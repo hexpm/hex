@@ -28,7 +28,7 @@ defmodule Hex.Registry.ETS do
         end
 
       tid ->
-        {{:ok, tid}, tid}
+        {{:already_open, tid}, tid}
     end, @timeout)
   end
 
