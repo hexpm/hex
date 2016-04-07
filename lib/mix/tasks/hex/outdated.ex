@@ -136,8 +136,8 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   defp get_versions(deps, lock, pre?) do
     Enum.flat_map(deps, fn dep ->
-        [:hex, package, lock_version] ->
       case Hex.Utils.lock(lock[dep.app]) do
+        [:hex, package, lock_version] ->
           latest_version = latest_version(package, lock_version, pre?)
           req = dep.requirement
           [[Atom.to_string(dep.app), lock_version, latest_version, req]]

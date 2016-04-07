@@ -15,8 +15,8 @@ defmodule Hex.SCM do
   end
 
   def format_lock(opts) do
-      [:hex, name, version] ->
     case Hex.Utils.lock(opts[:lock]) do
+      [:hex, name, version] ->
         "#{version} (#{name})"
       _ ->
         nil
@@ -32,9 +32,9 @@ defmodule Hex.SCM do
   end
 
   def lock_status(opts) do
+    case Hex.Utils.lock(opts[:lock]) do
       [:hex, name, version] ->
         lock_status(opts[:dest], Atom.to_string(name), version)
-    case Hex.Utils.lock(opts[:lock]) do
       nil ->
         :mismatch
       _ ->
@@ -149,8 +149,8 @@ defmodule Hex.SCM do
     deps_path = Mix.Project.deps_path
 
     Enum.flat_map(lock, fn {_app, info} ->
-        [:hex, name, version] ->
       case Hex.Utils.lock(info) do
+        [:hex, name, version] ->
           if fetch?(name, version, deps_path), do: [{name, version}], else: []
         _ ->
           []

@@ -50,8 +50,8 @@ defmodule Hex.RemoteConverger do
   def deps(%Mix.Dep{app: app}, lock) do
     Hex.Utils.ensure_registry!(fetch: false)
 
-      [:hex, name, version] ->
     case Hex.Utils.lock(lock[app]) do
+      [:hex, name, version] ->
         get_deps(name, version)
       _ ->
         []
@@ -137,8 +137,8 @@ defmodule Hex.RemoteConverger do
 
   defp verify_lock(lock) do
     Enum.each(lock, fn {_app, info} ->
-        [:hex, name, version] ->
       case Hex.Utils.lock(info) do
+        [:hex, name, version] ->
           verify_dep(Atom.to_string(name), version)
         _ ->
           :ok
@@ -163,8 +163,8 @@ defmodule Hex.RemoteConverger do
 
   defp do_with_children(names, lock) do
     Enum.map(names, fn name ->
-        [:hex, name, version] ->
       case Hex.Utils.lock(lock[String.to_atom(name)]) do
+        [:hex, name, version] ->
           # Do not error on bad data in the old lock because we should just
           # fix it automatically
           if deps = Registry.get_deps(Atom.to_string(name), version) do
