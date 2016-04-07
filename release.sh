@@ -54,7 +54,6 @@ function upload {
   # special case 1.0.0 upload
   s3cp hex-1.0.0.ez hex.ez
 
-  s3cp list.csv list.csv
   s3cp hex-1.x.csv hex-1.x.csv
   s3cp hex-1.x.csv.signed hex-1.x.csv.signed
 }
@@ -67,8 +66,8 @@ build ${hex_version} 18.3.1   1.2.3 1.2.0
 build ${hex_version} 17.5.6.8 1.1.1 1.1.0
 build ${hex_version} 17.5.6.8 1.0.5 1.0.0
 
-hex_csv  ${hex_version} 1.0.0 1.1.0 1.2.0
-upload   ${hex_version} 1.0.0 1.1.0 1.2.0
+hex_csv ${hex_version} 1.0.0 1.1.0 1.2.0
+upload  ${hex_version} 1.0.0 1.1.0 1.2.0
 
 
 rm -rf _build
