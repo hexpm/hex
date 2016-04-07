@@ -22,15 +22,6 @@ function build {
 }
 
 # $1   = hex version
-# $... = elixir versions
-function list_csv {
-  rm list.csv || true
-  aws s3 cp s3://s3.hex.pm/installs/list.csv list.csv
-
-  echo -e -n "\n$(join , $@)" >> list.csv
-}
-
-# $1   = hex version
 # $... = elixir version
 function hex_csv {
   rm hex-1.x.csv || true
@@ -76,7 +67,6 @@ build ${hex_version} 18.3.1   1.2.3 1.2.0
 build ${hex_version} 17.5.6.8 1.1.1 1.1.0
 build ${hex_version} 17.5.6.8 1.0.5 1.0.0
 
-list_csv ${hex_version} 1.0.0 1.1.0 1.2.0
 hex_csv  ${hex_version} 1.0.0 1.1.0 1.2.0
 upload   ${hex_version} 1.0.0 1.1.0 1.2.0
 

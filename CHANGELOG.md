@@ -1,4 +1,4 @@
-## v0.11.5-dev
+## v0.11.5 (2016-04-07)
 
 * Enhancements
   * Add more registry metrics to `hex.info`
