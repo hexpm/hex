@@ -1,5 +1,12 @@
 ## v0.11.5-dev
 
+* Enhancements
+  * Add more registry metrics to `hex.info`
+
+* Bug fixes
+  * Fix a bug where Hex was about a bit too enthusiastic when informing the user of new versions
+  * Fix some missing future-proofing of lock
+
 ## v0.11.4 (2016-04-06)
 
 * Enhancements
@@ -9,7 +16,7 @@
 * Bug fixes
   * Correctly show update notification
   * Remove duplicate parents from backtrack messages
-  * Fix invalid message in `hex outdated` if locked version is a pre-release
+  * Fix invalid message in `hex.outdated` if locked version is a pre-release
 
 ## v0.11.3 (2016-03-14)
 
