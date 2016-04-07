@@ -142,15 +142,15 @@ defmodule Hex.MixTaskTest do
       Mix.Task.run "deps"
 
       assert_received {:mix_shell, :info, ["* ecto 0.2.0 (Hex package)" <> _]}
-      assert_received {:mix_shell, :info, ["  locked at 0.2.0 (ecto)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.2.0 (ecto)" <> _]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
       assert_received {:mix_shell, :info, ["* postgrex 0.2.0 (Hex package)" <> _]}
-      assert_received {:mix_shell, :info, ["  locked at 0.2.0 (postgrex)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.2.0 (postgrex)" <> _]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
       assert_received {:mix_shell, :info, ["* ex_doc 0.0.1 (Hex package)" <> _]}
-      assert_received {:mix_shell, :info, ["  locked at 0.0.1 (ex_doc)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.0.1 (ex_doc)" <> _]}
       assert_received {:mix_shell, :info, ["  ok"]}
     end
   after
@@ -205,15 +205,15 @@ defmodule Hex.MixTaskTest do
       Mix.Task.run "deps"
 
       assert_received {:mix_shell, :info, ["* ecto 0.2.1 (Hex package)" <> _]}
-      assert_received {:mix_shell, :info, ["  locked at 0.2.1 (ecto)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.2.1 (ecto)" <> _]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
       assert_received {:mix_shell, :info, ["* postgrex 0.2.1 (Hex package)" <> _]}
-      assert_received {:mix_shell, :info, ["  locked at 0.2.1 (postgrex)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.2.1 (postgrex)" <> _]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
       assert_received {:mix_shell, :info, ["* ex_doc 0.1.0 (Hex package)" <> _]}
-      assert_received {:mix_shell, :info, ["  locked at 0.1.0 (ex_doc)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.1.0 (ex_doc)" <> _]}
       assert_received {:mix_shell, :info, ["  ok"]}
     end
   after
@@ -248,15 +248,15 @@ defmodule Hex.MixTaskTest do
       Mix.Task.run "deps"
 
       assert_received {:mix_shell, :info, ["* ecto 0.2.0 (Hex package)" <> _]}
-      assert_received {:mix_shell, :info, ["  locked at 0.2.0 (ecto)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.2.0 (ecto)" <> _]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
       assert_received {:mix_shell, :info, ["* postgrex 0.2.1 (Hex package)" <> _]}
-      assert_received {:mix_shell, :info, ["  locked at 0.2.1 (postgrex)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.2.1 (postgrex)" <> _]}
       assert_received {:mix_shell, :info, ["  ok"]}
 
       assert_received {:mix_shell, :info, ["* ex_doc 0.1.0 (Hex package)" <> _]}
-      assert_received {:mix_shell, :info, ["  locked at 0.1.0 (ex_doc)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.1.0 (ex_doc)" <> _]}
       assert_received {:mix_shell, :info, ["  ok"]}
     end
   after
@@ -289,7 +289,7 @@ defmodule Hex.MixTaskTest do
 
       assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
 
-      assert %{postgrex: {:hex, :postgrex, "0.2.0"}} = Mix.Dep.Lock.read
+      assert %{postgrex: {:hex, :postgrex, "0.2.0", _}} = Mix.Dep.Lock.read
     end
   after
     purge [Ecto.Fixture.Mixfile, Postgrex.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile]
@@ -327,7 +327,7 @@ defmodule Hex.MixTaskTest do
       refute_received {:mix_shell, :info, ["* ex_doc (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
 
-      assert Mix.Dep.Lock.read == %{postgrex: {:hex, :postgrex, "0.2.1"}}
+      assert %{postgrex: {:hex, :postgrex, "0.2.1", _}} = Mix.Dep.Lock.read
     end
   after
     purge [Postgrex.NoConflict.Mixfile, ExDoc.Fixture.Mixfile]
@@ -347,8 +347,8 @@ defmodule Hex.MixTaskTest do
       refute_received {:mix_shell, :info, ["* ex_doc (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
 
-      assert Mix.Dep.Lock.read == %{phoenix: {:hex, :phoenix, "0.0.1"},
-                                    postgrex: {:hex, :postgrex, "0.2.1"}}
+      assert %{phoenix: {:hex, :phoenix, "0.0.1", _},
+               postgrex: {:hex, :postgrex, "0.2.1", _}} = Mix.Dep.Lock.read
     end
   after
     purge [Phoenix.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
@@ -370,7 +370,7 @@ defmodule Hex.MixTaskTest do
       refute_received {:mix_shell, :info, ["* ex_doc (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
 
-      assert Mix.Dep.Lock.read == %{postgrex: {:hex, :postgrex, "0.2.1"}}
+      assert %{postgrex: {:hex, :postgrex, "0.2.1", _}} = Mix.Dep.Lock.read
     end
   after
     purge [OverrideWithPath.Fixture.Mixfile, ExDoc.Fixture.Mixfile,
@@ -412,7 +412,7 @@ defmodule Hex.MixTaskTest do
 
       assert_received {:mix_shell, :info, ["* only_doc (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["* ex_doc (Hex package)" <> _]}
-      assert_received {:mix_shell, :info, ["  locked at 0.0.1 (ex_doc)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.0.1 (ex_doc)" <> _]}
     end
   after
     purge [Only_doc.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile]
@@ -431,7 +431,7 @@ defmodule Hex.MixTaskTest do
       Mix.Task.run "deps"
 
       assert_received {:mix_shell, :info, ["* app_name (Hex package)" <> _]}
-      assert_received {:mix_shell, :info, ["  locked at 0.1.0 (package_name)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.1.0 (package_name)" <> _]}
     end
   after
     purge [Package_name.NoConflict.Mixfile]
@@ -451,9 +451,9 @@ defmodule Hex.MixTaskTest do
       Mix.Task.run "deps"
 
       assert_received {:mix_shell, :info, ["* depend_name (Hex package)" <> _]}
-      assert_received {:mix_shell, :info, ["  locked at 0.2.0 (depend_name)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.2.0 (depend_name)" <> _]}
       assert_received {:mix_shell, :info, ["* app_name (Hex package)" <> _]}
-      assert_received {:mix_shell, :info, ["  locked at 0.1.0 (package_name)"]}
+      assert_received {:mix_shell, :info, ["  locked at 0.1.0 (package_name)" <> _]}
     end
   after
     purge [Depend_name.NoConflict.Mixfile, Package_name.NoConflict.Mixfile]

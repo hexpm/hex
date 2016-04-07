@@ -16,8 +16,10 @@ defmodule Hex.SCM do
 
   def format_lock(opts) do
     case Hex.Utils.lock(opts[:lock]) do
-      [:hex, name, version] ->
+      [:hex, name, version, nil] ->
         "#{version} (#{name})"
+      [:hex, name, version, <<checksum::binary-8, _::binary>>] ->
+        "#{version} (#{name}) #{checksum}"
       _ ->
         nil
     end
@@ -33,8 +35,8 @@ defmodule Hex.SCM do
 
   def lock_status(opts) do
     case Hex.Utils.lock(opts[:lock]) do
-      [:hex, name, version] ->
-        lock_status(opts[:dest], Atom.to_string(name), version)
+      [:hex, name, version, checksum] ->
+        lock_status(opts[:dest], Atom.to_string(name), version, checksum)
       nil ->
         :mismatch
       _ ->
@@ -42,12 +44,15 @@ defmodule Hex.SCM do
     end
   end
 
-  defp lock_status(dest, name, version) do
+  defp lock_status(dest, name, version, checksum) do
     case File.read(Path.join(dest, ".hex")) do
       {:ok, file} ->
         case parse_manifest(file) do
+          {^name, ^version, ^checksum} -> :ok
+          {^name, ^version, _} when is_nil(checksum) -> :ok
           {^name, ^version} -> :ok
-          _ -> :mismatch
+          _ ->
+            :mismatch
         end
       {:error, _} ->
         :mismatch
@@ -76,7 +81,7 @@ defmodule Hex.SCM do
   def checkout(opts) do
     Hex.Registry.open!(Hex.Registry.ETS)
 
-    [:hex, _name, version] = Hex.Utils.lock(opts[:lock])
+    [:hex, _name, version, checksum] = Hex.Utils.lock(opts[:lock])
     name     = opts[:hex]
     dest     = opts[:dest]
     filename = "#{name}-#{version}.tar"
@@ -101,8 +106,8 @@ defmodule Hex.SCM do
     end
 
     File.rm_rf!(dest)
-    Hex.Tar.unpack(path, dest, {name, version})
-    manifest = encode_manifest(name, version)
+    Hex.Tar.unpack(path, dest, {name, version}, checksum)
+    manifest = encode_manifest(name, version, checksum)
     File.write!(Path.join(dest, ".hex"), manifest)
 
     opts[:lock]
@@ -121,8 +126,8 @@ defmodule Hex.SCM do
     |> List.to_tuple
   end
 
-  defp encode_manifest(name, version) do
-    "#{name},#{version}"
+  defp encode_manifest(name, version, checksum) do
+    "#{name},#{version},#{checksum}"
   end
 
   defp cache_path do
@@ -150,7 +155,7 @@ defmodule Hex.SCM do
 
     Enum.flat_map(lock, fn {_app, info} ->
       case Hex.Utils.lock(info) do
-        [:hex, name, version] ->
+        [:hex, name, version, _checksum] ->
           if fetch?(name, version, deps_path), do: [{name, version}], else: []
         _ ->
           []

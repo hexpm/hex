@@ -307,8 +307,7 @@ defmodule Hex.Utils do
     end
   end
 
-  def lock(tuple) when is_tuple(tuple),
-    do: tuple |> Tuple.to_list |> Enum.take(3)
-  def lock(nil),
-    do: nil
+  def lock(nil), do: nil
+  def lock({:hex, name, version}), do: [:hex, name, version, nil]
+  def lock(tuple), do: tuple |> Tuple.to_list |> Enum.take(4)
 end

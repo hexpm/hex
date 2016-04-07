@@ -163,7 +163,7 @@ defmodule Hex.Mix do
   def from_lock(lock) do
     Enum.flat_map(lock, fn {app, info} ->
       case Hex.Utils.lock(info) do
-        [:hex, name, version] ->
+        [:hex, name, version, _checksum] ->
           [{Atom.to_string(name), Atom.to_string(app), version}]
         _ ->
           []
@@ -178,7 +178,8 @@ defmodule Hex.Mix do
   @spec to_lock(%{}) :: %{}
   def to_lock(result) do
     Enum.into(result, %{}, fn {name, app, version} ->
-      {String.to_atom(app), {:hex, String.to_atom(name), version}}
+      checksum = Hex.Registry.get_checksum(name, version) |> String.downcase
+      {String.to_atom(app), {:hex, String.to_atom(name), version, checksum}}
     end)
   end
 end
