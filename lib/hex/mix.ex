@@ -162,8 +162,8 @@ defmodule Hex.Mix do
   @spec from_lock(%{}) :: [{String.t, String.t, String.t}]
   def from_lock(lock) do
     Enum.flat_map(lock, fn {app, info} ->
-      case Hex.Utils.to_list(info) do
         [:hex, name, version] ->
+      case Hex.Utils.lock(info) do
           [{Atom.to_string(name), Atom.to_string(app), version}]
         _ ->
           []

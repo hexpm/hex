@@ -15,8 +15,8 @@ defmodule Hex.SCM do
   end
 
   def format_lock(opts) do
-    case Hex.Utils.to_list(opts[:lock]) do
       [:hex, name, version] ->
+    case Hex.Utils.lock(opts[:lock]) do
         "#{version} (#{name})"
       _ ->
         nil
@@ -32,9 +32,9 @@ defmodule Hex.SCM do
   end
 
   def lock_status(opts) do
-    case Hex.Utils.to_list(opts[:lock]) do
       [:hex, name, version] ->
         lock_status(opts[:dest], Atom.to_string(name), version)
+    case Hex.Utils.lock(opts[:lock]) do
       nil ->
         :mismatch
       _ ->
@@ -61,7 +61,7 @@ defmodule Hex.SCM do
   def managers(opts) do
     Hex.Registry.open!(Hex.Registry.ETS)
 
-    case Hex.Utils.to_list(opts[:lock]) do
+    case Hex.Utils.lock(opts[:lock]) do
       [:hex, name, version] ->
         name        = Atom.to_string(name)
         build_tools = Hex.Registry.get_build_tools(name, version) || []
@@ -76,7 +76,7 @@ defmodule Hex.SCM do
   def checkout(opts) do
     Hex.Registry.open!(Hex.Registry.ETS)
 
-    [:hex, _name, version] = Hex.Utils.to_list(opts[:lock])
+    [:hex, _name, version] = Hex.Utils.lock(opts[:lock])
     name     = opts[:hex]
     dest     = opts[:dest]
     filename = "#{name}-#{version}.tar"
@@ -97,7 +97,7 @@ defmodule Hex.SCM do
         unless File.exists?(path) do
           Mix.raise "Package fetch failed and no cached copy available"
         end
-        Hex.Shell.info "Check failed. Using locally cached package"
+        Hex.Shell.info "Fetch failed. Using locally cached package"
     end
 
     File.rm_rf!(dest)
@@ -149,8 +149,8 @@ defmodule Hex.SCM do
     deps_path = Mix.Project.deps_path
 
     Enum.flat_map(lock, fn {_app, info} ->
-      case Hex.Utils.to_list(info) do
         [:hex, name, version] ->
+      case Hex.Utils.lock(info) do
           if fetch?(name, version, deps_path), do: [{name, version}], else: []
         _ ->
           []
