@@ -88,21 +88,21 @@ defmodule Hex.SCM do
     path     = cache_path(filename)
     url      = Hex.API.repo_url("tarballs/#{filename}")
 
-    Hex.Shell.info "Checking package (#{url})"
+    Hex.Shell.info "  Checking package (#{url})"
 
     case Hex.Parallel.await(:hex_fetcher, {name, version}, @fetch_timeout) do
       {:ok, :cached} ->
-        Hex.Shell.info "Using locally cached package"
+        Hex.Shell.info "  Using locally cached package"
       {:ok, :offline} ->
-        Hex.Shell.info "[OFFLINE] Using locally cached package"
+        Hex.Shell.info "  [OFFLINE] Using locally cached package"
       {:ok, :new} ->
-        Hex.Shell.info "Fetched package"
+        Hex.Shell.info "  Fetched package"
       {:error, reason} ->
         Hex.Shell.error(reason)
         unless File.exists?(path) do
           Mix.raise "Package fetch failed and no cached copy available"
         end
-        Hex.Shell.info "Fetch failed. Using locally cached package"
+        Hex.Shell.info "  Fetch failed. Using locally cached package"
     end
 
     File.rm_rf!(dest)
