@@ -289,7 +289,7 @@ defmodule Hex.MixTaskTest do
 
       assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
 
-      assert %{postgrex: {:hex, :postgrex, "0.2.0", _}} = Mix.Dep.Lock.read
+      assert %{postgrex: {:hex, :postgrex, "0.2.0", _, _, _}} = Mix.Dep.Lock.read
     end
   after
     purge [Ecto.Fixture.Mixfile, Postgrex.NoConflict.Mixfile, Ex_doc.NoConflict.Mixfile]
@@ -327,7 +327,7 @@ defmodule Hex.MixTaskTest do
       refute_received {:mix_shell, :info, ["* ex_doc (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
 
-      assert %{postgrex: {:hex, :postgrex, "0.2.1", _}} = Mix.Dep.Lock.read
+      assert %{postgrex: {:hex, :postgrex, "0.2.1", _, _, _}} = Mix.Dep.Lock.read
     end
   after
     purge [Postgrex.NoConflict.Mixfile, ExDoc.Fixture.Mixfile]
@@ -347,8 +347,8 @@ defmodule Hex.MixTaskTest do
       refute_received {:mix_shell, :info, ["* ex_doc (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
 
-      assert %{phoenix: {:hex, :phoenix, "0.0.1", _},
-               postgrex: {:hex, :postgrex, "0.2.1", _}} = Mix.Dep.Lock.read
+      assert %{phoenix: {:hex, :phoenix, "0.0.1", _, _, _},
+               postgrex: {:hex, :postgrex, "0.2.1", _, _, _}} = Mix.Dep.Lock.read
     end
   after
     purge [Phoenix.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
@@ -370,7 +370,7 @@ defmodule Hex.MixTaskTest do
       refute_received {:mix_shell, :info, ["* ex_doc (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
 
-      assert %{postgrex: {:hex, :postgrex, "0.2.1", _}} = Mix.Dep.Lock.read
+      assert %{postgrex: {:hex, :postgrex, "0.2.1", _, _, _}} = Mix.Dep.Lock.read
     end
   after
     purge [OverrideWithPath.Fixture.Mixfile, ExDoc.Fixture.Mixfile,

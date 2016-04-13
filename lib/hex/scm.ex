@@ -16,9 +16,9 @@ defmodule Hex.SCM do
 
   def format_lock(opts) do
     case Hex.Utils.lock(opts[:lock]) do
-      [:hex, name, version, nil] ->
+      [:hex, name, version, nil, _managers, _deps] ->
         "#{version} (#{name})"
-      [:hex, name, version, <<checksum::binary-8, _::binary>>] ->
+      [:hex, name, version, <<checksum::binary-8, _::binary>>, _managers, _deps] ->
         "#{version} (#{name}) #{checksum}"
       _ ->
         nil
@@ -35,7 +35,7 @@ defmodule Hex.SCM do
 
   def lock_status(opts) do
     case Hex.Utils.lock(opts[:lock]) do
-      [:hex, name, version, checksum] ->
+      [:hex, name, version, checksum, _managers, _deps] ->
         lock_status(opts[:dest], Atom.to_string(name), version, checksum)
       nil ->
         :mismatch
@@ -64,13 +64,14 @@ defmodule Hex.SCM do
   end
 
   def managers(opts) do
-    Hex.Registry.open!(Hex.Registry.ETS)
-
     case Hex.Utils.lock(opts[:lock]) do
-      [:hex, name, version] ->
+      [:hex, name, version, _checksum, nil, _deps] ->
+        Hex.Utils.ensure_registry!(fetch: false)
         name        = Atom.to_string(name)
         build_tools = Hex.Registry.get_build_tools(name, version) || []
         Enum.map(build_tools, &String.to_atom/1)
+      [:hex, _name, _version, _checksum, managers, _deps] ->
+        managers
       _ ->
         []
     end
@@ -81,7 +82,7 @@ defmodule Hex.SCM do
   def checkout(opts) do
     Hex.Registry.open!(Hex.Registry.ETS)
 
-    [:hex, _name, version, checksum] = Hex.Utils.lock(opts[:lock])
+    [:hex, _name, version, checksum, _managers, _deps] = Hex.Utils.lock(opts[:lock])
     name     = opts[:hex]
     dest     = opts[:dest]
     filename = "#{name}-#{version}.tar"
@@ -155,7 +156,7 @@ defmodule Hex.SCM do
 
     Enum.flat_map(lock, fn {_app, info} ->
       case Hex.Utils.lock(info) do
-        [:hex, name, version, _checksum] ->
+        [:hex, name, version, _checksum, _managers, _deps] ->
           if fetch?(name, version, deps_path), do: [{name, version}], else: []
         _ ->
           []

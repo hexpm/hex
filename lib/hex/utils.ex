@@ -308,6 +308,6 @@ defmodule Hex.Utils do
   end
 
   def lock(nil), do: nil
-  def lock({:hex, name, version}), do: [:hex, name, version, nil]
-  def lock(tuple), do: tuple |> Tuple.to_list |> Enum.take(4)
+  def lock({:hex, name, version}), do: [:hex, name, version, nil, nil, nil]
+  def lock(tuple), do: tuple |> Tuple.to_list |> Enum.take(6)
 end

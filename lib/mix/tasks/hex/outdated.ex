@@ -55,7 +55,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     {package, current} =
       case Hex.Utils.lock(lock[app]) do
-        [:hex, package, lock_version, _checksum] ->
+        [:hex, package, lock_version, _checksum, _managers, _deps] ->
           {package, lock_version}
         _ ->
           Mix.raise "Dependency #{app} not locked as a Hex package"
@@ -137,7 +137,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp get_versions(deps, lock, pre?) do
     Enum.flat_map(deps, fn dep ->
       case Hex.Utils.lock(lock[dep.app]) do
-        [:hex, package, lock_version, _checksum] ->
+        [:hex, package, lock_version, _checksum, _managers, _deps] ->
           latest_version = latest_version(package, lock_version, pre?)
           req = dep.requirement
           [[Atom.to_string(dep.app), lock_version, latest_version, req]]

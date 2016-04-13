@@ -48,11 +48,12 @@ defmodule Hex.RemoteConverger do
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
-    Hex.Utils.ensure_registry!(fetch: false)
-
     case Hex.Utils.lock(lock[app]) do
-      [:hex, name, version, _checksum] ->
+      [:hex, name, version, _checksum, _managers, nil] ->
+        Hex.Utils.ensure_registry!(fetch: false)
         get_deps(name, version)
+      [:hex, _name, _version, _checksum, _managers, deps] ->
+        deps
       _ ->
         []
     end
@@ -138,7 +139,8 @@ defmodule Hex.RemoteConverger do
   defp verify_lock(lock) do
     Enum.each(lock, fn {_app, info} ->
       case Hex.Utils.lock(info) do
-        [:hex, name, version, _checksum] ->
+        [:hex, name, version, _checksum, _managers, _deps] ->
+          # TODO: Verify deps?
           verify_dep(Atom.to_string(name), version)
         _ ->
           :ok
@@ -164,7 +166,7 @@ defmodule Hex.RemoteConverger do
   defp do_with_children(names, lock) do
     Enum.map(names, fn name ->
       case Hex.Utils.lock(lock[String.to_atom(name)]) do
-        [:hex, name, version, _checksum] ->
+        [:hex, name, version, _checksum, _managers, nil] ->
           # Do not error on bad data in the old lock because we should just
           # fix it automatically
           if deps = Registry.get_deps(Atom.to_string(name), version) do
@@ -173,6 +175,9 @@ defmodule Hex.RemoteConverger do
           else
             []
           end
+        [:hex, _name, _version, _checksum, _managers, deps] ->
+          apps = Enum.map(deps, &Atom.to_string(elem(&1, 0)))
+          [apps, do_with_children(apps, lock)]
         _ ->
           []
       end
@@ -190,9 +195,8 @@ defmodule Hex.RemoteConverger do
         %Mix.Dep{scm: Hex.SCM, app: app, requirement: req, opts: opts} ->
           # Make sure to handle deps that were previously locked as Git
           case Hex.Utils.lock(old_lock[app]) do
-            [:hex, name, version, _checksum] ->
+            [:hex, name, version, _checksum, _managers, _deps] ->
               req && !Hex.Version.match?(version, req) && name == opts[:hex]
-
             _ ->
               true
           end
