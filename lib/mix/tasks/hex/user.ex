@@ -102,6 +102,9 @@ defmodule Mix.Tasks.Hex.User do
   defp register(opts) do
     clean? = Keyword.get(opts, :clean_pass, true)
 
+    Hex.Shell.info("By registering an account on Hex.pm you accept all our " <>
+                   "policies and terms of service found at https://hex.pm/policies\n")
+
     username = Hex.Shell.prompt("Username:")  |> String.strip
     email    = Hex.Shell.prompt("Email:")     |> String.strip
     password = Utils.password_get("Password:", clean?) |> String.strip
