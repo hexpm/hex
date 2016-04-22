@@ -88,6 +88,8 @@ defmodule Hex.Resolver.Backtracks do
     # If two backtracks have similar parents (only differing in the
     # parents versions) we merge them. Finally if a package has the exact
     # same conflicts for two different versions we also merge those.
+    backtracks = Enum.sort_by(backtracks, &elem(&1, 2), &>/2)
+
     Enum.reduce(backtracks, %{}, fn {name, version, parents}, map ->
       parents = Enum.sort(parents)
 
@@ -110,7 +112,9 @@ defmodule Hex.Resolver.Backtracks do
   # into the existing ones
   defp try_merge_package_version(list, version, parents) do
     update_one(list, [], fn {versions, existing_parents} ->
-      case try_merge_parents(existing_parents, parents, []) do
+      subset? = length(existing_parents) > length(parents)
+
+      case try_merge_parents(existing_parents, parents, subset?, []) do
         {:ok, parents} ->
           {:ok, {insert_new(versions, version), parents}}
         :error ->
@@ -121,15 +125,20 @@ defmodule Hex.Resolver.Backtracks do
 
   # If two lists of parents match (in package name and requirement)
   # merge them and append the versions
-  defp try_merge_parents([], [], acc), do: {:ok, Enum.reverse(acc)}
+  defp try_merge_parents([], [], _subset?, acc), do: {:ok, Enum.reverse(acc)}
   defp try_merge_parents([parent(name: name, requirement: req, version: versions)|existing],
                          [parent(name: name, requirement: req, version: version)|new],
+                         subset?,
                          acc) do
     versions = [version|List.wrap(versions)]
     parent = parent(name: name, requirement: req, version: versions)
-    try_merge_parents(existing, new, [parent|acc])
+    try_merge_parents(existing, new, subset?, [parent|acc])
   end
-  defp try_merge_parents(_, _, _), do: :error
+  defp try_merge_parents([parent|existing], new, true, acc) do
+    parent = parent(parent, version: List.wrap(parent(parent, :version)))
+    try_merge_parents(existing, new, true, [parent|acc])
+  end
+  defp try_merge_parents(_, _, _subset, _), do: :error
 
   # Update a single element in a list
   defp update_one([], _acc, _fun), do: :error

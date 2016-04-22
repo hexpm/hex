@@ -58,9 +58,6 @@ defmodule Hex.ResolverTest do
     assert resolve(deps) == """
     Conflict on foo
       mix.exs: ~> 0.3.0
-
-    Conflict on foo 0.1.0
-      mix.exs: ~> 0.3.0
       bar 0.1.0: ~> 0.1.0
 
     Conflict on foo 0.2.0, 0.2.1
