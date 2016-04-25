@@ -17,7 +17,7 @@ defmodule Hex.Resolver.Backtracks do
     parents =
       parents
       |> Enum.uniq
-      |> Enum.sort(&parent_cmp/2)
+      |> Enum.sort
 
     case :ets.lookup(@ets, {name, parents}) do
       [{_, versions}] ->
@@ -68,7 +68,7 @@ defmodule Hex.Resolver.Backtracks do
         |> Enum.sort(&version_cmp/2)
       parent(parent, version: versions)
     end)
-    |> Enum.sort(&parent_cmp/2)
+    |> Enum.sort
   end
 
   defp merge_versions(backtracks) do
@@ -157,13 +157,6 @@ defmodule Hex.Resolver.Backtracks do
   defp inner_unzip([], []), do: []
 
   defp version_cmp(a, b), do: Hex.Version.compare(a, b) != :gt
-
-  # TODO: Handle sorting of mix.exs from umbrellas
-  defp parent_cmp(parent(name: "mix.exs"), _),  do: true
-  defp parent_cmp(_, parent(name: "mix.exs")),  do: false
-  defp parent_cmp(parent(name: "mix.lock"), _), do: true
-  defp parent_cmp(_, parent(name: "mix.lock")), do: false
-  defp parent_cmp(parent1, parent2),            do: parent1 <= parent2
 
   def message({name, versions, parents}) do
     if parent_messages = parent_messages(parents, versions) do
