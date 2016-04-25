@@ -57,7 +57,6 @@ defmodule Hex.ResolverTest do
     deps = [foo: "~> 0.3.0", bar: nil]
     assert resolve(deps) == """
     \e[4mFailed to use "foo" because\e[0m
-      \e[1mbar (version 0.1.0)\e[0m requires \e[32m~> 0.1.0\e[0m
       You specified \e[32m~> 0.3.0\e[0m in your mix.exs\e[0m
     """
 
