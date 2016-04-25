@@ -7,13 +7,19 @@ defmodule Hex.Resolver.BacktracksTest do
   end
 
   test "merge versions" do
-    assert message({"foo", ["0.0.1", "0.1.0", "0.2.0"], []}) ==
-           "Conflict on foo from 0.0.1 to 0.2.0\n  "
+    assert IO.iodata_to_binary(message({"foo", ["0.0.1", "0.1.0", "0.2.0"], []})) ==
+           format([:underline, ~s'Failed to use "foo" (versions 0.0.1 to 0.2.0) because', :reset, "\n  "])
 
-    assert message({"foo", ["0.0.1", "0.1.0", "0.2.1"], []}) ==
-           "Conflict on foo 0.0.1, 0.1.0, 0.2.1\n  "
+    assert IO.iodata_to_binary(message({"foo", ["0.0.1", "0.1.0", "0.2.1"], []})) ==
+           format([:underline, ~s'Failed to use "foo" (versions 0.0.1, 0.1.0, 0.2.1) because', :reset, "\n  "])
 
-    assert message({"foo", ["0.1.0", "0.2.1"], []}) ==
-           "Conflict on foo 0.1.0, 0.2.1\n  "
+    assert IO.iodata_to_binary(message({"foo", ["0.1.0", "0.2.1"], []})) ==
+           format([:underline, ~s'Failed to use "foo" (versions 0.1.0 and 0.2.1) because', :reset, "\n  "])
+  end
+
+  defp format(message) do
+    message
+    |> IO.ANSI.format
+    |> IO.iodata_to_binary
   end
 end

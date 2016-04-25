@@ -40,8 +40,10 @@ defmodule Hex.RemoteConverger do
         Hex.SCM.prefetch(new_lock)
         Map.merge(lock, new_lock)
       {:error, message} ->
-        Hex.Shell.error message
-        Mix.raise "Hex dependency resolution failed, relax the version requirements or unlock dependencies"
+        Hex.Shell.info "\n" <> message
+        Mix.raise "Hex dependency resolution failed, relax the version " <>
+                  "requirements of your dependencies or unlock them (by " <>
+                  "using mix deps.update or mix deps.unlock)"
     end
   after
     Hex.Registry.pdict_clean

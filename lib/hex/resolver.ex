@@ -207,7 +207,9 @@ defmodule Hex.Resolver do
 
   defp error_message do
     Backtracks.collect
-    |> Enum.map_join("\n\n", &Backtracks.message/1)
+    |> Enum.map(&Backtracks.message/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join("\n\n")
     |> Kernel.<>("\n")
   end
 end
