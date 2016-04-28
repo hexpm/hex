@@ -102,7 +102,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp print_link_to_coc() do
-    Hex.Shell.info "Before publishing, please read Hex Code of Conduct: https://hex.pm/docs/codeofconduct"
+    Hex.Shell.info "Before publishing, please read Hex Code of Conduct: https://hex.pm/policies/codeofconduct"
   end
 
   defp revert(meta, version, auth) do
