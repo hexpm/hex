@@ -97,7 +97,7 @@ defmodule Hex.Registry do
       case :lists.keyfind(Hex.version, 1, versions) do
         {_, elixirs} ->
           if match_elixir_version?(elixirs, current) do
-            Hex.Shell.warn "Hex was built against against Elixir #{Hex.elixir_version} " <>
+            Hex.Shell.warn "Hex was built against Elixir #{Hex.elixir_version} " <>
               "and you are running #{System.version}, please run `mix local.hex` " <>
               "to update to a matching version"
           end
