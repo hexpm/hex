@@ -34,3 +34,10 @@ defmodule ReleaseNoDescription.Mixfile do
     [app: :release_e, version: "0.0.1"]
   end
 end
+
+defmodule ReleaseTooLongDescription.Mixfile do
+  def project do
+    [app: :release_f, description: String.duplicate("w", 301),
+     version: "0.0.1"]
+  end
+end

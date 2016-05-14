@@ -88,4 +88,19 @@ defmodule Mix.Tasks.Hex.BuildTest do
   after
     purge [ReleaseNoDescription.Mixfile]
   end
+
+  test "warn if description is too long" do
+    Mix.Project.push ReleaseTooLongDescription.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+
+      Mix.Tasks.Hex.Build.run([])
+
+      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Package description is very long (exceeds " <> _]}
+      assert package_created?("release_f-0.0.1")
+    end
+  after
+    purge [ReleaseTooLongDescription.Mixfile]
+  end
 end
