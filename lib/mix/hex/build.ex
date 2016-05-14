@@ -5,6 +5,7 @@ defmodule Mix.Hex.Build do
   @error_fields ~w(files app name description version build_tools)a
   @warn_fields ~w(licenses maintainers links)a
   @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir)a
+  @max_description_length 300
 
   def prepare_package! do
     Hex.start
@@ -36,6 +37,7 @@ defmodule Mix.Hex.Build do
     Enum.each(@meta_fields, &print_meta(meta, &1))
 
     warn_missing(meta)
+    warn_long_description(meta)
     warn_missing_files(package_files)
     error_missing!(meta)
 
@@ -169,6 +171,14 @@ defmodule Mix.Hex.Build do
       fields = Enum.join(missing_fields, ", ")
       Hex.Shell.error("  ERROR! Missing metadata fields: #{fields}")
       Mix.raise("Stopping package build due to errors")
+    end
+  end
+
+  defp warn_long_description(meta) do
+    description = meta[:description] || ""
+
+    if String.length(description) > @max_description_length do
+      Hex.Shell.warn("  WARNING! Package description is very long (exceeds #{@max_description_length} characters)")
     end
   end
 
