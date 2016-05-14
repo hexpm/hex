@@ -67,7 +67,7 @@ defmodule Hex.SCM do
     case Hex.Utils.lock(opts[:lock]) do
       [:hex, name, version, _checksum, nil, _deps] ->
         Hex.Utils.ensure_registry!(fetch: false)
-        name        = Atom.to_string(name)
+        name = Atom.to_string(name)
         build_tools = Hex.Registry.get_build_tools(name, version) || []
         Enum.map(build_tools, &String.to_atom/1)
       [:hex, _name, _version, _checksum, managers, _deps] ->

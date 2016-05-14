@@ -121,7 +121,8 @@ defmodule Mix.Tasks.Hex.Info do
       Hex.Shell.info "Dependencies:"
       Enum.each(requirements, fn {name, req} ->
         optional = if req["optional"], do: " (optional)"
-        Hex.Shell.info "  #{name}: #{req["requirement"]}#{optional}"
+        app = if (app = req["app"]) && app != name, do: " (app: #{app})"
+        Hex.Shell.info "  #{name} #{req["requirement"]}#{app}#{optional}"
       end)
     end
   end
