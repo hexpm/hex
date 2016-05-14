@@ -41,7 +41,7 @@ defmodule Hex.State do
       http_proxy:       load_config(config, ["http_proxy", "HTTP_PROXY"], :http_proxy),
       https_proxy:      load_config(config, ["https_proxy", "HTTPS_PROXY"], :https_proxy),
       offline?:         load_config(config, ["HEX_OFFLINE"], :offline) |> to_boolean |> default(false),
-      check_cert?:      load_config(config, ["HEX_UNSAFE_HTTPS"], :unsafe_https) |> to_boolean |> default(true),
+      check_cert?:      load_config(config, ["HEX_UNSAFE_HTTPS"], :unsafe_https) |> to_boolean |> default(false) |> Kernel.not,
       check_registry?:  load_config(config, ["HEX_UNSAFE_REGISTRY"], :unsafe_registry) |> to_boolean |> default(true),
       hexpm_pk:         @hexpm_pk,
       registry_updated: false,
