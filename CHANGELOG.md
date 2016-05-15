@@ -1,5 +1,20 @@
 ## v0.12.0-dev
 
+* Enhancements
+  * Add package checksums to lock, ensuring a locked package can not change it's content
+  * Add managers and deps to lock, allowing Hex to run without loading the registry
+  * Align deps fetching output from scm
+  * Update hex.pm repo URL to https://repo.hex.pm
+  * Link to policies when registering account
+  * Update CoC links
+  * Improve conflict messages
+  * Improve error messages when ex_doc is missing when publishing docs
+  * Show app name of dependency in `hex.info`
+  * Warn about long package descriptions
+
+* Bug fixes
+  * Fix `HEX_UNSAFE_HTTPS` environment variable and `unsafe_https` config
+
 ## v0.11.5 (2016-04-07)
 
 * Enhancements
