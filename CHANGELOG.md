@@ -1,4 +1,4 @@
-## v0.12.0-dev
+## v0.12.0 (2016-05-15)
 
 * Enhancements
   * Add package checksums to lock, ensuring a locked package can not change it's content

@@ -7,10 +7,10 @@ function join { local IFS="$1"; shift; echo "$*"; }
 # $3 = elixir version
 # $4 = saved elixir version
 function build {
-  rm erln8.config || true
+  rm .tool_versions || true
   rm -rf _build || true
 
-  echo -e "[Config]\nErlang=${2}\nElixir=v${3}" > erln8.config
+  echo -e "erlang ${2}\nelixir ${3}" > .tool_versions
 
   MIX_ENV=prod mix compile
 
@@ -62,13 +62,13 @@ function upload {
 # UPDATE THIS FOR EVERY RELEASE
 hex_version=$1
 
-build ${hex_version} 18.3.1   1.2.4 1.2.0
-build ${hex_version} 17.5.6.8 1.1.1 1.1.0
-build ${hex_version} 17.5.6.8 1.0.5 1.0.0
+build ${hex_version} 18.3.3   1.2.5 1.2.0
+build ${hex_version} 17.5.6.9 1.1.1 1.1.0
+build ${hex_version} 17.5.6.9 1.0.5 1.0.0
 
 hex_csv ${hex_version} 1.0.0 1.1.0 1.2.0
 upload  ${hex_version} 1.0.0 1.1.0 1.2.0
 
 
 rm -rf _build
-rm -rf erln8.config
+rm -rf .tool_versions
