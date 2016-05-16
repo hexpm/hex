@@ -169,6 +169,7 @@ defmodule HexTest.HexWeb do
       meta
       |> Map.merge(%{name: name, version: version, requirements: reqs})
       |> Map.put_new(:description, "empty")
+      |> Map.put_new(:licenses, ["MIT"])
       |> Map.put_new(:app, name)
       |> Map.put_new(:build_tools, ["mix"])
 

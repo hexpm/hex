@@ -79,7 +79,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["--no-progress"])
 
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! No files\e[0m"]}
-      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: licenses, maintainers, links\e[0m"]}
+      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: maintainers, links\e[0m"]}
       assert {200, _, _} = Hex.API.Release.get("release_b", "0.0.2")
     end
   after

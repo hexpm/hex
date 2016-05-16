@@ -43,7 +43,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       Mix.Tasks.Hex.Build.run([])
 
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! No files\e[0m"]}
-      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: licenses, maintainers, links\e[0m"]}
+      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: maintainers, links\e[0m"]}
       assert package_created?("release_b-0.0.2")
     end
   after

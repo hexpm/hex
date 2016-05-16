@@ -1,13 +1,17 @@
 defmodule ReleaseSimple.Mixfile do
   def project do
-    [app: :release_a, description: "baz", version: "0.0.1"]
+    [app: :release_a,
+     description: "baz",
+     version: "0.0.1",
+     package: [licenses: ["MIT"]]]
   end
 end
 
 defmodule ReleaseDeps.Mixfile do
   def project do
     [app: :release_b, description: "bar", version: "0.0.2",
-     deps: [{:ex_doc, "0.0.1"}]]
+     deps: [{:ex_doc, "0.0.1"}],
+     package: [licenses: ["MIT"]]]
   end
 end
 
@@ -25,7 +29,7 @@ end
 defmodule ReleaseName.Mixfile do
   def project do
     [app: :release_d, description: "Whatever", version: "0.0.1",
-     package: [name: :released_name]]
+     package: [name: :released_name, licenses: ["MIT"]]]
   end
 end
 
