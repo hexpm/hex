@@ -3,7 +3,7 @@
 ## v0.12.0 (2016-05-15)
 
 * Enhancements
-  * Add package checksums to lock, ensuring a locked package can not change it's content
+  * Add package checksums to lock, ensuring a locked package can not change its content
   * Add managers and deps to lock, allowing Hex to run without loading the registry
   * Align deps fetching output from scm
   * Update hex.pm repo URL to https://repo.hex.pm
