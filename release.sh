@@ -7,10 +7,10 @@ function join { local IFS="$1"; shift; echo "$*"; }
 # $3 = elixir version
 # $4 = saved elixir version
 function build {
-  rm .tool_versions || true
+  rm .tool-versions || true
   rm -rf _build || true
 
-  echo -e "erlang ${2}\nelixir ${3}" > .tool_versions
+  echo -e "erlang ${2}\nelixir ${3}" > .tool-versions
 
   MIX_ENV=prod mix compile
 
@@ -71,4 +71,4 @@ upload  ${hex_version} 1.0.0 1.1.0 1.2.0
 
 
 rm -rf _build
-rm -rf .tool_versions
+rm -rf .tool-versions
