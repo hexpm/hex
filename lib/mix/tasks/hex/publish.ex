@@ -129,7 +129,6 @@ defmodule Mix.Tasks.Hex.Publish do
 
     case Hex.API.Release.new(meta[:name], tarball, auth, progress) do
       {code, _, _} when code in 200..299 ->
-        # TODO: Only print this URL if we use the default API URL
         Hex.Shell.info("\nPublished at #{Hex.Utils.hex_package_url(meta[:name], meta[:version])}")
         Hex.Shell.info("Don't forget to upload your documentation with `mix hex.docs`")
       {code, body, _} ->

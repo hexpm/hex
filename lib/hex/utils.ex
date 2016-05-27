@@ -115,8 +115,6 @@ defmodule Hex.Utils do
       {200, body, _} ->
         body
       other ->
-        # TODO: We should be able to disable the registry verification per domain.
-        #       No reason to make all registries unsafe.
         reason = signature_fetch_fail(other)
         Mix.raise "The repository at #{domain} did not provide a signature " <>
                   "for the registry because it #{reason}. This could be because " <>

@@ -84,7 +84,6 @@ defmodule Mix.Tasks.Hex.Docs do
       {code, _, _} when code in 200..299 ->
         Hex.Shell.info ""
         Hex.Shell.info "Published docs for #{name} #{version}"
-        # TODO: Only print this URL if we use the default API URL
         Hex.Shell.info "Hosted at #{Hex.Utils.hexdocs_url(name, version)}"
       {code, body, _} ->
         Hex.Shell.info ""

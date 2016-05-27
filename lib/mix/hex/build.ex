@@ -28,8 +28,10 @@ defmodule Mix.Hex.Build do
   def print_info(meta, exclude_deps, package_files) do
     if meta[:requirements] != [] do
       Hex.Shell.info("  Dependencies:")
-      Enum.each(meta[:requirements], fn {app, %{requirement: req, optional: opt}} ->
-        message = "    #{app} #{req} #{if opt, do: "(optional)"}"
+      Enum.each(meta[:requirements], fn %{name: name, app: app, requirement: req, optional: opt} ->
+        app = if name != app, do: " (app: #{app})"
+        opt = if opt, do: " (optional)"
+        message = "    #{name} #{req}#{app}#{opt}"
         Hex.Shell.info(message)
       end)
     end
@@ -73,10 +75,11 @@ defmodule Mix.Hex.Build do
       end
     end)
 
-    include = for {app, req, opts} <- include, into: %{} do
-      name = opts[:hex] || app
-      {name, %{app: app, requirement: req, optional: opts[:optional] || false}}
-    end
+    include =
+      for {app, req, opts} <- include do
+        name = opts[:hex] || app
+        %{name: name, app: app, requirement: req, optional: opts[:optional] || false}
+      end
     exclude = for {app, _req, _opts} <- exclude, do: app
     {include, exclude}
   end

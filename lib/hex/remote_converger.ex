@@ -142,7 +142,6 @@ defmodule Hex.RemoteConverger do
     Enum.each(lock, fn {_app, info} ->
       case Hex.Utils.lock(info) do
         [:hex, name, version, _checksum, _managers, _deps] ->
-          # TODO: Verify deps?
           verify_dep(Atom.to_string(name), version)
         _ ->
           :ok
