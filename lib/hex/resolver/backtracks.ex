@@ -160,10 +160,11 @@ defmodule Hex.Resolver.Backtracks do
 
   def message({name, versions, parents}) do
     if parent_messages = parent_messages(parents, versions) do
-      IO.ANSI.format [
+      IO.ANSI.format([
         :underline, "Failed to use \"", name, "\"", versions_message(name, versions),
         " because", :reset, "\n  ", parent_messages
-      ]
+      ])
+      |> IO.iodata_to_binary
     end
   end
 
@@ -234,6 +235,7 @@ defmodule Hex.Resolver.Backtracks do
   # to "to 0.1.0 from 0.3.0" if there are no other releases of the package
   # between 0.1.0 and 0.3.0.
   defp versions_message(package, versions) do
+    string_versions = Enum.map(versions, &to_string/1)
     case {versions, merge_versions?(package, versions)} do
       {[], _} ->
         ""
@@ -242,9 +244,9 @@ defmodule Hex.Resolver.Backtracks do
       {[x, y], _} ->
         [" (versions ", x, " and ", y, ")"]
       {_, true} when length(versions) > 2 ->
-        [" (versions ", List.first(versions), " to ", List.last(versions), ")"]
+        [" (versions ", List.first(string_versions), " to ", List.last(string_versions), ")"]
       _ ->
-        [" (versions ", Enum.join(versions, ", "), ")"]
+        [" (versions ", Enum.join(string_versions, ", "), ")"]
     end
   end
 
