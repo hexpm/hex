@@ -4,7 +4,7 @@ defmodule Mix.Hex.Build do
 
   @error_fields ~w(files app name description version build_tools)a
   @warn_fields ~w(licenses maintainers links)a
-  @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir)a
+  @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir extra)a
   @max_description_length 300
 
   def prepare_package! do
