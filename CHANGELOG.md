@@ -1,4 +1,11 @@
-## v0.12.1-dev
+## v0.12.1 (2016-05-31)
+
+* Enhancements
+  * Only show proxy settings when MIX_DEBUG=1
+  * Add retries to idempotent requests
+
+* Bug fixes
+  * Fix crash when you get multiple backtrack messages
 
 ## v0.12.0 (2016-05-15)
 
