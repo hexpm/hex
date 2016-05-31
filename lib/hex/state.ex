@@ -119,8 +119,10 @@ defmodule Hex.State do
   end
 
   defp log_value(key, value) do
-    if Enum.member?(@logged_keys, key) do
-      Hex.Shell.info "Using #{key} = #{value}"
+    if function_exported?(Mix, :debug?, 0) and Mix.debug? do
+      if key in @logged_keys do
+        Hex.Shell.info "Using #{key} = #{value}"
+      end
     end
   end
 
