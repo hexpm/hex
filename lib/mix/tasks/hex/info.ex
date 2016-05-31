@@ -55,6 +55,8 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Shell.info "Load time:   #{div load_time, 1000}ms"
     Hex.Shell.info "Packages #:  #{packages}"
     Hex.Shell.info "Versions #:  #{releases}"
+
+    Hex.Registry.info_installs
   end
 
   defp package(package) do
