@@ -58,7 +58,7 @@ defmodule HexTest.HexWeb do
             fun.(fun)
           {^port, {:exit_status, status}} ->
             IO.puts "HexWeb quit with status #{status}"
-            System.exit(status)
+            System.halt(status)
         end
       end
 
@@ -74,7 +74,7 @@ defmodule HexTest.HexWeb do
     unless File.exists?(dir) do
       IO.puts "Unable to find #{dir}, make sure to clone the hex_web repository " <>
               "into it to run integration tests"
-      System.exit(1)
+      System.halt(1)
     end
   end
 
