@@ -38,12 +38,14 @@ defmodule Hex.API do
           {url, Map.to_list(headers)}
       end
 
-    case :httpc.request(method, request, http_opts, opts, profile) do
-      {:ok, response} ->
-        handle_response(response)
-      {:error, reason} ->
-        {:http_error, reason, []}
-    end
+    retry(method, 2, fn ->
+      case :httpc.request(method, request, http_opts, opts, profile) do
+        {:ok, response} ->
+          handle_response(response)
+        {:error, reason} ->
+          {:http_error, reason, []}
+      end
+    end)
   end
 
   def secure_ssl? do
@@ -93,7 +95,7 @@ defmodule Hex.API do
 
   @chunk 10_000
 
-  def request_tar(method, url, headers, body, progress) do
+  def request_tar(url, headers, body, progress) do
     default_headers = %{
       'accept' => @erlang_vendor,
       'user-agent' => user_agent(),
@@ -116,7 +118,7 @@ defmodule Hex.API do
 
     request = {url, Map.to_list(headers), 'application/octet-stream', {body, 0}}
 
-    case :httpc.request(method, request, http_opts, opts, profile) do
+    case :httpc.request(:post, request, http_opts, opts, profile) do
       {:ok, response} ->
         handle_response(response)
       {:error, reason} ->
@@ -174,6 +176,18 @@ defmodule Hex.API do
       %{'authorization' => 'Basic ' ++ base64}
     end
   end
+
+  defp retry(:get, times, fun) do
+    case fun.() do
+      {:http_error, _, _} when times > 1 ->
+        retry(:get, times-1, fun)
+      {:http_error, _, _} = error ->
+        error
+      other ->
+        other
+    end
+  end
+  defp retry(_method, _times, fun), do: fun.()
 
   defp ssl_version do
     case Application.fetch_env(:hex, :ssl_version) do

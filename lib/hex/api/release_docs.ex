@@ -8,7 +8,7 @@ defmodule Hex.API.ReleaseDocs do
 
   def new(name, version, tar, auth, progress \\ fn _ -> nil end) do
     url = API.api_url("packages/#{name}/releases/#{version}/docs")
-    API.request_tar(:post, url, API.auth(auth), tar, progress)
+    API.request_tar(url, API.auth(auth), tar, progress)
   end
 
   def delete(name, version, auth) do
