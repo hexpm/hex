@@ -45,7 +45,7 @@ defmodule Hex.Mixfile do
 
   defp unload_hex(_) do
     Application.stop(:hex)
-    paths = Path.join(archives_path(), "hex*.ez") |> Path.wildcard
+    paths = Path.wildcard(Path.join(archives_path(), "hex*"))
 
     Enum.each(paths, fn archive ->
       ebin = archive_ebin(archive)
