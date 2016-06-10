@@ -17,12 +17,12 @@ before_install:
   - export PATH=$(pwd)/elixir/bin:${PATH}
 
   - mkdir -p ${HEXWEB_MIX_HOME}
-  - PATH=$(pwd)/${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/${HEXWEB_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/${HEXWEB_MIX_HOME} mix local.hex --force
+  - PATH=$(pwd)/${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/${HEXWEB_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/${HEXWEB_MIX_HOME} MIX_ARCHIVES=$(pwd)/${HEXWEB_MIX_HOME} mix local.hex --force
   - mix local.hex --force
 before_script:
   - git clone https://github.com/hexpm/hex_web.git
-  - cd hex_web; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/../${HEXWEB_MIX_HOME} MIX_ENV=hex ../${HEXWEB_ELIXIR_PATH}/bin/mix deps.get; cd ..
-  - cd hex_web; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/../${HEXWEB_MIX_HOME} MIX_ENV=hex ../${HEXWEB_ELIXIR_PATH}/bin/mix compile; cd ..
+  - cd hex_web; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/../${HEXWEB_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXWEB_MIX_HOME} MIX_ENV=hex ../${HEXWEB_ELIXIR_PATH}/bin/mix deps.get; cd ..
+  - cd hex_web; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/../${HEXWEB_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXWEB_MIX_HOME} MIX_ENV=hex ../${HEXWEB_ELIXIR_PATH}/bin/mix compile; cd ..
   - mix deps.get
   - MIX_ENV=test mix deps.compile
 script:
@@ -36,6 +36,7 @@ env:
     - HEXWEB_ELIXIR_PATH=hexweb_elixir
     - HEXWEB_OTP_PATH=hexweb_otp
     - HEXWEB_MIX_HOME=hexweb_mix
+    - HEXWEB_MIX_ARCHIVES=hexweb_mix
   matrix:
     - ELIXIR=v1.0.5
     - ELIXIR=v1.1.1

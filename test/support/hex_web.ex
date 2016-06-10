@@ -27,8 +27,10 @@ defmodule HexTest.HexWeb do
   end
 
   def start do
-    path = String.to_char_list(path())
-    hexweb_mix_home = String.to_char_list(hexweb_mix_home())
+    path                = String.to_char_list(path())
+    hexweb_mix_home     = String.to_char_list(hexweb_mix_home())
+    hexweb_mix_archives = String.to_char_list(hexweb_mix_archives())
+    
     key = Path.join(__DIR__, "../fixtures/test_priv.pem")
           |> File.read!
           |> String.to_char_list
@@ -36,6 +38,7 @@ defmodule HexTest.HexWeb do
     env = [
       {'MIX_ENV', 'hex'},
       {'MIX_HOME', hexweb_mix_home},
+      {'MIX_ARCHIVES', hexweb_mix_archives},
       {'PATH', path},
       {'HEX_SIGNING_KEY', key}
     ]
@@ -108,11 +111,17 @@ defmodule HexTest.HexWeb do
     |> Path.expand
   end
 
+  defp hexweb_mix_archives do
+    (System.get_env("HEXWEB_MIX_ARCHIVES") || Mix.Local.path_for(:archive))
+    |> Path.expand
+  end
+
   defp cmd(command, args) do
     env = [
       {"MIX_ENV", "hex"},
       {"PATH", path()},
-      {"MIX_HOME", hexweb_mix_home()}
+      {"MIX_HOME", hexweb_mix_home()},
+      {"MIX_ARCHIVES", hexweb_mix_archives()},
     ]
 
     opts = [
