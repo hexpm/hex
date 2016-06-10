@@ -235,18 +235,20 @@ defmodule Hex.Resolver.Backtracks do
   # to "to 0.1.0 from 0.3.0" if there are no other releases of the package
   # between 0.1.0 and 0.3.0.
   defp versions_message(package, versions) do
-    string_versions = Enum.map(versions, &to_string/1)
     case {versions, merge_versions?(package, versions)} do
       {[], _} ->
         ""
       {[x], _} ->
-        [" (version ", x, ")"]
+        [" (version ", to_string(x), ")"]
       {[x, y], _} ->
-        [" (versions ", x, " and ", y, ")"]
+        [" (versions ", to_string(x), " and ", to_string(y), ")"]
       {_, true} when length(versions) > 2 ->
-        [" (versions ", List.first(string_versions), " to ", List.last(string_versions), ")"]
+        first = versions |> List.first |> to_string
+        last = versions |> List.last |> to_string
+        [" (versions ", first, " to ", last, ")"]
       _ ->
-        [" (versions ", Enum.join(string_versions, ", "), ")"]
+        versions = Enum.map(versions, &to_string/1)
+        [" (versions ", Enum.join(versions, ", "), ")"]
     end
   end
 
