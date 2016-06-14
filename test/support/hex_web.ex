@@ -112,7 +112,12 @@ defmodule HexTest.HexWeb do
   end
 
   defp hexweb_mix_archives do
-    (System.get_env("HEXWEB_MIX_ARCHIVES") || Mix.Local.path_for(:archive))
+    archives_path =
+      if function_exported?(Mix.Local, :path_for, 1),
+        do: Mix.Local.path_for(:archive),
+      else: Mix.Local.archives_path
+
+    (System.get_env("HEXWEB_MIX_ARCHIVES") || archives_path)
     |> Path.expand
   end
 
