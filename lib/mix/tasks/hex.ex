@@ -18,13 +18,13 @@ defmodule Mix.Tasks.Hex do
     * `HEX_MIRROR` - Sets the Hex.pm mirror URL (Default: `https://repo.hex.pm`).
       Use this option when using a Hex.pm mirror, unlike when setting `HEX_REPO`
       this will still use the public key from Hex.pm when verifying the registry
-     * `HEX_OFFLINE` - If set Hex will not fetch the regsitry or packages and will
-       instead the locally cached files if they are available
-     * `HEX_UNSAFE_HTTPS` - If set Hex will not verify HTTPS certificates
-     * `HEX_UNSAFE_REGISTRY` - If set Hex will not verify the registry signature
-       against the repository's public key
-     * `HTTP_PROXY` / `HTTPS_PROXY` - Sets the URL to a HTTP(S) proxy, the
-       environment variables can also be in lower case
+    * `HEX_OFFLINE` - If set Hex will not fetch the registry or packages and will
+      instead the locally cached files if they are available
+    * `HEX_UNSAFE_HTTPS` - If set Hex will not verify HTTPS certificates
+    * `HEX_UNSAFE_REGISTRY` - If set Hex will not verify the registry signature
+      against the repository's public key
+    * `HTTP_PROXY` / `HTTPS_PROXY` - Sets the URL to a HTTP(S) proxy, the
+      environment variables can also be in lower case
   """
 
   def run(args) do
