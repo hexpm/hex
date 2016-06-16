@@ -22,7 +22,8 @@ defmodule ReleaseMeta.Mixfile do
      package: [files: ["myfile.txt", "missing.txt", "missing/*"],
        licenses: ["Apache"],
        links: %{"a" => "b"},
-       maintainers: ["maintainers"]]]
+       maintainers: ["maintainers"],
+       extra: %{"c" => "d"}]]
   end
 end
 
