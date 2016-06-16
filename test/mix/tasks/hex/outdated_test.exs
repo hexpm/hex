@@ -45,7 +45,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Mix.Dep.Lock.write %{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}}
 
       Mix.Task.run "deps.get"
-      flush
+      flush()
 
       Mix.Task.run "hex.outdated"
 
@@ -66,7 +66,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Mix.Dep.Lock.write %{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}}
 
       Mix.Task.run "deps.get"
-      flush
+      flush()
 
       Mix.Task.run "hex.outdated", ["--all"]
 
@@ -96,7 +96,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Mix.Dep.Lock.write %{beta: {:hex, :beta, "1.0.0"}}
 
       Mix.Task.run "deps.get"
-      flush
+      flush()
 
       Mix.Task.run "hex.outdated", []
 
@@ -123,7 +123,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Mix.Dep.Lock.write %{ex_doc: {:hex, :ex_doc, "0.0.1"}}
 
       Mix.Task.run "deps.get"
-      flush
+      flush()
 
       Mix.Task.run "hex.outdated", ["ex_doc"]
       msg = ["There is newer version of the dependency available ", :bright, "0.1.0 > 0.0.1", :reset, "!"]
@@ -156,7 +156,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Mix.Dep.Lock.write %{ex_doc: {:hex, :ex_doc, "0.1.0"}}
 
       Mix.Task.run "deps.get"
-      flush
+      flush()
 
       Mix.Task.run "hex.outdated", ["ex_doc"]
       msg = ["Current version ", :bright, "0.1.0", :reset, " of dependency is up to date!"]

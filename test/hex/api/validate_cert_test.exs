@@ -6,7 +6,7 @@ defmodule Hex.API.ValidateCertTest do
   end
 
   def partial_chain_fun do
-    &Hex.API.partial_chain([der_encoded_ca_cert], &1)
+    &Hex.API.partial_chain([der_encoded_ca_cert()], &1)
   end
 
   def cert_path(name) do
@@ -65,33 +65,33 @@ defmodule Hex.API.ValidateCertTest do
 
   if Hex.API.secure_ssl? do
     test "succeeds to validate normal chain" do
-      assert {:ok, _} = run_validation([server_cert], :undefined)
+      assert {:ok, _} = run_validation([server_cert()], :undefined)
     end
 
     test "fails to validate invalid chain" do
-      assert {:error, {:bad_cert, :unknown_ca}} = run_validation([untrusted_cert], :undefined)
+      assert {:error, {:bad_cert, :unknown_ca}} = run_validation([untrusted_cert()], :undefined)
     end
 
     test "fails to validate because CA bit is missing" do
-      assert {:error, {:bad_cert, :invalid_key_usage}} = run_validation([server_sub_cert, server_cert], :undefined)
+      assert {:error, {:bad_cert, :invalid_key_usage}} = run_validation([server_sub_cert(), server_cert()], :undefined)
     end
 
     test "fails to validate without partial chain" do
-      assert {:error, {:bad_cert, :unknown_ca}} = run_validation([server_sub_cert, server_cert, untrusted_cert], :undefined)
+      assert {:error, {:bad_cert, :unknown_ca}} = run_validation([server_sub_cert(), server_cert(), untrusted_cert()], :undefined)
     end
 
     test "fails to validate with partial chain" do
-      assert {:error, {:bad_cert, :unknown_ca}} = run_validation([server_sub_cert, server_cert, untrusted_cert], partial_chain_fun)
+      assert {:error, {:bad_cert, :unknown_ca}} = run_validation([server_sub_cert(), server_cert(), untrusted_cert()], partial_chain_fun())
     end
 
     test "fails to validate a partial chain without the partial chain option" do
-      assert {:error, {:bad_cert, :unknown_ca}} = run_validation([amazon_cert, verisign_g3, verisigng5], :undefined)
+      assert {:error, {:bad_cert, :unknown_ca}} = run_validation([amazon_cert(), verisign_g3(), verisigng5()], :undefined)
     end
 
     @tag :skip
     test "succeeds to validate with partial chain that is correct" do
       partial_chain_fun = &Hex.API.partial_chain(Hex.API.Certs.cacerts, &1)
-      assert {:ok, _} = run_validation([amazon_cert, verisign_g3, verisigng5], partial_chain_fun)
+      assert {:ok, _} = run_validation([amazon_cert(), verisign_g3(), verisigng5()], partial_chain_fun)
     end
   end
 end

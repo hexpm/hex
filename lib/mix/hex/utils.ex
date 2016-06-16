@@ -48,11 +48,11 @@ defmodule Mix.Hex.Utils do
   defp loop(prompt) do
     receive do
       {:done, parent, ref} ->
-        send parent, {:done, self, ref}
-        IO.write :standard_error, "\e[2K\r"
+        send parent, {:done, self(), ref}
+        IO.write(:standard_error, "\e[2K\r")
     after
       1 ->
-        IO.write :standard_error, "\e[2K\r#{prompt} "
+        IO.write(:standard_error, "\e[2K\r#{prompt} ")
         loop(prompt)
     end
   end

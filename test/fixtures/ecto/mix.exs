@@ -4,7 +4,7 @@ defmodule Ecto.Fixture.Mixfile do
   def project do
     [app: :ecto,
      version: "0.2.1",
-     deps: deps]
+     deps: deps()]
   end
 
   defp deps do

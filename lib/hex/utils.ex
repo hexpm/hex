@@ -241,7 +241,7 @@ defmodule Hex.Utils do
     do: "https://hexdocs.pm/#{package}/#{version}"
 
   def proxy_config(url) do
-    {http_proxy, https_proxy} = proxy_setup
+    {http_proxy, https_proxy} = proxy_setup()
     proxy_auth(URI.parse(url), http_proxy, https_proxy)
   end
 

@@ -5,8 +5,8 @@ defmodule Hex.Mixfile do
     [app: :hex,
      version: "0.12.2-dev",
      elixir: "~> 1.0",
-     aliases: aliases,
-     deps: deps,
+     aliases: aliases(),
+     deps: deps(),
      elixirc_options: elixirc_options(Mix.env),
      elixirc_paths: elixirc_paths(Mix.env)]
   end

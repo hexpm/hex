@@ -30,7 +30,7 @@ defmodule HexTest.HexWeb do
     path                = String.to_char_list(path())
     hexweb_mix_home     = String.to_char_list(hexweb_mix_home())
     hexweb_mix_archives = String.to_char_list(hexweb_mix_archives())
-    
+
     key = Path.join(__DIR__, "../fixtures/test_priv.pem")
           |> File.read!
           |> String.to_char_list

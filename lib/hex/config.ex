@@ -26,7 +26,7 @@ defmodule Hex.Config do
   def write(config) do
     string = encode_term(config)
 
-    path = config_path
+    path = config_path()
     File.mkdir_p!(Path.dirname(path))
     File.write!(path, string)
   end

@@ -181,7 +181,7 @@ defmodule Hex.SCM do
     else
       etag = Hex.Utils.etag(path)
       url  = Hex.API.repo_url("tarballs/#{name}")
-      File.mkdir_p!(cache_path)
+      File.mkdir_p!(cache_path())
 
       case request(url, etag) do
         {:ok, body} when is_binary(body) ->

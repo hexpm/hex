@@ -4,7 +4,7 @@ defmodule HasHexDep.Fixture.Mixfile do
   def project do
     [app: :has_hex_dep,
       version: "0.0.1",
-      deps: deps]
+      deps: deps()]
   end
 
   defp deps do
