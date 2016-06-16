@@ -26,7 +26,7 @@ defmodule HexTest.Case do
   end
 
   def tmp_path(extension) do
-    Path.join(tmp_path, extension)
+    Path.join(tmp_path(), extension)
   end
 
   def fixture_path do
@@ -34,7 +34,7 @@ defmodule HexTest.Case do
   end
 
   def fixture_path(extension) do
-    Path.join(fixture_path, extension)
+    Path.join(fixture_path(), extension)
   end
 
   defmacro in_tmp(fun) do
