@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Hex.Key do
   use Mix.Task
   alias Mix.Hex.Utils
 
-  @shortdoc "Hex API key tasks"
+  @shortdoc "Manages Hex API key"
 
   @moduledoc """
   Removes or lists API keys associated with your account.

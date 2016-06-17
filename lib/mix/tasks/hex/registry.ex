@@ -1,10 +1,10 @@
 defmodule Mix.Tasks.Hex.Registry do
   use Mix.Task
 
-  @shortdoc "Hex registry tasks"
+  @shortdoc "Manages the local Hex registry"
 
   @moduledoc """
-  Tasks for working with the locally cached registry file. 
+  Tasks for working with the locally cached registry file.
 
   ### Fetch registry
 
