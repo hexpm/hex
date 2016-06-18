@@ -75,6 +75,7 @@ defmodule Mix.Tasks.Hex.Build do
     Hex.Shell.info("Building #{meta[:name]} #{meta[:version]}")
     Build.print_info(meta, exclude_deps, package[:files])
 
-    Hex.Tar.create(meta, meta[:files], false)
+    {_tar, checksum} = Hex.Tar.create(meta, meta[:files], false)
+    Hex.Shell.info("Package checksum: #{checksum}")
   end
 end

@@ -118,7 +118,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp create_release(meta, auth, progress?) do
-    tarball = Hex.Tar.create(meta, meta[:files])
+    {tarball, checksum} = Hex.Tar.create(meta, meta[:files])
 
     progress =
       if progress? do
@@ -129,7 +129,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
     case Hex.API.Release.new(meta[:name], tarball, auth, progress) do
       {code, _, _} when code in 200..299 ->
-        Hex.Shell.info("\nPublished at #{Hex.Utils.hex_package_url(meta[:name], meta[:version])}")
+        Hex.Shell.info("\nPublished at #{Hex.Utils.hex_package_url(meta[:name], meta[:version])} (#{checksum})")
         Hex.Shell.info("Don't forget to upload your documentation with `mix hex.docs`")
       {code, body, _} ->
         Hex.Shell.error("\nPushing #{meta[:name]} #{meta[:version]} failed")
