@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Hex.Owner do
   use Mix.Task
   alias Mix.Hex.Utils
 
-  @shortdoc "Hex package ownership tasks"
+  @shortdoc "Manages Hex package ownership"
 
   @moduledoc """
   Adds, removes or lists package owners.

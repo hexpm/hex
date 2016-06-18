@@ -4,8 +4,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   @shortdoc "Shows outdated Hex deps for the current project"
 
   @moduledoc """
-  Shows all packages that have a version mismatch between the registry and
-  your mix.lock file.
+  Shows all Hex dependencies that have newer versions in the registry.
 
   By default, it only shows top-level packages explicitly listed in the
   `mix.exs` file. All outdated packages can be displayed by using the `--all`
