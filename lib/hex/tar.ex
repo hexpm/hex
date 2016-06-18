@@ -31,7 +31,7 @@ defmodule Hex.Tar do
     tar = File.read!(path)
     File.rm!(contents_path)
     if cleanup_tarball?, do: File.rm!(path)
-    tar
+    {tar, checksum}
   end
 
   def unpack(path, dest, {name, version}, lock_checksum) do

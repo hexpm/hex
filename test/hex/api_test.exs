@@ -14,7 +14,7 @@ defmodule Hex.APITest do
     auth = HexTest.HexWeb.new_key([user: "user", pass: "hunter42"])
 
     meta = %{name: :pear, app: :pear, version: "0.0.1", build_tools: [], requirements: [], licenses: ["MIT"], description: "pear"}
-    tar = Hex.Tar.create(meta, [])
+    {tar, _checksum} = Hex.Tar.create(meta, [])
     assert {404, _, _} = Hex.API.Release.get("pear", "0.0.1")
     assert {201, _, _} = Hex.API.Release.new("pear", tar, auth)
     assert {200, body, _} = Hex.API.Release.get("pear", "0.0.1")
@@ -22,7 +22,7 @@ defmodule Hex.APITest do
 
     reqs = [%{name: :pear, app: :pear, requirement: "~> 0.0.1", optional: false}]
     meta = %{name: :grape, app: :grape, version: "0.0.2", build_tools: [], requirements: reqs, licenses: ["MIT"], description: "grape"}
-    tar = Hex.Tar.create(meta, [])
+    {tar, _checksum} = Hex.Tar.create(meta, [])
     assert {201, _, _} = Hex.API.Release.new("grape", tar, auth)
     assert {200, body, _} = Hex.API.Release.get("grape", "0.0.2")
     assert body["requirements"] == %{"pear" => %{"app" => "pear", "requirement" => "~> 0.0.1", "optional" => false}}
@@ -35,7 +35,7 @@ defmodule Hex.APITest do
     auth = HexTest.HexWeb.new_key([user: "user", pass: "hunter42"])
 
     meta = %{name: :tangerine, app: :tangerine, version: "0.0.1", build_tools: [], requirements: [], licenses: ["MIT"], description: "tangerine"}
-    tar = Hex.Tar.create(meta, [])
+    {tar, _checksum} = Hex.Tar.create(meta, [])
     assert {201, _, _} = Hex.API.Release.new("tangerine", tar, auth)
 
     tarball = Path.join(tmp_path(), "docs.tar.gz")
