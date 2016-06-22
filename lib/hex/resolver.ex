@@ -4,21 +4,19 @@ defmodule Hex.Resolver do
   alias Hex.Registry
   alias Hex.Resolver.Backtracks
 
-  Record.defrecordp :info, [:deps, :top_level]
+  Record.defrecordp :info, [:deps, :top_level, :ets]
   Record.defrecordp :request, [:app, :name, :req, :parent]
   Record.defrecordp :active, [:app, :name, :version, :versions, :parents, :state]
   Record.defrecordp :parent, [:name, :version, :requirement]
   Record.defrecordp :state, [:activated, :requests, :optional, :deps]
 
-  @ets_states :hex_ets_states
-
   def resolve(requests, deps, top_level, locked) do
-    info     = info(deps: deps, top_level: top_level)
+    tid = :ets.new(:hex_ets_states, [])
+    Backtracks.start
+
+    info     = info(deps: deps, top_level: top_level, ets: tid)
     optional = build_optional(locked)
     pending  = build_pending(requests)
-
-    :ets.new(@ets_states, [:named_table])
-    Backtracks.start
 
     try do
       if activated = run(pending, optional, info, %{}),
@@ -29,7 +27,7 @@ defmodule Hex.Resolver do
         {:error, error_message()}
     after
       Backtracks.stop
-      :ets.delete(@ets_states)
+      :ets.delete(tid)
     end
   end
 
@@ -95,7 +93,7 @@ defmodule Hex.Resolver do
 
     state = state(activated: activated, requests: pending, optional: optional, deps: info(info, :deps))
 
-    if seen_state?(name, version, state) do
+    if seen_state?(name, version, state, info) do
       new_active = active(app: app, name: name, version: version, versions: versions, parents: parents, state: state)
       activated = Map.put(activated, name, new_active)
 
@@ -131,10 +129,10 @@ defmodule Hex.Resolver do
     end)
   end
 
-  defp seen_state?(name, version, state(activated: activated) = state) do
+  defp seen_state?(name, version, state(activated: activated) = state, info(ets: ets)) do
     activated = Enum.into(activated, %{}, fn {k, v} -> {k, active(v, state: nil)} end)
     state = state(state, activated: activated, deps: nil)
-    :ets.insert_new(@ets_states, [{{name, version, state}}])
+    :ets.insert_new(ets, [{{name, version, state}}])
   end
 
   defp get_versions(package, requests) do
