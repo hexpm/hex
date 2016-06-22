@@ -8,7 +8,8 @@ defmodule Hex.Mixfile do
      aliases: aliases(),
      deps: deps(),
      elixirc_options: elixirc_options(Mix.env),
-     elixirc_paths: elixirc_paths(Mix.env)]
+     elixirc_paths: elixirc_paths(Mix.env),
+     xref: xref()]
   end
 
   def application do
@@ -35,6 +36,12 @@ defmodule Hex.Mixfile do
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_),     do: ["lib"]
+
+  defp xref do
+    [exclude: [
+      {Mix.Local, :archives_path, 0},
+      {Mix.Local, :path_for, 1}]]
+  end
 
   defp aliases do
     ["compile.elixir": [&unload_hex/1, "compile.elixir"],

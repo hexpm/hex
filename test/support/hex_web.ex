@@ -192,7 +192,7 @@ defmodule HexTest.HexWeb do
     mixfile = :io_lib.format(@mixfile_template, [module, name, version, deps])
 
     files = [{"mix.exs", List.to_string(mixfile)}]
-    {tar, checksum} = Hex.Tar.create(meta, files)
+    {tar, _checksum} = Hex.Tar.create(meta, files)
 
     {result, %{"version" => ^version}, _} = Hex.API.Release.new(name, tar, auth)
     assert result in [200, 201]
