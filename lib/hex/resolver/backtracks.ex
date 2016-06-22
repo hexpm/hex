@@ -173,9 +173,9 @@ defmodule Hex.Resolver.Backtracks do
     parent_colors = Enum.map(parents, &{&1, parent_color(&1, child_versions)})
     mix_color = parent_color(mix, child_versions)
     messages = Enum.map(parent_colors, &parent_message/1)
+    all_colors = [mix_color|Enum.map(parent_colors, &elem(&1, 1))]
 
-    unless mix_color in [:red, :yellow] and
-           Enum.all?(parent_colors, fn {_, color} -> color == :green end) do
+    unless Enum.all?(all_colors, &(&1 == :green)) do
       messages =
         if mix,
           do: messages ++ [parent_message({mix, mix_color})],
@@ -220,6 +220,7 @@ defmodule Hex.Resolver.Backtracks do
     num_versions = length(versions)
 
     cond do
+      num_versions == 0 -> :red
       num_failures == 0 -> :green
       num_failures < num_versions -> :yellow
       num_failures == num_versions -> :red
