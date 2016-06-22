@@ -1,5 +1,6 @@
 defmodule Mix.Tasks.Hex.Outdated do
   use Mix.Task
+  alias Mix.Hex.Utils
 
   @shortdoc "Shows outdated Hex deps for the current project"
 
@@ -84,8 +85,8 @@ defmodule Mix.Tasks.Hex.Outdated do
     Hex.Shell.info ""
 
     header = ["Parent", "Requirement"]
-    requirements
-    |> print_results(header, &print_header/1, &print_single_row(&1, latest))
+    values = Enum.map(requirements, &format_single_row(&1, latest))
+    Utils.table(header, values)
 
     Hex.Shell.info ""
     Hex.Shell.info "A green requirement means that it matches the latest version."
@@ -101,27 +102,23 @@ defmodule Mix.Tasks.Hex.Outdated do
     end)
   end
 
-  defp print_single_row([{parent, p1}, {req, _p2}], latest) do
+  defp format_single_row([parent, req], latest) do
     req_matches? = version_match?(latest, req)
     req = req || ""
     req_color = if req_matches?, do: :green, else: :red
-
-    [:bright, parent, :reset, p1, req_color, req]
-    |> IO.ANSI.format
-    |> Hex.Shell.info
+    [[:bright, parent], [req_color, req]]
   end
 
   defp all(deps, lock, opts) do
     header = ["Dependency", "Current", "Latest", "Requirement"]
 
-    if opts[:all] do
-      deps
-    else
-      Enum.filter(deps, & &1.top_level)
-    end
-    |> sort
-    |> get_versions(lock, opts[:pre])
-    |> print_results(header, &print_header/1, &print_all_row/1)
+    values =
+      if(opts[:all], do: deps, else: Enum.filter(deps, & &1.top_level))
+      |> sort
+      |> get_versions(lock, opts[:pre])
+      |> Enum.map(&format_all_row/1)
+
+    Utils.table(header, values)
 
     Hex.Shell.info ""
     Hex.Shell.info "A green version in latest means you have the latest " <>
@@ -172,28 +169,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     List.last(versions)
   end
 
-  defp print_results(rows, header, print_header, print_row) do
-    table  = [header|rows]
-    widths = widths(table)
-
-    print_header.(pad_row(header, widths))
-    Enum.each(rows, &print_row.(pad_row(&1, widths)))
-  end
-
-  defp pad_row(row, widths) do
-    Enum.map(Enum.zip(row, widths), fn {string, width} ->
-      {string, :binary.copy(" ", width-size(string) + 2)}
-    end)
-  end
-
-  defp print_header(row) do
-    row
-    |> Enum.map(fn {str, pad} -> [:underline, str, :reset, pad] end)
-    |> IO.ANSI.format
-    |> Hex.Shell.info
-  end
-
-  defp print_all_row([{package, p1}, {lock, p2}, {latest, p3}, {req, _p4}]) do
+  defp format_all_row([package, lock, latest, req]) do
     outdated? = Hex.Version.compare(lock, latest) == :lt
     latest_color = if outdated?, do: :red, else: :green
 
@@ -201,25 +177,11 @@ defmodule Mix.Tasks.Hex.Outdated do
     req = req || ""
     req_color = if req_matches?, do: :green, else: :red
 
-    [:bright, package, :reset, p1,
-     lock, p2,
-     latest_color, latest, :reset, p3,
-     req_color, req]
-    |> IO.ANSI.format
-    |> Hex.Shell.info
+    [[:bright, package],
+     lock,
+     [latest_color, latest],
+     [req_color, req]]
   end
-
-  defp widths([head|tail]) do
-    widths = Enum.map(head, &size/1)
-
-    Enum.reduce(tail, widths, fn list, acc ->
-      Enum.zip(list, acc)
-      |> Enum.map(fn {string, width} -> max(width, size(string)) end)
-    end)
-  end
-
-  defp size(nil), do: 0
-  defp size(str), do: byte_size(str)
 
   defp version_match?(_version, nil), do: true
   defp version_match?(version, req),  do: Hex.Version.match?(version, req)

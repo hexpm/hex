@@ -1,4 +1,38 @@
 defmodule Mix.Hex.Utils do
+  def table(header, values) do
+    header = Enum.map(header, &[:underline, &1])
+    widths = widths([header|values])
+
+    print_row(header, widths)
+    Enum.each(values, &print_row(&1, widths))
+  end
+
+  defp ansi_length(binary) when is_binary(binary),
+    do: byte_size(binary)
+  defp ansi_length(list) when is_list(list),
+    do: Enum.reduce(list, 0, &(ansi_length(&1) + &2))
+  defp ansi_length(atom) when is_atom(atom),
+    do: 0
+
+  defp print_row(strings, widths) do
+    Enum.map(Enum.zip(strings, widths), fn {string, width} ->
+      pad_size = width-ansi_length(string)+2
+      pad = :lists.duplicate(pad_size, ?\s)
+      [string, :reset, pad]
+    end)
+    |> IO.ANSI.format
+    |> Hex.Shell.info
+  end
+
+  defp widths([head|tail]) do
+    widths = Enum.map(head, &ansi_length/1)
+
+    Enum.reduce(tail, widths, fn list, acc ->
+      Enum.zip(list, acc)
+      |> Enum.map(fn {string, width} -> max(width, ansi_length(string)) end)
+    end)
+  end
+
   def generate_key(username, password) do
     Hex.Shell.info("Generating API key...")
     {:ok, name} = :inet.gethostname()

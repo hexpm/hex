@@ -12,7 +12,7 @@ defmodule Mix.Tasks.Hex.KeyTest do
       assert {200, [%{"name" => "list_keys"}], _} = Hex.API.Key.get(auth)
 
       Mix.Tasks.Hex.Key.run(["list"])
-      assert_received {:mix_shell, :info, ["list_keys"]}
+      assert_received {:mix_shell, :info, ["list_keys" <> _]}
     end
   end
 
