@@ -4,8 +4,12 @@ defmodule Hex.Utils do
   def ensure_registry(opts \\ []) do
     update_result = update_registry(opts)
 
-    if update_result == :error and not File.exists?(Hex.Registry.ETS.path) do
-      {:error, :update_failed}
+    if update_result == :error do
+      if File.exists?(Hex.Registry.ETS.path) do
+        Hex.Shell.warn("Failed to update registry (using the cache)")
+      else
+        {:error, :update_failed}
+      end
     else
       start_result =
         if Keyword.get(opts, :open, true),
@@ -24,8 +28,12 @@ defmodule Hex.Utils do
   def ensure_registry!(opts \\ []) do
     update_result = update_registry(opts)
 
-    if update_result == :error and not File.exists?(Hex.Registry.ETS.path) do
-      Mix.raise "Failed to fetch registry"
+    if update_result == :error do
+      if File.exists?(Hex.Registry.ETS.path) do
+        Hex.Shell.warn("Failed to update registry (using the cache)")
+      else
+        Mix.raise "Failed to fetch registry"
+      end
     end
 
     start_result =
