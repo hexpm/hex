@@ -1,5 +1,5 @@
 language: erlang
-otp_release: 18.2
+otp_release: 19.0
 sudo: false
 addons:
   postgresql: "9.4"
@@ -30,17 +30,16 @@ script:
   - mix test
 env:
   global:
-    - HEXWEB_OTP=18.2
-    - HEXWEB_ELIXIR=v1.2.1
+    - HEXWEB_OTP=19.0
+    - HEXWEB_ELIXIR=v1.3.1
     - HEXWEB_PATH=hex_web
     - HEXWEB_ELIXIR_PATH=hexweb_elixir
     - HEXWEB_OTP_PATH=hexweb_otp
     - HEXWEB_MIX_HOME=hexweb_mix
     - HEXWEB_MIX_ARCHIVES=hexweb_mix
   matrix:
-    - ELIXIR=v1.0.5
-    - ELIXIR=v1.1.1
-    - ELIXIR=v1.2.1
+    - ELIXIR=v1.2.6
+    - ELIXIR=v1.3.1
     - ELIXIR=master
 matrix:
   include:
@@ -48,6 +47,16 @@ matrix:
       env: ELIXIR=v1.0.5
     - otp_release: 17.5
       env: ELIXIR=v1.1.1
+    - otp_release: 18.3
+      env: ELIXIR=v1.0.5
+    - otp_release: 18.3
+      env: ELIXIR=v1.1.1
+    - otp_release: 18.3
+      env: ELIXIR=v1.2.6
+    - otp_release: 18.3
+      env: ELIXIR=v1.3.1
+    - otp_release: 18.3
+      env: ELIXIR=master
 notifications:
   recipients:
     - eric.meadows.jonsson@gmail.com
