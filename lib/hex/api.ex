@@ -3,7 +3,7 @@ defmodule Hex.API do
   alias Hex.API.VerifyHostname
 
   @request_timeout 60_000
-  @secure_ssl_version {5, 3, 6}
+  @secure_ssl_version {5, 3, 7}
   @erlang_vendor 'application/vnd.hex+erlang'
 
   require Record
@@ -49,7 +49,13 @@ defmodule Hex.API do
   end
 
   def secure_ssl? do
-    ssl_version() >= @secure_ssl_version and Hex.State.fetch!(:check_cert?)
+    check? = Hex.State.fetch!(:check_cert?)
+    if check? and Hex.State.fetch!(:ssl_version) <= @secure_ssl_version do
+      Mix.raise "Insecure HTTPS request (peer verification disabled), " <>
+                "please update to OTP 17.4 or later, or disable by setting " <>
+                "the environment variable HEX_UNSAFE_HTTPS=1"
+    end
+    check?
   end
 
   def ssl_opts(url) do
@@ -188,49 +194,4 @@ defmodule Hex.API do
     end
   end
   defp retry(_method, _times, fun), do: fun.()
-
-  defp ssl_version do
-    case Application.fetch_env(:hex, :ssl_version) do
-      {:ok, version} ->
-        version
-      :error ->
-        {:ok, version} = :application.get_key(:ssl, :vsn)
-        version = parse_ssl_version(version)
-
-        warn_ssl_version(version)
-        Application.put_env(:hex, :ssl_version, version)
-        version
-    end
-  end
-
-  defp warn_ssl_version(version) do
-    if version < @secure_ssl_version do
-      Hex.Shell.warn "Insecure HTTPS request (peer verification disabled), " <>
-                     "please update to OTP 17.4 or later"
-    end
-  end
-
-  defp parse_ssl_version(version) do
-    version
-    |> List.to_string
-    |> String.split(".")
-    |> Enum.take(3)
-    |> Enum.map(&to_integer/1)
-    |> version_pad
-    |> List.to_tuple
-  end
-
-  defp version_pad([major]),
-    do: [major, 0, 0]
-  defp version_pad([major, minor]),
-    do: [major, minor, 0]
-  defp version_pad([major, minor, patch]),
-    do: [major, minor, patch]
-  defp version_pad([major, minor, patch | _]),
-    do: [major, minor, patch]
-
-  defp to_integer(string) do
-    {int, _} = Integer.parse(string)
-    int
-  end
 end

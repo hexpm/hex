@@ -45,7 +45,8 @@ defmodule Hex.State do
       check_registry?:  load_config(config, ["HEX_UNSAFE_REGISTRY"], :unsafe_registry) |> to_boolean |> default(true),
       hexpm_pk:         @hexpm_pk,
       registry_updated: false,
-      httpc_profile:    :hex}
+      httpc_profile:    :hex,
+      ssl_version:      ssl_version()}
   end
 
   # Work around for :socket_closed_remotely errors in httpc
@@ -161,5 +162,34 @@ defmodule Hex.State do
     else
       "To silence this warning you need to run:\n\n    mix hex.config cdn_url --delete\n\n"
     end
+  end
+
+  defp ssl_version do
+    {:ok, version} = :application.get_key(:ssl, :vsn)
+    parse_ssl_version(version)
+  end
+
+  defp parse_ssl_version(version) do
+    version
+    |> List.to_string
+    |> String.split(".")
+    |> Enum.take(3)
+    |> Enum.map(&to_integer/1)
+    |> version_pad
+    |> List.to_tuple
+  end
+
+  defp version_pad([major]),
+    do: [major, 0, 0]
+  defp version_pad([major, minor]),
+    do: [major, minor, 0]
+  defp version_pad([major, minor, patch]),
+    do: [major, minor, patch]
+  defp version_pad([major, minor, patch | _]),
+    do: [major, minor, patch]
+
+  defp to_integer(string) do
+    {int, _} = Integer.parse(string)
+    int
   end
 end
