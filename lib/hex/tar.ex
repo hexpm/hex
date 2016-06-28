@@ -34,14 +34,14 @@ defmodule Hex.Tar do
     {tar, checksum}
   end
 
-  def unpack(path, dest, {name, version}, lock_checksum) do
+  def unpack(path, dest, {name, version}) do
     case :erl_tar.extract(path, [:memory]) do
       {:ok, files} ->
         files = Enum.into(files, %{})
         tar_version = files['VERSION']
         check_version(tar_version)
         check_files(tar_version, files)
-        checksum(tar_version, files, {name, version}, lock_checksum)
+        checksum(tar_version, files, {name, version})
         extract_contents(files['contents.tar.gz'], dest)
 
       :ok ->
@@ -80,7 +80,7 @@ defmodule Hex.Tar do
     end
   end
 
-  defp checksum(tar_version, files, {name, version}, lock_checksum) do
+  defp checksum(tar_version, files, {name, version}) do
     case Base.decode16(files['CHECKSUM'], case: :mixed) do
       {:ok, tar_checksum} ->
         meta              = metadata(tar_version, files)
@@ -90,11 +90,8 @@ defmodule Hex.Tar do
 
         if checksum != tar_checksum,
           do: Mix.raise "Checksum mismatch in tarball"
-        if registry_checksum && checksum != Base.decode16!(registry_checksum),
+        if checksum != Base.decode16!(registry_checksum),
           do: Mix.raise "Checksum mismatch against registry"
-        if not is_nil(lock_checksum) and Base.decode16!(lock_checksum, case: :lower) != checksum do
-          Mix.raise "Checksum mismatch against lock"
-        end
 
       :error ->
         Mix.raise "Checksum invalid"

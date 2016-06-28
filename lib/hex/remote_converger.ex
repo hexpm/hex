@@ -36,6 +36,7 @@ defmodule Hex.RemoteConverger do
     case Hex.Resolver.resolve(reqs, deps, top_level, locked) do
       {:ok, resolved} ->
         print_success(resolved, locked)
+        verify_resolved(resolved, old_lock)
         new_lock = Hex.Mix.to_lock(resolved)
         Hex.SCM.prefetch(new_lock)
         Map.merge(lock, new_lock)
@@ -136,6 +137,32 @@ defmodule Hex.RemoteConverger do
         Hex.Shell.info "  #{name}: #{version}"
       end)
     end
+  end
+
+  defp verify_resolved(resolved, lock) do
+    Enum.each(resolved, fn {name, app, version} ->
+      atom_name = String.to_atom(name)
+
+      case Hex.Utils.lock(lock[String.to_atom(app)]) do
+        [:hex, ^atom_name, ^version, checksum, _managers, deps] ->
+          registry_checksum = Hex.Registry.get_checksum(name, version)
+
+          if checksum && Base.decode16!(checksum, case: :lower) != Base.decode16!(registry_checksum),
+            do: Mix.raise "Registry checksum mismatch against lock (#{name} #{version})"
+
+          if deps do
+            deps =
+              Enum.map(deps, fn {app, req, opts} ->
+                {Atom.to_string(opts[:hex]), Atom.to_string(app), req, !!opts[:optional]}
+              end)
+
+            if Enum.sort(deps) != Enum.sort(Hex.Registry.get_deps(name, version)),
+              do: Mix.raise "Registry dependencies mismatch against lock (#{name} #{version})"
+          end
+        _ ->
+          :ok
+      end
+    end)
   end
 
   defp verify_lock(lock) do

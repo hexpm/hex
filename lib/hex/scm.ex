@@ -107,7 +107,7 @@ defmodule Hex.SCM do
     end
 
     File.rm_rf!(dest)
-    Hex.Tar.unpack(path, dest, {name, version}, checksum)
+    Hex.Tar.unpack(path, dest, {name, version})
     manifest = encode_manifest(name, version, checksum)
     File.write!(Path.join(dest, ".hex"), manifest)
 
@@ -154,25 +154,19 @@ defmodule Hex.SCM do
   defp fetch_from_lock(lock) do
     deps_path = Mix.Project.deps_path
 
-    Enum.flat_map(lock, fn {_app, info} ->
+    Enum.flat_map(lock, fn {app, info} ->
       case Hex.Utils.lock(info) do
         [:hex, name, version, _checksum, _managers, _deps] ->
-          if fetch?(name, version, deps_path), do: [{name, version}], else: []
+          dest = Path.join(deps_path, "#{app}")
+          case lock_status([dest: dest, lock: info]) do
+            :ok       -> []
+            :mismatch -> [{name, version}]
+            :outdated -> [{name, version}]
+          end
         _ ->
           []
       end
     end)
-  end
-
-  defp fetch?(name, version, deps_path) do
-    dest = Path.join(deps_path, "#{name}")
-
-    case File.read(Path.join(dest, ".hex")) do
-      {:ok, contents} ->
-        {name, version} != parse_manifest(contents)
-      {:error, _} ->
-        true
-    end
   end
 
   defp fetch(name, path) do
