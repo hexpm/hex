@@ -18,6 +18,7 @@ before_install:
 
   - mkdir -p ${HEXWEB_MIX_HOME}
   - PATH=$(pwd)/${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/${HEXWEB_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/${HEXWEB_MIX_HOME} MIX_ARCHIVES=$(pwd)/${HEXWEB_MIX_HOME} mix local.hex --force
+  - PATH=$(pwd)/${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/${HEXWEB_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/${HEXWEB_MIX_HOME} MIX_ARCHIVES=$(pwd)/${HEXWEB_MIX_HOME} mix local.rebar --force
   - mix local.hex --force
 before_script:
   - git clone https://github.com/hexpm/hex_web.git
@@ -43,10 +44,6 @@ env:
     - ELIXIR=master
 matrix:
   include:
-    - otp_release: 17.5
-      env: ELIXIR=v1.0.5
-    - otp_release: 17.5
-      env: ELIXIR=v1.1.1
     - otp_release: 18.3
       env: ELIXIR=v1.0.5
     - otp_release: 18.3
@@ -57,6 +54,10 @@ matrix:
       env: ELIXIR=v1.3.1
     - otp_release: 18.3
       env: ELIXIR=master
+    - otp_release: 17.5
+      env: ELIXIR=v1.0.5
+    - otp_release: 17.5
+      env: ELIXIR=v1.1.1
 notifications:
   recipients:
     - eric.meadows.jonsson@gmail.com
