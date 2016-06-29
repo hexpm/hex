@@ -218,4 +218,24 @@ defmodule HexTest.Case do
 
     :ok
   end
+
+  def bypass_mirror() do
+    bypass = Bypass.open
+    Hex.State.put(:repo, "http://localhost:#{bypass.port}")
+
+    Bypass.expect bypass, fn conn ->
+      case conn do
+        %Plug.Conn{request_path: "/docs/package-1.1.2.tar.gz"} ->
+          tar_file = tmp_path("package-1.1.2.tar.gz")
+          index_file = String.to_char_list("index.html")
+          :erl_tar.create(tar_file, [{index_file, ""}], [:compressed])
+          package = File.read!(tar_file)
+          Plug.Conn.resp(conn, 200, package)
+        %Plug.Conn{request_path: "/docs/package"} ->
+          Plug.Conn.resp(conn, 404, "")
+      end
+    end
+
+    bypass
+  end
 end

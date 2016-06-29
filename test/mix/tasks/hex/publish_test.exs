@@ -1,6 +1,25 @@
+defmodule Mix.Tasks.Docs do
+  def run(_) do
+    File.mkdir_p!("doc")
+    File.write!("doc/index.html", "the index")
+  end
+end
+
 defmodule Mix.Tasks.Hex.PublishTest do
   use HexTest.Case
   @moduletag :integration
+
+  defmodule DocsSimple.Mixfile do
+    def project do
+      [app: :ex_doc, version: "0.1.0"]
+    end
+  end
+
+  defmodule DocsError.Mixfile do
+    def project do
+      [app: :ex_doc, version: "0.1.1"]
+    end
+  end
 
   test "validate" do
     Mix.Project.push ReleaseSimple.Mixfile
@@ -13,7 +32,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     purge [ReleaseSimple.Mixfile]
   end
 
-  test "create and revert" do
+  test "create and revert a package" do
     Mix.Project.push ReleaseSimple.Mixfile
 
     in_tmp fn ->
@@ -22,7 +41,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
-      Mix.Tasks.Hex.Publish.run(["--no-progress"])
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
       assert {200, _, _} = Hex.API.Release.get("release_a", "0.0.1")
 
       msg = "Before publishing, please read Hex Code of Conduct: https://hex.pm/policies/codeofconduct"
@@ -30,23 +49,75 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
-      Mix.Tasks.Hex.Publish.run(["--revert", "0.0.1"])
+      Mix.Tasks.Hex.Publish.run(["package", "--revert", "0.0.1"])
       assert {404, _, _} = Hex.API.Release.get("release_a", "0.0.1")
     end
   after
     purge [ReleaseSimple.Mixfile]
   end
 
-  test "create with package name" do
+  test "create and revert docs" do
+    Mix.Project.push DocsSimple.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user", "hunter42")
+
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      Mix.Tasks.Hex.Publish.run(["docs", "--no-progress"])
+      assert_received {:mix_shell, :info, ["Published docs for ex_doc 0.1.0"]}
+
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      Mix.Tasks.Hex.Publish.run(["docs", "--revert", "0.1.0"])
+      assert_received {:mix_shell, :info, ["Reverted docs for ex_doc 0.1.0"]}
+    end
+  end
+
+  test "docs when package is not published yet" do
+    Mix.Project.push DocsError.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user", "hunter42")
+
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      Mix.Tasks.Hex.Publish.run(["docs", "--no-progress"])
+      assert_received {:mix_shell, :error, ["Pushing docs for ex_doc v0.1.1 is not possible due to the package not be published"]}
+
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      Mix.Tasks.Hex.Publish.run(["--revert", "0.1.1"])
+      assert_received {:mix_shell, :error, ["Reverting docs for ex_doc 0.1.1 failed"]}
+    end
+  end
+
+  test "package create with package name" do
     Mix.Project.push ReleaseName.Mixfile
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
       setup_auth("user", "hunter42")
 
+      raised_message = """
+        invalid arguments, expected one of:
+          mix hex.publish
+          mix hex.publish package
+          mix hex.publish docs
+        """
+
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      assert_raise Mix.Error, raised_message, fn ->
+        Mix.Tasks.Hex.Publish.run(["invalid", "--no-progress"])
+      end
+
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["--no-progress"])
+      msg = "Publishing released_name 0.0.1"
+      assert_received {:mix_shell, :info, [^msg]}
+
+      send self(), {:mix_shell_input, :yes?, true}
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
       assert {200, body, _} = Hex.API.Release.get("released_name", "0.0.1")
       assert body["meta"]["app"] == "release_d"
     end
@@ -63,7 +134,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
-      Mix.Tasks.Hex.Publish.run(["--no-progress"])
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
       assert {200, _, _} = Hex.API.Release.get("release_a", "0.0.1")
     end
   after
@@ -81,7 +152,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
-      Mix.Tasks.Hex.Publish.run(["--no-progress"])
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
 
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! No files\e[0m"]}
       assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: maintainers, links\e[0m"]}
@@ -101,7 +172,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       File.write!("myfile.txt", "hello")
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
-      Mix.Tasks.Hex.Publish.run(["--no-progress"])
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
 
       assert_received {:mix_shell, :info, ["Publishing release_c 0.0.3"]}
       assert_received {:mix_shell, :info, ["  Files:"]}
