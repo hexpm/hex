@@ -24,11 +24,11 @@ defmodule Hex.Mixfile do
   # and calls the dependency SCM. This would cause us to crash if the SCM was
   # Hex because we have to unload Hex before compiling it.
   defp deps do
-    [{:bypass, github: "ericmj/bypass", branch: "emj-multi-bypass", only: :test},
-     {:plug,   github: "elixir-lang/plug", tag: "v1.1.2", only: :test, override: true},
-     {:cowboy, github: "ninenines/cowboy", tag: "1.0.4", only: :test, override: true},
-     {:cowlib, github: "ninenines/cowlib", tag: "1.0.2", only: :test, override: true},
-     {:ranch,  github: "ninenines/ranch", tag: "1.2.1", only: :test, override: true}]
+    [{:bypass, github: "PSPDFKit-labs/bypass", only: :test},
+     {:plug,   github: "elixir-lang/plug", tag: "v1.1.4", only: :test, override: true},
+     {:cowboy, github: "ninenines/cowboy", tag: "1.0.4", only: :test, override: true, manager: :rebar3},
+     {:cowlib, github: "ninenines/cowlib", tag: "1.0.2", only: :test, override: true, manager: :rebar3},
+     {:ranch,  github: "ninenines/ranch", tag: "1.2.1", only: :test, override: true, manager: :rebar3}]
   end
 
   defp elixirc_options(:prod), do: [debug_info: false]
