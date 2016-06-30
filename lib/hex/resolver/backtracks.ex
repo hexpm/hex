@@ -159,46 +159,58 @@ defmodule Hex.Resolver.Backtracks do
   defp version_cmp(a, b), do: Hex.Version.compare(a, b) != :gt
 
   def message({name, versions, parents}) do
-    if parent_messages = parent_messages(parents, versions) do
+    if parent_messages = parent_messages(parents, name, versions) do
       IO.ANSI.format([
         :underline, "Failed to use \"", name, "\"", versions_message(name, versions),
-        " because", :reset, "\n  ", parent_messages
+        " because", :reset, "\n", parent_messages
       ])
       |> IO.iodata_to_binary
     end
   end
 
-  defp parent_messages(parents, child_versions) do
+  defp parent_messages(parents, child, child_versions) do
     {mix, parents} = partition_mix(parents)
-    parent_colors = Enum.map(parents, &{&1, parent_color(&1, child_versions)})
-    mix_color = parent_color(mix, child_versions)
-    messages = Enum.map(parent_colors, &parent_message/1)
-    all_colors = [mix_color|Enum.map(parent_colors, &elem(&1, 1))]
+    parent_reasons = Enum.map(parents, &{&1, parent_reason(&1, child, child_versions)})
+    mix_reason = {mix, parent_reason(mix, child, child_versions)}
+    messages = Enum.map(parent_reasons, &parent_message/1)
+    all_reasons = [mix_reason|parent_reasons]
 
-    unless Enum.all?(all_colors, &(&1 == :green)) do
+    unless all_green?(all_reasons) do
       messages =
         if mix,
-          do: messages ++ [parent_message({mix, mix_color})],
+          do: messages ++ [parent_message(mix_reason)],
         else: messages
 
-      Enum.intersperse(messages, "\n  ")
+      Enum.map(messages, &["  ", &1, "\n"])
     end
   end
 
-  defp parent_message({parent(name: "mix.lock", version: [], requirement: req), color}) do
-    ["Locked to ", color, requirement(req), :reset, " in your mix.lock"]
+  defp parent_message({parent(name: "mix.lock", version: [], requirement: req), {color, pre_failed?}}) do
+    ["Locked to ", color, requirement(req), :reset, " in your mix.lock",
+     pre_message(pre_failed?)]
   end
 
-  defp parent_message({parent(name: "mix.exs", version: [], requirement: req), color}) do
-    ["You specified ", color, requirement(req), :reset, " in your mix.exs"]
+  defp parent_message({parent(name: "mix.exs", version: [], requirement: req), {color, pre_failed?}}) do
+    ["You specified ", color, requirement(req), :reset, " in your mix.exs",
+     pre_message(pre_failed?)]
   end
 
-  defp parent_message({parent(name: name, version: versions, requirement: req), color}) do
+  defp parent_message({parent(name: name, version: versions, requirement: req), {color, pre_failed?}}) do
     [:bright, name, versions_message(name, versions), :reset, " requires ", color,
-     requirement(req), :reset]
+     requirement(req), :reset, pre_message(pre_failed?)]
   end
 
   defp parent_message({nil, nil}), do: []
+
+  defp pre_message(true), do: " *"
+  defp pre_message(false), do: ""
+
+  defp all_green?(reasons) do
+    Enum.all?(reasons, fn
+      {nil, nil} -> false
+      {_parent, {color, _pre}} -> color == :green
+    end)
+  end
 
   defp partition_mix(parents) do
     map =
@@ -214,21 +226,28 @@ defmodule Hex.Resolver.Backtracks do
     {map["mix.lock"] || map["mix.exs"], parents}
   end
 
-  defp parent_color(nil, _versions), do: nil
-  defp parent_color(parent(requirement: req), versions) do
-    num_failures = Enum.count(versions, &(not version_match?(&1, req)))
+  defp parent_reason(nil, _child, _versions), do: nil
+  defp parent_reason(parent, child, []) do
+    versions = Hex.Registry.get_versions(child)
+    parent_reason(parent, child, versions)
+  end
+  defp parent_reason(parent(requirement: req), _child, versions) do
+    num_failures = Enum.count(versions, &(not version_match?(&1, req, [])))
     num_versions = length(versions)
+    pre_failures = Enum.count(versions, &(not version_match?(&1, req, allow_pre: true)))
+    pre_failed?  = pre_failures < num_failures
 
-    cond do
-      num_versions == 0 -> :red
-      num_failures == 0 -> :green
-      num_failures < num_versions -> :yellow
-      num_failures == num_versions -> :red
-    end
+    {parent_color(num_versions, num_failures), pre_failed?}
   end
 
-  defp version_match?(_version, nil), do: true
-  defp version_match?(version, req), do: Hex.Version.match?(version, req)
+  defp parent_color(_versions, 0), do: :green
+  defp parent_color(versions, versions), do: :red
+  defp parent_color(versions, failures) when failures < versions, do: :yellow
+
+  defp version_match?(_version, nil, _opts),
+    do: true
+  defp version_match?(version, req, opts),
+    do: Hex.Version.match?(version, req, opts)
 
   # Try converting lists of versions to a version range if the list is
   # a complete range of versions of the package.
@@ -269,5 +288,5 @@ defmodule Hex.Resolver.Backtracks do
   defp do_sub_range?([_|outer], inner, false), do: do_sub_range?(outer, inner, false)
 
   defp requirement(nil), do: ">= 0.0.0"
-  defp requirement(req), do: req.source
+  defp requirement(req), do: req
 end

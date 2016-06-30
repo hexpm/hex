@@ -14,16 +14,22 @@ defmodule Hex.Version do
     {:ok, []}
   end
 
-  def match?(version, requirement) do
+  def match?(version, requirement, opts \\ []) do
+    allow_pre = Keyword.get(opts, :allow_pre, false)
     req_source = requirement_source(requirement)
 
-    cache({:match?, version, req_source}, fn ->
+    cache({:match?, version, req_source, allow_pre}, fn ->
       version     = parse!(version)
-      requirement = parse_requirement!(requirement)
+      requirement = parse_requirement!(req_source, allow_pre: allow_pre)
 
-      if allow_pre?(),
-        do: Version.match?(version, requirement, allow_pre: false),
-      else: custom_match?(version, requirement)
+      cond do
+        allow_pre_available?() ->
+          Version.match?(version, requirement, allow_pre: allow_pre)
+        allow_pre ->
+          Version.match?(version, requirement)
+        true ->
+          custom_match?(version, requirement)
+      end
     end)
   end
 
@@ -51,13 +57,16 @@ defmodule Hex.Version do
     end
   end
 
-  def parse_requirement(%Requirement{} = req), do: {:ok, req}
-  def parse_requirement(%Version.Requirement{} = req), do: {:ok, req}
-  def parse_requirement(requirement) do
-    cache({:req, requirement}, fn ->
-      if allow_pre?() do
+  def parse_requirement(req, opts \\ [])
+  def parse_requirement(%Requirement{} = req, _opts), do: {:ok, req}
+  def parse_requirement(%Version.Requirement{} = req, _opts), do: {:ok, req}
+  def parse_requirement(requirement, opts) do
+    allow_pre = Keyword.get(opts, :allow_pre, false)
+
+    cache({:req, requirement, allow_pre}, fn ->
+      if allow_pre or allow_pre_available?() do
         case Version.parse_requirement(requirement) do
-          {:ok, req} -> {:ok, Version.compile_requirement(req)}
+          {:ok, req} -> {:ok, compile_requirement(req)}
           :error     -> :error
         end
       else
@@ -66,8 +75,14 @@ defmodule Hex.Version do
     end)
   end
 
-  def parse_requirement!(requirement) do
-    case parse_requirement(requirement) do
+  defp compile_requirement(req) do
+    if allow_pre_available?(),
+      do: Version.compile_requirement(req),
+    else: req
+  end
+
+  def parse_requirement!(requirement, opts \\ []) do
+    case parse_requirement(requirement, opts) do
       {:ok, requirement} ->
         requirement
       :error ->
@@ -143,7 +158,7 @@ defmodule Hex.Version do
   def split_ops([]),
     do: []
 
-  defp allow_pre? do
+  defp allow_pre_available? do
     Code.ensure_loaded?(Version) and function_exported?(Version, :match?, 3)
   end
 end

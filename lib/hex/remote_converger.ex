@@ -41,13 +41,20 @@ defmodule Hex.RemoteConverger do
         Hex.SCM.prefetch(new_lock)
         Map.merge(lock, new_lock)
       {:error, message} ->
-        Hex.Shell.info "\n" <> message
-        Mix.raise "Hex dependency resolution failed, relax the version " <>
-                  "requirements of your dependencies or unlock them (by " <>
-                  "using mix deps.update or mix deps.unlock)"
+        resolver_failed(message)
     end
   after
     Hex.Registry.pdict_clean
+  end
+
+  defp resolver_failed(message) do
+    Hex.Shell.info "\n" <> message
+
+    Mix.raise "Hex dependency resolution failed, relax the version " <>
+              "requirements of your dependencies or unlock them (by " <>
+              "using mix deps.update or mix deps.unlock). If you are " <>
+              "unable to resolve the conflicts you can try overriding " <>
+              "with {:dependency, \"~> 1.0\", override: true}"
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
@@ -112,13 +119,9 @@ defmodule Hex.RemoteConverger do
   end
 
   defp check_package_req(name, req, from) do
-    if versions = Registry.get_versions(name) do
+    if Registry.get_versions(name) do
       if req != nil and Hex.Version.parse_requirement(req) == :error do
         Mix.raise "Required version #{inspect req} for package #{name} is incorrectly specified (from: #{from})"
-      end
-      versions = Enum.filter(versions, &Hex.Mix.version_match?(&1, req))
-      if versions == [] do
-        Mix.raise "No package version in registry matches #{name} #{req} (from: #{from})"
       end
     else
       Mix.raise "No package with name #{name} (from: #{from}) in registry"
