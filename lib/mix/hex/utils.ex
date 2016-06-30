@@ -78,7 +78,7 @@ defmodule Mix.Hex.Utils do
       Mix.raise "Entered passwords do not match"
     end
 
-    salt = Hex.Crypto.gen_salt() |> Base.encode16(case: :lower)
+    salt = Hex.Crypto.gen_salt()
     cipher = Hex.Crypto.encrypt(password, salt, key, @apikey_tag)
 
     config
@@ -98,7 +98,7 @@ defmodule Mix.Hex.Utils do
   end
 
   def generate_key_cipher(password, key) do
-    salt = Hex.Crypto.gen_salt() |> Base.encode16(case: :lower)
+    salt = Hex.Crypto.gen_salt()
     cipher = Hex.Crypto.encrypt(password, salt, key, @apikey_tag)
     [key_cipher: cipher, key_salt: salt]
   end
