@@ -208,10 +208,13 @@ defmodule Mix.Hex.Build do
   end
 
   @build_tools [
-    {"mix.exs"     , "mix"},
-    {"rebar.config", "rebar"},
-    {"rebar"       , "rebar"},
-    {"Makefile"    , "make"},
+    {"mix.exs", "mix"},
+    {"rebar", "rebar3"},
+    {"rebar.lock", "rebar3"},
+    {"rebar.config", "rebar3"},
+    {"rebar.config.script", "rebar3"},
+    {"erlang.mk", "make"},
+    {"Makefile", "make"},
     {"Makefile.win", "make"}
   ]
 
