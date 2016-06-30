@@ -11,6 +11,7 @@ defmodule Mix.Tasks.Hex.KeyTest do
 
       assert {200, [%{"name" => "list_keys"}], _} = Hex.API.Key.get(auth)
 
+      send self(), {:mix_shell_input, :prompt, "password"}
       Mix.Tasks.Hex.Key.run(["list"])
       assert_received {:mix_shell, :info, ["list_keys" <> _]}
     end
@@ -25,6 +26,7 @@ defmodule Mix.Tasks.Hex.KeyTest do
 
       assert {200, _, _} = Hex.API.Key.get(auth)
 
+      send self(), {:mix_shell_input, :prompt, "password"}
       Mix.Tasks.Hex.Key.run(["remove", "remove_key"])
       assert_received {:mix_shell, :info, ["Removing key remove_key..."]}
 

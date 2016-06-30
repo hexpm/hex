@@ -46,7 +46,9 @@ defmodule Hex.State do
       hexpm_pk:         @hexpm_pk,
       registry_updated: false,
       httpc_profile:    :hex,
-      ssl_version:      ssl_version()}
+      ssl_version:      ssl_version(),
+      pbkdf2_iters:     32768,
+      clean_pass:       true}
   end
 
   # Work around for :socket_closed_remotely errors in httpc

@@ -171,7 +171,7 @@ defmodule HexTest.Case do
 
   def setup_auth(username, password) do
     {201, body, _} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
-    Hex.Config.update([key: body["secret"]])
+    Mix.Hex.Utils.persist_key(password, body["secret"])
   end
 
   def get_auth(username, password) do
@@ -186,6 +186,8 @@ defmodule HexTest.Case do
   Hex.State.put(:hexpm_pk, File.read!(Path.join(__DIR__, "../fixtures/test_pub.pem")))
   Hex.State.put(:api, "http://localhost:4043/api")
   Hex.State.put(:mirror, System.get_env("HEX_MIRROR") || "http://localhost:4043")
+  Hex.State.put(:pbkdf2_iters, 10)
+  Hex.State.put(:clean_pass, false)
 
   @hex_state Hex.State.get_all
 

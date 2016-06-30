@@ -1,4 +1,6 @@
 defmodule Mix.Hex.Utils do
+  @apikey_tag "HEXAPIKEY"
+
   def table(header, values) do
     header = Enum.map(header, &[:underline, &1])
     widths = widths([header|values])
@@ -40,19 +42,70 @@ defmodule Mix.Hex.Utils do
 
     case Hex.API.Key.new(name, [user: username, pass: password]) do
       {201, body, _} ->
-        Hex.Config.update([username: username, key: body["secret"]])
+        Hex.Shell.info("Encrypting API key with password...")
+        salt = Hex.Crypto.gen_salt() |> Base.encode16(case: :lower)
+        cipher = Hex.Crypto.encrypt(password, salt, body["secret"], @apikey_tag)
+        Hex.Config.update([username: username, key_cipher: cipher, key_salt: salt])
       {code, body, _} ->
         Mix.shell.error("Generation of API key failed (#{code})")
         Hex.Utils.print_error_result(code, body)
     end
   end
 
-  def auth_info(config \\ Hex.Config.read) do
-    if key = config[:key] do
-      [key: key]
-    else
-      Mix.raise "No authorized user found. Run 'mix hex.user auth'"
+  def auth_info(config) do
+    key = config[:key]
+    cipher = config[:key_cipher]
+    salt = config[:key_salt]
+
+    cond do
+      cipher && salt ->
+        key = decrypt_key(cipher, salt)
+        [key: key]
+      key ->
+        encrypt_key(config, key)
+        [key: key]
+      true ->
+        Mix.raise "No authorized user found. Run 'mix hex.user auth'"
     end
+  end
+
+  defp encrypt_key(config, key) do
+    Hex.Shell.info("Your stored API key is not encrypted, please supply a password to encrypt it")
+
+    password = password_get("Password:") |> String.strip
+    confirm = password_get("Password (confirm):") |> String.strip
+    if password != confirm do
+      Mix.raise "Entered passwords do not match"
+    end
+
+    salt = Hex.Crypto.gen_salt() |> Base.encode16(case: :lower)
+    cipher = Hex.Crypto.encrypt(password, salt, key, @apikey_tag)
+
+    config
+    |> Keyword.delete(:key)
+    |> Keyword.merge([key_cipher: cipher, key_salt: salt])
+    |> Hex.Config.write
+  end
+
+  defp decrypt_key(cipher, salt) do
+    password = password_get("Password:") |> String.strip
+    case Hex.Crypto.decrypt(password, salt, cipher, @apikey_tag) do
+      {:ok, key} ->
+        key
+      :error ->
+        Mix.raise "Wrong password"
+    end
+  end
+
+  def generate_key_cipher(password, key) do
+    salt = Hex.Crypto.gen_salt() |> Base.encode16(case: :lower)
+    cipher = Hex.Crypto.encrypt(password, salt, key, @apikey_tag)
+    [key_cipher: cipher, key_salt: salt]
+  end
+
+  def persist_key(password, key) do
+    generate_key_cipher(password, key)
+    |> Hex.Config.update
   end
 
   def required_opts(opts, required) do
@@ -65,10 +118,15 @@ defmodule Mix.Hex.Utils do
 
   # Password prompt that hides input by every 1ms
   # clearing the line with stderr
-  def password_get(prompt, false) do
-    IO.gets(prompt <> " ")
+  def password_get(prompt) do
+    if Hex.State.fetch!(:clean_pass) do
+      password_clean(prompt)
+    else
+      Hex.Shell.prompt(prompt <> " ")
+    end
   end
-  def password_get(prompt, true) do
+
+  defp password_clean(prompt) do
     pid   = spawn_link(fn -> loop(prompt) end)
     ref   = make_ref()
     value = IO.gets(prompt <> " ")
