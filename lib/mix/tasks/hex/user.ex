@@ -40,21 +40,19 @@ defmodule Mix.Tasks.Hex.User do
   `mix hex.user reset password`
   """
 
-  @switches [clean_pass: :boolean]
-
   def run(args) do
     Hex.start
     Hex.Utils.ensure_registry(fetch: false)
 
-    {opts, args, _} = OptionParser.parse(args, switches: @switches)
+    {_, args, _} = OptionParser.parse(args, switches: [])
 
     case args do
       ["register"] ->
-        register(opts)
+        register()
       ["whoami"] ->
         whoami()
       ["auth"] ->
-        create_key(opts)
+        create_key()
       ["deauth"] ->
         deauth()
       ["reset", "password"] ->
@@ -99,21 +97,17 @@ defmodule Mix.Tasks.Hex.User do
                    "or create a new user with `mix hex.user register`"
   end
 
-  defp register(opts) do
-    clean? = Keyword.get(opts, :clean_pass, true)
-
+  defp register do
     Hex.Shell.info("By registering an account on Hex.pm you accept all our " <>
                    "policies and terms of service found at https://hex.pm/policies\n")
 
-    username = Hex.Shell.prompt("Username:")  |> String.strip
-    email    = Hex.Shell.prompt("Email:")     |> String.strip
-    password = Utils.password_get("Password:", clean?) |> String.strip
+    username = Hex.Shell.prompt("Username:") |> String.strip
+    email    = Hex.Shell.prompt("Email:") |> String.strip
+    password = Utils.password_get("Password:") |> String.strip
+    confirm  = Utils.password_get("Password (confirm):") |> String.strip
 
-    unless is_nil(password) do
-      confirm = Utils.password_get("Password (confirm):", clean?) |> String.strip
-      if password != confirm do
-        Mix.raise "Entered passwords do not match"
-      end
+    if password != confirm do
+      Mix.raise "Entered passwords do not match"
     end
 
     Hex.Shell.info("Registering...")
@@ -132,11 +126,9 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp create_key(opts) do
-    clean? = Keyword.get(opts, :clean_pass, true)
-
-    username = Hex.Shell.prompt("Username:")           |> String.strip
-    password = Utils.password_get("Password:", clean?) |> String.strip
+  defp create_key do
+    username = Hex.Shell.prompt("Username:") |> String.strip
+    password = Utils.password_get("Password:") |> String.strip
 
     Utils.generate_key(username, password)
   end

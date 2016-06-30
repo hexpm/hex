@@ -156,7 +156,7 @@ defmodule HexTest.HexWeb do
   def new_user(username, email, password, key) do
     {201, _, _} = Hex.API.User.new(username, email, password)
     {201, %{"secret" => secret}, _} = Hex.API.Key.new(key, [user: username, pass: password])
-    [username: username, key: secret]
+    [username: username, key: secret] ++ Mix.Hex.Utils.generate_key_cipher(password, secret)
   end
 
   def new_key(auth) do

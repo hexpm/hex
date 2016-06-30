@@ -10,6 +10,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hex.State.put(:home, tmp_path())
     Hex.Config.update(auth1)
 
+    send self(), {:mix_shell_input, :prompt, "pass"}
     Mix.Tasks.Hex.Owner.run(["add", "owner_package1", "owner_user2@mail.com"])
 
     assert_received {:mix_shell, :info, ["Adding owner owner_user2@mail.com to owner_package1"]}
@@ -24,6 +25,8 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hex.State.put(:home, tmp_path())
     Hex.Config.update(auth)
 
+    send self(), {:mix_shell_input, :prompt, "pass"}
+    send self(), {:mix_shell_input, :prompt, "pass"}
     Mix.Tasks.Hex.Owner.run(["add", "owner_package2", "owner_user4@mail.com"])
     Mix.Tasks.Hex.Owner.run(["remove", "owner_package2", "owner_user3@mail.com"])
 
@@ -39,6 +42,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hex.State.put(:home, tmp_path())
     Hex.Config.update(auth)
 
+    send self(), {:mix_shell_input, :prompt, "pass"}
     Mix.Tasks.Hex.Owner.run(["list", "owner_package3"])
     assert_received {:mix_shell, :info, ["owner_user5@mail.com"]}
   end

@@ -29,7 +29,7 @@ defmodule Mix.Tasks.Hex.Docs do
     Hex.Utils.ensure_registry(fetch: false)
 
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
-    auth = Utils.auth_info()
+    auth = Utils.auth_info(Hex.Config.read)
 
     Mix.Project.get!
     config  = Mix.Project.config

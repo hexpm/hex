@@ -84,7 +84,7 @@ defmodule Mix.Tasks.Hex.Publish do
     meta         = build[:meta]
     package      = build[:package]
     exclude_deps = build[:exclude_deps]
-    auth         = Utils.auth_info()
+    auth         = Utils.auth_info(Hex.Config.read)
 
     if version = opts[:revert] do
       revert(meta, version, auth)
