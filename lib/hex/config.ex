@@ -50,16 +50,17 @@ defmodule Hex.Config do
   defp decode_term(string) do
     {:ok, pid} = StringIO.open(string)
     try do
-      consult(pid, [])
+      consult(pid, [], string)
     after
       StringIO.close(pid)
     end
   end
 
-  defp consult(pid, acc) when is_pid(pid) do
+  defp consult(pid, acc, string) when is_pid(pid) do
     case :io.read(pid, '') do
-      {:ok, term}      -> consult(pid, [term|acc])
+      {:ok, term}      -> consult(pid, [term|acc], string)
       {:error, reason} -> {:error, reason}
+      :error           -> IO.inspect(string, limit: :infinity); :error
       :eof             -> {:ok, Enum.reverse(acc)}
     end
   end

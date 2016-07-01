@@ -43,9 +43,13 @@ defmodule Mix.Hex.Utils do
     case Hex.API.Key.new(name, [user: username, pass: password]) do
       {201, body, _} ->
         Hex.Shell.info("Encrypting API key with password...")
-        salt = Hex.Crypto.gen_salt() |> Base.encode16(case: :lower)
+        salt = Hex.Crypto.gen_salt()
         cipher = Hex.Crypto.encrypt(password, salt, body["secret"], @apikey_tag)
-        Hex.Config.update([username: username, key_cipher: cipher, key_salt: salt])
+        Hex.Config.update([
+          username: username,
+          key_cipher: Base.encode16(cipher),
+          key_salt: Base.encode16(salt)])
+
       {code, body, _} ->
         Mix.shell.error("Generation of API key failed (#{code})")
         Hex.Utils.print_error_result(code, body)
@@ -59,7 +63,7 @@ defmodule Mix.Hex.Utils do
 
     cond do
       cipher && salt ->
-        key = decrypt_key(cipher, salt)
+        key = decrypt_key(Base.decode16!(cipher), Base.decode16!(salt))
         [key: key]
       key ->
         encrypt_key(config, key)
@@ -80,6 +84,8 @@ defmodule Mix.Hex.Utils do
 
     salt = Hex.Crypto.gen_salt()
     cipher = Hex.Crypto.encrypt(password, salt, key, @apikey_tag)
+             |> Base.encode16(case: :lower)
+    salt = Base.encode16(salt, case: :lower)
 
     config
     |> Keyword.delete(:key)
@@ -100,7 +106,8 @@ defmodule Mix.Hex.Utils do
   def generate_key_cipher(password, key) do
     salt = Hex.Crypto.gen_salt()
     cipher = Hex.Crypto.encrypt(password, salt, key, @apikey_tag)
-    [key_cipher: cipher, key_salt: salt]
+    [key_cipher: Base.encode16(cipher),
+     key_salt: Base.encode16(salt)]
   end
 
   def persist_key(password, key) do
