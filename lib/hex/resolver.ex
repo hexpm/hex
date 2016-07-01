@@ -33,16 +33,14 @@ defmodule Hex.Resolver do
 
   defp build_optional(locked) do
     Enum.into(locked, %{}, fn {name, app, version} ->
-      {:ok, req} = Hex.Version.parse_requirement(version)
-      parent     = parent(name: "mix.lock", requirement: req)
-      request    = request(app: app, name: name, req: req, parent: parent)
+      parent     = parent(name: "mix.lock", requirement: version)
+      request    = request(app: app, name: name, req: version, parent: parent)
       {name, [request]}
     end)
   end
 
   defp build_pending(requests) do
     Enum.map(requests, fn {name, app, req, from} ->
-      req    = compile_requirement(req, name)
       parent = parent(name: from, requirement: req)
       request(name: name, app: app, req: req, parent: parent)
     end)
@@ -154,7 +152,6 @@ defmodule Hex.Resolver do
 
       {reqs, opts} =
         Enum.reduce(deps, {[], []}, fn {name, app, req, optional}, {reqs, opts} ->
-          req     = compile_requirement(req, name)
           parent  = parent(name: package, version: version, requirement: req)
           request = request(app: app, name: name, req: req, parent: parent)
 
@@ -182,23 +179,6 @@ defmodule Hex.Resolver do
     Map.merge(optional, new_optional, fn _, v1, v2 -> v1 ++ v2 end)
   end
 
-  defp compile_requirement(nil, _package) do
-    nil
-  end
-
-  defp compile_requirement(req, package) when is_binary(req) do
-    case Hex.Version.parse_requirement(req) do
-      {:ok, req} ->
-        req
-      :error ->
-        Mix.raise "Invalid requirement #{inspect req} defined for package #{package}"
-    end
-  end
-
-  defp compile_requirement(req, package) do
-    Mix.raise "Invalid requirement #{inspect req} defined for package #{package}"
-  end
-
   defp add_backtrack_info(name, version, parents) do
     Backtracks.add(name, version, parents)
   end
@@ -208,6 +188,18 @@ defmodule Hex.Resolver do
     |> Enum.map(&Backtracks.message/1)
     |> Enum.reject(&is_nil/1)
     |> Enum.join("\n\n")
-    |> Kernel.<>("\n")
+    |> pre_message
+  end
+
+  defp pre_message(message) do
+    # ugly hack to check if we should print the pre-release explanation
+    if message =~ "*\n" do
+      message <>
+        "\n* This requirement failed because by default pre-releases " <>
+        "are never matched. To match against pre-releases include " <>
+        "a pre-release in the requirement string: \"~> 2.0-beta\".\n"
+    else
+      message
+    end
   end
 end

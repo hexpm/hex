@@ -10,7 +10,7 @@ defmodule Hex.ResolverTest do
 
     case Hex.Resolver.resolve(reqs, deps, top_level, locked) do
       {:ok, dict} -> dict
-      {:error, messages} -> messages
+      {:error, messages} -> messages <> "\n"
     end
   end
 
@@ -51,33 +51,33 @@ defmodule Hex.ResolverTest do
     deps = [bar: nil, foo: "~> 0.3.0"]
     assert resolve(deps) == """
     \e[4mFailed to use "foo" because\e[0m
-      You specified \e[31m~> 0.3.0\e[0m in your mix.exs\e[0m
+      You specified \e[31m~> 0.3.0\e[0m in your mix.exs\n\e[0m
     """
 
     deps = [foo: "~> 0.3.0", bar: nil]
     assert resolve(deps) == """
     \e[4mFailed to use \"foo\" because\e[0m
-      You specified \e[31m~> 0.3.0\e[0m in your mix.exs\e[0m
+      You specified \e[31m~> 0.3.0\e[0m in your mix.exs\n\e[0m
 
     \e[4mFailed to use \"foo\" (version 0.1.0) because\e[0m
       \e[1mbar (version 0.1.0)\e[0m requires \e[32m~> 0.1.0\e[0m
-      You specified \e[31m~> 0.3.0\e[0m in your mix.exs\e[0m
+      You specified \e[31m~> 0.3.0\e[0m in your mix.exs\n\e[0m
 
     \e[4mFailed to use \"foo\" (versions 0.2.0 and 0.2.1) because\e[0m
       \e[1mbar (version 0.2.0)\e[0m requires \e[32m~> 0.2.0\e[0m
-      You specified \e[31m~> 0.3.0\e[0m in your mix.exs\e[0m
+      You specified \e[31m~> 0.3.0\e[0m in your mix.exs\n\e[0m
     """
 
     deps = [bar: "~> 0.3.0", foo: nil]
     assert resolve(deps) == """
     \e[4mFailed to use "bar" because\e[0m
-      You specified \e[31m~> 0.3.0\e[0m in your mix.exs\e[0m
+      You specified \e[31m~> 0.3.0\e[0m in your mix.exs\n\e[0m
     """
 
     deps = [foo: nil, bar: "~> 0.3.0"]
     assert resolve(deps) == """
     \e[4mFailed to use "bar" because\e[0m
-      You specified \e[31m~> 0.3.0\e[0m in your mix.exs\e[0m
+      You specified \e[31m~> 0.3.0\e[0m in your mix.exs\n\e[0m
     """
   end
 
@@ -98,26 +98,26 @@ defmodule Hex.ResolverTest do
     assert resolve(deps) == """
     \e[4mFailed to use "decimal" (version 0.1.0) because\e[0m
       \e[1mex_plex (version 0.0.2)\e[0m requires \e[31m0.1.1\e[0m
-      You specified \e[32m0.1.0\e[0m in your mix.exs\e[0m
+      You specified \e[32m0.1.0\e[0m in your mix.exs\n\e[0m
     """
 
     deps = [decimal: "0.1.0", ex_plex: "~> 0.0.2"]
     assert resolve(deps) == """
     \e[4mFailed to use "decimal" because\e[0m
-      \e[1mex_plex (version 0.0.2)\e[0m requires \e[31m0.1.1\e[0m\e[0m
+      \e[1mex_plex (version 0.0.2)\e[0m requires \e[31m0.1.1\e[0m\n\e[0m
     """
 
     deps = [ex_plex: "0.0.2", decimal: nil]
     assert resolve(deps) == """
     \e[4mFailed to use "decimal" (versions 0.0.1 to 0.2.1) because\e[0m
       \e[1mex_plex (version 0.0.2)\e[0m requires \e[31m0.1.1\e[0m
-      You specified \e[32m>= 0.0.0\e[0m in your mix.exs\e[0m
+      You specified \e[32m>= 0.0.0\e[0m in your mix.exs\n\e[0m
     """
 
     deps = [decimal: nil, ex_plex: "0.0.2"]
     assert resolve(deps) == """
     \e[4mFailed to use "decimal" because\e[0m
-      \e[1mex_plex (version 0.0.2)\e[0m requires \e[31m0.1.1\e[0m\e[0m
+      \e[1mex_plex (version 0.0.2)\e[0m requires \e[31m0.1.1\e[0m\n\e[0m
     """
   end
 
@@ -172,14 +172,15 @@ defmodule Hex.ResolverTest do
     assert resolve(deps, locked) == """
     \e[4mFailed to use "decimal" (version 0.0.1) because\e[0m
       \e[1mex_plex (version 0.1.0)\e[0m requires \e[31m~> 0.1.0\e[0m
-      Locked to \e[32m0.0.1\e[0m in your mix.lock\e[0m
+      Locked to \e[32m0.0.1\e[0m in your mix.lock\n\e[0m
     """
 
+    locked = [decimal: "0.0.1"]
     deps = [decimal: nil, ex_plex: "0.1.0"]
     assert resolve(deps, locked) == """
     \e[4mFailed to use "decimal" because\e[0m
-      \e[1mex_plex (version 0.1.0)\e[0m requires \e[31m~> 0.1.0\e[0m
-      Locked to \e[31m0.0.1\e[0m in your mix.lock\e[0m
+      \e[1mex_plex (version 0.1.0)\e[0m requires \e[33m~> 0.1.0\e[0m
+      Locked to \e[33m0.0.1\e[0m in your mix.lock\n\e[0m
     """
 
     locked = [decimal: "0.0.1"]
@@ -187,16 +188,29 @@ defmodule Hex.ResolverTest do
     assert resolve(deps, locked) == """
     \e[4mFailed to use "decimal" (version 0.0.1) because\e[0m
       \e[1mex_plex (version 0.1.0)\e[0m requires \e[31m~> 0.1.0\e[0m
-      Locked to \e[32m0.0.1\e[0m in your mix.lock\e[0m
+      Locked to \e[32m0.0.1\e[0m in your mix.lock\n\e[0m
     """
 
     locked = [decimal: "0.0.1"]
     deps = [decimal: "~> 0.0.1", ex_plex: "0.1.0"]
     assert resolve(deps, locked) == """
     \e[4mFailed to use "decimal" because\e[0m
-      \e[1mex_plex (version 0.1.0)\e[0m requires \e[31m~> 0.1.0\e[0m
-      Locked to \e[31m0.0.1\e[0m in your mix.lock\e[0m
+      \e[1mex_plex (version 0.1.0)\e[0m requires \e[33m~> 0.1.0\e[0m
+      Locked to \e[33m0.0.1\e[0m in your mix.lock\n\e[0m
     """
+  end
+
+  test "pre-release message" do
+    deps = [beta: "~> 1.0 and > 1.0.0"]
+    assert resolve(deps) == """
+    \e[4mFailed to use "beta" because\e[0m
+      You specified \e[31m~> 1.0 and > 1.0.0\e[0m in your mix.exs *
+    \e[0m
+    * This requirement failed because by default pre-releases are never matched. To match against pre-releases include a pre-release in the requirement string: "~> 2.0-beta".\n
+    """
+
+    deps = [beta: "~> 1.0-beta and > 1.0.0-beta"]
+    assert Dict.equal? locked([beta: "1.1.0-beta"]), resolve(deps)
   end
 
   test "only mix.exs conflicts" do
@@ -204,7 +218,7 @@ defmodule Hex.ResolverTest do
     assert resolve(deps, []) == """
     \e[4mFailed to use "decimal" (versions 0.2.0 and 0.2.1) because\e[0m
       \e[1mex_plex (version 0.2.0)\e[0m requires \e[32m~> 0.2.0\e[0m
-      You specified \e[31m~> 0.0.1\e[0m in your mix.exs\e[0m
+      You specified \e[31m~> 0.0.1\e[0m in your mix.exs\n\e[0m
     """
   end
 
