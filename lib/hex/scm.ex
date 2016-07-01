@@ -82,7 +82,9 @@ defmodule Hex.SCM do
   def checkout(opts) do
     Hex.Registry.open!(Hex.Registry.ETS)
 
-    [:hex, _name, version, checksum, _managers, _deps] = Hex.Utils.lock(opts[:lock])
+    lock = Hex.Utils.lock(opts[:lock]) |> ensure_lock(opts)
+    [:hex, _name, version, checksum, _managers, _deps] = lock
+
     name     = opts[:hex]
     dest     = opts[:dest]
     filename = "#{name}-#{version}.tar"
@@ -119,6 +121,14 @@ defmodule Hex.SCM do
   def update(opts) do
     checkout(opts)
   end
+
+  defp ensure_lock(nil, opts) do
+    Mix.raise "The lock is missing for package #{opts[:hex]}. This could be " <>
+              "because another package has configured the application name " <>
+              "for the dependency incorrectly. Verify with the maintainer " <>
+              "the parent application"
+  end
+  defp ensure_lock(lock, _opts), do: lock
 
   defp parse_manifest(file) do
     file
