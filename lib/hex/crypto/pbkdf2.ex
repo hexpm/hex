@@ -4,19 +4,8 @@ defmodule Hex.Crypto.Pbkdf2 do
   @max_length (1 <<< 32) - 1
   @salt_range 16..1024
 
-  def pbkdf2(_pass, _salt, iterations, _length, _hash)
-  when iterations <= 0,
-    do: raise(ArgumentError, message: "iterations has to be positive")
-
-  def pbkdf2(_pass, _salt, _iterations, length, _hash)
-  when length >= @max_length,
-    do: raise(ArgumentError, message: "length should be less than #{@max_length}")
-
-  def pbkdf2(_pass, salt, _iterations, _length, _hash)
-  when not byte_size(salt) in @salt_range,
-    do: raise(ArgumentError, message: "salt size should be within #{inspect @salt_range}")
-
-  def pbkdf2(pass, salt, iterations, length, hash),
+  def pbkdf2(pass, salt, iterations, length, hash)
+  when iterations > 0 and length < @max_length and byte_size(salt) in @salt_range,
     do: pbkdf2(pass, salt, iterations, length, hash, 1, [], 0)
 
   defp pbkdf2(pass, salt, iterations, max_length, hash, block_ix, acc, length)

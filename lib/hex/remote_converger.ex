@@ -99,9 +99,7 @@ defmodule Hex.RemoteConverger do
 
   defp check_deps(deps, top_level) do
     Enum.each(deps, fn dep ->
-      if dep.app in top_level and
-         is_nil(dep.requirement) and
-         dep.scm == Hex.SCM do
+      if dep.app in top_level and dep.scm == Hex.SCM and is_nil(dep.requirement) do
         Hex.Shell.warn "#{dep.app} is missing its version requirement, " <>
                        "use \">= 0.0.0\" if it should match any version"
       end
