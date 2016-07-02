@@ -54,10 +54,11 @@ defmodule Mix.Tasks.Hex.UserTest do
       Hex.State.put(:home, System.cwd!)
 
       Hex.Config.update(username: "johndoe", key: "qwertyuiop",
+                        key_citer: "...", key_salt: "...",
                         xyz: "other", foo: :bar)
       Mix.Tasks.Hex.User.run(["deauth"])
 
-      assert Dict.take(Hex.Config.read, [:username, :key]) == []
+      assert Dict.take(Hex.Config.read, [:username, :key, :key_cipher, :key_salt]) == []
     end
   end
 
