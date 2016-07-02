@@ -64,8 +64,10 @@ defmodule Mix.Tasks.Hex.UserTest do
   test "test" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
-      setup_auth("user", "hunter42")
-      Hex.Config.update([username: "user"])
+
+      send self(), {:mix_shell_input, :prompt, "user"}
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      Mix.Tasks.Hex.User.run(["auth"])
 
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.User.run(["test"])
