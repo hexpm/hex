@@ -191,6 +191,11 @@ defmodule HexTest.HexWeb do
     [key: secret]
   end
 
+  def new_key(username, password, key) do
+    {201, %{"secret" => secret}, _} = Hex.API.Key.new(key, [user: username, pass: password])
+    [username: username, key: secret] ++ Mix.Hex.Utils.generate_encrypted_key(password, secret)
+  end
+
   def new_package(name, version, deps, meta, auth) do
     reqs =
       Enum.filter(deps, fn
