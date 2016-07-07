@@ -1,5 +1,6 @@
 defmodule Hex.Crypto do
 
+  alias Hex.Crypto
   alias Hex.Crypto.ContentEncryptor
   alias Hex.Crypto.KeyManager
 
@@ -38,9 +39,9 @@ defmodule Hex.Crypto do
 
     protected = key_manager
     |> KeyManager.encode()
-    |> Base.url_encode64(padding: false)
+    |> Crypto.base64url_encode()
     |> Kernel.<>(".")
-    |> Kernel.<>(Base.url_encode64(ContentEncryptor.encode(content_encryptor), padding: false))
+    |> Kernel.<>(Crypto.base64url_encode(ContentEncryptor.encode(content_encryptor)))
     aad = tag <> protected
     {cipher_text, cipher_tag} = ContentEncryptor.encrypt(content_encryptor, {aad, plain_text})
     encrypted_key = KeyManager.encrypt(key_manager, key)
@@ -77,33 +78,65 @@ defmodule Hex.Crypto do
     end
   end
 
+  def base64url_encode(binary) do
+    try do
+      Base.url_encode64(binary, padding: false)
+    catch
+      _,_ ->
+        binary
+        |> Base.encode64()
+        |> urlsafe_encode64(<<>>)
+    end
+  end
+
+  def base64url_decode(binary) do
+    try do
+      Base.url_decode64(binary, padding: false)
+    catch
+      _,_ ->
+        try do
+          binary = urlsafe_decode64(binary, <<>>)
+          binary =
+            case rem(byte_size(binary), 4) do
+              2 -> binary <> "=="
+              3 -> binary <> "="
+              _ -> binary
+            end
+          Base.decode64(binary)
+        catch
+          _,_ ->
+            :error
+        end
+    end
+  end
+
   ## Internal
 
   defp encode_encrypted_token(protected, encrypted_key, iv, cipher_text, cipher_tag) do
     protected
-    |> Base.url_encode64(padding: false)
+    |> Crypto.base64url_encode()
     |> Kernel.<>(".")
-    |> Kernel.<>(Base.url_encode64(encrypted_key, padding: false))
+    |> Kernel.<>(Crypto.base64url_encode(encrypted_key))
     |> Kernel.<>(".")
-    |> Kernel.<>(Base.url_encode64(iv, padding: false))
+    |> Kernel.<>(Crypto.base64url_encode(iv))
     |> Kernel.<>(".")
-    |> Kernel.<>(Base.url_encode64(cipher_text, padding: false))
+    |> Kernel.<>(Crypto.base64url_encode(cipher_text))
     |> Kernel.<>(".")
-    |> Kernel.<>(Base.url_encode64(cipher_tag, padding: false))
+    |> Kernel.<>(Crypto.base64url_encode(cipher_tag))
   end
 
   defp decode_encrypted_token(token) do
     case String.split(token, ".", parts: 5) do
       [protected, encrypted_key, iv, cipher_text, cipher_tag] ->
-        case Base.url_decode64(protected, padding: false) do
+        case Crypto.base64url_decode(protected) do
           {:ok, protected} ->
-            case Base.url_decode64(encrypted_key, padding: false) do
+            case Crypto.base64url_decode(encrypted_key) do
               {:ok, encrypted_key} ->
-                case Base.url_decode64(iv, padding: false) do
+                case Crypto.base64url_decode(iv) do
                   {:ok, iv} ->
-                    case Base.url_decode64(cipher_text, padding: false) do
+                    case Crypto.base64url_decode(cipher_text) do
                       {:ok, cipher_text} ->
-                        case Base.url_decode64(cipher_tag, padding: false) do
+                        case Crypto.base64url_decode(cipher_tag) do
                           {:ok, cipher_tag} ->
                             {:ok, {protected, encrypted_key, iv, cipher_text, cipher_tag}}
                           _ ->
@@ -125,5 +158,25 @@ defmodule Hex.Crypto do
         :error
     end
   end
+
+  defp urlsafe_encode64(<< ?+, rest :: binary >>, acc),
+    do: urlsafe_encode64(rest, << acc :: binary, ?- >>)
+  defp urlsafe_encode64(<< ?/, rest :: binary >>, acc),
+    do: urlsafe_encode64(rest, << acc :: binary, ?_ >>)
+  defp urlsafe_encode64(<< ?=, rest :: binary >>, acc),
+    do: urlsafe_encode64(rest, acc)
+  defp urlsafe_encode64(<< c, rest :: binary >>, acc),
+    do: urlsafe_encode64(rest, << acc :: binary, c >>)
+  defp urlsafe_encode64(<<>>, acc),
+    do: acc
+
+  defp urlsafe_decode64(<< ?-, rest :: binary >>, acc),
+    do: urlsafe_decode64(rest, << acc :: binary, ?+ >>)
+  defp urlsafe_decode64(<< ?_, rest :: binary >>, acc),
+    do: urlsafe_decode64(rest, << acc :: binary, ?/ >>)
+  defp urlsafe_decode64(<< c, rest :: binary >>, acc),
+    do: urlsafe_decode64(rest, << acc :: binary, c >>)
+  defp urlsafe_decode64(<<>>, acc),
+    do: acc
 
 end

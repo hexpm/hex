@@ -6,6 +6,7 @@ defmodule Hex.Crypto.PBES2_HMAC_SHA2_AES_KW do
   See: https://tools.ietf.org/html/rfc2898#section-6.2
   """
 
+  alias Hex.Crypto
   alias Hex.Crypto.AES_KW
   alias Hex.Crypto.PKCS5
 
@@ -104,9 +105,9 @@ defmodule Hex.Crypto.PBES2_HMAC_SHA2_AES_KW do
         32 -> "PBES2-HS512+A256KW"
       end
     params = salt
-    |> Base.url_encode64(padding: false)
+    |> Crypto.base64url_encode()
     |> Kernel.<>(".")
-    |> Kernel.<>(Base.url_encode64(:binary.encode_unsigned(iterations, :big), padding: false))
+    |> Kernel.<>(Crypto.base64url_encode(:binary.encode_unsigned(iterations, :big)))
     {algorithm, params}
   end
 
@@ -119,9 +120,9 @@ defmodule Hex.Crypto.PBES2_HMAC_SHA2_AES_KW do
       end
     case String.split(params, ".", parts: 2) do
       [salt, iterations] ->
-        case Base.url_decode64(salt, padding: false) do
+        case Crypto.base64url_decode(salt) do
           {:ok, salt} ->
-            case Base.url_decode64(iterations, padding: false) do
+            case Crypto.base64url_decode(iterations) do
               {:ok, iterations} ->
                 try do
                   iterations = :binary.decode_unsigned(iterations, :big)

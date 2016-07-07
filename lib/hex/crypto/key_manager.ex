@@ -16,6 +16,8 @@ defmodule Hex.Crypto.KeyManager do
   @callback encode(params :: any)                                                 :: {String.t, binary}
   @callback decode(algorithm :: String.t, params :: binary, options :: Keyword.t) :: {:ok, any} | :error | {:error, String.t}
 
+  alias Hex.Crypto
+
   def init(module, options) do
     case module.init(options) do
       {:ok, params} ->
@@ -36,19 +38,19 @@ defmodule Hex.Crypto.KeyManager do
   def encode(%__MODULE__{module: module, params: params}) do
     {algorithm, params} = module.encode(params)
     algorithm
-    |> Base.url_encode64(padding: false)
+    |> Crypto.base64url_encode()
     |> Kernel.<>(".")
-    |> Kernel.<>(Base.url_encode64(params, padding: false))
+    |> Kernel.<>(Crypto.base64url_encode(params))
   end
 
   def decode(params, options \\ []) do
-    case Base.url_decode64(params, padding: false) do
+    case Crypto.base64url_decode(params) do
       {:ok, params} ->
         case String.split(params, ".", parts: 2) do
           [algorithm, params] ->
-            case Base.url_decode64(algorithm, padding: false) do
+            case Crypto.base64url_decode(algorithm) do
               {:ok, algorithm} ->
-                case Base.url_decode64(params, padding: false) do
+                case Crypto.base64url_decode(params) do
                   {:ok, params} ->
                     algorithm
                     |> case do
