@@ -89,7 +89,7 @@ defmodule Mix.Tasks.Hex.User do
     username = local_user(config)
 
     config
-    |> Keyword.drop([:username, :key, :key_cipher, :key_salt])
+    |> Keyword.drop([:username, :key, :key_cipher, :key_salt, :encrypted_key])
     |> Hex.Config.write
 
     Hex.Shell.info "User `" <> username <> "` removed from the local machine. " <>

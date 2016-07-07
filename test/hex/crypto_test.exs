@@ -2,20 +2,18 @@ defmodule Hex.CryptoTest do
   use ExUnit.Case, async: true
   import Hex.Crypto
 
-  @salt "saltsaltsaltsalt"
-
   test "encrypt and decrypt" do
-    cipher = encrypt("password", @salt, "plain")
-    assert  decrypt("password", @salt, cipher) == {:ok, "plain"}
+    cipher = encrypt("plain", "password")
+    assert  decrypt(cipher, "password") == {:ok, "plain"}
   end
 
   test "encrypt and decrypt with tag" do
-    cipher = encrypt("password", @salt, "plain", "tag")
-    assert  decrypt("password", @salt, cipher, "tag") == {:ok, "plain"}
+    cipher = encrypt("plain", "password", "tag")
+    assert  decrypt(cipher, "password", "tag") == {:ok, "plain"}
   end
 
   test "invalid password" do
-    cipher = encrypt("passw0rd", @salt, "plain", "tag")
-    assert  decrypt("password", @salt, cipher, "tag") == :error
+    cipher = encrypt("plain", "passw0rd", "tag")
+    assert  decrypt(cipher, "password", "tag") == :error
   end
 end
