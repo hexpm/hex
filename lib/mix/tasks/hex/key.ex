@@ -53,7 +53,7 @@ defmodule Mix.Tasks.Hex.Key do
   defp remove_key(key, auth) do
     Hex.Shell.info "Removing key #{key}..."
     case Hex.API.Key.delete(key, auth) do
-      {200, %{"name" => ^key, "revoked_at" => _}, _headers} ->
+      {200, %{"name" => ^key, "authing_key" => true}, _headers} ->
         Mix.Tasks.Hex.User.run(["deauth"])
         :ok
       {code, _body, _headers} when code in 200..299 ->
@@ -67,7 +67,7 @@ defmodule Mix.Tasks.Hex.Key do
   defp remove_all_keys(auth) do
     Hex.Shell.info "Removing all keys..."
     case Hex.API.Key.delete_all(auth) do
-      {code, %{"name" => _, "revoked_at" => _}, _headers} when code in 200..299 ->
+      {code, %{"name" => _, "authing_key" => true}, _headers} when code in 200..299 ->
         Mix.Tasks.Hex.User.run(["deauth"])
         :ok
       {code, body, _headers} ->
