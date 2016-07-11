@@ -65,7 +65,7 @@ defmodule Hex.APITest do
     assert {200, body, _} = Hex.API.Key.get(auth)
     assert Enum.find(body, &(&1["name"] == "macbook"))
 
-    assert {204, _, _} = Hex.API.Key.delete("macbook", auth)
+    assert {200, _, _} = Hex.API.Key.delete("macbook", auth)
     assert {401, _, _} = Hex.API.Key.get(auth)
   end
 
