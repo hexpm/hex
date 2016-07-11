@@ -46,4 +46,29 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Mix.Tasks.Hex.Owner.run(["list", "owner_package3"])
     assert_received {:mix_shell, :info, ["owner_user5@mail.com"]}
   end
+
+  test "list all packages owned by the current user" do
+    package1 = "owner_package4"
+    package2 = "owner_package5"
+    owner_email = "owner_user6@mail.com"
+    auth = HexTest.HexWeb.new_user("owner_user6", owner_email, "pass", "key")
+    HexTest.HexWeb.new_package(package1, "0.0.1", [], %{}, auth)
+    HexTest.HexWeb.new_package(package2, "0.0.1", [], %{}, auth)
+
+    Hex.State.put(:home, tmp_path())
+    Hex.Config.update(auth)
+
+    send self(), {:mix_shell_input, :prompt, "pass"}
+    send self(), {:mix_shell_input, :prompt, "pass"}
+    send self(), {:mix_shell_input, :prompt, "pass"}
+    Mix.Tasks.Hex.Owner.run(["add", package1, owner_email])
+    Mix.Tasks.Hex.Owner.run(["add", package2, owner_email])
+
+    Mix.Tasks.Hex.Owner.run(["packages"])
+    mirror = Hex.State.fetch!(:mirror)
+    owner_package4_msg = "#{package1} - #{mirror}/packages/#{package1}"
+    owner_package5_msg = "#{package2} - #{mirror}/packages/#{package2}"
+    assert_received {:mix_shell, :info, [^owner_package4_msg]}
+    assert_received {:mix_shell, :info, [^owner_package5_msg]}
+  end
 end
