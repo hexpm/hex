@@ -1,10 +1,10 @@
 defmodule Mix.Tasks.Hex.Config do
   use Mix.Task
 
-  @shortdoc "Reads or updates Hex config"
+  @shortdoc "Reads, updates or deletes Hex config"
 
   @moduledoc """
-  Reads or updates Hex configuration file.
+  Reads, updates or deletes Hex configuration keys.
 
       mix hex.config KEY [VALUE]
 
@@ -27,6 +27,10 @@ defmodule Mix.Tasks.Hex.Config do
       signature against the repository's public key
     * `http_proxy` - HTTP proxy server
     * `https_proxy` - HTTPS proxy server
+
+  ## Command line options
+
+    * `--delete` - Remove a specific config key
   """
 
   @switches [delete: :boolean]
