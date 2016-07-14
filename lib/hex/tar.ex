@@ -98,8 +98,9 @@ defmodule Hex.Tar do
     end
   end
 
-  defp extract_contents(file, dest) do
-    case :erl_tar.extract({:binary, file}, [:compressed, cwd: dest]) do
+  def extract_contents(file, dest, opts \\ []) do
+    mode = opts[:mode] || :binary
+    case :erl_tar.extract({mode, file}, [:compressed, cwd: dest]) do
       :ok ->
         Path.join(dest, "**")
         |> Path.wildcard
