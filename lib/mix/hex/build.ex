@@ -229,5 +229,9 @@ defmodule Mix.Hex.Build do
         do: [tool],
       else: []
     end)
+    |> default_build_tool
   end
+
+  defp default_build_tool([]), do: ["mix"]
+  defp default_build_tool(other), do: other
 end
