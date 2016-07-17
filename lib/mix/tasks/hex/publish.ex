@@ -15,8 +15,7 @@ defmodule Mix.Tasks.Hex.Publish do
   publish.
 
   A published version can be amended or reverted with `--revert` up to one hour
-  after its publication. If you want to revert a publication that is more than
-  one hour old you need to contact an administrator.
+  after its publication. Older packages can not be reverted.
 
   `mix hex.publish docs`
 
