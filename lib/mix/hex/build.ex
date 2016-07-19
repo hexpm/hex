@@ -15,7 +15,7 @@ defmodule Mix.Hex.Build do
     config = Mix.Project.config
     raise_if_umbrella_project!(config)
 
-    package = Map.new(config[:package] || [])
+    package = Enum.into(config[:package] || [], %{})
 
     {deps, exclude_deps} = dependencies(config)
 
