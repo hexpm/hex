@@ -15,14 +15,14 @@ defmodule Mix.Hex.Build do
     config = Mix.Project.config
     raise_if_umbrella_project!(config)
 
-    package = Enum.into(config[:package] || [], %{})
+    package = Map.new(config[:package] || [])
 
     {deps, exclude_deps} = dependencies(config)
 
     meta = meta_for(config, package, deps)
 
-    [config: config, package: package, deps: deps,
-      exclude_deps: exclude_deps, meta: meta]
+    %{config: config, package: package, deps: deps,
+      exclude_deps: exclude_deps, meta: meta}
   end
 
   def print_info(meta, exclude_deps, package_files) do
@@ -85,19 +85,21 @@ defmodule Mix.Hex.Build do
   end
 
   def package(package, config) do
+    files = expand_paths(package[:files] || @default_files, File.cwd!)
+
     package
-    |> update(fn _ -> package[:description] end, :description, &String.strip/1)
-    |> update(fn _ -> package[:files] || @default_files end, :files, &expand_paths(&1, File.cwd!))
-    |> update(fn _ -> package[:name] || config[:app] end, :name, & &1)
-    |> update(fn pkg -> !package[:build_tools] && guess_build_tools(pkg.files) end, :build_tools, & &1)
+    |> Map.put(:files, files)
+    |> maybe_put(:description, fn _ -> package[:description] end, &String.strip/1)
+    |> maybe_put(:name, fn _ -> package[:name] || config[:app] end, & &1)
+    |> maybe_put(:build_tools, fn _ -> !package[:build_tools] && guess_build_tools(files) end, & &1)
     |> Map.take(@meta_fields)
   end
 
-  defp update(package, check, key, value) do
-    if result = check.(package) do
-      Map.put(package, key, value.(result))
+  defp maybe_put(map, key, check, value) do
+    if result = check.(map) do
+      Map.put(map, key, value.(result))
     else
-      package
+      map
     end
   end
 

@@ -102,15 +102,23 @@ defmodule Mix.Tasks.Hex.Publish do
     auth = Utils.auth_info(Hex.Config.read)
 
     build = Build.prepare_package!
-    version = opts[:revert]
+    revert_version = opts[:revert]
+    revert = !!revert_version
 
     case args do
+      ["package"] when revert ->
+        revert_package(build, revert_version, auth)
+      ["docs"] when revert ->
+        revert_docs(build, revert_version, auth)
+      [] when revert ->
+        revert(build, revert_version, auth)
       ["package"] ->
-        if version, do: revert_package(build, version, auth), else: create_package(build, auth, opts)
+        if proceed?(build), do: create_package(build, auth, opts)
       ["docs"] ->
-        if version, do: revert_docs(build, version, auth), else: create_docs(auth, opts)
+        docs_task(build, opts)
+        create_docs(build, auth, opts)
       [] ->
-        if version, do: revert(build, version, auth), else: create(build, auth, opts)
+        create(build, auth, opts)
       _ ->
         message = """
           invalid arguments, expected one of:
@@ -123,31 +131,33 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp create(build, auth, opts) do
-    create_package(build, auth, opts)
-    create_docs(auth, opts)
-  end
-
-  defp create_package(build, auth, opts) do
-    meta = build[:meta]
-    exclude_deps = build[:exclude_deps]
-    package = build[:package]
-
-    Hex.Shell.info("Publishing #{meta[:name]} #{meta[:version]}")
-    Build.print_info(meta, exclude_deps, package[:files])
-
-    print_link_to_coc()
-
-    if Hex.Shell.yes?("Proceed?") do
-      progress? = Keyword.get(opts, :progress, true)
-      create_release(meta, auth, progress?)
+    if proceed?(build) do
+      docs_task(build, opts)
+      create_package(build, auth, opts)
+      create_docs(build, auth, opts)
     end
   end
 
-  defp create_docs(auth, opts) do
-    Mix.Project.get!
-    config  = Mix.Project.config
-    name = config[:package][:name] || config[:app]
-    version = config[:version]
+  defp create_package(build, auth, opts) do
+    create_release(build, auth, opts)
+  end
+
+  defp create_docs(build, auth, opts) do
+    directory = docs_dir()
+    name = build.meta.name
+    version = build.meta.version
+
+    unless File.exists?("#{directory}/index.html") do
+      Mix.raise "File not found: #{directory}/index.html"
+    end
+
+    progress? = Keyword.get(opts, :progress, true)
+    tarball = build_tarball(name, version, directory)
+    send_tarball(name, version, tarball, auth, progress?)
+  end
+
+  defp docs_task(build, opts) do
+    name = build.meta.name
 
     try do
       docs_args = ["--canonical", Hex.Utils.hexdocs_url(name)|opts[:canonical]]
@@ -159,16 +169,19 @@ defmodule Mix.Tasks.Hex.Publish do
                       ~s(you run the task in the same environment it is configured to)
       reraise ex, stacktrace
     end
+  end
 
-    directory = docs_dir()
+  defp proceed?(build) do
+    meta = build.meta
+    exclude_deps = build.exclude_deps
+    package = build.package
 
-    unless File.exists?("#{directory}/index.html") do
-      Mix.raise "File not found: #{directory}/index.html"
-    end
+    Hex.Shell.info("Publishing #{meta.name} #{meta.version}")
+    Build.print_info(meta, exclude_deps, package[:files])
 
-    progress? = Keyword.get(opts, :progress, true)
-    tarball = build_tarball(name, version, directory)
-    send_tarball(name, version, tarball, auth, progress?)
+    print_link_to_coc()
+
+    Hex.Shell.yes?("Proceed?")
   end
 
   defp print_link_to_coc() do
@@ -182,26 +195,26 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp revert_package(build, version, auth) do
     version = Utils.clean_version(version)
-    meta = build[:meta]
+    name = build.meta.name
 
-    case Hex.API.Release.delete(meta[:name], version, auth) do
+    case Hex.API.Release.delete(name, version, auth) do
       {code, _, _} when code in 200..299 ->
-        Hex.Shell.info("Reverted #{meta[:name]} #{version}")
+        Hex.Shell.info("Reverted #{name} #{version}")
       {code, body, _} ->
-        Hex.Shell.error("Reverting #{meta[:name]} #{version} failed")
+        Hex.Shell.error("Reverting #{name} #{version} failed")
         Hex.Utils.print_error_result(code, body)
     end
   end
 
   defp revert_docs(build, version, auth) do
     version = Utils.clean_version(version)
-    meta = build[:meta]
+    name = build.meta.name
 
-    case Hex.API.ReleaseDocs.delete(meta[:name], version, auth) do
+    case Hex.API.ReleaseDocs.delete(name, version, auth) do
       {code, _, _} when code in 200..299 ->
-        Hex.Shell.info "Reverted docs for #{meta[:name]} #{version}"
+        Hex.Shell.info "Reverted docs for #{name} #{version}"
       {code, body, _} ->
-        Hex.Shell.error "Reverting docs for #{meta[:name]} #{version} failed"
+        Hex.Shell.error "Reverting docs for #{name} #{version} failed"
         Hex.Utils.print_error_result(code, body)
     end
   end
@@ -262,8 +275,12 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp create_release(meta, auth, progress?) do
-    {tarball, checksum} = Hex.Tar.create(meta, meta[:files])
+  defp create_release(build, auth, opts) do
+    meta = build.meta
+    {tarball, checksum} = Hex.Tar.create(meta, meta.files)
+    progress? = Keyword.get(opts, :progress, true)
+    name = meta.name
+    version = meta.version
 
     progress =
       if progress? do
@@ -272,12 +289,12 @@ defmodule Mix.Tasks.Hex.Publish do
         Utils.progress(nil)
       end
 
-    case Hex.API.Release.new(meta[:name], tarball, auth, progress) do
+    case Hex.API.Release.new(name, tarball, auth, progress) do
       {code, _, _} when code in 200..299 ->
-        Hex.Shell.info("\nPublished at #{Hex.Utils.hex_package_url(meta[:name], meta[:version])} (#{String.downcase(checksum)})")
+        Hex.Shell.info("\nPublished at #{Hex.Utils.hex_package_url(name, version)} (#{String.downcase(checksum)})")
         Hex.Shell.info("Don't forget to upload your documentation with `mix hex.docs`")
       {code, body, _} ->
-        Hex.Shell.error("\nPushing #{meta[:name]} #{meta[:version]} failed")
+        Hex.Shell.error("\nPushing #{name} #{version} failed")
         Hex.Utils.print_error_result(code, body)
     end
   end

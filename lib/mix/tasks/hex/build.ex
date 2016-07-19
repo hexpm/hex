@@ -68,14 +68,14 @@ defmodule Mix.Tasks.Hex.Build do
   def run(_args) do
     build = Build.prepare_package!
 
-    meta = build[:meta]
-    package = build[:package]
-    exclude_deps = build[:exclude_deps]
+    meta = build.meta
+    package = build.package
+    exclude_deps = build.exclude_deps
 
-    Hex.Shell.info("Building #{meta[:name]} #{meta[:version]}")
+    Hex.Shell.info("Building #{meta.name} #{meta.version}")
     Build.print_info(meta, exclude_deps, package[:files])
 
-    {_tar, checksum} = Hex.Tar.create(meta, meta[:files], false)
+    {_tar, checksum} = Hex.Tar.create(meta, meta.files, false)
     Hex.Shell.info("Package checksum: #{checksum}")
   end
 end
