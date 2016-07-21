@@ -6,6 +6,8 @@ defmodule Hex.Crypto.AES_GCM do
   See: http://csrc.nist.gov/publications/nistpubs/800-38D/SP-800-38D.pdf
   """
 
+  alias Hex.Crypto.ContentEncryptor
+
   @spec content_encrypt({binary, binary}, <<_::16>> | <<_::24>> | <<_::32>>, <<_::12>>) :: {binary, binary}
   def content_encrypt({aad, plain_text}, key, iv)
       when is_binary(aad)
@@ -32,61 +34,40 @@ defmodule Hex.Crypto.AES_GCM do
 
   ## Content Encryptor
 
-  @behaviour Hex.Crypto.ContentEncryptor
+  @behaviour ContentEncryptor
 
-  def init(options) do
-    case Keyword.fetch(options, :key) do
-      {:ok, key} when is_binary(key) and bit_size(key) in [128, 192, 256] ->
-        case Keyword.fetch(options, :iv) do
-          {:ok, iv} when is_binary(iv) and bit_size(iv) === 96 ->
-            params = %{
-              key: key,
-              iv: iv
-            }
-            {:ok, params}
-          _ ->
-            {:error, ":iv is required, must be a bitstring, and must be 96 bits"}
-        end
-      _ ->
-        {:error, ":key is required, must be a bitstring, and must be 128, 192, or 256 bits"}
-    end
+  def init(%{ enc: enc }, _options)
+      when enc in ["A128GCM", "A192GCM", "A256GCM"] do
+    key_length =
+      case enc do
+        "A128GCM" -> 16
+        "A192GCM" -> 24
+        "A256GCM" -> 32
+      end
+    params = %{
+      key_length: key_length
+    }
+    {:ok, params}
   end
 
-  def encrypt({aad, plain_text}, %{key: key, iv: iv}) do
+  def encrypt(%{key_length: key_length}, key, iv, {aad, plain_text}) when byte_size(key) == key_length do
     content_encrypt({aad, plain_text}, key, iv)
   end
 
-  def decrypt({aad, cipher_text, cipher_tag}, %{key: key, iv: iv}) do
+  def decrypt(%{key_length: key_length}, key, iv, {aad, cipher_text, cipher_tag}) when byte_size(key) == key_length do
     content_decrypt({aad, cipher_text, cipher_tag}, key, iv)
   end
 
-  def encode(%{key: key}) do
-    algorithm =
-      case bit_size(key) do
-        128 -> "A128GCM"
-        192 -> "A192GCM"
-        256 -> "A256GCM"
-      end
-    {algorithm, <<>>}
+  def generate_key(%{key_length: key_length}) do
+    :crypto.strong_rand_bytes(key_length)
   end
 
-  def decode(algorithm, <<>>, options) when algorithm in ["A128GCM", "A192GCM", "A256GCM"] do
-    key_length =
-      case algorithm do
-        "A128GCM" -> 128
-        "A192GCM" -> 192
-        "A256GCM" -> 256
-      end
-    case init(options) do
-      {:ok, params = %{key: key}} when bit_size(key) === key_length ->
-        {:ok, params}
-      {:ok, _} ->
-        :error
-      init_error ->
-        init_error
-    end
+  def generate_iv(_params) do
+    :crypto.strong_rand_bytes(12)
   end
-  def decode(_, _, _),
-    do: :error
+
+  def key_length(%{key_length: key_length}) do
+    key_length
+  end
 
 end
