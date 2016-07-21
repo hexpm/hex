@@ -1,6 +1,33 @@
 defmodule HexTest.HexWeb do
   import ExUnit.Assertions
 
+  defmodule WrappedCollectable do
+    defstruct [:collectable, :fun]
+
+    defimpl Collectable do
+      def into(%{collectable: collectable, fun: fun}) do
+        {term, collectable_fun} = Collectable.into(collectable)
+        {term, wrap(collectable_fun, fun)}
+      end
+
+      defp wrap(collectable_fun, fun) do
+        fn
+          term, {:cont, x} ->
+            collectable_fun.(term, {:cont, fun.(x)})
+          term, command ->
+            collectable_fun.(term, command)
+        end
+      end
+    end
+  end
+
+  defp stream_hexweb do
+    %WrappedCollectable{
+      collectable: IO.stream(:stdio, :line),
+      fun: &IO.ANSI.format([:blue, &1, :reset])
+    }
+  end
+
   @mixfile_template """
   defmodule ~s.NoConflict.Mixfile do
     use Mix.Project
@@ -57,7 +84,7 @@ defmodule HexTest.HexWeb do
       fun = fn fun ->
         receive do
           {^port, {:data, data}} ->
-            IO.write(data)
+            IO.ANSI.format([:blue, data, :reset]) |> IO.write
             fun.(fun)
           {^port, {:exit_status, status}} ->
             IO.puts "HexWeb quit with status #{status}"
@@ -131,7 +158,7 @@ defmodule HexTest.HexWeb do
 
     opts = [
         stderr_to_stdout: true,
-        into: IO.stream(:stdio, :line),
+        into: stream_hexweb(),
         env: env,
         cd: hexweb_dir()]
 
