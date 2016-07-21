@@ -8,7 +8,7 @@ defmodule Hex.Crypto.AES_GCM do
 
   alias Hex.Crypto.ContentEncryptor
 
-  @spec content_encrypt({binary, binary}, <<_::16>> | <<_::24>> | <<_::32>>, <<_::12>>) :: {binary, binary}
+  @spec content_encrypt({binary, binary}, <<_::16>> | <<_::24>> | <<_::32>>, <<_::12>>) :: {binary, <<_::16>>}
   def content_encrypt({aad, plain_text}, key, iv)
       when is_binary(aad)
       and is_binary(plain_text)
@@ -17,7 +17,7 @@ defmodule Hex.Crypto.AES_GCM do
     :crypto.block_encrypt(:aes_gcm, key, iv, {aad, plain_text})
   end
 
-  @spec content_decrypt({binary, binary, binary}, <<_::16>> | <<_::24>> | <<_::32>>, <<_::12>>) :: {:ok, binary} | :error
+  @spec content_decrypt({binary, binary, <<_::16>>}, <<_::16>> | <<_::24>> | <<_::32>>, <<_::12>>) :: {:ok, binary} | :error
   def content_decrypt({aad, cipher_text, cipher_tag}, key, iv)
       when is_binary(aad)
       and is_binary(cipher_text)

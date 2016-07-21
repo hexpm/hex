@@ -7,7 +7,7 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
 
   alias Hex.Crypto.ContentEncryptor
 
-  @spec content_encrypt({binary, binary}, <<_::16>> | <<_::24>> | <<_::32>>, <<_::16>>) :: {binary, binary}
+  @spec content_encrypt({binary, binary}, <<_::32>> | <<_::48>> | <<_::64>>, <<_::16>>) :: {binary, <<_::16>> | <<_::24>> | <<_::32>>}
   def content_encrypt({aad, plain_text}, key, iv)
       when is_binary(aad)
       and is_binary(plain_text)
@@ -30,7 +30,7 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
     {cipher_text, cipher_tag}
   end
 
-  @spec content_decrypt({binary, binary, binary}, <<_::16>> | <<_::24>> | <<_::32>>, <<_::16>>) :: {:ok, binary} | :error
+  @spec content_decrypt({binary, binary, <<_::16>> | <<_::24>> | <<_::32>>}, <<_::32>> | <<_::48>> | <<_::64>>, <<_::16>>) :: {:ok, binary} | :error
   def content_decrypt({aad, cipher_text, cipher_tag}, key, iv)
       when is_binary(aad)
       and is_binary(cipher_text)
