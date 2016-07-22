@@ -1,58 +1,77 @@
 defmodule Hex.Crypto do
-  import Hex.Crypto.Pbkdf2
 
-  def encrypt(password, salt, plain, tag \\ "") do
-    <<key::binary-32, iv::binary-16>> = pbkdf2(password, salt, iterations(), 48, :sha256)
-    plain = pad(tag <> plain, 16)
-    :crypto.block_encrypt(:aes_cbc256, key, iv, plain)
+  alias Hex.Crypto.Encryption
+
+  def encrypt(plain_text, password, tag \\ "") do
+    # TODO: Change :enc to "A256GCM" once support for OTP 17 is dropped.
+    Encryption.encrypt({tag, plain_text}, %{
+      alg: "PBES2-HS512",
+      enc: "A256CBC-HS512",
+      p2c: Hex.State.fetch!(:pbkdf2_iters),
+      p2s: :crypto.strong_rand_bytes(16)
+    }, [
+      password: password
+    ])
   end
 
-  def decrypt(password, salt, cipher, tag \\ "") do
-    <<key::binary-32, iv::binary-16>> = pbkdf2(password, salt, iterations(), 48, :sha256)
-    :crypto.block_decrypt(:aes_cbc256, key, iv, cipher)
-    |> unpad(16)
-    |> untag(tag)
+  def decrypt(cipher_text, password, tag \\ "") do
+    Encryption.decrypt({tag, cipher_text}, [
+      password: password
+    ])
   end
 
-  def gen_salt do
-    :crypto.strong_rand_bytes(16)
-  end
-
-  defp iterations do
-    Hex.State.fetch!(:pbkdf2_iters)
-  end
-
-  defp pad(plain, size) do
-    byte = size - rem(byte_size(plain), size)
-    [plain, :lists.duplicate(byte, byte)]
-  end
-
-  defp unpad(cipher, size) do
-    cipher_size = byte_size(cipher)
-    byte = :binary.at(cipher, cipher_size-1)
-
-    if rem(cipher_size, size) == 0 and byte <= size do
-      padding = :lists.duplicate(byte, byte) |> IO.iodata_to_binary
-      binary_size = cipher_size - byte
-      <<binary::binary-size(binary_size), rest::binary-size(byte)>> = cipher
-      if padding == rest do
-        {:ok, binary}
-      else
-        :error
-      end
-    else
-      :error
+  def base64url_encode(binary) do
+    try do
+      Base.url_encode64(binary, padding: false)
+    catch
+      _,_ ->
+        binary
+        |> Base.encode64()
+        |> urlsafe_encode64(<<>>)
     end
   end
 
-  defp untag({:ok, plain}, tag) do
-    tag_size = byte_size(tag)
-    case plain do
-      <<^tag::binary-size(tag_size), plain::binary>> ->
-        {:ok, plain}
-      _ ->
-        :error
+  def base64url_decode(binary) do
+    try do
+      Base.url_decode64(binary, padding: false)
+    catch
+      _,_ ->
+        try do
+          binary = urlsafe_decode64(binary, <<>>)
+          binary =
+            case rem(byte_size(binary), 4) do
+              2 -> binary <> "=="
+              3 -> binary <> "="
+              _ -> binary
+            end
+          Base.decode64(binary)
+        catch
+          _,_ ->
+            :error
+        end
     end
   end
-  defp untag(:error, _tag), do: :error
+
+  ## Internal
+
+  defp urlsafe_encode64(<< ?+, rest :: binary >>, acc),
+    do: urlsafe_encode64(rest, << acc :: binary, ?- >>)
+  defp urlsafe_encode64(<< ?/, rest :: binary >>, acc),
+    do: urlsafe_encode64(rest, << acc :: binary, ?_ >>)
+  defp urlsafe_encode64(<< ?=, rest :: binary >>, acc),
+    do: urlsafe_encode64(rest, acc)
+  defp urlsafe_encode64(<< c, rest :: binary >>, acc),
+    do: urlsafe_encode64(rest, << acc :: binary, c >>)
+  defp urlsafe_encode64(<<>>, acc),
+    do: acc
+
+  defp urlsafe_decode64(<< ?-, rest :: binary >>, acc),
+    do: urlsafe_decode64(rest, << acc :: binary, ?+ >>)
+  defp urlsafe_decode64(<< ?_, rest :: binary >>, acc),
+    do: urlsafe_decode64(rest, << acc :: binary, ?/ >>)
+  defp urlsafe_decode64(<< c, rest :: binary >>, acc),
+    do: urlsafe_decode64(rest, << acc :: binary, c >>)
+  defp urlsafe_decode64(<<>>, acc),
+    do: acc
+
 end

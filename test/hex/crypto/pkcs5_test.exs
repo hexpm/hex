@@ -1,11 +1,37 @@
-defmodule Hex.Crypto.Pbkdf2Test do
+defmodule Hex.Crypto.PKCS5Test do
   use ExUnit.Case, async: true
-  import Hex.Crypto.Pbkdf2
+  import Hex.Crypto.PKCS5
+
+  defp check_vectors(list) do
+    Enum.each(list, fn {password, salt, iterations, derived_key_length, hash, derived_key} ->
+      assert pbkdf2(password, salt, iterations, derived_key_length, hash) === derived_key
+    end)
+  end
 
   defp check_vectors(list, iterations, length, hash_fun) do
     Enum.each(list, fn {password, salt, hash} ->
       assert pbkdf2(password, salt, iterations, length, hash_fun) == hash
     end)
+  end
+
+  test "PKCS#5 test vectors" do
+    [
+      # See: https://tools.ietf.org/html/rfc6070
+      {"password", "salt", 1, 20, :sha, <<12,96,200,15,150,31,14,113,243,169,181,36,175,96,18,6,47,224,55,166>>},
+      {"password", "salt", 2, 20, :sha, <<234,108,1,77,199,45,111,140,205,30,217,42,206,29,65,240,216,222,137,87>>},
+      {"password", "salt", 4096, 20, :sha, <<75,0,121,1,183,101,72,154,190,173,73,217,38,247,33,208,101,164,41,193>>},
+      # {"password", "salt", 16777216, 20, :sha, <<238,254,61,97,205,77,164,228,233,148,91,61,107,162,21,140,38,52,233,132>>},
+      {"passwordPASSWORDpassword", "saltSALTsaltSALTsaltSALTsaltSALTsalt", 4096, 25, :sha, <<61,46,236,79,228,28,132,155,128,200,216,54,98,192,228,74,139,41,26,150,76,242,240,112,56>>},
+      {"pass\0word", "sa\0lt", 4096, 16, :sha, <<86,250,106,167,85,72,9,157,204,55,215,240,52,37,224,195>>},
+      # See: http://stackoverflow.com/a/5136918/818187
+      {"password", "salt", 1, 32, :sha256, <<18,15,182,207,252,248,179,44,67,231,34,82,86,196,248,55,168,101,72,201,44,204,53,72,8,5,152,124,183,11,225,123>>},
+      {"password", "salt", 2, 32, :sha256, <<174,77,12,149,175,107,70,211,45,10,223,249,40,240,109,208,42,48,63,142,243,194,81,223,214,226,216,90,149,71,76,67>>},
+      {"password", "salt", 4096, 32, :sha256, <<197,228,120,213,146,136,200,65,170,83,13,182,132,92,76,141,150,40,147,160,1,206,78,17,164,150,56,115,170,152,19,74>>},
+      # {"password", "salt", 16777216, 32, :sha256, <<207,129,198,111,232,207,192,77,31,49,236,182,93,171,64,137,247,241,121,232,155,59,11,203,23,173,16,227,172,110,186,70>>},
+      {"passwordPASSWORDpassword", "saltSALTsaltSALTsaltSALTsaltSALTsalt", 4096, 40, :sha256, <<52,140,137,219,203,211,43,47,50,216,20,184,17,110,132,207,43,23,52,126,188,24,0,24,28,78,42,31,184,221,83,225,198,53,81,140,125,172,71,233>>},
+      {"pass\0word", "sa\0lt", 4096, 16, :sha256, <<137,182,157,5,22,248,41,137,60,105,98,38,101,10,134,135>>}
+    ]
+    |> check_vectors()
   end
 
   test "base" do

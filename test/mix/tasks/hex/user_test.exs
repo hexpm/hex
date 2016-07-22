@@ -44,8 +44,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       assert name in Enum.map(body, &(&1["name"]))
 
       assert config[:username] == "user"
-      assert config[:key_cipher]
-      assert config[:key_salt]
+      assert config[:encrypted_key]
     end
   end
 
@@ -54,11 +53,11 @@ defmodule Mix.Tasks.Hex.UserTest do
       Hex.State.put(:home, System.cwd!)
 
       Hex.Config.update(username: "johndoe", key: "qwertyuiop",
-                        key_citer: "...", key_salt: "...",
+                        encrypted_key: "...",
                         xyz: "other", foo: :bar)
       Mix.Tasks.Hex.User.run(["deauth"])
 
-      assert Dict.take(Hex.Config.read, [:username, :key, :key_cipher, :key_salt]) == []
+      assert Dict.take(Hex.Config.read, [:username, :key, :encrypted_key]) == []
     end
   end
 
@@ -100,8 +99,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       config = Hex.Config.read
       assert config[:username] == "config"
-      assert is_binary(config[:key_cipher])
-      assert is_binary(config[:key_salt])
+      assert is_binary(config[:encrypted_key])
     end
   end
 
