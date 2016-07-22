@@ -61,6 +61,34 @@ defmodule Mix.Tasks.Hex.UserTest do
     end
   end
 
+  test "passphrase" do
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      Hex.Config.update(key: "qwertyuiop")
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      Mix.Tasks.Hex.User.run(["passphrase"])
+
+      config = Hex.Config.read
+      assert config[:encrypted_key]
+      refute config[:key]
+
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      send self(), {:mix_shell_input, :prompt, "hunter43"}
+      send self(), {:mix_shell_input, :prompt, "hunter43"}
+      Mix.Tasks.Hex.User.run(["passphrase"])
+
+      config = Hex.Config.read
+      assert config[:encrypted_key]
+
+      assert_raise Mix.Error, "Wrong passphrase", fn ->
+        send self(), {:mix_shell_input, :prompt, "wrong"}
+        Mix.Tasks.Hex.User.run(["passphrase"])
+      end
+    end
+  end
+
   test "test" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)

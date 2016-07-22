@@ -55,13 +55,12 @@ defmodule Mix.Hex.Utils do
   end
 
   def auth_info(config) do
-    key = config[:key]
-    encrypted_key = config[:encrypted_key]
-
     cond do
-      encrypted_key ->
+      encrypted_key = config[:encrypted_key] ->
         [key: decrypt_key(encrypted_key)]
-      key ->
+      key = config[:key] ->
+        Hex.Shell.info "Your stored API key is not encrypted, please " <>
+                       "supply a passphrase to encrypt it"
         encrypt_key(config, key)
         [key: key]
       true ->
@@ -69,11 +68,9 @@ defmodule Mix.Hex.Utils do
     end
   end
 
-  defp encrypt_key(config, key) do
-    Hex.Shell.info("Your stored API key is not encrypted, please supply a passphrase to encrypt it")
-
-    password = password_get("Passphrase:") |> String.strip
-    confirm = password_get("Passphrase (confirm):") |> String.strip
+  def encrypt_key(config, key, challenge \\ "Passphrase") do
+    password = password_get("#{challenge}}:") |> String.strip
+    confirm = password_get("#{challenge}} (confirm):") |> String.strip
     if password != confirm do
       Mix.raise "Entered passphrases do not match"
     end
@@ -86,8 +83,8 @@ defmodule Mix.Hex.Utils do
     |> Hex.Config.write
   end
 
-  defp decrypt_key(encrypted_key) do
-    password = password_get("Passphrase:") |> String.strip
+  def decrypt_key(encrypted_key, challenge \\ "Passphrase") do
+    password = password_get("#{challenge}:") |> String.strip
     case Hex.Crypto.decrypt(encrypted_key, password, @apikey_tag) do
       {:ok, key} ->
         key

@@ -29,6 +29,12 @@ defmodule Mix.Tasks.Hex.User do
 
   `mix hex.user deauth`
 
+  ### Reencrypt API key
+
+  Updates the passphrase for the locally stored API key.
+
+  `mix hex.user passphrase`
+
   ### Test authentication
 
   Tests if authentication works with the stored API key.
@@ -55,6 +61,8 @@ defmodule Mix.Tasks.Hex.User do
         create_key()
       ["deauth"] ->
         deauth()
+      ["passphrase"] ->
+        passphrase()
       ["reset", "password"] ->
         reset_password()
       ["test"] ->
@@ -65,13 +73,13 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp whoami() do
+  defp whoami do
     config = Hex.Config.read
     username = local_user(config)
     Hex.Shell.info(username)
   end
 
-  defp reset_password() do
+  defp reset_password do
     name = Hex.Shell.prompt("Username or Email:") |> String.strip
 
     case Hex.API.User.password_reset(name) do
@@ -84,7 +92,7 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp deauth() do
+  defp deauth do
     config = Hex.Config.read
     username = local_user(config)
 
@@ -95,6 +103,21 @@ defmodule Mix.Tasks.Hex.User do
     Hex.Shell.info "User `" <> username <> "` removed from the local machine. " <>
                    "To authenticate again, run `mix hex.user auth` " <>
                    "or create a new user with `mix hex.user register`"
+  end
+
+  defp passphrase do
+    config = Hex.Config.read
+
+    key = cond do
+      encrypted_key = config[:encrypted_key] ->
+        Utils.decrypt_key(encrypted_key, "Current passphrase")
+      key = config[:key] ->
+        key
+      true ->
+        Mix.raise "No authorized user found. Run 'mix hex.user auth'"
+    end
+
+    Utils.encrypt_key(config, key, "New passphrase")
   end
 
   defp register do
