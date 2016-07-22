@@ -9,41 +9,41 @@ defmodule Mix.Tasks.Hex.User do
 
   ### Register a new user
 
-  `mix hex.user register`
+      mix hex.user register
 
   ### Print the current user
 
-  `mix hex.user whoami`
+      mix hex.user whoami
 
   ### Authorize a new user
 
   Authorizes a new user on the local machine by generating a new API key and
   storing it in the Hex config.
 
-  `mix hex.user auth`
+      mix hex.user auth
 
   ### Deauthorize the user
 
   Deauthorizes the user from the local machine by removing the API key from the
   Hex config.
 
-  `mix hex.user deauth`
+      mix hex.user deauth
 
   ### Reencrypt API key
 
   Updates the passphrase for the locally stored API key.
 
-  `mix hex.user passphrase`
+      mix hex.user passphrase
 
   ### Test authentication
 
   Tests if authentication works with the stored API key.
 
-  `mix hex.user test`
+      mix hex.user test
 
   ### Reset user password
 
-  `mix hex.user reset password`
+      mix hex.user reset password
   """
 
   def run(args) do
