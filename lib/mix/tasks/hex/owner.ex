@@ -15,26 +15,26 @@ defmodule Mix.Tasks.Hex.Owner do
   Adds an owner to package by specifying the package name and email of the new
   owner.
 
-  `mix hex.owner add PACKAGE EMAIL`
+      mix hex.owner add PACKAGE EMAIL
 
   ### Remove owner
 
   Removes an owner to package by specifying the package name and email of the new
   owner.
 
-  `mix hex.owner remove PACKAGE EMAIL`
+      mix hex.owner remove PACKAGE EMAIL
 
   ### List owners
 
   Lists all owners of given package.
 
-  `mix hex.owner list PACKAGE`
+      mix hex.owner list PACKAGE
 
   ### List owned packages
 
   Lists all packages owned by the current user.
 
-  `mix hex.owner packages`
+      mix hex.owner packages
   """
 
   def run(args) do

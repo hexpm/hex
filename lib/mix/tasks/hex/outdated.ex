@@ -15,12 +15,12 @@ defmodule Mix.Tasks.Hex.Outdated do
   the entire dependency tree, are listed. This is useful if you are trying
   to figure why a package isn't updating when you run `mix deps.update`.
 
+      mix hex.outdated [APP]
+
   ## Command line options
 
     * `--all` - shows all outdated packages, including children of packages defined in `mix.exs`
     * `--pre` - include pre-releases when checking for newer versions
-
-  `mix hex.outdated [APP]`
   """
 
   @recursive true

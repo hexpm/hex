@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Hex.Search do
   @moduledoc """
   Displays packages matching the given search query.
 
-  `mix hex.search PACKAGE`
+      mix hex.search PACKAGE
   """
 
   def run(args) do

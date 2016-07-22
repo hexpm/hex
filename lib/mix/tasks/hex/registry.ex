@@ -10,19 +10,19 @@ defmodule Mix.Tasks.Hex.Registry do
 
   Updates the locally cached registry file.
 
-  `mix hex.registry fetch`
+      mix hex.registry fetch
 
   ### Dump registry
 
   Copies the cached registry file to the given path.
 
-  `mix hex.registry dump <path>`
+      mix hex.registry dump <path>
 
   ### Load registry
 
   Copies given regsitry file to the cache.
 
-  `mix hex.registry load <path>`
+      mix hex.registry load <path>
   """
 
   def run(args) do

@@ -13,17 +13,17 @@ defmodule Mix.Tasks.Hex.Key do
 
   The key can no longer be used to authenticate API requests.
 
-  `mix hex.key remove key_name`
+      mix hex.key remove key_name
 
   To remove all API keys from your account, specify with `--all`
 
-  `mix hex.key remove --all`
+      mix hex.key remove --all
 
   ### List keys
 
   Lists all API keys associated with your account.
 
-  `mix hex.key list`
+      mix hex.key list
   """
 
   @switches [all: :boolean]

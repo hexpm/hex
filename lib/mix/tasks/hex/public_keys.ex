@@ -11,19 +11,19 @@ defmodule Mix.Tasks.Hex.PublicKeys do
 
   To list all available keys:
 
-      $ mix hex.public_keys list
+      mix hex.public_keys list
 
   To list all available keys showing the keys themselves:
 
-      $ mix hex.public_keys list --detailed
+      mix hex.public_keys list --detailed
 
   To add a new key:
 
-      $ mix hex.public_keys add URL_TO_REPO LOCAL_PATH_TO_KEY
+      mix hex.public_keys add URL_TO_REPO LOCAL_PATH_TO_KEY
 
   To remove a key:
 
-      $ mix hex.public_keys remove URL_TO_REPO
+      mix hex.public_keys remove URL_TO_REPO
 
   Be careful when adding new keys. Only add keys from sources you
   trust.

@@ -8,7 +8,7 @@ defmodule Mix.Tasks.Hex.Publish do
   @moduledoc """
   Publishes a new version of your package and its documentation.
 
-  `mix hex.publish package`
+      mix hex.publish package
 
   If it is a new package being published it will be created and the user
   specified in `username` will be the package owner. Only package owners can
@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Hex.Publish do
   A published version can be amended or reverted with `--revert` up to one hour
   after its publication. Older packages can not be reverted.
 
-  `mix hex.publish docs`
+      mix hex.publish docs
 
   The documentation will be accessible at `https://hexdocs.pm/my_package/1.0.0`,
   `https://hexdocs.pm/my_package` will always redirect to the latest published
@@ -32,7 +32,7 @@ defmodule Mix.Tasks.Hex.Publish do
   Note that if you want to publish a new version of your package and its
   documentation in one step, you can use the following shorthand:
 
-  `mix hex.publish`
+      mix hex.publish
 
   ## Command line options
 
