@@ -1,4 +1,24 @@
-## v0.12.2-dev
+## v0.13.0-dev
+
+* Enhancements
+  * Inform about new Hex version in `hex.info`
+  * Support `extra` metadata field
+  * Print package checksum when building and publishing
+  * Warn if using registry from cache
+  * Show creation time of API keys in `hex.keys list`
+  * Improve the error message if OTP has broken SNI in `:ssl` application
+  * Verify dependencies from registry against lock
+  * Hex will now automatically encrypt your local API key, use `hex.user passphrase` to change the encryption passphrase
+  * Improve resolver error message to mention behavior of pre-releases and overrides
+  * Improve error message if a dependency has configured the OTP application name incorrectly for another dependency
+  * `hex.publish` now also publishes docs by default, use `hex.publish package` and `hex.publish docs` to respectively publish package and docs independently
+  * `hex.docs` will now open or fetch documentation tarballs
+  * `hex.key remove` will now also deauth the user if the local API key was removed
+
+* Bug fixes
+  * Fix bug where the client was fetching packages even when lock is OK
+  * Fix resolver sometimes not producing any backtrack output
+  * Verify certificate against correct hostname after redirect
 
 ## v0.12.1 (2016-05-31)
 
