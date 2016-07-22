@@ -21,7 +21,7 @@ defmodule Hex.API do
       'user-agent' => user_agent()}
     headers = Dict.merge(default_headers, headers)
 
-    http_opts = [ssl: ssl_opts(url), relaxed: true, timeout: @request_timeout] ++ Hex.Utils.proxy_config(url)
+    http_opts = [relaxed: true, timeout: @request_timeout] ++ Hex.Utils.proxy_config(url)
     opts = [body_format: :binary]
     url = String.to_char_list(url)
     profile = Hex.State.fetch!(:httpc_profile)
@@ -39,7 +39,7 @@ defmodule Hex.API do
       end
 
     retry(method, 2, fn ->
-      case :httpc.request(method, request, http_opts, opts, profile) do
+      case request_with_redirect(method, request, http_opts, opts, profile, 3) do
         {:ok, response} ->
           handle_response(response)
         {:error, reason} ->
@@ -47,6 +47,45 @@ defmodule Hex.API do
       end
     end)
   end
+
+  def request_with_redirect(method, request, http_opts, opts, profile, times) do
+    url = elem(request, 0)
+    http_opts =
+      http_opts
+      |> Keyword.put(:ssl, ssl_opts(url))
+      |> Keyword.put_new(:autoredirect, false)
+
+    case :httpc.request(method, request, http_opts, opts, profile) do
+      {:ok, response} ->
+        case handle_redirect(response) do
+          {:ok, location} when times > 0 ->
+            request = update_request(request, location)
+            request_with_redirect(method, request, http_opts, opts, profile, times-1)
+          {:ok, _location} ->
+            Mix.raise "Too many redirects"
+          :error ->
+            {:ok, response}
+        end
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp update_request({_url, headers, content_type, body}, new_url),
+    do: {new_url, headers, content_type, body}
+  defp update_request({_url, headers}, new_url),
+    do: {new_url, headers}
+
+  defp handle_redirect({{_version, code, _reason}, headers, _body})
+  when code in [301, 302, 303, 307, 308] do
+    headers = Enum.into(headers, %{})
+    if location = headers['location'] do
+      {:ok, location}
+    else
+      :error
+    end
+  end
+  defp handle_redirect(_), do: :error
 
   def secure_ssl? do
     check? = Hex.State.fetch!(:check_cert?)
@@ -60,6 +99,7 @@ defmodule Hex.API do
 
   def ssl_opts(url) do
     if secure_ssl?() do
+      url           = List.to_string(url)
       hostname      = String.to_char_list(URI.parse(url).host)
       verify_fun    = {&VerifyHostname.verify_fun/3, check_hostname: hostname}
       partial_chain = &partial_chain(Hex.API.Certs.cacerts, &1)
@@ -107,7 +147,7 @@ defmodule Hex.API do
       'user-agent' => user_agent(),
       'content-length' => to_char_list(byte_size(body))}
     headers = Dict.merge(default_headers, headers)
-    http_opts = [ssl: ssl_opts(url), relaxed: true, timeout: @request_timeout] ++ Hex.Utils.proxy_config(url)
+    http_opts = [relaxed: true, timeout: @request_timeout] ++ Hex.Utils.proxy_config(url)
     opts = [body_format: :binary]
     url = String.to_char_list(url)
     profile = Hex.State.fetch!(:httpc_profile)
@@ -124,7 +164,7 @@ defmodule Hex.API do
 
     request = {url, Map.to_list(headers), 'application/octet-stream', {body, 0}}
 
-    case :httpc.request(:post, request, http_opts, opts, profile) do
+    case request_with_redirect(:post, request, http_opts, opts, profile, 3) do
       {:ok, response} ->
         handle_response(response)
       {:error, reason} ->
