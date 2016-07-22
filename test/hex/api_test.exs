@@ -56,17 +56,40 @@ defmodule Hex.APITest do
   test "keys" do
     auth = [user: "user", pass: "hunter42"]
 
-    assert {201, %{"secret" => key}, _} = Hex.API.Key.new("macbook", auth)
-    assert byte_size(key) == 32
-    auth = [key: key]
+    assert {201, %{"secret" => key_a}, _} = Hex.API.Key.new("key_a", auth)
+    assert {201, %{"secret" => key_b}, _} = Hex.API.Key.new("key_b", auth)
+    assert byte_size(key_a) == 32
+    assert byte_size(key_b) == 32
+    auth = [key: key_a]
 
     HexTest.HexWeb.new_package("melon", "0.0.1", %{}, %{}, auth)
 
     assert {200, body, _} = Hex.API.Key.get(auth)
-    assert Enum.find(body, &(&1["name"] == "macbook"))
+    assert Enum.find(body, &(&1["name"] == "key_a"))
 
-    assert {200, _, _} = Hex.API.Key.delete("macbook", auth)
+    assert {200, _, _} = Hex.API.Key.delete("key_b", auth)
+    assert {200, body, _} = Hex.API.Key.delete("key_a", auth)
+    assert body["name"] == "key_a"
     assert {401, _, _} = Hex.API.Key.get(auth)
+
+    # Delete all keys
+    auth = [user: "user", pass: "hunter42"]
+    assert {201, %{"secret" => key_c}, _} = Hex.API.Key.new("key_c", auth)
+    assert {201, %{"secret" => key_d}, _} = Hex.API.Key.new("key_d", auth)
+    assert byte_size(key_c) == 32
+    assert byte_size(key_d) == 32
+    auth_c = [key: key_c]
+    auth_d = [key: key_d]
+
+    assert {200, body, _} = Hex.API.Key.get(auth_c)
+    assert Enum.find(body, &(&1["name"] == "key_c"))
+    assert {200, body, _} = Hex.API.Key.get(auth_d)
+    assert Enum.find(body, &(&1["name"] == "key_d"))
+
+    assert {200, body, _} = Hex.API.Key.delete_all(auth_c)
+    assert body["name"] == "key_c"
+    assert {401, _, _} = Hex.API.Key.get(auth_c)
+    assert {401, _, _} = Hex.API.Key.get(auth_d)
   end
 
   test "owners" do
