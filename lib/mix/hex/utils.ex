@@ -42,7 +42,7 @@ defmodule Mix.Hex.Utils do
 
     case Hex.API.Key.new(name, [user: username, pass: password]) do
       {201, body, _} ->
-        Hex.Shell.info("Encrypting API key with passphrase...")
+        Hex.Shell.info("Encrypting API key with user password...")
         encrypted_key = Hex.Crypto.encrypt(body["secret"], password, @apikey_tag)
         Hex.Config.update([
           username: username,
