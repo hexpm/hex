@@ -42,7 +42,7 @@ defmodule Mix.Hex.Utils do
 
     case Hex.API.Key.new(name, [user: username, pass: password]) do
       {201, body, _} ->
-        Hex.Shell.info("Encrypting API key with password...")
+        Hex.Shell.info("Encrypting API key with passphrase...")
         encrypted_key = Hex.Crypto.encrypt(body["secret"], password, @apikey_tag)
         Hex.Config.update([
           username: username,
@@ -70,12 +70,12 @@ defmodule Mix.Hex.Utils do
   end
 
   defp encrypt_key(config, key) do
-    Hex.Shell.info("Your stored API key is not encrypted, please supply a password to encrypt it")
+    Hex.Shell.info("Your stored API key is not encrypted, please supply a passphrase to encrypt it")
 
-    password = password_get("Password:") |> String.strip
-    confirm = password_get("Password (confirm):") |> String.strip
+    password = password_get("Passphrase:") |> String.strip
+    confirm = password_get("Passphrase (confirm):") |> String.strip
     if password != confirm do
-      Mix.raise "Entered passwords do not match"
+      Mix.raise "Entered passphrases do not match"
     end
 
     encrypted_key = Hex.Crypto.encrypt(key, password, @apikey_tag)
@@ -87,12 +87,12 @@ defmodule Mix.Hex.Utils do
   end
 
   defp decrypt_key(encrypted_key) do
-    password = password_get("Password:") |> String.strip
+    password = password_get("Passphrase:") |> String.strip
     case Hex.Crypto.decrypt(encrypted_key, password, @apikey_tag) do
       {:ok, key} ->
         key
       :error ->
-        Mix.raise "Wrong password"
+        Mix.raise "Wrong passphrase"
     end
   end
 
