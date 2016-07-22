@@ -41,7 +41,7 @@ env:
     - HEXWEB_MIX_ARCHIVES=hexweb_mix
   matrix:
     - ELIXIR=v1.2.6
-    - ELIXIR=v1.3.1
+    - ELIXIR=v1.3.2
     - ELIXIR=master
 matrix:
   include:
@@ -52,7 +52,7 @@ matrix:
     - otp_release: 18.3
       env: ELIXIR=v1.2.6
     - otp_release: 18.3
-      env: ELIXIR=v1.3.1
+      env: ELIXIR=v1.3.2
     - otp_release: 18.3
       env: ELIXIR=master
     - otp_release: 17.5
