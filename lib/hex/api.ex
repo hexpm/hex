@@ -14,12 +14,13 @@ defmodule Hex.API do
   Record.defrecordp :tbs_certificate, :OTPTBSCertificate,
     Record.extract(:OTPTBSCertificate, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
 
-  def request(method, url, headers, body \\ nil) when body == nil or is_map(body) do
+  def request(method, url, headers, body \\ nil)
+      when (is_map(headers) or is_list(headers)) and (body == nil or is_map(body)) do
     default_headers = %{
       'accept' => @erlang_vendor,
       'accept-encoding' => 'gzip',
       'user-agent' => user_agent()}
-    headers = Dict.merge(default_headers, headers)
+    headers = Enum.into(headers, default_headers)
 
     http_opts = [relaxed: true, timeout: @request_timeout] ++ Hex.Utils.proxy_config(url)
     opts = [body_format: :binary]
@@ -146,7 +147,7 @@ defmodule Hex.API do
       'accept' => @erlang_vendor,
       'user-agent' => user_agent(),
       'content-length' => to_char_list(byte_size(body))}
-    headers = Dict.merge(default_headers, headers)
+    headers = Enum.into(headers, default_headers)
     http_opts = [relaxed: true, timeout: @request_timeout] ++ Hex.Utils.proxy_config(url)
     opts = [body_format: :binary]
     url = String.to_char_list(url)

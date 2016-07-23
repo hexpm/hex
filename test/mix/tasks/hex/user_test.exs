@@ -57,7 +57,7 @@ defmodule Mix.Tasks.Hex.UserTest do
                         xyz: "other", foo: :bar)
       Mix.Tasks.Hex.User.run(["deauth"])
 
-      assert Dict.take(Hex.Config.read, [:username, :key, :encrypted_key]) == []
+      assert Keyword.take(Hex.Config.read, [:username, :key, :encrypted_key]) == []
     end
   end
 
