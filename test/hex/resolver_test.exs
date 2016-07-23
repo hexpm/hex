@@ -34,19 +34,23 @@ defmodule Hex.ResolverTest do
     end)
   end
 
+  defp equal?(locked, resolved) do
+    Enum.sort(locked) == Enum.sort(resolved)
+  end
+
   setup do
     Hex.Registry.open!(Hex.Registry.ETS, registry_path: tmp_path("registry.ets"))
   end
 
   test "simple" do
     deps = [foo: nil, bar: nil]
-    assert Dict.equal? locked([foo: "0.2.1", bar: "0.2.0"]), resolve(deps)
+    assert equal? locked([foo: "0.2.1", bar: "0.2.0"]), resolve(deps)
 
     deps = [foo: "0.2.1", bar: "0.2.0"]
-    assert Dict.equal? locked([foo: "0.2.1", bar: "0.2.0"]), resolve(deps)
+    assert equal? locked([foo: "0.2.1", bar: "0.2.0"]), resolve(deps)
 
     deps = [foo: "0.2.0", bar: "0.2.0"]
-    assert Dict.equal? locked([foo: "0.2.0", bar: "0.2.0"]), resolve(deps)
+    assert equal? locked([foo: "0.2.0", bar: "0.2.0"]), resolve(deps)
 
     deps = [bar: nil, foo: "~> 0.3.0"]
     assert resolve(deps) == """
@@ -83,16 +87,16 @@ defmodule Hex.ResolverTest do
 
   test "backtrack" do
     deps = [decimal: "0.2.0", ex_plex: "0.2.0"]
-    assert Dict.equal? locked([decimal: "0.2.0", ex_plex: "0.2.0"]), resolve(deps)
+    assert equal? locked([decimal: "0.2.0", ex_plex: "0.2.0"]), resolve(deps)
 
     deps = [decimal: "0.1.0", ex_plex: ">= 0.1.0"]
-    assert Dict.equal? locked([decimal: "0.1.0", ex_plex: "0.1.2"]), resolve(deps)
+    assert equal? locked([decimal: "0.1.0", ex_plex: "0.1.2"]), resolve(deps)
 
     deps = [decimal: nil, ex_plex: "< 0.1.0"]
-    assert Dict.equal? locked([decimal: "0.2.1", ex_plex: "0.0.1"]), resolve(deps)
+    assert equal? locked([decimal: "0.2.1", ex_plex: "0.0.1"]), resolve(deps)
 
     deps = [decimal: "0.1.0", ex_plex: "< 0.1.0"]
-    assert Dict.equal? locked([decimal: "0.1.0", ex_plex: "0.0.1"]), resolve(deps)
+    assert equal? locked([decimal: "0.1.0", ex_plex: "0.0.1"]), resolve(deps)
 
     deps = [ex_plex: "~> 0.0.2", decimal: "0.1.0", ]
     assert resolve(deps) == """
@@ -123,47 +127,47 @@ defmodule Hex.ResolverTest do
 
   test "complete backtrack" do
     deps = [jose: nil, eric: nil]
-    assert Dict.equal? locked([jose: "0.2.1", eric: "0.0.2"]), resolve(deps)
+    assert equal? locked([jose: "0.2.1", eric: "0.0.2"]), resolve(deps)
   end
 
   test "backtrack with multiple parents" do
     deps = [phoenix: "~> 1.1.3", phoenix_ecto: "~> 2.0", phoenix_live_reload: "~> 1.0"]
-    assert Dict.equal? locked([ecto: "1.1.0", phoenix: "1.1.3", phoenix_ecto: "2.0.1",
+    assert equal? locked([ecto: "1.1.0", phoenix: "1.1.3", phoenix_ecto: "2.0.1",
                                phoenix_live_reload: "1.0.3", poison: "1.5.2"]),  resolve(deps)
 
     deps = [phoenix: nil, phoenix_ecto: "~> 2.0", phoenix_live_reload: "~> 1.0"]
-    assert Dict.equal? locked([ecto: "1.1.0", phoenix: "1.1.3", phoenix_ecto: "2.0.1",
+    assert equal? locked([ecto: "1.1.0", phoenix: "1.1.3", phoenix_ecto: "2.0.1",
                                phoenix_live_reload: "1.0.3", poison: "1.5.2"]), resolve(deps)
   end
 
   test "locked" do
     locked = [decimal: "0.2.0"]
     deps = [decimal: nil, ex_plex: nil]
-    assert Dict.equal? locked([decimal: "0.2.0", ex_plex: "0.2.0"]), resolve(deps, locked)
+    assert equal? locked([decimal: "0.2.0", ex_plex: "0.2.0"]), resolve(deps, locked)
 
     locked = [decimal: "0.1.0"]
     deps = [decimal: nil, ex_plex: nil]
-    assert Dict.equal? locked([decimal: "0.1.0", ex_plex: "0.1.2"]), resolve(deps, locked)
+    assert equal? locked([decimal: "0.1.0", ex_plex: "0.1.2"]), resolve(deps, locked)
 
     locked = [decimal: "0.0.1"]
     deps = [decimal: nil, ex_plex: nil]
-    assert Dict.equal? locked([decimal: "0.0.1", ex_plex: "0.0.1"]), resolve(deps, locked)
+    assert equal? locked([decimal: "0.0.1", ex_plex: "0.0.1"]), resolve(deps, locked)
 
     locked = [ex_plex: "0.1.0"]
     deps = [decimal: "0.1.0", ex_plex: nil]
-    assert Dict.equal? locked([decimal: "0.1.0", ex_plex: "0.1.0"]), resolve(deps, locked)
+    assert equal? locked([decimal: "0.1.0", ex_plex: "0.1.0"]), resolve(deps, locked)
 
     locked = [ex_plex: "0.1.0", decimal: "0.1.0"]
     deps = [decimal: "0.1.0", ex_plex: nil]
-    assert Dict.equal? locked([decimal: "0.1.0", ex_plex: "0.1.0"]), resolve(deps, locked)
+    assert equal? locked([decimal: "0.1.0", ex_plex: "0.1.0"]), resolve(deps, locked)
 
     locked = [ex_plex: "0.1.0", decimal: "0.1.0"]
     deps = [decimal: nil, ex_plex: nil]
-    assert Dict.equal? locked([decimal: "0.1.0", ex_plex: "0.1.0"]), resolve(deps, locked)
+    assert equal? locked([decimal: "0.1.0", ex_plex: "0.1.0"]), resolve(deps, locked)
 
     locked = [ex_plex: "0.1.0", decimal: "0.1.0"]
     deps = []
-    assert Dict.equal? [], resolve(deps, locked)
+    assert equal? [], resolve(deps, locked)
   end
 
   test "failure due to locked dep" do
@@ -210,7 +214,7 @@ defmodule Hex.ResolverTest do
     """
 
     deps = [beta: "~> 1.0-beta and > 1.0.0-beta"]
-    assert Dict.equal? locked([beta: "1.1.0-beta"]), resolve(deps)
+    assert equal? locked([beta: "1.1.0-beta"]), resolve(deps)
   end
 
   test "only mix.exs conflicts" do
@@ -224,6 +228,6 @@ defmodule Hex.ResolverTest do
 
   test "optional" do
     deps = [ex_doc: nil, has_optional: nil]
-    assert Dict.equal? locked([ex_doc: "0.0.2", has_optional: "0.1.0"]), resolve(deps)
+    assert equal? locked([ex_doc: "0.0.2", has_optional: "0.1.0"]), resolve(deps)
   end
 end
