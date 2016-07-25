@@ -155,7 +155,7 @@ defmodule Mix.Tasks.Hex.Docs do
       end
 
     if System.find_executable(start_browser_command) do
-      System.cmd start_browser_command, [path]
+      System.cmd(start_browser_command, [path])
     else
       Mix.raise "Command not found: #{start_browser_command}"
     end
@@ -171,17 +171,14 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp find_latest_version(path) do
     path
-    |> File.ls!()
+    |> File.ls!
     |> Enum.sort(&(Hex.Version.compare(&1, &2) == :gt))
-    |> List.first()
+    |> List.first
   end
 
   defp retrieve_compressed_docs(url, filename, opts) do
     target = Path.join(opts[:cache], filename)
-
-    unless File.exists?(opts[:cache]) do
-      File.mkdir_p! opts[:cache]
-    end
+    File.mkdir_p!(opts[:cache])
 
     unless File.exists?(target) do
       request_docs_from_mirror(url, target)
@@ -189,12 +186,8 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp request_docs_from_mirror(url, target) do
-    case Hex.Repo.request(url, nil) do
-      {:ok, body} when is_binary(body) ->
-        File.write!(target, body)
-      other ->
-        other
-    end
+    {:ok, body, _} = Hex.Repo.request(url, nil)
+    File.write!(target, body)
   end
 
   defp extract_doc_contents(filename, target_dir, opts) do
@@ -204,8 +197,12 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp normalize_options(opts) do
-    docs_root_path = :home |> Hex.State.fetch!() |> Path.join("docs")
-    cache_dir = Path.join(docs_root_path, ".cache")
-    Keyword.put(opts, :home, docs_root_path) |> Keyword.put(:cache, cache_dir)
+    home = Hex.State.fetch!(:home)
+    docs_root = Path.join(home, "docs")
+    cache_dir = Path.join(docs_root, ".cache")
+    
+    opts
+    |> Keyword.put(:home, docs_root)
+    |> Keyword.put(:cache, cache_dir)
   end
 end

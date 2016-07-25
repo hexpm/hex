@@ -96,11 +96,10 @@ defmodule Mix.Tasks.Hex.Publish do
 
   def run(args) do
     Hex.start
-    Hex.Utils.ensure_registry(fetch: false)
 
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
     config = Hex.Config.read
-    build = Build.prepare_package!
+    build = Build.prepare_package
     revert_version = opts[:revert]
     revert = !!revert_version
 

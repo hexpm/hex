@@ -3,7 +3,9 @@ defmodule Hex.Resolver.BacktracksTest do
   import Hex.Resolver.Backtracks, only: [message: 1]
 
   setup do
-    Hex.Registry.open!(Hex.Registry.ETS, registry_path: tmp_path("registry.ets"))
+    Hex.State.put(:offline?, true)
+    Hex.Registry.open!(Hex.Registry.Server, registry_path: tmp_path("registry.ets"))
+    Hex.Registry.prefetch(["foo"])
   end
 
   test "merge versions" do

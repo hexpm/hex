@@ -14,6 +14,7 @@ defmodule Hex do
 
   def start(_, _) do
     import Supervisor.Spec
+    dev_setup()
 
     Mix.SCM.append(Hex.SCM)
     Mix.RemoteConverger.register(Hex.RemoteConverger)
@@ -23,7 +24,7 @@ defmodule Hex do
 
     children = [
       worker(Hex.State, []),
-      worker(Hex.Registry.ETS, []),
+      worker(Hex.Registry.Server, []),
       worker(Hex.Parallel, [:hex_fetcher, [max_parallel: 64]]),
     ]
 
@@ -51,5 +52,13 @@ defmodule Hex do
     def string_to_charlist(string), do: String.to_char_list(string)
   else
     def string_to_charlist(string), do: String.to_charlist(string)
+  end
+
+  if Mix.env in [:dev, :test] do
+    defp dev_setup do
+      :erlang.system_flag(:backtrace_depth, 30)
+    end
+  else
+    defp dev_setup, do: :ok
   end
 end

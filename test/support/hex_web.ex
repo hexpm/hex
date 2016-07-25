@@ -207,8 +207,9 @@ defmodule HexTest.HexWeb do
       {app, req} ->
         {app, %{app: app, requirement: req, optional: false}}
       {app, req, opts} ->
+        opts = Enum.into(opts, %{})
         default_opts = %{app: app, requirement: req, optional: false}
-        {opts[:hex] || app, Dict.merge(default_opts, opts)}
+        {opts[:hex] || app, Map.merge(default_opts, opts)}
     end)
 
     meta =

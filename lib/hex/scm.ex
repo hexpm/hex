@@ -64,26 +64,19 @@ defmodule Hex.SCM do
   end
 
   def managers(opts) do
-    case Hex.Utils.lock(opts[:lock]) do
-      [:hex, name, version, _checksum, nil, _deps] ->
-        Hex.Utils.ensure_registry!(fetch: false)
-        name = Atom.to_string(name)
-        build_tools = Hex.Registry.get_build_tools(name, version) || []
-        Enum.map(build_tools, &String.to_atom/1)
-      [:hex, _name, _version, _checksum, managers, _deps] ->
-        managers
-      _ ->
-        []
+    if opts[:lock] do
+      [:hex, _name, _version, _checksum, managers, _deps] = Hex.Utils.lock(opts[:lock])
+      managers
+    else
+      []
     end
-  after
-    Hex.Registry.pdict_clean
   end
 
   def checkout(opts) do
-    Hex.Registry.open!(Hex.Registry.ETS)
+    Hex.Registry.open!(Hex.Registry.Server)
 
     lock = Hex.Utils.lock(opts[:lock]) |> ensure_lock(opts)
-    [:hex, _name, version, checksum, _managers, _deps] = lock
+    [:hex, lock_name, version, checksum, _managers, deps] = lock
 
     name     = opts[:hex]
     dest     = opts[:dest]
@@ -98,7 +91,8 @@ defmodule Hex.SCM do
         Hex.Shell.info "  Using locally cached package"
       {:ok, :offline} ->
         Hex.Shell.info "  [OFFLINE] Using locally cached package"
-      {:ok, :new} ->
+      {:ok, :new, etag} ->
+        Hex.Registry.tarball_etag(name, version, etag)
         Hex.Shell.info "  Fetched package"
       {:error, reason} ->
         Hex.Shell.error(reason)
@@ -109,11 +103,13 @@ defmodule Hex.SCM do
     end
 
     File.rm_rf!(dest)
-    Hex.Tar.unpack(path, dest, {name, version})
+    meta = Hex.Tar.unpack(path, dest, {name, version})
     manifest = encode_manifest(name, version, checksum)
     File.write!(Path.join(dest, ".hex"), manifest)
 
-    opts[:lock]
+    build_tools = meta["build_tools"]
+    managers = if build_tools, do: Enum.map(build_tools, &String.to_atom/1)
+    {:hex, lock_name, version, checksum, managers, deps}
   after
     Hex.Registry.pdict_clean
   end
@@ -152,11 +148,12 @@ defmodule Hex.SCM do
   def prefetch(lock) do
     fetch = fetch_from_lock(lock)
 
-    Enum.each(fetch, fn {name, version} ->
-      Hex.Parallel.run(:hex_fetcher, {name, version}, fn ->
-        filename = "#{name}-#{version}.tar"
+    Enum.each(fetch, fn {package, version} ->
+      etag = Hex.Registry.tarball_etag(package, version)
+      Hex.Parallel.run(:hex_fetcher, {package, version}, fn ->
+        filename = "#{package}-#{version}.tar"
         path = cache_path(filename)
-        fetch(filename, path)
+        fetch(filename, path, etag)
       end)
     end)
   end
@@ -179,18 +176,17 @@ defmodule Hex.SCM do
     end)
   end
 
-  defp fetch(name, path) do
+  defp fetch(name, path, etag) do
     if Hex.State.fetch!(:offline?) do
       {:ok, :offline}
     else
-      etag = Hex.Utils.etag(path)
-      url  = Hex.API.repo_url("tarballs/#{name}")
+      url = Hex.API.repo_url("tarballs/#{name}")
       File.mkdir_p!(cache_path())
 
       case Hex.Repo.request(url, etag) do
-        {:ok, body} when is_binary(body) ->
+        {:ok, body, etag} ->
           File.write!(path, body)
-          {:ok, :new}
+          {:ok, :new, etag}
         other ->
           other
       end

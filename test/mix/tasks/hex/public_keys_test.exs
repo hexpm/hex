@@ -46,32 +46,32 @@ defmodule Mix.Tasks.Hex.PublicKeysTest do
 
   test "list default keys" do
     Mix.Tasks.Hex.PublicKeys.run(["list"])
-    assert_received {:mix_shell, :info, ["* hex.pm"]}
+    assert_received {:mix_shell, :info, ["* https://repo.hex.pm"]}
   end
 
   test "add and remove keys" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
       File.write!("my_key.pem", @public_key)
-      Mix.Tasks.Hex.PublicKeys.run(["add", "other.repo", "my_key.pem", "--force"])
+      Mix.Tasks.Hex.PublicKeys.run(["add", "http://other.repo", "my_key.pem", "--force"])
 
-      Hex.Utils.ensure_registry!()
+      verify!()
 
       Mix.Tasks.Hex.PublicKeys.run(["list"])
-      assert_received {:mix_shell, :info, ["* hex.pm"]}
-      assert_received {:mix_shell, :info, ["* other.repo"]}
+      assert_received {:mix_shell, :info, ["* https://repo.hex.pm"]}
+      assert_received {:mix_shell, :info, ["* http://other.repo"]}
 
-      Mix.Tasks.Hex.PublicKeys.run(["remove", "other.repo"])
+      Mix.Tasks.Hex.PublicKeys.run(["remove", "http://other.repo"])
       Mix.Tasks.Hex.PublicKeys.run(["list"])
-      assert_received {:mix_shell, :info, ["* hex.pm"]}
-      refute_received {:mix_shell, :info, ["* other.repo"]}
+      assert_received {:mix_shell, :info, ["* https://repo.hex.pm"]}
+      refute_received {:mix_shell, :info, ["* http://other.repo"]}
     end
   end
 
   test "fails to verify with wrong key" do
     Hex.State.put(:hexpm_pk, @public_key)
     assert_raise Mix.Error, fn ->
-      Hex.Utils.ensure_registry!()
+      verify!()
     end
   end
 
@@ -79,13 +79,13 @@ defmodule Mix.Tasks.Hex.PublicKeysTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
       File.write!("my_key.pem", @public_key)
-      Mix.Tasks.Hex.PublicKeys.run(["add", "hex.pm", "my_key.pem", "--force"])
+      Mix.Tasks.Hex.PublicKeys.run(["add", "https://repo.hex.pm", "my_key.pem", "--force"])
 
       Mix.Tasks.Hex.PublicKeys.run(["list"])
-      assert_received {:mix_shell, :info, ["* hex.pm"]}
+      assert_received {:mix_shell, :info, ["* https://repo.hex.pm"]}
 
       assert_raise Mix.Error, fn ->
-        Hex.Utils.ensure_registry!()
+        verify!()
       end
     end
   end
@@ -93,38 +93,12 @@ defmodule Mix.Tasks.Hex.PublicKeysTest do
   test "fails when no public key is stored" do
     Hex.State.put(:repo, Hex.State.fetch!(:mirror))
     assert_raise Mix.Error, fn ->
-      Hex.Utils.ensure_registry!()
-    end
-  end
-
-  test "fetch signature from x-hex-signature header" do
-    bypass = bypass_registry_with_header("x-hex-signature")
-    repo = "http://localhost:#{bypass.port}"
-    Hex.State.put(:repo, repo)
-
-    in_tmp fn ->
-      Hex.State.put(:home, System.cwd!)
-      File.write!("my_key.pem", @public_key)
-      Mix.Tasks.Hex.PublicKeys.run(["add", repo, "my_key.pem", "--force"])
-      Hex.Utils.ensure_registry!()
-    end
-  end
-
-  test "fetch signature from x-amz-meta-signature header" do
-    bypass = bypass_registry_with_header("x-amz-meta-signature")
-    repo = "http://localhost:#{bypass.port}"
-    Hex.State.put(:repo, repo)
-
-    in_tmp fn ->
-      Hex.State.put(:home, System.cwd!)
-      File.write!("my_key.pem", @public_key)
-      Mix.Tasks.Hex.PublicKeys.run(["add", repo, "my_key.pem", "--force"])
-      Hex.Utils.ensure_registry!()
+      verify!()
     end
   end
 
   test "fetch signature from file" do
-    bypass = bypass_registry_with_file()
+    bypass = bypass_registry()
     repo = "http://localhost:#{bypass.port}"
     Hex.State.put(:repo, repo)
 
@@ -132,12 +106,12 @@ defmodule Mix.Tasks.Hex.PublicKeysTest do
       Hex.State.put(:home, System.cwd!)
       File.write!("my_key.pem", @public_key)
       Mix.Tasks.Hex.PublicKeys.run(["add", repo, "my_key.pem", "--force"])
-      Hex.Utils.ensure_registry!()
+      verify!()
     end
   end
 
   test "fails to verify signature from file" do
-    bypass = bypass_registry_with_file()
+    bypass = bypass_registry()
     repo = "http://localhost:#{bypass.port}"
     Hex.State.put(:repo, repo)
 
@@ -146,37 +120,21 @@ defmodule Mix.Tasks.Hex.PublicKeysTest do
       File.write!("my_key.pem", Hex.State.fetch!(:hexpm_pk))
       Mix.Tasks.Hex.PublicKeys.run(["add", repo, "my_key.pem", "--force"])
       assert_raise Mix.Error, fn ->
-        Hex.Utils.ensure_registry!()
+        verify!()
       end
     end
   end
 
-  defp bypass_registry_with_header(header) do
-    bypass = bypass_setup()
-
-    Bypass.expect bypass, fn %Plug.Conn{request_path: "/registry.ets.gz"} = conn ->
-      registry = File.read!(tmp_path("registry.ets")) |> :zlib.gzip
-      signature = sign(registry)
-
-      conn
-      |> Plug.Conn.put_resp_header(header, signature)
-      |> Plug.Conn.resp(200, registry)
-    end
-
-    bypass
-  end
-
-  defp bypass_registry_with_file do
+  defp bypass_registry do
     bypass = bypass_setup()
 
     Bypass.expect bypass, fn
-      %Plug.Conn{request_path: "/registry.ets.gz"} = conn ->
-        registry = File.read!(tmp_path("registry.ets")) |> :zlib.gzip
-        Plug.Conn.resp(conn, 200, registry)
-      %Plug.Conn{request_path: "/registry.ets.gz.signed"} = conn ->
-        registry = File.read!(tmp_path("registry.ets")) |> :zlib.gzip
-        signature = sign(registry)
-        Plug.Conn.resp(conn, 200, signature)
+      %Plug.Conn{request_path: "/packages/postgrex"} = conn ->
+        file =
+          %{payload: "foobar", signature: sign("foobar")}
+          |> :hex_pb_signed.encode_msg(:Signed)
+          |> :zlib.gzip
+        Plug.Conn.resp(conn, 200, file)
     end
 
     bypass
@@ -188,11 +146,17 @@ defmodule Mix.Tasks.Hex.PublicKeysTest do
     bypass
   end
 
-  defp sign(registry) do
+  defp sign(file) do
     [entry | _ ] = :public_key.pem_decode(@private_key)
     key = :public_key.pem_entry_decode(entry)
 
-    :public_key.sign(registry, :sha512, key)
-    |> Base.encode16(case: :lower)
+    :public_key.sign(file, :sha512, key)
+  end
+
+  defp verify! do
+    {200, body, _headers} = Hex.API.Registry.get_package("postgrex")
+    body
+    |> :zlib.gunzip
+    |> Hex.API.Registry.verify
   end
 end

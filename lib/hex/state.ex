@@ -44,7 +44,6 @@ defmodule Hex.State do
       check_cert?:      load_config(config, ["HEX_UNSAFE_HTTPS"], :unsafe_https) |> to_boolean |> default(false) |> Kernel.not,
       check_registry?:  load_config(config, ["HEX_UNSAFE_REGISTRY"], :unsafe_registry) |> to_boolean |> default(false) |> Kernel.not,
       hexpm_pk:         @hexpm_pk,
-      registry_updated: false,
       httpc_profile:    :hex,
       ssl_version:      ssl_version(),
       pbkdf2_iters:     32768,

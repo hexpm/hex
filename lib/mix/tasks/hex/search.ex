@@ -1,5 +1,6 @@
 defmodule Mix.Tasks.Hex.Search do
   use Mix.Task
+  alias Mix.Hex.Utils
 
   @shortdoc "Searches for package names"
 
@@ -12,12 +13,11 @@ defmodule Mix.Tasks.Hex.Search do
   def run(args) do
     Hex.start
 
+    # TODO: Use API
+
     case args do
       [package] ->
-        Hex.Utils.ensure_registry!()
-
-        package
-        |> Hex.Registry.search
+        Hex.API.Package.search(package)
         |> lookup_packages
 
       _ ->
@@ -28,16 +28,15 @@ defmodule Mix.Tasks.Hex.Search do
     end
   end
 
-  defp lookup_packages([]) do
+  defp lookup_packages({200, [], _headers}) do
     Hex.Shell.info "No packages found"
   end
-  defp lookup_packages(packages) do
-    pkg_max_length = Enum.max_by(packages, &byte_size/1) |> byte_size
+  defp lookup_packages({200, packages, _headers}) do
+    values =
+      Enum.map(packages, fn package ->
+        [package["name"], package["url"]]
+      end)
 
-    Enum.each(packages, fn pkg ->
-      vsn = Hex.Registry.get_versions(pkg) |> List.last
-      pkg_name = String.ljust(pkg, pkg_max_length)
-      Hex.Shell.info "#{pkg_name} #{vsn}"
-    end)
+    Utils.table(["Package", "URL"], values)
   end
 end

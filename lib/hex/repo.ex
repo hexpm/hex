@@ -12,8 +12,11 @@ defmodule Hex.Repo do
     profile = Hex.State.fetch!(:httpc_profile)
 
     case Hex.API.request_with_redirect(:get, {url, headers}, http_opts, opts, profile, 3) do
-      {:ok, {{_version, 200, _reason}, _headers, body}} ->
-        {:ok, body}
+      {:ok, {{_version, 200, _reason}, headers, body}} ->
+        headers = Enum.into(headers, %{})
+        etag = headers['etag']
+        etag = if etag, do: List.to_string(etag)
+        {:ok, body, etag}
       {:ok, {{_version, 304, _reason}, _headers, _body}} ->
         {:ok, :cached}
       {:ok, {{_version, code, _reason}, _headers, _body}} ->

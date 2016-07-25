@@ -1,8 +1,8 @@
 defmodule Hex.Tar do
-  @supported [nil, "2", "3"]
+  import Kernel, except: [to_charlist: 1, to_char_list: 1]
+  @supported ["3"]
   @version "3"
-  @required_files_2 ~w(VERSION CHECKSUM metadata.exs contents.tar.gz)c
-  @required_files_3 ~w(VERSION CHECKSUM metadata.config contents.tar.gz)c
+  @required_files ~w(VERSION CHECKSUM metadata.config contents.tar.gz)c
 
   def create(meta, files, cleanup_tarball? \\ true) do
     contents_path = "#{meta[:name]}-#{meta[:version]}-contents.tar.gz"
@@ -38,11 +38,11 @@ defmodule Hex.Tar do
     case :erl_tar.extract(path, [:memory]) do
       {:ok, files} ->
         files = Enum.into(files, %{})
-        tar_version = files['VERSION']
-        check_version(tar_version)
-        check_files(tar_version, files)
-        checksum(tar_version, files, {name, version})
+        check_version(files['VERSION'])
+        check_files(files)
+        checksum(files, {name, version})
         extract_contents(files['contents.tar.gz'], dest)
+        decode_metadata(files['metadata.config'])
 
       :ok ->
         Mix.raise "Unpacking tarball failed: tarball empty"
@@ -52,17 +52,9 @@ defmodule Hex.Tar do
     end
   end
 
-  defp check_files(version, files) do
+  defp check_files(files) do
     files = Map.keys(files)
-
-    cond do
-      version == "2" ->
-        diff_files(@required_files_2, files)
-      version == "3" ->
-        diff_files(@required_files_3, files)
-      true ->
-        :ok
-    end
+    diff_files(@required_files, files)
   end
 
   defp diff_files(required, given) do
@@ -80,17 +72,17 @@ defmodule Hex.Tar do
     end
   end
 
-  defp checksum(tar_version, files, {name, version}) do
+  defp checksum(files, {name, version}) do
     case Base.decode16(files['CHECKSUM'], case: :mixed) do
       {:ok, tar_checksum} ->
-        meta              = metadata(tar_version, files)
+        meta              = files['metadata.config']
         blob              = files['VERSION'] <> meta <> files['contents.tar.gz']
-        registry_checksum = Hex.Registry.get_checksum(to_string(name), version)
+        registry_checksum = Hex.Registry.checksum(to_string(name), version)
         checksum          = :crypto.hash(:sha256, blob)
 
         if checksum != tar_checksum,
           do: Mix.raise "Checksum mismatch in tarball"
-        if checksum != Base.decode16!(registry_checksum),
+        if checksum != registry_checksum,
           do: Mix.raise "Checksum mismatch against registry"
 
       :error ->
@@ -111,9 +103,6 @@ defmodule Hex.Tar do
     end
   end
 
-  defp metadata("2", files), do: files['metadata.exs']
-  defp metadata("3", files), do: files['metadata.config']
-
   defp encode_term(list) do
     list
     |> Hex.Utils.binarify(maps: false)
@@ -128,5 +117,40 @@ defmodule Hex.Tar do
   defp format_error(reason) do
     :erl_tar.format_error(reason)
     |> List.to_string
+  end
+
+  defp decode_metadata(contents) do
+    string = to_charlist(contents)
+    case :safe_erl_term.string(string) do
+      {:ok, tokens, _line} ->
+        try do
+          terms = :safe_erl_term.terms(tokens)
+          Enum.into(terms, %{})
+        rescue
+          FunctionClauseError ->
+            Mix.raise "Error reading package metadata: invalid terms"
+          ArgumentError ->
+            Mix.raise "Error reading package metadata: not in key-value format"
+        end
+
+      {:error, reason} ->
+        Mix.raise "Error reading package metadata: #{inspect reason}"
+    end
+  end
+
+  # Some older packages have invalid unicode
+  defp to_charlist(string) do
+    try do
+      string_to_charlist(string)
+    rescue
+      UnicodeConversionError ->
+        :erlang.binary_to_list(string)
+    end
+  end
+
+  if Version.compare(System.version, "1.3.0") == :lt do
+    defp string_to_charlist(string), do: String.to_char_list(string)
+  else
+    defp string_to_charlist(string), do: String.to_charlist(string)
   end
 end

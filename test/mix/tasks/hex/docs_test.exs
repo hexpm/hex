@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
   @moduletag :integration
 
   test "open fails when docs not found" do
-    docs_home = :home |> Hex.State.fetch!() |> Path.join("docs")
+    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
     package = "decimal"
     version = "1.1.2"
     message = "Documentation file not found: #{docs_home}/#{package}/#{version}/index.html"
@@ -18,12 +18,11 @@ defmodule Mix.Tasks.Hex.DocsTest do
     latest_version = "1.1.2"
     bypass_mirror()
     Hex.State.put(:home, tmp_path())
+    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
 
-    docs_home = :home |> Hex.State.fetch!() |> Path.join("docs")
-
-    auth = HexTest.HexWeb.new_key([user: "user", pass: "hunter42"])
-    HexTest.HexWeb.new_package(package, old_version, %{}, %{}, auth)
-    HexTest.HexWeb.new_package(package, latest_version, %{}, %{}, auth)
+    auth = HexWeb.new_key([user: "user", pass: "hunter42"])
+    HexWeb.new_package(package, old_version, %{}, %{}, auth)
+    HexWeb.new_package(package, latest_version, %{}, %{}, auth)
 
     in_tmp "docs", fn ->
       Mix.Tasks.Hex.Docs.run(["fetch", package])

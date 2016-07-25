@@ -7,18 +7,13 @@ defmodule Mix.Hex.Build do
   @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir extra)a
   @max_description_length 300
 
-  def prepare_package! do
-    Hex.start
-    Hex.Utils.ensure_registry(fetch: false)
+  def prepare_package do
     Mix.Project.get!
-
     config = Mix.Project.config
     raise_if_umbrella_project!(config)
 
     package = Enum.into(config[:package] || [], %{})
-
     {deps, exclude_deps} = dependencies(config)
-
     meta = meta_for(config, package, deps)
 
     %{config: config, package: package, deps: deps,
@@ -219,7 +214,7 @@ defmodule Mix.Hex.Build do
     base_files =
       paths
       |> Enum.filter(&(Path.dirname(&1) == "."))
-      |> Enum.into(HashSet.new)
+      |> Enum.into(Hex.Set.new)
 
     for {file, tool} <- @build_tools, file in base_files do
       tool
