@@ -3,9 +3,9 @@ defmodule Mix.Tasks.Hex.OwnerTest do
   @moduletag :integration
 
   test "add owner" do
-    auth1 = HexTest.HexWeb.new_user("owner_user1", "owner_user1@mail.com", "pass", "key")
-    auth2 = HexTest.HexWeb.new_user("owner_user2", "owner_user2@mail.com", "pass", "key")
-    HexTest.HexWeb.new_package("owner_package1", "0.0.1", [], %{}, auth1)
+    auth1 = HexWeb.new_user("owner_user1", "owner_user1@mail.com", "pass", "key")
+    auth2 = HexWeb.new_user("owner_user2", "owner_user2@mail.com", "pass", "key")
+    HexWeb.new_package("owner_package1", "0.0.1", [], %{}, auth1)
 
     Hex.State.put(:home, tmp_path())
     Hex.Config.update(auth1)
@@ -18,9 +18,9 @@ defmodule Mix.Tasks.Hex.OwnerTest do
   end
 
   test "remove owner" do
-    auth = HexTest.HexWeb.new_user("owner_user3", "owner_user3@mail.com", "pass", "key")
-    HexTest.HexWeb.new_user("owner_user4", "owner_user4@mail.com", "pass", "key")
-    HexTest.HexWeb.new_package("owner_package2", "0.0.1", [], %{}, auth)
+    auth = HexWeb.new_user("owner_user3", "owner_user3@mail.com", "pass", "key")
+    HexWeb.new_user("owner_user4", "owner_user4@mail.com", "pass", "key")
+    HexWeb.new_package("owner_package2", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
     Hex.Config.update(auth)
@@ -36,8 +36,8 @@ defmodule Mix.Tasks.Hex.OwnerTest do
   end
 
   test "list owners" do
-    auth = HexTest.HexWeb.new_user("owner_user5", "owner_user5@mail.com", "pass", "key")
-    HexTest.HexWeb.new_package("owner_package3", "0.0.1", [], %{}, auth)
+    auth = HexWeb.new_user("owner_user5", "owner_user5@mail.com", "pass", "key")
+    HexWeb.new_package("owner_package3", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
     Hex.Config.update(auth)
@@ -51,9 +51,9 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     package1 = "owner_package4"
     package2 = "owner_package5"
     owner_email = "owner_user6@mail.com"
-    auth = HexTest.HexWeb.new_user("owner_user6", owner_email, "pass", "key")
-    HexTest.HexWeb.new_package(package1, "0.0.1", [], %{}, auth)
-    HexTest.HexWeb.new_package(package2, "0.0.1", [], %{}, auth)
+    auth = HexWeb.new_user("owner_user6", owner_email, "pass", "key")
+    HexWeb.new_package(package1, "0.0.1", [], %{}, auth)
+    HexWeb.new_package(package2, "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
     Hex.Config.update(auth)

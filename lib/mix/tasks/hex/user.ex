@@ -48,8 +48,6 @@ defmodule Mix.Tasks.Hex.User do
 
   def run(args) do
     Hex.start
-    Hex.Utils.ensure_registry(fetch: false)
-
     {_, args, _} = OptionParser.parse(args, switches: [])
 
     case args do

@@ -1,5 +1,6 @@
 /_build
 /deps
 /tmp
+/src/safe_erl_term.erl
 erl_crash.dump
 *.ez

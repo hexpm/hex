@@ -178,13 +178,23 @@ defmodule Hex.Mix do
   @spec to_lock(%{}) :: %{}
   def to_lock(result) do
     Enum.into(result, %{}, fn {name, app, version} ->
-      checksum = Hex.Registry.get_checksum(name, version) |> String.downcase
-      managers = Hex.Registry.get_build_tools(name, version) |> Enum.map(&String.to_atom/1)
-      deps = Hex.Registry.get_deps(name, version) |> Enum.map(&registry_dep_to_def/1)
-      {String.to_atom(app), {:hex, String.to_atom(name), version, checksum, managers, deps}}
+      checksum = Hex.Registry.checksum(name, version) |> Base.encode16(case: :lower)
+      deps = Hex.Registry.deps(name, version) |> Enum.map(&registry_dep_to_def/1)
+      {String.to_atom(app), {:hex, String.to_atom(name), version, checksum, [], deps}}
     end)
   end
 
   defp registry_dep_to_def({name, app, req, optional}),
     do: {String.to_atom(app), req, hex: String.to_atom(name), optional: optional}
+
+  def packages_from_lock(lock) do
+    Enum.flat_map(lock, fn {_app, info} ->
+      case Hex.Utils.lock(info) do
+        [:hex, name, _version, _checksum, _managers, _deps] ->
+          [Atom.to_string(name)]
+        _ ->
+          []
+      end
+    end)
+  end
 end
