@@ -36,38 +36,16 @@ defmodule Mix.Tasks.Hex.Info do
     end
   end
 
-  defp general() do
+  defp general do
     Hex.Shell.info "Hex:    #{Hex.version}"
     Hex.Shell.info "Elixir: #{System.version}"
     Hex.Shell.info "OTP:    #{Hex.Utils.otp_version}\n"
     Hex.Shell.info "Built with: Elixir #{Hex.elixir_version} and OTP #{Hex.otp_version}\n"
 
-    # Make sure to fetch registry after showing Hex version. Issues with the
-    # registry should not prevent printing the version.
-    {fetch_time, _} = :timer.tc fn -> Hex.Utils.ensure_registry!(cache: false, open: false) end
-    {load_time, _}  = :timer.tc fn -> Hex.Registry.open(Hex.Registry.ETS) end
-    path            = Hex.Registry.ETS.path
-    stat            = File.stat!(path, time: :local)
-    stat_gz         = File.stat!(path <> ".gz", time: :local)
-    file_size       = stat.size |> div(1024)
-    file_gz_size    = stat_gz.size |> div(1024)
-    mem_size        = Hex.Registry.ETS.memory |> div(1024)
-    {packages, releases} = Hex.Registry.stat()
-
-    Hex.Shell.info "Registry file available (last updated: #{format_date(stat.mtime)})"
-    Hex.Shell.info "File size:   #{file_size}kB (compressed #{file_gz_size}kb)"
-    Hex.Shell.info "Memory size: #{mem_size}kB"
-    Hex.Shell.info "Fetch time:  #{div fetch_time, 1000}ms"
-    Hex.Shell.info "Load time:   #{div load_time, 1000}ms"
-    Hex.Shell.info "Packages #:  #{packages}"
-    Hex.Shell.info "Versions #:  #{releases}"
-
-    Hex.Registry.info_installs
+    # TODO: Check for new versions
   end
 
   defp package(package) do
-    Hex.Utils.ensure_registry(cache: false)
-
     case Hex.API.Package.get(package) do
       {code, body, _} when code in 200..299 ->
         print_package(body)
@@ -80,8 +58,6 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp release(package, version) do
-    Hex.Utils.ensure_registry(cache: false)
-
     case Hex.API.Release.get(package, version) do
       {code, body, _} when code in 200..299 ->
         print_release(package, body)
@@ -179,16 +155,5 @@ defmodule Mix.Tasks.Hex.Info do
         Hex.Shell.info "  #{key}: #{val}"
       end)
     end
-  end
-
-  defp format_date({{year, month, day}, {hour, min, sec}}) do
-    "#{pad0(year, 4)}-#{pad0(month, 2)}-#{pad0(day, 2)} " <>
-    "#{pad0(hour, 2)}:#{pad0(min, 2)}:#{pad0(sec, 2)}"
-  end
-
-  defp pad0(int, padding) do
-    str = to_string(int)
-    padding = max(padding - byte_size(str), 0)
-    String.duplicate("0", padding) <> str
   end
 end

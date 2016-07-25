@@ -134,7 +134,7 @@ defmodule Hex.Resolver do
   end
 
   defp get_versions(package, requests) do
-    if versions = Registry.get_versions(package) do
+    if versions = Registry.versions(package) do
       Enum.reduce(requests, versions, fn request, versions ->
         req = request(request, :req)
         Enum.filter(versions, &version_match?(&1, req))
@@ -146,7 +146,9 @@ defmodule Hex.Resolver do
   end
 
   defp get_deps(app, package, version, info(top_level: top_level, deps: all_deps), activated) do
-    if deps = Registry.get_deps(package, version) do
+    if deps = Registry.deps(package, version) do
+      dep_names = Enum.map(deps, &elem(&1, 0))
+      Registry.prefetch(dep_names)
       all_deps = attach_dep_and_children(all_deps, app, deps)
       overridden_map = overridden_parents(top_level, all_deps, app)
 

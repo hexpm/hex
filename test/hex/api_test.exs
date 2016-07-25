@@ -9,7 +9,7 @@ defmodule Hex.APITest do
   end
 
   test "release" do
-    auth = HexTest.HexWeb.new_key([user: "user", pass: "hunter42"])
+    auth = HexWeb.new_key([user: "user", pass: "hunter42"])
 
     meta = %{name: :pear, app: :pear, version: "0.0.1", build_tools: ["mix"], requirements: [], licenses: ["MIT"], description: "pear"}
     {tar, _checksum} = Hex.Tar.create(meta, [])
@@ -30,7 +30,7 @@ defmodule Hex.APITest do
   end
 
   test "docs" do
-    auth = HexTest.HexWeb.new_key([user: "user", pass: "hunter42"])
+    auth = HexWeb.new_key([user: "user", pass: "hunter42"])
 
     meta = %{name: :tangerine, app: :tangerine, version: "0.0.1", build_tools: ["mix"], requirements: [], licenses: ["MIT"], description: "tangerine"}
     {tar, _checksum} = Hex.Tar.create(meta, [])
@@ -48,7 +48,7 @@ defmodule Hex.APITest do
   end
 
   test "registry" do
-    assert {200, _, _} = Hex.API.Registry.get
+    assert {200, _, _} = Hex.API.Registry.get_package("postgrex")
   end
 
   test "keys" do
@@ -60,7 +60,7 @@ defmodule Hex.APITest do
     assert byte_size(key_b) == 32
     auth = [key: key_a]
 
-    HexTest.HexWeb.new_package("melon", "0.0.1", %{}, %{}, auth)
+    HexWeb.new_package("melon", "0.0.1", %{}, %{}, auth)
 
     assert {200, body, _} = Hex.API.Key.get(auth)
     assert Enum.find(body, &(&1["name"] == "key_a"))
@@ -91,9 +91,9 @@ defmodule Hex.APITest do
   end
 
   test "owners" do
-    auth = HexTest.HexWeb.new_key([user: "user", pass: "hunter42"])
+    auth = HexWeb.new_key([user: "user", pass: "hunter42"])
 
-    HexTest.HexWeb.new_package("orange", "0.0.1", %{}, %{}, auth)
+    HexWeb.new_package("orange", "0.0.1", %{}, %{}, auth)
     Hex.API.User.new("orange_user", "orange_user@mail.com", "hunter42")
 
     assert {200, [%{"username" => "user"}], _} = Hex.API.Package.Owner.get("orange", auth)

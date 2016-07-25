@@ -29,11 +29,8 @@ defmodule Mix.Tasks.Hex.Key do
   @switches [all: :boolean]
 
   def run(args) do
-    {opts, args, _} = OptionParser.parse(args, switches: @switches)
-
     Hex.start
-    Hex.Utils.ensure_registry(fetch: false)
-
+    {opts, args, _} = OptionParser.parse(args, switches: @switches)
     config = Hex.Config.read
     all? = Keyword.get(opts, :all, false)
 

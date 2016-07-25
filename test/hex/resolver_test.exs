@@ -8,6 +8,11 @@ defmodule Hex.ResolverTest do
     reqs      = reqs(reqs)
     locked    = locked(locked)
 
+    [reqs, locked]
+    |> Enum.concat
+    |> Enum.map(&elem(&1, 0))
+    |> Hex.Registry.prefetch
+
     case Hex.Resolver.resolve(reqs, deps, top_level, locked) do
       {:ok, dict} -> dict
       {:error, messages} -> messages <> "\n"
@@ -39,7 +44,8 @@ defmodule Hex.ResolverTest do
   end
 
   setup do
-    Hex.Registry.open!(Hex.Registry.ETS, registry_path: tmp_path("registry.ets"))
+    Hex.State.put(:offline?, true)
+    Hex.Registry.open!(Hex.Registry.Server, registry_path: tmp_path("registry.ets"))
   end
 
   test "simple" do

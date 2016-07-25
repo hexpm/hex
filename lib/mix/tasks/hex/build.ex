@@ -66,7 +66,8 @@ defmodule Mix.Tasks.Hex.Build do
   """
 
   def run(_args) do
-    build = Build.prepare_package!
+    Hex.start
+    build = Build.prepare_package
 
     meta = build.meta
     package = build.package

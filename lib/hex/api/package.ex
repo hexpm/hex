@@ -5,6 +5,10 @@ defmodule Hex.API.Package do
     API.request(:get, API.api_url("packages/#{name}"), [])
   end
 
+  def search(search) do
+    API.request(:get, API.api_url("packages?search=#{search}&sort=downloads"), [])
+  end
+
   defmodule Owner do
     def add(package, owner, auth) do
       owner = URI.encode_www_form(owner)

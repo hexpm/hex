@@ -228,7 +228,7 @@ defmodule Hex.Resolver.Backtracks do
 
   defp parent_reason(nil, _child, _versions), do: nil
   defp parent_reason(parent, child, []) do
-    versions = Hex.Registry.get_versions(child)
+    versions = Hex.Registry.versions(child)
     parent_reason(parent, child, versions)
   end
   defp parent_reason(parent(requirement: req), _child, versions) do
@@ -274,7 +274,7 @@ defmodule Hex.Resolver.Backtracks do
 
   defp merge_versions?(_package, []), do: false
   defp merge_versions?(package, versions) do
-    all_versions = Hex.Registry.get_versions(package)
+    all_versions = Hex.Registry.versions(package)
     sub_range?(all_versions, versions)
   end
 

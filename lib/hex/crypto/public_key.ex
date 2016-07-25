@@ -1,4 +1,4 @@
-defmodule Hex.PublicKey do
+defmodule Hex.Crypto.PublicKey do
   @doc """
   Returns the filesystem path for public keys.
   """
@@ -17,11 +17,11 @@ defmodule Hex.PublicKey do
         []
     end
 
-    keys ++ [{"hex.pm", Hex.State.fetch!(:hexpm_pk)}]
+    keys ++ [{"https://repo.hex.pm", Hex.State.fetch!(:hexpm_pk)}]
   end
 
-  def public_keys(domain) do
-    Enum.find(public_keys(), fn {domain2, _key} -> domain == domain2 end)
+  def public_key(url) do
+    Enum.find(public_keys(), fn {url2, _key} -> url == url2 end)
   end
 
   @doc """
@@ -46,7 +46,7 @@ defmodule Hex.PublicKey do
   """
   def verify(binary, hash, signature, keys) do
     Enum.any?(keys, fn {id, key} ->
-      :public_key.verify binary, hash, signature, decode!(id, key)
+      :public_key.verify(binary, hash, signature, decode!(id, key))
     end)
   end
 end

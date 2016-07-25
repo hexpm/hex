@@ -39,8 +39,6 @@ defmodule Mix.Tasks.Hex.Owner do
 
   def run(args) do
     Hex.start
-    Hex.Utils.ensure_registry(fetch: false)
-
     config = Hex.Config.read
 
     case args do
