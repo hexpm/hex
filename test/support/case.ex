@@ -185,7 +185,7 @@ defmodule HexTest.Case do
   Hex.State.put(:registry_updated, false)
   Hex.State.put(:hexpm_pk, File.read!(Path.join(__DIR__, "../fixtures/test_pub.pem")))
   Hex.State.put(:api, "http://localhost:4043/api")
-  Hex.State.put(:mirror, System.get_env("HEX_MIRROR") || "http://localhost:4043")
+  Hex.State.put(:mirror, System.get_env("HEX_MIRROR") || "http://localhost:4043/repo")
   Hex.State.put(:pbkdf2_iters, 10)
   Hex.State.put(:clean_pass, false)
 
