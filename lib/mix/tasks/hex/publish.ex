@@ -132,8 +132,11 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp create(build, auth, opts) do
     if proceed?(build) do
+      Hex.Shell.info("Building docs...")
       docs_task(build, opts)
+      Hex.Shell.info("Publishing package...")
       create_package(build, auth, opts)
+      Hex.Shell.info("Publishing docs...")
       create_docs(build, auth, opts)
     end
   end
@@ -189,7 +192,9 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp revert(build, version, auth) do
+    Hex.Shell.info("Reverting package...")
     revert_package(build, version, auth)
+    Hex.Shell.info("Reverting docs...")
     revert_docs(build, version, auth)
   end
 
