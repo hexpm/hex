@@ -20,8 +20,8 @@ defmodule Mix.Tasks.Hex.Docs do
   """
 
   def run(args) do
+    Hex.start
     {opts, args, _} = OptionParser.parse(args)
-
     opts = normalize_options(opts)
 
     case args do
