@@ -160,17 +160,19 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp docs_task(build, opts) do
+    ensure_docs_task!()
     name = build.meta.name
 
-    try do
-      docs_args = ["--canonical", Hex.Utils.hexdocs_url(name)|opts[:canonical]]
-      Mix.Task.run("docs", docs_args)
-    rescue ex in [Mix.NoTaskError] ->
-      stacktrace = System.stacktrace
-      Mix.shell.error ~s(The "docs" task is unavailable. Please add {:ex_doc, ">= 0.0.0", only: :dev} ) <>
-                      ~s(to your dependencies in your mix.exs. If ex_doc was already added, make sure ) <>
-                      ~s(you run the task in the same environment it is configured to)
-      reraise ex, stacktrace
+    canonical = opts[:canonical] || Hex.Utils.hexdocs_url(name)
+    args = ["--canonical", canonical]
+    Mix.Task.run("docs", args)
+  end
+
+  defp ensure_docs_task! do
+    unless Mix.Task.get("docs") do
+      Mix.raise ~s(The "docs" task is unavailable. Please add {:ex_doc, ">= 0.0.0", only: :dev} ) <>
+                ~s(to your dependencies in your mix.exs. If ex_doc was already added, make sure ) <>
+                ~s(you run the task in the same environment it is configured to)
     end
   end
 
