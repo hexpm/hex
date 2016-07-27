@@ -244,14 +244,15 @@ defmodule Mix.Tasks.Hex.Publish do
         Utils.progress(nil)
       end
 
-    Hex.Shell.info ""
-
     case Hex.API.ReleaseDocs.new(name, version, tarball, auth, progress) do
       {code, _, _} when code in 200..299 ->
+        Hex.Shell.info ""
         Hex.Shell.info "Docs published to #{Hex.Utils.hexdocs_url(name, version)}"
       {code, _, _} when code == 404 ->
+        Hex.Shell.info ""
         Hex.Shell.error "Publishing docs failed due to the package not being published yet"
       {code, body, _} ->
+        Hex.Shell.info ""
         Hex.Shell.error "Publishing docs failed"
         Hex.Utils.print_error_result(code, body)
     end
@@ -294,12 +295,12 @@ defmodule Mix.Tasks.Hex.Publish do
         Utils.progress(nil)
       end
 
-    Hex.Shell.info ""
-
     case Hex.API.Release.new(name, tarball, auth, progress) do
       {code, _, _} when code in 200..299 ->
+        Hex.Shell.info ""
         Hex.Shell.info("Package published to #{Hex.Utils.hex_package_url(name, version)} (#{String.downcase(checksum)})")
       {code, body, _} ->
+        Hex.Shell.info ""
         Hex.Shell.error("Publishing failed")
         Hex.Utils.print_error_result(code, body)
     end
