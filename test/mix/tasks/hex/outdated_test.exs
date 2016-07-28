@@ -37,6 +37,14 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
+  defmodule WithoutHexDeps.Mixfile do
+    def project do
+      [app: :outdated_app,
+       version: "0.0.1",
+       deps: [{:beta, github: "owner/repo"}]]
+    end
+  end
+
   test "outdated" do
     Mix.Project.push OutdatedDeps.Mixfile
 
@@ -164,5 +172,18 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
             |> List.to_string
       assert_received {:mix_shell, :info, [^msg]}
     end
+  end
+
+  test "without hex deps" do
+    Mix.Project.push WithoutHexDeps.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      Mix.Dep.Lock.write %{beta: {:git, "https://github.com/owner/repo.git", ""}}
+
+      Mix.Task.run "hex.outdated"
+      msg = "No hex dependencies"
+      assert_received {:mix_shell, :info, [^msg]}
+   end
   end
 end
