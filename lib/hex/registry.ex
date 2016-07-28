@@ -6,7 +6,7 @@ defmodule Hex.Registry do
   @type version :: String.t
   @callback open(Keyword.t) :: {:ok, name} | {:already_open, name} | {:error, String.t}
   @callback close(name) :: boolean
-  @callback prefetch(name, package) :: :ok
+  @callback prefetch(name, [package]) :: :ok
   @callback versions(name, package) :: [version]
   @callback deps(name, package, version) :: [{String.t, String.t, String.t, boolean}]
   @callback checksum(name, package, version) :: binary

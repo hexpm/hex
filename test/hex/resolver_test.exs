@@ -45,7 +45,7 @@ defmodule Hex.ResolverTest do
 
   setup do
     Hex.State.put(:offline?, true)
-    Hex.Registry.open!(Hex.Registry.Server, registry_path: tmp_path("registry.ets"))
+    Hex.Registry.open!(Hex.Registry.Server, registry_path: tmp_path("cache.ets"))
   end
 
   test "simple" do

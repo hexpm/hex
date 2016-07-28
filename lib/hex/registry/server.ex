@@ -4,7 +4,7 @@ defmodule Hex.Registry.Server do
 
   @name     __MODULE__
   @ets      __MODULE__.ETS
-  @filename "index.ets"
+  @filename "cache.ets"
   @timeout  60_000
 
   def start_link do
@@ -16,11 +16,15 @@ defmodule Hex.Registry.Server do
   end
 
   def close do
-    GenServer.call(@name, {:close, [persist: false]}, @timeout)
+    GenServer.call(@name, :close, @timeout)
   end
 
   def close(name) do
-    GenServer.call(name, {:close, []}, @timeout)
+    GenServer.call(name, :close, @timeout)
+  end
+
+  def persist do
+    GenServer.call(@name, :persist, @timeout)
   end
 
   def prefetch(name, packages) do
@@ -77,16 +81,19 @@ defmodule Hex.Registry.Server do
     {:reply, {:already_open, self()}, state}
   end
 
-  def handle_call({:close, _opts}, _from, %{ets: nil} = state) do
+  def handle_call(:close, _from, %{ets: nil} = state) do
     {:reply, false, state}
   end
-  def handle_call({:close, opts}, _from, %{ets: tid, path: path}) do
-    if Keyword.get(opts, :persist, true) do
-      :ets.tab2file(tid, path)
-    end
+  def handle_call(:close, _from, %{ets: tid, path: path}) do
+    :ets.tab2file(tid, path)
     :ets.delete(tid)
     {:ok, state} = init([])
     {:reply, true, state}
+  end
+
+  def handle_call(:persist, _from, %{ets: tid, path: path} = state) do
+    :ets.tab2file(tid, path)
+    {:reply, :ok, state}
   end
 
   def handle_call({:prefetch, packages}, _from, state) do

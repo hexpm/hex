@@ -5,6 +5,13 @@ defmodule Hex.RemoteConverger do
 
   alias Hex.Registry
 
+  def post_converge do
+    Registry.open!(Registry.Server)
+    Registry.close
+  after
+    Registry.pdict_clean
+  end
+
   def remote?(dep) do
     !!dep.opts[:hex]
   end
@@ -64,6 +71,8 @@ defmodule Hex.RemoteConverger do
   def deps(%Mix.Dep{app: app}, lock) do
     case Hex.Utils.lock(lock[app]) do
       [:hex, name, version, _checksum, _managers, nil] ->
+        Registry.open!(Registry.Server)
+        Registry.prefetch([name])
         get_deps(name, version)
       [:hex, _name, _version, _checksum, _managers, deps] ->
         deps
