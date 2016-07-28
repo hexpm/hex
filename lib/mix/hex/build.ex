@@ -224,7 +224,7 @@ defmodule Mix.Hex.Build do
     base_files =
       paths
       |> Enum.filter(&(Path.dirname(&1) == "."))
-      |> Enum.into(HashSet.new)
+      |> Enum.into(MapSet.new)
 
     Enum.flat_map(@build_tools, fn {file, tool} ->
       if file in base_files,
