@@ -118,12 +118,16 @@ defmodule Mix.Tasks.Hex.Outdated do
       |> get_versions(lock, opts[:pre])
       |> Enum.map(&format_all_row/1)
 
-    Utils.table(header, values)
+    if Enum.empty?(values) do
+      Hex.Shell.info "No hex dependencies"
+    else
+      Utils.table(header, values)
 
-    Hex.Shell.info ""
-    Hex.Shell.info "A green version in latest means you have the latest " <>
-                   "version of a given package. A green requirement means " <>
-                   "your current requirement matches the latest version."
+      Hex.Shell.info ""
+      Hex.Shell.info "A green version in latest means you have the latest " <>
+                     "version of a given package. A green requirement means " <>
+                     "your current requirement matches the latest version."
+    end
   end
 
   defp sort(deps) do
