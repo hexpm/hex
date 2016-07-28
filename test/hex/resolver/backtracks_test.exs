@@ -4,7 +4,7 @@ defmodule Hex.Resolver.BacktracksTest do
 
   setup do
     Hex.State.put(:offline?, true)
-    Hex.Registry.open!(Hex.Registry.Server, registry_path: tmp_path("registry.ets"))
+    Hex.Registry.open!(Hex.Registry.Server, registry_path: tmp_path("cache.ets"))
     Hex.Registry.prefetch(["foo"])
   end
 
