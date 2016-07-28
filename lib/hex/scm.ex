@@ -66,7 +66,7 @@ defmodule Hex.SCM do
   def managers(opts) do
     if opts[:lock] do
       [:hex, _name, _version, _checksum, managers, _deps] = Hex.Utils.lock(opts[:lock])
-      managers
+      managers || []
     else
       []
     end
@@ -93,6 +93,8 @@ defmodule Hex.SCM do
         Hex.Shell.info "  [OFFLINE] Using locally cached package"
       {:ok, :new, etag} ->
         Hex.Registry.tarball_etag(name, version, etag)
+        if Version.compare(System.version, "1.4.0") == :lt,
+          do: Hex.Registry.Server.persist
         Hex.Shell.info "  Fetched package"
       {:error, reason} ->
         Hex.Shell.error(reason)

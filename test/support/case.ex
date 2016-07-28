@@ -188,7 +188,7 @@ defmodule HexTest.Case do
   end
 
   setup_all do
-    ets_path = tmp_path("registry.ets")
+    ets_path = tmp_path("cache.ets")
     File.rm(ets_path)
     create_test_registry(ets_path)
     :ok

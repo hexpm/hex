@@ -36,7 +36,7 @@ defmodule Hex do
   def elixir_version, do: unquote(System.version)
   def otp_version,    do: unquote(Hex.Utils.otp_version)
 
-  defp start_httpc() do
+  defp start_httpc do
     :inets.start(:httpc, profile: :hex)
     opts = [
       max_sessions: 8,
@@ -56,7 +56,7 @@ defmodule Hex do
 
   if Mix.env in [:dev, :test] do
     defp dev_setup do
-      :erlang.system_flag(:backtrace_depth, 30)
+      :erlang.system_flag(:backtrace_depth, 20)
     end
   else
     defp dev_setup, do: :ok
