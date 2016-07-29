@@ -186,4 +186,63 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       assert_received {:mix_shell, :info, [^msg]}
    end
   end
+
+  test "umbrella projects" do
+    in_tmp "umbrella", fn ->
+      File.write! "mix.exs", """
+      defmodule Umbrella.Mixfile do
+        use Mix.Project
+
+        def project do
+          [apps_path: "apps",
+           version: "0.0.1",
+           deps: [{:ex_doc, "~> 0.0.1"}]]
+        end
+      end
+      """
+
+      Mix.Project.in_project :umbrella, ".", fn _ ->
+        File.mkdir_p!("apps/bacon")
+        File.write! "apps/bacon/mix.exs", """
+        defmodule Bacon.Mixfile do
+          use Mix.Project
+
+          def project do
+            [app: :bacon,
+             version: "0.1.0",
+             build_path: "../../_build",
+             config_path: "../../config/config.exs",
+             deps_path: "../../deps",
+             lockfile: "../../mix.lock",
+             deps: [{:bar, "0.1.0"}]]
+          end
+        end
+        """
+
+        Mix.Project.in_project :bacon, "apps/bacon", fn _ ->
+          Mix.Task.run "deps.get"
+          flush()
+        end
+
+        Mix.Task.run "deps.get"
+        flush()
+
+        ex_doc = [:bright, "ex_doc", :reset, "      ", "0.0.1", :reset, "    ", :red, "0.1.0", :reset, "   ", :red, "~> 0.0.1", :reset, "     "]
+                 |> IO.ANSI.format
+                 |> List.to_string
+
+        bar = [:bright, "bar", :reset, "         ", "0.1.0", :reset, "    ", :green, "0.1.0", :reset, "   ", :green, "0.1.0", :reset, "        "]
+              |> IO.ANSI.format
+              |> List.to_string
+
+        Mix.Task.run "hex.outdated"
+        assert_received {:mix_shell, :info, [^ex_doc]}
+        refute_received {:mix_shell, :info, [^bar]}
+
+        Mix.Tasks.Hex.Outdated.run ["--all"]
+        assert_received {:mix_shell, :info, [^ex_doc]}
+        assert_received {:mix_shell, :info, [^bar]}
+      end
+    end
+  end
 end
