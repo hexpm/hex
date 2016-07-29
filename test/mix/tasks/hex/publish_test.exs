@@ -150,13 +150,17 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
       Mix.Tasks.Deps.Get.run([])
 
-      send self(), {:mix_shell_input, :yes?, true}
-      send self(), {:mix_shell_input, :prompt, "hunter42"}
-      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
+      error_msg = "Stopping package build due to errors.\n" <>
+                  "Missing metadata fields: maintainers, links"
 
-      assert_received {:mix_shell, :info, ["\e[33m  WARNING! No files\e[0m"]}
-      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: maintainers, links\e[0m"]}
-      assert {200, _, _} = Hex.API.Release.get("release_b", "0.0.2")
+      assert_raise Mix.Error, error_msg, fn ->
+        send self(), {:mix_shell_input, :yes?, true}
+        send self(), {:mix_shell_input, :prompt, "hunter42"}
+        Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
+
+        assert_received {:mix_shell, :error, ["No files"]}
+        assert {200, _, _} = Hex.API.Release.get("release_b", "0.0.2")
+      end
     end
   after
     purge [ReleaseDeps.Mixfile]
@@ -169,17 +173,21 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Hex.State.put(:home, tmp_path())
       setup_auth("user", "hunter42")
 
-      File.write!("myfile.txt", "hello")
-      send self(), {:mix_shell_input, :yes?, true}
-      send self(), {:mix_shell_input, :prompt, "hunter42"}
-      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
+      error_msg = "Stopping package build due to errors.\n" <>
+                  "Missing files: missing.txt, missing/*"
 
-      assert_received {:mix_shell, :info, ["Publishing release_c 0.0.3"]}
-      assert_received {:mix_shell, :info, ["  Files:"]}
-      assert_received {:mix_shell, :info, ["    myfile.txt"]}
-      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing files: missing.txt, missing/*" <> _]}
-      assert_received {:mix_shell, :info, ["  Extra: \n    c: d"]}
-      refute_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields" <> _]}
+      assert_raise Mix.Error, error_msg, fn ->
+        File.write!("myfile.txt", "hello")
+        send self(), {:mix_shell_input, :yes?, true}
+        send self(), {:mix_shell_input, :prompt, "hunter42"}
+        Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
+
+        assert_received {:mix_shell, :info, ["Publishing release_c 0.0.3"]}
+        assert_received {:mix_shell, :info, ["  Files:"]}
+        assert_received {:mix_shell, :info, ["    myfile.txt"]}
+        assert_received {:mix_shell, :info, ["  Extra: \n    c: d"]}
+        refute_received {:mix_shell, :error, ["Missing metadata fields" <> _]}
+      end
     end
   after
     purge [ReleaseMeta.Mixfile]

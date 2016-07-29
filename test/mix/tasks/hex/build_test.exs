@@ -40,11 +40,15 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
       Mix.Tasks.Deps.Get.run([])
 
-      Mix.Tasks.Hex.Build.run([])
+      error_msg = "Stopping package build due to errors.\n" <>
+                  "Missing metadata fields: maintainers, links"
 
-      assert_received {:mix_shell, :info, ["\e[33m  WARNING! No files\e[0m"]}
-      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields: maintainers, links\e[0m"]}
-      assert package_created?("release_b-0.0.2")
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+
+        assert_received {:mix_shell, :error, ["No files"]}
+        refute package_created?("release_b-0.0.2")
+      end
     end
   after
     purge [ReleaseDeps.Mixfile]
@@ -56,15 +60,17 @@ defmodule Mix.Tasks.Hex.BuildTest do
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
 
-      File.write!("myfile.txt", "hello")
-      Mix.Tasks.Hex.Build.run([])
+      error_msg = "Stopping package build due to errors.\n" <>
+                  "Missing files: missing.txt, missing/*"
 
-      assert_received {:mix_shell, :info, ["Building release_c 0.0.3"]}
-      assert_received {:mix_shell, :info, ["  Files:"]}
-      assert_received {:mix_shell, :info, ["    myfile.txt"]}
-      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Missing files: missing.txt, missing/*" <> _]}
-      refute_received {:mix_shell, :info, ["\e[33m  WARNING! Missing metadata fields" <> _]}
-      assert package_created?("release_c-0.0.3")
+      assert_raise Mix.Error, error_msg, fn ->
+        File.write!("myfile.txt", "hello")
+        Mix.Tasks.Hex.Build.run([])
+
+        assert_received {:mix_shell, :info, ["Building release_c 0.0.3"]}
+        assert_received {:mix_shell, :info, ["  Files:"]}
+        assert_received {:mix_shell, :info, ["    myfile.txt"]}
+      end
     end
   after
     purge [ReleaseMeta.Mixfile]
@@ -76,11 +82,13 @@ defmodule Mix.Tasks.Hex.BuildTest do
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
 
-      assert_raise Mix.Error, "Stopping package build due to errors", fn ->
+      error_msg = "Stopping package build due to errors.\n" <>
+                  "Missing metadata fields: description, licenses, maintainers, links"
+
+      assert_raise Mix.Error, error_msg, fn ->
         Mix.Tasks.Hex.Build.run([])
 
         assert_received {:mix_shell, :info, ["Building release_e 0.0.1"]}
-        assert_received {:mix_shell, :error, ["  ERROR! Missing metadata fields: description"]}
 
         refute package_created?("release_e-0.0.1")
       end
@@ -89,16 +97,19 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge [ReleaseNoDescription.Mixfile]
   end
 
-  test "warn if description is too long" do
+  test "error if description is too long" do
     Mix.Project.push ReleaseTooLongDescription.Mixfile
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
 
-      Mix.Tasks.Hex.Build.run([])
+      error_msg = "Stopping package build due to errors.\n" <>
+                  "Package description is very long (exceeds 300 characters)\n" <>
+                  "Missing metadata fields: licenses, maintainers, links"
 
-      assert_received {:mix_shell, :info, ["\e[33m  WARNING! Package description is very long (exceeds " <> _]}
-      assert package_created?("release_f-0.0.1")
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+      end
     end
   after
     purge [ReleaseTooLongDescription.Mixfile]

@@ -3,7 +3,9 @@ defmodule ReleaseSimple.Mixfile do
     [app: :release_a,
      description: "baz",
      version: "0.0.1",
-     package: [licenses: ["MIT"]]]
+     package: [licenses: ["MIT"],
+      maintainers: ["maintainers"],
+      links: %{"a" => "b"}]]
   end
 end
 
@@ -30,7 +32,10 @@ end
 defmodule ReleaseName.Mixfile do
   def project do
     [app: :release_d, description: "Whatever", version: "0.0.1",
-     package: [name: :released_name, licenses: ["MIT"]]]
+     package: [name: :released_name,
+       licenses: ["MIT"],
+       maintainers: ["maintainers"],
+       links: %{"a" => "b"}]]
   end
 end
 
