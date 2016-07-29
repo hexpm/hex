@@ -23,7 +23,6 @@ defmodule Mix.Tasks.Hex.Outdated do
     * `--pre` - include pre-releases when checking for newer versions
   """
 
-  @recursive true
   @switches [all: :boolean, pre: :boolean]
 
   def run(args) do
