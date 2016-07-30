@@ -1,4 +1,4 @@
-## v0.13.0-dev
+## v0.13.0 (2016-07-30)
 
 * Enhancements
   * Inform about new Hex version in `hex.info`
@@ -13,7 +13,8 @@
   * Improve error message if a dependency has configured the OTP application name incorrectly for another dependency
   * `hex.publish` now also publishes docs by default, use `hex.publish package` and `hex.publish docs` to respectively publish package and docs independently
   * `hex.docs` will now open or fetch documentation tarballs
-  * `hex.key remove` will now also deauth the user if the local API key was removed
+  * `hex.key remove` will now also de-auth the user if the local API key was removed
+  * Add status messages when publishing and reverting
 
 * Bug fixes
   * Fix bug where the client was fetching packages even when lock is OK
