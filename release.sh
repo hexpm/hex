@@ -10,7 +10,7 @@ function build {
   rm .tool-versions || true
   rm -rf _build || true
 
-  echo -e "erlang ${2}\nelixir ${3}" > .tool-versions
+  echo "erlang ${2}\nelixir ${3}" > .tool-versions
 
   MIX_ENV=prod mix compile
 
