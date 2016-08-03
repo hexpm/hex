@@ -38,15 +38,28 @@ defmodule Mix.Hex.Build do
 
     Enum.each(@meta_fields, &print_meta(meta, &1))
 
-    warn_missing(meta)
-    warn_long_description(meta)
-    warn_missing_files(package_files)
-    error_missing!(meta)
+    errors =
+      []
+      |> error_missing!(meta)
+      |> error_long_description(meta)
+      |> error_missing_files(package_files)
+      |> check_excluded_deps(exclude_deps)
 
-    if exclude_deps != [] do
-      Hex.Shell.warn("  WARNING! Excluded dependencies (not part of the Hex package):")
-      Enum.each(exclude_deps, &Hex.Shell.warn("    #{&1}"))
+    if errors != [] do
+      error_msg =
+        ["Stopping package build due to errors." | errors]
+        |> Enum.join("\n")
+      Mix.raise(error_msg)
     end
+  end
+
+  defp check_excluded_deps(errors, []), do: errors
+  defp check_excluded_deps(errors, deps) do
+    error = deps
+      |> Enum.into(["Excluded dependencies (not part of the Hex package):"], &("    #{&1}"))
+      |> Enum.join("\n")
+
+    [error | errors]
   end
 
   defp meta_for(config, package, deps) do
@@ -145,7 +158,7 @@ defmodule Mix.Hex.Build do
       Hex.Shell.info("  Files:")
       Enum.each(meta[:files], &Hex.Shell.info("    #{&1}"))
     else
-      Hex.Shell.warn("  WARNING! No files")
+      Hex.Shell.error("No files")
     end
   end
 
@@ -169,39 +182,39 @@ defmodule Mix.Hex.Build do
     Enum.filter(files, &(Path.wildcard(&1) == []))
   end
 
-  defp error_missing!(meta) do
-    missing_fields = missing(meta, @error_fields)
-
-    if missing_fields != [] do
-      fields = Enum.join(missing_fields, ", ")
-      Hex.Shell.error("  ERROR! Missing metadata fields: #{fields}")
-      Mix.raise("Stopping package build due to errors")
-    end
+  defp error_missing!(errors, meta) do
+    meta
+    |> missing(@error_fields ++ @warn_fields)
+    |> check_missing_fields(errors)
   end
 
-  defp warn_long_description(meta) do
+  defp check_missing_fields([], errors), do: errors
+  defp check_missing_fields(fields, errors) do
+    fields = Enum.join(fields, ", ")
+    ["Missing metadata fields: #{fields}" | errors]
+  end
+
+  defp error_long_description(errors, meta) do
     description = meta[:description] || ""
 
     if String.length(description) > @max_description_length do
-      Hex.Shell.warn("  WARNING! Package description is very long (exceeds #{@max_description_length} characters)")
+      error_msg = ["Package description is very long (exceeds #{@max_description_length} characters)"]
+      [error_msg | errors]
+    else
+      errors
     end
   end
 
-  defp warn_missing(meta) do
-    missing_fields = missing(meta, @warn_fields)
-
-    if missing_fields != [] do
-      fields = Enum.join(missing_fields, ", ")
-      Hex.Shell.warn("  WARNING! Missing metadata fields: #{fields}")
-    end
+  defp error_missing_files(errors, package_files) do
+    package_files
+    |> missing_files()
+    |> check_missing_files(errors)
   end
 
-  defp warn_missing_files(package_files) do
-    missing_files = missing_files(package_files)
-    if missing_files != [] do
-      missing = Enum.join(missing_files, ", ")
-      Hex.Shell.warn("  WARNING! Missing files: #{missing}")
-    end
+  defp check_missing_files([], errors), do: errors
+  defp check_missing_files(missing, errors) do
+    missing = Enum.join(missing, ", ")
+    ["Missing files: #{missing}" | errors]
   end
 
   defp missing(meta, fields) do
