@@ -198,7 +198,7 @@ defmodule Mix.Hex.Build do
     description = meta[:description] || ""
 
     if String.length(description) > @max_description_length do
-      error_msg = ["Package description is very long (exceeds #{@max_description_length} characters)"]
+      error_msg = "Package description is very long (exceeds #{@max_description_length} characters)"
       [error_msg | errors]
     else
       errors
