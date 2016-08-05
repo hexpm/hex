@@ -39,11 +39,10 @@ defmodule Mix.Hex.Build do
     Enum.each(@meta_fields, &print_meta(meta, &1))
 
     errors =
-      []
-      |> error_missing!(meta)
-      |> error_long_description(meta)
-      |> error_missing_files(package_files)
-      |> check_excluded_deps(exclude_deps)
+      error_missing!(meta) ++
+      error_long_description(meta) ++
+      error_missing_files(package_files) ++
+      check_excluded_deps(exclude_deps)
 
     if errors != [] do
       error_msg =
@@ -53,13 +52,12 @@ defmodule Mix.Hex.Build do
     end
   end
 
-  defp check_excluded_deps(errors, []), do: errors
-  defp check_excluded_deps(errors, deps) do
-    error = deps
-      |> Enum.into(["Excluded dependencies (not part of the Hex package):"], &("    #{&1}"))
-      |> Enum.join("\n")
-
-    [error | errors]
+  defp check_excluded_deps([]), do: []
+  defp check_excluded_deps(deps) do
+    deps
+    |> Enum.into(["Excluded dependencies (not part of the Hex package):"], &("    #{&1}"))
+    |> Enum.join("\n")
+    |> List.wrap()
   end
 
   defp meta_for(config, package, deps) do
@@ -182,39 +180,38 @@ defmodule Mix.Hex.Build do
     Enum.filter(files, &(Path.wildcard(&1) == []))
   end
 
-  defp error_missing!(errors, meta) do
+  defp error_missing!(meta) do
     meta
     |> missing(@error_fields ++ @warn_fields)
-    |> check_missing_fields(errors)
+    |> check_missing_fields()
   end
 
-  defp check_missing_fields([], errors), do: errors
-  defp check_missing_fields(fields, errors) do
+  defp check_missing_fields([]), do: []
+  defp check_missing_fields(fields) do
     fields = Enum.join(fields, ", ")
-    ["Missing metadata fields: #{fields}" | errors]
+    ["Missing metadata fields: #{fields}"]
   end
 
-  defp error_long_description(errors, meta) do
+  defp error_long_description(meta) do
     description = meta[:description] || ""
 
     if String.length(description) > @max_description_length do
-      error_msg = "Package description is very long (exceeds #{@max_description_length} characters)"
-      [error_msg | errors]
+      ["Package description is very long (exceeds #{@max_description_length} characters)"]
     else
-      errors
+      []
     end
   end
 
-  defp error_missing_files(errors, package_files) do
+  defp error_missing_files(package_files) do
     package_files
     |> missing_files()
-    |> check_missing_files(errors)
+    |> check_missing_files()
   end
 
-  defp check_missing_files([], errors), do: errors
-  defp check_missing_files(missing, errors) do
+  defp check_missing_files([]), do: []
+  defp check_missing_files(missing) do
     missing = Enum.join(missing, ", ")
-    ["Missing files: #{missing}" | errors]
+    ["Missing files: #{missing}"]
   end
 
   defp missing(meta, fields) do
