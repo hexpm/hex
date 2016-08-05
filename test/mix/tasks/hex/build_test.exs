@@ -104,8 +104,8 @@ defmodule Mix.Tasks.Hex.BuildTest do
       Hex.State.put(:home, tmp_path())
 
       error_msg = "Stopping package build due to errors.\n" <>
-                  "Package description is very long (exceeds 300 characters)\n" <>
-                  "Missing metadata fields: licenses, maintainers, links"
+                  "Missing metadata fields: licenses, maintainers, links\n" <>
+                  "Package description is very long (exceeds 300 characters)"
 
       assert_raise Mix.Error, error_msg, fn ->
         Mix.Tasks.Hex.Build.run([])
