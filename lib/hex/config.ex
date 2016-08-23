@@ -2,8 +2,10 @@ defmodule Hex.Config do
   def read do
     case File.read(config_path()) do
       {:ok, binary} ->
-        {:ok, term} = decode_term(binary)
-        term
+        case decode_term(binary) do
+          {:ok, term} -> term
+          {:error, _} -> decode_elixir(binary)
+        end
       {:error, _} ->
         []
     end
@@ -63,5 +65,10 @@ defmodule Hex.Config do
       :error           -> IO.inspect(string, limit: :infinity); :error
       :eof             -> {:ok, Enum.reverse(acc)}
     end
+  end
+
+  defp decode_elixir(string) do
+    {term, _binding} = Code.eval_string(string)
+    term
   end
 end
