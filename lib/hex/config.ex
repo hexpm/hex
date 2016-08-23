@@ -3,8 +3,12 @@ defmodule Hex.Config do
     case File.read(config_path()) do
       {:ok, binary} ->
         case decode_term(binary) do
-          {:ok, term} -> term
-          {:error, _} -> decode_elixir(binary)
+          {:ok, term} ->
+            term
+          {:error, _} ->
+            config = decode_elixir(binary)
+            write(config)
+            config
         end
       {:error, _} ->
         []
@@ -62,7 +66,6 @@ defmodule Hex.Config do
     case :io.read(pid, '') do
       {:ok, term}      -> consult(pid, [term|acc], string)
       {:error, reason} -> {:error, reason}
-      :error           -> IO.inspect(string, limit: :infinity); :error
       :eof             -> {:ok, Enum.reverse(acc)}
     end
   end
