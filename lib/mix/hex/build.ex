@@ -222,12 +222,10 @@ defmodule Mix.Hex.Build do
       |> Enum.filter(&(Path.dirname(&1) == "."))
       |> Enum.into(HashSet.new)
 
-    Enum.flat_map(@build_tools, fn {file, tool} ->
-      if file in base_files,
-        do: [tool],
-      else: []
-    end)
-    |> default_build_tool
+    for {file, tool} <- @build_tools, file in base_files do
+      tool
+    end
+    |> default_build_tool()
   end
 
   defp default_build_tool([]), do: ["mix"]
