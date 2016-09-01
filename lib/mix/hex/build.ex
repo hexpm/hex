@@ -36,7 +36,7 @@ defmodule Mix.Hex.Build do
       end)
     end
 
-    Enum.each(@meta_fields, &print_meta(meta, &1))
+    Enum.each(@meta_fields, &print_metadata(meta, &1))
 
     errors =
       check_missing_fields(meta) ++
@@ -151,17 +151,18 @@ defmodule Mix.Hex.Build do
     end
   end
 
-  defp print_meta(meta, :files) do
-    if meta[:files] != [] do
-      Hex.Shell.info("  Files:")
-      Enum.each(meta[:files], &Hex.Shell.info("    #{&1}"))
-    else
-      Hex.Shell.error("No files")
+  defp print_metadata(metadata, :files) do
+    case metadata[:files] do
+      [] ->
+        Hex.Shell.error("No files")
+      files ->
+        Hex.Shell.info("  Files:")
+        Enum.each(files, &Hex.Shell.info("    #{&1}"))
     end
   end
 
-  defp print_meta(meta, key) do
-    if value = meta[key] do
+  defp print_metadata(metadata, key) do
+    if value = metadata[key] do
       key = key |> Atom.to_string |> String.replace("_", " ") |> String.capitalize
       value = format_metadata_value(value)
       Hex.Shell.info("  #{key}: #{value}")
