@@ -163,16 +163,16 @@ defmodule Mix.Hex.Build do
   defp print_meta(meta, key) do
     if value = meta[key] do
       key = key |> Atom.to_string |> String.replace("_", " ") |> String.capitalize
-      value = meta_value(value)
+      value = format_metadata_value(value)
       Hex.Shell.info("  #{key}: #{value}")
     end
   end
 
-  defp meta_value(list) when is_list(list),
+  defp format_metadata_value(list) when is_list(list),
     do: Enum.join(list, ", ")
-  defp meta_value(map) when is_map(map),
-    do: "\n    " <> Enum.map_join(map, "\n    ", fn {k, v} -> "#{k}: #{v}" end)
-  defp meta_value(value),
+  defp format_metadata_value(map) when is_map(map),
+    do: "\n    " <> Enum.map_join(map, "\n    ", fn {key, val} -> "#{key}: #{val}" end)
+  defp format_metadata_value(value),
     do: value
 
   defp check_missing_fields(metadata) do
