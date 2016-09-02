@@ -8,6 +8,7 @@ defmodule Hex.RemoteConverger do
   def post_converge do
     Registry.open!(Registry.Server)
     Registry.close
+    :ok
   after
     Registry.pdict_clean
   end
@@ -72,7 +73,7 @@ defmodule Hex.RemoteConverger do
     case Hex.Utils.lock(lock[app]) do
       [:hex, name, version, _checksum, _managers, nil] ->
         Registry.open!(Registry.Server)
-        Registry.prefetch([name])
+        Registry.prefetch([Atom.to_string(name)])
         get_deps(name, version)
       [:hex, _name, _version, _checksum, _managers, deps] ->
         deps
