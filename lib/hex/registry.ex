@@ -5,7 +5,7 @@ defmodule Hex.Registry do
   @type package :: String.t
   @type version :: String.t
   @callback open(Keyword.t) :: {:ok, name} | {:already_open, name} | {:error, String.t}
-  @callback close(name) :: boolean
+  @callback close(name) :: :ok
   @callback prefetch(name, [package]) :: :ok
   @callback versions(name, package) :: [version]
   @callback deps(name, package, version) :: [{String.t, String.t, String.t, boolean}]
@@ -54,9 +54,8 @@ defmodule Hex.Registry do
   def close do
     case pdict_get() do
       {module, name} ->
-        result = module.close(name)
+        module.close(name)
         pdict_clean()
-        result
       nil ->
         false
     end
