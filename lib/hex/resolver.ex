@@ -86,7 +86,7 @@ defmodule Hex.Resolver do
   defp activate(request(app: app, name: name), pending, [version|versions],
                 optional, info, activated, parents) do
     {new_pending, new_optional, new_deps} = get_deps(app, name, version, info, activated)
-    new_pending = new_pending ++ pending
+    new_pending = pending ++ new_pending
     new_optional = merge_optional(optional, new_optional)
 
     state = state(activated: activated, requests: pending, optional: optional, deps: info(info, :deps))
@@ -197,9 +197,9 @@ defmodule Hex.Resolver do
     # ugly hack to check if we should print the pre-release explanation
     if message =~ "*\n" do
       message <>
-        "\n* This requirement failed because by default pre-releases " <>
-        "are never matched. To match against pre-releases include " <>
-        "a pre-release in the requirement string: \"~> 2.0-beta\".\n"
+        "\n* This requirement does not match pre-releases. " <>
+        "To match pre-releases include a pre-release in the " <>
+        "requirement, such as: \"~> 2.0-beta\".\n"
     else
       message
     end
