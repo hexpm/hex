@@ -186,13 +186,11 @@ defmodule Hex.Resolver.Backtracks do
   end
 
   defp parent_message({parent(name: "mix.lock", version: [], requirement: req), {color, pre_failed?}}) do
-    ["Locked to ", color, requirement(req), :reset, " in your mix.lock",
-     pre_message(pre_failed?)]
+    [:bright, "mix.lock", :reset, " specifies ", color, requirement(req), :reset, pre_message(pre_failed?)]
   end
 
   defp parent_message({parent(name: "mix.exs", version: [], requirement: req), {color, pre_failed?}}) do
-    ["You specified ", color, requirement(req), :reset, " in your mix.exs",
-     pre_message(pre_failed?)]
+    [:bright, "mix.exs", :reset, " specifies ", color, requirement(req), :reset, pre_message(pre_failed?)]
   end
 
   defp parent_message({parent(name: name, version: versions, requirement: req), {color, pre_failed?}}) do
