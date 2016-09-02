@@ -55,7 +55,10 @@ defmodule Hex.State do
   if Mix.env == :test do
     def fetch(:httpc_profile) do
       profile = make_ref() |> :erlang.ref_to_list |> List.to_atom
-      {:ok, _pid} = :httpc_manager.start_link(profile, :only_session_cookies, :stand_alone)
+      {:ok, pid} = :httpc_manager.start_link(profile, :only_session_cookies, :stand_alone)
+      # Unlink to avoid race conditions where the manager closes before all requests finished
+      Process.unlink(pid)
+      {:ok, pid}
     end
   end
 
