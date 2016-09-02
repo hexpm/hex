@@ -8,7 +8,7 @@ defmodule Hex.API.Registry do
   def get_package(name, opts \\ []) do
     headers =
       if etag = opts[:etag] do
-        %{'if-none-match' => etag}
+        %{'if-none-match' => Hex.string_to_charlist(etag)}
       end
 
     API.request(:get, API.repo_url("packages/#{name}"), headers || [])
@@ -20,6 +20,43 @@ defmodule Hex.API.Registry do
       do_verify(payload, signature)
     end
     payload
+  end
+
+  def get_installs do
+    API.request(:get, API.repo_url("installs/hex-1.x.csv"), [])
+  end
+
+  def find_new_version_from_csv(body) do
+    body
+    |> parse_csv
+    |> find_latest_eligible_version
+    |> is_version_newer
+  end
+
+  defp parse_csv(body) do
+    body
+    |> :binary.split("\n", [:global, :trim])
+    |> Enum.map(&:binary.split(&1, ",", [:global, :trim]))
+  end
+
+  defp find_latest_eligible_version(entries) do
+    elixir_version = Hex.Version.parse!(System.version)
+    entries
+    |> Enum.reverse
+    |> Enum.find_value(&find_version(&1, elixir_version))
+  end
+
+  defp find_version([hex_version, _digest | compatible_versions], elixir_version) do
+    if Enum.find(compatible_versions, &Hex.Version.compare(&1, elixir_version) != :gt) do
+      hex_version
+    end
+  end
+
+  defp is_version_newer(nil), do: nil
+  defp is_version_newer(hex_version) do
+    if Hex.Version.compare(hex_version, Hex.version) == :gt do
+      hex_version
+    end
   end
 
   defp do_verify(payload, signature) do

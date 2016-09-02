@@ -2,29 +2,37 @@ defmodule Hex.Registry.Server do
   use GenServer
   @behaviour Hex.Registry
 
-  @name     __MODULE__
-  @ets      __MODULE__.ETS
-  @filename "cache.ets"
-  @timeout  60_000
+  # TODO: Optimize to not go through genserver
 
-  def start_link do
-    GenServer.start_link(__MODULE__, [], name: @name)
+  @name __MODULE__
+  @ets __MODULE__.ETS
+  @filename "cache.ets"
+  @timeout 30_000
+  @update_interval 24 * 60 * 60
+
+  def start_link(opts \\ []) do
+    name = Keyword.get(opts, :name, @name)
+    opts = if name, do: [name: name], else: []
+    GenServer.start_link(__MODULE__, [], opts)
   end
 
-  def open(opts) do
-    GenServer.call(@name, {:open, opts}, @timeout)
+  def open(name \\ @name, opts) do
+    GenServer.call(name, {:open, opts}, @timeout)
   end
 
   def close do
     GenServer.call(@name, :close, @timeout)
+    |> print_update_message
   end
 
   def close(name) do
     GenServer.call(name, :close, @timeout)
+    |> print_update_message
   end
 
   def persist do
     GenServer.call(@name, :persist, @timeout)
+    |> print_update_message
   end
 
   def prefetch(name, packages) do
@@ -57,14 +65,36 @@ defmodule Hex.Registry.Server do
     GenServer.call(name, {:tarball_etag, package, version, etag}, @timeout)
   end
 
+  defp print_update_message({:update, {:http_error, reason}}) do
+    Hex.Shell.error "Hex update check failed, HTTP ERROR: #{inspect reason}"
+    :ok
+  end
+  defp print_update_message({:update, {:status, status}}) do
+    Hex.Shell.error "Hex update check failed, status code: #{status}"
+    :ok
+  end
+  defp print_update_message({:update, version}) do
+    Hex.Shell.warn "A new Hex version is available (#{Hex.version} < #{version}), " <>
+                   "please update with `mix local.hex`"
+    :ok
+  end
+  defp print_update_message(:ok), do: :ok
+
   def init([]) do
-    {:ok, %{
-      ets: nil,
+    {:ok, reset_state(%{})}
+  end
+
+  defp reset_state(state) do
+    %{ets: nil,
       path: nil,
       refs: %{},
       pending: %{},
       waiting: %{},
-      fetched: Hex.Set.new}}
+      fetched: Hex.Set.new,
+      waiting_close: nil,
+      already_checked_update?: Map.get(state, :already_checked_update?, false),
+      checking_update?: false,
+      new_update: nil}
   end
 
   def handle_call({:open, opts}, _from, %{ets: nil} = state) do
@@ -75,25 +105,29 @@ defmodule Hex.Registry.Server do
         {:error, _reason} -> :ets.new(@name, [])
       end
     state = %{state | ets: tid, path: path}
+    state = check_update(state)
     {:reply, {:ok, self()}, state}
   end
   def handle_call({:open, _opts}, _from, state) do
     {:reply, {:already_open, self()}, state}
   end
 
-  def handle_call(:close, _from, %{ets: nil} = state) do
-    {:reply, false, state}
-  end
-  def handle_call(:close, _from, %{ets: tid, path: path}) do
-    :ets.tab2file(tid, path)
-    :ets.delete(tid)
-    {:ok, state} = init([])
-    {:reply, true, state}
+  def handle_call(:close, from, state) do
+    maybe_wait_closing(state, from, fn
+      %{ets: nil} = state ->
+        state
+      %{ets: tid, path: path} ->
+        :ets.tab2file(tid, path)
+        :ets.delete(tid)
+        reset_state(state)
+    end)
   end
 
-  def handle_call(:persist, _from, %{ets: tid, path: path} = state) do
-    :ets.tab2file(tid, path)
-    {:reply, :ok, state}
+  def handle_call(:persist, from, state) do
+    maybe_wait_closing(state, from, fn %{ets: tid, path: path} = state ->
+      :ets.tab2file(tid, path)
+      state
+    end)
   end
 
   def handle_call({:prefetch, packages}, _from, state) do
@@ -141,7 +175,26 @@ defmodule Hex.Registry.Server do
     {:noreply, state}
   end
 
-  def handle_info({ref, result}, state) do
+  def handle_info({_ref, {:get_installs, result}}, state) do
+    result =
+      case result do
+        {200, body, _headers} ->
+          Hex.API.Registry.find_new_version_from_csv(body)
+        {:http_error, _reason, []} ->
+          # TODO
+          nil
+        {_code, _body, _headers} ->
+          # TODO
+          nil
+      end
+
+    :ets.insert(state.ets, {:last_update, :calendar.universal_time})
+    state = reply_to_update_waiting(state, result)
+    state = %{state | checking_update?: false, waiting_close: nil}
+    {:noreply, state}
+  end
+
+  def handle_info({ref, {:get_package, result}}, state) do
     package = Map.fetch!(state.refs, ref)
     refs = Map.delete(state.refs, ref)
     pending = Map.delete(state.pending, package)
@@ -163,7 +216,7 @@ defmodule Hex.Registry.Server do
       Enum.map(packages, fn package ->
         task = Task.async(fn ->
           opts = fetch_opts(package, state)
-          Hex.API.Registry.get_package(package, opts)
+          {:get_package, Hex.API.Registry.get_package(package, opts)}
         end)
         {task.ref, package}
       end)
@@ -189,9 +242,9 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  defp write_result({:http_error, _reason, []}, _package, _state) do
+  defp write_result({:http_error, _reason, []}, package, _state) do
     # TODO
-    raise "say what?"
+    raise "say what? #{package}"
   end
 
   defp write_result({code, body, headers}, package, %{ets: tid}) when code in 200..299 do
@@ -263,6 +316,55 @@ defmodule Hex.Registry.Server do
     case :ets.lookup(tid, key) do
       [{^key, element}] -> element
       [] -> nil
+    end
+  end
+
+  def maybe_wait_closing(%{checking_update?: true, new_update: nil} = state, from, fun) do
+    state = %{state | waiting_close: {from, fun}}
+    {:noreply, state}
+  end
+  def maybe_wait_closing(%{checking_update?: false, new_update: nil} = state, _from, fun) do
+    {:reply, :ok, fun.(state)}
+  end
+  def maybe_wait_closing(%{checking_update?: false, new_update: new_update} = state, _from, fun) do
+    state = %{state | new_update: nil}
+    {:reply, {:update, new_update}, fun.(state)}
+  end
+
+  defp reply_to_update_waiting(state, new_update) do
+    case state.waiting_close do
+      {from, fun} ->
+        reply = if new_update, do: {:update, new_update}, else: :ok
+        GenServer.reply(from, reply)
+        fun.(state)
+      nil ->
+        %{state | new_update: new_update}
+    end
+  end
+
+  defp check_update(%{already_checked_update?: true} = state) do
+    state
+  end
+  defp check_update(%{ets: tid} = state) do
+    if check_update?(tid) do
+      Task.async(fn ->
+        {:get_installs, Hex.API.Registry.get_installs}
+      end)
+
+      %{state | checking_update?: true, already_checked_update?: true}
+    else
+      state
+    end
+  end
+
+  defp check_update?(tid) do
+    if last = lookup(tid, :last_update) do
+      now = :erlang.universaltime |> :calendar.datetime_to_gregorian_seconds
+      last = :calendar.datetime_to_gregorian_seconds(last)
+
+      now - last > @update_interval
+    else
+      true
     end
   end
 end

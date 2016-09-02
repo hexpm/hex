@@ -10,7 +10,7 @@ defmodule Hex.RepoTest do
     bad_url = Hex.API.repo_url("docs/package")
 
     assert {:ok, _, nil} = Hex.Repo.request(package_url, nil)
-    assert {:ok, _, nil} = Hex.Repo.request(package_url, 'etag')
+    assert {:ok, _, nil} = Hex.Repo.request(package_url, "etag")
     assert {:error, "Request failed (404)"} = Hex.Repo.request(bad_url, nil)
   end
 end

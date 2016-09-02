@@ -141,16 +141,10 @@ defmodule Hex.Tar do
   # Some older packages have invalid unicode
   defp to_charlist(string) do
     try do
-      string_to_charlist(string)
+      Hex.string_to_charlist(string)
     rescue
       UnicodeConversionError ->
         :erlang.binary_to_list(string)
     end
-  end
-
-  if Version.compare(System.version, "1.3.0") == :lt do
-    defp string_to_charlist(string), do: String.to_char_list(string)
-  else
-    defp string_to_charlist(string), do: String.to_charlist(string)
   end
 end

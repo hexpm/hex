@@ -98,9 +98,8 @@ defmodule Mix.Tasks.Hex.PublicKeysTest do
   end
 
   test "fetch signature from file" do
-    bypass = bypass_registry()
-    repo = "http://localhost:#{bypass.port}"
-    Hex.State.put(:repo, repo)
+    bypass_registry()
+    repo = Hex.State.fetch!(:repo)
 
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
@@ -111,9 +110,8 @@ defmodule Mix.Tasks.Hex.PublicKeysTest do
   end
 
   test "fails to verify signature from file" do
-    bypass = bypass_registry()
-    repo = "http://localhost:#{bypass.port}"
-    Hex.State.put(:repo, repo)
+    bypass_registry()
+    repo = Hex.State.fetch!(:repo)
 
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
