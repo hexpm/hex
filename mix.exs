@@ -27,7 +27,8 @@ defmodule Hex.Mixfile do
   # Hex because we have to unload Hex before compiling it.
   defp deps do
     [{:bypass, github: "PSPDFKit-labs/bypass", only: :test},
-     {:plug,   github: "elixir-lang/plug", tag: "v1.1.4", only: :test, override: true},
+     {:mime,   github: "elixir-lang/mime", tag: "v1.0.1", only: :test, override: true},
+     {:plug,   github: "elixir-lang/plug", tag: "v1.2.0-rc.0", only: :test, override: true},
      {:cowboy, github: "ninenines/cowboy", tag: "1.0.4", only: :test, override: true, manager: :rebar3},
      {:cowlib, github: "ninenines/cowlib", tag: "1.0.2", only: :test, override: true, manager: :rebar3},
      {:ranch,  github: "ninenines/ranch", tag: "1.2.1", only: :test, override: true, manager: :rebar3}]
