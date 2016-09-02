@@ -34,7 +34,7 @@ defmodule Mix.Hex.Utils do
       Enum.zip(list, acc)
       |> Enum.map(fn {string, width} -> max(width, ansi_length(string)) end)
     end)
-  end
+  end 
 
   def generate_key(username, password) do
     Hex.Shell.info("Generating API key...")

@@ -37,6 +37,10 @@ defmodule HexTest.Case do
     Path.join(fixture_path(), extension)
   end
 
+  defmacro test_name do
+    Path.join(["#{__CALLER__.module}", "#{elem(__CALLER__.function, 0)}"])
+  end
+
   defmacro in_tmp(fun) do
     path = Path.join(["#{__CALLER__.module}", "#{elem(__CALLER__.function, 0)}"])
     quote do
