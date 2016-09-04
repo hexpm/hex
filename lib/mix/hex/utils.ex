@@ -1,7 +1,7 @@
 defmodule Mix.Hex.Utils do
   @apikey_tag "HEXAPIKEY"
 
-  def table(header, values) do
+  def print_table(header, values) do
     header = Enum.map(header, &[:underline, &1])
     widths = widths([header|values])
 

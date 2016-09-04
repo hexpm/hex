@@ -82,7 +82,7 @@ defmodule Mix.Tasks.Hex.Key do
         values = Enum.map(body, fn %{"name" => name, "inserted_at" => time} ->
           [name, time]
         end)
-        Utils.table(["Name", "Created at"], values)
+        Utils.print_table(["Name", "Created at"], values)
       {code, body, _headers} ->
         Hex.Shell.error "Key fetching failed"
         Hex.Utils.print_error_result(code, body)
