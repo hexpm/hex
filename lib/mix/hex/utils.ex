@@ -3,7 +3,7 @@ defmodule Mix.Hex.Utils do
 
   def print_table(header, values) do
     header = Enum.map(header, &[:underline, &1])
-    widths = widths([header|values])
+    widths = widths([header | values])
 
     print_row(header, widths)
     Enum.each(values, &print_row(&1, widths))
@@ -17,8 +17,9 @@ defmodule Mix.Hex.Utils do
     do: 0
 
   defp print_row(strings, widths) do
-    Enum.map(Enum.zip(strings, widths), fn {string, width} ->
-      pad_size = width-ansi_length(string)+2
+    Enum.zip(strings, widths)
+    |> Enum.map(fn {string, width} ->
+      pad_size = width - ansi_length(string) + 2
       pad = :lists.duplicate(pad_size, ?\s)
       [string, :reset, pad]
     end)
@@ -26,7 +27,7 @@ defmodule Mix.Hex.Utils do
     |> Hex.Shell.info
   end
 
-  defp widths([head|tail]) do
+  defp widths([head | tail]) do
     widths = Enum.map(head, &ansi_length/1)
 
     Enum.reduce(tail, widths, fn list, acc ->
