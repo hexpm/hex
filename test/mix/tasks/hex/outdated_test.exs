@@ -135,7 +135,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
       Mix.Task.run "hex.outdated", ["ex_doc"]
       msg = ["There is newer version of the dependency available ", :bright, "0.1.0 > 0.0.1", :reset, "!"]
-            |> IO.ANSI.format
+            |> IO.ANSI.format_fragment
             |> List.to_string
       assert_received {:mix_shell, :info, [^msg]}
 
@@ -168,7 +168,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
       Mix.Task.run "hex.outdated", ["ex_doc"]
       msg = ["Current version ", :bright, "0.1.0", :reset, " of dependency is up to date!"]
-            |> IO.ANSI.format
+            |> IO.ANSI.format_fragment
             |> List.to_string
       assert_received {:mix_shell, :info, [^msg]}
     end

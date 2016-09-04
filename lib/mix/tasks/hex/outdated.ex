@@ -66,18 +66,18 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     requirements =
       if dep.top_level do
-        [["mix.exs", dep.requirement]|requirements]
+        [["mix.exs", dep.requirement] | requirements]
       else
         requirements
       end
 
     if outdated? do
       ["There is newer version of the dependency available ", :bright, latest, " > ", current, :reset, "!"]
-      |> IO.ANSI.format
+      |> IO.ANSI.format_fragment
       |> Hex.Shell.info
     else
       ["Current version ", :bright, current, :reset, " of dependency is up to date!"]
-      |> IO.ANSI.format
+      |> IO.ANSI.format_fragment
       |> Hex.Shell.info
     end
 
@@ -87,8 +87,8 @@ defmodule Mix.Tasks.Hex.Outdated do
     values = Enum.map(requirements, &format_single_row(&1, latest))
     Utils.table(header, values)
 
-    Hex.Shell.info ""
-    Hex.Shell.info "A green requirement means that it matches the latest version."
+    message = "A green requirement means that it matches the latest version."
+    Hex.Shell.info ["\n", message]
   end
 
   defp get_requirements(deps, app) do
@@ -122,10 +122,11 @@ defmodule Mix.Tasks.Hex.Outdated do
     else
       Utils.table(header, values)
 
-      Hex.Shell.info ""
-      Hex.Shell.info "A green version in latest means you have the latest " <>
-                     "version of a given package. A green requirement means " <>
-                     "your current requirement matches the latest version."
+      message =
+        "A green version in latest means you have the latest " <>
+        "version of a given package. A green requirement means " <>
+        "your current requirement matches the latest version."
+      Hex.Shell.info ["\n" | message]
     end
   end
 
