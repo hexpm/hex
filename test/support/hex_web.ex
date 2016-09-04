@@ -24,7 +24,7 @@ defmodule HexTest.HexWeb do
   defp stream_hexweb do
     %WrappedCollectable{
       collectable: IO.stream(:stdio, :line),
-      fun: &IO.ANSI.format([:blue, &1, :reset])
+      fun: &IO.ANSI.format([:blue, &1])
     }
   end
 
@@ -84,7 +84,7 @@ defmodule HexTest.HexWeb do
       fun = fn fun ->
         receive do
           {^port, {:data, data}} ->
-            IO.ANSI.format([:blue, data, :reset]) |> IO.write
+            IO.ANSI.format([:blue, data]) |> IO.write
             fun.(fun)
           {^port, {:exit_status, status}} ->
             IO.puts "HexWeb quit with status #{status}"
