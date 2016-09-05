@@ -51,7 +51,6 @@ defmodule Hex.Mixfile do
      {:ranch,  github: "ninenines/ranch", tag: "1.2.1", only: :test, override: true, manager: :rebar3}]
    end
 
-  defp elixirc_options(:prod), do: [debug_info: false]
   defp elixirc_options(_),     do: []
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
