@@ -15,7 +15,7 @@ defmodule Mix.Tasks.Hex.Key do
 
       mix hex.key remove key_name
 
-  To remove all API keys from your account, specify with `--all`
+  To remove all API keys from your account, pass the `--all` option.
 
       mix hex.key remove --all
 
@@ -36,12 +36,12 @@ defmodule Mix.Tasks.Hex.Key do
 
     auth = Utils.auth_info(Hex.Config.read)
 
-    all_flag = !!opts[:all]
+    all? = Keyword.get(opts, :all, false)
 
     case args do
       ["remove", key] ->
         remove_key(key, auth)
-      ["remove"] when all_flag === true ->
+      ["remove"] when all? ->
         remove_all_keys(auth)
       ["list"] ->
         list_keys(auth)
