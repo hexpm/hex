@@ -42,7 +42,7 @@ defmodule Hex.State do
       https_proxy:      load_config(config, ["https_proxy", "HTTPS_PROXY"], :https_proxy),
       offline?:         load_config(config, ["HEX_OFFLINE"], :offline) |> to_boolean |> default(false),
       check_cert?:      load_config(config, ["HEX_UNSAFE_HTTPS"], :unsafe_https) |> to_boolean |> default(false) |> Kernel.not,
-      check_registry?:  load_config(config, ["HEX_UNSAFE_REGISTRY"], :unsafe_registry) |> to_boolean |> default(true) |> Kernel.not,
+      check_registry?:  load_config(config, ["HEX_UNSAFE_REGISTRY"], :unsafe_registry) |> to_boolean |> default(false) |> Kernel.not,
       hexpm_pk:         @hexpm_pk,
       registry_updated: false,
       httpc_profile:    :hex,
