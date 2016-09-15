@@ -81,7 +81,7 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp format_releases(releases) do
-    {releases, rest} = Enum.split(releases, 10)
+    {releases, rest} = Enum.split(releases, 8)
     Enum.map_join(releases, ", ", &(&1["version"])) <>
     if(rest != [], do: ", ..." , else: "")
   end
@@ -112,8 +112,10 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp print_config(name, release) do
-    app_name = release["meta"]["app"] || name
+    app_name = String.to_atom(release["meta"]["app"] || name)
+    name = String.to_atom(name)
     {:ok, version} = Hex.Version.parse(release["version"])
+
     snippet =
       format_version(version)
       |> format_config_snippet(name, app_name)
@@ -121,9 +123,9 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp format_config_snippet(version, name, name),
-    do: "{:#{name}, \"#{version}\"}"
+    do: "{#{inspect name}, #{inspect version}}"
   defp format_config_snippet(version, name, app_name),
-    do: "{:#{app_name}, \"#{version}\", hex: :#{name}}"
+    do: "{#{inspect app_name}, #{inspect version}, hex: #{inspect name}}"
 
   defp format_version(%Version{major: 0, minor: minor, patch: patch, pre: []}),
     do: "~> 0.#{minor}.#{patch}"
