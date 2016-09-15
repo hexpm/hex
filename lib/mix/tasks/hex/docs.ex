@@ -6,13 +6,13 @@ defmodule Mix.Tasks.Hex.Docs do
   @moduledoc """
   Fetch or open documentation of a package
 
-      mix hex.docs fetch package <version>
+      mix hex.docs fetch PACKAGE [VERSION]
 
   It will retrieve and decompress the specified version of the documentation
   for a package. If you do not specify the `version` argument, this task will
   retrieve the latest documentation available in the mirror.
 
-      mix hex.docs open package <version>
+      mix hex.docs open PACKAGE [VERSION]
 
   It will open the specified version of the documentation for a package in a
   Web browser. If you do not specify the `version` argument, this task will
@@ -158,7 +158,7 @@ defmodule Mix.Tasks.Hex.Docs do
     home = Hex.State.fetch!(:home)
     docs_root = Path.join(home, "docs")
     cache_dir = Path.join(docs_root, ".cache")
-    
+
     opts
     |> Keyword.put(:home, docs_root)
     |> Keyword.put(:cache, cache_dir)
