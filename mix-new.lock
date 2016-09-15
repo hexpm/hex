@@ -1,0 +1,6 @@
+%{"bypass": {:git, "https://github.com/PSPDFKit-labs/bypass.git", "87721c7ff56e6b307cb0e04d8a44666ce502b28b", []},
+  "cowboy": {:git, "https://github.com/ninenines/cowboy.git", "d08c2ab39d38c181abda279d5c2cadfac33a50c1", [tag: "1.0.4"]},
+  "cowlib": {:git, "https://github.com/ninenines/cowlib.git", "45f750db410a4b08c68d142ad0af839f544c5d3d", [tag: "1.0.2"]},
+  "mime": {:git, "https://github.com/elixir-lang/mime.git", "5ab714e38b25a59b68bda1df7b58da499b2c3aa7", [tag: "v1.0.1"]},
+  "plug": {:git, "https://github.com/elixir-lang/plug.git", "1b161d55dc383df6f9e44e08f8359a862ad70b6c", [tag: "v1.2.0"]},
+  "ranch": {:git, "https://github.com/ninenines/ranch.git", "a5d2efcde9a34ad38ab89a26d98ea5335e88625a", [tag: "1.2.1"]}}
