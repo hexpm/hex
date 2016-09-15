@@ -200,7 +200,7 @@ defmodule Mix.Tasks.Hex.Docs do
     home = Hex.State.fetch!(:home)
     docs_root = Path.join(home, "docs")
     cache_dir = Path.join(docs_root, ".cache")
-    
+
     opts
     |> Keyword.put(:home, docs_root)
     |> Keyword.put(:cache, cache_dir)
