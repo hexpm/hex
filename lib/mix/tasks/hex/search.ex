@@ -37,6 +37,6 @@ defmodule Mix.Tasks.Hex.Search do
         [package["name"], package["url"]]
       end)
 
-    Utils.table(["Package", "URL"], values)
+    Utils.print_table(["Package", "URL"], values)
   end
 end
