@@ -190,7 +190,6 @@ verify_msg(Msg, MsgName) ->
     end.
 
 
--dialyzer({nowarn_function,v_msg_Signed/2}).
 v_msg_Signed(#{payload := F1} = M, Path) ->
     v_type_bytes(F1, [payload | Path]),
     case M of
@@ -206,7 +205,6 @@ v_msg_Signed(M, Path) when is_map(M) ->
 v_msg_Signed(X, Path) ->
     mk_type_error({expected_msg, 'Signed'}, X, Path).
 
--dialyzer({nowarn_function,v_type_bytes/2}).
 v_type_bytes(B, _Path) when is_binary(B) -> ok;
 v_type_bytes(X, Path) ->
     mk_type_error(bad_binary_value, X, Path).
