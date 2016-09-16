@@ -560,7 +560,6 @@ verify_msg(Msg, MsgName) ->
     end.
 
 
--dialyzer({nowarn_function,v_msg_Dependency/2}).
 v_msg_Dependency(#{package := F1, requirement := F2} =
 		     M,
 		 Path) ->
@@ -582,7 +581,6 @@ v_msg_Dependency(M, Path) when is_map(M) ->
 v_msg_Dependency(X, Path) ->
     mk_type_error({expected_msg, 'Dependency'}, X, Path).
 
--dialyzer({nowarn_function,v_msg_Release/2}).
 v_msg_Release(#{version := F1, checksum := F2,
 		dependencies := F3},
 	      Path) ->
@@ -605,7 +603,6 @@ v_msg_Release(M, Path) when is_map(M) ->
 v_msg_Release(X, Path) ->
     mk_type_error({expected_msg, 'Release'}, X, Path).
 
--dialyzer({nowarn_function,v_msg_Package/2}).
 v_msg_Package(#{releases := F1}, Path) ->
     if is_list(F1) ->
 	   _ = [v_msg_Release(Elem, [releases | Path])
@@ -623,13 +620,11 @@ v_msg_Package(M, Path) when is_map(M) ->
 v_msg_Package(X, Path) ->
     mk_type_error({expected_msg, 'Package'}, X, Path).
 
--dialyzer({nowarn_function,v_type_bool/2}).
 v_type_bool(false, _Path) -> ok;
 v_type_bool(true, _Path) -> ok;
 v_type_bool(X, Path) ->
     mk_type_error(bad_boolean_value, X, Path).
 
--dialyzer({nowarn_function,v_type_string/2}).
 v_type_string(S, Path) when is_list(S); is_binary(S) ->
     try unicode:characters_to_binary(S) of
       B when is_binary(B) -> ok;
@@ -642,7 +637,6 @@ v_type_string(S, Path) when is_list(S); is_binary(S) ->
 v_type_string(X, Path) ->
     mk_type_error(bad_unicode_string, X, Path).
 
--dialyzer({nowarn_function,v_type_bytes/2}).
 v_type_bytes(B, _Path) when is_binary(B) -> ok;
 v_type_bytes(X, Path) ->
     mk_type_error(bad_binary_value, X, Path).
