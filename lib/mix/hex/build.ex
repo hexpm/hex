@@ -70,7 +70,8 @@ defmodule Mix.Hex.Build do
 
   defp dependencies(meta) do
     deps = Enum.map(meta[:deps] || [], &Hex.Mix.dep/1)
-    {include, exclude} = Enum.partition(deps, &(package_dep?(&1) and prod_dep?(&1)))
+    deps = Enum.filter(deps, &prod_dep?/1)
+    {include, exclude} = Enum.partition(deps, &package_dep?/1)
 
     Enum.each(include, fn {app, _req, opts} ->
       if opts[:override] do
