@@ -1,4 +1,6 @@
-## v0.13.1
+## v0.13.2-dev
+
+## v0.13.1 (2016-09-19)
 
 * Enhancements
   * Most warnings on `hex.publish` are now errors
