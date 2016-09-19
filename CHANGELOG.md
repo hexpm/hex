@@ -1,4 +1,12 @@
-## v0.13.1-dev
+## v0.13.1
+
+* Enhancements
+  * Most warnings on `hex.publish` are now errors
+
+* Bug fixes
+  * Fix bug where the old config format was not readable
+  * Convert old config format to new format on every read
+  * Fix `HEX_UNSAFE_REGISTRY` negation
 
 ## v0.13.0 (2016-07-30)
 

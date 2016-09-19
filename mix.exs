@@ -1,9 +1,11 @@
 defmodule Hex.Mixfile do
   use Mix.Project
 
+  @version "0.13.1"
+
   def project do
     [app: :hex,
-     version: "0.13.1-dev",
+     version: @version,
      elixir: "~> 1.0",
      aliases: aliases(),
      deps: deps(),
