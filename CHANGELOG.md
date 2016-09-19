@@ -1,4 +1,7 @@
-## v0.13.2-dev
+## v0.13.2 (2016-09-19)
+
+* Bug fixes
+  * Only error on non-Hex dependencies when building
 
 ## v0.13.1 (2016-09-19)
 
