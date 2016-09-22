@@ -196,7 +196,6 @@ defmodule Hex.RemoteConverger do
         Mix.raise "Unknown package version #{app} #{version} in lockfile"
       end
     else
-      require IEx; IEx.pry
       Mix.raise "Unknown package #{app} in lockfile"
     end
   end
