@@ -51,12 +51,21 @@ defmodule Hex.RemoteConverger do
         verify_resolved(resolved, old_lock)
         new_lock = Hex.Mix.to_lock(resolved)
         Hex.SCM.prefetch(new_lock)
-        Map.merge(lock, new_lock)
+        lock_merge(lock, new_lock)
       {:error, message} ->
         resolver_failed(message)
     end
   after
     Registry.pdict_clean
+  end
+
+  defp lock_merge(old, new) do
+    Map.merge(old, new, fn
+      _, {:hex, name, version, checksum, managers, deps}, {:hex, name, version, checksum, _managers, _deps} ->
+        {:hex, name, version, checksum, managers, deps}
+      _, _old, new ->
+        new
+    end)
   end
 
   defp resolver_failed(message) do
@@ -187,6 +196,7 @@ defmodule Hex.RemoteConverger do
         Mix.raise "Unknown package version #{app} #{version} in lockfile"
       end
     else
+      require IEx; IEx.pry
       Mix.raise "Unknown package #{app} in lockfile"
     end
   end
