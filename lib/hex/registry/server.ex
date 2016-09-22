@@ -306,6 +306,7 @@ defmodule Hex.Registry.Server do
   defp delete_package(package, tid) do
     :ets.delete(tid, {:registry_etag, package})
     versions = lookup(tid, {:versions, package}) || []
+    :ets.delete(tid, {:versions, package})
     Enum.each(versions, fn version ->
       :ets.delete(tid, {:checksum, package, version})
       :ets.delete(tid, {:deps, package, version})
