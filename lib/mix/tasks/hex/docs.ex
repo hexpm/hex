@@ -96,22 +96,36 @@ defmodule Mix.Tasks.Hex.Docs do
     Mix.raise "You must specify at least the name of a package"
   end
 
-  defp open_docs([name], opts) do
+  defp open_docs(package, opts) do
+    if opts[:offline] do
+      package |> open_docs_offline(opts)
+    else
+      package
+      |> get_docs_url
+      |> browser_open
+    end
+  end
+
+  defp open_docs_offline([name], opts) do
     latest_version = find_latest_version("#{opts[:home]}/#{name}")
     open_docs([name, latest_version], opts)
   end
 
-  defp open_docs([name, version], opts) do
+  defp open_docs_offline([name, version], opts) do
     index_path = Path.join([opts[:home], name, version, 'index.html'])
 
     open_file(index_path)
-   end
+  end
 
-  defp open_file(path) do
-    unless File.exists?(path) do
-      Mix.raise "Documentation file not found: #{path}"
-    end
+  defp get_docs_url([name]) do
+    name |> Hex.Utils.hexdocs_url
+  end
 
+  defp get_docs_url([name, version]) do
+    name |> Hex.Utils.hexdocs_url(version)
+  end
+
+  defp browser_open(path) do
     start_browser_command =
       case :os.type do
         {:win32, _} ->
@@ -125,6 +139,14 @@ defmodule Mix.Tasks.Hex.Docs do
     else
       Mix.raise "Command not found: #{start_browser_command}"
     end
+  end
+
+  defp open_file(path) do
+    unless File.exists?(path) do
+      Mix.raise "Documentation file not found: #{path}"
+    end
+
+    path |> browser_open
   end
 
   defp find_latest_version(path) do
