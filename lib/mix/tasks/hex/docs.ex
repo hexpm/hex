@@ -14,14 +14,20 @@ defmodule Mix.Tasks.Hex.Docs do
 
       mix hex.docs open package <version>
 
+  ## Command line options
+
+    * `--offline` - Open a local version available in your filesystem
+
   It will open the specified version of the documentation for a package in a
   Web browser. If you do not specify the `version` argument, this task will
-  open the latest documentation available in your filesystem.
+  open the latest documentation.
   """
+
+  @switches [offline: :boolean]
 
   def run(args) do
     Hex.start
-    {opts, args, _} = OptionParser.parse(args)
+    {opts, args, _} = OptionParser.parse(args, switches: @switches)
     opts = normalize_options(opts)
 
     case args do
