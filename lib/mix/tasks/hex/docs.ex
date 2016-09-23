@@ -118,11 +118,11 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp get_docs_url([name]) do
-    name |> Hex.Utils.hexdocs_url
+    Hex.Utils.hexdocs_url(name)
   end
 
   defp get_docs_url([name, version]) do
-    name |> Hex.Utils.hexdocs_url(version)
+    Hex.Utils.hexdocs_url(name, version)
   end
 
   defp browser_open(path) do
@@ -146,7 +146,7 @@ defmodule Mix.Tasks.Hex.Docs do
       Mix.raise "Documentation file not found: #{path}"
     end
 
-    path |> browser_open
+    browser_open(path)
   end
 
   defp find_latest_version(path) do
