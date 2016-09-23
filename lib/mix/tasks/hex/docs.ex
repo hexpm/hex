@@ -98,7 +98,7 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp open_docs(package, opts) do
     if opts[:offline] do
-      package |> open_docs_offline(opts)
+      open_docs_offline(package, opts)
     else
       package
       |> get_docs_url
