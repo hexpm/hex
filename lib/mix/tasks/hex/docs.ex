@@ -117,8 +117,8 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp open_docs_offline([name], opts) do
-    {is_missing, latest_version} = find_package_version(name, opts)
-    if is_missing do
+    {missing?, latest_version} = find_package_version(name, opts)
+    if missing? do
       fetch_docs([name], opts)
     end
     open_docs([name, latest_version], opts)
