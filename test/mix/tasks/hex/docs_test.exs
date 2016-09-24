@@ -65,13 +65,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
   end
 
   test "invalid arguments for docs task" do
-    deprecation_msg = """
-    [deprecation] Calling mix hex.docs without a command is deprecated, please use:
-      mix hex.publish docs
-    """
-    assert_raise Mix.Error, deprecation_msg, fn ->
-      Mix.Tasks.Hex.Docs.run([])
-    end
+    exception = assert_raise Mix.Error, fn -> Mix.Tasks.Hex.Docs.run([]) end
+    assert Exception.message(exception) =~ ~s([deprecation] The "mix hex.docs" command has changed)
 
     invalid_args_msg = """
     invalid arguments, expected one of:

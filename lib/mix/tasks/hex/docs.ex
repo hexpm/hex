@@ -32,11 +32,15 @@ defmodule Mix.Tasks.Hex.Docs do
 
     case args do
       [] ->
-        deprecation_msg = """
-        [deprecation] Calling mix hex.docs without a command is deprecated, please use:
-          mix hex.publish docs
+        Mix.raise """
+        [deprecation] The "mix hex.docs" command has changed. To use the old
+        behaviour (publishing docs), use:
+
+            mix hex.publish docs
+
+        The new "mix hex.docs" command has to be invoked with at least one
+        argument. Call "mix help hex.docs" for more information.
         """
-        Mix.raise deprecation_msg
       ["fetch" | remaining] ->
         fetch_docs(remaining, opts)
       ["open" | remaining] ->
