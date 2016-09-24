@@ -175,13 +175,35 @@ defmodule Hex.Mix do
   Takes a map of `{name, version}` and returns them as a
   lock of Hex packages.
   """
-  @spec to_lock(%{}) :: %{}
-  def to_lock(result) do
+  def to_lock(result, mix_deps) do
+    mix_deps = Enum.into(mix_deps, %{}, &{&1.app, &1})
+
     Enum.into(result, %{}, fn {name, app, version} ->
+      app = String.to_atom(app)
       checksum = Hex.Registry.checksum(name, version) |> Base.encode16(case: :lower)
       deps = Hex.Registry.deps(name, version) |> Enum.map(&registry_dep_to_def/1)
-      {String.to_atom(app), {:hex, String.to_atom(name), version, checksum, [], deps}}
+      managers = managers(mix_deps[app])
+      {app, {:hex, String.to_atom(name), version, checksum, managers, deps}}
     end)
+  end
+
+  # We need to get managers from manifest if a dependency is not in the lock
+  # but it's already fetched. Without the manifest we would only get managers
+  # from metadata during checkout or from the lock entry.
+  defp managers(nil), do: []
+  defp managers(dep) do
+    dest = dep.opts[:dest]
+    case dest && File.read(Path.join(dest, ".hex")) do
+      {:ok, file} ->
+        case Hex.SCM.parse_manifest(file) do
+          {_name, _version, _checksum, managers} ->
+            managers
+          _ ->
+            []
+        end
+      _ ->
+        []
+    end
   end
 
   defp registry_dep_to_def({name, app, req, optional}),

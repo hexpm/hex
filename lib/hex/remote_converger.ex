@@ -49,7 +49,7 @@ defmodule Hex.RemoteConverger do
       {:ok, resolved} ->
         print_success(resolved, locked)
         verify_resolved(resolved, old_lock)
-        new_lock = Hex.Mix.to_lock(resolved)
+        new_lock = Hex.Mix.to_lock(resolved, flat_deps)
         Hex.SCM.prefetch(new_lock)
         lock_merge(lock, new_lock)
       {:error, message} ->

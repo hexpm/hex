@@ -50,7 +50,7 @@ defmodule Hex.Utils do
     Hex.Shell.info body
   end
 
-  def print_error_result(status, body) do
+  def print_error_result(status, body) when is_map(body) do
     message = body["message"]
     errors = body["errors"]
 

@@ -48,6 +48,7 @@ defmodule Hex.SCM do
     case File.read(Path.join(dest, ".hex")) do
       {:ok, file} ->
         case parse_manifest(file) do
+          {^name, ^version, ^checksum, _} -> :ok
           {^name, ^version, ^checksum} -> :ok
           {^name, ^version, _} when is_nil(checksum) -> :ok
           {^name, ^version} -> :ok
@@ -105,12 +106,14 @@ defmodule Hex.SCM do
     end
 
     File.rm_rf!(dest)
+
     meta = Hex.Tar.unpack(path, dest, {name, version})
-    manifest = encode_manifest(name, version, checksum)
+    build_tools = guess_build_tools(meta)
+    managers = if build_tools, do: Enum.map(build_tools, &String.to_atom/1)
+
+    manifest = encode_manifest(name, version, checksum, managers)
     File.write!(Path.join(dest, ".hex"), manifest)
 
-    build_tools = meta["build_tools"]
-    managers = if build_tools, do: Enum.map(build_tools, &String.to_atom/1)
     {:hex, lock_name, version, checksum, managers, deps}
   after
     Hex.Registry.pdict_clean
@@ -118,6 +121,32 @@ defmodule Hex.SCM do
 
   def update(opts) do
     checkout(opts)
+  end
+
+  @build_tools [
+    {"mix.exs"     , "mix"},
+    {"rebar.config", "rebar"},
+    {"rebar"       , "rebar"},
+    {"Makefile"    , "make"},
+    {"Makefile.win", "make"}
+  ]
+
+  defp guess_build_tools(%{"build_tools" => tools}) do
+    tools
+  end
+
+  defp guess_build_tools(meta) do
+    base_files =
+      (meta["files"] || [])
+      |> Enum.filter(&(Path.dirname(&1) == "."))
+      |> MapSet.new
+
+    Enum.flat_map(@build_tools, fn {file, tool} ->
+      if file in base_files,
+          do: [tool],
+        else: []
+    end)
+    |> Enum.uniq
   end
 
   defp ensure_lock(nil, opts) do
@@ -128,15 +157,26 @@ defmodule Hex.SCM do
   end
   defp ensure_lock(lock, _opts), do: lock
 
-  defp parse_manifest(file) do
-    file
-    |> String.strip
-    |> String.split(",")
-    |> List.to_tuple
+  def parse_manifest(file) do
+    lines =
+      file
+      |> String.strip
+      |> String.split("\n")
+
+    case lines do
+      [first] ->
+        (String.split(first, ",") ++ [[]])
+        |> List.to_tuple
+      [first, managers] ->
+        managers = managers |> String.split(",") |> Enum.map(&String.to_atom/1)
+        (String.split(first, ",") ++ [managers])
+        |> List.to_tuple
+    end
   end
 
-  defp encode_manifest(name, version, checksum) do
-    "#{name},#{version},#{checksum}"
+  defp encode_manifest(name, version, checksum, managers) do
+    managers = managers || []
+    "#{name},#{version},#{checksum}\n#{Enum.join(managers, ",")}"
   end
 
   defp cache_path do
