@@ -113,7 +113,10 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp open_docs_offline([name], opts) do
-    latest_version = find_latest_version("#{opts[:home]}/#{name}")
+    {is_missing, latest_version} = find_package_version(name, opts)
+    if is_missing do
+      fetch_docs([name], opts)
+    end
     open_docs([name, latest_version], opts)
   end
 
@@ -121,6 +124,14 @@ defmodule Mix.Tasks.Hex.Docs do
     index_path = Path.join([opts[:home], name, version, 'index.html'])
 
     open_file(index_path)
+  end
+
+  defp find_package_version(name, opts) do
+    if File.exists?("#{opts[:home]}/#{name}") do
+      {false, find_latest_version("#{opts[:home]}/#{name}")}
+    else
+      {true, find_package_latest_version(name)}
+    end
   end
 
   defp get_docs_url([name]) do
