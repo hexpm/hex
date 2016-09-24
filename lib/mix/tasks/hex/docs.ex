@@ -14,14 +14,20 @@ defmodule Mix.Tasks.Hex.Docs do
 
       mix hex.docs open package <version>
 
+  ## Command line options
+
+    * `--offline` - Open a local version available in your filesystem
+
   It will open the specified version of the documentation for a package in a
   Web browser. If you do not specify the `version` argument, this task will
-  open the latest documentation available in your filesystem.
+  open the latest documentation.
   """
+
+  @switches [offline: :boolean]
 
   def run(args) do
     Hex.start
-    {opts, args, _} = OptionParser.parse(args)
+    {opts, args, _} = OptionParser.parse(args, switches: @switches)
     opts = normalize_options(opts)
 
     case args do
@@ -96,22 +102,36 @@ defmodule Mix.Tasks.Hex.Docs do
     Mix.raise "You must specify at least the name of a package"
   end
 
-  defp open_docs([name], opts) do
+  defp open_docs(package, opts) do
+    if opts[:offline] do
+      open_docs_offline(package, opts)
+    else
+      package
+      |> get_docs_url
+      |> browser_open
+    end
+  end
+
+  defp open_docs_offline([name], opts) do
     latest_version = find_latest_version("#{opts[:home]}/#{name}")
     open_docs([name, latest_version], opts)
   end
 
-  defp open_docs([name, version], opts) do
+  defp open_docs_offline([name, version], opts) do
     index_path = Path.join([opts[:home], name, version, 'index.html'])
 
     open_file(index_path)
-   end
+  end
 
-  defp open_file(path) do
-    unless File.exists?(path) do
-      Mix.raise "Documentation file not found: #{path}"
-    end
+  defp get_docs_url([name]) do
+    Hex.Utils.hexdocs_url(name)
+  end
 
+  defp get_docs_url([name, version]) do
+    Hex.Utils.hexdocs_url(name, version)
+  end
+
+  defp browser_open(path) do
     start_browser_command =
       case :os.type do
         {:win32, _} ->
@@ -125,6 +145,14 @@ defmodule Mix.Tasks.Hex.Docs do
     else
       Mix.raise "Command not found: #{start_browser_command}"
     end
+  end
+
+  defp open_file(path) do
+    unless File.exists?(path) do
+      Mix.raise "Documentation file not found: #{path}"
+    end
+
+    browser_open(path)
   end
 
   defp find_latest_version(path) do

@@ -8,7 +8,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
     version = "1.1.2"
     message = "Documentation file not found: #{docs_home}/#{package}/#{version}/index.html"
     assert_raise Mix.Error, message, fn ->
-      Mix.Tasks.Hex.Docs.run(["open", package, version])
+      Mix.Tasks.Hex.Docs.run(["open", package, version, "--offline"])
     end
   end
 
@@ -91,7 +91,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
     end
 
     assert_raise Mix.Error, msg, fn ->
-      Mix.Tasks.Hex.Docs.run(["open"])
+      Mix.Tasks.Hex.Docs.run(["open", "--offline"])
     end
   end
 end
