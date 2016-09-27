@@ -68,8 +68,14 @@ defmodule Mix.Tasks.Hex.User do
       ["test"] ->
         test()
       _ ->
-        Mix.raise "Invalid arguments, expected one of:\nmix hex.user register\n" <>
-                  "mix hex.user auth\nmix hex.user whoami\nmix hex.user deauth\nmix hex.user reset password"
+        Mix.raise """
+        Invalid arguments, expected one of:
+        mix hex.user register
+        mix hex.user auth
+        mix hex.user whoami
+        mix hex.user deauth
+        mix hex.user reset password
+        """
     end
   end
 

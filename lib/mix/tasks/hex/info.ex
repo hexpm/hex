@@ -22,11 +22,17 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.start
 
     case args do
-      [] -> general()
-      [package] -> package(package)
-      [package, version] -> release(package, version)
+      [] ->
+        general()
+      [package] ->
+        package(package)
+      [package, version] ->
+        release(package, version)
       _ ->
-        Mix.raise "Invalid arguments, expected: mix hex.info [PACKAGE [VERSION]]"
+        Mix.raise """
+        Invalid arguments, expected:
+        mix hex.info [PACKAGE [VERSION]]
+        """
     end
   end
 

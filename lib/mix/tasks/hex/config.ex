@@ -49,7 +49,10 @@ defmodule Mix.Tasks.Hex.Config do
       [key, value] ->
         set(key, value)
       _ ->
-        Mix.raise "Invalid arguments, expected: mix hex.config KEY [VALUE]"
+        Mix.raise """
+        Invalid arguments, expected:
+        mix hex.config KEY [VALUE]
+        """
     end
   end
 

@@ -53,10 +53,12 @@ defmodule Mix.Tasks.Hex.PublicKeys do
       ["remove", key|_] ->
         remove(key, opts)
     _ ->
-      Mix.raise "Invalid arguments, expected one of:\n" <>
-                "mix hex.public_keys list\n" <>
-                "mix hex.public_keys add URL_TO_REPO LOCAL_PATH_TO_KEY\n" <>
-                "mix hex.public_keys remove URL_TO_REPO"
+      Mix.raise """
+      Invalid arguments, expected one of:
+      mix hex.public_keys list
+      mix hex.public_keys add URL_TO_REPO LOCAL_PATH_TO_KEY
+      mix hex.public_keys remove URL_TO_REPO
+      """
     end
   end
 

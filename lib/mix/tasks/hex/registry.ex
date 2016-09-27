@@ -36,13 +36,12 @@ defmodule Mix.Tasks.Hex.Registry do
       ["load", path] ->
         load(path)
       _otherwise ->
-        message = """
-          Invalid arguments, expected one of:
-            mix hex.registry fetch
-            mix hex.registry dump <path>
-            mix hex.registry load <path>
-          """
-        Mix.raise message
+        Mix.raise """
+        Invalid arguments, expected one of:
+        mix hex.registry fetch
+        mix hex.registry dump <path>
+        mix hex.registry load <path>
+        """
     end
   end
 

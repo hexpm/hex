@@ -42,21 +42,28 @@ defmodule Mix.Tasks.Hex.Owner do
     Hex.Utils.ensure_registry(fetch: false)
 
     config = Hex.Config.read
-    auth = Utils.auth_info(config)
 
     case args do
       ["add", package, owner] ->
+        auth = Utils.auth_info(config)
         add_owner(package, owner, auth)
       ["remove", package, owner] ->
+        auth = Utils.auth_info(config)
         remove_owner(package, owner, auth)
       ["list", package] ->
+        auth = Utils.auth_info(config)
         list_owners(package, auth)
       ["packages"] ->
+        auth = Utils.auth_info(config)
         list_owned_packages(config, auth)
       _ ->
-        Mix.raise "Invalid arguments, expected one of:\nmix hex.owner add PACKAGE EMAIL\n" <>
-                  "mix hex.owner remove PACKAGE EMAIL\nmix hex.owner list PACKAGE\n" <>
-                  "mix hex.owner packages"
+        Mix.raise """
+        Invalid arguments, expected one of:
+        mix hex.owner add PACKAGE EMAIL
+        mix hex.owner remove PACKAGE EMAIL
+        mix hex.owner list PACKAGE
+        mix hex.owner packages
+        """
     end
   end
 

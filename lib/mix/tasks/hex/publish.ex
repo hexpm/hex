@@ -99,34 +99,38 @@ defmodule Mix.Tasks.Hex.Publish do
     Hex.Utils.ensure_registry(fetch: false)
 
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
-    auth = Utils.auth_info(Hex.Config.read)
-
+    config = Hex.Config.read
     build = Build.prepare_package!
     revert_version = opts[:revert]
     revert = !!revert_version
 
     case args do
       ["package"] when revert ->
+        auth = Utils.auth_info(config)
         revert_package(build, revert_version, auth)
       ["docs"] when revert ->
+        auth = Utils.auth_info(config)
         revert_docs(build, revert_version, auth)
       [] when revert ->
+        auth = Utils.auth_info(config)
         revert(build, revert_version, auth)
       ["package"] ->
+        auth = Utils.auth_info(config)
         if proceed?(build), do: create_package(build, auth, opts)
       ["docs"] ->
+        auth = Utils.auth_info(config)
         docs_task(build, opts)
         create_docs(build, auth, opts)
       [] ->
+        auth = Utils.auth_info(config)
         create(build, auth, opts)
       _ ->
-        message = """
-          invalid arguments, expected one of:
-            mix hex.publish
-            mix hex.publish package
-            mix hex.publish docs
-          """
-        Mix.raise message
+        Mix.raise """
+        Invalid arguments, expected one of:
+        mix hex.publish
+        mix hex.publish package
+        mix hex.publish docs
+        """
     end
   end
 
@@ -189,7 +193,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp print_link_to_coc() do
-    Hex.Shell.info "Before publishing, please read Hex Code of Conduct: https://hex.pm/policies/codeofconduct"
+    Hex.Shell.info "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct"
   end
 
   defp revert(build, version, auth) do

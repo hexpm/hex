@@ -34,19 +34,26 @@ defmodule Mix.Tasks.Hex.Key do
     Hex.start
     Hex.Utils.ensure_registry(fetch: false)
 
-    auth = Utils.auth_info(Hex.Config.read)
-
+    config = Hex.Config.read
     all? = Keyword.get(opts, :all, false)
 
     case args do
       ["remove", key] ->
+        auth = Utils.auth_info(config)
         remove_key(key, auth)
       ["remove"] when all? ->
+        auth = Utils.auth_info(config)
         remove_all_keys(auth)
       ["list"] ->
+        auth = Utils.auth_info(config)
         list_keys(auth)
       _ ->
-        Mix.raise "Invalid arguments, expected one of:\nmix hex.key remove KEY\nmix hex.key remove --all\nmix hex.key list"
+        Mix.raise """
+        Invalid arguments, expected one of:
+        mix hex.key remove KEY
+        mix hex.key remove --all
+        mix hex.key list
+        """
     end
   end
 

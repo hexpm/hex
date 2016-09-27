@@ -16,11 +16,15 @@ defmodule Mix.Tasks.Hex.Search do
       [package] ->
         Hex.Utils.ensure_registry!()
 
-        Hex.Registry.search(package)
+        package
+        |> Hex.Registry.search
         |> lookup_packages
 
       _ ->
-        Mix.raise "Invalid arguments, expected: mix hex.search PACKAGE"
+        Mix.raise """
+        Invalid arguments, expected:
+        mix hex.search PACKAGE
+        """
     end
   end
 

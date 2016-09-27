@@ -53,10 +53,7 @@ defmodule Mix.Hex.Build do
 
   defp check_excluded_deps([]), do: []
   defp check_excluded_deps(deps) do
-    deps
-    |> Enum.into(["Excluded dependencies (not part of the Hex package):"], &("    #{&1}"))
-    |> Enum.join("\n")
-    |> List.wrap()
+    ["Dependencies excluded from the package (only Hex packages can be dependencies): #{Enum.join(deps, ", ")}"]
   end
 
   defp meta_for(config, package, deps) do
