@@ -61,10 +61,4 @@ defmodule Hex do
   else
     defp dev_setup, do: :ok
   end
-
-  if Version.compare(System.version, "1.3.0") == :lt do
-    def string_to_charlist(string), do: String.to_char_list(string)
-  else
-    def string_to_charlist(string), do: String.to_charlist(string)
-  end
 end
