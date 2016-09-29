@@ -69,9 +69,9 @@ defmodule Mix.Tasks.Hex.DocsTest do
     assert Exception.message(exception) =~ ~s([deprecation] The "mix hex.docs" command has changed)
 
     invalid_args_msg = """
-    invalid arguments, expected one of:
-      mix hex.docs fetch PACKAGE [VERSION]
-      mix hex.docs open PACKAGE [VERSION]
+    Invalid arguments, expected one of:
+    mix hex.docs fetch PACKAGE [VERSION]
+    mix hex.docs open PACKAGE [VERSION]
     """
 
     assert_raise Mix.Error, invalid_args_msg, fn ->

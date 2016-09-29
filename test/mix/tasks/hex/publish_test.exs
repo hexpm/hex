@@ -98,11 +98,11 @@ defmodule Mix.Tasks.Hex.PublishTest do
       setup_auth("user", "hunter42")
 
       raised_message = """
-        invalid arguments, expected one of:
-          mix hex.publish
-          mix hex.publish package
-          mix hex.publish docs
-        """
+      Invalid arguments, expected one of:
+      mix hex.publish
+      mix hex.publish package
+      mix hex.publish docs
+      """
 
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       assert_raise Mix.Error, raised_message, fn ->
