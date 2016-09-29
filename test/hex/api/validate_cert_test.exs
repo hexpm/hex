@@ -8,7 +8,7 @@ defmodule Hex.API.ValidateCertTest do
   end
 
   def partial_chain_fun do
-    &Hex.API.partial_chain([der_encoded_ca_cert()], &1)
+    &Hex.API.SSL.partial_chain([der_encoded_ca_cert()], &1)
   end
 
   def cert_path(name) do
@@ -65,7 +65,7 @@ defmodule Hex.API.ValidateCertTest do
     :public_key.pkix_path_validation(trusted_cert, cert_path, max_path_length: 20, verify_fun: verify_fun)
   end
 
-  if Hex.API.secure_ssl? do
+  if Hex.API.SSL.secure_ssl? do
     test "succeeds to validate normal chain" do
       assert {:ok, _} = run_validation([server_cert()], :undefined)
     end
@@ -91,7 +91,7 @@ defmodule Hex.API.ValidateCertTest do
     end
 
     test "succeeds to validate with partial chain that is correct" do
-      partial_chain_fun = &Hex.API.partial_chain(Hex.API.Certs.cacerts, &1)
+      partial_chain_fun = &Hex.API.SSL.partial_chain(Hex.API.Certs.cacerts, &1)
       assert {:ok, _} = run_validation([amazon_cert(), verisign_g3(), verisigng5()], partial_chain_fun)
     end
   end
