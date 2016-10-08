@@ -187,13 +187,11 @@ defmodule Hex.Registry.Server do
   def handle_info({_ref, {:get_installs, result}}, state) do
     result =
       case result do
-        {200, body, _headers} ->
+        {code, body, _headers} when code in 200..299 ->
           Hex.API.Registry.find_new_version_from_csv(body)
-        {:http_error, _reason, []} ->
-          # TODO
-          nil
-        {_code, _body, _headers} ->
-          # TODO
+        {code, body, _} ->
+          Hex.Shell.error("Failed to check for new Hex version")
+          Hex.Utils.print_error_result(code, body)
           nil
       end
 
@@ -251,11 +249,6 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  defp write_result({:http_error, _reason, []}, package, _state) do
-    # TODO
-    raise "say what? #{package}"
-  end
-
   defp write_result({code, body, headers}, package, %{ets: tid}) when code in 200..299 do
     releases =
       body
@@ -286,6 +279,17 @@ defmodule Hex.Registry.Server do
   defp write_result({404, _, _}, package, %{ets: tid}) do
     delete_package(package, tid)
     :ok
+  end
+
+  defp write_result({code, body, _}, package, %{ets: tid}) do
+    cached? = !!:ets.lookup(tid, {:versions, package})
+    cached_message = if cached?, do: " (using cache)"
+    Hex.Shell.error("Failed to fetch record for '#{package}' from registry#{cached_message}")
+    Hex.Utils.print_error_result(code, body)
+
+    unless cached? do
+      raise "Stopping due to errors"
+    end
   end
 
   def maybe_wait(package, from, state, fun) do
