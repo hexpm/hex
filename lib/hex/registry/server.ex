@@ -35,6 +35,10 @@ defmodule Hex.Registry.Server do
     |> print_update_message
   end
 
+  def check_update do
+    GenServer.cast(@name, :check_update)
+  end
+
   def prefetch(name, packages) do
     case GenServer.call(name, {:prefetch, packages}, @timeout) do
       :ok ->
@@ -97,6 +101,11 @@ defmodule Hex.Registry.Server do
       new_update: nil}
   end
 
+  def handle_cast(:check_update, state) do
+    state = check_update(state, force: true)
+    {:noreply, state}
+  end
+
   def handle_call({:open, opts}, _from, %{ets: nil} = state) do
     path = String.to_char_list(opts[:registry_path] || path())
     tid =
@@ -105,7 +114,7 @@ defmodule Hex.Registry.Server do
         {:error, _reason} -> :ets.new(@name, [])
       end
     state = %{state | ets: tid, path: path}
-    state = check_update(state)
+    state = check_update(state, force: false)
     {:reply, {:ok, self()}, state}
   end
   def handle_call({:open, _opts}, _from, state) do
@@ -343,11 +352,11 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  defp check_update(%{already_checked_update?: true} = state) do
+  defp check_update(%{already_checked_update?: true} = state, _opts) do
     state
   end
-  defp check_update(%{ets: tid} = state) do
-    if check_update?(tid) do
+  defp check_update(%{ets: tid} = state, opts) do
+    if opts[:force] || check_update?(tid) do
       Task.async(fn ->
         {:get_installs, Hex.API.Registry.get_installs}
       end)

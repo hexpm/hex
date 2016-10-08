@@ -43,7 +43,9 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Shell.info ""
     Hex.Shell.info "Built with: Elixir #{Hex.elixir_version} and OTP #{Hex.otp_version}"
 
-    # TODO: Check for new versions
+    Hex.Registry.open!(Hex.Registry.Server)
+    Hex.Registry.Server.check_update
+    Hex.Registry.close
   end
 
   defp package(package) do
