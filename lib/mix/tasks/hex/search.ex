@@ -13,8 +13,6 @@ defmodule Mix.Tasks.Hex.Search do
   def run(args) do
     Hex.start
 
-    # TODO: Use API
-
     case args do
       [package] ->
         Hex.API.Package.search(package)
@@ -34,9 +32,13 @@ defmodule Mix.Tasks.Hex.Search do
   defp lookup_packages({200, packages, _headers}) do
     values =
       Enum.map(packages, fn package ->
-        [package["name"], package["url"]]
+        [package["name"], url(package["name"])]
       end)
 
     Utils.print_table(["Package", "URL"], values)
+  end
+
+  defp url(name) do
+    "https://hex.pm/packages/#{name}"
   end
 end

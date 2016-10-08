@@ -4,8 +4,8 @@ defmodule Mix.Tasks.Hex.SearchTest do
 
   test "search" do
     Mix.Tasks.Hex.Search.run(["doc"])
-    assert_received {:mix_shell, :info, ["ex_doc\e[0m    http://localhost:4043/packages/ex_doc" <> _]}
-    assert_received {:mix_shell, :info, ["only_doc\e[0m  http://localhost:4043/packages/only_doc" <> _]}
+    assert_received {:mix_shell, :info, ["ex_doc\e[0m    https://hex.pm/packages/ex_doc" <> _]}
+    assert_received {:mix_shell, :info, ["only_doc\e[0m  https://hex.pm/packages/only_doc" <> _]}
   end
 
   test "empty search" do
