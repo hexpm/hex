@@ -30,7 +30,7 @@ defmodule Hex.RemoteConverger do
     flat_deps = Hex.Mix.flatten_deps(deps, top_level)
     requests  = Hex.Mix.deps_to_requests(flat_deps)
 
-    [Hex.Mix.packages_from_lock(lock), Enum.map(requests, &elem(&1, 0))]
+    [Hex.Mix.packages_from_lock(lock), Hex.Mix.packages_from_lock(old_lock), Enum.map(requests, &elem(&1, 0))]
     |> Enum.concat
     |> Registry.prefetch
 
