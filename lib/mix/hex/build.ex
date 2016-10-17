@@ -225,6 +225,7 @@ defmodule Mix.Hex.Build do
       tool
     end
     |> default_build_tool()
+    |> Enum.uniq
   end
 
   defp default_build_tool([]), do: ["mix"]
