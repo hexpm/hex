@@ -23,7 +23,10 @@ defmodule Mix.Tasks.Hex.UserTest do
 
     auth = get_auth("eric", "hunter42")
     assert {200, body, _} = Hex.API.User.get("eric", auth)
-    assert body["email"] == "mail@mail.com"
+    assert body["username"] == "eric"
+    # TODO: re-enable after grace period
+    #       or test using a different authenticated endpoint
+    # assert body["email"] == "mail@mail.com"
   end
 
   test "auth" do
