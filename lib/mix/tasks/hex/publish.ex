@@ -37,7 +37,6 @@ defmodule Mix.Tasks.Hex.Publish do
   ## Command line options
 
     * `--revert VERSION` - Revert given version
-    * `--canonical URL` - Specify the canonical URL for the documentation
 
   ## Configuration
 
