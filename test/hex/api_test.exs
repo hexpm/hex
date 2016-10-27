@@ -3,11 +3,9 @@ defmodule Hex.APITest do
   @moduletag :integration
 
   test "user" do
-    assert {401, _, _} = Hex.API.User.get("test_user", [key: "something wrong"])
     assert {201, _, _} = Hex.API.User.new("test_user", "test_user@mail.com", "hunter42")
-
-    auth = HexTest.HexWeb.new_key([user: "test_user", pass: "hunter42"])
-    assert {200, %{"username" => "test_user"}, _} = Hex.API.User.get("test_user", auth)
+    assert {200, %{"username" => "test_user"}, _} = Hex.API.User.get("test_user")
+    assert {404, _, _} = Hex.API.User.get("unknown_user")
   end
 
   test "release" do

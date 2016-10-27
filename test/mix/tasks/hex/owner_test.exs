@@ -3,18 +3,18 @@ defmodule Mix.Tasks.Hex.OwnerTest do
   @moduletag :integration
 
   test "add owner" do
-    auth1 = HexTest.HexWeb.new_user("owner_user1", "owner_user1@mail.com", "passpass", "key")
-    auth2 = HexTest.HexWeb.new_user("owner_user2", "owner_user2@mail.com", "passpass", "key")
-    HexTest.HexWeb.new_package("owner_package1", "0.0.1", [], %{}, auth1)
+    auth = HexTest.HexWeb.new_user("owner_user1", "owner_user1@mail.com", "passpass", "key")
+    HexTest.HexWeb.new_user("owner_user2", "owner_user2@mail.com", "passpass", "key")
+    HexTest.HexWeb.new_package("owner_package1", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
-    Hex.Config.update(auth1)
+    Hex.Config.update(auth)
 
     send self(), {:mix_shell_input, :prompt, "passpass"}
     Mix.Tasks.Hex.Owner.run(["add", "owner_package1", "owner_user2@mail.com"])
 
     assert_received {:mix_shell, :info, ["Adding owner owner_user2@mail.com to owner_package1"]}
-    assert {200, %{"owned_packages" => %{"owner_package1" => _}}, _} = Hex.API.User.get("owner_user2", auth2)
+    assert {200, %{"owned_packages" => %{"owner_package1" => _}}, _} = Hex.API.User.get("owner_user2")
   end
 
   test "remove owner" do
@@ -31,7 +31,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Mix.Tasks.Hex.Owner.run(["remove", "owner_package2", "owner_user3@mail.com"])
 
     assert_received {:mix_shell, :info, ["Removing owner owner_user3@mail.com from owner_package2"]}
-    assert {200, %{"owned_packages" => owned}, _} = Hex.API.User.get("owner_user3", auth)
+    assert {200, %{"owned_packages" => owned}, _} = Hex.API.User.get("owner_user3")
     assert owned == %{}
   end
 
@@ -59,15 +59,8 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hex.Config.update(auth)
 
     send self(), {:mix_shell_input, :prompt, "passpass"}
-    send self(), {:mix_shell_input, :prompt, "passpass"}
-    send self(), {:mix_shell_input, :prompt, "passpass"}
-    Mix.Tasks.Hex.Owner.run(["add", package1, owner_email])
-    Mix.Tasks.Hex.Owner.run(["add", package2, owner_email])
-
     Mix.Tasks.Hex.Owner.run(["packages"])
-    owner_package4_msg = "#{package1} - http://localhost:4043/packages/#{package1}"
-    owner_package5_msg = "#{package2} - http://localhost:4043/packages/#{package2}"
-    assert_received {:mix_shell, :info, [^owner_package4_msg]}
-    assert_received {:mix_shell, :info, [^owner_package5_msg]}
+    assert_received {:mix_shell, :info, [^package1]}
+    assert_received {:mix_shell, :info, [^package2]}
   end
 end

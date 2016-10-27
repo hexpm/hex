@@ -54,8 +54,7 @@ defmodule Mix.Tasks.Hex.Owner do
         auth = Utils.auth_info(config)
         list_owners(package, auth)
       ["packages"] ->
-        auth = Utils.auth_info(config)
-        list_owned_packages(config, auth)
+        list_owned_packages(config)
       _ ->
         Mix.raise """
         Invalid arguments, expected one of:
@@ -99,12 +98,13 @@ defmodule Mix.Tasks.Hex.Owner do
     end
   end
 
-  def list_owned_packages(config, auth) do
+  def list_owned_packages(config) do
     {:ok, username} = Keyword.fetch(config, :username)
-    case Hex.API.User.get(username, auth) do
+
+    case Hex.API.User.get(username) do
       {code, body, _headers} when code in 200..299 ->
-        Enum.each(body["owned_packages"], fn({name, url}) ->
-          Hex.Shell.info("#{name} - #{url}")
+        Enum.each(body["owned_packages"], fn {name, _url} ->
+          Hex.Shell.info(name)
         end)
       {code, body, _headers} ->
         Hex.Shell.error("Listing owned packages failed")
