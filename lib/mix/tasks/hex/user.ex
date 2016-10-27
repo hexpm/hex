@@ -166,10 +166,9 @@ defmodule Mix.Tasks.Hex.User do
   defp test do
     config = Hex.Config.read
     username = local_user(config)
-    # auth = Utils.auth_info(config)
+    auth = Utils.auth_info(config)
 
-    # case Hex.API.User.get(username, auth) do
-    case Hex.API.User.get(username) do
+    case Hex.API.User.test(username, auth) do
       {code, _, _} when code in 200..299 ->
         Hex.Shell.info("Successfully authed. Your key works.")
       {code, body, _} ->
