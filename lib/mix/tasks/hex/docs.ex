@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Hex.Docs do
   @shortdoc "Fetch or open documentation of a package"
 
   @moduledoc """
-  Fetch or open documentation of a package
+  Fetch or open documentation of a package.
 
       mix hex.docs fetch PACKAGE [VERSION]
 
