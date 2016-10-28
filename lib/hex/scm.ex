@@ -109,12 +109,12 @@ defmodule Hex.SCM do
 
     meta = Hex.Tar.unpack(path, dest, {name, version})
     build_tools = guess_build_tools(meta)
-    managers = if build_tools, do: Enum.map(build_tools, &String.to_atom/1)
+    managers = if build_tools, do: build_tools |> Enum.map(&String.to_atom/1) |> Enum.sort
 
     manifest = encode_manifest(name, version, checksum, managers)
     File.write!(Path.join(dest, ".hex"), manifest)
 
-    {:hex, lock_name, version, checksum, managers, deps}
+    {:hex, lock_name, version, checksum, managers, Enum.sort(deps)}
   after
     Hex.Registry.pdict_clean
   end
