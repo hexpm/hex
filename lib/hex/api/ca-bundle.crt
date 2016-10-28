@@ -1,19 +1,19 @@
 ##
 ## Bundle of CA Root Certificates
 ##
-## Certificate data from Mozilla as of: Mon Sep 26 14:08:08 2016
+## Certificate data from Mozilla as of: Fri Oct 28 14:19:14 2016 GMT
 ##
 ## This is a bundle of X.509 certificates of public Certificate Authorities
 ## (CA). These were automatically extracted from Mozilla's root certificates
 ## file (certdata.txt).  This file can be found in the mozilla source tree:
-## http://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt
+## https://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt
 ##
 ## It contains the certificates in PEM format and therefore
 ## can be directly used with curl / libcurl / php_curl, or with
 ## an Apache+mod_ssl webserver for SSL client authentication.
 ## Just configure this file as the SSLCACertificateFile.
 ##
-## Conversion done with mk-ca-bundle.pl version 1.26.
+## Conversion done with mk-ca-bundle.pl version 1.27.
 ## SHA256: 01bbf1ecdd693f554ff4dcbe15880b3e6c33188a956c15ff845d313ca69cfeb8
 ##
 
