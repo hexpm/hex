@@ -9,6 +9,7 @@ function join { local IFS="$1"; shift; echo "$*"; }
 function build {
   rm .tool-versions || true
   rm -rf _build || true
+  rm src/safe_erl_term.erl || true
 
   echo "erlang ${2}\nelixir ${3}" > .tool-versions
 

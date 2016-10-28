@@ -38,7 +38,7 @@ Always build on the latest patch version and make sure tests pass before buildin
 
 ## Places where version is mentioned
 
-* mix.exs `:version` option
+* mix.exs `@version` attribute
 * CHANGELOG.md
 
 ## S3 paths
