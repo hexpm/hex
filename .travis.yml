@@ -2,63 +2,68 @@ language: erlang
 otp_release: 19.0
 sudo: false
 addons:
-  postgresql: "9.4"
+  postgresql: '9.4'
 before_install:
-  - wget https://s3.amazonaws.com/travis-otp-releases/binaries/ubuntu/12.04/x86_64/erlang-${HEXWEB_OTP}-nonroot.tar.bz2
-  - mkdir -p ${HEXWEB_OTP_PATH}
-  - tar -xf erlang-${HEXWEB_OTP}-nonroot.tar.bz2 -C ${HEXWEB_OTP_PATH} --strip-components=1
-  - ${HEXWEB_OTP_PATH}/Install -minimal $(pwd)/${HEXWEB_OTP_PATH}
-
-  - wget http://s3.hex.pm/builds/elixir/${HEXWEB_ELIXIR}.zip
-  - unzip -d ${HEXWEB_ELIXIR_PATH} ${HEXWEB_ELIXIR}.zip
-
-  - wget http://s3.hex.pm/builds/elixir/${ELIXIR}.zip
-  - unzip -d elixir ${ELIXIR}.zip
-  - export PATH=$(pwd)/elixir/bin:${PATH}
-
-  - mkdir -p ${HEXWEB_MIX_HOME}
-  - PATH=$(pwd)/${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/${HEXWEB_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/${HEXWEB_MIX_HOME} MIX_ARCHIVES=$(pwd)/${HEXWEB_MIX_HOME} mix local.hex --force
-  - PATH=$(pwd)/${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/${HEXWEB_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/${HEXWEB_MIX_HOME} MIX_ARCHIVES=$(pwd)/${HEXWEB_MIX_HOME} mix local.rebar --force
-  - mix local.hex --force
-  - mix local.rebar --force
+- wget https://s3.amazonaws.com/travis-otp-releases/binaries/ubuntu/12.04/x86_64/erlang-${HEXWEB_OTP}-nonroot.tar.bz2
+- mkdir -p ${HEXWEB_OTP_PATH}
+- tar -xf erlang-${HEXWEB_OTP}-nonroot.tar.bz2 -C ${HEXWEB_OTP_PATH} --strip-components=1
+- "${HEXWEB_OTP_PATH}/Install -minimal $(pwd)/${HEXWEB_OTP_PATH}"
+- wget http://s3.hex.pm/builds/elixir/${HEXWEB_ELIXIR}.zip
+- unzip -d ${HEXWEB_ELIXIR_PATH} ${HEXWEB_ELIXIR}.zip
+- wget http://s3.hex.pm/builds/elixir/${ELIXIR}.zip
+- unzip -d elixir ${ELIXIR}.zip
+- export PATH=$(pwd)/elixir/bin:${PATH}
+- mkdir -p ${HEXWEB_MIX_HOME}
+- PATH=$(pwd)/${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/${HEXWEB_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/${HEXWEB_MIX_HOME}
+  MIX_ARCHIVES=$(pwd)/${HEXWEB_MIX_HOME} mix local.hex --force
+- PATH=$(pwd)/${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/${HEXWEB_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/${HEXWEB_MIX_HOME}
+  MIX_ARCHIVES=$(pwd)/${HEXWEB_MIX_HOME} mix local.rebar --force
+- mix local.hex --force
+- mix local.rebar --force
 before_script:
-  - git clone https://github.com/hexpm/hex_web.git
-  - cd hex_web; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/../${HEXWEB_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXWEB_MIX_HOME} MIX_ENV=hex ../${HEXWEB_ELIXIR_PATH}/bin/mix deps.get; cd ..
-  - cd hex_web; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/../${HEXWEB_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXWEB_MIX_HOME} MIX_ENV=hex ../${HEXWEB_ELIXIR_PATH}/bin/mix compile; cd ..
-  - mix deps.get
-  - MIX_ENV=test mix deps.compile
+- git clone https://github.com/hexpm/hex_web.git
+- cd hex_web; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH}
+  MIX_HOME=$(pwd)/../${HEXWEB_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXWEB_MIX_HOME}
+  MIX_ENV=hex ../${HEXWEB_ELIXIR_PATH}/bin/mix deps.get; cd ..
+- cd hex_web; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH}
+  MIX_HOME=$(pwd)/../${HEXWEB_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXWEB_MIX_HOME}
+  MIX_ENV=hex ../${HEXWEB_ELIXIR_PATH}/bin/mix compile; cd ..
+- mix deps.get
+- MIX_ENV=test mix deps.compile
 script:
-  - MIX_ENV=test mix compile
-  - mix test
+- MIX_ENV=test mix compile
+- mix test
 env:
   global:
-    - HEXWEB_OTP=19.0
-    - HEXWEB_ELIXIR=v1.3.1
-    - HEXWEB_PATH=hex_web
-    - HEXWEB_ELIXIR_PATH=hexweb_elixir
-    - HEXWEB_OTP_PATH=hexweb_otp
-    - HEXWEB_MIX_HOME=hexweb_mix
-    - HEXWEB_MIX_ARCHIVES=hexweb_mix
+  - HEXWEB_OTP=19.0
+  - HEXWEB_ELIXIR=v1.3.1
+  - HEXWEB_PATH=hex_web
+  - HEXWEB_ELIXIR_PATH=hexweb_elixir
+  - HEXWEB_OTP_PATH=hexweb_otp
+  - HEXWEB_MIX_HOME=hexweb_mix
+  - HEXWEB_MIX_ARCHIVES=hexweb_mix
   matrix:
-    - ELIXIR=v1.2.6
-    - ELIXIR=v1.3.2
-    - ELIXIR=master
+  - ELIXIR=v1.2.6
+  - ELIXIR=v1.3.2
+  - ELIXIR=master
 matrix:
   include:
-    - otp_release: 18.3
-      env: ELIXIR=v1.0.5
-    - otp_release: 18.3
-      env: ELIXIR=v1.1.1
-    - otp_release: 18.3
-      env: ELIXIR=v1.2.6
-    - otp_release: 18.3
-      env: ELIXIR=v1.3.2
-    - otp_release: 18.3
-      env: ELIXIR=master
-    - otp_release: 17.5
-      env: ELIXIR=v1.0.5
-    - otp_release: 17.5
-      env: ELIXIR=v1.1.1
+  - otp_release: 18.3
+    env: ELIXIR=v1.0.5
+  - otp_release: 18.3
+    env: ELIXIR=v1.1.1
+  - otp_release: 18.3
+    env: ELIXIR=v1.2.6
+  - otp_release: 18.3
+    env: ELIXIR=v1.3.2
+  - otp_release: 18.3
+    env: ELIXIR=master
+  - otp_release: 17.5
+    env: ELIXIR=v1.0.5
+  - otp_release: 17.5
+    env: ELIXIR=v1.1.1
 notifications:
   recipients:
-    - eric.meadows.jonsson@gmail.com
+  - eric.meadows.jonsson@gmail.com
+  slack:
+    secure: T5QN9luR7rMH4v88yD944QW3C3Itgd3Bh89oJbxNDweC2dyTqOuvJOgzfcFwBtnaT5j/kHOobd4QL7VHFZ+0UawOxxuy8fl7+A9mn02xVOIpn3Ky0qbpW//oApwKVz2x3X3OhuJASYDNj/w074WrjycIuk2iYkjCpIAnY2dSjo0=
