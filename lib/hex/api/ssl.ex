@@ -16,7 +16,7 @@ defmodule Hex.API.SSL do
     'AES128-SHA', 'AES256-SHA', 'DES-CBC3-SHA'
   ]
 
-  @default_versions [:"tlsv1.2", :"tlsv1.1", :tlsv1, :sslv3]
+  @default_versions [:"tlsv1.2", :"tlsv1.1", :tlsv1]
 
   @secure_ssl_version {5, 3, 7}
 
