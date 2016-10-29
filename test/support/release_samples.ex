@@ -5,7 +5,7 @@ defmodule ReleaseSimple.Mixfile do
      version: "0.0.1",
      package: [licenses: ["MIT"],
       maintainers: ["maintainers"],
-      links: %{"a" => "b"}]]
+      links: %{"a" => "http://a"}]]
   end
 end
 
@@ -23,7 +23,7 @@ defmodule ReleaseMeta.Mixfile do
      description: "foo",
      package: [files: ["myfile.txt", "missing.txt", "missing/*"],
        licenses: ["Apache"],
-       links: %{"a" => "b"},
+       links: %{"a" => "http://a"},
        maintainers: ["maintainers"],
        extra: %{"c" => "d"}]]
   end
@@ -35,7 +35,7 @@ defmodule ReleaseName.Mixfile do
      package: [name: :released_name,
        licenses: ["MIT"],
        maintainers: ["maintainers"],
-       links: %{"a" => "b"}]]
+       links: %{"a" => "http://a"}]]
   end
 end
 
