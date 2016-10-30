@@ -139,7 +139,7 @@ defmodule Hex.SCM do
     base_files =
       (meta["files"] || [])
       |> Enum.filter(&(Path.dirname(&1) == "."))
-      |> MapSet.new
+      |> Enum.into(Hex.Set.new)
 
     Enum.flat_map(@build_tools, fn {file, tool} ->
       if file in base_files,
