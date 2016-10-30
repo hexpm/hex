@@ -61,7 +61,7 @@ defmodule Mix.Tasks.Hex.Install do
       |> parse_csv
       |> find_eligible_version(hex_version)
     else
-      Mix.raise "Could not install #{name} because Mix could not verify authenticity " <>
+      Mix.raise "Could not install #{name} because Hex could not verify authenticity " <>
                 "of metadata file at #{path}. This may happen because a proxy or some " <>
                 "entity is interfering with the download or because you don't have a " <>
                 "public key to verify the download.\n\nYou may try again later or check " <>
@@ -77,7 +77,7 @@ defmodule Mix.Tasks.Hex.Install do
         Mix.raise """
         #{message}
 
-        Could not install #{name} because Mix could not download metadata at #{path}.
+        Could not install #{name} because Hex could not download metadata at #{path}.
         """
     end
   end
@@ -93,7 +93,7 @@ defmodule Mix.Tasks.Hex.Install do
 
     entries
     |> Enum.reverse
-    |> Enum.find_value(entries, &find_version(&1, elixir_version, hex_version))
+    |> Enum.find_value(&find_version(&1, elixir_version, hex_version))
   end
 
   defp find_version([hex_version, digest | versions], elixir_version, hex_version) do
