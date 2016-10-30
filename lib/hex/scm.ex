@@ -65,11 +65,11 @@ defmodule Hex.SCM do
   end
 
   def managers(opts) do
-    if opts[:lock] do
-      [:hex, _name, _version, _checksum, managers, _deps] = Hex.Utils.lock(opts[:lock])
-      managers || []
-    else
-      []
+    case Hex.Utils.lock(opts[:lock]) do
+      [:hex, _name, _version, _checksum, managers, _deps] ->
+        managers || []
+      _ ->
+        []
     end
   end
 
