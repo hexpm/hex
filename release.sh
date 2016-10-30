@@ -25,22 +25,33 @@ function build {
 # $1   = hex version
 # $... = elixir version
 function hex_csv {
-  rm hex-1.x.csv || true
+  rm hex-1.x*.csv || true
+
+  s3down hex-1.x.csv hex-1.x-old.csv
 
   for elixir in ${@:2}
   do
     sha=$(shasum -a 512 hex-${1}-${elixir}.ez)
     sha=($sha)
-    echo "${1},${sha},${elixir}" >> hex-1.x.csv
+    echo "${1},${sha},${elixir}" >> hex-1.x-new.csv
   done
+
+  cat hex-1.x-new.csv >> hex-1.x.csv
+  cat hex-1.x-old.csv >> hex-1.x.csv
 
   openssl dgst -sha512 -sign "${ELIXIR_PEM}" hex-1.x.csv | openssl base64 > hex-1.x.csv.signed
 }
 
 # $1 = source
 # $2 = target
-function s3cp {
+function s3up {
   aws s3 cp ${1} s3://s3.hex.pm/installs/${2} --acl public-read --cache-control "public, max-age=604800" --metadata "surrogate-key=installs"
+}
+
+# $1 = source
+# $2 = target
+function s3down {
+  aws s3 cp s3://s3.hex.pm/installs/${1} ${2}
 }
 
 # $1   = hex version
@@ -48,15 +59,15 @@ function s3cp {
 function upload {
   for elixir in ${@:2}
   do
-    s3cp hex-${elixir}.ez ${elixir}/hex.ez
-    s3cp hex-${1}-${elixir}.ez ${elixir}/hex-${1}.ez
+    s3up hex-${elixir}.ez ${elixir}/hex.ez
+    s3up hex-${1}-${elixir}.ez ${elixir}/hex-${1}.ez
   done
 
   # special case 1.0.0 upload
-  s3cp hex-1.0.0.ez hex.ez
+  s3up hex-1.0.0.ez hex.ez
 
-  s3cp hex-1.x.csv hex-1.x.csv
-  s3cp hex-1.x.csv.signed hex-1.x.csv.signed
+  s3up hex-1.x.csv hex-1.x.csv
+  s3up hex-1.x.csv.signed hex-1.x.csv.signed
 }
 
 
