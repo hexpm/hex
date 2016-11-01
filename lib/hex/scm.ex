@@ -131,11 +131,11 @@ defmodule Hex.SCM do
     {"Makefile.win", "make"}
   ]
 
-  defp guess_build_tools(%{"build_tools" => tools}) do
+  def guess_build_tools(%{"build_tools" => tools}) do
     tools
   end
 
-  defp guess_build_tools(meta) do
+  def guess_build_tools(meta) do
     base_files =
       (meta["files"] || [])
       |> Enum.filter(&(Path.dirname(&1) == "."))
