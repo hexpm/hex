@@ -109,7 +109,7 @@ defmodule Hex.SCM do
 
     meta = Hex.Tar.unpack(path, dest, {name, version})
     build_tools = guess_build_tools(meta)
-    managers = if build_tools, do: build_tools |> Enum.map(&String.to_atom/1) |> Enum.sort
+    managers = build_tools |> Enum.map(&String.to_atom/1) |> Enum.sort
 
     manifest = encode_manifest(name, version, checksum, managers)
     File.write!(Path.join(dest, ".hex"), manifest)
@@ -132,7 +132,7 @@ defmodule Hex.SCM do
   ]
 
   def guess_build_tools(%{"build_tools" => tools}) do
-    tools
+    Enum.uniq(tools)
   end
 
   def guess_build_tools(meta) do
