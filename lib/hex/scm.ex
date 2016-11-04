@@ -132,7 +132,9 @@ defmodule Hex.SCM do
   ]
 
   def guess_build_tools(%{"build_tools" => tools}) do
-    Enum.uniq(tools)
+    if tools,
+      do: Enum.uniq(tools),
+      else: []
   end
 
   def guess_build_tools(meta) do
