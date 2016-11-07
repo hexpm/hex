@@ -7,4 +7,5 @@ defmodule Hex.Set do
 
   defdelegate new(), to: @module
   defdelegate put(set, value), to: @module
+  defdelegate delete(set, value), to: @module
 end

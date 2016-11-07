@@ -92,7 +92,7 @@ defmodule Hex.Registry.Server do
     %{ets: nil,
       path: nil,
       refs: %{},
-      pending: %{},
+      pending: Hex.Set.new,
       waiting: %{},
       fetched: Hex.Set.new,
       waiting_close: nil,
@@ -144,6 +144,7 @@ defmodule Hex.Registry.Server do
       packages
       |> Enum.uniq
       |> Enum.reject(&(&1 in state.fetched))
+      |> Enum.reject(&(&1 in state.pending))
 
     if Hex.State.fetch!(:offline?) do
       prefetch_offline(packages, state)
@@ -202,9 +203,8 @@ defmodule Hex.Registry.Server do
   end
 
   def handle_info({ref, {:get_package, result}}, state) do
-    package = Map.fetch!(state.refs, ref)
-    refs = Map.delete(state.refs, ref)
-    pending = Map.delete(state.pending, package)
+    {package, refs} = Map.pop(state.refs, ref)
+    pending = Hex.Set.delete(state.pending, package)
     fetched = Hex.Set.put(state.fetched, package)
     {replys, waiting} = Map.pop(state.waiting, package, [])
 
@@ -223,13 +223,14 @@ defmodule Hex.Registry.Server do
       Enum.map(packages, fn package ->
         task = Task.async(fn ->
           opts = fetch_opts(package, state)
+          # TODO: etag this
           {:get_package, Hex.API.Registry.get_package(package, opts)}
         end)
         {task.ref, package}
       end)
 
     refs = Enum.into(tasks, state.refs)
-    pending = Enum.into(tasks, state.pending, fn {ref, package} -> {package, ref} end)
+    pending = Enum.into(tasks, state.pending, fn {_ref, package} -> package end)
 
     state = %{state | refs: refs, pending: pending}
     {:reply, :ok, state}
@@ -292,11 +293,11 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  def maybe_wait(package, from, state, fun) do
+  defp maybe_wait(package, from, state, fun) do
     cond do
       package in state.fetched ->
         {:reply, fun.(), state}
-      Map.has_key?(state.pending, package) ->
+      package in state.pending ->
         tuple = {from, fun}
         waiting = Map.update(state.waiting, package, [tuple], &[tuple|&1])
         {:noreply, %{state | waiting: waiting}}
