@@ -56,6 +56,8 @@ defmodule Hex.RemoteConverger do
         resolver_failed(message)
     end
   after
+    if Version.compare(System.version, "1.4.0") == :lt,
+      do: Hex.Registry.Server.persist
     Registry.pdict_clean
   end
 
