@@ -7,7 +7,7 @@ defmodule Hex.Registry.Server do
   @name __MODULE__
   @ets __MODULE__.ETS
   @filename "cache.ets"
-  @timeout 30_000
+  @timeout 60_000
   @update_interval 24 * 60 * 60
 
   def start_link(opts \\ []) do

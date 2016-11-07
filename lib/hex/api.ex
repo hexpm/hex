@@ -1,7 +1,7 @@
 defmodule Hex.API do
   alias Hex.API.Utils
-  
-  @request_timeout 60_000
+
+  @request_timeout 25_000
   @erlang_vendor 'application/vnd.hex+erlang'
 
   def request(method, url, headers, body \\ nil)
