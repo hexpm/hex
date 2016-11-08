@@ -150,8 +150,10 @@ defmodule Mix.Tasks.Hex.Docs do
       case :os.type do
         {:win32, _} ->
           "start"
-        {:unix, _} ->
+        {:unix, :darwin} ->
           "open"
+        {:unix, _} ->
+          "xdg-open"
       end
 
     if System.find_executable(start_browser_command) do
