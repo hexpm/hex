@@ -95,7 +95,7 @@ defmodule Hex.API.SSL do
   end
 
   defp filter_ciphers(allowed) do
-    available = :ssl.cipher_suites(:openssl)
+    available = Hex.Set.new(:ssl.cipher_suites(:openssl))
     Enum.filter(allowed, &(&1 in available))
   end
 end
