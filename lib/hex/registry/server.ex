@@ -360,6 +360,9 @@ defmodule Hex.Registry.Server do
   defp check_update(%{already_checked_update?: true} = state, _opts) do
     state
   end
+  defp check_update(%{checking_update?: true} = state, _opts) do
+    state
+  end
   defp check_update(%{ets: tid} = state, opts) do
     if opts[:force] || check_update?(tid) do
       Task.async(fn ->
