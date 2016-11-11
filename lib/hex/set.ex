@@ -6,6 +6,7 @@ defmodule Hex.Set do
   end
 
   defdelegate new(), to: @module
+  defdelegate new(enum), to: @module
   defdelegate put(set, value), to: @module
   defdelegate delete(set, value), to: @module
 end
