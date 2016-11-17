@@ -99,6 +99,11 @@ defmodule Hex.Utils do
   def hexdocs_url(package, version),
     do: "https://hexdocs.pm/#{package}/#{version}"
 
+  def hexdocs_module_url(package, module),
+    do: "https://hexdocs.pm/#{package}/#{module}.html"
+  def hexdocs_module_url(package, version, module),
+    do: "https://hexdocs.pm/#{package}/#{version}/#{module}.html"
+
   def proxy_config(url) do
     {http_proxy, https_proxy} = proxy_setup()
     proxy_auth(URI.parse(url), http_proxy, https_proxy)
