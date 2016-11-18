@@ -5,7 +5,7 @@ defmodule Hex.API do
   @erlang_vendor 'application/vnd.hex+erlang'
 
   def request(method, url, headers, body \\ nil)
-      when (is_map(headers) or is_list(headers)) and (body == nil or is_map(body)) do
+  when (is_map(headers) or is_list(headers)) and (body == nil or is_map(body)) do
     default_headers = %{
       'accept' => @erlang_vendor,
       'accept-encoding' => 'gzip',

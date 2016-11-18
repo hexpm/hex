@@ -15,4 +15,14 @@ defmodule Hex.API.Release do
     url = API.api_url("packages/#{name}/releases/#{version}")
     API.request(:delete, url, API.auth(auth))
   end
+
+  def retire(name, version, body, auth) do
+    url = API.api_url("packages/#{name}/releases/#{version}/retire")
+    API.request(:post, url, API.auth(auth), body)
+  end
+
+  def unretire(name, version, auth) do
+    url = API.api_url("packages/#{name}/releases/#{version}/retire")
+    API.request(:delete, url, API.auth(auth))
+  end
 end
