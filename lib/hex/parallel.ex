@@ -6,13 +6,13 @@ defmodule Hex.Parallel do
 
   use GenServer
 
-  def start_link(name, opts) do
-    GenServer.start_link(__MODULE__, new_state(opts), name: name)
+  def start_link(name) do
+    GenServer.start_link(__MODULE__, [], name: name)
   end
 
-  @spec run(GenServer.server, any, (() -> any)) :: :ok
-  def run(name, id, fun) do
-    GenServer.cast(name, {:run, id, fun})
+  @spec run(GenServer.server, any, Keyword.t, (() -> any)) :: :ok
+  def run(name, id, opts \\ [], fun) do
+    GenServer.call(name, {:run, id, opts, fun})
   end
 
   @spec await(GenServer.server, any, timeout) :: any
@@ -24,9 +24,22 @@ defmodule Hex.Parallel do
     GenServer.call(name, :clear)
   end
 
-  def handle_cast({:run, id, fun}, state) do
+  def init([]) do
+    {:ok, new_state()}
+  end
+
+  def handle_call({:run, id, opts, fun}, {pid, _ref}, state) do
+    await? = Keyword.get(opts, :await, true)
     state = run_task(id, fun, state)
-    {:noreply, state}
+
+    state =
+      if await? do
+        state
+      else
+        %{state | waiting_reply: Map.put(state.waiting_reply, id, {:send, pid})}
+      end
+
+    {:reply, :ok, state}
   end
 
   def handle_call({:await, id}, from, state) do
@@ -34,7 +47,7 @@ defmodule Hex.Parallel do
       state = %{state | finished: Map.delete(state.finished, id)}
       {:reply, result, state}
     else
-      state = %{state | waiting_reply: Map.put(state.waiting_reply, id, from)}
+      state = %{state | waiting_reply: Map.put(state.waiting_reply, id, {:gen, from})}
       {:noreply, state}
     end
   end
@@ -53,24 +66,10 @@ defmodule Hex.Parallel do
 
     if task = Enum.find(tasks, &(&1.ref == ref)) do
       id = state.running[task]
-      state = %{state | running: Map.delete(state.running, task)}
-
       state =
-        if from = state.waiting_reply[id] do
-          GenServer.reply(from, message)
-          %{state | waiting_reply: Map.delete(state.waiting_reply, id)}
-        else
-          %{state | finished: Map.put(state.finished, id, message)}
-        end
-
-      state =
-        case :queue.out(state.waiting) do
-          {{:value, {id, fun}}, waiting} ->
-            state = %{state | waiting: waiting}
-            run_task(id, fun, state)
-          {:empty, _} ->
-            state
-        end
+        %{state | running: Map.delete(state.running, task)}
+        |> reply(id, message)
+        |> next_task
 
       {:noreply, state}
     else
@@ -88,6 +87,29 @@ defmodule Hex.Parallel do
     end
   end
 
+  defp reply(state, id, message) do
+    case state.waiting_reply[id] do
+      {:gen, from} ->
+        GenServer.reply(from, message)
+        %{state | waiting_reply: Map.delete(state.waiting_reply, id)}
+      {:send, pid} ->
+        send(pid, message)
+        %{state | waiting_reply: Map.delete(state.waiting_reply, id)}
+      nil ->
+        %{state | finished: Map.put(state.finished, id, message)}
+    end
+  end
+
+  defp next_task(state) do
+    case :queue.out(state.waiting) do
+      {{:value, {id, fun}}, waiting} ->
+        state = %{state | waiting: waiting}
+        run_task(id, fun, state)
+      {:empty, _} ->
+        state
+    end
+  end
+
   defp run_task(id, fun, state) do
     if Map.size(state.running) >= state.max_jobs do
       %{state | waiting: :queue.in({id, fun}, state.waiting)}
@@ -97,8 +119,8 @@ defmodule Hex.Parallel do
     end
   end
 
-  defp new_state(opts) do
-    %{max_jobs: opts[:max_parallel] || 64,
+  defp new_state() do
+    %{max_jobs: Hex.State.fetch!(:http_concurrency),
       running: %{},
       finished: %{},
       waiting: :queue.new,

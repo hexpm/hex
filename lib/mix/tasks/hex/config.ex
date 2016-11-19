@@ -27,6 +27,8 @@ defmodule Mix.Tasks.Hex.Config do
       signature against the repository's public key
     * `http_proxy` - HTTP proxy server
     * `https_proxy` - HTTPS proxy server
+    * `http_concurrency` - Limits the number of concurrent HTTP requests in
+      flight, can be overridden by setting `HEX_HTTP_CONCURRENCY`
 
   ## Command line options
 

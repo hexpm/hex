@@ -43,6 +43,7 @@ defmodule Hex.State do
       offline?:         load_config(config, ["HEX_OFFLINE"], :offline) |> to_boolean |> default(false),
       check_cert?:      load_config(config, ["HEX_UNSAFE_HTTPS"], :unsafe_https) |> to_boolean |> default(false) |> Kernel.not,
       check_registry?:  load_config(config, ["HEX_UNSAFE_REGISTRY"], :unsafe_registry) |> to_boolean |> default(false) |> Kernel.not,
+      http_concurrency: load_config(config, ["HEX_HTTP_CONCURRENCY"], :http_concurrency) |> to_integer |> default(8),
       hexpm_pk:         @hexpm_pk,
       httpc_profile:    :hex,
       ssl_version:      ssl_version(),
@@ -139,6 +140,13 @@ defmodule Hex.State do
   defp to_boolean("false"), do: false
   defp to_boolean("true"),  do: true
 
+  defp to_integer(nil), do: nil
+  defp to_integer(""), do: nil
+  defp to_integer(string) do
+    {int, _} = Integer.parse(string)
+    int
+  end
+
   defp default(nil, value), do: value
   defp default(value, _),   do: value
 
@@ -191,9 +199,4 @@ defmodule Hex.State do
     do: [major, minor, patch]
   defp version_pad([major, minor, patch | _]),
     do: [major, minor, patch]
-
-  defp to_integer(string) do
-    {int, _} = Integer.parse(string)
-    int
-  end
 end

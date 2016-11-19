@@ -91,10 +91,9 @@ defmodule Hex.Registry.Server do
   defp reset_state(state) do
     %{ets: nil,
       path: nil,
-      refs: %{},
       pending: Hex.Set.new,
-      waiting: %{},
       fetched: Hex.Set.new,
+      waiting: %{},
       waiting_close: nil,
       already_checked_update?: Map.get(state, :already_checked_update?, false),
       checking_update?: false,
@@ -202,8 +201,7 @@ defmodule Hex.Registry.Server do
     {:noreply, state}
   end
 
-  def handle_info({ref, {:get_package, result}}, state) do
-    {package, refs} = Map.pop(state.refs, ref)
+  def handle_info({:get_package, package, result}, state) do
     pending = Hex.Set.delete(state.pending, package)
     fetched = Hex.Set.put(state.fetched, package)
     {replys, waiting} = Map.pop(state.waiting, package, [])
@@ -214,25 +212,20 @@ defmodule Hex.Registry.Server do
       GenServer.reply(from, fun.())
     end)
 
-    state = %{state | refs: refs, pending: pending, waiting: waiting, fetched: fetched}
+    state = %{state | pending: pending, waiting: waiting, fetched: fetched}
     {:noreply, state}
   end
 
   defp prefetch_online(packages, state) do
-    tasks =
-      Enum.map(packages, fn package ->
-        task = Task.async(fn ->
-          opts = fetch_opts(package, state)
-          # TODO: etag this
-          {:get_package, Hex.API.Registry.get_package(package, opts)}
-        end)
-        {task.ref, package}
+    Enum.each(packages, fn package ->
+      opts = fetch_opts(package, state)
+      Hex.Parallel.run(:hex_fetcher, {:registry, package}, [await: false], fn ->
+        {:get_package, package, Hex.API.Registry.get_package(package, opts)}
       end)
+    end)
 
-    refs = Enum.into(tasks, state.refs)
-    pending = Enum.into(tasks, state.pending, fn {_ref, package} -> package end)
-
-    state = %{state | refs: refs, pending: pending}
+    pending = Enum.into(packages, state.pending)
+    state = %{state | pending: pending}
     {:reply, :ok, state}
   end
 
@@ -300,7 +293,8 @@ defmodule Hex.Registry.Server do
       package in state.pending ->
         tuple = {from, fun}
         waiting = Map.update(state.waiting, package, [tuple], &[tuple|&1])
-        {:noreply, %{state | waiting: waiting}}
+        state = %{state | waiting: waiting}
+        {:noreply, state}
       true ->
         raise "Package #{package} not prefetched, please report this issue"
     end

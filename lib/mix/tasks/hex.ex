@@ -25,6 +25,8 @@ defmodule Mix.Tasks.Hex do
       against the repository's public key
     * `HTTP_PROXY` / `HTTPS_PROXY` - Sets the URL to a HTTP(S) proxy, the
       environment variables can also be in lower case
+    * `HEX_HTTP_CONCURRENCY` - Limits the number of concurrent HTTP requests in
+      flight, (Default: 8)
   """
 
   def run(args) do

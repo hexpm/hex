@@ -87,7 +87,7 @@ defmodule Hex.SCM do
 
     Hex.Shell.info "  Checking package (#{url})"
 
-    case Hex.Parallel.await(:hex_fetcher, {name, version}, @fetch_timeout) do
+    case Hex.Parallel.await(:hex_fetcher, {:tarball, name, version}, @fetch_timeout) do
       {:ok, :cached} ->
         Hex.Shell.info "  Using locally cached package"
       {:ok, :offline} ->
@@ -194,7 +194,7 @@ defmodule Hex.SCM do
 
     Enum.each(fetch, fn {package, version} ->
       etag = Hex.Registry.tarball_etag(package, version)
-      Hex.Parallel.run(:hex_fetcher, {package, version}, fn ->
+      Hex.Parallel.run(:hex_fetcher, {:tarball, package, version}, fn ->
         filename = "#{package}-#{version}.tar"
         path = cache_path(filename)
         fetch(filename, path, etag)
