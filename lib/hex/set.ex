@@ -4,9 +4,12 @@ defmodule Hex.Set do
   else
     @module MapSet
   end
+  
+  def new(enum) do
+    Enum.into(enum, new())
+  end
 
   defdelegate new(), to: @module
-  defdelegate new(enum), to: @module
   defdelegate put(set, value), to: @module
   defdelegate delete(set, value), to: @module
 end
