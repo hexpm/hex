@@ -1,4 +1,4 @@
-## v0.14.1-dev
+## v0.14.1 (2016-11-24)
 
 ### Enhancements
   * Add environment variable `HEX_HTTP_CONCURRENCY` for limiting number of concurrent HTTP requests
