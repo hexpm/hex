@@ -1,8 +1,20 @@
 ## v0.14.1-dev
 
+### Enhancements
+  * Add environment variable `HEX_HTTP_CONCURRENCY` for limiting number of concurrent HTTP requests
+
+### Bug fixes
+  * Fix compatibilities with older Elixir version (<= 1.1)
+  * Ensure build tools are unique in mix.lock and when publishing
+  * Fix `hex.docs open` opening websites on Unix systems
+  * Do not crash on diverged dependencies with conflicting SCMs
+  * Fix some duplicate HTTP requests on slow networks
+  * Limit concurrent registry HTTP requests
+
 ## v0.14.0 (2016-10-28)
 
 ### New registry format
+
 Hex has switched to a new registry format that is more efficient and will scale better as the registry grows. The new registry format is encoded with protocol buffers and is split into multiple files (one file per package) to avoid fetching one big file with data you will not need. The resolver will make more HTTP requests but will in total fetch much less data. The specification for the new format can be found here: https://github.com/hexpm/specifications/pull/10. The old ETS based registry format is no longer supported in the client but will continue to be available from the registry for the foreseeable future.
 
 ### Enhancements
