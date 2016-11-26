@@ -27,17 +27,14 @@ function build {
 function hex_csv {
   rm hex-1.x*.csv || true
 
-  s3down hex-1.x.csv hex-1.x-old.csv
+  s3down hex-1.x.csv hex-1.x.csv
 
   for elixir in ${@:2}
   do
     sha=$(shasum -a 512 hex-${1}-${elixir}.ez)
     sha=($sha)
-    echo "${1},${sha},${elixir}" >> hex-1.x-new.csv
+    echo "${1},${sha},${elixir}" >> hex-1.x.csv
   done
-
-  cat hex-1.x-new.csv >> hex-1.x.csv
-  cat hex-1.x-old.csv >> hex-1.x.csv
 
   openssl dgst -sha512 -sign "${ELIXIR_PEM}" hex-1.x.csv | openssl base64 > hex-1.x.csv.signed
 }
