@@ -1,5 +1,8 @@
 ## v0.14.2-dev
 
+### Bug fixes
+  * mix hex.outdated correctly tests if a package can be updated
+
 ## v0.14.1 (2016-11-24)
 
 ### Enhancements
