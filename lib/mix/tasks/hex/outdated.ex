@@ -143,7 +143,7 @@ defmodule Mix.Tasks.Hex.Outdated do
             deps
             |> get_requirements(dep.app)
             |> Enum.map(fn [_, req_version] -> req_version end)
-            |> List.insert_at(0, dep.requirement)
+          requirements = [dep.requirement | requirements]
 
           [[Atom.to_string(dep.app), lock_version, latest_version, requirements]]
         _ ->
