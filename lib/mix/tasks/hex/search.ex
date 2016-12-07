@@ -32,10 +32,14 @@ defmodule Mix.Tasks.Hex.Search do
   defp lookup_packages({200, packages, _headers}) do
     values =
       Enum.map(packages, fn package ->
-        [package["name"], url(package["name"])]
+        [package["name"], latest(package["releases"]), url(package["name"])]
       end)
 
-    Utils.print_table(["Package", "URL"], values)
+    Utils.print_table(["Package", "Version", "URL"], values)
+  end
+
+  defp latest([%{"version" => version} | _]) do
+    version
   end
 
   defp url(name) do
