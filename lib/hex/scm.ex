@@ -193,10 +193,10 @@ defmodule Hex.SCM do
     fetch = fetch_from_lock(lock)
 
     Enum.each(fetch, fn {package, version} ->
-      etag = Hex.Registry.tarball_etag(package, version)
+      filename = "#{package}-#{version}.tar"
+      path = cache_path(filename)
+      etag = File.exists?(path) && Hex.Registry.tarball_etag(package, version)
       Hex.Parallel.run(:hex_fetcher, {:tarball, package, version}, fn ->
-        filename = "#{package}-#{version}.tar"
-        path = cache_path(filename)
         fetch(filename, path, etag)
       end)
     end)
