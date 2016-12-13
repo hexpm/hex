@@ -4,18 +4,23 @@ defmodule Hex.Registry do
   @type name :: term
   @type package :: String.t
   @type version :: String.t
+  @type etag :: String.t
   @callback open(Keyword.t) :: {:ok, name} | {:already_open, name} | {:error, String.t}
   @callback close(name) :: :ok
   @callback prefetch(name, [package]) :: :ok
   @callback versions(name, package) :: [version]
   @callback deps(name, package, version) :: [{String.t, String.t, String.t, boolean}]
   @callback checksum(name, package, version) :: binary
+  @callback retired(name, package, version) :: binary
+  @callback tarball_etag(name, package, version) :: binary | nil
+  @callback tarball_etag(name, package, version, String.t) :: binary | nil
 
   options = quote do [
     prefetch(packages),
     versions(package),
     deps(package, version),
     checksum(package, version),
+    retired(package, version),
     tarball_etag(package, version),
     tarball_etag(package, version, etag)]
   end
