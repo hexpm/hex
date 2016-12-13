@@ -150,7 +150,15 @@ defmodule Hex.RemoteConverger do
       Hex.Shell.info "Dependency resolution completed"
       resolved = Enum.sort(resolved)
       Enum.each(resolved, fn {name, version} ->
-        Hex.Shell.info "  #{name}: #{version}"
+        case Registry.retired(name, version) do
+          nil ->
+            Hex.Shell.info "  #{name}: #{version}"
+          retired ->
+            Hex.Shell.warn "  #{name}: #{version} RETIRED! #{retired[:reason]}"
+            if message = retired[:message] do
+              Hex.Shell.warn "    #{message}"
+            end
+        end
       end)
     end
   end

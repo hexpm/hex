@@ -60,6 +60,10 @@ defmodule Hex.Registry.Server do
     GenServer.call(name, {:checksum, package, version}, @timeout)
   end
 
+  def retired(name, package, version) do
+    GenServer.call(name, {:retired, package, version}, @timeout)
+  end
+
   def tarball_etag(name, package, version) do
     GenServer.call(name, {:tarball_etag, package, version}, @timeout)
   end
@@ -169,6 +173,12 @@ defmodule Hex.Registry.Server do
     end)
   end
 
+  def handle_call({:retired, package, version}, from, state) do
+    maybe_wait(package, from, state, fn ->
+      lookup(state.ets, {:retired, package, version})
+    end)
+  end
+
   def handle_call({:tarball_etag, package, version}, _from, state) do
     etag = lookup(state.ets, {:tarball_etag, package, version})
     {:reply, etag, state}
@@ -251,8 +261,9 @@ defmodule Hex.Registry.Server do
 
     delete_package(package, tid)
 
-    Enum.each(releases, fn %{version: version, checksum: checksum, dependencies: deps} ->
+    Enum.each(releases, fn %{version: version, checksum: checksum, dependencies: deps} = release ->
       :ets.insert(tid, {{:checksum, package, version}, checksum})
+      :ets.insert(tid, {{:retired, package, version}, release[:retired]})
       deps = Enum.map(deps, fn dep ->
         {dep[:package], dep[:app] || dep[:package], dep[:requirement], !!dep[:optional]}
       end)
@@ -316,6 +327,7 @@ defmodule Hex.Registry.Server do
     :ets.delete(tid, {:versions, package})
     Enum.each(versions, fn version ->
       :ets.delete(tid, {:checksum, package, version})
+      :ets.delete(tid, {:retired, package, version})
       :ets.delete(tid, {:deps, package, version})
     end)
   end
