@@ -114,7 +114,7 @@ defmodule Hex.Utils do
     uri = URI.parse(proxy)
 
     if uri.host && uri.port do
-      host = String.to_char_list(uri.host)
+      host = Hex.string_to_charlist(uri.host)
       :httpc.set_options([{proxy_scheme(scheme), {{host, uri.port}, []}}], :hex)
     end
 
@@ -140,8 +140,8 @@ defmodule Hex.Utils do
   defp proxy_auth(%URI{userinfo: auth}) do
     destructure [user, pass], String.split(auth, ":", parts: 2)
 
-    user = String.to_char_list(user)
-    pass = String.to_char_list(pass || "")
+    user = Hex.string_to_charlist(user)
+    pass = Hex.string_to_charlist(pass || "")
 
     [proxy_auth: {user, pass}]
   end

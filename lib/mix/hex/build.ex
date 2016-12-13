@@ -93,7 +93,7 @@ defmodule Mix.Hex.Build do
 
     package
     |> Map.put(:files, files)
-    |> maybe_put(:description, package[:description], &String.strip/1)
+    |> maybe_put(:description, package[:description], &String.trim/1)
     |> maybe_put(:name, package[:name] || config[:app], &(&1))
     |> maybe_put(:build_tools, !package[:build_tools] && guess_build_tools(files), &(&1))
     |> Map.take(@meta_fields)

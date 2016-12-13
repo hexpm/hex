@@ -1,5 +1,4 @@
 defmodule Hex.Tar do
-  import Kernel, except: [to_charlist: 1, to_char_list: 1]
   @supported ["3"]
   @version "3"
   @required_files ~w(VERSION CHECKSUM metadata.config contents.tar.gz)c
@@ -10,8 +9,8 @@ defmodule Hex.Tar do
 
     files =
       Enum.map(files, fn
-        {name, bin} -> {String.to_char_list(name), bin}
-        name -> String.to_char_list(name)
+        {name, bin} -> {Hex.string_to_charlist(name), bin}
+        name -> Hex.string_to_charlist(name)
       end)
 
     :ok = :erl_tar.create(contents_path, files, [:compressed])
@@ -120,7 +119,7 @@ defmodule Hex.Tar do
   end
 
   defp decode_metadata(contents) do
-    string = to_charlist(contents)
+    string = safe_to_charlist(contents)
     case :safe_erl_term.string(string) do
       {:ok, tokens, _line} ->
         try do
@@ -139,7 +138,7 @@ defmodule Hex.Tar do
   end
 
   # Some older packages have invalid unicode
-  defp to_charlist(string) do
+  defp safe_to_charlist(string) do
     try do
       Hex.string_to_charlist(string)
     rescue

@@ -5,7 +5,6 @@ defmodule Hex.Registry.Server do
   # TODO: Optimize to not go through genserver
 
   @name __MODULE__
-  @ets __MODULE__.ETS
   @filename "cache.ets"
   @timeout 60_000
   @update_interval 24 * 60 * 60
@@ -106,7 +105,7 @@ defmodule Hex.Registry.Server do
   end
 
   def handle_call({:open, opts}, _from, %{ets: nil} = state) do
-    path = String.to_char_list(opts[:registry_path] || path())
+    path = Hex.string_to_charlist(opts[:registry_path] || path())
     tid =
       case :ets.file2tab(path) do
         {:ok, tid} -> tid

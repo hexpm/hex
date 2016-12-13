@@ -70,8 +70,8 @@ defmodule Mix.Hex.Utils do
   end
 
   def encrypt_key(config, key, challenge \\ "Passphrase") do
-    password = password_get("#{challenge}:") |> String.strip
-    confirm = password_get("#{challenge} (confirm):") |> String.strip
+    password = password_get("#{challenge}:") |> String.trim
+    confirm = password_get("#{challenge} (confirm):") |> String.trim
     if password != confirm do
       Mix.raise "Entered passphrases do not match"
     end
@@ -85,7 +85,7 @@ defmodule Mix.Hex.Utils do
   end
 
   def decrypt_key(encrypted_key, challenge \\ "Passphrase") do
-    password = password_get("#{challenge}:") |> String.strip
+    password = password_get("#{challenge}:") |> String.trim
     case Hex.Crypto.decrypt(encrypted_key, password, @apikey_tag) do
       {:ok, key} ->
         key

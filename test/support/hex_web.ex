@@ -54,13 +54,13 @@ defmodule HexTest.HexWeb do
   end
 
   def start do
-    path                = String.to_char_list(path())
-    hexweb_mix_home     = String.to_char_list(hexweb_mix_home())
-    hexweb_mix_archives = String.to_char_list(hexweb_mix_archives())
+    path                = Hex.string_to_charlist(path())
+    hexweb_mix_home     = Hex.string_to_charlist(hexweb_mix_home())
+    hexweb_mix_archives = Hex.string_to_charlist(hexweb_mix_archives())
 
     key = Path.join(__DIR__, "../fixtures/test_priv.pem")
           |> File.read!
-          |> String.to_char_list
+          |> Hex.string_to_charlist
 
     env = [
       {'MIX_ENV', 'hex'},
@@ -114,7 +114,7 @@ defmodule HexTest.HexWeb do
 
   defp hexweb_mix do
     if path = hexweb_elixir() do
-      path = String.to_char_list(path)
+      path = Hex.string_to_charlist(path)
       :os.find_executable('mix', path)
     else
       :os.find_executable('mix')

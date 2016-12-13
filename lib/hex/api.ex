@@ -14,7 +14,7 @@ defmodule Hex.API do
 
     http_opts = [relaxed: true, timeout: @request_timeout] ++ Hex.Utils.proxy_config(url)
     opts = [body_format: :binary]
-    url = String.to_char_list(url)
+    url = Hex.string_to_charlist(url)
     profile = Hex.State.fetch!(:httpc_profile)
 
     request =
@@ -84,11 +84,11 @@ defmodule Hex.API do
     default_headers = %{
       'accept' => @erlang_vendor,
       'user-agent' => user_agent(),
-      'content-length' => to_char_list(byte_size(body))}
+      'content-length' => Hex.to_charlist(byte_size(body))}
     headers = Enum.into(headers, default_headers)
     http_opts = [relaxed: true, timeout: @request_timeout] ++ Hex.Utils.proxy_config(url)
     opts = [body_format: :binary]
-    url = String.to_char_list(url)
+    url = Hex.string_to_charlist(url)
     profile = Hex.State.fetch!(:httpc_profile)
 
     body = fn
@@ -155,7 +155,7 @@ defmodule Hex.API do
 
   def auth(opts) do
     if key = opts[:key] do
-      %{'authorization' => String.to_char_list(key)}
+      %{'authorization' => Hex.string_to_charlist(key)}
     else
       base64 = :base64.encode_to_string(opts[:user] <> ":" <> opts[:pass])
       %{'authorization' => 'Basic ' ++ base64}

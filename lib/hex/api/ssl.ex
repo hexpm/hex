@@ -38,7 +38,7 @@ defmodule Hex.API.SSL do
 
   def ssl_opts(url) do
     url = List.to_string(url)
-    hostname = String.to_char_list(URI.parse(url).host)
+    hostname = Hex.string_to_charlist(URI.parse(url).host)
     ciphers = filter_ciphers(@default_ciphers)
 
     if secure_ssl?() do

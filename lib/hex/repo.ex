@@ -8,7 +8,7 @@ defmodule Hex.Repo do
     headers = [{'user-agent', Hex.API.user_agent}]
     headers = if etag, do: [{'if-none-match', Hex.string_to_charlist(etag)}|headers], else: headers
     http_opts = [relaxed: true, timeout: @request_timeout] ++ Hex.Utils.proxy_config(url)
-    url = String.to_char_list(url)
+    url = Hex.string_to_charlist(url)
     profile = Hex.State.fetch!(:httpc_profile)
 
     case Hex.API.request_with_redirect(:get, {url, headers}, http_opts, opts, profile, 3) do

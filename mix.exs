@@ -78,7 +78,7 @@ defmodule Hex.Mixfile do
       ebin = archive_ebin(archive)
       Code.delete_path(ebin)
 
-      {:ok, files} = :erl_prim_loader.list_dir(to_char_list(ebin))
+      {:ok, files} = ebin |> :unicode.characters_to_list |> :erl_prim_loader.list_dir
 
       Enum.each(files, fn file ->
         file = List.to_string(file)

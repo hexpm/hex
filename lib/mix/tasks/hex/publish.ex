@@ -268,7 +268,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp relative_path(file, dir) do
     Path.relative_to(file, dir)
-    |> String.to_char_list
+    |> Hex.string_to_charlist
   end
 
   defp docs_dir do

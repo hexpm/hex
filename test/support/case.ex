@@ -110,7 +110,7 @@ defmodule HexTest.Case do
     versions = Enum.map(versions, fn {pkg, val} -> {{:versions, pkg}, val} end)
     deps = Enum.map(deps, fn {{pkg, vsn}, val} -> {{:deps, pkg, vsn}, val} end)
     :ets.insert(tid, versions ++ deps)
-    :ok = :ets.tab2file(tid, String.to_char_list(path))
+    :ok = :ets.tab2file(tid, Hex.string_to_charlist(path))
     :ets.delete(tid)
   end
 
@@ -221,7 +221,7 @@ defmodule HexTest.Case do
       case conn do
         %Plug.Conn{request_path: "/docs/package-1.1.2.tar.gz"} ->
           tar_file = tmp_path("package-1.1.2.tar.gz")
-          index_file = String.to_char_list("index.html")
+          index_file = Hex.string_to_charlist("index.html")
           :erl_tar.create(tar_file, [{index_file, ""}], [:compressed])
           package = File.read!(tar_file)
           Plug.Conn.resp(conn, 200, package)

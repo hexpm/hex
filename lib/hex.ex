@@ -49,8 +49,12 @@ defmodule Hex do
   end
 
   if Version.compare(System.version, "1.3.0") == :lt do
+    def string_trim(string), do: String.strip(string)
+    def to_charlist(term), do: Kernel.to_char_list(term)
     def string_to_charlist(string), do: String.to_char_list(string)
   else
+    def string_trim(string), do: String.trim(string)
+    def to_charlist(term), do: Kernel.to_charlist(term)
     def string_to_charlist(string), do: String.to_charlist(string)
   end
 
