@@ -49,25 +49,29 @@ defmodule Hex.API.VerifyHostname do
 
   def validate_and_parse_wildcard_identifier(identifier, hostname) do
     wildcard_pos = :string.chr(identifier, ?*)
+    valid? =
+      wildcard_pos != 0 and
+        length(hostname) >= length(identifier) and
+        check_wildcard_in_leftmost_label(identifier, wildcard_pos) 
 
-    if wildcard_pos != 0 do
-      if length(hostname) >= length(identifier) do
-        if check_wildcard_in_leftmost_label(identifier, wildcard_pos) do
-          before_w = :string.substr(identifier, 1, wildcard_pos - 1)
-          after_w = :string.substr(identifier, wildcard_pos + 1)
+    if valid? do
+      before_w = :string.substr(identifier, 1, wildcard_pos - 1)
+      after_w = :string.substr(identifier, wildcard_pos + 1)
 
-          if :string.chr(after_w, ?*) == 0 do
-            case check_two_labels_after_wildcard(after_w) do
-              {:ok, dot_after_wildcard} ->
-                single_char_w = dot_after_wildcard == wildcard_pos and length(before_w) == 0
-                {before_w, after_w, single_char_w}
-              :error ->
-                false
-            end
-          end
+      if :string.chr(after_w, ?*) == 0 do
+        case check_two_labels_after_wildcard(after_w) do
+          {:ok, dot_after_wildcard} ->
+            single_char_w = dot_after_wildcard == wildcard_pos and length(before_w) == 0
+            {before_w, after_w, single_char_w}
+          :error ->
+            false
         end
+      else
+        false
       end
-    end || false
+    else
+      false
+    end
   end
 
   def try_match_hostname(identifier, hostname) do

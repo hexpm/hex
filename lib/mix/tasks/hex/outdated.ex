@@ -31,7 +31,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     lock = Mix.Dep.Lock.read
     deps = Mix.Dep.loaded([]) |> Enum.filter(& &1.scm == Hex.SCM)
-    
+
     Hex.Registry.open!(Hex.Registry.Server)
     Hex.Mix.packages_from_lock(lock)
     |> Hex.Registry.prefetch
@@ -109,7 +109,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   defp all(deps, lock, opts) do
     values =
-      if(opts[:all], do: deps, else: Enum.filter(deps, &(&1.top_level)))
+      if(opts[:all], do: deps, else: Enum.filter(deps, & &1.top_level))
       |> sort
       |> get_versions(lock, opts[:pre])
       |> Enum.map(&format_all_row/1)

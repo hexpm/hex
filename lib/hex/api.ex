@@ -51,7 +51,7 @@ defmodule Hex.API do
         case handle_redirect(response) do
           {:ok, location} when times > 0 ->
             request = update_request(request, location)
-            request_with_redirect(method, request, http_opts, opts, profile, times-1)
+            request_with_redirect(method, request, http_opts, opts, profile, times - 1)
           {:ok, _location} ->
             Mix.raise "Too many redirects"
           :error ->
@@ -165,7 +165,7 @@ defmodule Hex.API do
   defp retry(:get, times, fun) do
     case fun.() do
       {:http_error, _, _} when times > 1 ->
-        retry(:get, times-1, fun)
+        retry(:get, times - 1, fun)
       {:http_error, _, _} = error ->
         error
       other ->

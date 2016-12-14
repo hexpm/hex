@@ -47,7 +47,7 @@ defmodule Hex.State do
       hexpm_pk:         @hexpm_pk,
       httpc_profile:    :hex,
       ssl_version:      ssl_version(),
-      pbkdf2_iters:     32768,
+      pbkdf2_iters:     32_768,
       clean_pass:       true}
   end
 

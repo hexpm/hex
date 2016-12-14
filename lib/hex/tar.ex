@@ -24,7 +24,7 @@ defmodule Hex.Tar do
       {'VERSION', @version},
       {'CHECKSUM', checksum},
       {'metadata.config', meta_string},
-      {'contents.tar.gz', contents} ]
+      {'contents.tar.gz', contents}]
     :ok = :erl_tar.create(path, files)
 
     tar = File.read!(path)

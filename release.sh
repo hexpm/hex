@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 set -e -u
 
 function join { local IFS="$1"; shift; echo "$*"; }
@@ -11,15 +13,15 @@ function build {
   rm -rf _build || true
   rm src/safe_erl_term.erl || true
 
-  echo "erlang ${2}\nelixir ${3}" > .tool-versions
+  printf "erlang ${2}\nelixir ${3}" > .tool-versions
 
   MIX_ENV=prod mix compile
 
   MIX_ENV=prod mix archive.build
   MIX_ENV=prod mix archive.build -o hex.ez
 
-  mv hex.ez hex-${4}.ez
-  mv hex-${1}.ez hex-${1}-${4}.ez
+  mv hex.ez "hex-${4}.ez"
+  mv "hex-${1}.ez" "hex-${1}-${4}.ez"
 }
 
 # $1   = hex version
@@ -29,7 +31,7 @@ function hex_csv {
 
   s3down hex-1.x.csv hex-1.x.csv
 
-  for elixir in ${@:2}
+  for elixir in "${@:2}"
   do
     sha=$(shasum -a 512 hex-${1}-${elixir}.ez)
     sha=($sha)
@@ -42,22 +44,22 @@ function hex_csv {
 # $1 = source
 # $2 = target
 function s3up {
-  aws s3 cp ${1} s3://s3.hex.pm/installs/${2} --acl public-read --cache-control "public, max-age=604800" --metadata "surrogate-key=installs"
+  aws s3 cp "${1}" "s3://s3.hex.pm/installs/${2}" --acl public-read --cache-control "public, max-age=604800" --metadata "surrogate-key=installs"
 }
 
 # $1 = source
 # $2 = target
 function s3down {
-  aws s3 cp s3://s3.hex.pm/installs/${1} ${2}
+  aws s3 cp "s3://s3.hex.pm/installs/${1}" "${2}"
 }
 
 # $1   = hex version
 # $... = elixir versions
 function upload {
-  for elixir in ${@:2}
+  for elixir in "${@:2}"
   do
-    s3up hex-${elixir}.ez ${elixir}/hex.ez
-    s3up hex-${1}-${elixir}.ez ${elixir}/hex-${1}.ez
+    s3up "hex-${elixir}.ez" "${elixir}/hex.ez"
+    s3up "hex-${1}-${elixir}.ez" "${elixir}/hex-${1}.ez"
   done
 
   # special case 1.0.0 upload
@@ -76,8 +78,8 @@ build ${hex_version} 18.3.4.4 1.2.6 1.2.0
 build ${hex_version} 17.5.6.9 1.1.1 1.1.0
 build ${hex_version} 17.5.6.9 1.0.5 1.0.0
 
-hex_csv ${hex_version} 1.0.0 1.1.0 1.2.0 1.3.0
-upload  ${hex_version} 1.0.0 1.1.0 1.2.0 1.3.0
+hex_csv "${hex_version}" 1.0.0 1.1.0 1.2.0 1.3.0
+upload  "${hex_version}" 1.0.0 1.1.0 1.2.0 1.3.0
 
 
 rm -rf _build

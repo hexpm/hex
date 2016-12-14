@@ -85,7 +85,7 @@ defmodule Mix.Tasks.Hex.Info do
   defp format_releases(releases) do
     {releases, rest} = Enum.split(releases, 8)
     Enum.map_join(releases, ", ", &(&1["version"])) <>
-    if(rest != [], do: ", ..." , else: "")
+      if(rest != [], do: ", ..." , else: "")
   end
 
   defp print_meta(meta) do
@@ -106,8 +106,9 @@ defmodule Mix.Tasks.Hex.Info do
     if requirements = release["requirements"] do
       Hex.Shell.info "Dependencies:"
       Enum.each(requirements, fn {name, req} ->
+        app = req["app"]
+        app = if app && app != name, do: " (app: #{app})"
         optional = if req["optional"], do: " (optional)"
-        app = if (app = req["app"]) && app != name, do: " (app: #{app})"
         Hex.Shell.info "  #{name} #{req["requirement"]}#{app}#{optional}"
       end)
     end
@@ -146,15 +147,17 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp print_list(meta, name) do
-    if (list = meta[name]) && list != [] do
+    list = Map.get(meta, name, [])
+    if list != [] do
       Hex.Shell.info(String.capitalize(name) <> ": " <> Enum.join(list, ", "))
     end
   end
 
   defp print_dict(meta, name) do
     title = String.capitalize(name)
+    dict = Map.get(meta, name, [])
 
-    if (dict = meta[name]) && dict != [] do
+    if dict != [] do
       Hex.Shell.info title <> ":"
       Enum.each(dict, fn {key, val} ->
         Hex.Shell.info "  #{key}: #{val}"

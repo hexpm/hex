@@ -145,7 +145,7 @@ defmodule Mix.Tasks.Hex.PublicKeysTest do
   end
 
   defp sign(file) do
-    [entry | _ ] = :public_key.pem_decode(@private_key)
+    [entry | _] = :public_key.pem_decode(@private_key)
     key = :public_key.pem_entry_decode(entry)
 
     :public_key.sign(file, :sha512, key)

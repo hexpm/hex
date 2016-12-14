@@ -23,22 +23,19 @@ defmodule Hex.Crypto.KeyManager do
             {:ok, binary} | {:error, String.t}
 
   def init(%{alg: alg} = protected, opts) do
-    case key_manager_module(alg) do
-      :error ->
-        {:error, "Unrecognized KeyManager algorithm: #{inspect alg}"}
-      module ->
-        case module.init(protected, opts) do
-          {:ok, params} ->
-            key_manager = %KeyManager{module: module, params: params}
-            case ContentEncryptor.init(protected, opts) do
-              {:ok, content_encryptor} ->
-                {:ok, key_manager, content_encryptor}
-              content_encryptor_error ->
-                content_encryptor_error
-            end
-          key_manager_error ->
-            key_manager_error
-        end
+    with {:ok, module} <- key_manager_module(alg) do
+      case module.init(protected, opts) do
+        {:ok, params} ->
+          key_manager = %KeyManager{module: module, params: params}
+          case ContentEncryptor.init(protected, opts) do
+            {:ok, content_encryptor} ->
+              {:ok, key_manager, content_encryptor}
+            content_encryptor_error ->
+              content_encryptor_error
+          end
+        key_manager_error ->
+          key_manager_error
+      end
     end
   end
 
@@ -70,8 +67,8 @@ defmodule Hex.Crypto.KeyManager do
     end
   end
 
-  defp key_manager_module("PBES2-HS256"), do: Crypto.PBES2_HMAC_SHA2
-  defp key_manager_module("PBES2-HS384"), do: Crypto.PBES2_HMAC_SHA2
-  defp key_manager_module("PBES2-HS512"), do: Crypto.PBES2_HMAC_SHA2
-  defp key_manager_module(_), do: :error
+  defp key_manager_module("PBES2-HS256"), do: {:ok, Crypto.PBES2_HMAC_SHA2}
+  defp key_manager_module("PBES2-HS384"), do: {:ok, Crypto.PBES2_HMAC_SHA2}
+  defp key_manager_module("PBES2-HS512"), do: {:ok, Crypto.PBES2_HMAC_SHA2}
+  defp key_manager_module(alg), do: {:error, "Unrecognized KeyManager algorithm: #{inspect alg}"}
 end
