@@ -1,9 +1,9 @@
 defmodule Hex.Crypto.KeyManager do
-
   alias Hex.Crypto
   alias Hex.Crypto.ContentEncryptor
+  alias __MODULE__
 
-  @type t :: %__MODULE__{
+  @type t :: %KeyManager{
     module: module,
     params: any
   }
@@ -13,24 +13,24 @@ defmodule Hex.Crypto.KeyManager do
     params: nil
   ]
 
-  @callback init(protected :: map, options :: Keyword.t)
-    :: {:ok, any} | {:error, String.t}
+  @callback init(protected :: map, options :: Keyword.t) ::
+            {:ok, any} | {:error, String.t}
 
-  @callback encrypt(params :: any, protected :: map, content_encryptor :: ContentEncryptor.t)
-    :: {:ok, map, binary, binary} | {:error, String.t}
+  @callback encrypt(params :: any, protected :: map, content_encryptor :: ContentEncryptor.t) ::
+            {:ok, map, binary, binary} | {:error, String.t}
 
-  @callback decrypt(params :: any, protected :: map, encrypted_key :: binary, content_encryptor :: ContentEncryptor.t)
-    :: {:ok, binary} | {:error, String.t}
+  @callback decrypt(params :: any, protected :: map, encrypted_key :: binary, content_encryptor :: ContentEncryptor.t) ::
+            {:ok, binary} | {:error, String.t}
 
-  def init(protected = %{ alg: alg }, options) do
+  def init(%{alg: alg} = protected, opts) do
     case key_manager_module(alg) do
       :error ->
         {:error, "Unrecognized KeyManager algorithm: #{inspect alg}"}
       module ->
-        case module.init(protected, options) do
+        case module.init(protected, opts) do
           {:ok, params} ->
-            key_manager = %__MODULE__{module: module, params: params}
-            case ContentEncryptor.init(protected, options) do
+            key_manager = %KeyManager{module: module, params: params}
+            case ContentEncryptor.init(protected, opts) do
               {:ok, content_encryptor} ->
                 {:ok, key_manager, content_encryptor}
               content_encryptor_error ->
@@ -42,9 +42,9 @@ defmodule Hex.Crypto.KeyManager do
     end
   end
 
-  def encrypt(protected, options) do
-    case init(protected, options) do
-      {:ok, %__MODULE__{module: module, params: params}, content_encryptor} ->
+  def encrypt(protected, opts) do
+    case init(protected, opts) do
+      {:ok, %KeyManager{module: module, params: params}, content_encryptor} ->
         case module.encrypt(params, protected, content_encryptor) do
           {:ok, protected, key, encrypted_key} ->
             {:ok, protected, key, encrypted_key, content_encryptor}
@@ -56,9 +56,9 @@ defmodule Hex.Crypto.KeyManager do
     end
   end
 
-  def decrypt(protected, encrypted_key, options) do
-    case init(protected, options) do
-      {:ok, %__MODULE__{module: module, params: params}, content_encryptor} ->
+  def decrypt(protected, encrypted_key, opts) do
+    case init(protected, opts) do
+      {:ok, %KeyManager{module: module, params: params}, content_encryptor} ->
         case module.decrypt(params, protected, encrypted_key, content_encryptor) do
           {:ok, key} ->
             {:ok, key, content_encryptor}
@@ -70,11 +70,8 @@ defmodule Hex.Crypto.KeyManager do
     end
   end
 
-  ## Internal
-
   defp key_manager_module("PBES2-HS256"), do: Crypto.PBES2_HMAC_SHA2
   defp key_manager_module("PBES2-HS384"), do: Crypto.PBES2_HMAC_SHA2
   defp key_manager_module("PBES2-HS512"), do: Crypto.PBES2_HMAC_SHA2
   defp key_manager_module(_), do: :error
-
 end

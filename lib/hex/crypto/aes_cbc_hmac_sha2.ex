@@ -1,53 +1,46 @@
 defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
+  alias Hex.Crypto.ContentEncryptor
+
+  @behaviour ContentEncryptor
+
   @moduledoc ~S"""
   Content Encryption with AES_CBC_HMAC_SHA2.
 
   See: https://tools.ietf.org/html/rfc7518#section-5.2.6
   """
 
-  alias Hex.Crypto.ContentEncryptor
-
   @spec content_encrypt({binary, binary}, <<_::32>> | <<_::48>> | <<_::64>>, <<_::16>>) :: {binary, <<_::16>> | <<_::24>> | <<_::32>>}
   def content_encrypt({aad, plain_text}, key, iv)
-      when is_binary(aad)
-      and is_binary(plain_text)
-      and bit_size(key) in [256, 384, 512]
-      and bit_size(iv) === 128 do
+  when is_binary(aad) and
+       is_binary(plain_text) and
+       bit_size(key) in [256, 384, 512] and
+       bit_size(iv) === 128 do
     mac_size = div(byte_size(key), 2)
     enc_size = mac_size
     tag_size = mac_size
-    <<
-      mac_key :: binary-size(mac_size),
-      enc_key :: binary-size(enc_size)
-    >> = key
+    <<mac_key::binary-size(mac_size), enc_key::binary-size(enc_size)>> = key
     cipher_text = aes_cbc_encrypt(enc_key, iv, pkcs7_pad(plain_text))
-    aad_length = << (bit_size(aad)) :: 1-unsigned-big-integer-unit(64) >>
+    aad_length = <<bit_size(aad)::1-unsigned-big-integer-unit(64)>>
     mac_data = aad <> iv <> cipher_text <> aad_length
-    <<
-      cipher_tag :: binary-size(tag_size),
-      _ :: binary
-    >> = hmac_sha2(mac_key, mac_data)
+    <<cipher_tag::binary-size(tag_size), _::binary>> = hmac_sha2(mac_key, mac_data)
     {cipher_text, cipher_tag}
   end
 
   @spec content_decrypt({binary, binary, <<_::16>> | <<_::24>> | <<_::32>>}, <<_::32>> | <<_::48>> | <<_::64>>, <<_::16>>) :: {:ok, binary} | :error
   def content_decrypt({aad, cipher_text, cipher_tag}, key, iv)
-      when is_binary(aad)
-      and is_binary(cipher_text)
-      and bit_size(cipher_tag) in [128, 192, 256]
-      and bit_size(key) in [256, 384, 512]
-      and bit_size(iv) === 128 do
+  when is_binary(aad) and
+       is_binary(cipher_text) and
+       bit_size(cipher_tag) in [128, 192, 256] and
+       bit_size(key) in [256, 384, 512] and
+       bit_size(iv) === 128 do
     mac_size = div(byte_size(key), 2)
     enc_size = mac_size
     tag_size = mac_size
-    <<
-      mac_key :: binary-size(mac_size),
-      enc_key :: binary-size(enc_size)
-    >> = key
-    aad_length = << (bit_size(aad)) :: 1-unsigned-big-integer-unit(64) >>
+    <<mac_key::binary-size(mac_size), enc_key::binary-size(enc_size)>> = key
+    aad_length = <<bit_size(aad)::1-unsigned-big-integer-unit(64)>>
     mac_data = aad <> iv <> cipher_text <> aad_length
     case hmac_sha2(mac_key, mac_data) do
-      << ^cipher_tag :: binary-size(tag_size), _ :: binary >> ->
+      <<^cipher_tag::binary-size(tag_size), _::binary>> ->
         case aes_cbc_decrypt(enc_key, iv, cipher_text) do
           plain_text when is_binary(plain_text) ->
             pkcs7_unpad(plain_text)
@@ -59,29 +52,17 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
     end
   end
 
-  ## Content Encryptor
-
-  @behaviour ContentEncryptor
-
-  def init(%{ enc: enc }, _options)
-      when enc in ["A128CBC-HS256", "A192CBC-HS384", "A256CBC-HS512"] do
-    key_length =
-      case enc do
-        "A128CBC-HS256" -> 32
-        "A192CBC-HS384" -> 48
-        "A256CBC-HS512" -> 64
-      end
-    params = %{
-      key_length: key_length
-    }
-    {:ok, params}
+  def init(%{enc: enc}, _opts) do
+    {:ok, %{key_length: encoding_to_key_length(enc)}}
   end
 
-  def encrypt(%{key_length: key_length}, key, iv, {aad, plain_text}) when byte_size(key) == key_length do
+  def encrypt(%{key_length: key_length}, key, iv, {aad, plain_text})
+  when byte_size(key) == key_length do
     content_encrypt({aad, plain_text}, key, iv)
   end
 
-  def decrypt(%{key_length: key_length}, key, iv, {aad, cipher_text, cipher_tag}) when byte_size(key) == key_length do
+  def decrypt(%{key_length: key_length}, key, iv, {aad, cipher_text, cipher_tag})
+  when byte_size(key) == key_length do
     content_decrypt({aad, cipher_text, cipher_tag}, key, iv)
   end
 
@@ -97,38 +78,22 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
     key_length
   end
 
-  ## Internal
-
   # Support new and old style AES-CBC calls.
   defp aes_cbc_encrypt(key, iv, plain_text) do
-    try do
-      :crypto.block_encrypt(:aes_cbc, key, iv, plain_text)
-    catch
-      _,_ ->
-        cipher =
-          case bit_size(key) do
-            128 -> :aes_cbc128
-            192 -> :aes_cbc192
-            256 -> :aes_cbc256
-          end
-        :crypto.block_encrypt(cipher, key, iv, plain_text)
-    end
+    :crypto.block_encrypt(:aes_cbc, key, iv, plain_text)
+  rescue
+    ArgumentError ->
+      cipher = bit_size_to_cipher(key)
+      :crypto.block_encrypt(cipher, key, iv, plain_text)
   end
 
   # Support new and old style AES-CBC calls.
   defp aes_cbc_decrypt(key, iv, cipher_text) do
-    try do
-      :crypto.block_decrypt(:aes_cbc, key, iv, cipher_text)
-    catch
-      _,_ ->
-        cipher =
-          case bit_size(key) do
-            128 -> :aes_cbc128
-            192 -> :aes_cbc192
-            256 -> :aes_cbc256
-          end
-        :crypto.block_decrypt(cipher, key, iv, cipher_text)
-    end
+    :crypto.block_decrypt(:aes_cbc, key, iv, cipher_text)
+  rescue
+    ArgumentError ->
+      cipher = bit_size_to_cipher(key)
+      :crypto.block_decrypt(cipher, key, iv, cipher_text)
   end
 
   defp hmac_sha2(mac_key, mac_data) when bit_size(mac_key) === 128,
@@ -147,9 +112,9 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
     padding_size = 16 - bytes_remaining
     message <> :binary.copy(<<padding_size>>, padding_size)
   end
- 
+
   # Unpads a message using the PKCS #7 cryptographic message syntax.
-  # 
+  #
   # See: https://tools.ietf.org/html/rfc2315
   # See: `pkcs7_pad/1`
   defp pkcs7_unpad(<<>>),
@@ -168,4 +133,11 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
     end
   end
 
+  defp encoding_to_key_length("A128CBC-HS256"), do: 32
+  defp encoding_to_key_length("A192CBC-HS384"), do: 48
+  defp encoding_to_key_length("A256CBC-HS512"), do: 64
+
+  defp bit_size_to_cipher(128), do: :aes_cbc128
+  defp bit_size_to_cipher(192), do: :aes_cbc192
+  defp bit_size_to_cipher(256), do: :aes_cbc256
 end

@@ -1,8 +1,8 @@
 defmodule Hex.Crypto.ContentEncryptor do
-
   alias Hex.Crypto
+  alias __MODULE__
 
-  @type t :: %__MODULE__{
+  @type t :: %ContentEncryptor{
     module: module,
     params: any
   }
@@ -12,32 +12,32 @@ defmodule Hex.Crypto.ContentEncryptor do
     params: nil
   ]
 
-  @callback init(protected :: map, options :: Keyword.t)
-    :: {:ok, any} | {:error, String.t}
+  @callback init(protected :: map, options :: Keyword.t) ::
+            {:ok, any} | {:error, String.t}
 
-  @callback encrypt(params :: any, key :: binary, iv :: binary, {aad :: binary, plain_text :: binary})
-    :: {binary, binary}
+  @callback encrypt(params :: any, key :: binary, iv :: binary, {aad :: binary, plain_text :: binary}) ::
+            {binary, binary}
 
-  @callback decrypt(params :: any, key :: binary, iv :: binary, {aad :: binary, cipher_text :: binary, cipher_tag :: binary})
-    :: {:ok, binary} | :error
+  @callback decrypt(params :: any, key :: binary, iv :: binary, {aad :: binary, cipher_text :: binary, cipher_tag :: binary}) ::
+            {:ok, binary} | :error
 
-  @callback generate_key(params :: any)
-    :: binary
+  @callback generate_key(params :: any) ::
+            binary
 
-  @callback generate_iv(params :: any)
-    :: binary
+  @callback generate_iv(params :: any) ::
+            binary
 
-  @callback key_length(params :: any)
-    :: non_neg_integer
+  @callback key_length(params :: any) ::
+            non_neg_integer
 
-  def init(protected = %{ enc: enc }, options) do
+  def init(protected = %{enc: enc}, opts) do
     case content_encryptor_module(enc) do
       :error ->
         {:error, "Unrecognized ContentEncryptor algorithm: #{inspect enc}"}
       module ->
-        case module.init(protected, options) do
+        case module.init(protected, opts) do
           {:ok, params} ->
-            content_encryptor = %__MODULE__{module: module, params: params}
+            content_encryptor = %ContentEncryptor{module: module, params: params}
             {:ok, content_encryptor}
           content_encryptor_error ->
             content_encryptor_error
@@ -45,27 +45,25 @@ defmodule Hex.Crypto.ContentEncryptor do
     end
   end
 
-  def encrypt(%__MODULE__{module: module, params: params}, key, iv, {aad, plain_text}) do
+  def encrypt(%ContentEncryptor{module: module, params: params}, key, iv, {aad, plain_text}) do
     module.encrypt(params, key, iv, {aad, plain_text})
   end
 
-  def decrypt(%__MODULE__{module: module, params: params}, key, iv, {aad, cipher_text, cipher_tag}) do
+  def decrypt(%ContentEncryptor{module: module, params: params}, key, iv, {aad, cipher_text, cipher_tag}) do
     module.decrypt(params, key, iv, {aad, cipher_text, cipher_tag})
   end
 
-  def generate_key(%__MODULE__{module: module, params: params}) do
+  def generate_key(%ContentEncryptor{module: module, params: params}) do
     module.generate_key(params)
   end
 
-  def generate_iv(%__MODULE__{module: module, params: params}) do
+  def generate_iv(%ContentEncryptor{module: module, params: params}) do
     module.generate_iv(params)
   end
 
-  def key_length(%__MODULE__{module: module, params: params}) do
+  def key_length(%ContentEncryptor{module: module, params: params}) do
     module.key_length(params)
   end
-
-  ## Internal
 
   defp content_encryptor_module("A128CBC-HS256"), do: Crypto.AES_CBC_HMAC_SHA2
   defp content_encryptor_module("A192CBC-HS384"), do: Crypto.AES_CBC_HMAC_SHA2
@@ -74,5 +72,4 @@ defmodule Hex.Crypto.ContentEncryptor do
   defp content_encryptor_module("A192GCM"), do: Crypto.AES_GCM
   defp content_encryptor_module("A256GCM"), do: Crypto.AES_GCM
   defp content_encryptor_module(_), do: :error
-
 end

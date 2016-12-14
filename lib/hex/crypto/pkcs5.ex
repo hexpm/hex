@@ -6,24 +6,20 @@ defmodule Hex.Crypto.PKCS5 do
   """
 
   def pbkdf2(password, salt, iterations, derived_key_length, hash)
-      when is_binary(password)
-      and is_binary(salt)
-      and is_integer(iterations) and iterations >= 1
-      and is_integer(derived_key_length) and derived_key_length >= 0 do
+  when is_binary(password) and
+       is_binary(salt) and
+       is_integer(iterations) and iterations >= 1 and
+       is_integer(derived_key_length) and derived_key_length >= 0 do
     hash_length = byte_size(:crypto.hmac(hash, <<>>, <<>>))
     if derived_key_length > (0xFFFFFFFF * hash_length) do
       raise ArgumentError, "derived key too long"
     else
       rounds = ceildiv(derived_key_length, hash_length)
-      <<
-        derived_key :: binary-size(derived_key_length),
-        _ :: binary
-      >> = pbkdf2_iterate(password, salt, iterations, hash, 1, rounds, <<>>)
+      <<derived_key::binary-size(derived_key_length), _::binary>> =
+        pbkdf2_iterate(password, salt, iterations, hash, 1, rounds, "")
       derived_key
     end
   end
-
-  ## Internal
 
   defp ceildiv(a, b) do
     div(a, b) + (if rem(a, b) === 0, do: 0, else: 1)
