@@ -17,13 +17,14 @@ defmodule Mix.Tasks.Hex.Docs do
   ## Command line options
 
     * `--offline` - Open a local version available in your filesystem
+    * `--module Some.Module` - Open a specified module documentation page inside desired package
 
   It will open the specified version of the documentation for a package in a
   Web browser. If you do not specify the `version` argument, this task will
   open the latest documentation.
   """
 
-  @switches [offline: :boolean]
+  @switches [offline: :boolean, module: :string]
 
   def run(args) do
     Hex.start
@@ -110,7 +111,7 @@ defmodule Mix.Tasks.Hex.Docs do
       open_docs_offline(package, opts)
     else
       package
-      |> get_docs_url
+      |> get_docs_url(opts)
       |> browser_open
     end
   end
@@ -137,12 +138,20 @@ defmodule Mix.Tasks.Hex.Docs do
     end
   end
 
-  defp get_docs_url([name]) do
-    Hex.Utils.hexdocs_url(name)
+  defp get_docs_url([name], opts) do
+    if module = opts[:module] do
+      Hex.Utils.hexdocs_module_url(name, module)
+    else
+      Hex.Utils.hexdocs_url(name)
+    end
   end
 
-  defp get_docs_url([name, version]) do
-    Hex.Utils.hexdocs_url(name, version)
+  defp get_docs_url([name, version], opts) do
+    if module = opts[:module] do
+      Hex.Utils.hexdocs_module_url(name, version, module)
+    else
+      Hex.Utils.hexdocs_url(name, version)
+    end
   end
 
   defp browser_open(path) do
