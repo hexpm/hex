@@ -182,33 +182,41 @@ defmodule HexTest.Case do
   Hex.State.put(:mirror, System.get_env("HEX_MIRROR") || "http://localhost:4043/repo")
   Hex.State.put(:pbkdf2_iters, 10)
   Hex.State.put(:clean_pass, false)
-
   @hex_state Hex.State.get_all
-
   Hex.State.stop
 
   def reset_state do
     Hex.State.put_all(@hex_state)
   end
 
-  setup_all do
-    ets_path = tmp_path("cache.ets")
-    File.rm(ets_path)
-    create_test_registry(ets_path)
+  setup_all context do
+    unless context[:async] do
+      ets_path = tmp_path("cache.ets")
+      File.rm(ets_path)
+      create_test_registry(ets_path)
+    end
     :ok
   end
 
-  setup do
-    reset_state()
+  setup context do
+    unless context[:async] do
+      {:ok, pid} = Hex.Registry.Server.start_link
+      on_exit(fn ->
+        ref = Process.monitor(pid)
+        receive do
+          {:DOWN, ^ref, :process, ^pid, _info} ->
+            :ok
+        end
+      end)
 
-    Hex.Parallel.clear(:hex_fetcher)
-    Hex.Registry.Server.close
-
-    Mix.shell(Mix.Shell.Process)
-    Mix.Task.clear
-    Mix.Shell.Process.flush
-    Mix.ProjectStack.clear_cache
-    Mix.ProjectStack.clear_stack
+      reset_state()
+      Hex.Parallel.clear(:hex_fetcher)
+      Mix.shell(Mix.Shell.Process)
+      Mix.Task.clear
+      Mix.Shell.Process.flush
+      Mix.ProjectStack.clear_cache
+      Mix.ProjectStack.clear_stack
+    end
 
     :ok
   end
