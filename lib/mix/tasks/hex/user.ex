@@ -84,7 +84,7 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp reset_password do
-    name = Hex.Shell.prompt("Username or Email:") |> String.trim
+    name = Hex.Shell.prompt("Username or Email:") |> Hex.string_trim
 
     case Hex.API.User.password_reset(name) do
       {code, _, _} when code in 200..299 ->
@@ -128,10 +128,10 @@ defmodule Mix.Tasks.Hex.User do
     Hex.Shell.info("By registering an account on Hex.pm you accept all our " <>
                    "policies and terms of service found at https://hex.pm/policies\n")
 
-    username = Hex.Shell.prompt("Username:") |> String.trim
-    email    = Hex.Shell.prompt("Email:") |> String.trim
-    password = Utils.password_get("Password:") |> String.trim
-    confirm  = Utils.password_get("Password (confirm):") |> String.trim
+    username = Hex.Shell.prompt("Username:") |> Hex.string_trim
+    email    = Hex.Shell.prompt("Email:") |> Hex.string_trim
+    password = Utils.password_get("Password:") |> Hex.string_trim
+    confirm  = Utils.password_get("Password (confirm):") |> Hex.string_trim
 
     if password != confirm do
       Mix.raise "Entered passwords do not match"
@@ -154,8 +154,8 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp create_key do
-    username = Hex.Shell.prompt("Username:") |> String.trim
-    password = Utils.password_get("Password:") |> String.trim
+    username = Hex.Shell.prompt("Username:") |> Hex.string_trim
+    password = Utils.password_get("Password:") |> Hex.string_trim
 
     Utils.generate_key(username, password)
   end

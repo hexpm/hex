@@ -162,7 +162,7 @@ defmodule Hex.SCM do
   def parse_manifest(file) do
     lines =
       file
-      |> String.trim
+      |> Hex.string_trim
       |> String.split("\n")
 
     case lines do
