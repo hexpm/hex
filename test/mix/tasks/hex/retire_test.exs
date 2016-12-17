@@ -12,7 +12,7 @@ defmodule Mix.Tasks.Hex.RetireTest do
     send self(), {:mix_shell_input, :prompt, "passpass"}
     Mix.Tasks.Hex.Retire.run(["retire_package", "0.0.1", "renamed", "--message", "message"])
 
-    assert {200, %{"retirement" => %{"message" => "message", "status" => "renamed"}}, _} =
+    assert {200, %{"retirement" => %{"message" => "message", "reason" => "renamed"}}, _} =
            Hex.API.Release.get("retire_package", "0.0.1")
 
     send self(), {:mix_shell_input, :prompt, "passpass"}

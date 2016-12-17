@@ -230,7 +230,7 @@ defmodule Hex.MixTaskTest do
       File.write!("mix.lock", ~s(%{"ecto": {:hex, :ecto, "0.2.0"}}))
       Mix.Task.run "deps.update", ["ecto"]
 
-      assert_received {:mix_shell, :info, ["  ecto: 0.2.1"]}
+      assert_received {:mix_shell, :info, ["\e[32m  ecto 0.2.1\e[0m"]}
     end
   after
     purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,

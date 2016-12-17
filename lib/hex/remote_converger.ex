@@ -7,7 +7,6 @@ defmodule Hex.RemoteConverger do
 
   def post_converge do
     Registry.open!(Registry.Server)
-    Registry.close
     :ok
   after
     Registry.pdict_clean
@@ -43,7 +42,7 @@ defmodule Hex.RemoteConverger do
     deps      = Hex.Mix.prepare_deps(deps)
     top_level = Enum.map(top_level, &Atom.to_string/1)
 
-    Hex.Shell.info "Running dependency resolution"
+    Hex.Shell.info "Running dependency resolution..."
 
     case Hex.Resolver.resolve(requests, deps, top_level, locked) do
       {:ok, resolved} ->
@@ -56,9 +55,9 @@ defmodule Hex.RemoteConverger do
         resolver_failed(message)
     end
   after
-    if Version.compare(System.version, "1.4.0") == :lt,
-      do: Hex.Registry.Server.persist
-    Registry.pdict_clean
+    if Version.compare(System.version, "1.4.0") == :lt do
+      Hex.Registry.Server.persist
+    end
   end
 
   defp lock_merge(old, new) do
@@ -147,21 +146,26 @@ defmodule Hex.RemoteConverger do
     resolved = Map.drop(resolved, locked)
 
     if Map.size(resolved) != 0 do
-      Hex.Shell.info "Dependency resolution completed"
+      Hex.Shell.info "Dependency resolution completed:"
       resolved = Enum.sort(resolved)
       Enum.each(resolved, fn {name, version} ->
         case Registry.retired(name, version) do
           nil ->
-            Hex.Shell.info "  #{name}: #{version}"
+            Hex.Shell.info IO.ANSI.format [:green, "  #{name} #{version}"]
           retired ->
-            Hex.Shell.warn "  #{name}: #{version} RETIRED! #{retired[:reason]}"
-            if message = retired[:message] do
-              Hex.Shell.warn "    #{message}"
-            end
+            Hex.Shell.warn "  #{name} #{version} RETIRED!"
+            Hex.Shell.warn "    (#{retirement_reason(retired[:reason])}) #{retired[:message]}"
         end
       end)
     end
   end
+
+  defp retirement_reason(:RETIRED_OTHER), do: "other"
+  defp retirement_reason(:RETIRED_INVALID), do: "invalid"
+  defp retirement_reason(:RETIRED_SECURITY), do: "security"
+  defp retirement_reason(:RETIRED_DEPRECATED), do: "deprecated"
+  defp retirement_reason(:RETIRED_RENAMED), do: "renamed"
+  defp retirement_reason(other), do: other
 
   defp verify_resolved(resolved, lock) do
     Enum.each(resolved, fn {name, app, version} ->

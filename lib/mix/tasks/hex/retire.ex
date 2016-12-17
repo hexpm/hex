@@ -58,7 +58,7 @@ defmodule Mix.Tasks.Hex.Retire do
   end
 
   defp retire(package, version, reason, opts, auth) do
-    body = %{status: reason, message: opts[:message]}
+    body = %{reason: reason, message: opts[:message]}
     case Hex.API.Release.retire(package, version, body, auth) do
       {code, _body, _headers} when code in 200..299 ->
         :ok
