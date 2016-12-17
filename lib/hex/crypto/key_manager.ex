@@ -23,19 +23,22 @@ defmodule Hex.Crypto.KeyManager do
             {:ok, binary} | {:error, String.t}
 
   def init(%{alg: alg} = protected, opts) do
-    with {:ok, module} <- key_manager_module(alg) do
-      case module.init(protected, opts) do
-        {:ok, params} ->
-          key_manager = %KeyManager{module: module, params: params}
-          case ContentEncryptor.init(protected, opts) do
-            {:ok, content_encryptor} ->
-              {:ok, key_manager, content_encryptor}
-            content_encryptor_error ->
-              content_encryptor_error
-          end
-        key_manager_error ->
-          key_manager_error
-      end
+    case key_manager_module(alg) do
+      {:ok, module} ->
+        case module.init(protected, opts) do
+          {:ok, params} ->
+            key_manager = %KeyManager{module: module, params: params}
+            case ContentEncryptor.init(protected, opts) do
+              {:ok, content_encryptor} ->
+                {:ok, key_manager, content_encryptor}
+              content_encryptor_error ->
+                content_encryptor_error
+            end
+          key_manager_error ->
+            key_manager_error
+        end
+      error ->
+        error
     end
   end
 
