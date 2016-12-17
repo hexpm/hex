@@ -92,7 +92,6 @@ defmodule Hex.Mix do
       end)
 
     new_dep = {app, override, children}
-
     put_dep(deps, new_dep) ++ children
   end
 

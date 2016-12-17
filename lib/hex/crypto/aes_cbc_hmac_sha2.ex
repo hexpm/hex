@@ -83,8 +83,10 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
     :crypto.block_encrypt(:aes_cbc, key, iv, plain_text)
   rescue
     FunctionClauseError ->
-      cipher = bit_size_to_cipher(key)
-      :crypto.block_encrypt(cipher, key, iv, plain_text)
+      key
+      |> bit_size()
+      |> bit_size_to_cipher()
+      |> :crypto.block_encrypt(key, iv, plain_text)
   end
 
   # Support new and old style AES-CBC calls.
@@ -92,8 +94,10 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
     :crypto.block_decrypt(:aes_cbc, key, iv, cipher_text)
   rescue
     FunctionClauseError ->
-      cipher = bit_size_to_cipher(key)
-      :crypto.block_decrypt(cipher, key, iv, cipher_text)
+      key
+      |> bit_size()
+      |> bit_size_to_cipher()
+      |> :crypto.block_decrypt(key, iv, cipher_text)
   end
 
   defp hmac_sha2(mac_key, mac_data) when bit_size(mac_key) === 128,
