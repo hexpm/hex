@@ -45,6 +45,15 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
+  defmodule OutdatedMultiDeps.Mixfile do
+    def project do
+      [app: :outdated_app,
+       version: "0.0.2",
+       deps: [{:baz, "0.1.0"},
+              {:bar, "0.1.0"}]]
+    end
+  end
+
   test "outdated" do
     Mix.Project.push OutdatedDeps.Mixfile
 
@@ -57,7 +66,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
       Mix.Task.run "hex.outdated"
 
-      bar = [:bright, "bar", :reset, "         ", "0.1.0", :reset, "    ", :green, "0.1.0", :reset, "   ", :green, "0.1.0", :reset, "        "]
+      bar = [:bright, "bar", :reset, "         ", "0.1.0", :reset, "    ", :green, "0.1.0", :reset, "   ", :green, "", :reset, "                 "]
             |> IO.ANSI.format
             |> List.to_string
 
@@ -78,21 +87,45 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
       Mix.Task.run "hex.outdated", ["--all"]
 
-      bar = [:bright, "bar", :reset, "         ", "0.1.0", :reset, "    ", :green, "0.1.0", :reset, "   ", :green, "0.1.0", :reset, "        "]
+      bar = [:bright, "bar", :reset, "         ", "0.1.0", :reset, "    ", :green, "0.1.0", :reset, "   ", :green, "", :reset, "                 "]
             |> IO.ANSI.format
             |> List.to_string
 
-      foo = [:bright, "foo", :reset, "         ", "0.1.0", :reset, "    ", :red, "0.1.1", :reset, "   ", :green, "~> 0.1.0", :reset, "     "]
+      foo = [:bright, "foo", :reset, "         ", "0.1.0", :reset, "    ", :red, "0.1.1", :reset, "   ", :green, "Yes", :reset, "              "]
             |> IO.ANSI.format
             |> List.to_string
 
-      ex_doc = [:bright, "ex_doc", :reset, "      ", "0.0.1", :reset, "    ", :red, "0.1.0", :reset, "   ", :red, "~> 0.0.1", :reset, "     "]
+      ex_doc = [:bright, "ex_doc", :reset, "      ", "0.0.1", :reset, "    ", :red, "0.1.0", :reset, "   ", :red, "No", :reset, "               "]
                |> IO.ANSI.format
                |> List.to_string
 
       assert_received {:mix_shell, :info, [^bar]}
       assert_received {:mix_shell, :info, [^foo]}
       assert_received {:mix_shell, :info, [^ex_doc]}
+    end
+  end
+
+  test "outdated --all with multiple dependent packages" do
+    Mix.Project.push OutdatedMultiDeps.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      Mix.Dep.Lock.write %{
+        foo: {:hex, :foo, "0.1.0"},
+        bar: {:hex, :bar, "0.1.0"},
+        baz: {:hex, :baz, "0.1.0"}
+      }
+
+      Mix.Task.run "deps.get"
+      flush()
+
+      Mix.Task.run "hex.outdated", ["--all"]
+
+      foo = [:bright, "foo", :reset, "         ", "0.1.0", :reset, "    ", :red, "0.1.1", :reset, "   ", :red, "No", :reset, "               "]
+            |> IO.ANSI.format
+            |> List.to_string
+
+      assert_received {:mix_shell, :info, [^foo]}
     end
   end
 
@@ -108,7 +141,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
       Mix.Task.run "hex.outdated", []
 
-      beta = [:bright, "beta", :reset, "        ", "1.0.0", :reset, "    ", :green, "1.0.0", :reset, "   ", :green, ">= 0.0.0", :reset, "     "]
+      beta = [:bright, "beta", :reset, "        ", "1.0.0", :reset, "    ", :green, "1.0.0", :reset, "   ", :green, "", :reset, "                 "]
              |> IO.ANSI.format
              |> List.to_string
       assert_received {:mix_shell, :info, [^beta]}
@@ -116,7 +149,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Mix.Task.reenable "hex.outdated"
       Mix.Task.run "hex.outdated", ["--pre"]
 
-      beta = [:bright, "beta", :reset, "        ", "1.0.0", :reset, "    ", :red, "1.1.0-beta", :reset, "  ", :red, ">= 0.0.0", :reset, "     "]
+      beta = [:bright, "beta", :reset, "        ", "1.0.0", :reset, "    ", :red, "1.1.0-beta", :reset, "  ", :red, "No", :reset, "               "]
              |> IO.ANSI.format
              |> List.to_string
       assert_received {:mix_shell, :info, [^beta]}
@@ -227,11 +260,11 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         Mix.Task.run "deps.get"
         flush()
 
-        ex_doc = [:bright, "ex_doc", :reset, "      ", "0.0.1", :reset, "    ", :red, "0.1.0", :reset, "   ", :red, "~> 0.0.1", :reset, "     "]
+        ex_doc = [:bright, "ex_doc", :reset, "      ", "0.0.1", :reset, "    ", :red, "0.1.0", :reset, "   ", :red, "No", :reset, "               "]
                  |> IO.ANSI.format
                  |> List.to_string
 
-        bar = [:bright, "bar", :reset, "         ", "0.1.0", :reset, "    ", :green, "0.1.0", :reset, "   ", :green, "0.1.0", :reset, "        "]
+        bar = [:bright, "bar", :reset, "         ", "0.1.0", :reset, "    ", :green, "0.1.0", :reset, "   ", :green, "", :reset, "                 "]
               |> IO.ANSI.format
               |> List.to_string
 

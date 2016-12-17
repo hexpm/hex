@@ -117,13 +117,14 @@ defmodule Mix.Tasks.Hex.Outdated do
     if Enum.empty?(values) do
       Hex.Shell.info "No hex dependencies"
     else
-      header = ["Dependency", "Current", "Latest", "Requirement"]
+      header = ["Dependency", "Current", "Latest", "Update possible"]
       Utils.print_table(header, values)
 
       message =
         "A green version in latest means you have the latest " <>
-        "version of a given package. A green requirement means " <>
-        "your current requirement matches the latest version."
+        "version of a given package. Update possible indicates " <>
+        "if your current requirement matches the latest version.\n" <>
+        "Run `mix hex.outdated APP` to see requirements for a specific dependency."
       Hex.Shell.info ["\n" | message]
     end
   end
@@ -137,8 +138,14 @@ defmodule Mix.Tasks.Hex.Outdated do
       case Hex.Utils.lock(lock[dep.app]) do
         [:hex, package, lock_version, _checksum, _managers, _deps] ->
           latest_version = latest_version(package, lock_version, pre?)
-          req = dep.requirement
-          [[Atom.to_string(dep.app), lock_version, latest_version, req]]
+
+          requirements =
+            deps
+            |> get_requirements(dep.app)
+            |> Enum.map(fn [_, req_version] -> req_version end)
+          requirements = [dep.requirement | requirements]
+
+          [[Atom.to_string(dep.app), lock_version, latest_version, requirements]]
         _ ->
           []
       end
@@ -171,18 +178,23 @@ defmodule Mix.Tasks.Hex.Outdated do
     List.last(versions)
   end
 
-  defp format_all_row([package, lock, latest, req]) do
+  defp format_all_row([package, lock, latest, requirements]) do
     outdated? = Hex.Version.compare(lock, latest) == :lt
     latest_color = if outdated?, do: :red, else: :green
 
-    req_matches? = version_match?(latest, req)
-    req = req || ""
-    req_color = if req_matches?, do: :green, else: :red
+    req_matches? = Enum.all?(requirements, &(version_match?(latest, &1)))
+
+    {update_possible_color, update_possible} =
+      case {outdated?, req_matches?} do
+        {true, true} -> {:green, "Yes"}
+        {true, false} -> {:red, "No"}
+        {false, _} -> {:green, ""}
+      end
 
     [[:bright, package],
      lock,
      [latest_color, latest],
-     [req_color, req]]
+     [update_possible_color, update_possible]]
   end
 
   defp version_match?(_version, nil), do: true
