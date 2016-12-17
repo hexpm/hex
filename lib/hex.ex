@@ -13,7 +13,6 @@ defmodule Hex do
   end
 
   def start(_, _) do
-    import Supervisor.Spec
     dev_setup()
 
     Mix.SCM.append(Hex.SCM)
@@ -22,14 +21,8 @@ defmodule Hex do
     Hex.Version.start
     start_httpc()
 
-    children = [
-      worker(Hex.State, []),
-      worker(Hex.Registry.Server, []),
-      worker(Hex.Parallel, [:hex_fetcher]),
-    ]
-
     opts = [strategy: :one_for_one, name: Hex.Supervisor]
-    Supervisor.start_link(children, opts)
+    Supervisor.start_link(children(), opts)
   end
 
   def version,        do: unquote(Mix.Project.config[:version])
@@ -56,6 +49,21 @@ defmodule Hex do
     def string_trim(string), do: String.trim(string)
     def to_charlist(term), do: Kernel.to_charlist(term)
     def string_to_charlist(string), do: String.to_charlist(string)
+  end
+
+  if Mix.env == :test do
+    defp children do
+      import Supervisor.Spec
+      [worker(Hex.State, []),
+       worker(Hex.Parallel, [:hex_fetcher])]
+    end
+  else
+    defp children do
+      import Supervisor.Spec
+      [worker(Hex.State, []),
+       worker(Hex.Parallel, [:hex_fetcher]),
+       worker(Hex.Registry.Server, [])]
+    end
   end
 
   if Mix.env in [:dev, :test] do
