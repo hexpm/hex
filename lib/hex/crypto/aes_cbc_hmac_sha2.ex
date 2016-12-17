@@ -82,7 +82,7 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
   defp aes_cbc_encrypt(key, iv, plain_text) do
     :crypto.block_encrypt(:aes_cbc, key, iv, plain_text)
   rescue
-    ArgumentError ->
+    FunctionClauseError ->
       cipher = bit_size_to_cipher(key)
       :crypto.block_encrypt(cipher, key, iv, plain_text)
   end
@@ -91,7 +91,7 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
   defp aes_cbc_decrypt(key, iv, cipher_text) do
     :crypto.block_decrypt(:aes_cbc, key, iv, cipher_text)
   rescue
-    ArgumentError ->
+    FunctionClauseError ->
       cipher = bit_size_to_cipher(key)
       :crypto.block_decrypt(cipher, key, iv, cipher_text)
   end
