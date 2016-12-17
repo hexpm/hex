@@ -26,10 +26,22 @@ defmodule Hex.Crypto.PBES2_HMAC_SHA2 do
 
   def init(%{alg: alg} = protected, opts) do
     hash = algorithm_to_hash(alg)
-    with {:ok, password} <- fetch_password(opts),
-         {:ok, _iterations} <- fetch_p2c(protected),
-         {:ok, _salt} <- fetch_p2s(protected),
-         do: {:ok, %{hash: hash, password: password}}
+    case fetch_password(opts) do
+      {:ok, password} ->
+        case fetch_p2c(protected) do
+          {:ok, _iteration} ->
+            case fetch_p2s(protected) do
+              {:ok, _salt} ->
+                {:ok, %{hash: hash, password: password}}
+              error ->
+                error
+            end
+          error ->
+            error
+        end
+      error ->
+        error
+    end
   end
 
   def encrypt(%{password: password, hash: hash}, %{p2c: iterations, p2s: salt} = protected, content_encryptor) do
