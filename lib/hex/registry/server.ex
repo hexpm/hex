@@ -110,11 +110,7 @@ defmodule Hex.Registry.Server do
 
   def handle_call({:open, opts}, _from, %{ets: nil} = state) do
     path = Hex.string_to_charlist(opts[:registry_path] || path())
-    tid =
-      case :ets.file2tab(path) do
-        {:ok, tid} -> tid
-        {:error, _reason} -> :ets.new(@name, [])
-      end
+    tid = open_ets(path)
     state = %{state | ets: tid, path: path}
     state = check_update(state, force: false)
     {:reply, {:ok, self()}, state}
@@ -128,7 +124,7 @@ defmodule Hex.Registry.Server do
       %{ets: nil} = state ->
         state
       %{ets: tid, path: path} ->
-        :ets.tab2file(tid, path)
+        persist(tid, path)
         :ets.delete(tid)
         reset_state(state)
     end)
@@ -136,7 +132,7 @@ defmodule Hex.Registry.Server do
 
   def handle_call(:persist, from, state) do
     maybe_wait_closing(state, from, fn %{ets: tid, path: path} = state ->
-      :ets.tab2file(tid, path)
+      persist(tid, path)
       state
     end)
   end
@@ -206,7 +202,7 @@ defmodule Hex.Registry.Server do
 
     :ets.insert(state.ets, {:last_update, :calendar.universal_time})
     state = reply_to_update_waiting(state, result)
-    state = %{state | checking_update?: false, waiting_close: nil}
+    state = %{state | checking_update?: false}
     {:noreply, state}
   end
 
@@ -223,6 +219,24 @@ defmodule Hex.Registry.Server do
 
     state = %{state | pending: pending, waiting: waiting, fetched: fetched}
     {:noreply, state}
+  end
+
+  defp open_ets(path) do
+    case :ets.file2tab(path) do
+      {:ok, tid} ->
+        tid
+      {:error, {:read_error, {:file_error, _path, :enoent}}} ->
+        :ets.new(@name, [])
+      {:error, reason} ->
+        Hex.Shell.error("Error opening ETS file #{path}: #{inspect reason}")
+        :ets.new(@name, [])
+    end
+  end
+
+  defp persist(tid, path) do
+    dir = Path.dirname(path)
+    File.mkdir_p!(dir)
+    :ok = :ets.tab2file(tid, path)
   end
 
   defp prefetch_online(packages, state) do
@@ -355,8 +369,9 @@ defmodule Hex.Registry.Server do
     case state.waiting_close do
       {from, fun} ->
         reply = if new_update, do: {:update, new_update}, else: :ok
+        state = fun.(state)
         GenServer.reply(from, reply)
-        fun.(state)
+        %{state | waiting_close: nil}
       nil ->
         %{state | new_update: new_update}
     end
@@ -382,7 +397,7 @@ defmodule Hex.Registry.Server do
 
   defp check_update?(tid) do
     if last = lookup(tid, :last_update) do
-      now = :erlang.universaltime |> :calendar.datetime_to_gregorian_seconds
+      now = :calendar.universal_time |> :calendar.datetime_to_gregorian_seconds
       last = :calendar.datetime_to_gregorian_seconds(last)
 
       now - last > @update_interval
