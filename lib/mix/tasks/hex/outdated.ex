@@ -81,7 +81,7 @@ defmodule Mix.Tasks.Hex.Outdated do
       |> Hex.Shell.info
     end
 
-    header = ["Parent", "Requirement"]
+    header = ["Source", "Requirement"]
     values = Enum.map(requirements, &format_single_row(&1, latest))
     Hex.Shell.info ""
     Utils.print_table(header, values)
@@ -100,11 +100,11 @@ defmodule Mix.Tasks.Hex.Outdated do
     end)
   end
 
-  defp format_single_row([parent, req], latest) do
+  defp format_single_row([source, req], latest) do
     req_matches? = version_match?(latest, req)
     req = req || ""
     req_color = if req_matches?, do: :green, else: :red
-    [[:bright, parent], [req_color, req]]
+    [[:bright, source], [req_color, req]]
   end
 
   defp all(deps, lock, opts) do
