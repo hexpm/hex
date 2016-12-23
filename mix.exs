@@ -1,7 +1,7 @@
 defmodule Hex.Mixfile do
   use Mix.Project
 
-  @version "0.14.2-dev"
+  @version "0.15.0-dev"
 
   {:ok, system_version} = Version.parse(System.version)
   @elixir_version {system_version.major, system_version.minor, system_version.patch}

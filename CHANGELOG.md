@@ -1,4 +1,23 @@
-## v0.14.2-dev
+## v0.15.0-dev
+
+### Package retirement
+
+With this new release you can mark versions of your packages as retired when you
+do not recommend it's use. This can be because the release has a serious
+security flaw, something went wrong the release so that it's unusable or because
+the package has been renamed or deprecated. A retired version is still usable
+and fetchable but it will show as retired on hex.pm and when resolved Hex will
+show a warning to the user with the retirement message.
+
+### Enhancements
+  * Add --module flag to `hex.docs` task
+  * Changed `hex.outdated` task to show if a dependency can be updated
+  * Add `hex.retire` task for package retirement
+  * Warn when resolving retired packages
+
+### Bug fixes
+  * Do not make conditional HTTP request if file is missing
+  * Ensure cache file is saved when Hex exits
 
 ## v0.14.1 (2016-11-24)
 
