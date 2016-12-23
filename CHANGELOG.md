@@ -1,4 +1,4 @@
-## v0.15.0-dev
+## v0.15.0 (2016-12-24)
 
 ### Package retirement
 
@@ -14,6 +14,7 @@ show a warning to the user with the retirement message.
   * Changed `hex.outdated` task to show if a dependency can be updated
   * Add `hex.retire` task for package retirement
   * Warn when resolving retired packages
+  * Restrict number of default SSL ciphers
 
 ### Bug fixes
   * Do not make conditional HTTP request if file is missing
