@@ -4,7 +4,7 @@
 
 With this new release you can mark versions of your packages as retired when you
 do not recommend it's use. This can be because the release has a serious
-security flaw, something went wrong the release so that it's unusable or because
+security flaw, something went wrong with the release so that it's unusable or because
 the package has been renamed or deprecated. A retired version is still usable
 and fetchable but it will show as retired on hex.pm and when resolved Hex will
 show a warning to the user with the retirement message.
