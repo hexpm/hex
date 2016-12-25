@@ -229,6 +229,7 @@ defmodule Hex.Registry.Server do
         :ets.new(@name, [])
       {:error, reason} ->
         Hex.Shell.error("Error opening ETS file #{path}: #{inspect reason}")
+        File.rm(path)
         :ets.new(@name, [])
     end
   end
