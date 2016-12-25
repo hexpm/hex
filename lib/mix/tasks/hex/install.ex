@@ -11,8 +11,6 @@ defmodule Mix.Tasks.Hex.Install do
   Manually install specific Hex version.
 
       mix hex.install VERSION
-
-  Not guaranteed to work anyway.
   """
 
   def run(args) do
