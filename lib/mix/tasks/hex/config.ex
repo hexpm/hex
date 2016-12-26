@@ -53,8 +53,14 @@ defmodule Mix.Tasks.Hex.Config do
     case args do
       [] ->
         list()
+      ["$" <> _key | _] ->
+        Mix.raise "Invalid key name"
       [key] ->
-        read(key, !!opts[:delete])
+        if opts[:delete] do
+          delete(key)
+        else
+          read(key)
+        end
       [key, value] ->
         set(key, value)
       _ ->
@@ -71,19 +77,18 @@ defmodule Mix.Tasks.Hex.Config do
     end)
   end
 
-  def read(key, true) do
-    Hex.Config.remove([String.to_atom(key)])
-    Hex.Shell.info "Deleted config #{key}"
-  end
-  def read(key, false) do
+  defp read(key) do
     case Keyword.fetch(Hex.Config.read, :"#{key}") do
       {:ok, value} -> Hex.Shell.info inspect(value, pretty: true)
-      :error       -> Mix.raise "Config does not contain a key #{key}"
+      :error       -> Mix.raise "Config does not contain key #{key}"
     end
   end
 
-  def set(key, value) do
+  defp delete(key) do
+    Hex.Config.remove([String.to_atom(key)])
+  end
+
+  defp set(key, value) do
     Hex.Config.update([{:"#{key}", value}])
-    Hex.Shell.info "#{key}: #{inspect(value, pretty: true)}"
   end
 end
