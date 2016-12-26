@@ -5,15 +5,18 @@ defmodule Mix.Tasks.Hex.ConfigTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      assert_raise Mix.Error, "Config does not contain a key foo", fn ->
+      assert_raise Mix.Error, "Config does not contain key foo", fn ->
         Mix.Tasks.Hex.Config.run(["foo"])
       end
 
       Mix.Tasks.Hex.Config.run(["foo", "bar"])
       Mix.Tasks.Hex.Config.run(["foo"])
       assert_received {:mix_shell, :info, ["\"bar\""]}
+
       Mix.Tasks.Hex.Config.run(["foo", "--delete"])
-      assert_received {:mix_shell, :info, ["Deleted config foo"]}
+      assert_raise Mix.Error, "Config does not contain key foo", fn ->
+        Mix.Tasks.Hex.Config.run(["foo"])
+      end
     end
   end
 
