@@ -30,12 +30,9 @@ defmodule Hex.Crypto.PBES2_HMAC_SHA2 do
       {:ok, password} ->
         case fetch_p2c(protected) do
           {:ok, _iteration} ->
-            case fetch_p2s(protected) do
-              {:ok, _salt} ->
-                {:ok, %{hash: hash, password: password}}
-              error ->
-                error
-            end
+            protected
+            |> fetch_p2s()
+            |> handle_p2s(hash, password)
           error ->
             error
         end
@@ -57,6 +54,9 @@ defmodule Hex.Crypto.PBES2_HMAC_SHA2 do
     {:ok, key}
   end
   def decrypt(_, _, _, _), do: :error
+
+  defp handle_p2s({:ok, _salt}, hash, passwd), do: {:ok, %{hash: hash, password: passwd}}
+  defp handle_p2s(error, _, _), do: error
 
   defp fetch_password(opts) do
     case Keyword.fetch(opts, :password) do

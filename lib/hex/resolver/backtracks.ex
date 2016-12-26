@@ -99,7 +99,6 @@ defmodule Hex.Resolver.Backtracks do
             :error ->
               Map.put(map, name, [{[version], parents}|list])
           end
-
         :error ->
           Map.put(map, name, [{[version], parents}])
       end

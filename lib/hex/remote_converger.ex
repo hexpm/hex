@@ -149,15 +149,20 @@ defmodule Hex.RemoteConverger do
       Hex.Shell.info "Dependency resolution completed:"
       resolved = Enum.sort(resolved)
       Enum.each(resolved, fn {name, version} ->
-        case Registry.retired(name, version) do
-          nil ->
-            Hex.Shell.info IO.ANSI.format [:green, "  #{name} #{version}"]
-          retired ->
-            Hex.Shell.warn "  #{name} #{version} RETIRED!"
-            Hex.Shell.warn "    (#{retirement_reason(retired[:reason])}) #{retired[:message]}"
-        end
+        name
+        |> Registry.retired(version)
+        |> print_status(name, version)
       end)
     end
+  end
+
+  defp print_status(nil, name, version) do
+    Hex.Shell.info IO.ANSI.format [:green, "  #{name} #{version}"]
+  end
+
+  defp print_status(retired, name, version) do
+    Hex.Shell.warn "  #{name} #{version} RETIRED!"
+    Hex.Shell.warn "    (#{retirement_reason(retired[:reason])}) #{retired[:message]}"
   end
 
   defp retirement_reason(:RETIRED_OTHER), do: "other"
@@ -173,24 +178,31 @@ defmodule Hex.RemoteConverger do
 
       case Hex.Utils.lock(lock[String.to_atom(app)]) do
         [:hex, ^atom_name, ^version, checksum, _managers, deps] ->
-          registry_checksum = Registry.checksum(name, version)
-
-          if checksum && Base.decode16!(checksum, case: :lower) != registry_checksum,
-            do: Mix.raise "Registry checksum mismatch against lock (#{name} #{version})"
-
-          if deps do
-            deps =
-              Enum.map(deps, fn {app, req, opts} ->
-                {Atom.to_string(opts[:hex]), Atom.to_string(app), req, !!opts[:optional]}
-              end)
-
-            if Enum.sort(deps) != Enum.sort(Registry.deps(name, version)),
-              do: Mix.raise "Registry dependencies mismatch against lock (#{name} #{version})"
-          end
+          verify_registry(deps, name, version, checksum)
         _ ->
           :ok
       end
     end)
+  end
+
+  defp verify_registry(deps, name, version, checksum) do
+    registry_checksum = Registry.checksum(name, version)
+    if checksum && Base.decode16!(checksum, case: :lower) != registry_checksum do
+      Mix.raise "Registry checksum mismatch against lock (#{name} #{version})"
+    end
+
+    if deps, do: verify_dependencies(deps, name, version)
+  end
+
+  defp verify_dependencies(deps, name, version) do
+    deps =
+      Enum.map(deps, fn {app, req, opts} ->
+        {Atom.to_string(opts[:hex]), Atom.to_string(app), req, !!opts[:optional]}
+      end)
+
+    if Enum.sort(deps) != Enum.sort(Registry.deps(name, version)) do
+      Mix.raise "Registry dependencies mismatch against lock (#{name} #{version})"
+    end
   end
 
   defp check_lock(lock) do
