@@ -28,12 +28,7 @@ defmodule Hex.Crypto.KeyManager do
         case module.init(protected, opts) do
           {:ok, params} ->
             key_manager = %KeyManager{module: module, params: params}
-            case ContentEncryptor.init(protected, opts) do
-              {:ok, content_encryptor} ->
-                {:ok, key_manager, content_encryptor}
-              content_encryptor_error ->
-                content_encryptor_error
-            end
+            fetch_content_encryptor(key_manager, protected, opts)
           key_manager_error ->
             key_manager_error
         end
@@ -74,4 +69,13 @@ defmodule Hex.Crypto.KeyManager do
   defp key_manager_module("PBES2-HS384"), do: {:ok, Crypto.PBES2_HMAC_SHA2}
   defp key_manager_module("PBES2-HS512"), do: {:ok, Crypto.PBES2_HMAC_SHA2}
   defp key_manager_module(alg), do: {:error, "Unrecognized KeyManager algorithm: #{inspect alg}"}
+
+  defp fetch_content_encryptor(key_manager, protected, opts) do
+    case ContentEncryptor.init(protected, opts) do
+      {:ok, content_encryptor} ->
+        {:ok, key_manager, content_encryptor}
+      error ->
+        error
+    end
+  end
 end
