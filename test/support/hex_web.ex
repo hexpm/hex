@@ -123,13 +123,17 @@ defmodule HexTest.HexWeb do
 
   defp hexweb_elixir do
     if path = System.get_env("HEXWEB_ELIXIR_PATH") do
-      path |> Path.expand |> Path.join("bin")
+      path
+      |> Path.expand
+      |> Path.join("bin")
     end
   end
 
   defp hexweb_otp do
     if path = System.get_env("HEXWEB_OTP_PATH") do
-      path |> Path.expand |> Path.join("bin")
+      path
+      |> Path.expand
+      |> Path.join("bin")
     end
   end
 

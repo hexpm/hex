@@ -171,5 +171,9 @@ defmodule Hex.Utils do
 
   def lock(nil), do: nil
   def lock({:hex, name, version}), do: [:hex, name, version, nil, nil, nil]
-  def lock(tuple), do: tuple |> Tuple.to_list |> Enum.take(6)
+  def lock(tuple) do
+    tuple
+    |> Tuple.to_list
+    |> Enum.take(6)
+  end
 end

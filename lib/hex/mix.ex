@@ -178,8 +178,16 @@ defmodule Hex.Mix do
     Enum.into(result, %{}, fn {name, app, version} ->
       app = String.to_atom(app)
       checksum = Hex.Registry.checksum(name, version) |> Base.encode16(case: :lower)
-      deps = Hex.Registry.deps(name, version) |> Enum.map(&registry_dep_to_def/1) |> Enum.sort
-      managers = managers(app) |> Enum.sort |> Enum.uniq
+      deps =
+        name
+        |> Hex.Registry.deps(version)
+        |> Enum.map(&registry_dep_to_def/1)
+        |> Enum.sort
+      managers =
+        app
+        |> managers()
+        |> Enum.sort
+        |> Enum.uniq
       {app, {:hex, String.to_atom(name), version, checksum, managers, deps}}
     end)
   end
