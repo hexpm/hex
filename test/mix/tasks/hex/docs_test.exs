@@ -41,7 +41,10 @@ defmodule Mix.Tasks.Hex.DocsTest do
     bypass_mirror()
     Hex.State.put(:home, tmp_path())
 
-    docs_home = :home |> Hex.State.fetch!() |> Path.join("docs")
+    docs_home =
+      :home
+      |> Hex.State.fetch!()
+      |> Path.join("docs")
 
     in_tmp "docs", fn ->
       Mix.Tasks.Hex.Docs.run(["fetch", package, version])

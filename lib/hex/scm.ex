@@ -109,7 +109,10 @@ defmodule Hex.SCM do
 
     meta = Hex.Tar.unpack(path, dest, {name, version})
     build_tools = guess_build_tools(meta)
-    managers = build_tools |> Enum.map(&String.to_atom/1) |> Enum.sort
+    managers =
+      build_tools
+      |> Enum.map(&String.to_atom/1)
+      |> Enum.sort
 
     manifest = encode_manifest(name, version, checksum, managers)
     File.write!(Path.join(dest, ".hex"), manifest)
@@ -170,7 +173,10 @@ defmodule Hex.SCM do
         (String.split(first, ",") ++ [[]])
         |> List.to_tuple
       [first, managers] ->
-        managers = managers |> String.split(",") |> Enum.map(&String.to_atom/1)
+        managers =
+          managers
+          |> String.split(",")
+          |> Enum.map(&String.to_atom/1)
         (String.split(first, ",") ++ [managers])
         |> List.to_tuple
     end

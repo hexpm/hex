@@ -52,7 +52,7 @@ defmodule Hex.API.VerifyHostname do
     valid? =
       wildcard_pos != 0 and
         length(hostname) >= length(identifier) and
-        check_wildcard_in_leftmost_label(identifier, wildcard_pos) 
+        check_wildcard_in_leftmost_label(identifier, wildcard_pos)
 
     if valid? do
       before_w = :string.substr(identifier, 1, wildcard_pos - 1)
@@ -177,6 +177,10 @@ defmodule Hex.API.VerifyHostname do
   defp maybe_check_subject_cn([_|_], false, _tbs_cert, _hostname),
     do: false
 
-  defp maybe_check_subject_cn(_dns_names, false, tbs_cert, hostname),
-    do: otp_tbs_certificate(tbs_cert, :subject) |> extract_cn |> try_match_hostname(hostname)
+  defp maybe_check_subject_cn(_dns_names, false, tbs_cert, hostname) do
+    tbs_cert
+    |> otp_tbs_certificate(:subject)
+    |> extract_cn
+    |> try_match_hostname(hostname)
+  end
 end

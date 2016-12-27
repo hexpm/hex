@@ -115,7 +115,10 @@ defmodule Hex.API do
     headers = Enum.into(headers, %{})
     Utils.handle_hex_message(headers['x-hex-message'])
 
-    body = body |> unzip(headers) |> decode(headers)
+    body =
+      body
+      |> unzip(headers)
+      |> decode(headers)
 
     {code, body, headers}
   end

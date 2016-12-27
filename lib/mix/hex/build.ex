@@ -156,7 +156,11 @@ defmodule Mix.Hex.Build do
 
   defp print_metadata(metadata, key) do
     if value = metadata[key] do
-      key = key |> Atom.to_string |> String.replace("_", " ") |> String.capitalize
+      key =
+        key
+        |> Atom.to_string
+        |> String.replace("_", " ")
+        |> String.capitalize
       value = format_metadata_value(value)
       Hex.Shell.info("  #{key}: #{value}")
     end

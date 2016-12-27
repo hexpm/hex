@@ -261,8 +261,14 @@ defmodule Hex.Resolver.Backtracks do
       {[x, y], _} ->
         [" (versions ", to_string(x), " and ", to_string(y), ")"]
       {_, true} when length(versions) > 2 ->
-        first = versions |> List.first |> to_string
-        last = versions |> List.last |> to_string
+        first =
+          versions
+          |> List.first
+          |> to_string
+        last =
+          versions
+          |> List.last
+          |> to_string
         [" (versions ", first, " to ", last, ")"]
       _ ->
         versions = Enum.map(versions, &to_string/1)
