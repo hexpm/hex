@@ -103,7 +103,7 @@ defmodule HexTest.HexWeb do
 
     unless File.exists?(dir) do
       IO.puts "Unable to find #{dir}, make sure to clone the hex_web repository " <>
-              "into it to run integration tests"
+              "into it to run integration tests or set HEXWEB_PATH to its location"
       System.halt(1)
     end
   end

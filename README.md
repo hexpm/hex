@@ -18,7 +18,7 @@ Hex bundles a list of root CA certificates used for certificate validation in HT
 
 ### hex_web
 
-Integration tests run against the API server [hex_web](https://github.com/hexpm/hex_web). It needs to be cloned into `../hex_web` or `HEX_WEB_DIR` needs to be set and point its location. hex_web also requires postgresql with username `postgres` and password `postgres`.
+Integration tests run against the API server [hex_web](https://github.com/hexpm/hex_web). It needs to be cloned into `../hex_web` or `HEXWEB_PATH` needs to be set and point its location. hex_web also requires postgresql with username `postgres` and password `postgres`.
 
 Run integration tests with `mix test --include integration`.
 
