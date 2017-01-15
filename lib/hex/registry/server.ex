@@ -92,6 +92,8 @@ defmodule Hex.Registry.Server do
   end
 
   defp reset_state(state) do
+    {:ok, offline?} = Hex.State.fetch(:offline?)
+
     %{ets: nil,
       path: nil,
       pending: Hex.Set.new,
@@ -100,7 +102,8 @@ defmodule Hex.Registry.Server do
       waiting_close: nil,
       already_checked_update?: Map.get(state, :already_checked_update?, false),
       checking_update?: false,
-      new_update: nil}
+      new_update: nil,
+      offline?: offline?}
   end
 
   def handle_cast(:check_update, state) do
@@ -382,6 +385,9 @@ defmodule Hex.Registry.Server do
     state
   end
   defp check_update(%{checking_update?: true} = state, _opts) do
+    state
+  end
+  defp check_update(%{offline?: true} = state, _opts) do
     state
   end
   defp check_update(%{ets: tid} = state, opts) do
