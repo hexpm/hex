@@ -27,16 +27,21 @@ defmodule Hex.State do
   end
 
   def init(config) do
+    # TODO: remove in v0.16
+    warn_on_deprecated_env("HEX_API", "HEX_API_URL")
+    warn_on_deprecated_env("HEX_MIRROR", "HEX_MIRROR_URL")
+    warn_on_deprecated_env("HEX_REPO", "HEX_REPO_URL")
+
     cdn    = load_config(config, ["HEX_CDN"], :cdn_url)
-    mirror = load_config(config, ["HEX_MIRROR"], :mirror_url)
+    mirror = load_config(config, ["HEX_MIRROR_URL", "HEX_MIRROR"], :mirror_url)
 
     if cdn do
       Hex.Shell.warn cdn_message()
     end
 
     %{home:             System.get_env("HEX_HOME") |> default(@default_home) |> Path.expand,
-      api:              load_config(config, ["HEX_API"], :api_url) |> default(@default_url) |> trim_slash,
-      repo:             load_config(config, ["HEX_REPO"], :repo_url) |> trim_slash,
+      api:              load_config(config, ["HEX_API_URL", "HEX_API"], :api_url) |> default(@default_url) |> trim_slash,
+      repo:             load_config(config, ["HEX_REPO_URL", "HEX_REPO"], :repo_url) |> trim_slash,
       mirror:           default(mirror || cdn, @default_mirror) |> trim_slash,
       http_proxy:       load_config(config, ["http_proxy", "HTTP_PROXY"], :http_proxy),
       https_proxy:      load_config(config, ["https_proxy", "HTTPS_PROXY"], :https_proxy),
@@ -199,4 +204,10 @@ defmodule Hex.State do
     do: [major, minor, patch]
   defp version_pad([major, minor, patch | _]),
     do: [major, minor, patch]
+
+  defp warn_on_deprecated_env(deprecated_varname, current_varname) do
+    if System.get_env(deprecated_varname) do
+      Hex.Shell.warn "#{deprecated_varname} is deprecated. Please use #{current_varname} instead."
+    end
+  end
 end
