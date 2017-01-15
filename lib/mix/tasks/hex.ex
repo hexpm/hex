@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Hex do
       Use this option when using a Hex.pm mirror, unlike when setting `HEX_REPO`
       this will still use the public key from Hex.pm when verifying the registry
     * `HEX_OFFLINE` - If set Hex will not fetch the registry or packages and will
-      instead the locally cached files if they are available
+      instead use locally cached files if they are available
     * `HEX_UNSAFE_HTTPS` - If set Hex will not verify HTTPS certificates
     * `HEX_UNSAFE_REGISTRY` - If set Hex will not verify the registry signature
       against the repository's public key
