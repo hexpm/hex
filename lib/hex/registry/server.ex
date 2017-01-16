@@ -92,7 +92,7 @@ defmodule Hex.Registry.Server do
   end
 
   defp reset_state(state) do
-    {:ok, offline?} = Hex.State.fetch(:offline?)
+    offline? = Hex.State.fetch!(:offline?)
 
     %{ets: nil,
       path: nil,
