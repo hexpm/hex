@@ -164,7 +164,7 @@ defmodule Mix.Tasks.Hex.Publish do
   defp docs_task(build, opts) do
     name = build.meta.name
 
-    canonical = opts[:canonical] || Hex.Utils.hexdocs_url(name)
+    canonical = opts[:canonical] || Hex.Utils.hexdocs_url(name, :latest)
     args = ["--canonical", canonical]
     try do
       Mix.Task.run("docs", args)

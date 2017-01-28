@@ -29,12 +29,8 @@ defmodule Mix.Tasks.Hex.Outdated do
     Hex.start
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
 
-    lock = Mix.Dep.Lock.read
-    deps = Mix.Dep.loaded([]) |> Enum.filter(& &1.scm == Hex.SCM)
-
-    Hex.Registry.open!(Hex.Registry.Server)
-    Hex.Mix.packages_from_lock(lock)
-    |> Hex.Registry.prefetch
+    Mix.Project.get!
+    {lock, deps} = Hex.Utils.current_lock_and_deps()
 
     case args do
       [app] ->

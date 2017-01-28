@@ -210,10 +210,10 @@ defmodule HexTest.Case do
     Bypass.expect bypass, fn conn ->
       case conn do
         %Plug.Conn{request_path: "/docs/package-1.1.2.tar.gz"} ->
-          tar_file = tmp_path("package-1.1.2.tar.gz")
-          index_file = Hex.string_to_charlist("index.html")
-          :erl_tar.create(tar_file, [{index_file, ""}], [:compressed])
-          package = File.read!(tar_file)
+          package = build_docs_package("package-1.1.2.tar.gz")
+          Plug.Conn.resp(conn, 200, package)
+        %Plug.Conn{request_path: "/docs/bar-0.1.0.tar.gz"} ->
+          package = build_docs_package("bar-1.1.2.tar.gz")
           Plug.Conn.resp(conn, 200, package)
         %Plug.Conn{request_path: "/docs/package"} ->
           Plug.Conn.resp(conn, 404, "")
@@ -221,5 +221,12 @@ defmodule HexTest.Case do
     end
 
     bypass
+  end
+
+  defp build_docs_package(file) do
+    tar_file = tmp_path(file)
+    index_file = Hex.string_to_charlist("index.html")
+    :erl_tar.create(tar_file, [{index_file, ""}], [:compressed])
+    File.read!(tar_file)
   end
 end

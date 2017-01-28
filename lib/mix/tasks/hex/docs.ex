@@ -10,7 +10,8 @@ defmodule Mix.Tasks.Hex.Docs do
 
   It will retrieve and decompress the specified version of the documentation
   for a package. If you do not specify the `version` argument, this task will
-  retrieve the latest documentation available in the mirror.
+  retrieve the documentation for version used by the current mix project or fall
+  back to the latest documentation available in the mirror.
 
       mix hex.docs open PACKAGE [VERSION]
 
@@ -30,6 +31,7 @@ defmodule Mix.Tasks.Hex.Docs do
     Hex.start
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
     opts = normalize_options(opts)
+    lock_deps = Mix.Project.get() && Hex.Utils.current_lock_and_deps()
 
     case args do
       [] ->
@@ -43,9 +45,9 @@ defmodule Mix.Tasks.Hex.Docs do
         argument. Call "mix help hex.docs" for more information.
         """
       ["fetch" | remaining] ->
-        fetch_docs(remaining, opts)
+        fetch_docs(remaining, opts, lock_deps)
       ["open" | remaining] ->
-        open_docs(remaining, opts)
+        open_docs(remaining, opts, lock_deps)
       _ ->
         Mix.raise """
         Invalid arguments, expected one of:
@@ -55,16 +57,15 @@ defmodule Mix.Tasks.Hex.Docs do
     end
   end
 
-  defp fetch_docs([], _opts) do
+  defp fetch_docs([], _opts, _lock_deps) do
     Mix.raise "You must specify at least the name of a package"
   end
 
-  defp fetch_docs([name], opts) do
-    latest_version = find_package_latest_version(name)
-    fetch_docs([name, latest_version], opts)
-  end
+  defp fetch_docs(name_version, opts, lock_deps) do
+    destructure [name, version], name_version
+    version = version || current_version_or_latest(name, lock_deps)
+    version = resolve_version(name, version)
 
-  defp fetch_docs([name, version], opts) do
     target_dir = Path.join([opts[:home], name, version])
 
     if File.exists? target_dir do
@@ -79,7 +80,8 @@ defmodule Mix.Tasks.Hex.Docs do
     end
   end
 
-  defp find_package_latest_version(package) do
+  defp resolve_version(_package, version) when is_binary(version), do: version
+  defp resolve_version(package, :latest) do
     %{"releases" => releases} = retrieve_package_info(package)
 
     latest_release =
@@ -102,55 +104,60 @@ defmodule Mix.Tasks.Hex.Docs do
     end
   end
 
-  defp open_docs([], _opts) do
+  defp open_docs([], _opts, _lock_deps) do
     Mix.raise "You must specify at least the name of a package"
   end
 
-  defp open_docs(package, opts) do
+  defp open_docs(package, opts, lock_deps) do
     if opts[:offline] do
-      open_docs_offline(package, opts)
+      open_docs_offline(package, opts, lock_deps)
     else
       package
-      |> get_docs_url(opts)
+      |> get_docs_url(opts, lock_deps)
       |> browser_open
     end
   end
 
-  defp open_docs_offline([name], opts) do
-    {missing?, latest_version} = find_package_version(name, opts)
+  defp open_docs_offline([name], opts, lock_deps) do
+    {missing?, latest_version} = find_package_version(name, opts, lock_deps)
     if missing? do
-      fetch_docs([name], opts)
+      fetch_docs([name], opts, lock_deps)
     end
-    open_docs([name, latest_version], opts)
+    open_docs([name, latest_version], opts, lock_deps)
   end
 
-  defp open_docs_offline([name, version], opts) do
+  defp open_docs_offline([name, version], opts, _lock_deps) do
     index_path = Path.join([opts[:home], name, version, 'index.html'])
 
     open_file(index_path)
   end
 
-  defp find_package_version(name, opts) do
+  defp find_package_version(name, opts, lock_deps) do
     if File.exists?("#{opts[:home]}/#{name}") do
       {false, find_latest_version("#{opts[:home]}/#{name}")}
     else
-      {true, find_package_latest_version(name)}
+      version = current_version_or_latest(name, lock_deps)
+      {true, resolve_version(name, version)}
     end
   end
 
-  defp get_docs_url([name], opts) do
-    if module = opts[:module] do
-      Hex.Utils.hexdocs_module_url(name, module)
-    else
-      Hex.Utils.hexdocs_url(name)
-    end
-  end
-
-  defp get_docs_url([name, version], opts) do
+  defp get_docs_url(name_version, opts, lock_deps) do
+    destructure [name, version], name_version
+    version = version || current_version_or_latest(name, lock_deps)
     if module = opts[:module] do
       Hex.Utils.hexdocs_module_url(name, version, module)
     else
       Hex.Utils.hexdocs_url(name, version)
+    end
+  end
+
+  defp current_version_or_latest(_name, nil), do: :latest
+  defp current_version_or_latest(name, {lock, _deps}) do
+    case Hex.Utils.lock(lock[String.to_atom(name)]) do
+      [:hex, _package, lock_version, _checksum, _managers, _deps] ->
+        lock_version
+      _ ->
+        :latest
     end
   end
 
