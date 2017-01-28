@@ -35,6 +35,39 @@ defmodule Mix.Tasks.Hex.DocsTest do
     end
   end
 
+  defmodule ExampleProject.Mixfile do
+    def project do
+      [app: :outdated_app,
+       version: "0.0.2",
+       deps: [{:bar, "~> 0.1"}]]
+    end
+  end
+
+  test "fetch and open the current version of a package in a mix project" do
+    package = "bar"
+    current_version = "0.1.0"
+    latest_version = "0.2.0"
+    Hex.State.put(:home, tmp_path())
+    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+
+    auth = HexWeb.new_key([user: "user", pass: "hunter42"])
+    HexWeb.new_package(package, current_version, %{}, %{}, auth)
+    HexWeb.new_package(package, latest_version, %{}, %{}, auth)
+
+    Mix.Project.push ExampleProject.Mixfile
+    in_tmp "docs", fn ->
+      Mix.Dep.Lock.write %{bar: {:hex, :bar, current_version}}
+
+      Mix.Task.run "deps.get"
+      flush()
+
+      bypass_mirror()
+      Mix.Tasks.Hex.Docs.run(["fetch", package])
+      fetched_msg = "Docs fetched: #{docs_home}/#{package}/#{current_version}"
+      assert_received {:mix_shell, :info, [^fetched_msg]}
+    end
+  end
+
   test "fetch and open a specific version of a package" do
     package = "package"
     version = "1.1.2"

@@ -94,12 +94,12 @@ defmodule Hex.Utils do
   def hex_package_url(package, version),
     do: "https://hex.pm/packages/#{package}/#{version}"
 
-  def hexdocs_url(package),
+  def hexdocs_url(package, :latest),
     do: "https://hexdocs.pm/#{package}"
   def hexdocs_url(package, version),
     do: "https://hexdocs.pm/#{package}/#{version}"
 
-  def hexdocs_module_url(package, module),
+  def hexdocs_module_url(package, :latest, module),
     do: "https://hexdocs.pm/#{package}/#{module}.html"
   def hexdocs_module_url(package, version, module),
     do: "https://hexdocs.pm/#{package}/#{version}/#{module}.html"
@@ -175,5 +175,16 @@ defmodule Hex.Utils do
     tuple
     |> Tuple.to_list
     |> Enum.take(6)
+  end
+
+  def current_lock_and_deps() do
+    lock = Mix.Dep.Lock.read
+    deps = Mix.Dep.loaded([]) |> Enum.filter(& &1.scm == Hex.SCM)
+
+    Hex.Registry.open!(Hex.Registry.Server)
+    Hex.Mix.packages_from_lock(lock)
+    |> Hex.Registry.prefetch
+
+    {lock, deps}
   end
 end
