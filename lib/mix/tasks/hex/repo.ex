@@ -2,10 +2,42 @@ defmodule Mix.Tasks.Hex.Repo do
   use Mix.Task
   alias Mix.Hex.Utils
 
-  @shortdoc "TODO"
+  @shortdoc "Manages Hex repositories"
 
   @moduledoc """
+  Manages the list of available Hex repositories.
 
+  To use a package from another repository add `repo: :my_repo` to the
+  dependency declaration in `mix.exs`:
+
+      {:plug, "~> 1.0", repo: :my_repo}
+
+  By default all dependencies of plug will also be fetched from `:my_repo`
+  unless plug has declared otherwise in its dependency definition.
+
+  To use packages from `:my_repo` you need to add it to your configuration
+  first. You do that by calling `mix hex.repo my_repo https://myrepo.example.com`.
+
+  The default repo is called `:hexpm` and points to https://repo.hex.pm. This
+  can be overridden by using `mix hex.repo set ...`.
+
+  ### Add a repo
+
+      mix hex.repo add NAME URL [PUBLIC_KEY_PATH [AUTH_KEY]]
+
+  ### Set config for repo
+
+      mix hex.repo set url NAME URL
+      mix hex.repo set public_key NAME PUBLIC_KEY_PATH
+      mix hex.repo set auth_key NAME AUTH_KEY
+
+  ### Remove repo
+
+      mix hex.repo remove NAME
+
+  ### List all repos
+
+      mix hex.repo list
   """
 
   def run(args) do
