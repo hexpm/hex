@@ -1,7 +1,8 @@
 defmodule Hex.Registry.Server do
   use GenServer
-  @behaviour Hex.Registry
 
+  @behaviour Hex.Registry
+  @compile {:parse_transform, :ms_transform}
   @name __MODULE__
   @filename "cache.ets"
   @timeout 60_000
@@ -282,11 +283,11 @@ defmodule Hex.Registry.Server do
 
   defp purge_repo(repo, ets) do
     :ets.select_delete(ets, :ets.fun2ms(fn
-      {:versions, ^repo, _package} -> true
-      {:deps, ^repo, _package, _version} -> true
-      {:checksum, ^repo, _package, _version} -> true
-      {:retired, ^repo, _package, _version} -> true
-      {:tarball_etag, ^repo, _package, _version} -> true
+      {{:versions, ^repo, _package}, _} -> true
+      {{:deps, ^repo, _package, _version}, _} -> true
+      {{:checksum, ^repo, _package, _version}, _} -> true
+      {{:retired, ^repo, _package, _version}, _} -> true
+      {{:tarball_etag, ^repo, _package, _version}, _} -> true
       _ -> false
     end))
   end
