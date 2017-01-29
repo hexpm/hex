@@ -1,4 +1,5 @@
 defmodule Hex.SCM do
+  alias Hex.Registry.Server, as: Registry
   @moduledoc false
 
   @behaviour Mix.SCM
@@ -16,18 +17,28 @@ defmodule Hex.SCM do
 
   def format_lock(opts) do
     case Hex.Utils.lock(opts[:lock]) do
-      [:hex, name, version, nil, _managers, _deps] ->
+      %{name: name, version: version, checksum: nil} ->
         "#{version} (#{name})"
-      [:hex, name, version, <<checksum::binary-8, _::binary>>, _managers, _deps] ->
+      %{name: name, version: version, checksum: <<checksum::binary-8, _::binary>>} ->
         "#{version} (#{name}) #{checksum}"
-      _ ->
+      nil ->
         nil
     end
   end
 
   def accepts_options(name, opts) do
-    Keyword.put_new(opts, :hex, name)
+    opts
+    |> Keyword.put_new(:hex, name)
+    |> Keyword.put_new(:repo, "hexpm")
+    |> Keyword.update!(:hex, &to_string/1)
+    |> Keyword.update!(:repo, &to_string/1)
+    |> put_original_repo(Keyword.fetch(opts, :repo))
   end
+
+  defp put_original_repo(opts, {:ok, repo}),
+    do: Keyword.put(opts, :original_repo, to_string(repo))
+  defp put_original_repo(opts, :error),
+    do: opts
 
   def checked_out?(opts) do
     File.dir?(opts[:dest])
@@ -35,19 +46,18 @@ defmodule Hex.SCM do
 
   def lock_status(opts) do
     case Hex.Utils.lock(opts[:lock]) do
-      [:hex, name, version, checksum, _managers, _deps] ->
-        lock_status(opts[:dest], Atom.to_string(name), version, checksum)
+      %{name: name, version: version, checksum: checksum, repo: repo} ->
+        lock_status(opts[:dest], name, version, checksum, repo)
       nil ->
         :mismatch
-      _ ->
-        :outdated
     end
   end
 
-  defp lock_status(dest, name, version, checksum) do
+  defp lock_status(dest, name, version, checksum, repo) do
     case File.read(Path.join(dest, ".hex")) do
       {:ok, file} ->
         case parse_manifest(file) do
+          {^name, ^version, ^checksum, ^repo, _} -> :ok
           {^name, ^version, ^checksum, _} -> :ok
           {^name, ^version, ^checksum} -> :ok
           {^name, ^version, _} when is_nil(checksum) -> :ok
@@ -66,36 +76,35 @@ defmodule Hex.SCM do
 
   def managers(opts) do
     case Hex.Utils.lock(opts[:lock]) do
-      [:hex, _name, _version, _checksum, managers, _deps] ->
+      %{managers: managers} ->
         managers || []
-      _ ->
+      nil ->
         []
     end
   end
 
   def checkout(opts) do
-    Hex.Registry.open!(Hex.Registry.Server)
+    Registry.open
 
-    lock = Hex.Utils.lock(opts[:lock]) |> ensure_lock(opts)
-    [:hex, lock_name, version, checksum, _managers, deps] = lock
-
+    lock     = Hex.Utils.lock(opts[:lock]) |> ensure_lock(opts)
     name     = opts[:hex]
     dest     = opts[:dest]
-    filename = "#{name}-#{version}.tar"
-    path     = cache_path(filename)
-    url      = Hex.API.repo_url("tarballs/#{filename}")
+    repo     = opts[:repo]
+    filename = "#{name}-#{lock.version}.tar"
+    path     = cache_path(repo, filename)
+    url      = Hex.State.fetch!(:repos)[repo].url <> "/tarballs/#{filename}"
 
     Hex.Shell.info "  Checking package (#{url})"
 
-    case Hex.Parallel.await(:hex_fetcher, {:tarball, name, version}, @fetch_timeout) do
+    case Hex.Parallel.await(:hex_fetcher, {:tarball, repo, name, lock.version}, @fetch_timeout) do
       {:ok, :cached} ->
         Hex.Shell.info "  Using locally cached package"
       {:ok, :offline} ->
         Hex.Shell.info "  [OFFLINE] Using locally cached package"
       {:ok, :new, etag} ->
-        Hex.Registry.tarball_etag(name, version, etag)
+        Registry.tarball_etag(repo, name, lock.version, etag)
         if Version.compare(System.version, "1.4.0") == :lt,
-          do: Hex.Registry.Server.persist
+          do: Registry.persist
         Hex.Shell.info "  Fetched package"
       {:error, reason} ->
         Hex.Shell.error(reason)
@@ -107,19 +116,17 @@ defmodule Hex.SCM do
 
     File.rm_rf!(dest)
 
-    meta = Hex.Tar.unpack(path, dest, {name, version})
+    meta = Hex.Tar.unpack(path, dest, repo, name, lock.version)
     build_tools = guess_build_tools(meta)
     managers =
       build_tools
       |> Enum.map(&String.to_atom/1)
       |> Enum.sort
 
-    manifest = encode_manifest(name, version, checksum, managers)
+    manifest = encode_manifest(name, lock.version, lock.checksum, repo, managers)
     File.write!(Path.join(dest, ".hex"), manifest)
 
-    {:hex, lock_name, version, checksum, managers, Enum.sort(deps)}
-  after
-    Hex.Registry.pdict_clean
+    {:hex, lock.name, lock.version, lock.checksum, managers, Enum.sort(lock.deps), lock.repo}
   end
 
   def update(opts) do
@@ -182,28 +189,25 @@ defmodule Hex.SCM do
     end
   end
 
-  defp encode_manifest(name, version, checksum, managers) do
+  defp encode_manifest(name, version, checksum, repo, managers) do
     managers = managers || []
-    "#{name},#{version},#{checksum}\n#{Enum.join(managers, ",")}"
+    "#{name},#{version},#{checksum},#{repo}\n#{Enum.join(managers, ",")}"
   end
 
-  defp cache_path do
-    Path.join(Hex.State.fetch!(:home), @packages_dir)
-  end
-
-  defp cache_path(name) do
-    Path.join([Hex.State.fetch!(:home), @packages_dir, name])
+  defp cache_path(repo, name) do
+    Path.join([Hex.State.fetch!(:home), @packages_dir, repo, name])
   end
 
   def prefetch(lock) do
     fetch = fetch_from_lock(lock)
 
-    Enum.each(fetch, fn {package, version} ->
+    Enum.each(fetch, fn {repo, package, version} ->
+      %{url: url} = Hex.State.fetch!(:repos)[repo]
       filename = "#{package}-#{version}.tar"
-      path = cache_path(filename)
-      etag = File.exists?(path) && Hex.Registry.tarball_etag(package, version)
-      Hex.Parallel.run(:hex_fetcher, {:tarball, package, version}, fn ->
-        fetch(filename, path, etag)
+      path = cache_path(repo, filename)
+      etag = File.exists?(path) && Registry.tarball_etag(repo, package, version)
+      Hex.Parallel.run(:hex_fetcher, {:tarball, repo, package, version}, fn ->
+        fetch(url, filename, path, etag)
       end)
     end)
   end
@@ -213,28 +217,28 @@ defmodule Hex.SCM do
 
     Enum.flat_map(lock, fn {app, info} ->
       case Hex.Utils.lock(info) do
-        [:hex, name, version, _checksum, _managers, _deps] ->
+        %{name: name, version: version, repo: repo} ->
           dest = Path.join(deps_path, "#{app}")
           case lock_status([dest: dest, lock: info]) do
             :ok       -> []
-            :mismatch -> [{name, version}]
-            :outdated -> [{name, version}]
+            :mismatch -> [{repo, name, version}]
+            :outdated -> [{repo, name, version}]
           end
-        _ ->
+        nil ->
           []
       end
     end)
   end
 
-  defp fetch(name, path, etag) do
+  defp fetch(url, name, path, etag) do
     if Hex.State.fetch!(:offline?) do
       {:ok, :offline}
     else
-      url = Hex.API.repo_url("tarballs/#{name}")
-      File.mkdir_p!(cache_path())
+      url = url <> "/tarballs/#{name}"
 
       case Hex.Repo.request(url, etag) do
         {:ok, body, etag} ->
+          File.mkdir_p!(Path.dirname(path))
           File.write!(path, body)
           {:ok, :new, etag}
         other ->

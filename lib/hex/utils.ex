@@ -169,11 +169,26 @@ defmodule Hex.Utils do
     end
   end
 
-  def lock(nil), do: nil
-  def lock({:hex, name, version}), do: [:hex, name, version, nil, nil, nil]
-  def lock(tuple) do
-    tuple
-    |> Tuple.to_list
-    |> Enum.take(6)
+  def lock(tuple) when elem(tuple, 0) == :hex do
+    destructure [:hex, name, version, checksum, managers, deps, repo],
+                Tuple.to_list(tuple)
+    %{name: to_string(name),
+      version: version,
+      checksum: checksum,
+      managers: managers,
+      deps: lock_deps(deps),
+      repo: repo || "hexpm"}
+  end
+  def lock(_), do: nil
+
+  defp lock_deps(nil), do: nil
+  defp lock_deps(deps) do
+    Enum.map(deps, fn {app, req, opts} ->
+      opts =
+        opts
+        |> Keyword.put_new(:repo, "hexpm")
+        |> Keyword.update!(:hex, &to_string/1)
+      {app, req, opts}
+    end)
   end
 end

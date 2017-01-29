@@ -5,9 +5,9 @@ defmodule Hex.RepoTest do
   test "request" do
     bypass_mirror()
 
-    path = "docs/package-1.1.2.tar.gz"
-    package_url = Hex.API.repo_url(path)
-    bad_url = Hex.API.repo_url("docs/package")
+    repo_url = Hex.State.fetch!(:repos)["hexpm"].url
+    package_url = repo_url <> "/docs/package-1.1.2.tar.gz"
+    bad_url = repo_url <> "/docs/package"
 
     assert {:ok, _, nil} = Hex.Repo.request(package_url, nil)
     assert {:ok, _, nil} = Hex.Repo.request(package_url, "etag")

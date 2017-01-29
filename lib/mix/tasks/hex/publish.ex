@@ -56,9 +56,9 @@ defmodule Mix.Tasks.Hex.Publish do
   `:git` or `:path` as the SCM `:package` is used.
 
       defp deps do
-        [ {:ecto, "~> 0.1.0"},
-          {:postgrex, "~> 0.3.0"},
-          {:cowboy, github: "extend/cowboy"} ]
+        [{:ecto, "~> 0.1.0"},
+        {:postgrex, "~> 0.3.0"},
+        {:cowboy, github: "extend/cowboy"}]
       end
 
   As can be seen Hex package dependencies works alongside git dependencies.

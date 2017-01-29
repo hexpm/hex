@@ -14,12 +14,6 @@ defmodule Mix.Tasks.Hex.Config do
     * `key` - Hex API key
     * `api_url` - Hex API URL. Can be overridden by setting the environment
       variable `HEX_API_URL` (Default: `"https://hex.pm/api"`)
-    * `repo_url` - Hex repository URL. Can be overridden by setting the
-      environment variable `HEX_REPO_URL` (Default: `nil`)
-    * `mirror_url` - Hex.pm repository mirror URL. Use this option when using a
-      Hex.pm mirror, unlike when setting `repo_url` this will still use the
-      public key from Hex.pm when verifying the registry. Can be overridden by
-      setting the environment variable `HEX_MIRROR_URL`. (Default: `nil`)
     * `offline` - If set to true Hex will not fetch the regsitry or packages and
       will instead use locally cached files if they are available. Can be
       overridden by setting the environment variable `HEX_OFFLINE` (Default:

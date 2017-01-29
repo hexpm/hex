@@ -1,41 +1,42 @@
 defmodule Hex.ResolverTest do
   use HexTest.Case
+  alias Hex.Registry.Server, as: Registry
 
   defp resolve(reqs, locked \\ []) do
     reqs      = Enum.reverse(reqs)
     deps      = deps(reqs)
-    top_level = Enum.map(deps, &elem(&1, 0))
+    top_level = Enum.map(deps, &elem(&1, 1))
     reqs      = reqs(reqs)
     locked    = locked(locked)
 
     [reqs, locked]
     |> Enum.concat
-    |> Enum.map(&elem(&1, 0))
-    |> Hex.Registry.prefetch
+    |> Enum.map(&{elem(&1, 0), elem(&1, 1)})
+    |> Registry.prefetch
 
-    case Hex.Resolver.resolve(reqs, deps, top_level, locked) do
+    case Hex.Resolver.resolve(Registry, reqs, deps, top_level, %{}, locked) do
       {:ok, dict} -> dict
-      {:error, messages} -> messages <> "\n"
+      {:error, {:version, messages}} -> messages <> "\n"
     end
   end
 
   defp deps(reqs) do
     Enum.map(reqs, fn {app, _req} ->
-      {Atom.to_string(app), false, []}
+      {"hexpm", Atom.to_string(app), false, []}
     end)
   end
 
   defp reqs(reqs) do
     Enum.map(reqs, fn {app, req} ->
       name = Atom.to_string(app)
-      {name, name, req, "mix.exs"}
+      {"hexpm", name, name, req, "mix.exs"}
     end)
   end
 
   defp locked(locked) do
     Enum.map(locked, fn {app, req} ->
       name = Atom.to_string(app)
-      {name, name, req}
+      {"hexpm", name, name, req}
     end)
   end
 
@@ -45,7 +46,7 @@ defmodule Hex.ResolverTest do
 
   setup do
     Hex.State.put(:offline?, true)
-    Hex.Registry.open!(Hex.Registry.Server, registry_path: tmp_path("cache.ets"))
+    Registry.open(registry_path: tmp_path("cache.ets"))
     :ok
   end
 
