@@ -2,30 +2,23 @@ defmodule Hex.Registry.Server do
   use GenServer
   @behaviour Hex.Registry
 
-  # TODO: Optimize to not go through genserver
-
   @name __MODULE__
   @filename "cache.ets"
   @timeout 60_000
   @update_interval 24 * 60 * 60
 
-  def start_link(opts \\ []) do
-    name = Keyword.get(opts, :name, @name)
-    opts = if name, do: [name: name], else: []
-    GenServer.start_link(__MODULE__, [], opts)
+  # TODO: Bump version
+
+  def start_link() do
+    GenServer.start_link(__MODULE__, [], [name: @name])
   end
 
-  def open(name \\ @name, opts) do
-    GenServer.call(name, {:open, opts}, @timeout)
+  def open(opts \\ []) do
+    GenServer.call(@name, {:open, opts}, @timeout)
   end
 
   def close do
     GenServer.call(@name, :close, @timeout)
-    |> print_update_message
-  end
-
-  def close(name) do
-    GenServer.call(name, :close, @timeout)
     |> print_update_message
   end
 
@@ -38,38 +31,37 @@ defmodule Hex.Registry.Server do
     GenServer.cast(@name, :check_update)
   end
 
-  def prefetch(name, packages) do
-    case GenServer.call(name, {:prefetch, packages}, @timeout) do
+  def prefetch(packages) do
+    case GenServer.call(@name, {:prefetch, packages}, @timeout) do
       :ok ->
         :ok
-      {:error, package} ->
-        Mix.raise "Hex is running in offline mode and the registry entry for " <>
-                  "package #{package} is not cached locally"
+      {:error, message} ->
+        Mix.raise message
     end
   end
 
-  def versions(name, package) do
-    GenServer.call(name, {:versions, package}, @timeout)
+  def versions(repo, package) do
+    GenServer.call(@name, {:versions, repo, package}, @timeout)
   end
 
-  def deps(name, package, version) do
-    GenServer.call(name, {:deps, package, version}, @timeout)
+  def deps(repo, package, version) do
+    GenServer.call(@name, {:deps, repo, package, version}, @timeout)
   end
 
-  def checksum(name, package, version) do
-    GenServer.call(name, {:checksum, package, version}, @timeout)
+  def checksum(repo, package, version) do
+    GenServer.call(@name, {:checksum, repo, package, version}, @timeout)
   end
 
-  def retired(name, package, version) do
-    GenServer.call(name, {:retired, package, version}, @timeout)
+  def retired(repo, package, version) do
+    GenServer.call(@name, {:retired, repo, package, version}, @timeout)
   end
 
-  def tarball_etag(name, package, version) do
-    GenServer.call(name, {:tarball_etag, package, version}, @timeout)
+  def tarball_etag(repo, package, version) do
+    GenServer.call(@name, {:tarball_etag, repo, package, version}, @timeout)
   end
 
-  def tarball_etag(name, package, version, etag) do
-    GenServer.call(name, {:tarball_etag, package, version, etag}, @timeout)
+  def tarball_etag(repo, package, version, etag) do
+    GenServer.call(@name, {:tarball_etag, repo, package, version, etag}, @timeout)
   end
 
   defp print_update_message({:update, {:http_error, reason}}) do
@@ -112,14 +104,18 @@ defmodule Hex.Registry.Server do
   end
 
   def handle_call({:open, opts}, _from, %{ets: nil} = state) do
-    path = Hex.string_to_charlist(opts[:registry_path] || path())
-    tid = open_ets(path)
-    state = %{state | ets: tid, path: path}
+    path = opts[:registry_path] || path()
+    ets =
+      Hex.string_to_charlist(path)
+      |> open_ets
+      |> check_version
+      |> set_version
+    state = %{state | ets: ets, path: path}
     state = check_update(state, force: false)
-    {:reply, {:ok, self()}, state}
+    {:reply, :ok, state}
   end
   def handle_call({:open, _opts}, _from, state) do
-    {:reply, {:already_open, self()}, state}
+    {:reply, :ok, state}
   end
 
   def handle_call(:close, from, state) do
@@ -147,6 +143,8 @@ defmodule Hex.Registry.Server do
       |> Enum.reject(&(&1 in state.fetched))
       |> Enum.reject(&(&1 in state.pending))
 
+    purge_repo_from_cache(packages, state)
+
     if Hex.State.fetch!(:offline?) do
       prefetch_offline(packages, state)
     else
@@ -154,37 +152,37 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  def handle_call({:versions, package}, from, state) do
-    maybe_wait(package, from, state, fn ->
-      lookup(state.ets, {:versions, package})
+  def handle_call({:versions, repo, package}, from, state) do
+    maybe_wait({repo, package}, from, state, fn ->
+      lookup(state.ets, {:versions, repo, package})
     end)
   end
 
-  def handle_call({:deps, package, version}, from, state) do
-    maybe_wait(package, from, state, fn ->
-      lookup(state.ets, {:deps, package, version})
+  def handle_call({:deps, repo, package, version}, from, state) do
+    maybe_wait({repo, package}, from, state, fn ->
+      lookup(state.ets, {:deps, repo, package, version})
     end)
   end
 
-  def handle_call({:checksum, package, version}, from, state) do
-    maybe_wait(package, from, state, fn ->
-      lookup(state.ets, {:checksum, package, version})
+  def handle_call({:checksum, repo, package, version}, from, state) do
+    maybe_wait({repo, package}, from, state, fn ->
+      lookup(state.ets, {:checksum, repo, package, version})
     end)
   end
 
-  def handle_call({:retired, package, version}, from, state) do
-    maybe_wait(package, from, state, fn ->
-      lookup(state.ets, {:retired, package, version})
+  def handle_call({:retired, repo, package, version}, from, state) do
+    maybe_wait({repo, package}, from, state, fn ->
+      lookup(state.ets, {:retired, repo, package, version})
     end)
   end
 
-  def handle_call({:tarball_etag, package, version}, _from, state) do
-    etag = lookup(state.ets, {:tarball_etag, package, version})
+  def handle_call({:tarball_etag, repo, package, version}, _from, state) do
+    etag = lookup(state.ets, {:tarball_etag, repo, package, version})
     {:reply, etag, state}
   end
 
-  def handle_call({:tarball_etag, package, version, etag}, _from, state) do
-    :ets.insert(state.ets, {{:tarball_etag, package, version}, etag})
+  def handle_call({:tarball_etag, repo, package, version, etag}, _from, state) do
+    :ets.insert(state.ets, {{:tarball_etag, repo, package, version}, etag})
     {:reply, :ok, state}
   end
 
@@ -209,12 +207,13 @@ defmodule Hex.Registry.Server do
     {:noreply, state}
   end
 
-  def handle_info({:get_package, package, result}, state) do
-    pending = Hex.Set.delete(state.pending, package)
-    fetched = Hex.Set.put(state.fetched, package)
-    {replys, waiting} = Map.pop(state.waiting, package, [])
+  def handle_info({:get_package, repo, package, result}, state) do
+    repo_package = {repo, package}
+    pending = Hex.Set.delete(state.pending, repo_package)
+    fetched = Hex.Set.put(state.fetched, repo_package)
+    {replys, waiting} = Map.pop(state.waiting, repo_package, [])
 
-    write_result(result, package, state)
+    write_result(result, repo, package, state)
 
     Enum.each(replys, fn {from, fun} ->
       GenServer.reply(from, fun.())
@@ -237,17 +236,66 @@ defmodule Hex.Registry.Server do
     end
   end
 
+  defp check_version(ets) do
+    case :ets.lookup(ets, :version) do
+      [{:version, 1}] ->
+        ets
+      _ ->
+        :ets.delete(ets)
+        :ets.new(@name, [])
+    end
+  end
+
+  defp set_version(ets) do
+    :ets.insert(ets, {:version, 1})
+    ets
+  end
+
   defp persist(tid, path) do
     dir = Path.dirname(path)
     File.mkdir_p!(dir)
-    :ok = :ets.tab2file(tid, path)
+    :ok = :ets.tab2file(tid, Hex.to_charlist(path))
+  end
+
+  defp purge_repo_from_cache(packages, %{ets: ets}) do
+    config = Hex.State.fetch!(:repos)
+
+    Enum.each(packages, fn {repo, package} ->
+      case Map.fetch(config, repo) do
+        {:ok, %{url: url}} ->
+          case :ets.lookup(ets, {:repo, repo}) do
+            [{_key, ^url}] -> :ok
+            [] -> :ok
+            _ -> purge_repo(repo, ets)
+          end
+          :ets.insert(ets, {{:repo, repo}, url})
+        :error ->
+          throw {:norepo, repo, package}
+      end
+    end)
+  catch
+    :throw, {:norepo, repo, package} ->
+      message = "Trying to use package #{package} from repo #{repo} without " <>
+                "the repo being configured with `mix hex.repo`"
+      {:error, message}
+  end
+
+  defp purge_repo(repo, ets) do
+    :ets.select_delete(ets, :ets.fun2ms(fn
+      {:versions, ^repo, _package} -> true
+      {:deps, ^repo, _package, _version} -> true
+      {:checksum, ^repo, _package, _version} -> true
+      {:retired, ^repo, _package, _version} -> true
+      {:tarball_etag, ^repo, _package, _version} -> true
+      _ -> false
+    end))
   end
 
   defp prefetch_online(packages, state) do
-    Enum.each(packages, fn package ->
-      opts = fetch_opts(package, state)
+    Enum.each(packages, fn {repo, package} ->
+      opts = fetch_opts(repo, package, state)
       Hex.Parallel.run(:hex_fetcher, {:registry, package}, [await: false], fn ->
-        {:get_package, package, Hex.API.Registry.get_package(package, opts)}
+        {:get_package, repo, package, Hex.API.Registry.get_package(repo, package, opts)}
       end)
     end)
 
@@ -258,52 +306,58 @@ defmodule Hex.Registry.Server do
 
   defp prefetch_offline(packages, state) do
     missing =
-      Enum.find(packages, fn package ->
-        unless lookup(state.ets, {:versions, package}), do: package
+      Enum.find(packages, fn {repo, package} ->
+        unless lookup(state.ets, {:versions, repo, package}), do: package
       end)
 
     if missing do
-      {:reply, {:error, missing}, state}
+      message = "Hex is running in offline mode and the registry entry for " <>
+                "package #{inspect missing} is not cached locally"
+      {:reply, {:error, message}, state}
     else
       fetched = Enum.into(packages, state.fetched)
       {:reply, :ok, %{state | fetched: fetched}}
     end
   end
 
-  defp write_result({code, body, headers}, package, %{ets: tid}) when code in 200..299 do
+  defp write_result({code, body, headers}, repo, package, %{ets: tid}) when code in 200..299 do
     releases =
       body
       |> :zlib.gunzip
-      |> Hex.API.Registry.verify
+      |> Hex.API.Registry.verify(repo)
       |> Hex.API.Registry.decode
 
-    delete_package(package, tid)
+    delete_package(repo, package, tid)
 
     Enum.each(releases, fn %{version: version, checksum: checksum, dependencies: deps} = release ->
-      :ets.insert(tid, {{:checksum, package, version}, checksum})
-      :ets.insert(tid, {{:retired, package, version}, release[:retired]})
+      :ets.insert(tid, {{:checksum,repo,  package, version}, checksum})
+      :ets.insert(tid, {{:retired, repo, package, version}, release[:retired]})
       deps = Enum.map(deps, fn dep ->
-        {dep[:package], dep[:app] || dep[:package], dep[:requirement], !!dep[:optional]}
+        {dep[:repository] || "hexpm",
+         dep[:package],
+         dep[:app] || dep[:package],
+         dep[:requirement],
+         !!dep[:optional]}
       end)
-      :ets.insert(tid, {{:deps, package, version}, deps})
+      :ets.insert(tid, {{:deps, repo, package, version}, deps})
     end)
 
     versions = Enum.map(releases, & &1[:version])
-    :ets.insert(tid, {{:versions, package}, versions})
+    :ets.insert(tid, {{:versions, repo, package}, versions})
 
     if etag = headers['etag'] do
-      :ets.insert(tid, {{:registry_etag, package}, List.to_string(etag)})
+      :ets.insert(tid, {{:registry_etag, repo, package}, List.to_string(etag)})
     end
   end
-  defp write_result({304, _, _}, _package, _state) do
+  defp write_result({304, _, _}, _repo, _package, _state) do
     :ok
   end
-  defp write_result({404, _, _}, package, %{ets: tid}) do
-    delete_package(package, tid)
+  defp write_result({404, _, _}, repo, package, %{ets: tid}) do
+    delete_package(repo, package, tid)
     :ok
   end
 
-  defp write_result({code, body, _}, package, %{ets: tid}) do
+  defp write_result({code, body, _}, _repo, package, %{ets: tid}) do
     cached? = !!:ets.lookup(tid, {:versions, package})
     cached_message = if cached?, do: " (using cache)"
     Hex.Shell.error("Failed to fetch record for '#{package}' from registry#{cached_message}")
@@ -324,12 +378,12 @@ defmodule Hex.Registry.Server do
         state = %{state | waiting: waiting}
         {:noreply, state}
       true ->
-        raise "Package #{package} not prefetched, please report this issue"
+        raise "Package #{inspect package} not prefetched, please report this issue"
     end
   end
 
-  defp fetch_opts(package, %{ets: tid}) do
-    case :ets.lookup(tid, {:registry_etag, package}) do
+  defp fetch_opts(repo, package, %{ets: tid}) do
+    case :ets.lookup(tid, {:registry_etag, repo, package}) do
       [{_, etag}] -> [etag: etag]
       [] -> []
     end
@@ -339,14 +393,14 @@ defmodule Hex.Registry.Server do
     Path.join(Hex.State.fetch!(:home), @filename)
   end
 
-  defp delete_package(package, tid) do
-    :ets.delete(tid, {:registry_etag, package})
-    versions = lookup(tid, {:versions, package}) || []
-    :ets.delete(tid, {:versions, package})
+  defp delete_package(repo, package, tid) do
+    :ets.delete(tid, {:registry_etag, repo, package})
+    versions = lookup(tid, {:versions, repo, package}) || []
+    :ets.delete(tid, {:versions, repo, package})
     Enum.each(versions, fn version ->
-      :ets.delete(tid, {:checksum, package, version})
-      :ets.delete(tid, {:retired, package, version})
-      :ets.delete(tid, {:deps, package, version})
+      :ets.delete(tid, {:checksum, repo, package, version})
+      :ets.delete(tid, {:retired, repo, package, version})
+      :ets.delete(tid, {:deps, repo, package, version})
     end)
   end
 

@@ -147,11 +147,6 @@ defmodule Hex.API do
     'Hex/#{Hex.version} (Elixir/#{System.version}) (OTP/#{Hex.Utils.otp_version})'
   end
 
-  def repo_url(path) do
-    base = Hex.State.fetch!(:repo) || Hex.State.fetch!(:mirror)
-    base <> "/" <> path
-  end
-
   def api_url(path) do
     Hex.State.fetch!(:api) <> "/" <> path
   end

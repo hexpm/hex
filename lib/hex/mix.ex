@@ -3,7 +3,7 @@ defmodule Hex.Mix do
   Utility functions around Mix dependencies.
   """
 
-  @type dep :: {String.t, boolean, [String.t]}
+  @type dep :: {String.t, String.t, boolean, [String.t]}
 
   @doc """
   Returns `true` if the version and requirement match.
@@ -46,25 +46,25 @@ defmodule Hex.Mix do
   @spec overridden_parents([String.t], [dep], String.t) :: [dep]
   def overridden_parents(top_level, deps, parent) do
     deps
-    |> Enum.filter(fn {app, _override, _deps} -> app in top_level end)
+    |> Enum.filter(fn {_repo, app, _override, _deps} -> app in top_level end)
     |> do_overridden_parents(deps, parent)
     |> elem(0)
   end
 
   def do_overridden_parents(level, deps, parent) do
     {children_maps, found?} =
-      Enum.map_reduce(level, false, fn {_app, _override, children}, acc_found? ->
-        children_apps = Enum.map(children, &elem(&1, 0))
-        children_deps = Enum.filter(deps, fn {app, _, _} -> app in children_apps end)
+      Enum.map_reduce(level, false, fn {_repo, _app, _override, children}, acc_found? ->
+        children_apps = Enum.map(children, &elem(&1, 1))
+        children_deps = Enum.filter(deps, fn {_, app, _, _} -> app in children_apps end)
         {children_map, found?} = do_overridden_parents(children_deps, deps, parent)
         {children_map, found? or acc_found?}
       end)
 
     cond do
       found? ->
-        maps = [level_to_overridden_map(level)|children_maps]
+        maps = [level_to_overridden_map(level) | children_maps]
         {Enum.reduce(maps, &Map.merge/2), true}
-      parent in Enum.map(level, &elem(&1, 0)) ->
+      parent in Enum.map(level, &elem(&1, 1)) ->
         {level_to_overridden_map(level), true}
       true ->
         {%{}, false}
@@ -72,7 +72,7 @@ defmodule Hex.Mix do
   end
 
   defp level_to_overridden_map(level) do
-    for {app, override, _children} <- level,
+    for {_repo, app, override, _children} <- level,
         override,
         do: {app, true},
         into: %{}
@@ -84,20 +84,20 @@ defmodule Hex.Mix do
   we use in overridden_parents to check overridden status.
   """
   def attach_dep_and_children(deps, app, children) do
-    {app, override, _} = Enum.find(deps, &(elem(&1, 0) == app))
+    {repo, app, override, _} = Enum.find(deps, &(elem(&1, 1) == app))
 
     children =
-      Enum.map(children, fn {_name, app, _req, _optional} ->
-        {app, false, []}
+      Enum.map(children, fn {repo, _name, app, _req, _optional} ->
+        {repo, app, false, []}
       end)
 
-    new_dep = {app, override, children}
+    new_dep = {repo, app, override, children}
     put_dep(deps, new_dep) ++ children
   end
 
   # Replace a dependency in the tree
-  defp put_dep(deps, {new_app, _, _} = new_dep) do
-    Enum.map(deps, fn {app, _, _} = dep ->
+  defp put_dep(deps, {_, new_app, _, _} = new_dep) do
+    Enum.map(deps, fn {_, app, _, _} = dep ->
       if app == new_app, do: new_dep, else: dep
     end)
   end
@@ -107,12 +107,15 @@ defmodule Hex.Mix do
   dependencies overriding with another SCM (but include dependencies
   overriding with Hex) and dependencies that are not Hex packages.
   """
-  @spec deps_to_requests([Mix.Dep.t]) :: [{String.t, String.t}]
   def deps_to_requests(deps) do
     requests =
       for %Mix.Dep{app: app, requirement: req, scm: Hex.SCM, opts: opts, from: from} <- deps do
         from = Path.relative_to_cwd(from)
-        {Atom.to_string(opts[:hex]), Atom.to_string(app), req, from}
+        {opts[:repo],
+         opts[:hex],
+         Atom.to_string(app),
+         req,
+         from}
       end
 
     # Elixir < 1.3.0-dev returned deps in reverse order
@@ -129,9 +132,9 @@ defmodule Hex.Mix do
     Enum.map(deps, fn %Mix.Dep{app: app, deps: deps, opts: opts} ->
       deps =
         Enum.map(deps, fn %Mix.Dep{app: app, opts: opts} ->
-          {Atom.to_string(app), !!opts[:override], []}
+          {opts[:repo] || "hexpm", Atom.to_string(app), !!opts[:override], []}
         end)
-      {Atom.to_string(app), !!opts[:override], deps}
+      {opts[:repo] || "hexpm", Atom.to_string(app), !!opts[:override], deps}
     end)
   end
 
@@ -156,15 +159,15 @@ defmodule Hex.Mix do
 
   @doc """
   Takes all Hex packages from the lock and returns them
-  as `{name, version}` tuples.
+  as `{name, app, version, repo}` tuples.
   """
-  @spec from_lock(%{}) :: [{String.t, String.t, String.t}]
+  @spec from_lock(%{}) :: [{String.t, String.t, String.t, String.t}]
   def from_lock(lock) do
     Enum.flat_map(lock, fn {app, info} ->
       case Hex.Utils.lock(info) do
-        [:hex, name, version, _checksum, _managers, _deps] ->
-          [{Atom.to_string(name), Atom.to_string(app), version}]
-        _ ->
+        %{name: name, version: version, repo: repo} ->
+          [{repo, name, Atom.to_string(app), version}]
+        nil ->
           []
       end
     end)
@@ -175,20 +178,19 @@ defmodule Hex.Mix do
   lock of Hex packages.
   """
   def to_lock(result) do
-    Enum.into(result, %{}, fn {name, app, version} ->
-      app = String.to_atom(app)
-      checksum = Hex.Registry.checksum(name, version) |> Base.encode16(case: :lower)
+    Enum.into(result, %{}, fn {repo, name, app, version} ->
+      checksum =
+        Hex.Registry.Server.checksum(repo, name, version)
+        |> Base.encode16(case: :lower)
       deps =
-        name
-        |> Hex.Registry.deps(version)
+        Hex.Registry.Server.deps(repo, name, version)
         |> Enum.map(&registry_dep_to_def/1)
         |> Enum.sort
       managers =
-        app
-        |> managers()
+        managers(app)
         |> Enum.sort
         |> Enum.uniq
-      {app, {:hex, String.to_atom(name), version, checksum, managers, deps}}
+      {String.to_atom(app), {:hex, name, version, checksum, managers, deps, repo}}
     end)
   end
 
@@ -197,7 +199,7 @@ defmodule Hex.Mix do
   # from metadata during checkout or from the lock entry.
   defp managers(nil), do: []
   defp managers(app) do
-    path = Path.join([Mix.Project.deps_path, Atom.to_string(app), ".hex"])
+    path = Path.join([Mix.Project.deps_path, app, ".hex"])
     case File.read(path) do
       {:ok, file} ->
         case Hex.SCM.parse_manifest(file) do
@@ -211,15 +213,15 @@ defmodule Hex.Mix do
     end
   end
 
-  defp registry_dep_to_def({name, app, req, optional}),
-    do: {String.to_atom(app), req, hex: String.to_atom(name), optional: optional}
+  defp registry_dep_to_def({repo, name, app, req, optional}),
+    do: {String.to_atom(app), req, hex: name, repo: repo, optional: optional}
 
   def packages_from_lock(lock) do
     Enum.flat_map(lock, fn {_app, info} ->
       case Hex.Utils.lock(info) do
-        [:hex, name, _version, _checksum, _managers, _deps] ->
-          [Atom.to_string(name)]
-        _ ->
+        %{name: name, repo: repo} ->
+          [{repo, name}]
+        nil ->
           []
       end
     end)

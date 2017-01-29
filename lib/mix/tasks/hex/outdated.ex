@@ -1,6 +1,7 @@
 defmodule Mix.Tasks.Hex.Outdated do
   use Mix.Task
   alias Mix.Hex.Utils
+  alias Hex.Registry.Server, as: Registry
 
   @shortdoc "Shows outdated Hex deps for the current project"
 
@@ -32,9 +33,9 @@ defmodule Mix.Tasks.Hex.Outdated do
     lock = Mix.Dep.Lock.read
     deps = Mix.Dep.loaded([]) |> Enum.filter(& &1.scm == Hex.SCM)
 
-    Hex.Registry.open!(Hex.Registry.Server)
+    Hex.Registry.Server.open
     Hex.Mix.packages_from_lock(lock)
-    |> Hex.Registry.prefetch
+    |> Hex.Registry.Server.prefetch
 
     case args do
       [app] ->
@@ -52,15 +53,15 @@ defmodule Mix.Tasks.Hex.Outdated do
       Mix.raise "No dependency with name #{app}"
     end
 
-    {package, current} =
+    {repo, package, current} =
       case Hex.Utils.lock(lock[app]) do
-        [:hex, package, lock_version, _checksum, _managers, _deps] ->
-          {package, lock_version}
-        _ ->
+        %{repo: repo, name: package, version: version} ->
+          {repo, package, version}
+        nil ->
           Mix.raise "Dependency #{app} not locked as a Hex package"
       end
 
-    latest       = latest_version(package, current, opts[:pre])
+    latest       = latest_version(repo, package, current, opts[:pre])
     outdated?    = Hex.Version.compare(current, latest) == :lt
     requirements = get_requirements(sort(deps), app)
 
@@ -102,9 +103,8 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   defp format_single_row([source, req], latest) do
     req_matches? = version_match?(latest, req)
-    req = req || ""
     req_color = if req_matches?, do: :green, else: :red
-    [[:bright, source], [req_color, req]]
+    [[:bright, source], [req_color, req || ""]]
   end
 
   defp all(deps, lock, opts) do
@@ -136,8 +136,8 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp get_versions(deps, lock, pre?) do
     Enum.flat_map(deps, fn dep ->
       case Hex.Utils.lock(lock[dep.app]) do
-        [:hex, package, lock_version, _checksum, _managers, _deps] ->
-          latest_version = latest_version(package, lock_version, pre?)
+        %{repo: repo, name: package, version: lock_version} ->
+          latest_version = latest_version(repo, package, lock_version, pre?)
 
           requirements =
             deps
@@ -152,14 +152,12 @@ defmodule Mix.Tasks.Hex.Outdated do
     end)
   end
 
-  defp latest_version(package, default, pre?) do
+  defp latest_version(repo, package, default, pre?) do
     {:ok, default} = Hex.Version.parse(default)
     pre? = pre? || default.pre != []
 
     latest =
-      package
-      |> Atom.to_string
-      |> Hex.Registry.versions
+      Registry.versions(repo, package)
       |> highest_version(pre?)
 
     latest || default

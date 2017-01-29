@@ -8,7 +8,21 @@ defmodule Mix.Tasks.Hex do
 
   `mix hex`
 
-  See `mix help hex.config` to see all available configuration options.
+  Hex and some Mix tasks can be configured with the following environment
+  variables:
+
+    * `HEX_HOME` - Sets the directory where Hex stores the cache and
+      configuration (Default: `~/.hex`)
+    * `HEX_API` - Sets the API URL (Default: `https://hex.pm/api`)
+    * `HEX_OFFLINE` - If set Hex will not fetch the registry or packages and will
+      instead the locally cached files if they are available
+    * `HEX_UNSAFE_HTTPS` - If set Hex will not verify HTTPS certificates
+    * `HEX_UNSAFE_REGISTRY` - If set Hex will not verify the registry signature
+      against the repository's public key
+    * `HTTP_PROXY` / `HTTPS_PROXY` - Sets the URL to a HTTP(S) proxy, the
+      environment variables can also be in lower case
+    * `HEX_HTTP_CONCURRENCY` - Limits the number of concurrent HTTP requests in
+      flight, (Default: 8)
   """
 
   def run(args) do

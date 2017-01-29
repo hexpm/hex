@@ -48,7 +48,7 @@ defmodule Hex.APITest do
   end
 
   test "registry" do
-    assert {200, _, _} = Hex.API.Registry.get_package("postgrex")
+    assert {200, _, _} = Hex.API.Registry.get_package("hexpm", "postgrex")
   end
 
   test "keys" do

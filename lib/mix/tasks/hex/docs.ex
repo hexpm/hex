@@ -71,7 +71,7 @@ defmodule Mix.Tasks.Hex.Docs do
       Hex.Shell.info "Docs already fetched: #{target_dir}"
     else
       doc_filename = "#{name}-#{version}.tar.gz"
-      doc_url = Hex.API.repo_url("docs/#{doc_filename}")
+      doc_url = Hex.State.fetch!(:repos)["hexpm"].url <> "/docs/#{doc_filename}"
       retrieve_compressed_docs(doc_url, doc_filename, opts)
       File.mkdir_p! target_dir
       extract_doc_contents(doc_filename, target_dir, opts)

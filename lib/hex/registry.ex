@@ -1,68 +1,12 @@
 defmodule Hex.Registry do
-  @pdict_id :"$hex_registry"
-
-  @type name :: term
+  @type repo :: String.t
   @type package :: String.t
   @type version :: String.t
-  @type etag :: String.t
-  @callback open(Keyword.t) :: {:ok, name} | {:already_open, name} | {:error, String.t}
-  @callback close(name) :: :ok
-  @callback prefetch(name, [package]) :: :ok
-  @callback versions(name, package) :: [version]
-  @callback deps(name, package, version) :: [{String.t, String.t, String.t, boolean}]
-  @callback checksum(name, package, version) :: binary
-  @callback retired(name, package, version) :: binary
-  @callback tarball_etag(name, package, version) :: binary | nil
-  @callback tarball_etag(name, package, version, String.t) :: binary | nil
+  @type requirement :: String.t
+  @type app :: String.t
+  @type optional :: boolean
 
-  options = quote do [
-    prefetch(packages),
-    versions(package),
-    deps(package, version),
-    checksum(package, version),
-    retired(package, version),
-    tarball_etag(package, version),
-    tarball_etag(package, version, etag)]
-  end
-
-  Enum.each(options, fn {function, _, args} ->
-    def unquote(function)(unquote_splicing(args)) do
-      {module, name} = pdict_get()
-      module.unquote(function)(name, unquote_splicing(args))
-    end
-  end)
-
-  def  pdict_clean,               do: Process.delete(@pdict_id)
-  defp pdict_setup(module, name), do: Process.put(@pdict_id, {module, name})
-  defp pdict_get,                 do: Process.get(@pdict_id)
-
-  def open(module, opts \\ []) do
-    case module.open(opts) do
-      {ok, name} when ok in [:ok, :already_open] ->
-        pdict_setup(module, name)
-        ok
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  def open!(module, opts \\ []) do
-    case module.open(opts) do
-      {ok, name} when ok in [:ok, :already_open] ->
-        pdict_setup(module, name)
-        ok
-      {:error, reason} ->
-        Mix.raise "Failed to open Hex registry (#{reason})"
-    end
-  end
-
-  def close do
-    case pdict_get() do
-      {module, name} ->
-        module.close(name)
-        pdict_clean()
-      nil ->
-        false
-    end
-  end
+  @callback prefetch([{repo, package}]) :: :ok
+  @callback versions(repo, package) :: [version]
+  @callback deps(repo, package, version) :: [{repo, package, app, requirement, optional}]
 end

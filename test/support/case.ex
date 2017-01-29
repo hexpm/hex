@@ -89,9 +89,14 @@ defmodule HexTest.Case do
 
   defp create_registry(path, versions, deps) do
     tid = :ets.new(@ets_table, [])
-    versions = Enum.map(versions, fn {pkg, val} -> {{:versions, pkg}, val} end)
-    deps = Enum.map(deps, fn {{pkg, vsn}, val} -> {{:deps, pkg, vsn}, val} end)
-    :ets.insert(tid, versions ++ deps)
+    versions = Enum.map(versions, fn {pkg, versions} ->
+      {{:versions, "hexpm", pkg}, versions}
+    end)
+    deps = Enum.map(deps, fn {{pkg, vsn}, deps} ->
+      deps = Enum.map(deps, &Tuple.insert_at(&1, 0, "hexpm"))
+      {{:deps, "hexpm", pkg, vsn}, deps}
+    end)
+    :ets.insert(tid, versions ++ deps ++ [{:version, 1}])
     :ok = :ets.tab2file(tid, Hex.string_to_charlist(path))
     :ets.delete(tid)
   end
@@ -156,12 +161,15 @@ defmodule HexTest.Case do
     [key: body["secret"]]
   end
 
+  public_key = File.read!(Path.join(__DIR__, "../fixtures/test_pub.pem"))
+
   {:ok, _} = Hex.State.start_link
 
   Hex.State.put(:home, Path.expand("../../tmp/hex_home", __DIR__))
   Hex.State.put(:hexpm_pk, File.read!(Path.join(__DIR__, "../fixtures/test_pub.pem")))
   Hex.State.put(:api, "http://localhost:4043/api")
-  Hex.State.put(:mirror, System.get_env("HEX_MIRROR") || "http://localhost:4043/repo")
+  Hex.State.update!(:repos, &put_in(&1["hexpm"].url, "http://localhost:4043/repo"))
+  Hex.State.update!(:repos, &put_in(&1["hexpm"].public_key, public_key))
   Hex.State.put(:pbkdf2_iters, 10)
   Hex.State.put(:clean_pass, false)
   @hex_state Hex.State.get_all
@@ -205,7 +213,9 @@ defmodule HexTest.Case do
 
   def bypass_mirror() do
     bypass = Bypass.open
-    Hex.State.put(:repo, "http://localhost:#{bypass.port}")
+    repos = Hex.State.fetch!(:repos)
+    repos = put_in(repos["hexpm"].url, "http://localhost:#{bypass.port}")
+    Hex.State.put(:repos, repos)
 
     Bypass.expect bypass, fn conn ->
       case conn do

@@ -3,13 +3,11 @@ defmodule Hex.RemoteConverger do
 
   @behaviour Mix.RemoteConverger
 
-  alias Hex.Registry
+  alias Hex.Registry.Server, as: Registry
 
   def post_converge do
-    Registry.open!(Registry.Server)
+    Registry.close()
     :ok
-  after
-    Registry.pdict_clean
   end
 
   def remote?(dep) do
@@ -18,7 +16,7 @@ defmodule Hex.RemoteConverger do
 
   def converge(deps, lock) do
     Hex.start
-    Registry.open!(Registry.Server)
+    Registry.open()
 
     # We cannot use given lock here, because all deps that are being
     # converged have been removed from the lock by Mix
@@ -29,7 +27,9 @@ defmodule Hex.RemoteConverger do
     flat_deps = Hex.Mix.flatten_deps(deps, top_level)
     requests  = Hex.Mix.deps_to_requests(flat_deps)
 
-    [Hex.Mix.packages_from_lock(lock), Hex.Mix.packages_from_lock(old_lock), Enum.map(requests, &elem(&1, 0))]
+    [Hex.Mix.packages_from_lock(lock),
+     Hex.Mix.packages_from_lock(old_lock),
+     packages_from_requests(requests)]
     |> Enum.concat
     |> Registry.prefetch
 
@@ -39,25 +39,39 @@ defmodule Hex.RemoteConverger do
     check_deps(deps, top_level)
     check_input(requests, locked)
 
-    deps      = Hex.Mix.prepare_deps(deps)
+    repos = repo_overrides(deps)
+    deps = Hex.Mix.prepare_deps(deps)
     top_level = Enum.map(top_level, &Atom.to_string/1)
 
     Hex.Shell.info "Running dependency resolution..."
 
-    case Hex.Resolver.resolve(requests, deps, top_level, locked) do
+    case Hex.Resolver.resolve(Registry, requests, deps, top_level, repos, locked) do
       {:ok, resolved} ->
         print_success(resolved, locked)
         verify_resolved(resolved, old_lock)
         new_lock = Hex.Mix.to_lock(resolved)
         Hex.SCM.prefetch(new_lock)
         lock_merge(lock, new_lock)
-      {:error, message} ->
-        resolver_failed(message)
+      {:error, {:version, message}} ->
+        resolver_version_failed(message)
+      {:error, {:repo, message}} ->
+        resolver_repo_failed(message)
     end
   after
     if Version.compare(System.version, "1.4.0") == :lt do
-      Hex.Registry.Server.persist
+      Registry.persist
     end
+  end
+
+  defp repo_overrides(deps) do
+    for dep <- deps, dep.top_level, into: %{},
+        do: {dep.opts[:hex], dep.opts[:original_repo]}
+  end
+
+  defp packages_from_requests(deps) do
+    Enum.map(deps, fn {repo, package, _app, _req, _from} ->
+      {repo, package}
+    end)
   end
 
   defp lock_merge(old, new) do
@@ -69,7 +83,7 @@ defmodule Hex.RemoteConverger do
     end)
   end
 
-  defp resolver_failed(message) do
+  defp resolver_version_failed(message) do
     Hex.Shell.info "\n" <> message
 
     Mix.raise "Hex dependency resolution failed, relax the version " <>
@@ -79,28 +93,33 @@ defmodule Hex.RemoteConverger do
               "with {:dependency, \"~> 1.0\", override: true}"
   end
 
-  def deps(%Mix.Dep{app: app}, lock) do
-    case Hex.Utils.lock(lock[app]) do
-      [:hex, name, version, _checksum, _managers, nil] ->
-        Registry.open!(Registry.Server)
-        Registry.prefetch([Atom.to_string(name)])
-        get_deps(name, version)
-      [:hex, _name, _version, _checksum, _managers, deps] ->
-        deps
-      _ ->
-        []
-    end
-  after
-    Registry.pdict_clean
+  defp resolver_repo_failed(message) do
+    Hex.Shell.info "\n" <> message
+
+    Mix.raise "Hex dependency resolution failed because of repo conflicts. " <>
+              "You can override the repo by adding it as a dependency " <>
+              "{:dependency, \"~> 1.0\", repo: \"my_repo\"}"
   end
 
-  defp get_deps(name, version) do
-    name = Atom.to_string(name)
-    deps = Registry.deps(name, version) || []
+  def deps(%Mix.Dep{app: app}, lock) do
+    case Hex.Utils.lock(lock[app]) do
+      %{name: name, version: version, deps: nil, repo: repo} ->
+        Registry.open()
+        Registry.prefetch([{repo, name}])
+        get_deps(repo, name, version)
+      %{deps: deps} ->
+        deps
+      nil ->
+        []
+    end
+  end
 
-    for {name, app, req, optional} <- deps do
+  defp get_deps(repo, name, version) do
+    deps = Registry.deps(repo, name, version) || []
+
+    for {repo, name, app, req, optional} <- deps do
       app = String.to_atom(app)
-      opts = [optional: optional, hex: String.to_atom(name)]
+      opts = [optional: optional, hex: name, repo: repo]
 
       # Support old packages where requirement could be missing
       if req do
@@ -121,17 +140,17 @@ defmodule Hex.RemoteConverger do
   end
 
   defp check_input(requests, locked) do
-    Enum.each(requests, fn {name, _app, req, from} ->
-      check_package_req(name, req, from)
+    Enum.each(requests, fn {repo, name, _app, req, from} ->
+      check_package_req(repo, name, req, from)
     end)
 
-    Enum.each(locked, fn {name, _app, req} ->
-      check_package_req(name, req, "mix.lock")
+    Enum.each(locked, fn {repo, name, _app, req} ->
+      check_package_req(repo, name, req, "mix.lock")
     end)
   end
 
-  defp check_package_req(name, req, from) do
-    if Registry.versions(name) do
+  defp check_package_req(repo, name, req, from) do
+    if Registry.versions(repo, name) do
       if req != nil and Hex.Version.parse_requirement(req) == :error do
         Mix.raise "Required version #{inspect req} for package #{name} is incorrectly specified (from: #{from})"
       end
@@ -142,15 +161,14 @@ defmodule Hex.RemoteConverger do
 
   defp print_success(resolved, locked) do
     locked = Enum.map(locked, &elem(&1, 0))
-    resolved = Enum.into(resolved, %{}, fn {name, _app, version} -> {name, version} end)
+    resolved = Enum.into(resolved, %{}, fn {repo, name, _app, version} -> {name, {repo, version}} end)
     resolved = Map.drop(resolved, locked)
 
     if Map.size(resolved) != 0 do
       Hex.Shell.info "Dependency resolution completed:"
       resolved = Enum.sort(resolved)
-      Enum.each(resolved, fn {name, version} ->
-        name
-        |> Registry.retired(version)
+      Enum.each(resolved, fn {name, {repo, version}} ->
+        Registry.retired(repo, name, version)
         |> print_status(name, version)
       end)
     end
@@ -173,56 +191,67 @@ defmodule Hex.RemoteConverger do
   defp retirement_reason(other), do: other
 
   defp verify_resolved(resolved, lock) do
-    Enum.each(resolved, fn {name, app, version} ->
+    Enum.each(resolved, fn {repo, name, app, version} ->
       atom_name = String.to_atom(name)
 
       case Hex.Utils.lock(lock[String.to_atom(app)]) do
-        [:hex, ^atom_name, ^version, checksum, _managers, deps] ->
-          verify_registry(deps, name, version, checksum)
+        %{name: ^atom_name, version: ^version, repo: ^repo, checksum: checksum, deps: deps} ->
+          verify_checksum(repo, name, version, checksum)
+          verify_deps(repo, name, version, deps)
         _ ->
           :ok
       end
     end)
   end
 
-  defp verify_registry(deps, name, version, checksum) do
-    registry_checksum = Registry.checksum(name, version)
+  defp verify_checksum(repo, name, version, checksum) do
+    registry_checksum = Registry.checksum(repo, name, version)
     if checksum && Base.decode16!(checksum, case: :lower) != registry_checksum do
       Mix.raise "Registry checksum mismatch against lock (#{name} #{version})"
     end
-
-    if deps, do: verify_dependencies(deps, name, version)
   end
 
-  defp verify_dependencies(deps, name, version) do
+  defp verify_deps(nil, _name, _version, _deps), do: :ok
+  defp verify_deps(repo, name, version, deps) do
     deps =
       Enum.map(deps, fn {app, req, opts} ->
-        {Atom.to_string(opts[:hex]), Atom.to_string(app), req, !!opts[:optional]}
+        {opts[:repo],
+         opts[:hex],
+         Atom.to_string(app),
+         req,
+         !!opts[:optional]}
       end)
 
-    if Enum.sort(deps) != Enum.sort(Registry.deps(name, version)) do
-      Mix.raise "Registry dependencies mismatch against lock (#{name} #{version})"
-    end
+    if Enum.sort(deps) != Enum.sort(Registry.deps(repo, name, version)),
+      do: Mix.raise "Registry dependencies mismatch against lock (#{name} #{version})"
   end
 
   defp check_lock(lock) do
+    repos = Hex.State.fetch!(:repos)
     Enum.each(lock, fn {_app, info} ->
       case Hex.Utils.lock(info) do
-        [:hex, name, version, _checksum, _managers, _deps] ->
-          check_dep(Atom.to_string(name), version)
-        _ ->
+        %{name: name, version: version, repo: repo} ->
+          check_repo(repos, repo)
+          check_dep(repo, name, version)
+        nil ->
           :ok
       end
     end)
   end
 
-  defp check_dep(app, version) do
-    if versions = Registry.versions(app) do
+  defp check_dep(repo, name, version) do
+    if versions = Registry.versions(repo, name) do
       unless version in versions do
-        Mix.raise "Unknown package version #{app} #{version} in lockfile"
+        Mix.raise "Unknown package version #{name} #{version} in lockfile"
       end
     else
-      Mix.raise "Unknown package #{app} in lockfile"
+      Mix.raise "Unknown package #{name} in lockfile"
+    end
+  end
+
+  defp check_repo(repos, repo) do
+    unless Map.has_key?(repos, repo) do
+      Mix.raise "Unknown repo #{repo}, add it with mix hex.repo"
     end
   end
 
@@ -234,19 +263,19 @@ defmodule Hex.RemoteConverger do
   defp do_with_children(names, lock) do
     Enum.map(names, fn name ->
       case Hex.Utils.lock(lock[String.to_atom(name)]) do
-        [:hex, name, version, _checksum, _managers, nil] ->
+        %{name: name, version: version, deps: nil, repo: repo} ->
           # Do not error on bad data in the old lock because we should just
           # fix it automatically
-          if deps = Registry.deps(Atom.to_string(name), version) do
+          if deps = Registry.deps(repo, name, version) do
             apps = Enum.map(deps, &elem(&1, 1))
             [apps, do_with_children(apps, lock)]
           else
             []
           end
-        [:hex, _name, _version, _checksum, _managers, deps] ->
+        %{deps: deps} ->
           apps = Enum.map(deps, &Atom.to_string(elem(&1, 0)))
           [apps, do_with_children(apps, lock)]
-        _ ->
+        nil ->
           []
       end
     end)
@@ -255,37 +284,39 @@ defmodule Hex.RemoteConverger do
   defp prepare_locked(lock, old_lock, deps) do
     # Remove dependencies from the lock if:
     # 1. They are defined as git or path in mix.exs
-    # 2. If the requirement in mix.exs does not match the locked version
+    # 2. If the requirement or repo in mix.exs does not match the locked version
     # 3. If it's a child of another Hex package being unlocked/updated
 
     unlock =
-      Enum.filter_map(deps, fn
-        %Mix.Dep{scm: Hex.SCM, app: app, requirement: req, opts: opts} ->
-          # Make sure to handle deps that were previously locked as Git
-          case Hex.Utils.lock(old_lock[app]) do
-            [:hex, name, version, _checksum, _managers, _deps] ->
-              req && !Hex.Version.match?(version, req) && name == opts[:hex]
-            _ ->
-              true
-          end
-
-        %Mix.Dep{} ->
-          true
-      end, &Atom.to_string(&1.app))
-
-    unlock =
-      for {app, _} <- old_lock,
+      for({app, _} <- old_lock,
           not Map.has_key?(lock, app),
-        into: unlock,
-        do: Atom.to_string(app)
-
-    unlock =
-      Enum.uniq(unlock)
+        into: unlock_deps(deps, old_lock),
+        do: Atom.to_string(app))
+      |> Enum.uniq
       |> with_children(old_lock)
       |> Enum.uniq
 
-    for {name, app, vsn} <- Hex.Mix.from_lock(old_lock),
-        not app in unlock,
-        do: {name, app, vsn}
+    Hex.Mix.from_lock(old_lock)
+    |> Enum.reject(fn {_repo, _name, app, _version} -> app in unlock end)
+  end
+
+  defp unlock_deps(deps, old_lock) do
+    Enum.filter(deps, fn
+      %Mix.Dep{scm: Hex.SCM, app: app, requirement: req, opts: opts} ->
+        name = opts[:hex]
+        case Hex.Utils.lock(old_lock[app]) do
+          %{name: ^name, version: version, repo: repo} ->
+            (req && !Hex.Version.match?(version, req)) ||
+              (repo != opts[:repo])
+          %{} ->
+            false
+          nil ->
+            true
+        end
+
+      %Mix.Dep{} ->
+        true
+    end)
+    |> Enum.map(&Atom.to_string(&1.app))
   end
 end
