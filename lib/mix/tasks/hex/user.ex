@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Hex.User do
   use Mix.Task
   alias Mix.Hex.Utils
 
-  @shortdoc "Registers or manages Hex user"
+  @shortdoc "Manages your Hex user account"
 
   @moduledoc """
   Hex user tasks.
