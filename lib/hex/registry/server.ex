@@ -281,15 +281,25 @@ defmodule Hex.Registry.Server do
       {:error, message}
   end
 
+  # fn
+  #   {{:versions, ^repo, _package}, _} -> true
+  #   {{:deps, ^repo, _package, _version}, _} -> true
+  #   {{:checksum, ^repo, _package, _version}, _} -> true
+  #   {{:retired, ^repo, _package, _version}, _} -> true
+  #   {{:tarball_etag, ^repo, _package, _version}, _} -> true
+  #   _ -> false
+  # end
+  defp purge_repo_matchspec(repo) do
+    [{{{:versions, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+     {{{:deps, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+     {{{:checksum, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+     {{{:retired, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+     {{{:tarball_etag, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+     {:_, [], [false]}]
+  end
+
   defp purge_repo(repo, ets) do
-    :ets.select_delete(ets, :ets.fun2ms(fn
-      {{:versions, ^repo, _package}, _} -> true
-      {{:deps, ^repo, _package, _version}, _} -> true
-      {{:checksum, ^repo, _package, _version}, _} -> true
-      {{:retired, ^repo, _package, _version}, _} -> true
-      {{:tarball_etag, ^repo, _package, _version}, _} -> true
-      _ -> false
-    end))
+    :ets.select_delete(ets, purge_repo_matchspec(repo))
   end
 
   defp prefetch_online(packages, state) do
