@@ -289,6 +289,7 @@ defmodule Hex.Registry.Server do
   #   {{:tarball_etag, ^repo, _package, _version}, _} -> true
   #   _ -> false
   # end
+  
   defp purge_repo_matchspec(repo) do
     [{{{:versions, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
      {{{:deps, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
