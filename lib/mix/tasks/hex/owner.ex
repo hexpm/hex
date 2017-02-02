@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.Owner do
   use Mix.Task
-  alias Mix.Hex.Utils
 
   @shortdoc "Manages Hex package ownership"
 
@@ -43,13 +42,13 @@ defmodule Mix.Tasks.Hex.Owner do
 
     case args do
       ["add", package, owner] ->
-        auth = Utils.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info(config)
         add_owner(package, owner, auth)
       ["remove", package, owner] ->
-        auth = Utils.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info(config)
         remove_owner(package, owner, auth)
       ["list", package] ->
-        auth = Utils.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info(config)
         list_owners(package, auth)
       ["packages"] ->
         list_owned_packages(config)

@@ -41,7 +41,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       config = Hex.Config.read
 
       send self(), {:mix_shell_input, :prompt, "hunter42"}
-      auth = Mix.Hex.Utils.auth_info(Hex.Config.read)
+      auth = Mix.Tasks.Hex.auth_info(Hex.Config.read)
       assert {200, body, _} = Hex.API.Key.get(auth)
       assert name in Enum.map(body, &(&1["name"]))
 
@@ -108,7 +108,7 @@ defmodule Mix.Tasks.Hex.UserTest do
         Mix.Tasks.Hex.User.run(["test"])
       end)
 
-      Mix.Hex.Utils.persist_key("hunter42", "wrongkey")
+      Mix.Tasks.Hex.persist_key("hunter42", "wrongkey")
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.User.run(["test"])
       assert_received {:mix_shell, :error, ["Failed to auth"]}

@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.Retire do
   use Mix.Task
-  alias Mix.Hex.Utils
 
   @shortdoc "Retires a package version"
 
@@ -43,10 +42,10 @@ defmodule Mix.Tasks.Hex.Retire do
 
     case args do
       [package, version, reason] when retire? ->
-        auth = Utils.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info(config)
         retire(package, version, reason, opts, auth)
       [package, version] when not retire? ->
-        auth = Utils.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info(config)
         unretire(package, version, auth)
       _ ->
         Mix.raise """
