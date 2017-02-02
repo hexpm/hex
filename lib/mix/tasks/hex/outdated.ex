@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.Outdated do
   use Mix.Task
-  alias Mix.Hex.Utils
   alias Hex.Registry.Server, as: Registry
 
   @shortdoc "Shows outdated Hex deps for the current project"
@@ -85,7 +84,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     header = ["Source", "Requirement"]
     values = Enum.map(requirements, &format_single_row(&1, latest))
     Hex.Shell.info ""
-    Utils.print_table(header, values)
+    Mix.Tasks.Hex.print_table(header, values)
 
     message = "A green requirement means that it matches the latest version."
     Hex.Shell.info ["\n", message]
@@ -118,7 +117,7 @@ defmodule Mix.Tasks.Hex.Outdated do
       Hex.Shell.info "No hex dependencies"
     else
       header = ["Dependency", "Current", "Latest", "Update possible"]
-      Utils.print_table(header, values)
+      Mix.Tasks.Hex.print_table(header, values)
 
       message =
         "A green version in latest means you have the latest " <>

@@ -1,7 +1,6 @@
 defmodule Mix.Tasks.Hex.Publish do
   use Mix.Task
-  alias Mix.Hex.Utils
-  alias Mix.Hex.Build
+  alias Mix.Tasks.Hex.Build
 
   @shortdoc "Publishes a new package version"
 
@@ -104,23 +103,23 @@ defmodule Mix.Tasks.Hex.Publish do
 
     case args do
       ["package"] when revert ->
-        auth = Utils.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info(config)
         revert_package(build, revert_version, auth)
       ["docs"] when revert ->
-        auth = Utils.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info(config)
         revert_docs(build, revert_version, auth)
       [] when revert ->
-        auth = Utils.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info(config)
         revert(build, revert_version, auth)
       ["package"] ->
-        auth = Utils.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info(config)
         if proceed?(build), do: create_package(build, auth, opts)
       ["docs"] ->
-        auth = Utils.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info(config)
         docs_task(build, opts)
         create_docs(build, auth, opts)
       [] ->
-        auth = Utils.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info(config)
         create(build, auth, opts)
       _ ->
         Mix.raise """
@@ -202,7 +201,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp revert_package(build, version, auth) do
-    version = Utils.clean_version(version)
+    version = Mix.Tasks.Hex.clean_version(version)
     name = build.meta.name
 
     case Hex.API.Release.delete(name, version, auth) do
@@ -215,7 +214,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp revert_docs(build, version, auth) do
-    version = Utils.clean_version(version)
+    version = Mix.Tasks.Hex.clean_version(version)
     name = build.meta.name
 
     case Hex.API.ReleaseDocs.delete(name, version, auth) do
@@ -238,12 +237,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp send_tarball(name, version, tarball, auth, progress?) do
-    progress =
-      if progress? do
-        Utils.progress(byte_size(tarball))
-      else
-        Utils.progress(nil)
-      end
+    progress = progress_fun(progress?, byte_size(tarball))
 
     case Hex.API.ReleaseDocs.new(name, version, tarball, auth, progress) do
       {code, _, _} when code in 200..299 ->
@@ -286,24 +280,20 @@ defmodule Mix.Tasks.Hex.Publish do
     meta = build.meta
     {tarball, checksum} = Hex.Tar.create(meta, meta.files)
     progress? = Keyword.get(opts, :progress, true)
-    name = meta.name
-    version = meta.version
+    progress = progress_fun(progress?, byte_size(tarball))
 
-    progress =
-      if progress? do
-        Utils.progress(byte_size(tarball))
-      else
-        Utils.progress(nil)
-      end
-
-    case Hex.API.Release.new(name, tarball, auth, progress) do
+    case Hex.API.Release.new(meta.name, tarball, auth, progress) do
       {code, _, _} when code in 200..299 ->
+        location = Hex.Utils.hex_package_url(meta.name, meta.version)
         Hex.Shell.info ""
-        Hex.Shell.info("Package published to #{Hex.Utils.hex_package_url(name, version)} (#{String.downcase(checksum)})")
+        Hex.Shell.info("Package published to #{location} (#{String.downcase(checksum)})")
       {code, body, _} ->
         Hex.Shell.info ""
         Hex.Shell.error("Publishing failed")
         Hex.Utils.print_error_result(code, body)
     end
   end
+
+  defp progress_fun(true, size), do: Mix.Tasks.Hex.progress(size)
+  defp progress_fun(false, _size), do: Mix.Tasks.Hex.progress(nil)
 end

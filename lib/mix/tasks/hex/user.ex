@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.User do
   use Mix.Task
-  alias Mix.Hex.Utils
 
   @shortdoc "Manages your Hex user account"
 
@@ -142,14 +141,14 @@ defmodule Mix.Tasks.Hex.User do
   defp passphrase(config) do
     key = cond do
       encrypted_key = config[:encrypted_key] ->
-        Utils.decrypt_key(encrypted_key, "Current passphrase")
+        Mix.Tasks.Hex.decrypt_key(encrypted_key, "Current passphrase")
       key = config[:key] ->
         key
       true ->
         Mix.raise "No authorized user found. Run 'mix hex.user auth'"
     end
 
-    Utils.encrypt_key(config, key, "New passphrase")
+    Mix.Tasks.Hex.encrypt_key(config, key, "New passphrase")
   end
 
   defp register do
@@ -158,8 +157,8 @@ defmodule Mix.Tasks.Hex.User do
 
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim
     email    = Hex.Shell.prompt("Email:") |> Hex.string_trim
-    password = Utils.password_get("Password:") |> Hex.string_trim
-    confirm  = Utils.password_get("Password (confirm):") |> Hex.string_trim
+    password = Mix.Tasks.Hex.password_get("Password:") |> Hex.string_trim
+    confirm  = Mix.Tasks.Hex.password_get("Password (confirm):") |> Hex.string_trim
 
     if password != confirm do
       Mix.raise "Entered passwords do not match"
@@ -172,7 +171,7 @@ defmodule Mix.Tasks.Hex.User do
   defp create_user(username, email, password) do
     case Hex.API.User.new(username, email, password) do
       {code, _, _} when code in 200..299 ->
-        Utils.generate_key(username, password)
+        Mix.Tasks.Hex.generate_key(username, password)
         Hex.Shell.info("You are required to confirm your email to access your account, " <>
                        "a confirmation email has been sent to #{email}")
       {code, body, _} ->
@@ -183,13 +182,13 @@ defmodule Mix.Tasks.Hex.User do
 
   defp create_key do
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim
-    password = Utils.password_get("Password:") |> Hex.string_trim
+    password = Mix.Tasks.Hex.password_get("Password:") |> Hex.string_trim
 
-    Utils.generate_key(username, password)
+    Mix.Tasks.Hex.generate_key(username, password)
   end
 
   defp remove_all_keys(config) do
-    auth = Utils.auth_info(config)
+    auth = Mix.Tasks.Hex.auth_info(config)
 
     Hex.Shell.info "Removing all keys..."
     case Hex.API.Key.delete_all(auth) do
@@ -203,7 +202,7 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp remove_key(key, config) do
-    auth = Utils.auth_info(config)
+    auth = Mix.Tasks.Hex.auth_info(config)
 
     Hex.Shell.info "Removing key #{key}..."
     case Hex.API.Key.delete(key, auth) do
@@ -219,14 +218,14 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp list_keys(config) do
-    auth = Utils.auth_info(config)
+    auth = Mix.Tasks.Hex.auth_info(config)
 
     case Hex.API.Key.get(auth) do
       {code, body, _headers} when code in 200..299 ->
         values = Enum.map(body, fn %{"name" => name, "inserted_at" => time} ->
           [name, time]
         end)
-        Utils.print_table(["Name", "Created at"], values)
+        Mix.Tasks.Hex.print_table(["Name", "Created at"], values)
       {code, body, _headers} ->
         Hex.Shell.error "Key fetching failed"
         Hex.Utils.print_error_result(code, body)
@@ -236,7 +235,7 @@ defmodule Mix.Tasks.Hex.User do
   # TODO
   defp test(config) do
     username = local_user(config)
-    auth = Utils.auth_info(config)
+    auth = Mix.Tasks.Hex.auth_info(config)
 
     case Hex.API.User.test(username, auth) do
       {code, _, _} when code in 200..299 ->

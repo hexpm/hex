@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.Repo do
   use Mix.Task
-  alias Mix.Hex.Utils
 
   @shortdoc "Manages Hex repositories"
 
@@ -114,7 +113,7 @@ defmodule Mix.Tasks.Hex.Repo do
       Enum.map(read_config(), fn {name, %{url: url, public_key: public_key, auth_key: auth_key}} ->
         [name, url, show_public_key(public_key), auth_key]
       end)
-    Utils.print_table(header, values)
+    Mix.Tasks.Hex.print_table(header, values)
   end
 
   defp read_public_key(nil), do: nil

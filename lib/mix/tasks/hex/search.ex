@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.Search do
   use Mix.Task
-  alias Mix.Hex.Utils
 
   @shortdoc "Searches for package names"
 
@@ -35,7 +34,7 @@ defmodule Mix.Tasks.Hex.Search do
         [package["name"], latest(package["releases"]), url(package["name"])]
       end)
 
-    Utils.print_table(["Package", "Version", "URL"], values)
+    Mix.Tasks.Hex.print_table(["Package", "Version", "URL"], values)
   end
 
   defp latest([%{"version" => version} | _]) do
