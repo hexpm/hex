@@ -20,6 +20,10 @@ defmodule Mix.Tasks.Hex.Repo do
   The default repo is called `:hexpm` and points to https://repo.hex.pm. This
   can be overridden by using `mix hex.repo set ...`.
 
+  Child dependencies will always be fetched from the same repository as the
+  parent package. To override which repository a package is fetched from add
+  the package to your dependencies and add the `:repo` option.
+
   ### Add a repo
 
       mix hex.repo add NAME URL [PUBLIC_KEY_PATH [AUTH_KEY]]
