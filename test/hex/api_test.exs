@@ -111,13 +111,13 @@ defmodule Hex.APITest do
   end
 
   test "x-hex-message" do
-    Hex.API.Utils.handle_hex_message('"oops, you done goofed"')
+    Hex.API.handle_hex_message('"oops, you done goofed"')
     refute_received {:mix_shell, _, _}
 
-    Hex.API.Utils.handle_hex_message('  "oops, you done goofed" ; level = warn')
+    Hex.API.handle_hex_message('  "oops, you done goofed" ; level = warn')
     assert_received {:mix_shell, :info, ["API warning: oops, you done goofed"]}
 
-    Hex.API.Utils.handle_hex_message('"oops, you done goofed";level=fatal  ')
+    Hex.API.handle_hex_message('"oops, you done goofed";level=fatal  ')
     assert_received {:mix_shell, :error, ["API error: oops, you done goofed"]}
   end
 end
