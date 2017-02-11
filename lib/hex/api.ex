@@ -1,6 +1,4 @@
 defmodule Hex.API do
-  alias Hex.API.Utils
-
   @request_timeout 25_000
   @erlang_vendor 'application/vnd.hex+erlang'
 
@@ -113,7 +111,7 @@ defmodule Hex.API do
 
   defp handle_response({{_version, code, _reason}, headers, body}) do
     headers = Enum.into(headers, %{})
-    Utils.handle_hex_message(headers['x-hex-message'])
+    handle_hex_message(headers['x-hex-message'])
 
     body =
       body
@@ -171,4 +169,59 @@ defmodule Hex.API do
     end
   end
   defp retry(_method, _times, fun), do: fun.()
+
+  def handle_hex_message(nil), do: :ok
+
+  def handle_hex_message(header) do
+    {message, level} = :binary.list_to_bin(header) |> parse_hex_message
+    case level do
+      "warn"  -> Hex.Shell.info "API warning: " <> message
+      "fatal" -> Hex.Shell.error "API error: " <> message
+      _       -> :ok
+    end
+  end
+
+  @space [?\s, ?\t]
+
+  def parse_hex_message(message) do
+    {message, rest} = skip_ws(message) |> quoted
+    level = skip_ws(rest) |> opt_level
+    {message, level}
+  end
+
+  def skip_ws(<<char, rest :: binary>>) when char in @space,
+    do: skip_ws(rest)
+  def skip_ws(rest),
+    do: rest
+
+  def skip_trail_ws(input, str \\ "", ws \\ "")
+
+  def skip_trail_ws(<<char, rest :: binary>>, str, ws) when char in @space,
+    do: skip_trail_ws(rest, str, <<ws :: binary, char>>)
+  def skip_trail_ws(<<char, rest :: binary>>, str, ws),
+    do: skip_trail_ws(rest, <<str :: binary, ws :: binary, char>>, "")
+  def skip_trail_ws("", str, _ws),
+    do: str
+
+  def quoted("\"" <> rest),
+    do: do_quoted(rest, "")
+
+  def do_quoted("\"" <> rest, acc),
+    do: {acc, rest}
+  def do_quoted(<<char, rest :: binary>>, acc),
+    do: do_quoted(rest, <<acc :: binary, char>>)
+
+  def opt_level(";" <> rest),
+    do: do_level(rest)
+  def opt_level(_),
+    do: nil
+
+  def do_level(rest) do
+    "level" <> rest = skip_ws(rest)
+    "=" <> rest = skip_ws(rest)
+
+    rest
+    |> skip_ws
+    |> skip_trail_ws
+  end
 end
