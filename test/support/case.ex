@@ -66,22 +66,22 @@ defmodule HexTest.Case do
 
   def create_test_registry(path) do
     versions =
-      Enum.reduce(test_registry(), %{}, fn {name, vsn, _}, dict ->
-        Map.update(dict, Atom.to_string(name), [vsn], &(&1 ++ [vsn]))
+      Enum.reduce(test_registry(), %{}, fn {repo, name, vsn, _deps}, map ->
+        key = {Atom.to_string(repo), Atom.to_string(name)}
+        Map.update(map, key, [vsn], &(&1 ++ [vsn]))
       end)
       |> Enum.to_list
 
     deps =
-      Enum.map(test_registry(), fn {name, vsn, deps} ->
-        deps = Enum.map(deps, fn
-          {name, req} ->
-            {Atom.to_string(name), Atom.to_string(name), req, false}
-          {name, req, optional} ->
-            {Atom.to_string(name), Atom.to_string(name), req, optional}
-          {name, req, optional, app} ->
-            {Atom.to_string(name), Atom.to_string(app), req, optional}
+      Enum.map(test_registry(), fn {repo, name, vsn, deps} ->
+        deps = Enum.map(deps, fn config ->
+          destructure [name, req, optional, app, repo], Tuple.to_list(config)
+          optional = optional || false
+          app = app || name
+          repo = repo || :hexpm
+          {Atom.to_string(repo), Atom.to_string(name), Atom.to_string(app), req, optional}
         end)
-        {{Atom.to_string(name), vsn}, deps}
+        {{Atom.to_string(repo), Atom.to_string(name), vsn}, deps}
       end)
 
     create_registry(path, versions, deps)
@@ -89,12 +89,11 @@ defmodule HexTest.Case do
 
   defp create_registry(path, versions, deps) do
     tid = :ets.new(@ets_table, [])
-    versions = Enum.map(versions, fn {pkg, versions} ->
-      {{:versions, "hexpm", pkg}, versions}
+    versions = Enum.map(versions, fn {{repo, pkg}, versions} ->
+      {{:versions, repo, pkg}, versions}
     end)
-    deps = Enum.map(deps, fn {{pkg, vsn}, deps} ->
-      deps = Enum.map(deps, &Tuple.insert_at(&1, 0, "hexpm"))
-      {{:deps, "hexpm", pkg, vsn}, deps}
+    deps = Enum.map(deps, fn {{repo, pkg, vsn}, deps} ->
+      {{:deps, repo, pkg, vsn}, deps}
     end)
     :ets.insert(tid, versions ++ deps ++ [{:version, 1}])
     :ok = :ets.tab2file(tid, Hex.string_to_charlist(path))
@@ -103,52 +102,52 @@ defmodule HexTest.Case do
 
   # Needs to be sorted on names and versions
   defp test_registry do
-    [{:bar, "0.0.1", []},
-     {:bar, "0.1.0", [foo: "~> 0.1.0"]},
-     {:bar, "0.2.0", [foo: "~> 0.2.0"]},
-     {:beta, "1.0.0", []},
-     {:beta, "1.1.0-beta", []},
-     {:decimal, "0.0.1", []},
-     {:decimal, "0.1.0", []},
-     {:decimal, "0.2.0", []},
-     {:decimal, "0.2.1", []},
-     {:depend_name, "0.2.0", [{:package_name, ">= 0.0.0", false, :app_name}]},
-     {:ecto, "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"]},
-     {:ecto, "0.2.1", [postgrex: "~> 0.2.1", ex_doc: "0.1.0"]},
-     {:ecto, "1.1.0", [poison: "~> 1.0"]},
-     {:eric, "0.0.1", []},
-     {:eric, "0.0.2", []},
-     {:eric, "0.1.0", [jose: "~> 0.1.0"]},
-     {:eric, "0.1.2", [jose: "~> 0.1.0"]},
-     {:eric, "0.2.0", [jose: "~> 0.3.0"]},
-     {:ex_doc, "0.0.1", []},
-     {:ex_doc, "0.0.2", []},
-     {:ex_doc, "0.1.0", []},
-     {:ex_plex, "0.0.1", []},
-     {:ex_plex, "0.0.2", [decimal: "0.1.1"]},
-     {:ex_plex, "0.1.0", [decimal: "~> 0.1.0"]},
-     {:ex_plex, "0.1.2", [decimal: "~> 0.1.0"]},
-     {:ex_plex, "0.2.0", [decimal: "~> 0.2.0"]},
-     {:foo, "0.0.1", []},
-     {:foo, "0.1.0", []},
-     {:foo, "0.2.0", []},
-     {:foo, "0.2.1", []},
-     {:has_optional, "0.1.0", [{:ex_doc, "~> 0.0.1", true}]},
-     {:jose, "0.2.0", []},
-     {:jose, "0.2.1", []},
-     {:only_doc, "0.1.0", [{:ex_doc, ">= 0.0.0", true}]},
-     {:package_name, "0.1.0", []},
-     {:phoenix, "0.0.1", [postgrex: "~> 0.2"]},
-     {:phoenix, "1.1.2", [poison: "~> 1.5 or ~> 2.0"]},
-     {:phoenix, "1.1.3", [poison: "~> 1.5 or ~> 2.0"]},
-     {:poison, "1.5.2", []},
-     {:poison, "2.0.0", []},
-     {:phoenix_ecto, "2.0.0", [ecto: "~> 1.1", poison: "~> 1.3"]},
-     {:phoenix_ecto, "2.0.1", [ecto: "~> 1.1", poison: "~> 1.3"]},
-     {:phoenix_live_reload, "1.0.0", [phoenix: "~> 0.16 or ~> 1.0"]},
-     {:phoenix_live_reload, "1.0.3", [phoenix: "~> 0.16 or ~> 1.0"]},
-     {:postgrex, "0.2.0", [ex_doc: "0.0.1"]},
-     {:postgrex, "0.2.1", [ex_doc: "~> 0.1.0"]},]
+    [{:hexpm, :bar, "0.0.1", []},
+     {:hexpm, :bar, "0.1.0", [foo: "~> 0.1.0"]},
+     {:hexpm, :bar, "0.2.0", [foo: "~> 0.2.0"]},
+     {:hexpm, :beta, "1.0.0", []},
+     {:hexpm, :beta, "1.1.0-beta", []},
+     {:hexpm, :decimal, "0.0.1", []},
+     {:hexpm, :decimal, "0.1.0", []},
+     {:hexpm, :decimal, "0.2.0", []},
+     {:hexpm, :decimal, "0.2.1", []},
+     {:hexpm, :depend_name, "0.2.0", [{:package_name, ">= 0.0.0", false, :app_name}]},
+     {:hexpm, :ecto, "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"]},
+     {:hexpm, :ecto, "0.2.1", [postgrex: "~> 0.2.1", ex_doc: "0.1.0"]},
+     {:hexpm, :ecto, "1.1.0", [poison: "~> 1.0"]},
+     {:hexpm, :eric, "0.0.1", []},
+     {:hexpm, :eric, "0.0.2", []},
+     {:hexpm, :eric, "0.1.0", [jose: "~> 0.1.0"]},
+     {:hexpm, :eric, "0.1.2", [jose: "~> 0.1.0"]},
+     {:hexpm, :eric, "0.2.0", [jose: "~> 0.3.0"]},
+     {:hexpm, :ex_doc, "0.0.1", []},
+     {:hexpm, :ex_doc, "0.0.2", []},
+     {:hexpm, :ex_doc, "0.1.0", []},
+     {:hexpm, :ex_plex, "0.0.1", []},
+     {:hexpm, :ex_plex, "0.0.2", [decimal: "0.1.1"]},
+     {:hexpm, :ex_plex, "0.1.0", [decimal: "~> 0.1.0"]},
+     {:hexpm, :ex_plex, "0.1.2", [decimal: "~> 0.1.0"]},
+     {:hexpm, :ex_plex, "0.2.0", [decimal: "~> 0.2.0"]},
+     {:hexpm, :foo, "0.0.1", []},
+     {:hexpm, :foo, "0.1.0", []},
+     {:hexpm, :foo, "0.2.0", []},
+     {:hexpm, :foo, "0.2.1", []},
+     {:hexpm, :has_optional, "0.1.0", [{:ex_doc, "~> 0.0.1", true}]},
+     {:hexpm, :jose, "0.2.0", []},
+     {:hexpm, :jose, "0.2.1", []},
+     {:hexpm, :only_doc, "0.1.0", [{:ex_doc, ">= 0.0.0", true}]},
+     {:hexpm, :package_name, "0.1.0", []},
+     {:hexpm, :phoenix, "0.0.1", [postgrex: "~> 0.2"]},
+     {:hexpm, :phoenix, "1.1.2", [poison: "~> 1.5 or ~> 2.0"]},
+     {:hexpm, :phoenix, "1.1.3", [poison: "~> 1.5 or ~> 2.0"]},
+     {:hexpm, :poison, "1.5.2", []},
+     {:hexpm, :poison, "2.0.0", []},
+     {:hexpm, :phoenix_ecto, "2.0.0", [ecto: "~> 1.1", poison: "~> 1.3"]},
+     {:hexpm, :phoenix_ecto, "2.0.1", [ecto: "~> 1.1", poison: "~> 1.3"]},
+     {:hexpm, :phoenix_live_reload, "1.0.0", [phoenix: "~> 0.16 or ~> 1.0"]},
+     {:hexpm, :phoenix_live_reload, "1.0.3", [phoenix: "~> 0.16 or ~> 1.0"]},
+     {:hexpm, :postgrex, "0.2.0", [ex_doc: "0.0.1"]},
+     {:hexpm, :postgrex, "0.2.1", [ex_doc: "~> 0.1.0"]}]
   end
 
   def setup_auth(username, password) do
