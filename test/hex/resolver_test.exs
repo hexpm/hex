@@ -20,23 +20,29 @@ defmodule Hex.ResolverTest do
     end
   end
 
+  defp config({app, req}),
+    do: {"hexpm", Atom.to_string(app), req}
+  defp config({repo, app, req}),
+    do: {Atom.to_string(repo), Atom.to_string(app), req}
+
   defp deps(reqs) do
-    Enum.map(reqs, fn {app, _req} ->
-      {"hexpm", Atom.to_string(app), false, []}
+    Enum.map(reqs, fn dep ->
+      {repo, name, _req} = config(dep)
+      {repo, name, false, []}
     end)
   end
 
   defp reqs(reqs) do
-    Enum.map(reqs, fn {app, req} ->
-      name = Atom.to_string(app)
-      {"hexpm", name, name, req, "mix.exs"}
+    Enum.map(reqs, fn dep ->
+      {repo, name, req} = config(dep)
+      {repo, name, name, req, "mix.exs"}
     end)
   end
 
   defp locked(locked) do
-    Enum.map(locked, fn {app, req} ->
-      name = Atom.to_string(app)
-      {"hexpm", name, name, req}
+    Enum.map(locked, fn dep ->
+      {repo, name, req} = config(dep)
+      {repo, name, name, req}
     end)
   end
 
