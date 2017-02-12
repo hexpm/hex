@@ -32,18 +32,6 @@ defmodule Hex.State do
       clean_pass:       true}
   end
 
-  # Work around for :socket_closed_remotely errors in httpc
-  # Use a unique profile for each request to avoid races
-  if Mix.env == :test do
-    def fetch(:httpc_profile) do
-      profile = make_ref() |> :erlang.ref_to_list |> List.to_atom
-      {:ok, pid} = :httpc_manager.start_link(profile, :only_session_cookies, :stand_alone)
-      # Unlink to avoid race conditions where the manager closes before all requests finished
-      Process.unlink(pid)
-      {:ok, pid}
-    end
-  end
-
   def fetch(key) do
     Agent.get(@name, Map, :fetch, [key])
   end
