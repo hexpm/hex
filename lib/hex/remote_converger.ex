@@ -65,7 +65,8 @@ defmodule Hex.RemoteConverger do
 
   defp repo_overrides(deps) do
     for dep <- deps, dep.top_level, into: %{},
-        do: {dep.opts[:hex], dep.opts[:original_repo]}
+        # do: {dep.opts[:hex], dep.opts[:original_repo]}
+        do: {dep.opts[:hex], dep.opts[:repo]}
   end
 
   defp packages_from_requests(deps) do

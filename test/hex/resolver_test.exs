@@ -2,7 +2,7 @@ defmodule Hex.ResolverTest do
   use HexTest.Case
   alias Hex.Registry.Server, as: Registry
 
-  defp resolve(reqs, locked \\ []) do
+  defp resolve(reqs, locked \\ [], repos \\ %{}) do
     reqs      = Enum.reverse(reqs)
     deps      = deps(reqs)
     top_level = Enum.map(deps, &elem(&1, 1))
@@ -14,9 +14,9 @@ defmodule Hex.ResolverTest do
     |> Enum.map(&{elem(&1, 0), elem(&1, 1)})
     |> Registry.prefetch
 
-    case Hex.Resolver.resolve(Registry, reqs, deps, top_level, %{}, locked) do
+    case Hex.Resolver.resolve(Registry, reqs, deps, top_level, repos, locked) do
       {:ok, dict} -> dict
-      {:error, {:version, messages}} -> messages <> "\n"
+      {:error, {_reason, messages}} -> messages <> "\n"
     end
   end
 
@@ -241,9 +241,24 @@ defmodule Hex.ResolverTest do
 
   test "multiple repos" do
     deps = [{:repo2, :repo2_deps, ">= 0.0.0"}]
-    assert equal? locked([{:repo2, :repo2_deps, "0.1.0"}, {:repo2, :poison, "2.0.0"}]), resolve(deps)
+    assert equal? locked([{:repo2, :repo2_deps, "0.1.0"}, {:repo2, :poison, "2.0.0"}]),
+           resolve(deps, [], %{"repos_deps" => "repo2"})
 
     deps = [{:repo2, :hexpm_deps, ">= 0.0.0"}]
-    assert equal? locked([{:hexpm, :poison, "2.0.0"}, {:repo2, :hexpm_deps, "0.1.0"}]), resolve(deps)
+    assert equal? locked([{:hexpm, :poison, "2.0.0"}, {:repo2, :hexpm_deps, "0.1.0"}]),
+           resolve(deps, [], %{"repos_deps" => "repo2"})
+
+    deps = [{:repo2, :repo2_deps, ">= 0.0.0"}, {:hexpm, :phoenix, ">= 0.0.0"}]
+    assert assert resolve(deps, [], %{"repos_deps" => "repo2", "phoenix" => "hexpm"}) == """
+    \e[4mFailed to use \"poison\" because\e[0m
+      \e[1mphoenix\e[0m requires repo \e[31mhexpm\e[0m
+      \e[1mrepo2_deps\e[0m requires repo \e[31mrepo2\e[0m\n\e[0m
+    """
+  end
+
+  test "implicit override repo" do
+    deps = [{:repo2, :repo2_deps, ">= 0.0.0"}, {:hexpm, :poison, ">= 0.0.0"}]
+    assert equal? locked([{:hexpm, :poison, "2.0.0"}, {:repo2, :repo2_deps, "0.1.0"}]),
+                  resolve(deps, [], %{"repos_deps" => "repo2", "poison" => "hexpm"})
   end
 end
