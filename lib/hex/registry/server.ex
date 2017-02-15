@@ -10,8 +10,9 @@ defmodule Hex.Registry.Server do
 
   # TODO: Bump version
 
-  def start_link() do
-    GenServer.start_link(__MODULE__, [], [name: @name])
+  def start_link(opts \\ []) do
+    opts = Keyword.put_new(opts, :name, @name)
+    GenServer.start_link(__MODULE__, [], opts)
   end
 
   def open(opts \\ []) do

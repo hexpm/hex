@@ -1,6 +1,6 @@
-defmodule Hex.RegistryTest do
+defmodule Hex.Registry.ServerTest do
   use HexTest.Case
-  alias Hex.Registry.Server, as: Registry
+  alias Hex.Registry.Server
 
   defp bypass_csv(versions) do
     bypass = Bypass.open
@@ -25,39 +25,38 @@ defmodule Hex.RegistryTest do
     flush()
     bypass_csv([{"100.0.0", "1.0.0"}])
 
-    Registry.open(registry_path: tmp_path(test_name() <> ".ets"))
-    Registry.close
-    assert_received {:mix_shell, :info, ["\e[33mA new Hex version is available" <> _]}
+    {:ok, pid} = Server.start_link(name: nil)
+    GenServer.call(pid, {:open, registry_path: tmp_path(test_name() <> ".ets")})
+    assert {:update, _} = GenServer.call(pid, :close)
   end
 
   test "dont display same hex version" do
     flush()
     bypass_csv([{"0.0.1", "1.0.0"}])
 
-    Registry.open(registry_path: tmp_path(test_name() <> ".ets"))
-    Registry.close
-    refute_received {:mix_shell, :info, ["\e[33mA new Hex version is available" <> _]}
+    {:ok, pid} = Server.start_link(name: nil)
+    GenServer.call(pid, {:open, registry_path: tmp_path(test_name() <> ".ets")})
+    assert :ok = GenServer.call(pid, :close)
   end
 
   test "dont display new hex version for too new elixir" do
     flush()
     bypass_csv([{"100.0.0", "100.0.0"}])
 
-    Registry.open(registry_path: tmp_path(test_name() <> ".ets"))
-    Registry.close
-    refute_received {:mix_shell, :info, ["\e[33mA new Hex version is available" <> _]}
+    {:ok, pid} = Server.start_link(name: nil)
+    GenServer.call(pid, {:open, registry_path: tmp_path(test_name() <> ".ets")})
+    assert :ok = GenServer.call(pid, :close)
   end
 
   test "only check version once" do
     flush()
     bypass_csv([{"100.0.0", "1.0.0"}])
 
-    Registry.open(registry_path: tmp_path(test_name() <> "1.ets"))
-    Registry.close
-    assert_received {:mix_shell, :info, ["\e[33mA new Hex version is available" <> _]}
+    {:ok, pid} = Server.start_link(name: nil)
+    GenServer.call(pid, {:open, registry_path: tmp_path(test_name() <> "1.ets")})
+    assert {:update, _} = GenServer.call(pid, :close)
 
-    Registry.open(registry_path: tmp_path(test_name() <> "2.ets"))
-    Registry.close
-    refute_received {:mix_shell, :info, ["\e[33mA new Hex version is available" <> _]}
+    GenServer.call(pid, {:open, registry_path: tmp_path(test_name() <> "2.ets")})
+    assert :ok = GenServer.call(pid, :close)
   end
 end
