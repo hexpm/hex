@@ -238,4 +238,12 @@ defmodule Hex.ResolverTest do
     deps = [ex_doc: nil, has_optional: nil]
     assert equal? locked([ex_doc: "0.0.2", has_optional: "0.1.0"]), resolve(deps)
   end
+
+  test "multiple repos" do
+    deps = [{:repo2, :repo2_deps, ">= 0.0.0"}]
+    assert equal? locked([{:repo2, :repo2_deps, "0.1.0"}, {:repo2, :poison, "2.0.0"}]), resolve(deps)
+
+    deps = [{:repo2, :hexpm_deps, ">= 0.0.0"}]
+    assert equal? locked([{:hexpm, :poison, "2.0.0"}, {:repo2, :hexpm_deps, "0.1.0"}]), resolve(deps)
+  end
 end
