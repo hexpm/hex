@@ -73,15 +73,15 @@ defmodule HexTest.Case do
       |> Enum.to_list
 
     deps =
-      Enum.map(test_registry(), fn {repo, name, vsn, deps} ->
+      Enum.map(test_registry(), fn {outer_repo, name, vsn, deps} ->
         deps = Enum.map(deps, fn config ->
           destructure [name, req, optional, app, repo], Tuple.to_list(config)
           optional = optional || false
           app = app || name
-          repo = repo || :hexpm
+          repo = repo || outer_repo
           {Atom.to_string(repo), Atom.to_string(name), Atom.to_string(app), req, optional}
         end)
-        {{Atom.to_string(repo), Atom.to_string(name), vsn}, deps}
+        {{Atom.to_string(outer_repo), Atom.to_string(name), vsn}, deps}
       end)
 
     create_registry(path, versions, deps)
@@ -147,7 +147,10 @@ defmodule HexTest.Case do
      {:hexpm, :phoenix_live_reload, "1.0.0", [phoenix: "~> 0.16 or ~> 1.0"]},
      {:hexpm, :phoenix_live_reload, "1.0.3", [phoenix: "~> 0.16 or ~> 1.0"]},
      {:hexpm, :postgrex, "0.2.0", [ex_doc: "0.0.1"]},
-     {:hexpm, :postgrex, "0.2.1", [ex_doc: "~> 0.1.0"]}]
+     {:hexpm, :postgrex, "0.2.1", [ex_doc: "~> 0.1.0"]},
+     {:repo2, :hexpm_deps, "0.1.0", [{:poison, ">= 0.0.0", false, :poison, :hexpm}]},
+     {:repo2, :poison, "2.0.0", []},
+     {:repo2, :repo2_deps, "0.1.0", [poison: ">= 0.0.0"]}]
   end
 
   def setup_auth(username, password) do
