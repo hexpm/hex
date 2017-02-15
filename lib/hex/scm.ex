@@ -32,7 +32,7 @@ defmodule Hex.SCM do
     |> Keyword.put_new(:repo, "hexpm")
     |> Keyword.update!(:hex, &to_string/1)
     |> Keyword.update!(:repo, &to_string/1)
-    |> put_original_repo(Keyword.fetch(opts, :repo))
+    # |> put_original_repo(Keyword.fetch(opts, :repo))
   end
 
   defp put_original_repo(opts, {:ok, repo}),

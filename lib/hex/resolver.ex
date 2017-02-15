@@ -106,7 +106,7 @@ defmodule Hex.Resolver do
       |> Enum.sort
 
     Enum.map(parents, fn parent(name: name, repo_requirement: repo) ->
-      ["  ", :bright, name, :reset, " requires ", :red, repo, :reset, "\n"]
+      ["  ", :bright, name, :reset, " requires repo ", :red, repo, :reset, "\n"]
     end)
   end
 
