@@ -35,10 +35,10 @@ defmodule Hex.SCM do
     # |> put_original_repo(Keyword.fetch(opts, :repo))
   end
 
-  defp put_original_repo(opts, {:ok, repo}),
-    do: Keyword.put(opts, :original_repo, to_string(repo))
-  defp put_original_repo(opts, :error),
-    do: opts
+  # defp put_original_repo(opts, {:ok, repo}),
+  #   do: Keyword.put(opts, :original_repo, to_string(repo))
+  # defp put_original_repo(opts, :error),
+  #   do: opts
 
   def checked_out?(opts) do
     File.dir?(opts[:dest])
@@ -126,7 +126,12 @@ defmodule Hex.SCM do
     manifest = encode_manifest(name, lock.version, lock.checksum, repo, managers)
     File.write!(Path.join(dest, ".hex"), manifest)
 
-    {:hex, lock.name, lock.version, lock.checksum, managers, Enum.sort(lock.deps), lock.repo}
+    deps =
+      lock.deps
+      |> Enum.map(fn {dep, req, opts} -> {dep, req, Keyword.update!(opts, :hex, &String.to_atom/1)} end)
+      |> Enum.sort
+
+    {:hex, String.to_atom(lock.name), lock.version, lock.checksum, managers, deps, lock.repo}
   end
 
   def update(opts) do

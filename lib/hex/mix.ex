@@ -190,7 +190,7 @@ defmodule Hex.Mix do
         managers(app)
         |> Enum.sort
         |> Enum.uniq
-      {String.to_atom(app), {:hex, name, version, checksum, managers, deps, repo}}
+      {String.to_atom(app), {:hex, String.to_atom(name), version, checksum, managers, deps, repo}}
     end)
   end
 
@@ -214,7 +214,7 @@ defmodule Hex.Mix do
   end
 
   defp registry_dep_to_def({repo, name, app, req, optional}),
-    do: {String.to_atom(app), req, hex: name, repo: repo, optional: optional}
+    do: {String.to_atom(app), req, hex: String.to_atom(name), repo: repo, optional: optional}
 
   def packages_from_lock(lock) do
     Enum.flat_map(lock, fn {_app, info} ->
