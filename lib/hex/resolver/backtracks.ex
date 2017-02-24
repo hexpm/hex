@@ -1,6 +1,5 @@
 defmodule Hex.Resolver.Backtracks do
   require Record
-  alias Hex.Registry.Server, as: Registry
 
   Record.defrecordp :parent, [:name, :repo, :version, :requirement, :repo_requirement]
 
@@ -160,47 +159,47 @@ defmodule Hex.Resolver.Backtracks do
 
   defp version_cmp(a, b), do: Hex.Version.compare(a, b) != :gt
 
-  def message({name, versions, repo, parents}) do
-    if parent_messages = parent_messages(parents, repo, name, versions) do
+  def message({name, versions, repo, parents}, registry) do
+    if parent_messages = parent_messages(registry, parents, repo, name, versions) do
       IO.ANSI.format([
-        :underline, "Failed to use \"", name, "\"", versions_message(repo, name, versions),
+        :underline, "Failed to use \"", name, "\"", versions_message(registry, repo, name, versions),
         " because", :reset, "\n", parent_messages
       ])
       |> IO.iodata_to_binary
     end
   end
 
-  defp parent_messages(parents, child_repo, child, child_versions) do
+  defp parent_messages(registry, parents, child_repo, child, child_versions) do
     {mix, parents} = partition_mix(parents)
-    parent_reasons = Enum.map(parents, &{&1, parent_reason(&1, child_repo, child, child_versions)})
-    mix_reason = {mix, parent_reason(mix, child_repo, child, child_versions)}
-    messages = Enum.map(parent_reasons, &parent_message/1)
+    parent_reasons = Enum.map(parents, &{&1, parent_reason(registry, &1, child_repo, child, child_versions)})
+    mix_reason = {mix, parent_reason(registry, mix, child_repo, child, child_versions)}
+    messages = Enum.map(parent_reasons, &parent_message(&1, registry))
     all_reasons = [mix_reason|parent_reasons]
 
     unless all_green?(all_reasons) do
       messages =
         if mix,
-          do: messages ++ [parent_message(mix_reason)],
+          do: messages ++ [parent_message(mix_reason, registry)],
         else: messages
 
       Enum.map(messages, &["  ", &1, "\n"])
     end
   end
 
-  defp parent_message({parent(name: "mix.lock", version: [], requirement: req), {color, pre_failed?}}) do
+  defp parent_message({parent(name: "mix.lock", version: [], requirement: req), {color, pre_failed?}}, _registry) do
     [:bright, "mix.lock", :reset, " specifies ", color, requirement(req), :reset, pre_message(pre_failed?)]
   end
 
-  defp parent_message({parent(name: "mix.exs", version: [], requirement: req), {color, pre_failed?}}) do
+  defp parent_message({parent(name: "mix.exs", version: [], requirement: req), {color, pre_failed?}}, _registry) do
     [:bright, "mix.exs", :reset, " specifies ", color, requirement(req), :reset, pre_message(pre_failed?)]
   end
 
-  defp parent_message({parent(repo: repo, name: name, version: versions, requirement: req), {color, pre_failed?}}) do
-    [:bright, name, versions_message(repo, name, versions), :reset, " requires ",
+  defp parent_message({parent(repo: repo, name: name, version: versions, requirement: req), {color, pre_failed?}}, registry) do
+    [:bright, name, versions_message(registry, repo, name, versions), :reset, " requires ",
      color, requirement(req), :reset, pre_message(pre_failed?)]
   end
 
-  defp parent_message({nil, nil}), do: []
+  defp parent_message({nil, nil}, _registry), do: []
 
   defp pre_message(true), do: " *"
   defp pre_message(false), do: ""
@@ -226,12 +225,12 @@ defmodule Hex.Resolver.Backtracks do
     {map["mix.lock"] || map["mix.exs"], parents}
   end
 
-  defp parent_reason(nil, _child_repo, _child, _versions), do: nil
-  defp parent_reason(parent, child_repo, child, []) do
-    versions = Registry.versions(child_repo, child)
-    parent_reason(parent, child_repo, child, versions)
+  defp parent_reason(_registry, nil, _child_repo, _child, _versions), do: nil
+  defp parent_reason(registry, parent, child_repo, child, []) do
+    versions = registry.versions(child_repo, child)
+    parent_reason(registry, parent, child_repo, child, versions)
   end
-  defp parent_reason(parent(requirement: req), _child_repo, _child, versions) do
+  defp parent_reason(_registry, parent(requirement: req), _child_repo, _child, versions) do
     num_failures = Enum.count(versions, &(not version_match?(&1, req, [])))
     num_versions = length(versions)
     pre_failures = Enum.count(versions, &(not version_match?(&1, req, allow_pre: true)))
@@ -254,8 +253,8 @@ defmodule Hex.Resolver.Backtracks do
   # For example ["0.1.0", "0.1.1", "0.2.0", "0.3.0"] can be converted
   # to "to 0.1.0 from 0.3.0" if there are no other releases of the package
   # between 0.1.0 and 0.3.0.
-  defp versions_message(repo, package, versions) do
-    case {versions, merge_versions?(repo, package, versions)} do
+  defp versions_message(registry, repo, package, versions) do
+    case {versions, merge_versions?(registry, repo, package, versions)} do
       {[], _} ->
         ""
       {[x], _} ->
@@ -278,9 +277,9 @@ defmodule Hex.Resolver.Backtracks do
     end
   end
 
-  defp merge_versions?(_repo, _package, []), do: false
-  defp merge_versions?(repo, package, versions) do
-    all_versions = Registry.versions(repo, package)
+  defp merge_versions?(_registry, _repo, _package, []), do: false
+  defp merge_versions?(registry, repo, package, versions) do
+    all_versions = registry.versions(repo, package)
     sub_range?(all_versions, versions)
   end
 

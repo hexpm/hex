@@ -1,6 +1,6 @@
 defmodule Hex.Resolver.BacktracksTest do
   use HexTest.Case
-  import Hex.Resolver.Backtracks, only: [message: 1]
+  import Hex.Resolver.Backtracks, only: [message: 2]
   alias Hex.Registry.Server, as: Registry
 
   setup do
@@ -10,13 +10,13 @@ defmodule Hex.Resolver.BacktracksTest do
   end
 
   test "merge versions" do
-    assert IO.iodata_to_binary(message({"foo", ["0.0.1", "0.1.0", "0.2.0"], "hexpm", []})) ==
+    assert IO.iodata_to_binary(message({"foo", ["0.0.1", "0.1.0", "0.2.0"], "hexpm", []}, Registry)) ==
            format([:underline, ~s'Failed to use "foo" (versions 0.0.1 to 0.2.0) because', :reset, "\n"])
 
-    assert IO.iodata_to_binary(message({"foo", ["0.0.1", "0.1.0", "0.2.1"], "hexpm", []})) ==
+    assert IO.iodata_to_binary(message({"foo", ["0.0.1", "0.1.0", "0.2.1"], "hexpm", []}, Registry)) ==
            format([:underline, ~s'Failed to use "foo" (versions 0.0.1, 0.1.0, 0.2.1) because', :reset, "\n"])
 
-    assert IO.iodata_to_binary(message({"foo", ["0.1.0", "0.2.1"], "hexpm", []})) ==
+    assert IO.iodata_to_binary(message({"foo", ["0.1.0", "0.2.1"], "hexpm", []}, Registry)) ==
            format([:underline, ~s'Failed to use "foo" (versions 0.1.0 and 0.2.1) because', :reset, "\n"])
   end
 

@@ -22,12 +22,12 @@ defmodule Hex.Resolver do
     try do
       if activated = run(pending, optional, info, %{}),
         do: {:ok, activated},
-      else: {:error, {:version, error_message()}}
+      else: {:error, {:version, error_message(registry)}}
     catch
       {:repo_conflict, message} ->
         {:error, {:repo, message}}
       :duplicate_state ->
-        {:error, {:version, error_message()}}
+        {:error, {:version, error_message(registry)}}
     after
       Backtracks.stop
       :ets.delete(tid)
@@ -215,9 +215,9 @@ defmodule Hex.Resolver do
     Backtracks.add(repo, name, version, parents)
   end
 
-  defp error_message do
+  defp error_message(registry) do
     Backtracks.collect
-    |> Enum.map(&Backtracks.message/1)
+    |> Enum.map(&Backtracks.message(&1, registry))
     |> Enum.reject(&is_nil/1)
     |> Enum.join("\n\n")
     |> pre_message
