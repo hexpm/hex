@@ -1,7 +1,7 @@
 defmodule Hex.Repo do
   @moduledoc false
 
-  @request_timeout 60_000
+  @request_timeout 15_000
 
   def request(url, etag) do
     opts = [body_format: :binary]

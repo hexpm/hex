@@ -1,5 +1,7 @@
 defmodule Hex.API do
-  @request_timeout 25_000
+  @request_timeout 15_000
+  @request_redirects 3
+  @request_retries 2
   @erlang_vendor 'application/vnd.hex+erlang'
 
   def request(method, url, headers, body \\ nil)
@@ -27,8 +29,8 @@ defmodule Hex.API do
           {url, Map.to_list(headers)}
       end
 
-    retry(method, 2, fn ->
-      case request_with_redirect(method, request, http_opts, opts, profile, 3) do
+    retry(method, @request_retries, fn ->
+      case request_with_redirect(method, request, http_opts, opts, profile, @request_redirects) do
         {:ok, response} ->
           handle_response(response)
         {:error, reason} ->
@@ -44,7 +46,7 @@ defmodule Hex.API do
       |> Keyword.put(:ssl, Hex.API.SSL.ssl_opts(url))
       |> Keyword.put_new(:autoredirect, false)
 
-    case :httpc.request(method, request, http_opts, opts, profile) do
+    case request_with_timeout(method, request, http_opts, opts, profile) do
       {:ok, response} ->
         case handle_redirect(response) do
           {:ok, location} when times > 0 ->
@@ -57,6 +59,29 @@ defmodule Hex.API do
         end
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  defp request_with_timeout(method, request, http_opts, opts, profile) do
+    timeout = Keyword.fetch!(http_opts, :timeout)
+    Task.async(fn ->
+      :httpc.request(method, request, http_opts, opts, profile)
+    end)
+    |> task_await(:timeout, timeout)
+  end
+
+  defp task_await(%Task{ref: ref, pid: pid} = task, reason, timeout) do
+    receive do
+      {^ref, result} ->
+        Process.demonitor(ref, [:flush])
+        result
+      {:DOWN, ^ref, _, _, _reason} ->
+        {:error, :timeout}
+    after
+      timeout ->
+        Process.unlink(pid)
+        Process.exit(pid, reason)
+        task_await(task, :kill, timeout)
     end
   end
 
