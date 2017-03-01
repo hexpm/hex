@@ -46,28 +46,34 @@ defmodule Hex.Mix do
   @spec overridden_parents([String.t], [dep], String.t) :: [dep]
   def overridden_parents(top_level, deps, parent) do
     deps
-    |> Enum.filter(fn {_repo, app, _override, _deps} -> app in top_level end)
-    |> do_overridden_parents(deps, parent)
+    |> Enum.filter(fn {_repo, app, _override, _children} -> app in top_level end)
+    |> do_overridden_parents(deps, parent, %{})
     |> elem(0)
   end
 
-  def do_overridden_parents(level, deps, parent) do
-    {children_maps, found?} =
-      Enum.map_reduce(level, false, fn {_repo, _app, _override, children}, acc_found? ->
-        children_apps = Enum.map(children, &elem(&1, 1))
-        children_deps = Enum.filter(deps, fn {_, app, _, _} -> app in children_apps end)
-        {children_map, found?} = do_overridden_parents(children_deps, deps, parent)
-        {children_map, found? or acc_found?}
+  def do_overridden_parents(level, deps, parent, visited) do
+    {children_map, found?, visited} =
+      Enum.reduce(level, {%{}, false, visited}, fn {_repo, app, _override, children}, {acc_map, acc_found?, visited} ->
+        case Map.fetch(visited, app) do
+          {:ok, {children_map, found?}} ->
+            {Map.merge(acc_map, children_map), found? or acc_found?, visited}
+          :error ->
+            children_apps = Enum.map(children, &elem(&1, 1))
+            children_deps = Enum.filter(deps, fn {_, app, _, _} -> app in children_apps end)
+            {children_map, found?, visited} = do_overridden_parents(children_deps, deps, parent, visited)
+            visited = Map.put(visited, app, {children_map, found?})
+            {Map.merge(acc_map, children_map), found? or acc_found?, visited}
+          end
       end)
 
     cond do
       found? ->
-        maps = [level_to_overridden_map(level) | children_maps]
-        {Enum.reduce(maps, &Map.merge/2), true}
+        overridden_map = Map.merge(level_to_overridden_map(level), children_map)
+        {overridden_map, true, visited}
       parent in Enum.map(level, &elem(&1, 1)) ->
-        {level_to_overridden_map(level), true}
+        {level_to_overridden_map(level), true, visited}
       true ->
-        {%{}, false}
+        {%{}, false, visited}
     end
   end
 
