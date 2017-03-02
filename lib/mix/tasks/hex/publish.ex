@@ -113,7 +113,7 @@ defmodule Mix.Tasks.Hex.Publish do
         revert(build, revert_version, auth)
       ["package"] ->
         auth = Mix.Tasks.Hex.auth_info(config)
-        if proceed?(build), do: create_package(build, auth, opts)
+        if proceed?(build), do: create_release(build, auth, opts)
       ["docs"] ->
         auth = Mix.Tasks.Hex.auth_info(config)
         docs_task(build, opts)
@@ -136,14 +136,11 @@ defmodule Mix.Tasks.Hex.Publish do
       Hex.Shell.info("Building docs...")
       docs_task(build, opts)
       Hex.Shell.info("Publishing package...")
-      create_package(build, auth, opts)
-      Hex.Shell.info("Publishing docs...")
-      create_docs(build, auth, opts)
+      if :ok == create_release(build, auth, opts) do
+        Hex.Shell.info("Publishing docs...")
+        create_docs(build, auth, opts)
+      end
     end
-  end
-
-  defp create_package(build, auth, opts) do
-    create_release(build, auth, opts)
   end
 
   defp create_docs(build, auth, opts) do
@@ -243,13 +240,16 @@ defmodule Mix.Tasks.Hex.Publish do
       {code, _, _} when code in 200..299 ->
         Hex.Shell.info ""
         Hex.Shell.info "Docs published to #{Hex.Utils.hexdocs_url(name, version)}"
-      {code, _, _} when code == 404 ->
+        :ok
+      {404, _, _} ->
         Hex.Shell.info ""
         Hex.Shell.error "Publishing docs failed due to the package not being published yet"
+        :error
       {code, body, _} ->
         Hex.Shell.info ""
         Hex.Shell.error "Publishing docs failed"
         Hex.Utils.print_error_result(code, body)
+        :error
     end
   end
 
