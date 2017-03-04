@@ -84,7 +84,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       config = Hex.Config.read
       assert config[:encrypted_key]
 
-      assert_raise Mix.Error, "Wrong passphrase", fn ->
+      assert_raise Mix.Error, ~r"^Wrong passphrase", fn ->
         send self(), {:mix_shell_input, :prompt, "wrong"}
         Mix.Tasks.Hex.User.run(["passphrase"])
       end

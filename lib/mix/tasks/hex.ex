@@ -144,7 +144,9 @@ defmodule Mix.Tasks.Hex do
       {:ok, key} ->
         key
       :error ->
-        Mix.raise "Wrong passphrase"
+        Mix.raise "Wrong passphrase\n\n" <>
+          "If you forgot your passphrase, you can reset it using `mix hex.user reset password`" <>
+          " or on the hex website: https://hex.pm/password/reset"
     end
   end
 
