@@ -202,11 +202,11 @@ defmodule Mix.Tasks.Hex.Publish do
     name = build.meta.name
 
     case Hex.API.Release.delete(name, version, auth) do
-      {code, _, _} when code in 200..299 ->
+      {:ok, {code, _, _}} when code in 200..299 ->
         Hex.Shell.info("Reverted #{name} #{version}")
-      {code, body, _} ->
+      other ->
         Hex.Shell.error("Reverting #{name} #{version} failed")
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
     end
   end
 
@@ -215,11 +215,11 @@ defmodule Mix.Tasks.Hex.Publish do
     name = build.meta.name
 
     case Hex.API.ReleaseDocs.delete(name, version, auth) do
-      {code, _, _} when code in 200..299 ->
+      {:ok, {code, _, _}} when code in 200..299 ->
         Hex.Shell.info "Reverted docs for #{name} #{version}"
-      {code, body, _} ->
+      other ->
         Hex.Shell.error "Reverting docs for #{name} #{version} failed"
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
     end
   end
 
@@ -237,18 +237,18 @@ defmodule Mix.Tasks.Hex.Publish do
     progress = progress_fun(progress?, byte_size(tarball))
 
     case Hex.API.ReleaseDocs.new(name, version, tarball, auth, progress) do
-      {code, _, _} when code in 200..299 ->
+      {:ok, {code, _, _}} when code in 200..299 ->
         Hex.Shell.info ""
         Hex.Shell.info "Docs published to #{Hex.Utils.hexdocs_url(name, version)}"
         :ok
-      {404, _, _} ->
+      {:ok, {404, _, _}} ->
         Hex.Shell.info ""
         Hex.Shell.error "Publishing docs failed due to the package not being published yet"
         :error
-      {code, body, _} ->
+      other ->
         Hex.Shell.info ""
         Hex.Shell.error "Publishing docs failed"
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
         :error
     end
   end
@@ -283,14 +283,14 @@ defmodule Mix.Tasks.Hex.Publish do
     progress = progress_fun(progress?, byte_size(tarball))
 
     case Hex.API.Release.new(meta.name, tarball, auth, progress) do
-      {code, _, _} when code in 200..299 ->
+      {:ok, {code, _, _}} when code in 200..299 ->
         location = Hex.Utils.hex_package_url(meta.name, meta.version)
         Hex.Shell.info ""
         Hex.Shell.info("Package published to #{location} (#{String.downcase(checksum)})")
-      {code, body, _} ->
+      other ->
         Hex.Shell.info ""
         Hex.Shell.error("Publishing failed")
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
     end
   end
 

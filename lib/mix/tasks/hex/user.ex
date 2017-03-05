@@ -117,12 +117,12 @@ defmodule Mix.Tasks.Hex.User do
     name = Hex.Shell.prompt("Username or Email:") |> Hex.string_trim
 
     case Hex.API.User.password_reset(name) do
-      {code, _, _} when code in 200..299 ->
+      {:ok, {code, _, _}} when code in 200..299 ->
         Hex.Shell.info "We’ve sent you an email containing a link that will allow you to reset your password for the next 24 hours. " <>
                        "Please check your spam folder if the email doesn’t appear within a few minutes."
-      {code, body, _} ->
+      other ->
         Hex.Shell.error("Initiating password reset for #{name} failed")
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
     end
   end
 
@@ -170,13 +170,13 @@ defmodule Mix.Tasks.Hex.User do
 
   defp create_user(username, email, password) do
     case Hex.API.User.new(username, email, password) do
-      {code, _, _} when code in 200..299 ->
+      {:ok, {code, _, _}} when code in 200..299 ->
         Mix.Tasks.Hex.generate_key(username, password)
         Hex.Shell.info("You are required to confirm your email to access your account, " <>
                        "a confirmation email has been sent to #{email}")
-      {code, body, _} ->
+      other ->
         Hex.Shell.error("Registration of user #{username} failed")
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
     end
   end
 
@@ -192,12 +192,11 @@ defmodule Mix.Tasks.Hex.User do
 
     Hex.Shell.info "Removing all keys..."
     case Hex.API.Key.delete_all(auth) do
-      {code, %{"name" => _, "authing_key" => true}, _headers} when code in 200..299 ->
+      {:ok, {code, %{"name" => _, "authing_key" => true}, _headers}} when code in 200..299 ->
         Mix.Tasks.Hex.User.run(["deauth"])
-        :ok
-      {code, body, _headers} ->
+      other ->
         Hex.Shell.error "Key removal failed"
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
     end
   end
 
@@ -206,14 +205,14 @@ defmodule Mix.Tasks.Hex.User do
 
     Hex.Shell.info "Removing key #{key}..."
     case Hex.API.Key.delete(key, auth) do
-      {200, %{"name" => ^key, "authing_key" => true}, _headers} ->
+      {:ok, {200, %{"name" => ^key, "authing_key" => true}, _headers}} ->
         Mix.Tasks.Hex.User.run(["deauth"])
         :ok
-      {code, _body, _headers} when code in 200..299 ->
+      {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
-      {code, body, _headers} ->
+      other ->
         Hex.Shell.error "Key removal failed"
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
     end
   end
 
@@ -221,14 +220,14 @@ defmodule Mix.Tasks.Hex.User do
     auth = Mix.Tasks.Hex.auth_info(config)
 
     case Hex.API.Key.get(auth) do
-      {code, body, _headers} when code in 200..299 ->
+      {:ok, {code, body, _headers}} when code in 200..299 ->
         values = Enum.map(body, fn %{"name" => name, "inserted_at" => time} ->
           [name, time]
         end)
         Mix.Tasks.Hex.print_table(["Name", "Created at"], values)
-      {code, body, _headers} ->
+      other ->
         Hex.Shell.error "Key fetching failed"
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
     end
   end
 
@@ -238,11 +237,11 @@ defmodule Mix.Tasks.Hex.User do
     auth = Mix.Tasks.Hex.auth_info(config)
 
     case Hex.API.User.test(username, auth) do
-      {code, _, _} when code in 200..299 ->
+      {:ok, {code, _, _}} when code in 200..299 ->
         Hex.Shell.info("Successfully authed. Your key works.")
-      {code, body, _} ->
+      other ->
         Hex.Shell.error("Failed to auth")
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
     end
   end
 

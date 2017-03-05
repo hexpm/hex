@@ -2,17 +2,15 @@ defmodule Hex.API.ReleaseDocs do
   alias Hex.API
 
   def get(name, version) do
-    url = API.api_url("packages/#{name}/releases/#{version}/docs")
-    API.request(:get, url, [])
+    API.request(:get, "packages/#{name}/releases/#{version}/docs")
   end
 
   def new(name, version, tar, auth, progress \\ fn _ -> nil end) do
-    url = API.api_url("packages/#{name}/releases/#{version}/docs")
-    API.request_tar(url, API.auth(auth), tar, progress)
+    API.tar_post_request("packages/#{name}/releases", tar, [progress: progress] ++ auth)
+    API.tar_post_request("packages/#{name}/releases/#{version}/docs", tar, [progress: progress] ++ auth)
   end
 
   def delete(name, version, auth) do
-    url = API.api_url("packages/#{name}/releases/#{version}/docs")
-    API.request(:delete, url, API.auth(auth))
+    API.request(:delete, "packages/#{name}/releases/#{version}/docs", auth)
   end
 end

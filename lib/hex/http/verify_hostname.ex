@@ -1,4 +1,4 @@
-defmodule Hex.API.VerifyHostname do
+defmodule Hex.HTTP.VerifyHostname do
   # Based on https://github.com/deadtrickster/ssl_verify_hostname.erl
 
   require Record

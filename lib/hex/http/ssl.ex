@@ -1,6 +1,7 @@
-defmodule Hex.API.SSL do
+defmodule Hex.HTTP.SSL do
   require Record
-  alias Hex.API.VerifyHostname
+  alias Hex.HTTP.Certs
+  alias Hex.HTTP.VerifyHostname
 
   # From https://www.ssllabs.com/ssltest/clients.html Android 7
   @default_ciphers [
@@ -42,18 +43,17 @@ defmodule Hex.API.SSL do
   end
 
   def ssl_opts(url) do
-    url = List.to_string(url)
     hostname = Hex.string_to_charlist(URI.parse(url).host)
     ciphers = filter_ciphers(@default_ciphers)
 
     if secure_ssl?() do
       verify_fun = {&VerifyHostname.verify_fun/3, check_hostname: hostname}
-      partial_chain = &partial_chain(Hex.API.Certs.cacerts, &1)
+      partial_chain = &partial_chain(Certs.cacerts, &1)
 
       [verify: :verify_peer,
        depth: 4,
        partial_chain: partial_chain,
-       cacerts: Hex.API.Certs.cacerts(),
+       cacerts: Certs.cacerts(),
        verify_fun: verify_fun,
        server_name_indication: hostname,
        secure_renegotiate: true,

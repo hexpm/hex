@@ -154,12 +154,12 @@ defmodule HexTest.Case do
   end
 
   def setup_auth(username, password) do
-    {201, body, _} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
+    {:ok, {201, body, _}} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
     Mix.Tasks.Hex.persist_key(password, body["secret"])
   end
 
   def get_auth(username, password) do
-    {201, body, _} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
+    {:ok, {201, body, _}} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
     [key: body["secret"]]
   end
 
@@ -219,7 +219,7 @@ defmodule HexTest.Case do
     repos = put_in(repos["hexpm"].url, "http://localhost:#{bypass.port}")
     Hex.State.put(:repos, repos)
 
-    Bypass.expect bypass, fn conn ->
+    Bypass.expect(bypass, fn conn ->
       case conn do
         %Plug.Conn{request_path: "/docs/package-1.1.2.tar.gz"} ->
           tar_file = tmp_path("package-1.1.2.tar.gz")
@@ -230,7 +230,7 @@ defmodule HexTest.Case do
         %Plug.Conn{request_path: "/docs/package"} ->
           Plug.Conn.resp(conn, 404, "")
       end
-    end
+    end)
 
     bypass
   end

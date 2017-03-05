@@ -29,7 +29,6 @@ defmodule Mix.Tasks.Hex.Docs do
   def run(args) do
     Hex.start
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
-    opts = normalize_options(opts)
 
     case args do
       [] ->
@@ -43,7 +42,7 @@ defmodule Mix.Tasks.Hex.Docs do
         argument. Call "mix help hex.docs" for more information.
         """
       ["fetch" | remaining] ->
-        fetch_docs(remaining, opts)
+        fetch_docs(remaining)
       ["open" | remaining] ->
         open_docs(remaining, opts)
       _ ->
@@ -55,26 +54,25 @@ defmodule Mix.Tasks.Hex.Docs do
     end
   end
 
-  defp fetch_docs([], _opts) do
+  defp fetch_docs([]) do
     Mix.raise "You must specify at least the name of a package"
   end
 
-  defp fetch_docs([name], opts) do
+  defp fetch_docs([name]) do
     latest_version = find_package_latest_version(name)
-    fetch_docs([name, latest_version], opts)
+    fetch_docs([name, latest_version])
   end
 
-  defp fetch_docs([name, version], opts) do
-    target_dir = Path.join([opts[:home], name, version])
+  defp fetch_docs([name, version]) do
+    target_dir = Path.join([docs_dir(), name, version])
 
     if File.exists? target_dir do
       Hex.Shell.info "Docs already fetched: #{target_dir}"
     else
-      doc_filename = "#{name}-#{version}.tar.gz"
-      doc_url = Hex.State.fetch!(:repos)["hexpm"].url <> "/docs/#{doc_filename}"
-      retrieve_compressed_docs(doc_url, doc_filename, opts)
-      File.mkdir_p! target_dir
-      extract_doc_contents(doc_filename, target_dir, opts)
+      target = Path.join(target_dir, "#{name}-#{version}.tar.gz")
+      retrieve_compressed_docs(name, version, target)
+      File.mkdir_p!(target_dir)
+      extract_doc_contents(target)
       Hex.Shell.info "Docs fetched: #{target_dir}"
     end
   end
@@ -92,13 +90,13 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp retrieve_package_info(package) do
     case Hex.API.Package.get(package) do
-      {code, body, _} when code in 200..299 ->
+      {:ok, {code, body, _}} when code in 200..299 ->
         body
-      {404, _, _} ->
+      {:ok, {404, _, _}} ->
         Mix.raise "No package with name #{package}"
-      {code, body, _} ->
+      other ->
         Hex.Shell.error "Failed to retrieve package information"
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
     end
   end
 
@@ -117,22 +115,22 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp open_docs_offline([name], opts) do
-    {missing?, latest_version} = find_package_version(name, opts)
+    {missing?, latest_version} = find_package_version(name)
     if missing? do
-      fetch_docs([name], opts)
+      fetch_docs([name])
     end
     open_docs([name, latest_version], opts)
   end
 
-  defp open_docs_offline([name, version], opts) do
-    index_path = Path.join([opts[:home], name, version, 'index.html'])
-
-    open_file(index_path)
+  defp open_docs_offline([name, version], _opts) do
+    Path.join([docs_dir(), name, version, 'index.html'])
+    |> open_file()
   end
 
-  defp find_package_version(name, opts) do
-    if File.exists?("#{opts[:home]}/#{name}") do
-      {false, find_latest_version("#{opts[:home]}/#{name}")}
+  defp find_package_version(name) do
+    path = Path.join(docs_dir(), name)
+    if File.exists?(path) do
+      {false, find_latest_version(path)}
     else
       {true, find_package_latest_version(name)}
     end
@@ -155,20 +153,23 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp browser_open(path) do
-    start_browser_command =
-      case :os.type do
-        {:win32, _} ->
-          "start"
-        {:unix, :darwin} ->
-          "open"
-        {:unix, _} ->
-          "xdg-open"
-      end
+    start_command = start_command()
 
-    if System.find_executable(start_browser_command) do
-      System.cmd(start_browser_command, [path])
+    if System.find_executable(start_command) do
+      System.cmd(start_command, [path])
     else
-      Mix.raise "Command not found: #{start_browser_command}"
+      Mix.raise "Command not found: #{start_command}"
+    end
+  end
+
+  defp start_command() do
+    case :os.type do
+      {:win32, _} ->
+        "start"
+      {:unix, :darwin} ->
+        "open"
+      {:unix, _} ->
+        "xdg-open"
     end
   end
 
@@ -187,33 +188,25 @@ defmodule Mix.Tasks.Hex.Docs do
     |> List.first
   end
 
-  defp retrieve_compressed_docs(url, filename, opts) do
-    target = Path.join(opts[:cache], filename)
-    File.mkdir_p!(opts[:cache])
+  defp retrieve_compressed_docs(package, version, target) do
+    File.mkdir_p!(Path.dirname(target))
 
     unless File.exists?(target) do
-      request_docs_from_mirror(url, target)
+      request_docs_from_mirror(package, version, target)
     end
   end
 
-  defp request_docs_from_mirror(url, target) do
-    {:ok, body, _} = Hex.Repo.request(url, nil)
+  defp request_docs_from_mirror(package, version, target) do
+    {:ok, {200, body, _}} = Hex.Repo.get_docs("hexpm", package, version)
     File.write!(target, body)
   end
 
-  defp extract_doc_contents(filename, target_dir, opts) do
-    target_file = Path.join(opts[:cache], filename)
-    fd = File.open!(target_file, [:read, :compressed])
-    Hex.Tar.extract_contents(fd, target_dir, [mode: :file])
+  defp extract_doc_contents(target) do
+    fd = File.open!(target, [:read, :compressed])
+    Hex.Tar.extract_contents(fd, Path.dirname(target), mode: :file)
   end
 
-  defp normalize_options(opts) do
-    home = Hex.State.fetch!(:home)
-    docs_root = Path.join(home, "docs")
-    cache_dir = Path.join(docs_root, ".cache")
-
-    opts
-    |> Keyword.put(:home, docs_root)
-    |> Keyword.put(:cache, cache_dir)
+  defp docs_dir() do
+    Path.join(Hex.State.fetch!(:home), "docs")
   end
 end

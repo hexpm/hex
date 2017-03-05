@@ -207,12 +207,11 @@ defmodule Hex.SCM do
     fetch = fetch_from_lock(lock)
 
     Enum.each(fetch, fn {repo, package, version} ->
-      %{url: url} = Hex.State.fetch!(:repos)[repo]
       filename = "#{package}-#{version}.tar"
       path = cache_path(repo, filename)
-      etag = File.exists?(path) && Registry.tarball_etag(repo, package, version)
+      etag = if File.exists?(path), do: Registry.tarball_etag(repo, package, version), else: nil
       Hex.Parallel.run(:hex_fetcher, {:tarball, repo, package, version}, fn ->
-        fetch(url, filename, path, etag)
+        fetch(repo, package, version, path, etag)
       end)
     end)
   end
@@ -235,19 +234,23 @@ defmodule Hex.SCM do
     end)
   end
 
-  defp fetch(url, name, path, etag) do
+  defp fetch(repo, package, version, path, etag) do
     if Hex.State.fetch!(:offline?) do
       {:ok, :offline}
     else
-      url = url <> "/tarballs/#{name}"
-
-      case Hex.Repo.request(url, etag) do
-        {:ok, body, etag} ->
+      case Hex.Repo.get_tarball(repo, package, version, etag) do
+        {:ok, {200, body, headers}} ->
+          etag = headers['etag']
+          etag = if etag, do: List.to_string(etag)
           File.mkdir_p!(Path.dirname(path))
           File.write!(path, body)
           {:ok, :new, etag}
-        other ->
-          other
+        {:ok, {304, _body, _headers}} ->
+          {:ok, :cached}
+        {:ok, {code, _body, _headers}} ->
+          {:error, "Request failed (#{code})"}
+        {:error, reason} ->
+          {:error, "Request failed (#{inspect reason})"}
       end
     end
   end

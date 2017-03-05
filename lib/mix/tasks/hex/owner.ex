@@ -66,32 +66,32 @@ defmodule Mix.Tasks.Hex.Owner do
   defp add_owner(package, owner, opts) do
     Hex.Shell.info "Adding owner #{owner} to #{package}"
     case Hex.API.Package.Owner.add(package, owner, opts) do
-      {code, _body, _headers} when code in 200..299 ->
+      {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
-      {code, body, _headers} ->
+      other ->
         Hex.Shell.error "Adding owner failed"
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
     end
   end
 
   defp remove_owner(package, owner, opts) do
     Hex.Shell.info "Removing owner #{owner} from #{package}"
     case Hex.API.Package.Owner.delete(package, owner, opts) do
-      {code, _body, _headers} when code in 200..299 ->
+      {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
-      {code, body, _headers} ->
+      other ->
         Hex.Shell.error "Removing owner failed"
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
     end
   end
 
   defp list_owners(package, opts) do
     case Hex.API.Package.Owner.get(package, opts) do
-      {code, body, _headers} when code in 200..299 ->
+      {:ok, {code, body, _headers}} when code in 200..299 ->
         Enum.each(body, &Hex.Shell.info(&1["email"]))
-      {code, body, _headers} ->
+      other ->
         Hex.Shell.error "Package owner fetching failed"
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
     end
   end
 
@@ -99,13 +99,13 @@ defmodule Mix.Tasks.Hex.Owner do
     {:ok, username} = Keyword.fetch(config, :username)
 
     case Hex.API.User.get(username) do
-      {code, body, _headers} when code in 200..299 ->
+      {:ok, {code, body, _headers}} when code in 200..299 ->
         Enum.each(body["owned_packages"], fn {name, _url} ->
           Hex.Shell.info("#{name} - #{url(name)}")
         end)
-      {code, body, _headers} ->
+      other ->
         Hex.Shell.error("Listing owned packages failed")
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
     end
   end
 

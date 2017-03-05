@@ -25,10 +25,10 @@ defmodule Mix.Tasks.Hex.Search do
     end
   end
 
-  defp lookup_packages({200, [], _headers}) do
+  defp lookup_packages({:ok, {200, [], _headers}}) do
     Hex.Shell.info "No packages found"
   end
-  defp lookup_packages({200, packages, _headers}) do
+  defp lookup_packages({:ok, {200, packages, _headers}}) do
     values =
       Enum.map(packages, fn package ->
         [package["name"], latest(package["releases"]), url(package["name"])]
