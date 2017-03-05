@@ -2,27 +2,22 @@ defmodule Hex.API.Release do
   alias Hex.API
 
   def get(name, version) do
-    url = API.api_url("packages/#{name}/releases/#{version}")
-    API.request(:get, url, [])
+    API.request(:get, "packages/#{name}/releases/#{version}")
   end
 
   def new(name, tar, auth, progress \\ fn _ -> nil end) do
-    url = API.api_url("packages/#{name}/releases")
-    API.request_tar(url, API.auth(auth), tar, progress)
+    API.tar_post_request("packages/#{name}/releases", tar, [progress: progress] ++ auth)
   end
 
   def delete(name, version, auth) do
-    url = API.api_url("packages/#{name}/releases/#{version}")
-    API.request(:delete, url, API.auth(auth))
+    API.request(:delete, "packages/#{name}/releases/#{version}", auth)
   end
 
   def retire(name, version, body, auth) do
-    url = API.api_url("packages/#{name}/releases/#{version}/retire")
-    API.request(:post, url, API.auth(auth), body)
+    API.erlang_post_request("packages/#{name}/releases/#{version}/retire", body, auth)
   end
 
   def unretire(name, version, auth) do
-    url = API.api_url("packages/#{name}/releases/#{version}/retire")
-    API.request(:delete, url, API.auth(auth))
+    API.request(:delete, "packages/#{name}/releases/#{version}/retire", auth)
   end
 end

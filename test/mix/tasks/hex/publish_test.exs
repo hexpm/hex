@@ -42,7 +42,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
-      assert {200, _, _} = Hex.API.Release.get("release_a", "0.0.1")
+      assert {:ok, {200, _, _}} = Hex.API.Release.get("release_a", "0.0.1")
 
       msg = "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct"
       assert_received {:mix_shell, :info, [^msg]}
@@ -50,7 +50,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["package", "--revert", "0.0.1"])
-      assert {404, _, _} = Hex.API.Release.get("release_a", "0.0.1")
+      assert {:ok, {404, _, _}} = Hex.API.Release.get("release_a", "0.0.1")
     end
   after
     purge [ReleaseSimple.Mixfile]
@@ -118,7 +118,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
-      assert {200, body, _} = Hex.API.Release.get("released_name", "0.0.1")
+      assert {:ok, {200, body, _}} = Hex.API.Release.get("released_name", "0.0.1")
       assert body["meta"]["app"] == "release_d"
     end
   after
@@ -135,7 +135,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
-      assert {200, _, _} = Hex.API.Release.get("release_a", "0.0.1")
+      assert {:ok, {200, _, _}} = Hex.API.Release.get("release_a", "0.0.1")
     end
   after
     purge [ReleaseSimple.Mixfile]
@@ -159,7 +159,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
         Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
 
         assert_received {:mix_shell, :error, ["No files"]}
-        assert {200, _, _} = Hex.API.Release.get("release_b", "0.0.2")
+        assert {:ok, {200, _, _}} = Hex.API.Release.get("release_b", "0.0.2")
       end
     end
   after

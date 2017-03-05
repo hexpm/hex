@@ -195,11 +195,11 @@ defmodule Hex.Registry.Server do
   def handle_info({_ref, {:get_installs, result}}, state) do
     result =
       case result do
-        {code, body, _headers} when code in 200..299 ->
-          Hex.API.Registry.find_new_version_from_csv(body)
-        {code, body, _} ->
+        {:ok, {code, body, _headers}} when code in 200..299 ->
+          Hex.Repo.find_new_version_from_csv(body)
+        other ->
           Hex.Shell.error("Failed to check for new Hex version")
-          Hex.Utils.print_error_result(code, body)
+          Hex.Utils.print_error_result(other)
           nil
       end
 
@@ -306,9 +306,9 @@ defmodule Hex.Registry.Server do
 
   defp prefetch_online(packages, state) do
     Enum.each(packages, fn {repo, package} ->
-      opts = fetch_opts(repo, package, state)
+      etag = package_etag(repo, package, state)
       Hex.Parallel.run(:hex_fetcher, {:registry, package}, [await: false], fn ->
-        {:get_package, repo, package, Hex.API.Registry.get_package(repo, package, opts)}
+        {:get_package, repo, package, Hex.Repo.get_package(repo, package, etag)}
       end)
     end)
 
@@ -333,12 +333,12 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  defp write_result({code, body, headers}, repo, package, %{ets: tid}) when code in 200..299 do
+  defp write_result({:ok, {code, body, headers}}, repo, package, %{ets: tid}) when code in 200..299 do
     releases =
       body
       |> :zlib.gunzip
-      |> Hex.API.Registry.verify(repo)
-      |> Hex.API.Registry.decode
+      |> Hex.Repo.verify(repo)
+      |> Hex.Repo.decode()
 
     delete_package(repo, package, tid)
 
@@ -362,19 +362,19 @@ defmodule Hex.Registry.Server do
       :ets.insert(tid, {{:registry_etag, repo, package}, List.to_string(etag)})
     end
   end
-  defp write_result({304, _, _}, _repo, _package, _state) do
+  defp write_result({:ok, {304, _, _}}, _repo, _package, _state) do
     :ok
   end
-  defp write_result({404, _, _}, repo, package, %{ets: tid}) do
+  defp write_result({:ok, {404, _, _}}, repo, package, %{ets: tid}) do
     delete_package(repo, package, tid)
     :ok
   end
 
-  defp write_result({code, body, _}, _repo, package, %{ets: tid}) do
+  defp write_result(other, _repo, package, %{ets: tid}) do
     cached? = !!:ets.lookup(tid, {:versions, package})
     cached_message = if cached?, do: " (using cache)"
     Hex.Shell.error("Failed to fetch record for '#{package}' from registry#{cached_message}")
-    Hex.Utils.print_error_result(code, body)
+    Hex.Utils.print_error_result(other)
 
     unless cached? do
       raise "Stopping due to errors"
@@ -395,10 +395,10 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  defp fetch_opts(repo, package, %{ets: tid}) do
+  defp package_etag(repo, package, %{ets: tid}) do
     case :ets.lookup(tid, {:registry_etag, repo, package}) do
-      [{_, etag}] -> [etag: etag]
-      [] -> []
+      [{_, etag}] -> etag
+      [] -> nil
     end
   end
 
@@ -460,7 +460,7 @@ defmodule Hex.Registry.Server do
   defp check_update(%{ets: tid} = state, opts) do
     if opts[:force] || check_update?(tid) do
       Task.async(fn ->
-        {:get_installs, Hex.API.Registry.get_installs}
+        {:get_installs, Hex.Repo.get_installs()}
       end)
 
       %{state | checking_update?: true, already_checked_update?: true}

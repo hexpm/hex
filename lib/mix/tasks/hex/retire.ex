@@ -59,21 +59,21 @@ defmodule Mix.Tasks.Hex.Retire do
   defp retire(package, version, reason, opts, auth) do
     body = %{reason: reason, message: opts[:message]}
     case Hex.API.Release.retire(package, version, body, auth) do
-      {code, _body, _headers} when code in 200..299 ->
+      {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
-      {code, body, _headers} ->
+      other ->
         Hex.Shell.error "Retiring package failed"
-        Hex.Utils.print_error_result(code, body)
+        Hex.Utils.print_error_result(other)
     end
   end
 
   defp unretire(package, version, auth) do
   case Hex.API.Release.unretire(package, version, auth) do
-    {code, _body, _headers} when code in 200..299 ->
+    {:ok, {code, _body, _headers}} when code in 200..299 ->
       :ok
-    {code, body, _headers} ->
+    other ->
       Hex.Shell.error "Unretiring package failed"
-      Hex.Utils.print_error_result(code, body)
+      Hex.Utils.print_error_result(other)
   end
   end
 end

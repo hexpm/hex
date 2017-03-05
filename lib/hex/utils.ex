@@ -39,18 +39,18 @@ defmodule Hex.Utils do
     end
   end
 
-  def print_error_result(:http_error, reason),
+  def print_error_result({:error, reason}),
     do: Hex.Shell.info inspect(reason)
-  def print_error_result(status, nil),
+  def print_error_result({:ok, {status, nil, _headers}}),
     do: print_http_code(status)
-  def print_error_result(status, ""),
+  def print_error_result({:ok, {status, "", _headers}}),
     do: print_http_code(status)
 
-  def print_error_result(_status, body) when is_binary(body) do
+  def print_error_result({:ok, {_status, body, _headers}}) when is_binary(body) do
     Hex.Shell.info body
   end
 
-  def print_error_result(status, body) when is_map(body) do
+  def print_error_result({:ok, {status, body, _headers}}) when is_map(body) do
     message = body["message"]
     errors = body["errors"]
 
@@ -103,53 +103,6 @@ defmodule Hex.Utils do
     do: "https://hexdocs.pm/#{package}/#{module}.html"
   def hexdocs_module_url(package, version, module),
     do: "https://hexdocs.pm/#{package}/#{version}/#{module}.html"
-
-  def proxy_config(url) do
-    {http_proxy, https_proxy} = proxy_setup()
-    proxy_auth(URI.parse(url), http_proxy, https_proxy)
-  end
-
-  defp proxy_setup do
-    http_proxy  = (proxy = Hex.State.get(:http_proxy))  && proxy(:http, proxy)
-    https_proxy = (proxy = Hex.State.get(:https_proxy)) && proxy(:https, proxy)
-    {http_proxy, https_proxy}
-  end
-
-  defp proxy(scheme, proxy) do
-    uri = URI.parse(proxy)
-
-    if uri.host && uri.port do
-      host = Hex.string_to_charlist(uri.host)
-      :httpc.set_options([{proxy_scheme(scheme), {{host, uri.port}, []}}], :hex)
-    end
-
-    uri
-  end
-
-  defp proxy_scheme(scheme) do
-    case scheme do
-      :http  -> :proxy
-      :https -> :https_proxy
-    end
-  end
-
-  defp proxy_auth(%URI{scheme: "http"}, http_proxy, _https_proxy),
-    do: proxy_auth(http_proxy)
-  defp proxy_auth(%URI{scheme: "https"}, _http_proxy, https_proxy),
-    do: proxy_auth(https_proxy)
-
-  defp proxy_auth(nil),
-    do: []
-  defp proxy_auth(%URI{userinfo: nil}),
-    do: []
-  defp proxy_auth(%URI{userinfo: auth}) do
-    destructure [user, pass], String.split(auth, ":", parts: 2)
-
-    user = Hex.string_to_charlist(user)
-    pass = Hex.string_to_charlist(pass || "")
-
-    [proxy_auth: {user, pass}]
-  end
 
   # From https://github.com/fishcakez/dialyze/blob/6698ae582c77940ee10b4babe4adeff22f1b7779/lib/mix/tasks/dialyze.ex#L168
   def otp_version do

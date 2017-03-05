@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
     Mix.Tasks.Hex.User.run(["register"])
 
-    assert {200, body, _} = Hex.API.User.get("eric")
+    assert {:ok, {200, body, _}} = Hex.API.User.get("eric")
     assert body["username"] == "eric"
     # TODO: re-enable after grace period
     #       or test using a different authenticated endpoint
@@ -42,7 +42,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       auth = Mix.Tasks.Hex.auth_info(Hex.Config.read)
-      assert {200, body, _} = Hex.API.Key.get(auth)
+      assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
       assert name in Enum.map(body, &(&1["name"]))
 
       assert config[:username] == "user"
@@ -150,7 +150,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       auth = HexWeb.new_user("list_keys", "list_keys@mail.com", "password", "list_keys")
       Hex.Config.update(auth)
 
-      assert {200, [%{"name" => "list_keys"}], _} = Hex.API.Key.get(auth)
+      assert {:ok, {200, [%{"name" => "list_keys"}], _}} = Hex.API.Key.get(auth)
 
       send self(), {:mix_shell_input, :prompt, "password"}
       Mix.Tasks.Hex.User.run(["key", "--list"])
@@ -166,22 +166,22 @@ defmodule Mix.Tasks.Hex.UserTest do
       auth_b = HexWeb.new_key("remove_key", "password", "remove_key_b")
       Hex.Config.update(auth_a)
 
-      assert {200, _, _} = Hex.API.Key.get(auth_a)
-      assert {200, _, _} = Hex.API.Key.get(auth_b)
+      assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_a)
+      assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_b)
 
       send self(), {:mix_shell_input, :prompt, "password"}
       Mix.Tasks.Hex.User.run(["key", "--remove", "remove_key_b"])
       assert_received {:mix_shell, :info, ["Removing key remove_key_b..."]}
 
-      assert {200, _, _} = Hex.API.Key.get(auth_a)
-      assert {401, _, _} = Hex.API.Key.get(auth_b)
+      assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_a)
+      assert {:ok, {401, _, _}} = Hex.API.Key.get(auth_b)
 
       send self(), {:mix_shell_input, :prompt, "password"}
       Mix.Tasks.Hex.User.run(["key", "--remove", "remove_key_a"])
       assert_received {:mix_shell, :info, ["Removing key remove_key_a..."]}
       assert_received {:mix_shell, :info, ["User `remove_key` removed from the local machine. To authenticate again, run `mix hex.user auth` or create a new user with `mix hex.user register`"]}
 
-      assert {401, _, _} = Hex.API.Key.get(auth_a)
+      assert {:ok ,{401, _, _}} = Hex.API.Key.get(auth_a)
 
       config = Hex.Config.read
       refute config[:username]
@@ -198,16 +198,16 @@ defmodule Mix.Tasks.Hex.UserTest do
       auth_b = HexWeb.new_key("remove_all_keys", "password", "remove_all_keys_b")
       Hex.Config.update(auth_a)
 
-      assert {200, _, _} = Hex.API.Key.get(auth_a)
-      assert {200, _, _} = Hex.API.Key.get(auth_b)
+      assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_a)
+      assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_b)
 
       send self(), {:mix_shell_input, :prompt, "password"}
       Mix.Tasks.Hex.User.run(["key", "--remove-all"])
       assert_received {:mix_shell, :info, ["Removing all keys..."]}
       assert_received {:mix_shell, :info, ["User `remove_all_keys` removed from the local machine. To authenticate again, run `mix hex.user auth` or create a new user with `mix hex.user register`"]}
 
-      assert {401, _, _} = Hex.API.Key.get(auth_a)
-      assert {401, _, _} = Hex.API.Key.get(auth_b)
+      assert {:ok, {401, _, _}} = Hex.API.Key.get(auth_a)
+      assert {:ok, {401, _, _}} = Hex.API.Key.get(auth_b)
 
       config = Hex.Config.read
       refute config[:username]

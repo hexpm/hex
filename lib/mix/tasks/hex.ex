@@ -96,16 +96,15 @@ defmodule Mix.Tasks.Hex do
     name = List.to_string(name)
 
     case Hex.API.Key.new(name, [user: username, pass: password]) do
-      {201, body, _} ->
+      {:ok, {201, body, _}} ->
         Hex.Shell.info("Encrypting API key with user password...")
         encrypted_key = Hex.Crypto.encrypt(body["secret"], password, @apikey_tag)
         Hex.Config.update([
           username: username,
           encrypted_key: encrypted_key])
-
-      {code, body, _} ->
-        Mix.shell.error("Generation of API key failed (#{code})")
-        Hex.Utils.print_error_result(code, body)
+      other ->
+        Mix.shell.error("Generation of API key failed")
+        Hex.Utils.print_error_result(other)
     end
   end
 

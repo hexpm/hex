@@ -1,7 +1,7 @@
-defmodule Hex.API.VerifyHostnameTest do
+defmodule Hex.HTTP.VerifyHostnameTest do
   use ExUnit.Case, async: true
 
-  alias Hex.API.VerifyHostname
+  alias Hex.HTTP.VerifyHostname
 
   defmacrop assert_match(i, r, v) do
     quote do
