@@ -18,7 +18,6 @@ defmodule Hex.HTTP.VerifyHostname do
   @id_ce_subject_alt_name {2, 5, 29, 17}
   @id_at_common_name      {2, 5, 4, 3}
 
-
   def verify_cert_hostname(otp_certificate(tbsCertificate: tbs_cert), hostname) do
     dns_names = extract_dns_names(tbs_cert)
     dns_name_matched = try_match_hostnames(dns_names, hostname)
