@@ -48,9 +48,9 @@ defmodule HexTest.HexWeb do
     check_hexweb()
     mix = hexweb_mix() |> List.to_string
 
-    cmd(mix, ["ecto.drop", "-r", "HexWeb.Repo", "--quiet"])
-    cmd(mix, ["ecto.create", "-r", "HexWeb.Repo", "--quiet"])
-    cmd(mix, ["ecto.migrate", "-r", "HexWeb.Repo"])
+    cmd(mix, ["ecto.drop", "-r", "Hexpm.Repo", "--quiet"])
+    cmd(mix, ["ecto.create", "-r", "Hexpm.Repo", "--quiet"])
+    cmd(mix, ["ecto.migrate", "-r", "Hexpm.Repo"])
   end
 
   def start do
@@ -102,14 +102,14 @@ defmodule HexTest.HexWeb do
     dir = hexweb_dir()
 
     unless File.exists?(dir) do
-      IO.puts "Unable to find #{dir}, make sure to clone the hex_web repository " <>
+      IO.puts "Unable to find #{dir}, make sure to clone the hexpm repository " <>
               "into it to run integration tests or set HEXWEB_PATH to its location"
       System.halt(1)
     end
   end
 
   defp hexweb_dir do
-    System.get_env("HEXWEB_PATH") || "../hex_web"
+    System.get_env("HEXWEB_PATH") || "../hexpm"
   end
 
   defp hexweb_mix do

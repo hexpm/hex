@@ -16,9 +16,9 @@ Install Hex locally for development with: `mix install`.
 
 Hex bundles a list of root CA certificates used for certificate validation in HTTPS. The certificates are fetched from [Mozilla's source tree](http://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt) with curl's [mk-ca-bundle.pl](https://github.com/bagder/curl/blob/master/lib/mk-ca-bundle.pl) script. The bundle created from the Perl script is stored in `lib/hex/api/ca-bundle.crt` and is included in source control, the file should be updated when new releases are made by Mozilla. When Hex is compiled the certificates are parsed and included with the compiled artifacts. The task `mix certdata` automates this process.
 
-### hex_web
+### hexpm
 
-Integration tests run against the API server [hex_web](https://github.com/hexpm/hex_web). It needs to be cloned into `../hex_web` or `HEXWEB_PATH` needs to be set and point its location. hex_web also requires postgresql with username `postgres` and password `postgres`.
+Integration tests run against the API server [hexpm](https://github.com/hexpm/hexpm). It needs to be cloned into `../hexpm` or `HEXWEB_PATH` needs to be set and point its location. hexpm also requires postgresql with username `postgres` and password `postgres`.
 
 Run integration tests with `mix test --include integration`.
 
