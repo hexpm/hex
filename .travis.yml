@@ -21,8 +21,8 @@ before_install:
 - mix local.hex --force
 - mix local.rebar --force
 before_script:
-- git clone https://github.com/hexpm/hex_web.git hexpm
-- cd hexpm; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH}
+- git clone https://github.com/hexpm/hex_web.git hex_web
+- cd hex_web; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH}
   MIX_HOME=$(pwd)/../${HEXWEB_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXWEB_MIX_HOME}
   MIX_ENV=hex ../${HEXWEB_ELIXIR_PATH}/bin/mix deps.get; cd ..
 - cd hexpm; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH}
