@@ -25,7 +25,7 @@ before_script:
 - cd hex_web; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH}
   MIX_HOME=$(pwd)/../${HEXWEB_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXWEB_MIX_HOME}
   MIX_ENV=hex ../${HEXWEB_ELIXIR_PATH}/bin/mix deps.get; cd ..
-- cd hexpm; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH}
+- cd hex_web; PATH=$(pwd)/../${HEXWEB_ELIXIR_PATH}/bin:$(pwd)/../${HEXWEB_OTP_PATH}/bin:${PATH}
   MIX_HOME=$(pwd)/../${HEXWEB_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXWEB_MIX_HOME}
   MIX_ENV=hex ../${HEXWEB_ELIXIR_PATH}/bin/mix compile; cd ..
 - mix deps.get
@@ -37,7 +37,7 @@ env:
   global:
   - HEXWEB_OTP=19.0
   - HEXWEB_ELIXIR=v1.4.0
-  - HEXWEB_PATH=hexpm
+  - HEXWEB_PATH=hex_web
   - HEXWEB_ELIXIR_PATH=hexweb_elixir
   - HEXWEB_OTP_PATH=hexweb_otp
   - HEXWEB_MIX_HOME=hexweb_mix
