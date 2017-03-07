@@ -5,7 +5,7 @@ defmodule HexTest.Case do
     quote do
       import unquote(__MODULE__)
       alias HexTest.Case
-      alias HexTest.HexWeb
+      alias HexTest.Hexpm
     end
   end
 

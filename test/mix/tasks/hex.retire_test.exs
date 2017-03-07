@@ -3,8 +3,8 @@ defmodule Mix.Tasks.Hex.RetireTest do
   @moduletag :integration
 
   test "retire and unretire package" do
-    auth = HexWeb.new_user("retire_user", "retire_user@mail.com", "passpass", "key")
-    HexWeb.new_package("retire_package", "0.0.1", [], %{}, auth)
+    auth = Hexpm.new_user("retire_user", "retire_user@mail.com", "passpass", "key")
+    Hexpm.new_package("retire_package", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
     Hex.Config.update(auth)

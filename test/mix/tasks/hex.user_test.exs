@@ -147,7 +147,7 @@ defmodule Mix.Tasks.Hex.UserTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      auth = HexWeb.new_user("list_keys", "list_keys@mail.com", "password", "list_keys")
+      auth = Hexpm.new_user("list_keys", "list_keys@mail.com", "password", "list_keys")
       Hex.Config.update(auth)
 
       assert {:ok, {200, [%{"name" => "list_keys"}], _}} = Hex.API.Key.get(auth)
@@ -162,8 +162,8 @@ defmodule Mix.Tasks.Hex.UserTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      auth_a = HexWeb.new_user("remove_key", "remove_key@mail.com", "password", "remove_key_a")
-      auth_b = HexWeb.new_key("remove_key", "password", "remove_key_b")
+      auth_a = Hexpm.new_user("remove_key", "remove_key@mail.com", "password", "remove_key_a")
+      auth_b = Hexpm.new_key("remove_key", "password", "remove_key_b")
       Hex.Config.update(auth_a)
 
       assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_a)
@@ -194,8 +194,8 @@ defmodule Mix.Tasks.Hex.UserTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      auth_a = HexWeb.new_user("remove_all_keys", "remove_all_keys@mail.com", "password", "remove_all_keys_a")
-      auth_b = HexWeb.new_key("remove_all_keys", "password", "remove_all_keys_b")
+      auth_a = Hexpm.new_user("remove_all_keys", "remove_all_keys@mail.com", "password", "remove_all_keys_a")
+      auth_b = Hexpm.new_key("remove_all_keys", "password", "remove_all_keys_b")
       Hex.Config.update(auth_a)
 
       assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_a)

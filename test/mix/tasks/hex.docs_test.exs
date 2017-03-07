@@ -20,9 +20,9 @@ defmodule Mix.Tasks.Hex.DocsTest do
     Hex.State.put(:home, tmp_path())
     docs_home = Path.join(Hex.State.fetch!(:home), "docs")
 
-    auth = HexWeb.new_key([user: "user", pass: "hunter42"])
-    HexWeb.new_package(package, old_version, %{}, %{}, auth)
-    HexWeb.new_package(package, latest_version, %{}, %{}, auth)
+    auth = Hexpm.new_key([user: "user", pass: "hunter42"])
+    Hexpm.new_package(package, old_version, %{}, %{}, auth)
+    Hexpm.new_package(package, latest_version, %{}, %{}, auth)
 
     in_tmp "docs", fn ->
       Mix.Tasks.Hex.Docs.run(["fetch", package])

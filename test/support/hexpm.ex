@@ -1,4 +1,4 @@
-defmodule HexTest.HexWeb do
+defmodule HexTest.Hexpm do
   import ExUnit.Assertions
 
   defmodule WrappedCollectable do
@@ -21,7 +21,7 @@ defmodule HexTest.HexWeb do
     end
   end
 
-  defp stream_hexweb do
+  defp stream_hexpm do
     %WrappedCollectable{
       collectable: IO.stream(:stdio, :line),
       fun: &IO.ANSI.format([:blue, &1])
@@ -45,8 +45,8 @@ defmodule HexTest.HexWeb do
   """
 
   def init do
-    check_hexweb()
-    mix = hexweb_mix() |> List.to_string
+    check_hexpm()
+    mix = hexpm_mix() |> List.to_string
 
     cmd(mix, ["ecto.drop", "-r", "Hexpm.Repo", "--quiet"])
     cmd(mix, ["ecto.create", "-r", "Hexpm.Repo", "--quiet"])
@@ -55,8 +55,8 @@ defmodule HexTest.HexWeb do
 
   def start do
     path                = Hex.string_to_charlist(path())
-    hexweb_mix_home     = Hex.string_to_charlist(hexweb_mix_home())
-    hexweb_mix_archives = Hex.string_to_charlist(hexweb_mix_archives())
+    hexpm_mix_home     = Hex.string_to_charlist(hexpm_mix_home())
+    hexpm_mix_archives = Hex.string_to_charlist(hexpm_mix_archives())
 
     key = Path.join(__DIR__, "../fixtures/test_priv.pem")
           |> File.read!
@@ -64,21 +64,21 @@ defmodule HexTest.HexWeb do
 
     env = [
       {'MIX_ENV', 'hex'},
-      {'MIX_HOME', hexweb_mix_home},
-      {'MIX_ARCHIVES', hexweb_mix_archives},
+      {'MIX_HOME', hexpm_mix_home},
+      {'MIX_ARCHIVES', hexpm_mix_archives},
       {'PATH', path},
       {'HEX_SIGNING_KEY', key}
     ]
 
     spawn_link(fn ->
-      port = Port.open({:spawn_executable, hexweb_mix()}, [
+      port = Port.open({:spawn_executable, hexpm_mix()}, [
                        :exit_status,
                        :use_stdio,
                        :stderr_to_stdout,
                        :binary,
                        :hide,
                        env: env,
-                       cd: hexweb_dir(),
+                       cd: hexpm_dir(),
                        args: ["phoenix.server"]])
 
       fun = fn fun ->
@@ -87,7 +87,7 @@ defmodule HexTest.HexWeb do
             IO.ANSI.format([:blue, data]) |> IO.write
             fun.(fun)
           {^port, {:exit_status, status}} ->
-            IO.puts "HexWeb quit with status #{status}"
+            IO.puts "Hexpm quit with status #{status}"
             System.halt(status)
         end
       end
@@ -98,22 +98,22 @@ defmodule HexTest.HexWeb do
     wait_on_start()
   end
 
-  defp check_hexweb do
-    dir = hexweb_dir()
+  defp check_hexpm do
+    dir = hexpm_dir()
 
     unless File.exists?(dir) do
       IO.puts "Unable to find #{dir}, make sure to clone the hexpm repository " <>
-              "into it to run integration tests or set HEXWEB_PATH to its location"
+              "into it to run integration tests or set HEXPM_PATH to its location"
       System.halt(1)
     end
   end
 
-  defp hexweb_dir do
-    System.get_env("HEXWEB_PATH") || "../hexpm"
+  defp hexpm_dir do
+    System.get_env("HEXPM_PATH") || "../hexpm"
   end
 
-  defp hexweb_mix do
-    if path = hexweb_elixir() do
+  defp hexpm_mix do
+    if path = hexpm_elixir() do
       path = Hex.string_to_charlist(path)
       :os.find_executable('mix', path)
     else
@@ -121,34 +121,34 @@ defmodule HexTest.HexWeb do
     end
   end
 
-  defp hexweb_elixir do
-    if path = System.get_env("HEXWEB_ELIXIR_PATH") do
+  defp hexpm_elixir do
+    if path = System.get_env("HEXPM_ELIXIR_PATH") do
       path
       |> Path.expand
       |> Path.join("bin")
     end
   end
 
-  defp hexweb_otp do
-    if path = System.get_env("HEXWEB_OTP_PATH") do
+  defp hexpm_otp do
+    if path = System.get_env("HEXPM_OTP_PATH") do
       path
       |> Path.expand
       |> Path.join("bin")
     end
   end
 
-  defp hexweb_mix_home do
-    (System.get_env("HEXWEB_MIX_HOME") || Mix.Utils.mix_home)
+  defp hexpm_mix_home do
+    (System.get_env("HEXPM_MIX_HOME") || Mix.Utils.mix_home)
     |> Path.expand
   end
 
-  defp hexweb_mix_archives do
+  defp hexpm_mix_archives do
     archives_path =
       if function_exported?(Mix.Local, :path_for, 1),
         do: Mix.Local.path_for(:archive),
       else: Mix.Local.archives_path
 
-    (System.get_env("HEXWEB_MIX_ARCHIVES") || archives_path)
+    (System.get_env("HEXPM_MIX_ARCHIVES") || archives_path)
     |> Path.expand
   end
 
@@ -156,21 +156,21 @@ defmodule HexTest.HexWeb do
     env = [
       {"MIX_ENV", "hex"},
       {"PATH", path()},
-      {"MIX_HOME", hexweb_mix_home()},
-      {"MIX_ARCHIVES", hexweb_mix_archives()},
+      {"MIX_HOME", hexpm_mix_home()},
+      {"MIX_ARCHIVES", hexpm_mix_archives()},
     ]
 
     opts = [
         stderr_to_stdout: true,
-        into: stream_hexweb(),
+        into: stream_hexpm(),
         env: env,
-        cd: hexweb_dir()]
+        cd: hexpm_dir()]
 
     0 = System.cmd(command, args, opts) |> elem(1)
   end
 
   defp path do
-    [hexweb_elixir(), hexweb_otp(), System.get_env("PATH")]
+    [hexpm_elixir(), hexpm_otp(), System.get_env("PATH")]
     |> Enum.join(":")
   end
 
