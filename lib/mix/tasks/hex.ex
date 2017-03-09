@@ -8,7 +8,7 @@ defmodule Mix.Tasks.Hex do
   @moduledoc """
   Prints Hex tasks and their information.
 
-  `mix hex`
+       mix hex
 
   See `mix help hex.config` to see all available configuration options.
   """
