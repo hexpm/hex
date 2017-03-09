@@ -151,7 +151,7 @@ defmodule Hex.State do
 
   defp deprecation_message(env, config) do
     "The environment variable #{env} and configuration key #{config} have " <>
-    "been deprecated in favor of setting the repository configuraiton " <>
+    "been deprecated in favor of setting the repository configuration " <>
     "through the `mix hex.repo` task"
   end
 
