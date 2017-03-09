@@ -57,13 +57,11 @@ defmodule Hex.SCM do
     case File.read(Path.join(dest, ".hex")) do
       {:ok, file} ->
         case parse_manifest(file) do
-          {^name, ^version, ^checksum, ^repo, _} -> :ok
-          {^name, ^version, ^checksum, _} -> :ok
-          {^name, ^version, ^checksum} -> :ok
-          {^name, ^version, _} when is_nil(checksum) -> :ok
-          {^name, ^version} -> :ok
-          _ ->
-            :mismatch
+          [^name, ^version, ^checksum, _managers, ^repo] -> :ok
+          [^name, ^version, ^checksum | _] -> :ok
+          [^name, ^version, _] when is_nil(checksum) -> :ok
+          [^name, ^version] -> :ok
+          _ -> :mismatch
         end
       {:error, _} ->
         :mismatch
@@ -182,15 +180,16 @@ defmodule Hex.SCM do
 
     case lines do
       [first] ->
-        (String.split(first, ",") ++ [[]])
-        |> List.to_tuple
+        String.split(first, ",") ++ [[]]
+
       [first, managers] ->
         managers =
           managers
           |> String.split(",")
           |> Enum.map(&String.to_atom/1)
-        (String.split(first, ",") ++ [managers])
-        |> List.to_tuple
+
+        String.split(first, ",")
+        |> List.insert_at(3, managers)
     end
   end
 

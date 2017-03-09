@@ -188,14 +188,17 @@ defmodule Hex.Mix do
       checksum =
         Hex.Registry.Server.checksum(repo, name, version)
         |> Base.encode16(case: :lower)
+
       deps =
         Hex.Registry.Server.deps(repo, name, version)
         |> Enum.map(&registry_dep_to_def/1)
         |> Enum.sort
+
       managers =
         managers(app)
         |> Enum.sort
         |> Enum.uniq
+
       {String.to_atom(app), {:hex, String.to_atom(name), version, checksum, managers, deps, repo}}
     end)
   end
@@ -205,14 +208,12 @@ defmodule Hex.Mix do
   # from metadata during checkout or from the lock entry.
   defp managers(nil), do: []
   defp managers(app) do
-    path = Path.join([Mix.Project.deps_path, app, ".hex"])
+    path = Path.join([Mix.Project.deps_path(), app, ".hex"])
     case File.read(path) do
       {:ok, file} ->
         case Hex.SCM.parse_manifest(file) do
-          {_name, _version, _checksum, managers} ->
-            managers
-          _ ->
-            []
+          [_name, _version, _checksum, managers | _] -> managers
+          _ -> []
         end
       _ ->
         []
