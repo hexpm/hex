@@ -2,7 +2,6 @@ defmodule Hex.Registry.Server do
   use GenServer
 
   @behaviour Hex.Registry
-  @compile {:parse_transform, :ms_transform}
   @name __MODULE__
   @filename "cache.ets"
   @timeout 60_000
@@ -282,14 +281,14 @@ defmodule Hex.Registry.Server do
       {:error, message}
   end
 
-  # fn
+  # :ets.fun2ms(fn
   #   {{:versions, ^repo, _package}, _} -> true
   #   {{:deps, ^repo, _package, _version}, _} -> true
   #   {{:checksum, ^repo, _package, _version}, _} -> true
   #   {{:retired, ^repo, _package, _version}, _} -> true
   #   {{:tarball_etag, ^repo, _package, _version}, _} -> true
   #   _ -> false
-  # end
+  # end)
 
   defp purge_repo_matchspec(repo) do
     [{{{:versions, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
