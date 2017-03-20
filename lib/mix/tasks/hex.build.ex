@@ -196,6 +196,12 @@ defmodule Mix.Tasks.Hex.Build do
     String.contains?(version_req, "-")
   end
 
+  defp has_pre_requirements?(meta) do
+    meta.requirements
+    |> Enum.map(& &1.requirement)
+    |> Enum.any?(&pre_requirement?/1)
+  end
+
   defp package_dep?({app, _req, opts}) do
     Enum.find(Mix.SCM.available, fn scm ->
       scm.accepts_options(app, opts)
