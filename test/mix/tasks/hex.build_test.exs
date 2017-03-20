@@ -114,4 +114,20 @@ defmodule Mix.Tasks.Hex.BuildTest do
   after
     purge [ReleaseTooLongDescription.Mixfile]
   end
+
+  test "error if package has unstable dependencies" do
+    Mix.Project.push ReleasePreDeps.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+
+      error_msg = "A stable package release cannot have a pre-release dependency."
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+      end
+    end
+  after
+    purge [ReleasePreDeps.Mixfile]
+  end
 end

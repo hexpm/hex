@@ -94,6 +94,7 @@ defmodule Mix.Tasks.Hex.Build do
     package = Enum.into(config[:package] || [], %{})
     {deps, exclude_deps} = dependencies(config)
     meta = meta_for(config, package, deps)
+    raise_if_unstable_dependencies!(meta)
 
     %{config: config, package: package, deps: deps,
       exclude_deps: exclude_deps, meta: meta}
@@ -189,6 +190,12 @@ defmodule Mix.Tasks.Hex.Build do
   def raise_if_umbrella_project!(config) do
     if Mix.Project.umbrella?(config) do
       Mix.raise "Hex does not support umbrella projects"
+    end
+  end
+
+  defp raise_if_unstable_dependencies!(meta) do
+    if not pre_requirement?(meta.version) and has_pre_requirements?(meta) do
+      Mix.raise "A stable package release cannot have a pre-release dependency."
     end
   end
 
