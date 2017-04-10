@@ -1,10 +1,10 @@
 defmodule Mix.Tasks.Hex.Docs do
   use Mix.Task
 
-  @shortdoc "Fetch or open documentation of a package"
+  @shortdoc "Fetches or opens documentation of a package"
 
   @moduledoc """
-  Fetch or open documentation of a package.
+  Fetches or opens documentation of a package.
 
       mix hex.docs fetch PACKAGE [VERSION]
 
