@@ -90,7 +90,7 @@ defmodule Hex.SCM do
     repo     = opts[:repo]
     filename = "#{name}-#{lock.version}.tar"
     path     = cache_path(repo, filename)
-    url      = Hex.State.fetch!(:repos)[repo].url <> "/tarballs/#{filename}"
+    url      = Hex.Repo.get_repo(repo).url <> "/tarballs/#{filename}"
 
     Hex.Shell.info "  Checking package (#{url})"
 

@@ -3,6 +3,14 @@ defmodule Hex.Repo do
 
   @public_keys_html "https://hex.pm/docs/public_keys"
 
+  def get_repo(repo) do
+    repos = Hex.State.fetch!(:repos)
+    case Map.fetch(repos, repo) do
+      {:ok, config} -> config
+      :error -> raise "unknown repo #{inspect repo}"
+    end
+  end
+
   def get_package(repo, package, etag) do
     headers = etag_headers(etag)
     HTTP.request(:get, package_url(repo, package), headers, nil)
@@ -19,7 +27,7 @@ defmodule Hex.Repo do
 
   def verify(body, repo) do
     %{signature: signature, payload: payload} = :hex_pb_signed.decode_msg(body, :Signed)
-    public_key = Hex.State.fetch!(:repos)[repo].public_key
+    public_key = get_repo(repo).public_key
     if public_key && Hex.State.fetch!(:check_registry?) do
       do_verify(payload, signature, public_key, repo)
     end
@@ -40,17 +48,17 @@ defmodule Hex.Repo do
   end
 
   defp package_url(repo, package) do
-    config = Hex.State.fetch!(:repos)[repo]
+    config = get_repo(repo)
     config.url <> "/packages/#{package}"
   end
 
   defp docs_url(repo, package, version) do
-    config = Hex.State.fetch!(:repos)[repo]
+    config = get_repo(repo)
     config.url <> "/docs/#{package}-#{version}.tar.gz"
   end
 
   defp tarball_url(repo, package, version) do
-    config = Hex.State.fetch!(:repos)[repo]
+    config = get_repo(repo)
     config.url <> "/tarballs/#{package}-#{version}.tar"
   end
 
