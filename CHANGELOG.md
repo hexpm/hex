@@ -1,4 +1,4 @@
-## v0.16.0-dev
+## v0.16.0
 
 ### Multiple repository support
 
@@ -15,6 +15,7 @@ otherwise stated with the `:repo` option on the dependency definition.
 ### Enhancements
   * Add `hex.repo` task
   * Move `hex.key` tasks to `hex.user keys`
+  * Warn or error if publishing a package with pre-release dependencies
 
 ### Bug fixes
   * Do not check for updates when running in offline mode
