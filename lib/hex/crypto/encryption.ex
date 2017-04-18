@@ -28,9 +28,9 @@ defmodule Hex.Crypto.Encryption do
       encrypted_key: encrypted_key,
       iv: iv,
       cipher_text: cipher_text,
-      cipher_tag: cipher_tag} = :erlang.binary_to_term(cipher_text, [:safe])
+      cipher_tag: cipher_tag} = Hex.Utils.safe_binary_to_term!(cipher_text, [:safe])
     aad = tag <> protected
-    protected = :erlang.binary_to_term(protected, [:safe])
+    protected = Hex.Utils.safe_binary_to_term!(protected, [:safe])
     case KeyManager.decrypt(protected, encrypted_key, options) do
       {:ok, key, content_encryptor} ->
         ContentEncryptor.decrypt(content_encryptor, key, iv, {aad, cipher_text, cipher_tag})

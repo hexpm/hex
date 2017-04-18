@@ -4,17 +4,77 @@ defmodule Hex.Utils do
   end
 
   def safe_deserialize_erlang(binary) do
-    try do
-      :erlang.binary_to_term(binary, [:safe])
-    rescue
-      ArgumentError ->
+    case safe_binary_to_term(binary) do
+      {:ok, term} ->
+        term
+      :error ->
         Mix.raise "Received malformed erlang from Hex API"
     end
+  rescue
+    ArgumentError ->
+      Mix.raise "Received malformed erlang from Hex API"
   end
 
   def safe_serialize_erlang(term) do
     binarify(term)
     |> :erlang.term_to_binary
+  end
+
+  def safe_binary_to_term!(binary, opts \\ []) do
+    case safe_binary_to_term(binary, opts) do
+      {:ok, term} ->
+        term
+      :error ->
+        raise ArgumentError, "unsafe terms"
+    end
+  end
+
+  def safe_binary_to_term(binary, opts \\ [])
+
+  def safe_binary_to_term(binary, opts) when is_binary(binary) do
+    term = :erlang.binary_to_term(binary, opts)
+    safe_terms(term)
+    {:ok, term}
+  catch
+    :throw, :safe_terms ->
+      :error
+  end
+
+  defp safe_terms(list) when is_list(list) do
+    safe_list(list)
+  end
+  defp safe_terms(tuple) when is_tuple(tuple) do
+    safe_tuple(tuple, tuple_size(tuple))
+  end
+  defp safe_terms(map) when is_map(map) do
+    :maps.fold(fn key, value, acc ->
+      safe_terms(key)
+      safe_terms(value)
+      acc
+    end, map, map)
+  end
+  defp safe_terms(other) when is_atom(other) or is_number(other) or is_bitstring(other) or
+                              is_pid(other) or is_reference(other) do
+    other
+  end
+  defp safe_terms(_other) do
+    throw :safe_terms
+  end
+
+  defp safe_list([]), do: :ok
+  defp safe_list([h | t]) when is_list(t) do
+    safe_terms(h)
+    safe_list(t)
+  end
+  defp safe_list([h | t]) do
+    safe_terms(h)
+    safe_terms(t)
+  end
+
+  defp safe_tuple(_tuple, 0), do: :ok
+  defp safe_tuple(tuple, n) do
+    safe_terms(:erlang.element(n, tuple))
+    safe_tuple(tuple, n - 1)
   end
 
   def binarify(term, opts \\ [])
