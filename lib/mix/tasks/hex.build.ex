@@ -92,7 +92,7 @@ defmodule Mix.Tasks.Hex.Build do
     raise_if_umbrella_project!(config)
 
     package = Enum.into(config[:package] || [], %{})
-    {deps, exclude_deps} = dependencies(config)
+    {deps, exclude_deps} = dependencies()
     meta = meta_for(config, package, deps)
     raise_if_unstable_dependencies!(meta)
 
@@ -140,12 +140,14 @@ defmodule Mix.Tasks.Hex.Build do
     |> Map.put(:requirements, deps)
   end
 
-  defp dependencies(meta) do
-    deps = Enum.map(meta[:deps] || [], &Hex.Mix.dep/1)
-    deps = Enum.filter(deps, &prod_dep?/1)
-    {include, exclude} = Enum.partition(deps, &package_dep?/1)
+  defp dependencies() do
+    {include, exclude} =
+      Mix.Dep.loaded([])
+      |> Enum.filter(& &1.top_level)
+      |> Enum.filter(&prod_dep?/1)
+      |> Enum.partition(&package_dep?/1)
 
-    Enum.each(include, fn {app, _req, opts} ->
+    Enum.each(include, fn %Mix.Dep{app: app, opts: opts} ->
       if opts[:override] do
         Mix.raise "Can't build package with overridden dependency #{app}, remove `override: true`"
       end
@@ -160,11 +162,11 @@ defmodule Mix.Tasks.Hex.Build do
     end)
 
     include =
-      for {app, req, opts} <- include do
+      Enum.map(include, fn %Mix.Dep{app: app, requirement: req, opts: opts} ->
         name = opts[:hex] || app
         %{name: name, app: app, requirement: req, optional: opts[:optional] || false}
-      end
-    exclude = for {app, _req, _opts} <- exclude, do: app
+      end)
+    exclude = Enum.map(exclude, & &1.app)
     {include, exclude}
   end
 
@@ -208,14 +210,12 @@ defmodule Mix.Tasks.Hex.Build do
     |> Enum.map(& &1.requirement)
     |> Enum.any?(&pre_requirement?/1)
   end
-
-  defp package_dep?({app, _req, opts}) do
-    Enum.find(Mix.SCM.available, fn scm ->
-      scm.accepts_options(app, opts)
-    end) == Hex.SCM
+  
+  defp package_dep?(%Mix.Dep{scm: scm}) do
+    scm == Hex.SCM
   end
 
-  defp prod_dep?({_app, _req, opts}) do
+  defp prod_dep?(%Mix.Dep{opts: opts}) do
     if only = opts[:only], do: :prod in List.wrap(only), else: true
   end
 
