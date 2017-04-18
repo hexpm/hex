@@ -1,4 +1,27 @@
-## v0.15.1-dev
+## v0.16.0-dev
+
+### Multiple repository support
+
+This version adds support for using packages from multiple repositories. With
+the `hex.repo` task additional repositories can be added to Hex. With it you
+can add additional repositories or replace the default "hexpm" repository
+by running `mix hex.repo add hexpm ...`, check the docs for more information.
+To use a dependency from another repository add `repo: :my_other_repo` to the
+dependency definition in `mix.exs` and make sure you have added `my_other_repo`
+with `mix hex.repo add my_other_repo`. Dependencies of a package will be
+automatically pulled from the same repository as the parent package unless
+otherwise stated with the `:repo` option on the dependency definition.
+
+### Enhancements
+  * Add `hex.repo` task
+  * Move `hex.key` tasks to `hex.user keys`
+
+### Bug fixes
+  * Do not check for updates when running in offline mode
+  * Fix an issue where dependency resolution could take a very long time
+  * Do not publish docs if publishing the package failed
+  * Fix an issue where HTTP timeouts could cause the application to freeze
+  * Ensure managers always exist in the lock
 
 ## v0.15.0 (2016-12-24)
 
