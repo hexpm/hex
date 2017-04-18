@@ -79,7 +79,7 @@ defmodule HexTest.Hexpm do
                        :hide,
                        env: env,
                        cd: hexpm_dir(),
-                       args: ["phoenix.server"]])
+                       args: ["phx.server"]])
 
       fun = fn fun ->
         receive do
