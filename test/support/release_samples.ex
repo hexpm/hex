@@ -51,3 +51,14 @@ defmodule ReleaseTooLongDescription.Mixfile do
      version: "0.0.1"]
   end
 end
+
+defmodule ReleasePreDeps.Mixfile do
+  def project do
+    [app: :release_g, description: "bar", version: "0.0.1",
+     deps: [{:ex_doc, "~> 0.0.1-pre"}],
+     package: [files: ["myfile.txt"],
+       licenses: ["MIT"],
+       links: %{"a" => "http://a"},
+       maintainers: ["maintainers"]]]
+  end
+end
