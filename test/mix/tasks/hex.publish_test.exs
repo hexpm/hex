@@ -166,7 +166,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     purge [ReleaseDeps.Mixfile]
   end
 
-  test "create with meta" do
+  test "raise for missing metadata" do
     Mix.Project.push ReleaseMeta.Mixfile
 
     in_tmp fn ->
@@ -188,6 +188,32 @@ defmodule Mix.Tasks.Hex.PublishTest do
         assert_received {:mix_shell, :info, ["  Extra: \n    c: d"]}
         refute_received {:mix_shell, :error, ["Missing metadata fields" <> _]}
       end
+    end
+  after
+    purge [ReleaseMeta.Mixfile]
+  end
+
+  test "create with metadata" do
+    Mix.Project.push ReleaseMeta.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user", "hunter42")
+
+      File.mkdir!("missing")
+      File.write!("myfile.txt", "hello")
+      File.write!("missing.txt", "hello")
+      File.write!("missing/file.txt", "hello")
+
+      send self(), {:mix_shell_input, :yes?, true}
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
+
+      assert_received {:mix_shell, :info, ["Publishing release_c 0.0.3"]}
+      assert_received {:mix_shell, :info, ["  Files:"]}
+      assert_received {:mix_shell, :info, ["    myfile.txt"]}
+      assert_received {:mix_shell, :info, ["  Extra: \n    c: d"]}
+      refute_received {:mix_shell, :error, ["Missing metadata fields" <> _]}
     end
   after
     purge [ReleaseMeta.Mixfile]
