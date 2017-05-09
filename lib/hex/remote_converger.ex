@@ -76,12 +76,24 @@ defmodule Hex.RemoteConverger do
   end
 
   defp lock_merge(old, new) do
-    Map.merge(old, new, fn
-      _, {:hex, name, version, checksum, managers, deps}, {:hex, name, version, checksum, _managers, _deps} ->
-        {:hex, name, version, checksum, managers, deps}
-      _, _old, new ->
-        new
+    Map.merge(old, new, fn(_key, old_tuple, new_tuple) ->
+      if lock_tuple_needs_update?(old_tuple, new_tuple) do
+        new_tuple
+      else
+        old_tuple
+      end
     end)
+  end
+
+  defp lock_tuple_needs_update?(old_tuple, new_tuple) do
+    old_info = Hex.Utils.lock(old_tuple)
+    new_info = Hex.Utils.lock(new_tuple)
+    not(old_info != nil and
+        new_info != nil and
+        old_info.name == new_info.name and
+        old_info.version == new_info.version and
+        old_info.checksum == new_info.checksum and
+        old_info.repo == new_info.repo)
   end
 
   defp resolver_version_failed(message) do
