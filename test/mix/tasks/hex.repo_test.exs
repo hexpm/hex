@@ -1,8 +1,6 @@
 defmodule Mix.Tasks.Hex.RepoTest do
   use HexTest.Case
 
-  import ExUnit.CaptureIO
-
   @public_key """
   -----BEGIN PUBLIC KEY-----
   MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApqREcFDt5vV21JVe2QNB
@@ -56,7 +54,11 @@ defmodule Mix.Tasks.Hex.RepoTest do
       Hex.State.put(:home, System.cwd!)
 
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
-      capture_io(fn -> Mix.Tasks.Hex.Repo.run(["show", "reponame"]) end) =~ "https://repo.hex.pm"
+      Mix.Tasks.Hex.Repo.run(["show", "reponame"])
+      assert_received {:mix_shell, :info, [headers]}
+      assert_received {:mix_shell, :info, [config]}
+      assert headers =~ ~r{URL.*Public key.*Auth key}
+      assert config =~ "url"
     end
   end
 
