@@ -48,4 +48,27 @@ defmodule Mix.Tasks.Hex.RepoTest do
       assert ["$repos": %{"reponame" => %{url: "other_url"}}] = Hex.Config.read
     end
   end
+
+  test "show prints repo config" do
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
+      Mix.Tasks.Hex.Repo.run(["show", "reponame"])
+      assert_received {:mix_shell, :info, [headers]}
+      assert_received {:mix_shell, :info, [config]}
+      assert headers =~ ~r{URL.*Public key.*Auth key}
+      assert config =~ "url"
+    end
+  end
+
+  test "show raises an error when called with non-existant repo name" do
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      assert_raise Mix.Error, "Config does not contain repo reponame", fn ->
+        Mix.Tasks.Hex.Repo.run(["show", "reponame"])
+      end
+    end
+  end
 end

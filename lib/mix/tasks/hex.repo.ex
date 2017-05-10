@@ -38,6 +38,10 @@ defmodule Mix.Tasks.Hex.Repo do
 
       mix hex.repo remove NAME
 
+  ### Show repo config
+
+      mix hex.repo show NAME
+
   ### List all repos
 
       mix hex.repo list
@@ -58,6 +62,8 @@ defmodule Mix.Tasks.Hex.Repo do
         set_auth_key(name, auth_key)
       ["remove", name] ->
         remove(name)
+      ["show", name] ->
+        show(name)
       ["list"] ->
         list()
       _ ->
@@ -169,5 +175,21 @@ defmodule Mix.Tasks.Hex.Repo do
   defp sshfp_string(key) do
     :crypto.hash(:sha256, :public_key.ssh_encode(key, :ssh2_pubkey))
     |> Base.encode64(padding: false)
+  end
+
+  defp show(name) do
+    repo =
+      read_config()
+      |> Map.get(name)
+
+    case repo do
+      nil ->
+        Mix.raise "Config does not contain repo #{name}"
+      _ ->
+        Mix.Tasks.Hex.print_table(
+          ["URL", "Public key", "Auth key"],
+          [[repo.url, show_public_key(repo.public_key), repo.auth_key]]
+        )
+    end
   end
 end
