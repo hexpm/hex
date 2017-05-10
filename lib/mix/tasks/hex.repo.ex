@@ -190,7 +190,6 @@ defmodule Mix.Tasks.Hex.Repo do
           ["URL", "Public key", "Auth key"],
           [[repo.url, show_public_key(repo.public_key), repo.auth_key]]
         )
-        repo
     end
   end
 end
