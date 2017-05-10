@@ -482,4 +482,73 @@ defmodule Hex.MixTaskTest do
       assert_received {:mix_shell, :info, ["\e[33mex_doc is missing its version requirement, use \">= 0.0.0\"" <> _]}
     end
   end
+
+  defp old_lock_tuple(lock_tuple) do
+    {elem(lock_tuple, 0), elem(lock_tuple, 1), elem(lock_tuple, 2), elem(lock_tuple, 3)}
+  end
+
+  defp rewrite_lock_in_old_format() do
+    lock = Mix.Dep.Lock.read()
+    old_lock = for {dep_key, dep_tuple} <- lock, into: %{} do
+                 {dep_key, old_lock_tuple(dep_tuple)}
+               end
+    Mix.Dep.Lock.write(old_lock)
+    old_lock
+  end
+
+  test "deps.get does not rewrite the lock file when deps are already present" do
+    Mix.Project.push Simple
+
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      Mix.Task.run "deps.get"
+      old_lock = rewrite_lock_in_old_format()
+
+      Mix.Task.run "deps.get"
+      assert old_lock == Mix.Dep.Lock.read()
+    end
+  after
+    purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+           Ex_doc.NoConflict.Mixfile]
+  end
+
+  test "deps.get does not rewrite the lock file when deps are not present" do
+    Mix.Project.push Simple
+
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      Mix.Task.run "deps.get"
+      old_lock = rewrite_lock_in_old_format()
+
+      File.rm_rf!("deps")
+      Mix.Task.run "deps.get"
+      assert old_lock == Mix.Dep.Lock.read()
+    end
+  after
+    purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+           Ex_doc.NoConflict.Mixfile]
+  end
+
+  test "deps.update only rewrites given dependencies" do
+    Mix.Project.push Simple
+
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      Mix.Task.run "deps.get"
+      rewrite_lock_in_old_format()
+
+      Mix.Task.run "deps.update", ["ex_doc"]
+
+      new_lock = Mix.Dep.Lock.read()
+      assert %{ecto: {:hex, :ecto, "0.2.0", _},
+               postgrex: {:hex, :postgrex, "0.2.0", _}} = new_lock
+      assert tuple_size(new_lock.ex_doc) > 4
+    end
+  after
+    purge [Ecto.NoConflict.Mixfile, Postgrex.NoConflict.Mixfile,
+           Ex_doc.NoConflict.Mixfile]
+  end
 end
