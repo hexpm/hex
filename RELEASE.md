@@ -4,7 +4,7 @@ This document simply outlines the release process:
 
 1. Ensure you are running on the oldest supported Erlang version
 
-2. Run `mix do clean --deps, clean && mix test --include integration` to ensure all tests pass from scratch and the CI is green
+2. Run `mix do clean --deps, clean && mix test` to ensure all tests pass from scratch and the CI is green
 
 3. Remove all `-dev` extension from versions (see below for all files)
 
