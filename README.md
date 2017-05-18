@@ -20,7 +20,7 @@ Hex bundles a list of root CA certificates used for certificate validation in HT
 
 Integration tests run against the API server [hexpm](https://github.com/hexpm/hexpm). It needs to be cloned into `../hexpm` or `HEXWEB_PATH` needs to be set and point its location. hexpm also requires postgresql with username `postgres` and password `postgres`.
 
-Run integration tests with `mix test --include integration`.
+Exclude integration tests with `mix test --exclude integration`.
 
 ## License
 
