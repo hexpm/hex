@@ -287,10 +287,12 @@ defmodule Mix.Tasks.Hex.Publish do
         location = Hex.Utils.hex_package_url(meta.name, meta.version)
         Hex.Shell.info ""
         Hex.Shell.info("Package published to #{location} (#{String.downcase(checksum)})")
+        :ok
       other ->
         Hex.Shell.info ""
         Hex.Shell.error("Publishing failed")
         Hex.Utils.print_error_result(other)
+        :error
     end
   end
 
