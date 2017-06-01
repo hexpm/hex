@@ -16,7 +16,7 @@ defmodule Mix.Tasks.Hex.Audit do
   def run(_) do
     Hex.start
 
-    lock = Mix.Dep.Lock.read
+    lock = Mix.Dep.Lock.read()
     deps = Mix.Dep.loaded([]) |> Enum.filter(& &1.scm == Hex.SCM)
 
     Registry.open
@@ -35,8 +35,7 @@ defmodule Mix.Tasks.Hex.Audit do
   end
 
   defp retired_packages(deps, lock) do
-    Enum.map(deps,
-      fn dep -> retirement_status(Hex.Utils.lock(lock[dep.app])) end)
+    Enum.map(deps, &retirement_status(Hex.Utils.lock(lock[&1.app])))
     |> Enum.reject(&Enum.empty?/1)
   end
 
