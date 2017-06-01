@@ -4,3 +4,4 @@
 /src/safe_erl_term.erl
 erl_crash.dump
 *.ez
+ignore_me
