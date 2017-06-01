@@ -164,6 +164,20 @@ defmodule Hex.Utils do
   def hexdocs_module_url(package, version, module),
     do: "https://hexdocs.pm/#{package}/#{version}/#{module}.html"
 
+  def package_retirement_reason(:RETIRED_OTHER),      do: "other"
+  def package_retirement_reason(:RETIRED_INVALID),    do: "invalid"
+  def package_retirement_reason(:RETIRED_SECURITY),   do: "security"
+  def package_retirement_reason(:RETIRED_DEPRECATED), do: "deprecated"
+  def package_retirement_reason(:RETIRED_RENAMED),    do: "renamed"
+  def package_retirement_reason(other), do: other
+
+  def package_retirement_message(%{reason: reason_code, message: message}) do
+    "(#{package_retirement_reason(reason_code)}) #{message}"
+  end
+  def package_retirement_message(%{reason: reason_code}) do
+    "(#{package_retirement_reason(reason_code)})"
+  end
+
   # From https://github.com/fishcakez/dialyze/blob/6698ae582c77940ee10b4babe4adeff22f1b7779/lib/mix/tasks/dialyze.ex#L168
   def otp_version do
     major = :erlang.system_info(:otp_release) |> List.to_string

@@ -181,15 +181,8 @@ defmodule Hex.RemoteConverger do
 
   defp print_status(retired, name, version) do
     Hex.Shell.warn "  #{name} #{version} RETIRED!"
-    Hex.Shell.warn "    (#{retirement_reason(retired[:reason])}) #{retired[:message]}"
+    Hex.Shell.warn "    #{Hex.Utils.package_retirement_message(retired)}"
   end
-
-  defp retirement_reason(:RETIRED_OTHER), do: "other"
-  defp retirement_reason(:RETIRED_INVALID), do: "invalid"
-  defp retirement_reason(:RETIRED_SECURITY), do: "security"
-  defp retirement_reason(:RETIRED_DEPRECATED), do: "deprecated"
-  defp retirement_reason(:RETIRED_RENAMED), do: "renamed"
-  defp retirement_reason(other), do: other
 
   defp verify_resolved(resolved, lock) do
     Enum.each(resolved, fn {repo, name, app, version} ->
