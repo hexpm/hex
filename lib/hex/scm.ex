@@ -81,7 +81,7 @@ defmodule Hex.SCM do
     end
   end
 
-  def checkout(opts) do
+  def update(opts) do
     Registry.open
 
     lock     = Hex.Utils.lock(opts[:lock]) |> ensure_lock(opts)
@@ -132,8 +132,9 @@ defmodule Hex.SCM do
     {:hex, String.to_atom(lock.name), lock.version, lock.checksum, managers, deps, lock.repo}
   end
 
-  def update(opts) do
-    checkout(opts)
+  def checkout(opts) do
+    update(opts)
+    opts[:lock]
   end
 
   @build_tools [
