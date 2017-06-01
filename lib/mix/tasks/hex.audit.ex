@@ -2,6 +2,17 @@ defmodule Mix.Tasks.Hex.Audit do
   use Mix.Task
   alias Hex.Registry.Server, as: Registry
 
+  @shortdoc "Shows retired Hex dependencies"
+
+  @moduledoc """
+  Shows all Hex dependencies that have been marked as retired.
+
+  Retired packages are no longer recommended to be used by their
+  maintainers. The task will display a message describing
+  the reason for retirement and exit with a non-zero code
+  if any retired dependencies are found.
+  """
+
   def run(_) do
     Hex.start
 
