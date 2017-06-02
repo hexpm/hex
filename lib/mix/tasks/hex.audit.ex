@@ -47,5 +47,4 @@ defmodule Mix.Tasks.Hex.Audit do
       nil -> []
     end
   end
-  defp retirement_status(_), do: []
 end
