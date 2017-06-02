@@ -15,7 +15,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
 
   setup_all do
     auth = Hexpm.new_user("audit_user", "audit@mail.com", "passpass", "key")
-    [auth: auth]
+    {:ok, [auth: auth]}
   end
 
   test "audit (retired package without a message)", context do
