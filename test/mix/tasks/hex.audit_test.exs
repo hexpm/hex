@@ -70,6 +70,10 @@ defmodule Mix.Tasks.Hex.AuditTest do
   defp retire_test_package(version, reason, message \\ "") do
     send self(), {:mix_shell_input, :prompt, "passpass"}
     Mix.Tasks.Hex.Retire.run([@package_name, version, reason, "--message", message])
+
+    # Mix does not support the RemoteConverger.post_converge/0 callback on Elixir < 1.4,
+    # so we need to explicitly reset the registry.
+    Hex.Registry.Server.close()
   end
 
   defp assert_output_row(package, version, message) do
