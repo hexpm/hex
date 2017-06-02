@@ -91,8 +91,9 @@ defmodule Hex.SCM do
     filename = "#{name}-#{lock.version}.tar"
     path     = cache_path(repo, filename)
     url      = Hex.Repo.get_repo(repo).url <> "/tarballs/#{filename}"
+    safe_url = Regex.replace(~r/\/\/([^:]*):[^@]+@/, url, "//\\1:******@")
 
-    Hex.Shell.info "  Checking package (#{url})"
+    Hex.Shell.info "  Checking package (#{safe_url})"
 
     case Hex.Parallel.await(:hex_fetcher, {:tarball, repo, name, lock.version}, @fetch_timeout) do
       {:ok, :cached} ->
