@@ -149,7 +149,9 @@ defmodule Hex.Mix do
   """
   @spec top_level([Mix.Dep.t]) :: [atom]
   def top_level(deps) do
-    Enum.filter_map(deps, &(&1.top_level), &(&1.app))
+    deps
+    |> Enum.filter(&(&1.top_level))
+    |> Enum.map(&(&1.app))
   end
 
   @doc """
