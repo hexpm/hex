@@ -14,6 +14,6 @@ defmodule Hex.API.User do
   end
 
   def password_reset(name) do
-    API.erlang_post_request(:post, "users/#{name}/reset", %{})
+    API.erlang_post_request("users/#{name}/reset", %{})
   end
 end
