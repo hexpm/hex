@@ -127,6 +127,14 @@ defmodule Hex.MixTaskTest do
     end
   end
 
+  defmodule WithNonMatchingRequirement do
+    def project do
+      [app: :with_non_matching_requirement,
+       version: "0.1.0",
+       deps: [{:ex_doc, "~> 100.0.0"}]]
+    end
+  end
+
   test "deps.get" do
     Mix.Project.push Simple
 
@@ -480,6 +488,19 @@ defmodule Hex.MixTaskTest do
 
       Mix.Task.run "deps.get"
       assert_received {:mix_shell, :info, ["\e[33mex_doc is missing its version requirement, use \">= 0.0.0\"" <> _]}
+    end
+  end
+
+  test "deps.get with non matching requirement" do
+    Mix.Project.push WithNonMatchingRequirement
+
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      message = ~s"No matching version for ex_doc ~> 100.0.0 (from: mix.exs) in registry"
+      assert_raise Mix.Error, message, fn ->
+        Mix.Task.run "deps.get"
+      end
     end
   end
 

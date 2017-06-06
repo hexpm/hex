@@ -99,7 +99,7 @@ defmodule Hex.RemoteConverger do
   defp resolver_version_failed(message) do
     Hex.Shell.info "\n" <> message
 
-    Mix.raise "Hex dependency resolution failed, relax the version " <>
+    Mix.raise "Hex dependency resolution failed, change the version " <>
               "requirements of your dependencies or unlock them (by " <>
               "using mix deps.update or mix deps.unlock). If you are " <>
               "unable to resolve the conflicts you can try overriding " <>
@@ -145,7 +145,7 @@ defmodule Hex.RemoteConverger do
 
   defp check_deps(deps, top_level) do
     Enum.each(deps, fn dep ->
-      if dep.app in top_level and dep.scm == Hex.SCM and is_nil(dep.requirement) do
+      if dep.app in top_level and dep.scm == Hex.SCM and dep.requirement == nil do
         Hex.Shell.warn "#{dep.app} is missing its version requirement, " <>
                        "use \">= 0.0.0\" if it should match any version"
       end
@@ -163,12 +163,16 @@ defmodule Hex.RemoteConverger do
   end
 
   defp check_package_req(repo, name, req, from) do
-    if Registry.versions(repo, name) do
-      if req != nil and Hex.Version.parse_requirement(req) == :error do
-        Mix.raise "Required version #{inspect req} for package #{name} is incorrectly specified (from: #{from})"
-      end
-    else
+    unless versions = Registry.versions(repo, name) do
       Mix.raise "No package with name #{name} (from: #{from}) in registry"
+    end
+
+    if req != nil and Hex.Version.parse_requirement(req) == :error do
+      Mix.raise "Required version #{inspect req} for package #{name} is incorrectly specified (from: #{from})"
+    end
+
+    if req != nil and not Enum.any?(versions, &Hex.Version.match?(&1, req)) do
+      Mix.raise "No matching version for #{name} #{req} (from: #{from}) in registry"
     end
   end
 
