@@ -5,7 +5,7 @@ defmodule Hex.Resolver do
 
   @ets :hex_ets_states
 
-  Record.defrecordp :info, [:registry, :deps, :top_level, :ets, :repos]
+  Record.defrecordp :info, [:registry, :deps, :top_level, :ets, :repos, :backtracks]
   Record.defrecordp :request, [:app, :name, :req, :repo, :parent]
   Record.defrecordp :active, [:app, :repo, :name, :version, :versions, :parents, :state]
   Record.defrecordp :parent, [:name, :repo, :version, :requirement, :repo_requirement]
@@ -13,23 +13,30 @@ defmodule Hex.Resolver do
 
   def resolve(registry, requests, deps, top_level, repos, locked) do
     tid = :ets.new(@ets, [])
-    Backtracks.start
+    backtracks = Backtracks.start()
 
-    info     = info(registry: registry, deps: deps, top_level: top_level, ets: tid, repos: repos)
+    info = info(
+      registry: registry,
+      deps: deps,
+      top_level: top_level,
+      ets: tid,
+      repos: repos,
+      backtracks: backtracks
+    )
     optional = build_optional(locked)
-    pending  = build_pending(requests)
+    pending = build_pending(requests)
 
     try do
       if activated = run(pending, optional, info, %{}),
         do: {:ok, activated},
-      else: {:error, {:version, error_message(registry)}}
+      else: {:error, {:version, error_message(backtracks, registry)}}
     catch
       {:repo_conflict, message} ->
         {:error, {:repo, message}}
       :duplicate_state ->
-        {:error, {:version, error_message(registry)}}
+        {:error, {:version, error_message(backtracks, registry)}}
     after
-      Backtracks.stop
+      Backtracks.stop(backtracks)
       :ets.delete(tid)
     end
   end
@@ -47,13 +54,14 @@ defmodule Hex.Resolver do
       parent = parent(name: from, requirement: req, repo_requirement: repo)
       request(name: name, app: app, req: req, repo: repo, parent: parent)
     end)
-    |> Enum.uniq
+    |> Enum.uniq()
   end
 
   defp run([], _optional, _info, activated) do
     Enum.map(activated, fn {name, active(repo: repo, app: app, version: version)} ->
       {repo, name, app, version}
-    end) |> Enum.reverse
+    end)
+    |> Enum.reverse()
   end
 
   defp run([request(repo: repo, name: name, req: req, parent: parent) = request|pending], optional, info, activated) do
@@ -67,7 +75,7 @@ defmodule Hex.Resolver do
           active_repo != repo ->
             repo_conflict(name, parents)
           not version_match?(version, req) ->
-            add_backtrack_info(repo, name, version, parents)
+            Backtracks.add(info(info, :backtracks), repo, name, version, parents)
             backtrack_parents([parent], info, activated) ||
               backtrack(name, info, activated)
           true ->
@@ -77,12 +85,12 @@ defmodule Hex.Resolver do
 
       nil ->
         {opts, optional} = Map.pop(optional, name, [])
-        requests         = [request|opts]
-        parents          = Enum.map(requests, &request(&1, :parent))
+        requests = [request|opts]
+        parents = Enum.map(requests, &request(&1, :parent))
 
         case get_versions(repo, name, requests, info) do
           [] ->
-            add_backtrack_info(repo, name, nil, parents)
+            Backtracks.add(info(info, :backtracks), repo, name, nil, parents)
             backtrack_parents(parents, info, activated)
           versions ->
             activate(request, pending, versions, optional, info, activated, parents)
@@ -92,18 +100,18 @@ defmodule Hex.Resolver do
 
   defp repo_conflict(name, parents) do
     message = IO.ANSI.format([
-        :underline, "Failed to use \"", name, "\" because", :reset, "\n",
-        parent_messages(parents)
-      ])
-      |> IO.iodata_to_binary
+      :underline, "Failed to use \"", name, "\" because", :reset, "\n",
+      parent_messages(parents)
+    ])
+    |> IO.iodata_to_binary
     throw {:repo_conflict, message}
   end
 
   defp parent_messages(parents) do
     parents =
       parents
-      |> Enum.uniq
-      |> Enum.sort
+      |> Enum.uniq()
+      |> Enum.sort()
 
     Enum.map(parents, fn parent(name: name, repo_requirement: repo) ->
       ["  ", :bright, name, :reset, " requires repo ", :red, repo, :reset, "\n"]
@@ -167,9 +175,9 @@ defmodule Hex.Resolver do
         req = request(request, :req)
         Enum.filter(versions, &version_match?(&1, req))
       end)
-      |> Enum.reverse
+      |> Enum.reverse()
     else
-      Mix.raise "Unable to find package #{package} in registry"
+      Mix.raise("Unable to find package #{package} in registry")
     end
   end
 
@@ -199,7 +207,7 @@ defmodule Hex.Resolver do
 
       {Enum.reverse(reqs), Enum.reverse(opts), all_deps}
     else
-      Mix.raise "Unable to find package version #{package} #{version} in registry"
+      Mix.raise("Unable to find package version #{package} #{version} in registry")
     end
   end
 
@@ -211,16 +219,12 @@ defmodule Hex.Resolver do
     Map.merge(optional, new_optional, fn _, v1, v2 -> v1 ++ v2 end)
   end
 
-  defp add_backtrack_info(repo, name, version, parents) do
-    Backtracks.add(repo, name, version, parents)
-  end
-
-  defp error_message(registry) do
-    Backtracks.collect
+  defp error_message(backtracks, registry) do
+    Backtracks.collect(backtracks)
     |> Enum.map(&Backtracks.message(&1, registry))
     |> Enum.reject(&is_nil/1)
     |> Enum.join("\n\n")
-    |> pre_message
+    |> pre_message()
   end
 
   defp pre_message(message) do

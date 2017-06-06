@@ -5,39 +5,39 @@ defmodule Hex.Resolver.Backtracks do
 
   @ets :hex_backtracks
 
-  def start do
-    :ets.new(@ets, [:named_table])
+  def start() do
+    :ets.new(@ets, [])
   end
 
-  def stop do
-    :ets.delete(@ets)
+  def stop(ets) do
+    :ets.delete(ets)
   end
 
-  def add(repo, name, version, parents) do
+  def add(ets, repo, name, version, parents) do
     parents = order_parents(parents)
 
-    case :ets.lookup(@ets, {repo, name, parents}) do
+    case :ets.lookup(ets, {repo, name, parents}) do
       [{_, versions}] ->
         unless version in versions do
-          :ets.insert(@ets, {{repo, name, parents}, [version|versions]})
+          :ets.insert(ets, {{repo, name, parents}, [version|versions]})
         end
       [] ->
-        :ets.insert(@ets, {{repo, name, parents}, [version]})
+        :ets.insert(ets, {{repo, name, parents}, [version]})
     end
   end
 
-  def collect do
-    :ets.tab2list(@ets)
-    |> normalize
-    |> merge_versions
-    |> expand_merged
-    |> sort_backtracks
+  def collect(ets) do
+    :ets.tab2list(ets)
+    |> normalize()
+    |> merge_versions()
+    |> expand_merged()
+    |> sort_backtracks()
   end
 
   defp order_parents(parents) do
     parents
-    |> Enum.uniq
-    |> Enum.sort
+    |> Enum.uniq()
+    |> Enum.sort()
   end
 
   defp normalize(backtracks) do
@@ -59,20 +59,20 @@ defmodule Hex.Resolver.Backtracks do
       parents = sort_parents(parents)
       {name, versions, repo, parents}
     end)
-    |> Enum.sort
+    |> Enum.sort()
   end
 
   defp sort_parents(parents) do
     Enum.map(parents, fn parent(version: versions) = parent ->
       versions =
         versions
-        |> List.wrap
+        |> List.wrap()
         |> Enum.reject(&is_nil/1)
-        |> Enum.uniq
+        |> Enum.uniq()
         |> Enum.sort(&version_cmp/2)
       parent(parent, version: versions)
     end)
-    |> Enum.sort
+    |> Enum.sort()
   end
 
   defp expand_merged(merged) do
@@ -162,7 +162,8 @@ defmodule Hex.Resolver.Backtracks do
   def message({name, versions, repo, parents}, registry) do
     if parent_messages = parent_messages(registry, parents, repo, name, versions) do
       IO.ANSI.format([
-        :underline, "Failed to use \"", name, "\"", versions_message(registry, repo, name, versions),
+        :underline, "Failed to use \"", name, "\"",
+        versions_message(registry, repo, name, versions),
         " because", :reset, "\n", parent_messages
       ])
       |> IO.iodata_to_binary
