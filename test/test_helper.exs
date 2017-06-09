@@ -1,4 +1,5 @@
-ExUnit.start exclude: [:skip]
+ExUnit.configure(exclude: [:skip | ExUnit.configuration[:exclude]])
+ExUnit.start()
 Application.ensure_all_started(:bypass)
 
 alias HexTest.Case

@@ -54,7 +54,7 @@ defmodule HexTest.Hexpm do
   end
 
   def start do
-    path                = Hex.string_to_charlist(path())
+    path               = Hex.string_to_charlist(path())
     hexpm_mix_home     = Hex.string_to_charlist(hexpm_mix_home())
     hexpm_mix_archives = Hex.string_to_charlist(hexpm_mix_archives())
 
