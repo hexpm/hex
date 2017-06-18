@@ -5,9 +5,9 @@ defmodule Hex.RemoteConverger do
 
   alias Hex.Registry.Server, as: Registry
 
-  def post_converge do
+  def post_converge() do
+    Hex.UpdateChecker.check()
     Registry.close()
-    :ok
   end
 
   def remote?(dep) do
@@ -15,7 +15,6 @@ defmodule Hex.RemoteConverger do
   end
 
   def converge(deps, lock) do
-    Hex.start
     Registry.open()
 
     # We cannot use given lock here, because all deps that are being

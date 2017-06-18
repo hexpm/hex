@@ -42,9 +42,9 @@ defmodule Hex.Repo do
 
   def find_new_version_from_csv(body) do
     body
-    |> parse_csv
-    |> find_latest_eligible_version
-    |> is_version_newer
+    |> parse_csv()
+    |> find_latest_eligible_version()
+    |> is_version_newer()
   end
 
   defp package_url(repo, package) do
@@ -84,10 +84,13 @@ defmodule Hex.Repo do
     end
   end
 
-  defp is_version_newer(nil), do: nil
+  # Treat missing as latest
+  defp is_version_newer(nil), do: :latest
   defp is_version_newer(hex_version) do
     if Hex.Version.compare(hex_version, Hex.version) == :gt do
-      hex_version
+      {:version, hex_version}
+    else
+      :latest
     end
   end
 

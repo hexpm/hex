@@ -62,7 +62,8 @@ defmodule Hex do
       import Supervisor.Spec
       [worker(Hex.State, []),
        worker(Hex.Parallel, [:hex_fetcher]),
-       worker(Hex.Registry.Server, [])]
+       worker(Hex.Registry.Server, []),
+       worker(Hex.UpdateChecker, [])]
     end
   end
 

@@ -1,6 +1,6 @@
-defmodule Hex.Registry.ServerTest do
+defmodule Hex.UpdateCheckerTest do
   use HexTest.Case
-  alias Hex.Registry.Server
+  alias Hex.UpdateChecker
 
   defp bypass_csv(versions) do
     bypass = Bypass.open
@@ -21,42 +21,48 @@ defmodule Hex.Registry.ServerTest do
     end)
   end
 
+  setup do
+    Hex.Registry.Server.open(check_version: false)
+    Hex.Registry.Server.last_update({{2010, 1, 1}, {0, 0, 0}})
+    :ok
+  end
+
   test "display new hex version" do
     flush()
     bypass_csv([{"100.0.0", "1.0.0"}])
 
-    {:ok, pid} = Server.start_link(name: nil)
-    GenServer.call(pid, {:open, registry_path: tmp_path(test_name() <> ".ets")})
-    assert {:update, _} = GenServer.call(pid, :close)
+    {:ok, pid} = UpdateChecker.start_link(name: nil)
+    GenServer.cast(pid, :start_check)
+    assert {:version, _} = GenServer.call(pid, :check)
   end
 
   test "dont display same hex version" do
     flush()
     bypass_csv([{"0.0.1", "1.0.0"}])
 
-    {:ok, pid} = Server.start_link(name: nil)
-    GenServer.call(pid, {:open, registry_path: tmp_path(test_name() <> ".ets")})
-    assert :ok = GenServer.call(pid, :close)
+    {:ok, pid} = UpdateChecker.start_link(name: nil)
+    GenServer.cast(pid, :start_check)
+    assert :latest = GenServer.call(pid, :check)
   end
 
   test "dont display new hex version for too new elixir" do
     flush()
     bypass_csv([{"100.0.0", "100.0.0"}])
 
-    {:ok, pid} = Server.start_link(name: nil)
-    GenServer.call(pid, {:open, registry_path: tmp_path(test_name() <> ".ets")})
-    assert :ok = GenServer.call(pid, :close)
+    {:ok, pid} = UpdateChecker.start_link(name: nil)
+    GenServer.cast(pid, :start_check)
+    assert :latest = GenServer.call(pid, :check)
   end
 
   test "only check version once" do
     flush()
     bypass_csv([{"100.0.0", "1.0.0"}])
 
-    {:ok, pid} = Server.start_link(name: nil)
-    GenServer.call(pid, {:open, registry_path: tmp_path(test_name() <> "1.ets")})
-    assert {:update, _} = GenServer.call(pid, :close)
+    {:ok, pid} = UpdateChecker.start_link(name: nil)
+    GenServer.cast(pid, :start_check)
+    assert {:version, _} = GenServer.call(pid, :check)
 
-    GenServer.call(pid, {:open, registry_path: tmp_path(test_name() <> "2.ets")})
-    assert :ok = GenServer.call(pid, :close)
+    GenServer.cast(pid, :start_check)
+    assert :already_checked = GenServer.call(pid, :check)
   end
 end

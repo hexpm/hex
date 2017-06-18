@@ -181,6 +181,16 @@ defmodule HexTest.Case do
     Hex.State.put_all(@hex_state)
   end
 
+  def wait_on_exit({:ok, pid}) do
+    on_exit(fn ->
+      ref = Process.monitor(pid)
+      receive do
+        {:DOWN, ^ref, :process, ^pid, _info} ->
+          :ok
+      end
+    end)
+  end
+
   setup_all context do
     unless context[:async] do
       ets_path = tmp_path("cache.ets")
@@ -192,22 +202,16 @@ defmodule HexTest.Case do
 
   setup context do
     unless context[:async] do
-      {:ok, pid} = Hex.Registry.Server.start_link
-      on_exit(fn ->
-        ref = Process.monitor(pid)
-        receive do
-          {:DOWN, ^ref, :process, ^pid, _info} ->
-            :ok
-        end
-      end)
+      wait_on_exit(Hex.Registry.Server.start_link())
+      wait_on_exit(Hex.UpdateChecker.start_link())
 
       reset_state()
       Hex.Parallel.clear(:hex_fetcher)
       Mix.shell(Mix.Shell.Process)
-      Mix.Task.clear
-      Mix.Shell.Process.flush
-      Mix.ProjectStack.clear_cache
-      Mix.ProjectStack.clear_stack
+      Mix.Task.clear()
+      Mix.Shell.Process.flush()
+      Mix.ProjectStack.clear_cache()
+      Mix.ProjectStack.clear_stack()
     end
 
     :ok

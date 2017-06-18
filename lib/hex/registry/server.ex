@@ -5,7 +5,6 @@ defmodule Hex.Registry.Server do
   @name __MODULE__
   @filename "cache.ets"
   @timeout 60_000
-  @update_interval 24 * 60 * 60
 
   # TODO: Bump version
 
@@ -20,16 +19,10 @@ defmodule Hex.Registry.Server do
 
   def close do
     GenServer.call(@name, :close, @timeout)
-    |> print_update_message
   end
 
   def persist do
     GenServer.call(@name, :persist, @timeout)
-    |> print_update_message
-  end
-
-  def check_update do
-    GenServer.cast(@name, :check_update)
   end
 
   def prefetch(packages) do
@@ -65,43 +58,27 @@ defmodule Hex.Registry.Server do
     GenServer.call(@name, {:tarball_etag, repo, package, version, etag}, @timeout)
   end
 
-  defp print_update_message({:update, {:http_error, reason}}) do
-    Hex.Shell.error "Hex update check failed, HTTP ERROR: #{inspect reason}"
-    :ok
+  def last_update() do
+    GenServer.call(@name, :last_update, @timeout)
   end
-  defp print_update_message({:update, {:status, status}}) do
-    Hex.Shell.error "Hex update check failed, status code: #{status}"
-    :ok
+
+  def last_update(time) do
+    GenServer.call(@name, {:last_update, time}, @timeout)
   end
-  defp print_update_message({:update, version}) do
-    Hex.Shell.warn "A new Hex version is available (#{Hex.version} < #{version}), " <>
-                   "please update with `mix local.hex`"
-    :ok
-  end
-  defp print_update_message(:ok), do: :ok
 
   def init([]) do
-    {:ok, reset_state(%{})}
+    {:ok, state()}
   end
 
-  defp reset_state(state) do
+  defp state() do
     offline? = Hex.State.fetch!(:offline?)
 
     %{ets: nil,
       path: nil,
-      pending: Hex.Set.new,
-      fetched: Hex.Set.new,
+      pending: Hex.Set.new(),
+      fetched: Hex.Set.new(),
       waiting: %{},
-      waiting_close: nil,
-      already_checked_update?: Map.get(state, :already_checked_update?, false),
-      checking_update?: false,
-      new_update: nil,
       offline?: offline?}
-  end
-
-  def handle_cast(:check_update, state) do
-    state = check_update(state, force: true)
-    {:noreply, state}
   end
 
   def handle_call({:open, opts}, _from, %{ets: nil} = state) do
@@ -112,29 +89,26 @@ defmodule Hex.Registry.Server do
       |> check_version
       |> set_version
     state = %{state | ets: ets, path: path}
-    state = check_update(state, force: false)
+    if Keyword.get(opts, :check_version, true), do: Hex.UpdateChecker.start_check()
     {:reply, :ok, state}
   end
-  def handle_call({:open, _opts}, _from, state) do
+  def handle_call({:open, opts}, _from, state) do
+    if Keyword.get(opts, :check_version, true), do: Hex.UpdateChecker.start_check()
     {:reply, :ok, state}
   end
 
-  def handle_call(:close, from, state) do
-    maybe_wait_closing(state, from, fn
-      %{ets: nil} = state ->
-        state
-      %{ets: tid, path: path} ->
-        persist(tid, path)
-        :ets.delete(tid)
-        reset_state(state)
-    end)
+  def handle_call(:close, _from, %{ets: nil} = state) do
+    {:reply, :ok, state}
+  end
+  def handle_call(:close, _from, %{ets: tid, path: path}) do
+    persist(tid, path)
+    :ets.delete(tid)
+    {:reply, :ok, state()}
   end
 
-  def handle_call(:persist, from, state) do
-    maybe_wait_closing(state, from, fn %{ets: tid, path: path} = state ->
-      persist(tid, path)
-      state
-    end)
+  def handle_call(:persist, _from, state) do
+    persist(state.tid, state.path)
+    {:reply, :ok, state}
   end
 
   def handle_call({:prefetch, packages}, _from, state) do
@@ -187,24 +161,17 @@ defmodule Hex.Registry.Server do
     {:reply, :ok, state}
   end
 
-  def handle_info({:DOWN, _ref, :process, _pid, :normal}, state) do
-    {:noreply, state}
+  def handle_call(:last_update, _from, state) do
+    time = lookup(state.ets, :last_update)
+    {:reply, time, state}
   end
 
-  def handle_info({_ref, {:get_installs, result}}, state) do
-    result =
-      case result do
-        {:ok, {code, body, _headers}} when code in 200..299 ->
-          Hex.Repo.find_new_version_from_csv(body)
-        other ->
-          Hex.Shell.error("Failed to check for new Hex version")
-          Hex.Utils.print_error_result(other)
-          nil
-      end
+  def handle_call({:last_update, time}, _from, state) do
+    :ets.insert(state.ets, {:last_update, time})
+    {:reply, :ok, state}
+  end
 
-    :ets.insert(state.ets, {:last_update, :calendar.universal_time})
-    state = reply_to_update_waiting(state, result)
-    state = %{state | checking_update?: false}
+  def handle_info({:DOWN, _ref, :process, _pid, :normal}, state) do
     {:noreply, state}
   end
 
@@ -342,7 +309,7 @@ defmodule Hex.Registry.Server do
     delete_package(repo, package, tid)
 
     Enum.each(releases, fn %{version: version, checksum: checksum, dependencies: deps} = release ->
-      :ets.insert(tid, {{:checksum,repo,  package, version}, checksum})
+      :ets.insert(tid, {{:checksum, repo, package, version}, checksum})
       :ets.insert(tid, {{:retired, repo, package, version}, release[:retired]})
       deps = Enum.map(deps, fn dep ->
         {dep[:repository] || "hexpm",
@@ -420,62 +387,6 @@ defmodule Hex.Registry.Server do
     case :ets.lookup(tid, key) do
       [{^key, element}] -> element
       [] -> nil
-    end
-  end
-
-  def maybe_wait_closing(%{checking_update?: true, new_update: nil} = state, from, fun) do
-    state = %{state | waiting_close: {from, fun}}
-    {:noreply, state}
-  end
-  def maybe_wait_closing(%{checking_update?: false, new_update: nil} = state, _from, fun) do
-    {:reply, :ok, fun.(state)}
-  end
-  def maybe_wait_closing(%{checking_update?: false, new_update: new_update} = state, _from, fun) do
-    state = %{state | new_update: nil}
-    {:reply, {:update, new_update}, fun.(state)}
-  end
-
-  defp reply_to_update_waiting(state, new_update) do
-    case state.waiting_close do
-      {from, fun} ->
-        reply = if new_update, do: {:update, new_update}, else: :ok
-        state = fun.(state)
-        GenServer.reply(from, reply)
-        %{state | waiting_close: nil}
-      nil ->
-        %{state | new_update: new_update}
-    end
-  end
-
-  defp check_update(%{already_checked_update?: true} = state, _opts) do
-    state
-  end
-  defp check_update(%{checking_update?: true} = state, _opts) do
-    state
-  end
-  defp check_update(%{offline?: true} = state, _opts) do
-    state
-  end
-  defp check_update(%{ets: tid} = state, opts) do
-    if opts[:force] || check_update?(tid) do
-      Task.async(fn ->
-        {:get_installs, Hex.Repo.get_installs()}
-      end)
-
-      %{state | checking_update?: true, already_checked_update?: true}
-    else
-      state
-    end
-  end
-
-  defp check_update?(tid) do
-    if last = lookup(tid, :last_update) do
-      now = :calendar.universal_time |> :calendar.datetime_to_gregorian_seconds
-      last = :calendar.datetime_to_gregorian_seconds(last)
-
-      now - last > @update_interval
-    else
-      true
     end
   end
 end
