@@ -78,6 +78,7 @@ defmodule Hex.Registry.Server do
       pending: Hex.Set.new(),
       fetched: Hex.Set.new(),
       waiting: %{},
+      closing_fun: nil,
       offline?: offline?}
   end
 
@@ -85,9 +86,9 @@ defmodule Hex.Registry.Server do
     path = opts[:registry_path] || path()
     ets =
       Hex.string_to_charlist(path)
-      |> open_ets
-      |> check_version
-      |> set_version
+      |> open_ets()
+      |> check_version()
+      |> set_version()
     state = %{state | ets: ets, path: path}
     if Keyword.get(opts, :check_version, true), do: Hex.UpdateChecker.start_check()
     {:reply, :ok, state}
@@ -97,18 +98,27 @@ defmodule Hex.Registry.Server do
     {:reply, :ok, state}
   end
 
-  def handle_call(:close, _from, %{ets: nil} = state) do
-    {:reply, :ok, state}
-  end
-  def handle_call(:close, _from, %{ets: tid, path: path}) do
-    persist(tid, path)
-    :ets.delete(tid)
-    {:reply, :ok, state()}
+  def handle_call(:close, from, %{ets: tid, path: path} = state) do
+    state = wait_closing(state, fn ->
+      if tid do
+        persist(tid, path)
+        :ets.delete(tid)
+      end
+      GenServer.reply(from, :ok)
+      state()
+    end)
+
+    {:noreply, state}
   end
 
-  def handle_call(:persist, _from, state) do
-    persist(state.tid, state.path)
-    {:reply, :ok, state}
+  def handle_call(:persist, from, state) do
+    state = wait_closing(state, fn ->
+      persist(state.tid, state.path)
+      GenServer.reply(from, :ok)
+      state
+    end)
+
+    {:noreply, state}
   end
 
   def handle_call({:prefetch, packages}, _from, state) do
@@ -188,6 +198,7 @@ defmodule Hex.Registry.Server do
     end)
 
     state = %{state | pending: pending, waiting: waiting, fetched: fetched}
+    state = maybe_close(state)
     {:noreply, state}
   end
 
@@ -359,6 +370,22 @@ defmodule Hex.Registry.Server do
       true ->
         raise "Package #{inspect package} not prefetched, please report this issue"
     end
+  end
+
+  defp wait_closing(state, fun) do
+    if Hex.Set.size(state.pending) == 0 do
+      state = fun.()
+      %{state | closing_fun: nil}
+    else
+      %{state | closing_fun: fun}
+    end
+  end
+
+  defp maybe_close(%{closing_fun: nil} = state) do
+    state
+  end
+  defp maybe_close(%{closing_fun: fun} = state) do
+    wait_closing(state, fun)
   end
 
   defp package_etag(repo, package, %{ets: tid}) do
