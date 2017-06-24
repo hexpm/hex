@@ -83,23 +83,25 @@ defmodule Mix.Tasks.Hex.User do
         deauth(config)
       ["passphrase"] ->
         passphrase(config)
+      ["key"] ->
+        process_key_task(opts, config)
       ["reset", "password"] ->
         reset_password()
       ["test"] ->
         test(config)
-      ["key"] ->
-        process_key_task(opts, config)
       _ ->
         Mix.raise """
         Invalid arguments, expected one of:
         mix hex.user register
-        mix hex.user auth
         mix hex.user whoami
+        mix hex.user auth
         mix hex.user deauth
-        mix hex.user reset password
+        mix hex.user passphrase
         mix hex.user key --remove-all
         mix hex.user key --remove KEY_NAME
         mix hex.user key --list
+        mix hex.user test
+        mix hex.user reset password
         """
     end
   end
