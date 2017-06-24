@@ -111,14 +111,9 @@ defmodule Hex.Registry.Server do
     {:noreply, state}
   end
 
-  def handle_call(:persist, from, state) do
-    state = wait_closing(state, fn ->
-      persist(state.ets, state.path)
-      GenServer.reply(from, :ok)
-      state
-    end)
-
-    {:noreply, state}
+  def handle_call(:persist, _from, state) do
+    persist(state.ets, state.path)
+    {:reply, :ok, state}
   end
 
   def handle_call({:prefetch, packages}, _from, state) do
