@@ -113,7 +113,7 @@ defmodule Hex.Registry.Server do
 
   def handle_call(:persist, from, state) do
     state = wait_closing(state, fn ->
-      persist(state.tid, state.path)
+      persist(state.ets, state.path)
       GenServer.reply(from, :ok)
       state
     end)
