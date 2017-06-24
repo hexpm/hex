@@ -109,6 +109,9 @@ defmodule Mix.Tasks.Hex.User do
   defp process_key_task([remove_all: true], config), do: remove_all_keys(config)
   defp process_key_task([remove: key], config), do: remove_key(key, config)
   defp process_key_task([list: true], config), do: list_keys(config)
+  defp process_key_task(_, _) do
+    Mix.raise "Invalid arguments. Run 'mix help hex.user'"
+  end
 
   defp whoami(config) do
     username = local_user(config)
