@@ -513,14 +513,13 @@ add1(#reader{}=Reader, Name, NameInArchive, #add_opts{read_info=ReadInfo}=Opts)
     end;
 add1(Reader, Bin, NameInArchive, Opts) when is_binary(Bin) ->
     add_verbose(Opts, "a ~ts~n", [NameInArchive]),
-    Now = os:system_time(seconds),
     Header = #tar_header{
                 name = NameInArchive,
                 size = byte_size(Bin),
                 typeflag = ?TYPE_REGULAR,
-                atime = Now,
-                mtime = Now,
-                ctime = Now,
+                atime = 0,
+                mtime = 0,
+                ctime = 0,
                 mode = 8#100644},
     {ok, Reader2} = add_header(Reader, Header, Opts),
     Padding = skip_padding(byte_size(Bin)),
