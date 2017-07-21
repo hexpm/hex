@@ -7,30 +7,41 @@ defmodule Hex.Tar do
     contents_path = "#{meta[:name]}-#{meta[:version]}-contents.tar.gz"
     path = "#{meta[:name]}-#{meta[:version]}.tar"
 
-    files =
-      Enum.map(files, fn
-        {name, bin} -> {Hex.string_to_charlist(name), bin}
-        name -> Hex.string_to_charlist(name)
-      end)
-
-    :ok = :hex_erl_tar.create(contents_path, files, [:compressed])
+    :ok = create_tar(contents_path, files, [:compressed])
     contents = File.read!(contents_path)
 
     meta_string = encode_term(meta)
     blob = @version <> meta_string <> contents
-    checksum = :crypto.hash(:sha256, blob) |> Base.encode16
+    checksum = :crypto.hash(:sha256, blob) |> Base.encode16()
 
     files = [
-      {'VERSION', @version},
-      {'CHECKSUM', checksum},
-      {'metadata.config', meta_string},
-      {'contents.tar.gz', contents}]
-    :ok = :hex_erl_tar.create(path, files)
+      {"VERSION", @version},
+      {"CHECKSUM", checksum},
+      {"metadata.config", meta_string},
+      {"contents.tar.gz", contents}
+    ]
+    :ok = create_tar(path, files, [])
 
     tar = File.read!(path)
     File.rm!(contents_path)
     if cleanup_tarball?, do: File.rm!(path)
     {tar, checksum}
+  end
+
+  defp create_tar(path, files, opts) do
+    {:ok, tar} = :hex_erl_tar.open(Hex.string_to_charlist(path), opts ++ [:write])
+
+    try do
+      Enum.each(files, fn
+        {name, contents} ->
+          :ok = :hex_erl_tar.add(tar, contents, Hex.string_to_charlist(name), [])
+        name ->
+          contents = File.read!(name)
+          :ok = :hex_erl_tar.add(tar, contents, Hex.string_to_charlist(name), [])
+      end)
+    after
+      :hex_erl_tar.close(tar)
+    end
   end
 
   def unpack(path, dest, repo, name, version) do
