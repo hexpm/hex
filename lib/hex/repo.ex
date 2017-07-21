@@ -73,8 +73,9 @@ defmodule Hex.Repo do
 
   defp find_latest_eligible_version(entries) do
     elixir_version = Hex.Version.parse!(System.version)
+
     entries
-    |> Enum.reverse
+    |> Enum.reverse()
     |> Enum.find_value(&find_version(&1, elixir_version))
   end
 

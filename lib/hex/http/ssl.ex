@@ -50,25 +50,29 @@ defmodule Hex.HTTP.SSL do
       verify_fun = {&VerifyHostname.verify_fun/3, check_hostname: hostname}
       partial_chain = &partial_chain(Certs.cacerts, &1)
 
-      [verify: :verify_peer,
-       depth: 4,
-       partial_chain: partial_chain,
-       cacerts: Certs.cacerts(),
-       verify_fun: verify_fun,
-       server_name_indication: hostname,
-       secure_renegotiate: true,
-       reuse_sessions: true,
-       honor_cipher_order: true,
-       versions: @default_versions,
-       ciphers: ciphers]
+      [
+        verify: :verify_peer,
+        depth: 4,
+        partial_chain: partial_chain,
+        cacerts: Certs.cacerts(),
+        verify_fun: verify_fun,
+        server_name_indication: hostname,
+        secure_renegotiate: true,
+        reuse_sessions: true,
+        honor_cipher_order: true,
+        versions: @default_versions,
+        ciphers: ciphers
+      ]
     else
-      [verify: :verify_none,
-       server_name_indication: hostname,
-       secure_renegotiate: true,
-       reuse_sessions: true,
-       honor_cipher_order: true,
-       versions: @default_versions,
-       ciphers: ciphers]
+      [
+        verify: :verify_none,
+        server_name_indication: hostname,
+        secure_renegotiate: true,
+        reuse_sessions: true,
+        honor_cipher_order: true,
+        versions: @default_versions,
+        ciphers: ciphers
+      ]
     end
   end
 

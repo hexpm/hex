@@ -48,7 +48,7 @@ defmodule Mix.Tasks.Hex.Repo do
   """
 
   def run(args) do
-    Hex.start
+    Hex.start()
     {_, args, _} = OptionParser.parse(args)
 
     case args do
@@ -89,32 +89,32 @@ defmodule Mix.Tasks.Hex.Repo do
 
     read_config()
     |> Map.put(name, repo)
-    |> Hex.Config.update_repos
+    |> Hex.Config.update_repos()
   end
 
   defp set_url(name, url) do
     read_config()
     |> Map.update!(name, &Map.put(&1, :url, url))
-    |> Hex.Config.update_repos
+    |> Hex.Config.update_repos()
   end
 
   defp set_public_key(name, public_key) do
     public_key = read_public_key(public_key)
     read_config()
     |> Map.update!(name, &Map.put(&1, :public_key, public_key))
-    |> Hex.Config.update_repos
+    |> Hex.Config.update_repos()
   end
 
   defp set_auth_key(name, auth_key) do
     read_config()
     |> Map.update!(name, &Map.put(&1, :auth_key, auth_key))
-    |> Hex.Config.update_repos
+    |> Hex.Config.update_repos()
   end
 
   defp remove(name) do
     read_config()
     |> Map.delete(name)
-    |> Hex.Config.update_repos
+    |> Hex.Config.update_repos()
   end
 
   defp list do
@@ -126,12 +126,14 @@ defmodule Mix.Tasks.Hex.Repo do
     Mix.Tasks.Hex.print_table(header, values)
   end
 
-  defp read_public_key(nil), do: nil
+  defp read_public_key(nil) do
+    nil
+  end
   defp read_public_key(path) do
     key =
       path
-      |> Path.expand
-      |> File.read!
+      |> Path.expand()
+      |> File.read!()
 
     decode_public_key(key)
     key
@@ -152,8 +154,8 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp read_config do
-    Hex.Config.read
-    |> Hex.Config.read_repos
+    Hex.Config.read()
+    |> Hex.Config.read_repos()
   end
 
   defp show_public_key(nil), do: nil

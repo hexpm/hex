@@ -104,9 +104,11 @@ defmodule Hex.UpdateChecker do
   end
 
   defp state() do
-    %{from: nil,
+    %{
+      from: nil,
       reply: nil,
       done: false,
-      started: false}
+      started: false
+    }
   end
 end

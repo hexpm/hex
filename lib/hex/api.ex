@@ -25,6 +25,7 @@ defmodule Hex.API do
     headers =
       %{'content-length' => Hex.to_charlist(byte_size(body))}
       |> Map.merge(headers(opts))
+
     HTTP.request(:post, url(path), headers, encode_tar(body, progress))
     |> handle_response()
   end
@@ -58,12 +59,13 @@ defmodule Hex.API do
     body = fn
       size when size < byte_size(body) ->
         new_size = min(size + @tar_chunk_size, byte_size(body))
-      chunk = new_size - size
-      progress.(new_size)
-      {:ok, [:binary.part(body, size, chunk)], new_size}
+        chunk = new_size - size
+        progress.(new_size)
+        {:ok, [:binary.part(body, size, chunk)], new_size}
       _size ->
         :eof
     end
+
     {@tar_content, {body, 0}}
   end
 

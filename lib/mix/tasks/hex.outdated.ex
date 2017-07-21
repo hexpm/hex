@@ -26,15 +26,15 @@ defmodule Mix.Tasks.Hex.Outdated do
   @switches [all: :boolean, pre: :boolean]
 
   def run(args) do
-    Hex.start
+    Hex.start()
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
 
-    lock = Mix.Dep.Lock.read
+    lock = Mix.Dep.Lock.read()
     deps = Mix.Dep.loaded([]) |> Enum.filter(& &1.scm == Hex.SCM)
 
-    Hex.Registry.Server.open
+    Hex.Registry.Server.open()
     Hex.Mix.packages_from_lock(lock)
-    |> Hex.Registry.Server.prefetch
+    |> Hex.Registry.Server.prefetch()
 
     case args do
       [app] ->
@@ -60,8 +60,8 @@ defmodule Mix.Tasks.Hex.Outdated do
           Mix.raise "Dependency #{app} not locked as a Hex package"
       end
 
-    latest       = latest_version(repo, package, current, opts[:pre])
-    outdated?    = Hex.Version.compare(current, latest) == :lt
+    latest = latest_version(repo, package, current, opts[:pre])
+    outdated? = Hex.Version.compare(current, latest) == :lt
     requirements = get_requirements(sort(deps), app)
 
     requirements =
@@ -73,12 +73,12 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     if outdated? do
       ["There is newer version of the dependency available ", :bright, latest, " > ", current, :reset, "!"]
-      |> IO.ANSI.format_fragment
-      |> Hex.Shell.info
+      |> IO.ANSI.format_fragment()
+      |> Hex.Shell.info()
     else
       ["Current version ", :bright, current, :reset, " of dependency is up to date!"]
-      |> IO.ANSI.format_fragment
-      |> Hex.Shell.info
+      |> IO.ANSI.format_fragment()
+      |> Hex.Shell.info()
     end
 
     header = ["Source", "Requirement"]
@@ -109,7 +109,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp all(deps, lock, opts) do
     values =
       if(opts[:all], do: deps, else: Enum.filter(deps, & &1.top_level))
-      |> sort
+      |> sort()
       |> get_versions(lock, opts[:pre])
       |> Enum.map(&format_all_row/1)
 
@@ -188,10 +188,12 @@ defmodule Mix.Tasks.Hex.Outdated do
         {false, _} -> {:green, ""}
       end
 
-    [[:bright, package],
-     lock,
-     [latest_color, latest],
-     [update_possible_color, update_possible]]
+    [
+      [:bright, package],
+      lock,
+      [latest_color, latest],
+      [update_possible_color, update_possible]
+    ]
   end
 
   defp version_match?(_version, nil), do: true

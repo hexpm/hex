@@ -10,12 +10,12 @@ defmodule Mix.Tasks.Hex.Search do
   """
 
   def run(args) do
-    Hex.start
+    Hex.start()
 
     case args do
       [package] ->
         Hex.API.Package.search(package)
-        |> lookup_packages
+        |> lookup_packages()
 
       _ ->
         Mix.raise """

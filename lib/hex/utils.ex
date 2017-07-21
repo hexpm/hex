@@ -53,8 +53,12 @@ defmodule Hex.Utils do
       acc
     end, map, map)
   end
-  defp safe_terms(other) when is_atom(other) or is_number(other) or is_bitstring(other) or
-                              is_pid(other) or is_reference(other) do
+  defp safe_terms(other)
+      when is_atom(other) or
+           is_number(other) or
+           is_bitstring(other) or
+           is_pid(other) or
+           is_reference(other) do
     other
   end
   defp safe_terms(_other) do
@@ -79,18 +83,25 @@ defmodule Hex.Utils do
 
   def binarify(term, opts \\ [])
 
-  def binarify(binary, _opts) when is_binary(binary),
-    do: binary
-  def binarify(number, _opts) when is_number(number),
-    do: number
-  def binarify(atom, _opts) when is_nil(atom) or is_boolean(atom),
-    do: atom
-  def binarify(atom, _opts) when is_atom(atom),
-    do: Atom.to_string(atom)
-  def binarify(list, opts) when is_list(list),
-    do: for(elem <- list, do: binarify(elem, opts))
-  def binarify(tuple, opts) when is_tuple(tuple),
-    do: for(elem <- Tuple.to_list(tuple), do: binarify(elem, opts)) |> List.to_tuple
+  def binarify(binary, _opts) when is_binary(binary) do
+    binary
+  end
+  def binarify(number, _opts) when is_number(number) do
+    number
+  end
+  def binarify(atom, _opts) when is_nil(atom) or is_boolean(atom) do
+    atom
+  end
+  def binarify(atom, _opts) when is_atom(atom) do
+    Atom.to_string(atom)
+  end
+  def binarify(list, opts) when is_list(list) do
+    for(elem <- list, do: binarify(elem, opts))
+  end
+  def binarify(tuple, opts) when is_tuple(tuple) do
+    for(elem <- Tuple.to_list(tuple), do: binarify(elem, opts))
+    |> List.to_tuple()
+  end
   def binarify(map, opts) when is_map(map) do
     if Keyword.get(opts, :maps, true) do
       for(elem <- map, into: %{}, do: binarify(elem, opts))
@@ -99,12 +110,15 @@ defmodule Hex.Utils do
     end
   end
 
-  def print_error_result({:error, reason}),
-    do: Hex.Shell.info inspect(reason)
-  def print_error_result({:ok, {status, nil, _headers}}),
-    do: print_http_code(status)
-  def print_error_result({:ok, {status, "", _headers}}),
-    do: print_http_code(status)
+  def print_error_result({:error, reason}) do
+    Hex.Shell.info inspect(reason)
+  end
+  def print_error_result({:ok, {status, nil, _headers}}) do
+    print_http_code(status)
+  end
+  def print_error_result({:ok, {status, "", _headers}}) do
+    print_http_code(status)
+  end
 
   def print_error_result({:ok, {_status, body, _headers}}) when is_binary(body) do
     Hex.Shell.info body
@@ -149,20 +163,26 @@ defmodule Hex.Utils do
   defp indent(0), do: "  "
   defp indent(depth), do: "  " <> indent(depth - 1)
 
-  def hex_package_url(package),
-    do: "https://hex.pm/packages/#{package}"
-  def hex_package_url(package, version),
-    do: "https://hex.pm/packages/#{package}/#{version}"
+  def hex_package_url(package) do
+    "https://hex.pm/packages/#{package}"
+  end
+  def hex_package_url(package, version) do
+    "https://hex.pm/packages/#{package}/#{version}"
+  end
 
-  def hexdocs_url(package),
-    do: "https://hexdocs.pm/#{package}"
-  def hexdocs_url(package, version),
-    do: "https://hexdocs.pm/#{package}/#{version}"
+  def hexdocs_url(package) do
+    "https://hexdocs.pm/#{package}"
+  end
+  def hexdocs_url(package, version) do
+    "https://hexdocs.pm/#{package}/#{version}"
+  end
 
-  def hexdocs_module_url(package, module),
-    do: "https://hexdocs.pm/#{package}/#{module}.html"
-  def hexdocs_module_url(package, version, module),
-    do: "https://hexdocs.pm/#{package}/#{version}/#{module}.html"
+  def hexdocs_module_url(package, module) do
+    "https://hexdocs.pm/#{package}/#{module}.html"
+  end
+  def hexdocs_module_url(package, version, module) do
+    "https://hexdocs.pm/#{package}/#{version}/#{module}.html"
+  end
 
   def package_retirement_reason(:RETIRED_OTHER),      do: "other"
   def package_retirement_reason(:RETIRED_INVALID),    do: "invalid"
@@ -182,33 +202,37 @@ defmodule Hex.Utils do
   def otp_version do
     major = :erlang.system_info(:otp_release) |> List.to_string
     vsn_file = Path.join([:code.root_dir(), "releases", major, "OTP_VERSION"])
+
     try do
       {:ok, contents} = File.read(vsn_file)
       String.split(contents, "\n", trim: true)
     else
-      [full] ->
-        full
-      _ ->
-        major
+      [full] -> full
+      _ -> major
     catch
-      :error, _ ->
-        major
+      :error, _ -> major
     end
   end
 
   def lock(tuple) when elem(tuple, 0) == :hex do
     destructure [:hex, name, version, checksum, managers, deps, repo],
                 Tuple.to_list(tuple)
-    %{name: to_string(name),
+    %{
+      name: to_string(name),
       version: version,
       checksum: checksum,
       managers: managers,
       deps: lock_deps(deps),
-      repo: repo || "hexpm"}
+      repo: repo || "hexpm"
+    }
   end
-  def lock(_), do: nil
+  def lock(_) do
+    nil
+  end
 
-  defp lock_deps(nil), do: nil
+  defp lock_deps(nil) do
+    nil
+  end
   defp lock_deps(deps) do
     Enum.map(deps, fn {app, req, opts} ->
       opts =

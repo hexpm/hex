@@ -12,7 +12,7 @@ defmodule Hex.Crypto.ContentEncryptor do
     params: nil
   ]
 
-  @callback init(protected :: map, options :: Keyword.t) ::
+  @callback init(protected :: map, opts :: Keyword.t) ::
             {:ok, any} | {:error, String.t}
 
   @callback encrypt(params :: any, key :: binary, iv :: binary, {aad :: binary, plain_text :: binary}) ::

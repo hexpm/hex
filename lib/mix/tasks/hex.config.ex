@@ -41,7 +41,7 @@ defmodule Mix.Tasks.Hex.Config do
   @switches [delete: :boolean]
 
   def run(args) do
-    Hex.start
+    Hex.start()
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
 
     case args do
@@ -65,7 +65,7 @@ defmodule Mix.Tasks.Hex.Config do
     end
   end
 
-  defp list do
+  defp list() do
     Enum.each(Hex.Config.read, fn {key, value} ->
       Hex.Shell.info "#{key}: #{inspect(value, pretty: true)}"
     end)
@@ -73,8 +73,10 @@ defmodule Mix.Tasks.Hex.Config do
 
   defp read(key) do
     case Keyword.fetch(Hex.Config.read, :"#{key}") do
-      {:ok, value} -> Hex.Shell.info inspect(value, pretty: true)
-      :error       -> Mix.raise "Config does not contain key #{key}"
+      {:ok, value} ->
+        Hex.Shell.info inspect(value, pretty: true)
+      :error ->
+        Mix.raise "Config does not contain key #{key}"
     end
   end
 

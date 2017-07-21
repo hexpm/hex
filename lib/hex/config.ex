@@ -63,7 +63,7 @@ defmodule Hex.Config do
   defp encode_term(list) do
     list
     |> Enum.map(&[:io_lib.print(&1) | ".\n"])
-    |> IO.iodata_to_binary
+    |> IO.iodata_to_binary()
   end
 
   defp decode_term(string) do
@@ -90,7 +90,7 @@ defmodule Hex.Config do
 
   def read_repos(config) do
     (config[:"$repos"] || %{})
-    |> merge_hexpm
+    |> merge_hexpm()
   end
 
   def update_repos(repos) do

@@ -32,13 +32,7 @@ defmodule Hex.SCM do
     |> Keyword.put_new(:repo, "hexpm")
     |> Keyword.update!(:hex, &to_string/1)
     |> Keyword.update!(:repo, &to_string/1)
-    # |> put_original_repo(Keyword.fetch(opts, :repo))
   end
-
-  # defp put_original_repo(opts, {:ok, repo}),
-  #   do: Keyword.put(opts, :original_repo, to_string(repo))
-  # defp put_original_repo(opts, :error),
-  #   do: opts
 
   def checked_out?(opts) do
     File.dir?(opts[:dest])
@@ -63,6 +57,7 @@ defmodule Hex.SCM do
           [^name, ^version] -> :ok
           _ -> :mismatch
         end
+
       {:error, _} ->
         :mismatch
     end
@@ -82,15 +77,15 @@ defmodule Hex.SCM do
   end
 
   def update(opts) do
-    Registry.open
+    Registry.open()
 
-    lock     = Hex.Utils.lock(opts[:lock]) |> ensure_lock(opts)
-    name     = opts[:hex]
-    dest     = opts[:dest]
-    repo     = opts[:repo]
+    lock = Hex.Utils.lock(opts[:lock]) |> ensure_lock(opts)
+    name = opts[:hex]
+    dest = opts[:dest]
+    repo = opts[:repo]
     filename = "#{name}-#{lock.version}.tar"
-    path     = cache_path(repo, filename)
-    url      = Hex.Repo.get_repo(repo).url <> "/tarballs/#{filename}"
+    path = cache_path(repo, filename)
+    url = Hex.Repo.get_repo(repo).url <> "/tarballs/#{filename}"
     safe_url = Regex.replace(~r/\/\/([^:]*):[^@]+@/, url, "//\\1:******@")
 
     Hex.Shell.info "  Checking package (#{safe_url})"
@@ -98,13 +93,17 @@ defmodule Hex.SCM do
     case Hex.Parallel.await(:hex_fetcher, {:tarball, repo, name, lock.version}, @fetch_timeout) do
       {:ok, :cached} ->
         Hex.Shell.info "  Using locally cached package"
+
       {:ok, :offline} ->
         Hex.Shell.info "  [OFFLINE] Using locally cached package"
+
       {:ok, :new, etag} ->
         Registry.tarball_etag(repo, name, lock.version, etag)
-        if Version.compare(System.version, "1.4.0") == :lt,
-          do: Registry.persist
+        if Version.compare(System.version, "1.4.0") == :lt do
+          Registry.persist()
+        end
         Hex.Shell.info "  Fetched package"
+
       {:error, reason} ->
         Hex.Shell.error(reason)
         unless File.exists?(path) do
@@ -120,7 +119,7 @@ defmodule Hex.SCM do
     managers =
       build_tools
       |> Enum.map(&String.to_atom/1)
-      |> Enum.sort
+      |> Enum.sort()
 
     manifest = encode_manifest(name, lock.version, lock.checksum, repo, managers)
     File.write!(Path.join(dest, ".hex"), manifest)
@@ -128,7 +127,7 @@ defmodule Hex.SCM do
     deps =
       lock.deps
       |> Enum.map(fn {dep, req, opts} -> {dep, req, Keyword.update!(opts, :hex, &String.to_atom/1)} end)
-      |> Enum.sort
+      |> Enum.sort()
 
     {:hex, String.to_atom(lock.name), lock.version, lock.checksum, managers, deps, lock.repo}
   end
@@ -147,9 +146,11 @@ defmodule Hex.SCM do
   ]
 
   def guess_build_tools(%{"build_tools" => tools}) do
-    if tools,
-      do: Enum.uniq(tools),
-      else: []
+    if tools do
+      Enum.uniq(tools)
+    else
+      []
+    end
   end
 
   def guess_build_tools(meta) do
@@ -159,11 +160,13 @@ defmodule Hex.SCM do
       |> Enum.into(Hex.Set.new)
 
     Enum.flat_map(@build_tools, fn {file, tool} ->
-      if file in base_files,
-          do: [tool],
-        else: []
+      if file in base_files do
+        [tool]
+      else
+        []
+      end
     end)
-    |> Enum.uniq
+    |> Enum.uniq()
   end
 
   defp ensure_lock(nil, opts) do
@@ -177,7 +180,7 @@ defmodule Hex.SCM do
   def parse_manifest(file) do
     lines =
       file
-      |> Hex.string_trim
+      |> Hex.string_trim()
       |> String.split("\n")
 
     case lines do
@@ -190,7 +193,8 @@ defmodule Hex.SCM do
           |> String.split(",")
           |> Enum.map(&String.to_atom/1)
 
-        String.split(first, ",")
+        first
+        |> String.split(",")
         |> List.insert_at(3, managers)
     end
   end
@@ -211,6 +215,7 @@ defmodule Hex.SCM do
       filename = "#{package}-#{version}.tar"
       path = cache_path(repo, filename)
       etag = if File.exists?(path), do: Registry.tarball_etag(repo, package, version), else: nil
+
       Hex.Parallel.run(:hex_fetcher, {:tarball, repo, package, version}, fn ->
         fetch(repo, package, version, path, etag)
       end)
@@ -229,6 +234,7 @@ defmodule Hex.SCM do
             :mismatch -> [{repo, name, version}]
             :outdated -> [{repo, name, version}]
           end
+
         nil ->
           []
       end
@@ -246,10 +252,13 @@ defmodule Hex.SCM do
           File.mkdir_p!(Path.dirname(path))
           File.write!(path, body)
           {:ok, :new, etag}
+
         {:ok, {304, _body, _headers}} ->
           {:ok, :cached}
+
         {:ok, {code, _body, _headers}} ->
           {:error, "Request failed (#{code})"}
+
         {:error, reason} ->
           {:error, "Request failed (#{inspect reason})"}
       end

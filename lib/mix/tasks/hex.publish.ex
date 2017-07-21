@@ -93,11 +93,11 @@ defmodule Mix.Tasks.Hex.Publish do
   @switches [revert: :string, progress: :boolean, canonical: :string]
 
   def run(args) do
-    Hex.start
+    Hex.start()
 
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
-    config = Hex.Config.read
-    build = Build.prepare_package
+    config = Hex.Config.read()
+    build = Build.prepare_package()
     revert_version = opts[:revert]
     revert = !!revert_version
 
@@ -105,22 +105,28 @@ defmodule Mix.Tasks.Hex.Publish do
       ["package"] when revert ->
         auth = Mix.Tasks.Hex.auth_info(config)
         revert_package(build, revert_version, auth)
+
       ["docs"] when revert ->
         auth = Mix.Tasks.Hex.auth_info(config)
         revert_docs(build, revert_version, auth)
+
       [] when revert ->
         auth = Mix.Tasks.Hex.auth_info(config)
         revert(build, revert_version, auth)
+
       ["package"] ->
         auth = Mix.Tasks.Hex.auth_info(config)
         if proceed?(build), do: create_release(build, auth, opts)
+
       ["docs"] ->
         auth = Mix.Tasks.Hex.auth_info(config)
         docs_task(build, opts)
         create_docs(build, auth, opts)
+
       [] ->
         auth = Mix.Tasks.Hex.auth_info(config)
         create(build, auth, opts)
+
       _ ->
         Mix.raise """
         Invalid arguments, expected one of:
@@ -136,6 +142,7 @@ defmodule Mix.Tasks.Hex.Publish do
       Hex.Shell.info("Building docs...")
       docs_task(build, opts)
       Hex.Shell.info("Publishing package...")
+
       if :ok == create_release(build, auth, opts) do
         Hex.Shell.info("Publishing docs...")
         create_docs(build, auth, opts)
@@ -159,11 +166,10 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp docs_task(build, opts) do
     name = build.meta.name
-
     canonical = opts[:canonical] || Hex.Utils.hexdocs_url(name)
-    args = ["--canonical", canonical]
+
     try do
-      Mix.Task.run("docs", args)
+      Mix.Task.run("docs", ["--canonical", canonical])
     rescue ex in [Mix.NoTaskError] ->
       stacktrace = System.stacktrace
       Mix.shell.error ~s(The "docs" task is unavailable. Please add {:ex_doc, ">= 0.0.0", only: :dev} ) <>
@@ -241,10 +247,12 @@ defmodule Mix.Tasks.Hex.Publish do
         Hex.Shell.info ""
         Hex.Shell.info "Docs published to #{Hex.Utils.hexdocs_url(name, version)}"
         :ok
+
       {:ok, {404, _, _}} ->
         Hex.Shell.info ""
         Hex.Shell.error "Publishing docs failed due to the package not being published yet"
         :error
+
       other ->
         Hex.Shell.info ""
         Hex.Shell.error "Publishing docs failed"
@@ -255,14 +263,14 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp files(directory) do
     "#{directory}/**"
-    |> Path.wildcard
+    |> Path.wildcard()
     |> Enum.filter(&File.regular?/1)
     |> Enum.map(&{relative_path(&1, directory), File.read!(&1)})
   end
 
   defp relative_path(file, dir) do
     Path.relative_to(file, dir)
-    |> Hex.string_to_charlist
+    |> Hex.string_to_charlist()
   end
 
   defp docs_dir do
@@ -288,6 +296,7 @@ defmodule Mix.Tasks.Hex.Publish do
         Hex.Shell.info ""
         Hex.Shell.info("Package published to #{location} (#{String.downcase(checksum)})")
         :ok
+
       other ->
         Hex.Shell.info ""
         Hex.Shell.error("Publishing failed")

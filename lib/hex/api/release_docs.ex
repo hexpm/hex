@@ -6,7 +6,6 @@ defmodule Hex.API.ReleaseDocs do
   end
 
   def new(name, version, tar, auth, progress \\ fn _ -> nil end) do
-    API.tar_post_request("packages/#{name}/releases", tar, [progress: progress] ++ auth)
     API.tar_post_request("packages/#{name}/releases/#{version}/docs", tar, [progress: progress] ++ auth)
   end
 

@@ -27,10 +27,12 @@ defmodule Hex.HTTP do
   end
 
   defp build_http_opts(url) do
-    ([relaxed: true, timeout: @request_timeout] ++ proxy_config(url))
-    |> Keyword.put(:ssl, Hex.HTTP.SSL.ssl_opts(url))
-    |> Keyword.put_new(:autoredirect, false)
-    |> Keyword.put(:timeout, @request_timeout)
+    [
+      relaxed: true,
+      timeout: @request_timeout,
+      ssl: Hex.HTTP.SSL.ssl_opts(url),
+      autoredirect: false
+    ] ++ proxy_config(url)
   end
 
   defp build_request(url, headers, body) do
@@ -65,11 +67,14 @@ defmodule Hex.HTTP do
             request
             |> update_request(location)
             |> redirect(times - 0, fun)
+
           {:ok, _location} ->
             Mix.raise "Too many redirects"
+
           :error ->
             {:ok, response}
         end
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -78,18 +83,23 @@ defmodule Hex.HTTP do
   defp handle_redirect({{_version, code, _reason}, headers, _body})
        when code in [301, 302, 303, 307, 308] do
     headers = Enum.into(headers, %{})
+
     if location = headers['location'] do
       {:ok, location}
     else
       :error
     end
   end
-  defp handle_redirect(_), do: :error
+  defp handle_redirect(_) do
+    :error
+  end
 
-  defp update_request({_url, headers, content_type, body}, new_url),
-    do: {new_url, headers, content_type, body}
-  defp update_request({_url, headers}, new_url),
-    do: {new_url, headers}
+  defp update_request({_url, headers, content_type, body}, new_url) do
+    {new_url, headers, content_type, body}
+  end
+  defp update_request({_url, headers}, new_url) do
+    {new_url, headers}
+  end
 
   defp timeout(request, timeout, fun) do
     Task.async(fn ->
@@ -118,10 +128,13 @@ defmodule Hex.HTTP do
     handle_hex_message(headers['x-hex-message'])
     {:ok, {code, unzip(body, headers), headers}}
   end
-  defp handle_response({:error, term}), do: {:error, term}
+  defp handle_response({:error, term}) do
+    {:error, term}
+  end
 
   defp unzip(body, headers) do
     content_encoding = List.to_string(headers['content-encoding'] || '')
+
     if String.contains?(content_encoding, "gzip") do
       :zlib.gunzip(body)
     else
@@ -153,26 +166,29 @@ defmodule Hex.HTTP do
 
   defp proxy_scheme(scheme) do
     case scheme do
-      :http  -> :proxy
+      :http -> :proxy
       :https -> :https_proxy
     end
   end
 
-  defp proxy_auth(%URI{scheme: "http"}, http_proxy, _https_proxy),
-    do: proxy_auth(http_proxy)
-  defp proxy_auth(%URI{scheme: "https"}, _http_proxy, https_proxy),
-    do: proxy_auth(https_proxy)
+  defp proxy_auth(%URI{scheme: "http"}, http_proxy, _https_proxy) do
+    proxy_auth(http_proxy)
+  end
+  defp proxy_auth(%URI{scheme: "https"}, _http_proxy, https_proxy) do
+    proxy_auth(https_proxy)
+  end
 
-  defp proxy_auth(nil),
-    do: []
-  defp proxy_auth(%URI{userinfo: nil}),
-    do: []
+  defp proxy_auth(nil) do
+    []
+  end
+  defp proxy_auth(%URI{userinfo: nil}) do
+    []
+  end
   defp proxy_auth(%URI{userinfo: auth}) do
     destructure [user, pass], String.split(auth, ":", parts: 2)
 
     user = Hex.string_to_charlist(user)
     pass = Hex.string_to_charlist(pass || "")
-
     [proxy_auth: {user, pass}]
   end
 
@@ -180,8 +196,9 @@ defmodule Hex.HTTP do
     'Hex/#{Hex.version} (Elixir/#{System.version}) (OTP/#{Hex.Utils.otp_version})'
   end
 
-  def handle_hex_message(nil), do: :ok
-
+  def handle_hex_message(nil) do
+    :ok
+  end
   def handle_hex_message(header) do
     {message, level} = :binary.list_to_bin(header) |> parse_hex_message
     case level do
@@ -199,39 +216,33 @@ defmodule Hex.HTTP do
     {message, level}
   end
 
-  defp skip_ws(<<char, rest :: binary>>) when char in @space,
-    do: skip_ws(rest)
-  defp skip_ws(rest),
-    do: rest
+  defp skip_ws(<<char, rest :: binary>>) when char in @space, do: skip_ws(rest)
+  defp skip_ws(rest), do: rest
 
-  defp skip_trail_ws(input, str \\ "", ws \\ "")
+  defp skip_trail_ws(<<char, rest :: binary>>, str, ws) when char in @space do
+    skip_trail_ws(rest, str, <<ws :: binary, char>>)
+  end
+  defp skip_trail_ws(<<char, rest :: binary>>, str, ws) do
+    skip_trail_ws(rest, <<str :: binary, ws :: binary, char>>, "")
+  end
+  defp skip_trail_ws("", str, _ws) do
+    str
+  end
 
-  defp skip_trail_ws(<<char, rest :: binary>>, str, ws) when char in @space,
-    do: skip_trail_ws(rest, str, <<ws :: binary, char>>)
-  defp skip_trail_ws(<<char, rest :: binary>>, str, ws),
-    do: skip_trail_ws(rest, <<str :: binary, ws :: binary, char>>, "")
-  defp skip_trail_ws("", str, _ws),
-    do: str
+  defp quoted("\"" <> rest), do: do_quoted(rest, "")
 
-  defp quoted("\"" <> rest),
-    do: do_quoted(rest, "")
+  defp do_quoted("\"" <> rest, acc), do: {acc, rest}
+  defp do_quoted(<<char, rest :: binary>>, acc), do: do_quoted(rest, <<acc :: binary, char>>)
 
-  defp do_quoted("\"" <> rest, acc),
-    do: {acc, rest}
-  defp do_quoted(<<char, rest :: binary>>, acc),
-    do: do_quoted(rest, <<acc :: binary, char>>)
-
-  defp opt_level(";" <> rest),
-    do: do_level(rest)
-  defp opt_level(_),
-    do: nil
+  defp opt_level(";" <> rest), do: do_level(rest)
+  defp opt_level(_), do: nil
 
   defp do_level(rest) do
     "level" <> rest = skip_ws(rest)
     "=" <> rest = skip_ws(rest)
 
     rest
-    |> skip_ws
-    |> skip_trail_ws
+    |> skip_ws()
+    |> skip_trail_ws("", "")
   end
 end

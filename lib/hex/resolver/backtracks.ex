@@ -166,7 +166,7 @@ defmodule Hex.Resolver.Backtracks do
         versions_message(registry, repo, name, versions),
         " because", :reset, "\n", parent_messages
       ])
-      |> IO.iodata_to_binary
+      |> IO.iodata_to_binary()
     end
   end
 
@@ -178,10 +178,11 @@ defmodule Hex.Resolver.Backtracks do
     all_reasons = [mix_reason|parent_reasons]
 
     unless all_green?(all_reasons) do
-      messages =
-        if mix,
-          do: messages ++ [parent_message(mix_reason, registry)],
-        else: messages
+      messages = if mix do
+        messages ++ [parent_message(mix_reason, registry)]
+      else
+        messages
+      end
 
       Enum.map(messages, &["  ", &1, "\n"])
     end
@@ -235,7 +236,7 @@ defmodule Hex.Resolver.Backtracks do
     num_failures = Enum.count(versions, &(not version_match?(&1, req, [])))
     num_versions = length(versions)
     pre_failures = Enum.count(versions, &(not version_match?(&1, req, allow_pre: true)))
-    pre_failed?  = pre_failures < num_failures
+    pre_failed? = pre_failures < num_failures
 
     {parent_color(num_versions, num_failures), pre_failed?}
   end
@@ -244,10 +245,12 @@ defmodule Hex.Resolver.Backtracks do
   defp parent_color(versions, versions), do: :red
   defp parent_color(versions, failures) when failures < versions, do: :yellow
 
-  defp version_match?(_version, nil, _opts),
-    do: true
-  defp version_match?(version, req, opts),
-    do: Hex.Version.match?(version, req, opts)
+  defp version_match?(_version, nil, _opts) do
+    true
+  end
+  defp version_match?(version, req, opts) do
+    Hex.Version.match?(version, req, opts)
+  end
 
   # Try converting lists of versions to a version range if the list is
   # a complete range of versions of the package.
@@ -263,14 +266,8 @@ defmodule Hex.Resolver.Backtracks do
       {[x, y], _} ->
         [" (versions ", to_string(x), " and ", to_string(y), ")"]
       {_, true} when length(versions) > 2 ->
-        first =
-          versions
-          |> List.first
-          |> to_string
-        last =
-          versions
-          |> List.last
-          |> to_string
+        first = versions |> List.first() |> to_string()
+        last = versions |> List.last() |> to_string()
         [" (versions ", first, " to ", last, ")"]
       _ ->
         versions = Enum.map(versions, &to_string/1)
@@ -278,7 +275,9 @@ defmodule Hex.Resolver.Backtracks do
     end
   end
 
-  defp merge_versions?(_registry, _repo, _package, []), do: false
+  defp merge_versions?(_registry, _repo, _package, []) do
+    false
+  end
   defp merge_versions?(registry, repo, package, versions) do
     all_versions = registry.versions(repo, package)
     sub_range?(all_versions, versions)
@@ -287,10 +286,10 @@ defmodule Hex.Resolver.Backtracks do
   # Assumes lists are sorted
   defp sub_range?(outer, inner), do: do_sub_range?(outer, inner, false)
 
-  defp do_sub_range?(_, [], _),                do: true
-  defp do_sub_range?([], _, _),                do: false
+  defp do_sub_range?(_, [], _), do: true
+  defp do_sub_range?([], _, _), do: false
   defp do_sub_range?([x|outer], [x|inner], _), do: do_sub_range?(outer, inner, true)
-  defp do_sub_range?(_, _, true),              do: false
+  defp do_sub_range?(_, _, true), do: false
   defp do_sub_range?([_|outer], inner, false), do: do_sub_range?(outer, inner, false)
 
   defp requirement(nil), do: ">= 0.0.0"

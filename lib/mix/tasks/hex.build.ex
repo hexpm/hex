@@ -72,7 +72,7 @@ defmodule Mix.Tasks.Hex.Build do
   """
 
   def run(_args) do
-    Hex.start
+    Hex.start()
     build = prepare_package()
 
     meta = build.meta
@@ -87,8 +87,8 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   def prepare_package do
-    Mix.Project.get!
-    config = Mix.Project.config
+    Mix.Project.get!()
+    config = Mix.Project.config()
     raise_if_umbrella_project!(config)
 
     package = Enum.into(config[:package] || [], %{})
@@ -96,8 +96,13 @@ defmodule Mix.Tasks.Hex.Build do
     meta = meta_for(config, package, deps)
     raise_if_unstable_dependencies!(meta)
 
-    %{config: config, package: package, deps: deps,
-      exclude_deps: exclude_deps, meta: meta}
+    %{
+      config: config,
+      package: package,
+      deps: deps,
+      exclude_deps: exclude_deps,
+      meta: meta
+    }
   end
 
   def print_info(meta, exclude_deps, package_files) do
@@ -145,7 +150,7 @@ defmodule Mix.Tasks.Hex.Build do
       Mix.Dep.loaded([])
       |> Enum.filter(& &1.top_level)
       |> Enum.filter(&prod_dep?/1)
-      |> Enum.partition(&package_dep?/1)
+      |> Hex.enum_split_with(&package_dep?/1)
 
     Enum.each(include, fn %Mix.Dep{app: app, opts: opts} ->
       if opts[:override] do
@@ -166,6 +171,7 @@ defmodule Mix.Tasks.Hex.Build do
         name = opts[:hex] || app
         %{name: name, app: app, requirement: req, optional: opts[:optional] || false}
       end)
+
     exclude = Enum.map(exclude, & &1.app)
     {include, exclude}
   end
@@ -210,7 +216,7 @@ defmodule Mix.Tasks.Hex.Build do
     |> Enum.map(& &1.requirement)
     |> Enum.any?(&pre_requirement?/1)
   end
-  
+
   defp package_dep?(%Mix.Dep{scm: scm}) do
     scm == Hex.SCM
   end
@@ -228,7 +234,7 @@ defmodule Mix.Tasks.Hex.Build do
     |> Enum.flat_map(&dir_files/1)
     |> Enum.map(&Path.expand/1)
     |> Enum.filter(&File.regular?/1)
-    |> Enum.uniq
+    |> Enum.uniq()
     |> Enum.map(&Path.relative_to(&1, expand_dir))
   end
 
@@ -254,24 +260,28 @@ defmodule Mix.Tasks.Hex.Build do
     if value = metadata[key] do
       key =
         key
-        |> Atom.to_string
+        |> Atom.to_string()
         |> String.replace("_", " ")
-        |> String.capitalize
+        |> String.capitalize()
       value = format_metadata_value(value)
       Hex.Shell.info("  #{key}: #{value}")
     end
   end
 
-  defp format_metadata_value(list) when is_list(list),
-    do: Enum.join(list, ", ")
-  defp format_metadata_value(map) when is_map(map),
-    do: "\n    " <> Enum.map_join(map, "\n    ", fn {key, val} -> "#{key}: #{val}" end)
-  defp format_metadata_value(value),
-    do: value
+  defp format_metadata_value(list) when is_list(list) do
+    Enum.join(list, ", ")
+  end
+  defp format_metadata_value(map) when is_map(map) do
+    "\n    " <> Enum.map_join(map, "\n    ", fn {key, val} -> "#{key}: #{val}" end)
+  end
+  defp format_metadata_value(value) do
+    value
+  end
 
   defp check_missing_fields(metadata) do
     fields = @error_fields ++ @warn_fields
-    taken_fields = Map.take(metadata, fields) |> Map.keys
+    taken_fields = Map.take(metadata, fields) |> Map.keys()
+
     case fields -- taken_fields do
       [] ->
         []
@@ -320,10 +330,9 @@ defmodule Mix.Tasks.Hex.Build do
       tool
     end
     |> default_build_tool()
-    |> Enum.uniq
+    |> Enum.uniq()
   end
 
   defp default_build_tool([]), do: ["mix"]
   defp default_build_tool(other), do: other
-
 end

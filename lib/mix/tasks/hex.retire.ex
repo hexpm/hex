@@ -34,19 +34,21 @@ defmodule Mix.Tasks.Hex.Retire do
   @switches [message: :string, unretire: :boolean]
 
   def run(args) do
-    Hex.start
+    Hex.start()
 
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
-    config = Hex.Config.read
+    config = Hex.Config.read()
     retire? = !opts[:unretire]
 
     case args do
       [package, version, reason] when retire? ->
         auth = Mix.Tasks.Hex.auth_info(config)
         retire(package, version, reason, opts, auth)
+
       [package, version] when not retire? ->
         auth = Mix.Tasks.Hex.auth_info(config)
         unretire(package, version, auth)
+
       _ ->
         Mix.raise """
         Invalid arguments, expected one of:
@@ -61,6 +63,7 @@ defmodule Mix.Tasks.Hex.Retire do
     case Hex.API.Release.retire(package, version, body, auth) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
+
       other ->
         Hex.Shell.error "Retiring package failed"
         Hex.Utils.print_error_result(other)
@@ -68,12 +71,13 @@ defmodule Mix.Tasks.Hex.Retire do
   end
 
   defp unretire(package, version, auth) do
-  case Hex.API.Release.unretire(package, version, auth) do
-    {:ok, {code, _body, _headers}} when code in 200..299 ->
-      :ok
-    other ->
-      Hex.Shell.error "Unretiring package failed"
-      Hex.Utils.print_error_result(other)
-  end
+    case Hex.API.Release.unretire(package, version, auth) do
+      {:ok, {code, _body, _headers}} when code in 200..299 ->
+        :ok
+
+      other ->
+        Hex.Shell.error "Unretiring package failed"
+        Hex.Utils.print_error_result(other)
+    end
   end
 end
