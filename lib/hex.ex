@@ -1,11 +1,11 @@
 defmodule Hex do
   use Application
 
-  def start do
+  def start() do
     {:ok, _} = Application.ensure_all_started(:hex)
   end
 
-  def stop do
+  def stop() do
     case Application.stop(:hex) do
       :ok -> :ok
       {:error, {:not_started, :hex}} -> :ok
@@ -18,7 +18,7 @@ defmodule Hex do
     Mix.SCM.append(Hex.SCM)
     Mix.RemoteConverger.register(Hex.RemoteConverger)
 
-    Hex.Version.start
+    Hex.Version.start()
     start_httpc()
 
     opts = [strategy: :one_for_one, name: Hex.Supervisor]
@@ -51,19 +51,29 @@ defmodule Hex do
     def string_to_charlist(string), do: String.to_charlist(string)
   end
 
+  if Version.compare(System.version, "1.4.0") == :lt do
+    def enum_split_with(enum, fun), do: Enum.partition(enum, fun)
+  else
+    def enum_split_with(enum, fun), do: Enum.split_with(enum, fun)
+  end
+
   if Mix.env == :test do
     defp children do
       import Supervisor.Spec
-      [worker(Hex.State, []),
-       worker(Hex.Parallel, [:hex_fetcher])]
+      [
+        worker(Hex.State, []),
+        worker(Hex.Parallel, [:hex_fetcher])
+      ]
     end
   else
     defp children do
       import Supervisor.Spec
-      [worker(Hex.State, []),
-       worker(Hex.Parallel, [:hex_fetcher]),
-       worker(Hex.Registry.Server, []),
-       worker(Hex.UpdateChecker, [])]
+      [
+        worker(Hex.State, []),
+        worker(Hex.Parallel, [:hex_fetcher]),
+        worker(Hex.Registry.Server, []),
+        worker(Hex.UpdateChecker, [])
+      ]
     end
   end
 

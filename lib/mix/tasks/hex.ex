@@ -14,8 +14,8 @@ defmodule Mix.Tasks.Hex do
   """
 
   def run(args) do
+    Hex.start()
     {_opts, args, _} = OptionParser.parse(args)
-    Hex.start
 
     case args do
       [] -> general()
@@ -49,12 +49,15 @@ defmodule Mix.Tasks.Hex do
     Enum.each(values, &print_row(&1, widths))
   end
 
-  defp ansi_length(binary) when is_binary(binary),
-    do: byte_size(binary)
-  defp ansi_length(list) when is_list(list),
-    do: Enum.reduce(list, 0, &(ansi_length(&1) + &2))
-  defp ansi_length(atom) when is_atom(atom),
-    do: 0
+  defp ansi_length(binary) when is_binary(binary) do
+    byte_size(binary)
+  end
+  defp ansi_length(list) when is_list(list) do
+    Enum.reduce(list, 0, &(ansi_length(&1) + &2))
+  end
+  defp ansi_length(atom) when is_atom(atom) do
+    0
+  end
 
   defp print_row(strings, widths) do
     Enum.zip(strings, widths)
@@ -63,8 +66,8 @@ defmodule Mix.Tasks.Hex do
       pad = :lists.duplicate(pad_size, ?\s)
       [string || "", :reset, pad]
     end)
-    |> IO.ANSI.format
-    |> Hex.Shell.info
+    |> IO.ANSI.format()
+    |> Hex.Shell.info()
   end
 
   defp widths([head | tail]) do
@@ -85,9 +88,11 @@ defmodule Mix.Tasks.Hex do
       {:ok, {201, body, _}} ->
         Hex.Shell.info("Encrypting API key with user password...")
         encrypted_key = Hex.Crypto.encrypt(body["secret"], password, @apikey_tag)
-        Hex.Config.update([
+        Hex.Config.update(
           username: username,
-          encrypted_key: encrypted_key])
+          encrypted_key: encrypted_key
+        )
+
       other ->
         Mix.shell.error("Generation of API key failed")
         Hex.Utils.print_error_result(other)
@@ -98,11 +103,13 @@ defmodule Mix.Tasks.Hex do
     cond do
       encrypted_key = config[:encrypted_key] ->
         [key: decrypt_key(encrypted_key)]
+
       key = config[:key] ->
         Hex.Shell.info "Your stored API key is not encrypted, please " <>
                        "supply a passphrase to encrypt it"
         encrypt_key(config, key)
         [key: key]
+
       true ->
         Mix.raise "No authorized user found. Run 'mix hex.user auth'"
     end
@@ -124,7 +131,8 @@ defmodule Mix.Tasks.Hex do
   end
 
   def decrypt_key(encrypted_key, challenge \\ "Passphrase") do
-    password = password_get("#{challenge}:") |> Hex.string_trim
+    password = password_get("#{challenge}:") |> Hex.string_trim()
+
     case Hex.Crypto.decrypt(encrypted_key, password, @apikey_tag) do
       {:ok, key} ->
         key
@@ -142,7 +150,7 @@ defmodule Mix.Tasks.Hex do
 
   def persist_key(password, key) do
     generate_encrypted_key(password, key)
-    |> Hex.Config.update
+    |> Hex.Config.update()
   end
 
   def required_opts(opts, required) do
@@ -164,8 +172,8 @@ defmodule Mix.Tasks.Hex do
   end
 
   defp password_clean(prompt) do
-    pid   = spawn_link(fn -> loop(prompt) end)
-    ref   = make_ref()
+    pid = spawn_link(fn -> loop(prompt) end)
+    ref = make_ref()
     value = IO.gets(prompt <> " ")
 
     send pid, {:done, self(), ref}
@@ -210,5 +218,5 @@ defmodule Mix.Tasks.Hex do
   end
 
   def clean_version("v" <> version), do: version
-  def clean_version(version),        do: version
+  def clean_version(version), do: version
 end

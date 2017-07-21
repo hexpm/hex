@@ -14,11 +14,11 @@ defmodule Hex.Crypto.PBES2_HMAC_SHA2 do
 
   @spec derive_key(String.t, binary, pos_integer, non_neg_integer, :sha256 | :sha384 | :sha512) :: binary
   def derive_key(password, salt_input, iterations, derived_key_length, hash)
-  when is_binary(password) and
-       is_binary(salt_input) and
-       is_integer(iterations) and iterations >= 1 and
-       is_integer(derived_key_length) and derived_key_length >= 0 and
-       hash in [:sha256, :sha384, :sha512] do
+      when is_binary(password) and
+           is_binary(salt_input) and
+           is_integer(iterations) and iterations >= 1 and
+           is_integer(derived_key_length) and derived_key_length >= 0 and
+           hash in [:sha256, :sha384, :sha512] do
     salt = wrap_salt_input(salt_input, hash)
     derived_key = PKCS5.pbkdf2(password, salt, iterations, derived_key_length, hash)
     derived_key
@@ -36,6 +36,7 @@ defmodule Hex.Crypto.PBES2_HMAC_SHA2 do
           error ->
             error
         end
+
       error ->
         error
     end
@@ -60,31 +61,40 @@ defmodule Hex.Crypto.PBES2_HMAC_SHA2 do
 
   defp fetch_password(opts) do
     case Keyword.fetch(opts, :password) do
-      {:ok, password} when is_binary(password) -> {:ok, password}
-      _ -> {:error, "option :password (PBKDF2 password) must be a binary"}
+      {:ok, password} when is_binary(password) ->
+        {:ok, password}
+      _ ->
+        {:error, "option :password (PBKDF2 password) must be a binary"}
     end
   end
 
   defp fetch_p2c(opts) do
     case Map.fetch(opts, :p2c) do
-      {:ok, p2c} when is_integer(p2c) and p2c >= 1 -> {:ok, p2c}
-      _ -> {:error, "protected :p2c (PBKDF2 iterations) must be a positive integer"}
+      {:ok, p2c} when is_integer(p2c) and p2c >= 1 ->
+        {:ok, p2c}
+      _ ->
+        {:error, "protected :p2c (PBKDF2 iterations) must be a positive integer"}
     end
   end
 
   defp fetch_p2s(opts) do
     case Map.fetch(opts, :p2s) do
-      {:ok, p2s} when is_binary(p2s) -> {:ok, p2s}
-      _ -> {:error, "protected :p2s (PBKDF2 salt) must be a binary"}
+      {:ok, p2s} when is_binary(p2s) ->
+        {:ok, p2s}
+      _ ->
+        {:error, "protected :p2s (PBKDF2 salt) must be a binary"}
     end
   end
 
-  defp wrap_salt_input(salt_input, :sha256),
-    do: <<"PBES2-HS256", 0, salt_input::binary>>
-  defp wrap_salt_input(salt_input, :sha384),
-    do: <<"PBES2-HS384", 0, salt_input::binary>>
-  defp wrap_salt_input(salt_input, :sha512),
-    do: <<"PBES2-HS512", 0, salt_input::binary>>
+  defp wrap_salt_input(salt_input, :sha256) do
+    <<"PBES2-HS256", 0, salt_input::binary>>
+  end
+  defp wrap_salt_input(salt_input, :sha384) do
+    <<"PBES2-HS384", 0, salt_input::binary>>
+  end
+  defp wrap_salt_input(salt_input, :sha512) do
+    <<"PBES2-HS512", 0, salt_input::binary>>
+  end
 
   defp algorithm_to_hash("PBES2-HS256"), do: :sha256
   defp algorithm_to_hash("PBES2-HS384"), do: :sha384

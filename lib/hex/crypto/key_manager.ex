@@ -13,7 +13,7 @@ defmodule Hex.Crypto.KeyManager do
     params: nil
   ]
 
-  @callback init(protected :: map, options :: Keyword.t) ::
+  @callback init(protected :: map, opts :: Keyword.t) ::
             {:ok, any} | {:error, String.t}
 
   @callback encrypt(params :: any, protected :: map, content_encryptor :: ContentEncryptor.t) ::
@@ -32,6 +32,7 @@ defmodule Hex.Crypto.KeyManager do
           key_manager_error ->
             key_manager_error
         end
+
       error ->
         error
     end
@@ -46,6 +47,7 @@ defmodule Hex.Crypto.KeyManager do
           key_manager_error ->
             key_manager_error
         end
+
       init_error ->
         init_error
     end
@@ -60,6 +62,7 @@ defmodule Hex.Crypto.KeyManager do
           key_manager_error ->
             key_manager_error
         end
+
       init_error ->
         init_error
     end

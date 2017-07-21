@@ -4,12 +4,9 @@ defmodule Mix.Tasks.Hex.Key do
   @moduledoc false
 
   def run(_) do
-    Hex.start
-
-    deprecation_msg = """
+    Mix.raise """
     [deprecation] The mix hex.key task is deprecated, please use:
       mix hex.user
     """
-    Mix.raise deprecation_msg
   end
 end

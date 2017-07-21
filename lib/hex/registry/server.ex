@@ -30,7 +30,7 @@ defmodule Hex.Registry.Server do
       :ok ->
         :ok
       {:error, message} ->
-        Mix.raise message
+        Mix.raise(message)
     end
   end
 
@@ -73,16 +73,22 @@ defmodule Hex.Registry.Server do
   defp state() do
     offline? = Hex.State.fetch!(:offline?)
 
-    %{ets: nil,
+    %{
+      ets: nil,
       path: nil,
       pending: Hex.Set.new(),
       fetched: Hex.Set.new(),
       waiting: %{},
       closing_fun: nil,
-      offline?: offline?}
+      offline?: offline?
+    }
   end
 
   def handle_call({:open, opts}, _from, %{ets: nil} = state) do
+    if Keyword.get(opts, :check_version, true) do
+      Hex.UpdateChecker.start_check()
+    end
+
     path = opts[:registry_path] || path()
     ets =
       Hex.string_to_charlist(path)
@@ -90,11 +96,13 @@ defmodule Hex.Registry.Server do
       |> check_version()
       |> set_version()
     state = %{state | ets: ets, path: path}
-    if Keyword.get(opts, :check_version, true), do: Hex.UpdateChecker.start_check()
+
     {:reply, :ok, state}
   end
   def handle_call({:open, opts}, _from, state) do
-    if Keyword.get(opts, :check_version, true), do: Hex.UpdateChecker.start_check()
+    if Keyword.get(opts, :check_version, true) do
+      Hex.UpdateChecker.start_check()
+    end
     {:reply, :ok, state}
   end
 
@@ -104,6 +112,7 @@ defmodule Hex.Registry.Server do
         persist(tid, path)
         :ets.delete(tid)
       end
+
       GenServer.reply(from, :ok)
       state()
     end)
@@ -119,7 +128,7 @@ defmodule Hex.Registry.Server do
   def handle_call({:prefetch, packages}, _from, state) do
     packages =
       packages
-      |> Enum.uniq
+      |> Enum.uniq()
       |> Enum.reject(&(&1 in state.fetched))
       |> Enum.reject(&(&1 in state.pending))
 
@@ -243,6 +252,7 @@ defmodule Hex.Registry.Server do
             _ -> purge_repo(repo, ets)
           end
           :ets.insert(ets, {{:repo, repo}, url})
+
         :error ->
           throw {:norepo, repo, package}
       end
@@ -292,7 +302,9 @@ defmodule Hex.Registry.Server do
   defp prefetch_offline(packages, state) do
     missing =
       Enum.find(packages, fn {repo, package} ->
-        unless lookup(state.ets, {:versions, repo, package}), do: package
+        unless lookup(state.ets, {:versions, repo, package}) do
+          package
+        end
       end)
 
     if missing do
@@ -308,7 +320,7 @@ defmodule Hex.Registry.Server do
   defp write_result({:ok, {code, body, headers}}, repo, package, %{ets: tid}) when code in 200..299 do
     releases =
       body
-      |> :zlib.gunzip
+      |> :zlib.gunzip()
       |> Hex.Repo.verify(repo)
       |> Hex.Repo.decode()
 
@@ -317,6 +329,7 @@ defmodule Hex.Registry.Server do
     Enum.each(releases, fn %{version: version, checksum: checksum, dependencies: deps} = release ->
       :ets.insert(tid, {{:checksum, repo, package, version}, checksum})
       :ets.insert(tid, {{:retired, repo, package, version}, release[:retired]})
+
       deps = Enum.map(deps, fn dep ->
         {dep[:repository] || "hexpm",
          dep[:package],
@@ -363,7 +376,7 @@ defmodule Hex.Registry.Server do
         state = %{state | waiting: waiting}
         {:noreply, state}
       true ->
-        raise "Package #{inspect package} not prefetched, please report this issue"
+        Mix.raise("Package #{inspect package} not prefetched, please report this issue")
     end
   end
 
@@ -398,6 +411,7 @@ defmodule Hex.Registry.Server do
     :ets.delete(tid, {:registry_etag, repo, package})
     versions = lookup(tid, {:versions, repo, package}) || []
     :ets.delete(tid, {:versions, repo, package})
+
     Enum.each(versions, fn version ->
       :ets.delete(tid, {:checksum, repo, package, version})
       :ets.delete(tid, {:retired, repo, package, version})

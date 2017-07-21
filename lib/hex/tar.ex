@@ -85,15 +85,17 @@ defmodule Hex.Tar do
   defp checksum(files, repo, name, version) do
     case Base.decode16(files['CHECKSUM'], case: :mixed) do
       {:ok, tar_checksum} ->
-        meta              = files['metadata.config']
-        blob              = files['VERSION'] <> meta <> files['contents.tar.gz']
+        meta = files['metadata.config']
+        blob = files['VERSION'] <> meta <> files['contents.tar.gz']
         registry_checksum = Hex.Registry.Server.checksum(repo, to_string(name), version)
-        checksum          = :crypto.hash(:sha256, blob)
+        checksum = :crypto.hash(:sha256, blob)
 
-        if checksum != tar_checksum,
-          do: Mix.raise "Checksum mismatch in tarball"
-        if checksum != registry_checksum,
-          do: Mix.raise "Checksum mismatch against registry"
+        if checksum != tar_checksum do
+          Mix.raise "Checksum mismatch in tarball"
+        end
+        if checksum != registry_checksum do
+          Mix.raise "Checksum mismatch against registry"
+        end
 
       :error ->
         Mix.raise "Checksum invalid"
@@ -105,7 +107,7 @@ defmodule Hex.Tar do
     case :hex_erl_tar.extract({mode, file}, [:compressed, cwd: dest]) do
       :ok ->
         Path.join(dest, "**")
-        |> Path.wildcard
+        |> Path.wildcard()
         |> Enum.each(&File.touch!/1)
         :ok
       {:error, reason} ->
@@ -117,7 +119,7 @@ defmodule Hex.Tar do
     list
     |> Hex.Utils.binarify(maps: false)
     |> Enum.map(&[:io_lib_pretty.print(&1, encoding: :utf8) | ".\n"])
-    |> IO.chardata_to_string
+    |> IO.chardata_to_string()
   end
 
   defp format_error({_path, reason}) do
@@ -126,7 +128,7 @@ defmodule Hex.Tar do
 
   defp format_error(reason) do
     :hex_erl_tar.format_error(reason)
-    |> List.to_string
+    |> List.to_string()
   end
 
   defp decode_metadata(contents) do

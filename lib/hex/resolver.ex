@@ -27,9 +27,11 @@ defmodule Hex.Resolver do
     pending = build_pending(requests)
 
     try do
-      if activated = run(pending, optional, info, %{}),
-        do: {:ok, activated},
-      else: {:error, {:version, error_message(backtracks, registry)}}
+      if activated = run(pending, optional, info, %{}) do
+        {:ok, activated}
+      else
+        {:error, {:version, error_message(backtracks, registry)}}
+      end
     catch
       {:repo_conflict, message} ->
         {:error, {:repo, message}}
@@ -43,8 +45,8 @@ defmodule Hex.Resolver do
 
   defp build_optional(locked) do
     Enum.into(locked, %{}, fn {repo, name, app, version} ->
-      parent     = parent(name: "mix.lock", requirement: version, repo_requirement: repo)
-      request    = request(app: app, name: name, req: version, repo: repo, parent: parent)
+      parent = parent(name: "mix.lock", requirement: version, repo_requirement: repo)
+      request = request(app: app, name: name, req: version, repo: repo, parent: parent)
       {name, [request]}
     end)
   end
@@ -103,7 +105,8 @@ defmodule Hex.Resolver do
       :underline, "Failed to use \"", name, "\" because", :reset, "\n",
       parent_messages(parents)
     ])
-    |> IO.iodata_to_binary
+    |> IO.iodata_to_binary()
+
     throw {:repo_conflict, message}
   end
 
@@ -130,7 +133,6 @@ defmodule Hex.Resolver do
       repo = info(info, :repos)[name] || repo
       new_active = active(app: app, repo: repo, name: name, version: version, versions: versions, parents: parents, state: state)
       activated = Map.put(activated, name, new_active)
-
       info = info(info, deps: new_deps)
 
       run(new_pending, new_optional, info, activated)
@@ -147,11 +149,10 @@ defmodule Hex.Resolver do
     case activated[name] do
       active(state: state, app: app, repo: repo, name: name, versions: versions, parents: parents) ->
         state(activated: activated, requests: requests, optional: optional, deps: deps) = state
-
-        info    = info(info, deps: deps)
+        info = info(info, deps: deps)
         request = request(repo: repo, app: app, name: name)
-
         activate(request, requests, versions, optional, info, activated, parents)
+
       nil ->
         nil
     end
@@ -192,7 +193,7 @@ defmodule Hex.Resolver do
 
       {reqs, opts} =
         Enum.reduce(deps, {[], []}, fn {dep_repo, name, app, req, optional}, {reqs, opts} ->
-          parent  = parent(name: package, version: version, requirement: req, repo: repo, repo_requirement: dep_repo)
+          parent = parent(name: package, version: version, requirement: req, repo: repo, repo_requirement: dep_repo)
           request = request(app: app, name: name, req: req, parent: parent, repo: dep_repo)
 
           cond do
@@ -212,15 +213,15 @@ defmodule Hex.Resolver do
   end
 
   defp merge_optional(optional, new_optional) do
-    new_optional =
-      Enum.into(new_optional, %{}, fn request(name: name) = request ->
-        {name, [request]}
-      end)
+    new_optional = Enum.into(new_optional, %{}, fn request(name: name) = request ->
+      {name, [request]}
+    end)
     Map.merge(optional, new_optional, fn _, v1, v2 -> v1 ++ v2 end)
   end
 
   defp error_message(backtracks, registry) do
-    Backtracks.collect(backtracks)
+    backtracks
+    |> Backtracks.collect()
     |> Enum.map(&Backtracks.message(&1, registry))
     |> Enum.reject(&is_nil/1)
     |> Enum.join("\n\n")

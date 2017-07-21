@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Hex.Docs do
   @switches [offline: :boolean, module: :string]
 
   def run(args) do
-    Hex.start
+    Hex.start()
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
 
     case args do
@@ -110,7 +110,7 @@ defmodule Mix.Tasks.Hex.Docs do
     else
       package
       |> get_docs_url(opts)
-      |> browser_open
+      |> browser_open()
     end
   end
 
@@ -123,7 +123,8 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp open_docs_offline([name, version], _opts) do
-    Path.join([docs_dir(), name, version, 'index.html'])
+    [docs_dir(), name, version, 'index.html']
+    |> Path.join()
     |> open_file()
   end
 
@@ -183,9 +184,9 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp find_latest_version(path) do
     path
-    |> File.ls!
+    |> File.ls!()
     |> Enum.sort(&(Hex.Version.compare(&1, &2) == :gt))
-    |> List.first
+    |> List.first()
   end
 
   defp retrieve_compressed_docs(package, version, target) do

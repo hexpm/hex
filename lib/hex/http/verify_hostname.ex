@@ -16,7 +16,7 @@ defmodule Hex.HTTP.VerifyHostname do
     Record.extract(:Extension, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
 
   @id_ce_subject_alt_name {2, 5, 29, 17}
-  @id_at_common_name      {2, 5, 4, 3}
+  @id_at_common_name {2, 5, 4, 3}
 
   def verify_cert_hostname(otp_certificate(tbsCertificate: tbs_cert), hostname) do
     dns_names = extract_dns_names(tbs_cert)
@@ -29,15 +29,15 @@ defmodule Hex.HTTP.VerifyHostname do
     end
   end
 
-  def verify_fun(_, {:bad_cert, _} = reason, _),
-    do: {:fail, reason}
-
-  def verify_fun(_, {:extension, _}, state),
-    do: {:unknown, state}
-
-  def verify_fun(_, :valid, state),
-    do: {:valid, state}
-
+  def verify_fun(_, {:bad_cert, _} = reason, _) do
+    {:fail, reason}
+  end
+  def verify_fun(_, {:extension, _}, state) do
+    {:unknown, state}
+  end
+  def verify_fun(_, :valid, state) do
+    {:valid, state}
+  end
   def verify_fun(cert, :valid_peer, state) do
     if check_hostname = state[:check_hostname] do
       verify_cert_hostname(cert, check_hostname)
@@ -48,10 +48,9 @@ defmodule Hex.HTTP.VerifyHostname do
 
   def validate_and_parse_wildcard_identifier(identifier, hostname) do
     wildcard_pos = :string.chr(identifier, ?*)
-    valid? =
-      wildcard_pos != 0 and
-        length(hostname) >= length(identifier) and
-        check_wildcard_in_leftmost_label(identifier, wildcard_pos)
+    valid? = wildcard_pos != 0 and
+      length(hostname) >= length(identifier) and
+      check_wildcard_in_leftmost_label(identifier, wildcard_pos)
 
     if valid? do
       before_w = :string.substr(identifier, 1, wildcard_pos - 1)
@@ -89,17 +88,11 @@ defmodule Hex.HTTP.VerifyHostname do
     end
   end
 
-  defp extract_cn({:rdnSequence, list}),
-    do: do_extract_cn(list)
+  defp extract_cn({:rdnSequence, list}), do: do_extract_cn(list)
 
-  defp do_extract_cn([[attribute_type_and_value(type: @id_at_common_name, value: cn)]|_]),
-    do: cn
-
-  defp do_extract_cn([_|rest]),
-    do: rest
-
-  defp do_extract_cn([]),
-    do: []
+  defp do_extract_cn([[attribute_type_and_value(type: @id_at_common_name, value: cn)]|_]), do: cn
+  defp do_extract_cn([_|rest]), do: rest
+  defp do_extract_cn([]), do: []
 
   defp extract_dns_names(otp_tbs_certificate(extensions: extensions)) do
     extensions = :pubkey_cert.extensions_list(extensions)
@@ -123,8 +116,9 @@ defmodule Hex.HTTP.VerifyHostname do
     end)
   end
 
-  defp case_insensitve_match(string1, string2),
-    do: :string.to_lower(string1) == :string.to_lower(string2)
+  defp case_insensitve_match(string1, string2) do
+    :string.to_lower(string1) == :string.to_lower(string2)
+  end
 
   defp wildcard_not_in_label(before_w, after_w) do
     dot_pos = :string.chr(after_w, ?.)
@@ -167,19 +161,20 @@ defmodule Hex.HTTP.VerifyHostname do
     dot_pos != 0 and dot_pos >= wildcard_pos
   end
 
-  defp try_match_hostnames(dns_names, hostname),
-    do: Enum.any?(dns_names, &try_match_hostname(&1, hostname))
+  defp try_match_hostnames(dns_names, hostname) do
+    Enum.any?(dns_names, &try_match_hostname(&1, hostname))
+  end
 
-  defp maybe_check_subject_cn(_dns_names, true, _tbs_cert, _hostname),
-    do: true
-
-  defp maybe_check_subject_cn([_|_], false, _tbs_cert, _hostname),
-    do: false
-
+  defp maybe_check_subject_cn(_dns_names, true, _tbs_cert, _hostname) do
+    true
+  end
+  defp maybe_check_subject_cn([_|_], false, _tbs_cert, _hostname) do
+    false
+  end
   defp maybe_check_subject_cn(_dns_names, false, tbs_cert, hostname) do
     tbs_cert
     |> otp_tbs_certificate(:subject)
-    |> extract_cn
+    |> extract_cn()
     |> try_match_hostname(hostname)
   end
 end

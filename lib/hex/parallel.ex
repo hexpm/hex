@@ -32,12 +32,11 @@ defmodule Hex.Parallel do
     await? = Keyword.get(opts, :await, true)
     state = run_task(id, fun, state)
 
-    state =
-      if await? do
-        state
-      else
-        %{state | waiting_reply: Map.put(state.waiting_reply, id, {:send, pid})}
-      end
+    state = if await? do
+      state
+    else
+      %{state | waiting_reply: Map.put(state.waiting_reply, id, {:send, pid})}
+    end
 
     {:reply, :ok, state}
   end
@@ -69,7 +68,7 @@ defmodule Hex.Parallel do
       state =
         %{state | running: Map.delete(state.running, task)}
         |> reply(id, message)
-        |> next_task
+        |> next_task()
 
       {:noreply, state}
     else
@@ -120,10 +119,12 @@ defmodule Hex.Parallel do
   end
 
   defp new_state() do
-    %{max_jobs: Hex.State.fetch!(:http_concurrency),
+    %{
+      max_jobs: Hex.State.fetch!(:http_concurrency),
       running: %{},
       finished: %{},
-      waiting: :queue.new,
-      waiting_reply: %{}}
+      waiting: :queue.new(),
+      waiting_reply: %{}
+    }
   end
 end

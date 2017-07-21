@@ -24,13 +24,15 @@ defmodule Hex.RemoteConverger do
 
     top_level = Hex.Mix.top_level(deps)
     flat_deps = Hex.Mix.flatten_deps(deps, top_level)
-    requests  = Hex.Mix.deps_to_requests(flat_deps)
+    requests = Hex.Mix.deps_to_requests(flat_deps)
 
-    [Hex.Mix.packages_from_lock(lock),
-     Hex.Mix.packages_from_lock(old_lock),
-     packages_from_requests(requests)]
-    |> Enum.concat
-    |> Registry.prefetch
+    [
+      Hex.Mix.packages_from_lock(lock),
+      Hex.Mix.packages_from_lock(old_lock),
+      packages_from_requests(requests)
+    ]
+    |> Enum.concat()
+    |> Registry.prefetch()
 
     locked = prepare_locked(lock, old_lock, deps)
 
@@ -51,8 +53,10 @@ defmodule Hex.RemoteConverger do
         new_lock = Hex.Mix.to_lock(resolved)
         Hex.SCM.prefetch(new_lock)
         lock_merge(lock, new_lock)
+
       {:error, {:version, message}} ->
         resolver_version_failed(message)
+
       {:error, {:repo, message}} ->
         resolver_repo_failed(message)
     end
@@ -119,8 +123,10 @@ defmodule Hex.RemoteConverger do
         Registry.open()
         Registry.prefetch([{repo, name}])
         get_deps(repo, name, version)
+
       %{deps: deps} ->
         deps
+
       nil ->
         []
     end
@@ -183,6 +189,7 @@ defmodule Hex.RemoteConverger do
     if Map.size(resolved) != 0 do
       Hex.Shell.info "Dependency resolution completed:"
       resolved = Enum.sort(resolved)
+
       Enum.each(resolved, fn {name, {repo, version}} ->
         Registry.retired(repo, name, version)
         |> print_status(name, version)
@@ -231,11 +238,13 @@ defmodule Hex.RemoteConverger do
   defp verify_deps(repo, name, version, deps) do
     deps =
       Enum.map(deps, fn {app, req, opts} ->
-        {opts[:repo],
-         opts[:hex],
-         Atom.to_string(app),
-         req,
-         !!opts[:optional]}
+        {
+          opts[:repo],
+          opts[:hex],
+          Atom.to_string(app),
+          req,
+          !!opts[:optional]
+        }
       end)
 
     if Enum.sort(deps) != Enum.sort(Registry.deps(repo, name, version)),
@@ -273,7 +282,7 @@ defmodule Hex.RemoteConverger do
 
   defp with_children(apps, lock) do
     [apps, do_with_children(apps, lock)]
-    |> List.flatten
+    |> List.flatten()
   end
 
   defp do_with_children(names, lock) do
@@ -288,9 +297,11 @@ defmodule Hex.RemoteConverger do
           else
             []
           end
+
         %{deps: deps} ->
           apps = Enum.map(deps, &Atom.to_string(elem(&1, 0)))
           [apps, do_with_children(apps, lock)]
+
         nil ->
           []
       end
@@ -308,11 +319,12 @@ defmodule Hex.RemoteConverger do
           not Map.has_key?(lock, app),
         into: unlock_deps(deps, old_lock),
         do: Atom.to_string(app))
-      |> Enum.uniq
+      |> Enum.uniq()
       |> with_children(old_lock)
-      |> Enum.uniq
+      |> Enum.uniq()
 
-    Hex.Mix.from_lock(old_lock)
+    old_lock
+    |> Hex.Mix.from_lock()
     |> Enum.reject(fn {_repo, _name, app, _version} -> app in unlock end)
   end
 

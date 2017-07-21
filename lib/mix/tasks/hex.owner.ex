@@ -37,21 +37,25 @@ defmodule Mix.Tasks.Hex.Owner do
   """
 
   def run(args) do
-    Hex.start
-    config = Hex.Config.read
+    Hex.start()
+    config = Hex.Config.read()
 
     case args do
       ["add", package, owner] ->
         auth = Mix.Tasks.Hex.auth_info(config)
         add_owner(package, owner, auth)
+
       ["remove", package, owner] ->
         auth = Mix.Tasks.Hex.auth_info(config)
         remove_owner(package, owner, auth)
+
       ["list", package] ->
         auth = Mix.Tasks.Hex.auth_info(config)
         list_owners(package, auth)
+
       ["packages"] ->
         list_owned_packages(config)
+
       _ ->
         Mix.raise """
         Invalid arguments, expected one of:
@@ -65,6 +69,7 @@ defmodule Mix.Tasks.Hex.Owner do
 
   defp add_owner(package, owner, opts) do
     Hex.Shell.info "Adding owner #{owner} to #{package}"
+
     case Hex.API.Package.Owner.add(package, owner, opts) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
@@ -76,6 +81,7 @@ defmodule Mix.Tasks.Hex.Owner do
 
   defp remove_owner(package, owner, opts) do
     Hex.Shell.info "Removing owner #{owner} from #{package}"
+
     case Hex.API.Package.Owner.delete(package, owner, opts) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok

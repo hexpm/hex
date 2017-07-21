@@ -125,9 +125,11 @@ defmodule Hex.Mix do
       end
 
     # Elixir < 1.3.0-dev returned deps in reverse order
-    if Version.compare(System.version, "1.3.0-dev") == :lt,
-      do: Enum.reverse(requests),
-    else: requests
+    if Version.compare(System.version, "1.3.0-dev") == :lt do
+      Enum.reverse(requests)
+    else
+      requests
+    end
   end
 
   @doc """
@@ -136,10 +138,10 @@ defmodule Hex.Mix do
   @spec prepare_deps([Mix.Dep.t]) :: [dep]
   def prepare_deps(deps) do
     Enum.map(deps, fn %Mix.Dep{app: app, deps: deps, opts: opts} ->
-      deps =
-        Enum.map(deps, fn %Mix.Dep{app: app, opts: opts} ->
-          {opts[:repo] || "hexpm", Atom.to_string(app), !!opts[:override], []}
-        end)
+      deps = Enum.map(deps, fn %Mix.Dep{app: app, opts: opts} ->
+        {opts[:repo] || "hexpm", Atom.to_string(app), !!opts[:override], []}
+      end)
+
       {opts[:repo] || "hexpm", Atom.to_string(app), !!opts[:override], deps}
     end)
   end
@@ -158,12 +160,9 @@ defmodule Hex.Mix do
   Normalises a dependency definition to its 3-tuple form.
   """
   @spec dep(tuple) :: {String.t, String.t, Keyword.t}
-  def dep({app, opts}) when is_list(opts),
-    do: {app, nil, opts}
-  def dep({app, req}) when is_binary(req),
-    do: {app, req, []}
-  def dep({app, req, opts}),
-    do: {app, req, opts}
+  def dep({app, opts}) when is_list(opts), do: {app, nil, opts}
+  def dep({app, req}) when is_binary(req), do: {app, req, []}
+  def dep({app, req, opts}), do: {app, req, opts}
 
   @doc """
   Takes all Hex packages from the lock and returns them
@@ -194,12 +193,12 @@ defmodule Hex.Mix do
       deps =
         Hex.Registry.Server.deps(repo, name, version)
         |> Enum.map(&registry_dep_to_def/1)
-        |> Enum.sort
+        |> Enum.sort()
 
       managers =
         managers(app)
-        |> Enum.sort
-        |> Enum.uniq
+        |> Enum.sort()
+        |> Enum.uniq()
 
       {String.to_atom(app), {:hex, String.to_atom(name), version, checksum, managers, deps, repo}}
     end)
@@ -211,6 +210,7 @@ defmodule Hex.Mix do
   defp managers(nil), do: []
   defp managers(app) do
     path = Path.join([Mix.Project.deps_path(), app, ".hex"])
+
     case File.read(path) do
       {:ok, file} ->
         case Hex.SCM.parse_manifest(file) do
@@ -222,8 +222,9 @@ defmodule Hex.Mix do
     end
   end
 
-  defp registry_dep_to_def({repo, name, app, req, optional}),
-    do: {String.to_atom(app), req, hex: String.to_atom(name), repo: repo, optional: optional}
+  defp registry_dep_to_def({repo, name, app, req, optional}) do
+    {String.to_atom(app), req, hex: String.to_atom(name), repo: repo, optional: optional}
+  end
 
   def packages_from_lock(lock) do
     Enum.flat_map(lock, fn {_app, info} ->

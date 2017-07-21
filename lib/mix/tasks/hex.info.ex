@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Hex.Info do
   """
 
   def run(args) do
-    Hex.start
+    Hex.start()
 
     case args do
       [] ->
@@ -120,24 +120,32 @@ defmodule Mix.Tasks.Hex.Info do
     {:ok, version} = Hex.Version.parse(release["version"])
 
     snippet =
-      format_version(version)
+      version
+      |> format_version()
       |> format_config_snippet(name, app_name)
     Hex.Shell.info "Config: " <> snippet
   end
 
-  defp format_config_snippet(version, name, name),
-    do: "{#{inspect name}, #{inspect version}}"
-  defp format_config_snippet(version, name, app_name),
-    do: "{#{inspect app_name}, #{inspect version}, hex: #{inspect name}}"
+  defp format_config_snippet(version, name, name) do
+    "{#{inspect name}, #{inspect version}}"
+  end
+  defp format_config_snippet(version, name, app_name) do
+    "{#{inspect app_name}, #{inspect version}, hex: #{inspect name}}"
+  end
 
-  defp format_version(%Version{major: 0, minor: minor, patch: patch, pre: []}),
-    do: "~> 0.#{minor}.#{patch}"
-  defp format_version(%Version{major: major, minor: minor, pre: []}),
-    do: "~> #{major}.#{minor}"
-  defp format_version(%Version{major: major, minor: minor, patch: patch, pre: pre}),
-    do: "~> #{major}.#{minor}.#{patch}#{format_pre(pre)}"
+  defp format_version(%Version{major: 0, minor: minor, patch: patch, pre: []}) do
+    "~> 0.#{minor}.#{patch}"
+  end
+  defp format_version(%Version{major: major, minor: minor, pre: []}) do
+    "~> #{major}.#{minor}"
+  end
+  defp format_version(%Version{major: major, minor: minor, patch: patch, pre: pre}) do
+    "~> #{major}.#{minor}.#{patch}#{format_pre(pre)}"
+  end
 
-  defp format_pre([]), do: ""
+  defp format_pre([]) do
+    ""
+  end
   defp format_pre(pre) do
     "-" <>
       Enum.map_join(pre, ".", fn

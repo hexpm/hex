@@ -17,19 +17,19 @@ defmodule Hex.State do
     deprecations(config)
     warn_on_deprecated_env("HEX_API", "HEX_API_URL")
 
-    %{home:             System.get_env("HEX_HOME") |> default(@default_home) |> Path.expand,
-      api:              load_config(config, ["HEX_API_URL", "HEX_API"], :api_url) |> default(@default_url) |> trim_slash,
-      repos:            Hex.Config.read_repos(config),
-      http_proxy:       load_config(config, ["http_proxy", "HTTP_PROXY"], :http_proxy),
-      https_proxy:      load_config(config, ["https_proxy", "HTTPS_PROXY"], :https_proxy),
-      offline?:         load_config(config, ["HEX_OFFLINE"], :offline) |> to_boolean |> default(false),
-      check_cert?:      load_config(config, ["HEX_UNSAFE_HTTPS"], :unsafe_https) |> to_boolean |> default(false) |> Kernel.not,
-      check_registry?:  load_config(config, ["HEX_UNSAFE_REGISTRY"], :unsafe_registry) |> to_boolean |> default(false) |> Kernel.not,
+    %{home: System.get_env("HEX_HOME") |> default(@default_home) |> Path.expand,
+      api: load_config(config, ["HEX_API_URL", "HEX_API"], :api_url) |> default(@default_url) |> trim_slash,
+      repos: Hex.Config.read_repos(config),
+      http_proxy: load_config(config, ["http_proxy", "HTTP_PROXY"], :http_proxy),
+      https_proxy: load_config(config, ["https_proxy", "HTTPS_PROXY"], :https_proxy),
+      offline?: load_config(config, ["HEX_OFFLINE"], :offline) |> to_boolean |> default(false),
+      check_cert?: load_config(config, ["HEX_UNSAFE_HTTPS"], :unsafe_https) |> to_boolean |> default(false) |> Kernel.not,
+      check_registry?: load_config(config, ["HEX_UNSAFE_REGISTRY"], :unsafe_registry) |> to_boolean |> default(false) |> Kernel.not,
       http_concurrency: load_config(config, ["HEX_HTTP_CONCURRENCY"], :http_concurrency) |> to_integer |> default(8),
-      httpc_profile:    :hex,
-      ssl_version:      ssl_version(),
-      pbkdf2_iters:     32_768,
-      clean_pass:       true}
+      httpc_profile: :hex,
+      ssl_version: ssl_version(),
+      pbkdf2_iters: 32_768,
+      clean_pass: true}
   end
 
   def fetch(key) do
@@ -38,8 +38,10 @@ defmodule Hex.State do
 
   def fetch!(key) do
     case fetch(key) do
-      {:ok, value} -> value
-      :error -> raise KeyError, key: key, term: Hex.State
+      {:ok, value} ->
+        value
+      :error ->
+        raise KeyError, key: key, term: Hex.State
     end
   end
 
@@ -77,7 +79,6 @@ defmodule Hex.State do
 
     if result do
       {key, value} = result
-
       log_value(key, value)
       value
     end
@@ -130,14 +131,14 @@ defmodule Hex.State do
     if String.ends_with?(string, "/") do
       string
       |> :binary.part(0, byte_size(string) - 1)
-      |> trim_slash
+      |> trim_slash()
     else
       string
     end
   end
 
   defp deprecations(config) do
-    repo   = load_config(config, ["HEX_REPO", "HEX_REPO_URL"], :repo_url)
+    repo = load_config(config, ["HEX_REPO", "HEX_REPO_URL"], :repo_url)
     mirror = load_config(config, ["HEX_MIRROR", "HEX_MIRROR_URL"], :mirror_url)
 
     if repo do
@@ -162,22 +163,18 @@ defmodule Hex.State do
 
   defp parse_ssl_version(version) do
     version
-    |> List.to_string
+    |> List.to_string()
     |> String.split(".")
     |> Enum.take(3)
     |> Enum.map(&to_integer/1)
-    |> version_pad
-    |> List.to_tuple
+    |> version_pad()
+    |> List.to_tuple()
   end
 
-  defp version_pad([major]),
-    do: [major, 0, 0]
-  defp version_pad([major, minor]),
-    do: [major, minor, 0]
-  defp version_pad([major, minor, patch]),
-    do: [major, minor, patch]
-  defp version_pad([major, minor, patch | _]),
-    do: [major, minor, patch]
+  defp version_pad([major]), do: [major, 0, 0]
+  defp version_pad([major, minor]), do: [major, minor, 0]
+  defp version_pad([major, minor, patch]), do: [major, minor, patch]
+  defp version_pad([major, minor, patch | _]), do: [major, minor, patch]
 
   defp warn_on_deprecated_env(deprecated_varname, current_varname) do
     if System.get_env(deprecated_varname) do

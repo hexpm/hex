@@ -14,7 +14,7 @@ defmodule Mix.Tasks.Hex.Install do
   """
 
   def run(args) do
-    Hex.start
+    Hex.start()
     {_, args, _} = OptionParser.parse(args)
 
     case args do
@@ -52,11 +52,11 @@ defmodule Mix.Tasks.Hex.Install do
     signature =
       read_path!(name, path <> ".signed")
       |> String.replace("\n", "")
-      |> Base.decode64!
+      |> Base.decode64!()
 
     if Mix.PublicKey.verify(csv, :sha512, signature) do
       csv
-      |> parse_csv
+      |> parse_csv()
       |> find_eligible_version(hex_version)
     else
       Mix.raise "Could not install #{name} because Hex could not verify authenticity " <>
@@ -90,7 +90,7 @@ defmodule Mix.Tasks.Hex.Install do
     elixir_version = Hex.Version.parse!(System.version)
 
     entries
-    |> Enum.reverse
+    |> Enum.reverse()
     |> Enum.find_value(&find_version(&1, elixir_version, hex_version))
   end
 
@@ -99,5 +99,7 @@ defmodule Mix.Tasks.Hex.Install do
       {version, digest}
     end
   end
-  defp find_version(_versions, _elixir_version, _hex_version), do: nil
+  defp find_version(_versions, _elixir_version, _hex_version) do
+    nil
+  end
 end
