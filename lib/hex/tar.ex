@@ -13,7 +13,7 @@ defmodule Hex.Tar do
         name -> Hex.string_to_charlist(name)
       end)
 
-    :ok = :erl_tar.create(contents_path, files, [:compressed])
+    :ok = :hex_erl_tar.create(contents_path, files, [:compressed])
     contents = File.read!(contents_path)
 
     meta_string = encode_term(meta)
@@ -25,7 +25,7 @@ defmodule Hex.Tar do
       {'CHECKSUM', checksum},
       {'metadata.config', meta_string},
       {'contents.tar.gz', contents}]
-    :ok = :erl_tar.create(path, files)
+    :ok = :hex_erl_tar.create(path, files)
 
     tar = File.read!(path)
     File.rm!(contents_path)
@@ -34,7 +34,7 @@ defmodule Hex.Tar do
   end
 
   def unpack(path, dest, repo, name, version) do
-    case :erl_tar.extract(path, [:memory]) do
+    case :hex_erl_tar.extract(path, [:memory]) do
       {:ok, files} ->
         files = Enum.into(files, %{})
         check_version(files['VERSION'])
@@ -91,7 +91,7 @@ defmodule Hex.Tar do
 
   def extract_contents(file, dest, opts \\ []) do
     mode = opts[:mode] || :binary
-    case :erl_tar.extract({mode, file}, [:compressed, cwd: dest]) do
+    case :hex_erl_tar.extract({mode, file}, [:compressed, cwd: dest]) do
       :ok ->
         Path.join(dest, "**")
         |> Path.wildcard
@@ -114,7 +114,7 @@ defmodule Hex.Tar do
   end
 
   defp format_error(reason) do
-    :erl_tar.format_error(reason)
+    :hex_erl_tar.format_error(reason)
     |> List.to_string
   end
 

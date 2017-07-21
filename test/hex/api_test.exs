@@ -37,7 +37,7 @@ defmodule Hex.APITest do
     assert {:ok, {201, _, _}} = Hex.API.Release.new("tangerine", tar, auth)
 
     tarball = Path.join(tmp_path(), "docs.tar.gz")
-    :ok = :erl_tar.create(tarball, [{'index.html', "heya"}], [:compressed])
+    :ok = :hex_erl_tar.create(tarball, [{'index.html', "heya"}], [:compressed])
     tar = File.read!(tarball)
 
     assert {:ok, {201, _, _}} = Hex.API.ReleaseDocs.new("tangerine", "0.0.1", tar, auth)
