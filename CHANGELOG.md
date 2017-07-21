@@ -1,5 +1,18 @@
 ## v0.16.1-dev
 
+### Enhancements
+  * Add `mix hex.repo show` task for showing repo configuration
+  * Improve error message if there no releases for given requirement in the registry
+  * Add `mix hex.audit` task for checking for retired packages
+
+### Bug fixes
+  * Do not try to publish docs if package publish failed
+  * Do not update lock entry if only metadata changed
+  * Do not show authentication details when printing URLs
+  * Fix password reset
+  * Fix race condition where some entries may not be cached if they were added just before application closed
+  * Support PAX tarballs, created on OTP 20, when using older OTP versions. Additionally, make it less likely PAX tarballs are created
+
 ## v0.16.0
 
 ### Multiple repository support

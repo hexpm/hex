@@ -14,15 +14,16 @@ defmodule Mix.Tasks.Hex.Audit do
   """
 
   def run(_) do
-    Hex.start
+    Hex.start()
 
     lock = Mix.Dep.Lock.read()
     deps = Mix.Dep.loaded([]) |> Enum.filter(& &1.scm == Hex.SCM)
 
-    Registry.open
+    Registry.open()
 
-    Hex.Mix.packages_from_lock(lock)
-    |> Registry.prefetch
+    lock
+    |> Hex.Mix.packages_from_lock()
+    |> Registry.prefetch()
 
     case retired_packages(deps, lock) do
       [] ->

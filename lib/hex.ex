@@ -25,9 +25,9 @@ defmodule Hex do
     Supervisor.start_link(children(), opts)
   end
 
-  def version,        do: unquote(Mix.Project.config[:version])
-  def elixir_version, do: unquote(System.version)
-  def otp_version,    do: unquote(Hex.Utils.otp_version)
+  def version(), do: unquote(Mix.Project.config[:version])
+  def elixir_version(), do: unquote(System.version)
+  def otp_version(), do: unquote(Hex.Utils.otp_version)
 
   defp start_httpc do
     :inets.start(:httpc, profile: :hex)

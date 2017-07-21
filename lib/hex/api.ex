@@ -61,7 +61,7 @@ defmodule Hex.API do
         new_size = min(size + @tar_chunk_size, byte_size(body))
         chunk = new_size - size
         progress.(new_size)
-        {:ok, [:binary.part(body, size, chunk)], new_size}
+        {:ok, :binary.part(body, size, chunk), new_size}
       _size ->
         :eof
     end
