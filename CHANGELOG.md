@@ -1,4 +1,4 @@
-## v0.16.1-dev
+## v0.16.1
 
 ### Enhancements
   * Add `mix hex.repo show` task for showing repo configuration
