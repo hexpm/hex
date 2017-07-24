@@ -4,7 +4,7 @@
 
 ### Enhancements
   * Add `mix hex.repo show` task for showing repo configuration
-  * Improve error message if there no releases for given requirement in the registry
+  * Improve error message if there are no releases for given requirement in the registry
   * Add `mix hex.audit` task for checking for retired packages
 
 ### Bug fixes
