@@ -44,7 +44,7 @@ defmodule Hex.RemoteConverger do
     deps = Hex.Mix.prepare_deps(deps)
     top_level = Enum.map(top_level, &Atom.to_string/1)
 
-    Hex.Shell.info "Running dependency resolution..."
+    Hex.Shell.info "Resolving Hex dependencies..."
 
     case Hex.Resolver.resolve(Registry, requests, deps, top_level, repos, locked) do
       {:ok, resolved} ->
