@@ -1,10 +1,32 @@
 defmodule Hex.Version do
   use GenServer
-  alias Version.InvalidVersionError
-  alias Version.InvalidRequirementError
 
   defmodule Requirement do
     defstruct [:source, :req]
+  end
+
+  defmodule InvalidRequirementError do
+    defexception [:requirement]
+
+    def exception(requirement) when is_binary(requirement) do
+      %__MODULE__{requirement: requirement}
+    end
+
+    def message(%{requirement: requirement}) do
+      "invalid requirement: #{inspect requirement}"
+    end
+  end
+
+  defmodule InvalidVersionError do
+    defexception [:version]
+
+    def exception(version) when is_binary(version) do
+      %__MODULE__{version: version}
+    end
+
+    def message(%{version: version}) do
+      "invalid version: #{inspect version}"
+    end
   end
 
   @ets :hex_version
@@ -55,7 +77,7 @@ defmodule Hex.Version do
       {:ok, version} ->
         version
       :error ->
-        raise InvalidVersionError, message: version
+        raise InvalidVersionError, version
     end
   end
 
@@ -94,7 +116,7 @@ defmodule Hex.Version do
       {:ok, requirement} ->
         requirement
       :error ->
-        raise InvalidRequirementError, message: requirement
+        raise InvalidRequirementError, requirement
     end
   end
 
