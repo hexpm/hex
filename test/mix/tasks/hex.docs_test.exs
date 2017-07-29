@@ -13,7 +13,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
   end
 
   test "fetch and open the latest version of a package" do
-    package = "package"
+    package = "docs_package"
     old_version = "1.1.1"
     latest_version = "1.1.2"
     bypass_mirror()
@@ -36,7 +36,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
   end
 
   test "fetch and open a specific version of a package" do
-    package = "package"
+    package = "docs_package"
     version = "1.1.2"
     bypass_mirror()
     Hex.State.put(:home, tmp_path())
