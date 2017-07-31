@@ -42,6 +42,9 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
+      checksum = "41f85daa3d742056d04879ca0a4e37a2117343d92c3601d85eee6a4a96da7937"
+      msg = "Package published to http://localhost:4043/packages/released_name/0.0.1 (#{checksum})"
+      assert_received {:mix_shell, :info, [^msg]}
       assert {:ok, {200, _, _}} = Hex.API.Release.get("release_a", "0.0.1")
 
       msg = "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct"
