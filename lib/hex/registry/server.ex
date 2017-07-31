@@ -6,8 +6,6 @@ defmodule Hex.Registry.Server do
   @filename "cache.ets"
   @timeout 60_000
 
-  # TODO: Bump version
-
   def start_link(opts \\ []) do
     opts = Keyword.put_new(opts, :name, @name)
     GenServer.start_link(__MODULE__, [], opts)
