@@ -4,8 +4,10 @@ defmodule Mix.Tasks.Hex.SearchTest do
 
   test "search" do
     Mix.Tasks.Hex.Search.run(["doc"])
-    assert_received {:mix_shell, :info, ["ex_doc\e[0m    0.1.0\e[0m    https://hex.pm/packages/ex_doc" <> _]}
-    assert_received {:mix_shell, :info, ["only_doc\e[0m  0.1.0\e[0m    https://hex.pm/packages/only_doc" <> _]}
+    assert_received {:mix_shell, :info, ["ex_doc\e[0m" <> ex_doc]}
+    assert_received {:mix_shell, :info, ["only_doc\e[0m" <> only_doc]}
+    assert ex_doc =~ ~r"\w*0\.1\.0.*https://hex.pm/packages/ex_doc"
+    assert only_doc =~ ~r"\w*0\.1\.0.*https://hex.pm/packages/only_doc"
   end
 
   test "empty search" do
