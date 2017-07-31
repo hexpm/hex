@@ -292,7 +292,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
     case Hex.API.Release.new(meta.name, tarball, auth, progress) do
       {:ok, {code, body, _}} when code in 200..299 ->
-        location = body["html_url"]
+        location = body["html_url"] || body["url"]
         Hex.Shell.info ""
         Hex.Shell.info("Package published to #{location} (#{String.downcase(checksum)})")
         :ok
