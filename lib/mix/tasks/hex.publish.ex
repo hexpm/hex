@@ -90,7 +90,7 @@ defmodule Mix.Tasks.Hex.Publish do
       by setting this field.
   """
 
-  @switches [revert: :string, progress: :boolean, canonical: :string]
+  @switches [revert: :string, progress: :boolean, canonical: :string, confirm: :boolean]
 
   def run(args) do
     Hex.start()
@@ -116,7 +116,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
       ["package"] ->
         auth = Mix.Tasks.Hex.auth_info(config)
-        if proceed?(build), do: create_release(build, auth, opts)
+        if proceed?(build, opts), do: create_release(build, auth, opts)
 
       ["docs"] ->
         auth = Mix.Tasks.Hex.auth_info(config)
@@ -138,7 +138,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp create(build, auth, opts) do
-    if proceed?(build) do
+    if proceed?(build, opts) do
       Hex.Shell.info("Building docs...")
       docs_task(build, opts)
       Hex.Shell.info("Publishing package...")
@@ -179,7 +179,8 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp proceed?(build) do
+  defp proceed?(build, opts) do
+    confirm? = Keyword.get(opts, :confirm, true)
     meta = build.meta
     exclude_deps = build.exclude_deps
     package = build.package
@@ -189,7 +190,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
     print_link_to_coc()
 
-    Hex.Shell.yes?("Proceed?")
+    if confirm?, do: Hex.Shell.yes?("Proceed?"), else: true
   end
 
   defp print_link_to_coc() do
