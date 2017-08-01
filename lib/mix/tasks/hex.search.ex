@@ -31,7 +31,7 @@ defmodule Mix.Tasks.Hex.Search do
   defp lookup_packages({:ok, {200, packages, _headers}}) do
     values =
       Enum.map(packages, fn package ->
-        [package["name"], latest(package["releases"]), package["html_url"]]
+        [package["name"], latest(package["releases"]), package["html_url"] || package["url"]]
       end)
 
     Mix.Tasks.Hex.print_table(["Package", "Version", "URL"], values)
