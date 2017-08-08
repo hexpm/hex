@@ -62,3 +62,16 @@ defmodule ReleasePreDeps.Mixfile do
        maintainers: ["maintainers"]]]
   end
 end
+
+defmodule ReleaseFiles.Mixfile do
+  def project do
+    [app: :release_h,
+     version: "0.0.1",
+     description: "foo",
+     package: [
+       files: ["myfile.txt", "executable.sh"],
+       licenses: ["MIT"],
+       links: %{"a" => "http://a"},
+       maintainers: ["maintainers"]]]
+  end
+end
