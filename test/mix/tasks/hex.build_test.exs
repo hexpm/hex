@@ -6,6 +6,12 @@ defmodule Mix.Tasks.Hex.BuildTest do
     File.exists?("#{name}.tar")
   end
 
+  defp extract(name, path) do
+    {:ok, files} = :hex_erl_tar.extract(name, [:memory])
+    files = Enum.into(files, %{})
+    :ok = :hex_erl_tar.extract({:binary, files['contents.tar.gz']}, [:compressed, cwd: path])
+  end
+
   test "create" do
     Mix.Project.push ReleaseSimple.Mixfile
 
@@ -30,6 +36,26 @@ defmodule Mix.Tasks.Hex.BuildTest do
     end
   after
     purge [ReleaseName.Mixfile]
+  end
+
+  test "create with files" do
+    Mix.Project.push ReleaseFiles.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      File.write!("myfile.txt", "hello")
+      File.write!("executable.sh", "world")
+      File.chmod!("executable.sh", 0o100755)
+
+      Mix.Tasks.Hex.Build.run([])
+
+      extract("release_h-0.0.1.tar", "unzip")
+      assert File.read!("unzip/myfile.txt") == "hello"
+      assert File.stat!("unzip/myfile.txt").mode == 0o100644
+      assert File.stat!("unzip/executable.sh").mode == 0o100755
+    end
+  after
+    purge [ReleaseFiles.Mixfile]
   end
 
   test "create with deps" do

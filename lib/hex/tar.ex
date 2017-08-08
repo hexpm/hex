@@ -33,11 +33,14 @@ defmodule Hex.Tar do
 
     try do
       Enum.each(files, fn
+        {name, contents, mode} ->
+          :ok = :hex_erl_tar.add(tar, contents, Hex.string_to_charlist(name), mode, [])
         {name, contents} ->
           :ok = :hex_erl_tar.add(tar, contents, Hex.string_to_charlist(name), [])
         name ->
           contents = File.read!(name)
-          :ok = :hex_erl_tar.add(tar, contents, Hex.string_to_charlist(name), [])
+          mode = File.stat!(name).mode
+          :ok = :hex_erl_tar.add(tar, contents, Hex.string_to_charlist(name), mode, [])
       end)
     after
       :hex_erl_tar.close(tar)
