@@ -7,6 +7,7 @@ defmodule Mix.Tasks.Hex.Build do
   @warn_fields ~w(licenses maintainers links)a
   @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir extra)a
   @max_description_length 300
+  @default_repo "hexpm"
 
   @shortdoc "Builds a new package version locally"
 
@@ -108,10 +109,11 @@ defmodule Mix.Tasks.Hex.Build do
   def print_info(meta, exclude_deps, package_files) do
     if meta[:requirements] != [] do
       Hex.Shell.info("  Dependencies:")
-      Enum.each(meta[:requirements], fn %{name: name, app: app, requirement: req, optional: opt} ->
+      Enum.each(meta[:requirements], fn %{name: name, app: app, requirement: req, optional: opt, repository: repo} ->
         app = if name != app, do: " (app: #{app})"
         opt = if opt, do: " (optional)"
-        message = "    #{name} #{req}#{app}#{opt}"
+        repo = if repo != @default_repo, do: " (repo: #{repo})"
+        message = "    #{name} #{req}#{app}#{repo}#{opt}"
         Hex.Shell.info(message)
       end)
     end
@@ -169,7 +171,8 @@ defmodule Mix.Tasks.Hex.Build do
     include =
       Enum.map(include, fn %Mix.Dep{app: app, requirement: req, opts: opts} ->
         name = opts[:hex] || app
-        %{name: name, app: app, requirement: req, optional: opts[:optional] || false}
+        repo = opts[:repo] || @default_repo
+        %{name: name, app: app, requirement: req, optional: opts[:optional] || false, repository: repo}
       end)
 
     exclude = Enum.map(exclude, & &1.app)

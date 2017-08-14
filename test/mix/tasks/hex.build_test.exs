@@ -80,6 +80,23 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge [ReleaseDeps.Mixfile]
   end
 
+  # TODO: convert to integration test
+  test "create with custom repo deps" do
+    Mix.Project.push ReleaseCustomRepoDeps.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+
+      build = Mix.Tasks.Hex.Build.prepare_package()
+      assert [
+        %{name: "ex_doc", repository: "hexpm"},
+        %{name: "ecto", repository: "my_repo"}
+      ] = build.meta.requirements
+    end
+  after
+    purge [ReleaseCustomRepoDeps.Mixfile]
+  end
+
   test "create with meta" do
     Mix.Project.push ReleaseMeta.Mixfile
 
