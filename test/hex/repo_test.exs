@@ -5,7 +5,7 @@ defmodule Hex.RepoTest do
   test "get_package" do
     assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
 
-    assert_raise RuntimeError, "unknown repo \"bad\"", fn ->
+    assert_raise Mix.Error, ~r"Unknown repository \"bad\"", fn ->
       Hex.Repo.get_package("bad", "postgrex", "")
     end
   end

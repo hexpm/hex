@@ -6,8 +6,11 @@ defmodule Hex.Repo do
   def get_repo(repo) do
     repos = Hex.State.fetch!(:repos)
     case Map.fetch(repos, repo) do
-      {:ok, config} -> config
-      :error -> raise "unknown repo #{inspect repo}"
+      {:ok, config} ->
+        config
+      :error ->
+        # TODO: Elaborate on this
+        Mix.raise "Unknown repository #{inspect repo}, add new repositories with the `mix hex.repo` task"
     end
   end
 

@@ -44,23 +44,24 @@ defmodule HexTest.Hexpm do
   end
   """
 
-  def init do
+  def init() do
     check_hexpm()
-    mix = hexpm_mix() |> List.to_string
+    mix = hexpm_mix() |> List.to_string()
 
     cmd(mix, ["ecto.drop", "-r", "Hexpm.Repo", "--quiet"])
     cmd(mix, ["ecto.create", "-r", "Hexpm.Repo", "--quiet"])
     cmd(mix, ["ecto.migrate", "-r", "Hexpm.Repo"])
   end
 
-  def start do
-    path               = Hex.string_to_charlist(path())
-    hexpm_mix_home     = Hex.string_to_charlist(hexpm_mix_home())
+  def start() do
+    path = Hex.string_to_charlist(path())
+    hexpm_mix_home = Hex.string_to_charlist(hexpm_mix_home())
     hexpm_mix_archives = Hex.string_to_charlist(hexpm_mix_archives())
 
-    key = Path.join(__DIR__, "../fixtures/test_priv.pem")
-          |> File.read!
-          |> Hex.string_to_charlist
+    key =
+      Path.join(__DIR__, "../fixtures/test_priv.pem")
+      |> File.read!()
+      |> Hex.string_to_charlist()
 
     env = [
       {'MIX_ENV', 'hex'},
@@ -187,7 +188,7 @@ defmodule HexTest.Hexpm do
   def new_user(username, email, password, key) do
     {:ok, {201, _, _}} = Hex.API.User.new(username, email, password)
     {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new(key, [user: username, pass: password])
-    [username: username, key: secret] ++ Mix.Tasks.Hex.generate_encrypted_key(password, secret)
+    [key: secret, encrypted_key: Mix.Tasks.Hex.encrypt_key(password, secret)]
   end
 
   def new_key(auth) do
@@ -197,7 +198,7 @@ defmodule HexTest.Hexpm do
 
   def new_key(username, password, key) do
     {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new(key, [user: username, pass: password])
-    [username: username, key: secret] ++ Mix.Tasks.Hex.generate_encrypted_key(password, secret)
+    [key: secret, encrypted_key: Mix.Tasks.Hex.encrypt_key(password, secret)]
   end
 
   def new_package(name, version, deps, meta, auth) do

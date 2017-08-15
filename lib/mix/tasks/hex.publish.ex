@@ -71,7 +71,7 @@ defmodule Mix.Tasks.Hex.Publish do
   recommended to do so.
 
     * `:name` - Set this if the package name is not the same as the application
-       name.
+      name.
 
     * `:files` - List of files and directories to include in the package,
       can include wildcards. Defaults to `["lib", "priv", "mix.exs", "README*",
@@ -96,35 +96,34 @@ defmodule Mix.Tasks.Hex.Publish do
     Hex.start()
 
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
-    config = Hex.Config.read()
     build = Build.prepare_package()
     revert_version = opts[:revert]
     revert = !!revert_version
 
     case args do
       ["package"] when revert ->
-        auth = Mix.Tasks.Hex.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info("hexpm")
         revert_package(build, revert_version, auth)
 
       ["docs"] when revert ->
-        auth = Mix.Tasks.Hex.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info("hexpm")
         revert_docs(build, revert_version, auth)
 
       [] when revert ->
-        auth = Mix.Tasks.Hex.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info("hexpm")
         revert(build, revert_version, auth)
 
       ["package"] ->
-        auth = Mix.Tasks.Hex.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info("hexpm")
         if proceed?(build), do: create_release(build, auth, opts)
 
       ["docs"] ->
-        auth = Mix.Tasks.Hex.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info("hexpm")
         docs_task(build, opts)
         create_docs(build, auth, opts)
 
       [] ->
-        auth = Mix.Tasks.Hex.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info("hexpm")
         create(build, auth, opts)
 
       _ ->

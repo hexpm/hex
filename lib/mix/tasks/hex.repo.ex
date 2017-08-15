@@ -22,44 +22,55 @@ defmodule Mix.Tasks.Hex.Repo do
 
   Child dependencies will always be fetched from the same repository as the
   parent package. To override which repository a package is fetched from add
-  the package to your dependencies and add the `:repo` option.
+  add the `:repo` option to the package in your dependencies.
 
-  ### Add a repo
+  ## Add a repo
 
-      mix hex.repo add NAME URL [PUBLIC_KEY_PATH [AUTH_KEY]]
+      mix hex.repo add NAME URL
 
-  ### Set config for repo
+  ### Command line options
 
-      mix hex.repo set url NAME URL
-      mix hex.repo set public_key NAME PUBLIC_KEY_PATH
-      mix hex.repo set auth_key NAME AUTH_KEY
+    * `--public-key path` - Path to public key used to verify the registry (optional).
+    * `--auth-key key` - Key used to authenticate HTTP requests to repository (optional).
+    * `--api-url url` - This URL will be used when publishing packages to the
+      repository when the `:repo` configuration is set in the package configuration.
+      It will also be used when passing the `--repo` flag to tasks such as
+      `hex.owner` (optional).
+    * `--api-key key` - Key used to authenticate requests to the API associated
+      with the repository (optional).
 
-  ### Remove repo
+  ## Set config for repo
+
+      mix hex.repo set NAME --url URL
+      mix hex.repo set NAME --public-key PATH
+      mix hex.repo set NAME --auth-key KEY
+      mix hex.repo set NAME --api-url URL
+      mix hex.repo set NAME --api-key KEY
+
+  ## Remove repo
 
       mix hex.repo remove NAME
 
-  ### Show repo config
+  ## Show repo config
 
       mix hex.repo show NAME
 
-  ### List all repos
+  ## List all repos
 
       mix hex.repo list
   """
 
+  @switches [public_key: :string, auth_key: :string, api_url: :string, api_key: :string]
+
   def run(args) do
     Hex.start()
-    {_, args, _} = OptionParser.parse(args)
+    {opts, args, _} = OptionParser.parse(args, switches: @switches)
 
     case args do
-      ["add", name, url | rest] when length(rest) <= 2 ->
-        add(name, url, rest)
-      ["set", "url", name, url] ->
-        set_url(name, url)
-      ["set", "public_key", name, public_key] ->
-        set_public_key(name, public_key)
-      ["set", "auth_key", name, auth_key] ->
-        set_auth_key(name, auth_key)
+      ["add", name, url] ->
+        add(name, url, opts)
+      ["set", name] ->
+        set(name, opts)
       ["remove", name] ->
         remove(name)
       ["show", name] ->
@@ -69,10 +80,8 @@ defmodule Mix.Tasks.Hex.Repo do
       _ ->
         Mix.raise """
         Invalid arguments, expected one of:
-        mix hex.repo add NAME URL [PUBLIC_KEY_PATH [AUTH_KEY]]
-        mix hex.repo set url NAME URL
-        mix hex.repo set public_key NAME PUBLIC_KEY_PATH
-        mix hex.repo set auth_key NAME AUTH_KEY
+        mix hex.repo add NAME URL
+        mix hex.repo set NAME
         mix hex.repo remove NAME
         mix hex.repo show NAME
         mix hex.repo list
@@ -80,34 +89,29 @@ defmodule Mix.Tasks.Hex.Repo do
     end
   end
 
-  # TODO: read and verify public key
+  defp add(name, url, opts) do
+    public_key = read_public_key(opts[:public_key])
 
-  defp add(name, url, rest) do
-    {public_key, auth_key} = extra_add_args(rest)
-    public_key = read_public_key(public_key)
-    repo = %{url: url, public_key: public_key, auth_key: auth_key}
+    repo = %{
+      url: url,
+      public_key: nil,
+      auth_key: nil,
+      api_url: nil,
+      api_key: nil
+    }
+    |> Map.merge(Map.new(opts))
+    |> Map.put(:public_key, public_key)
 
     read_config()
     |> Map.put(name, repo)
     |> Hex.Config.update_repos()
   end
 
-  defp set_url(name, url) do
-    read_config()
-    |> Map.update!(name, &Map.put(&1, :url, url))
-    |> Hex.Config.update_repos()
-  end
+  defp set(name, opts) do
+    opts = Keyword.replace(opts, :public_key, read_public_key(opts[:public_key]))
 
-  defp set_public_key(name, public_key) do
-    public_key = read_public_key(public_key)
     read_config()
-    |> Map.update!(name, &Map.put(&1, :public_key, public_key))
-    |> Hex.Config.update_repos()
-  end
-
-  defp set_auth_key(name, auth_key) do
-    read_config()
-    |> Map.update!(name, &Map.put(&1, :auth_key, auth_key))
+    |> Map.update!(name, &Map.merge(&1, Map.new(opts)))
     |> Hex.Config.update_repos()
   end
 
@@ -118,10 +122,17 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp list do
-    header = ["Name", "URL", "Public key", "Auth key"]
+    header = ["Name", "URL", "Public key", "Auth key", "API URL", "API key"]
     values =
-      Enum.map(read_config(), fn {name, %{url: url, public_key: public_key, auth_key: auth_key}} ->
-        [name, url, show_public_key(public_key), auth_key]
+      Enum.map(read_config(), fn {name, config} ->
+        [
+          name,
+          config[:url],
+          show_public_key(config[:public_key]),
+          config[:auth_key],
+          config[:api_url],
+          config[:api_key],
+        ]
       end)
     Mix.Tasks.Hex.print_table(header, values)
   end
@@ -153,7 +164,7 @@ defmodule Mix.Tasks.Hex.Repo do
       """
   end
 
-  defp read_config do
+  defp read_config() do
     Hex.Config.read()
     |> Hex.Config.read_repos()
   end
@@ -164,10 +175,6 @@ defmodule Mix.Tasks.Hex.Repo do
     public_key = :public_key.pem_entry_decode(pem_entry)
     ssh_hostkey_fingerprint(public_key)
   end
-
-  defp extra_add_args([]), do: {nil, nil}
-  defp extra_add_args([public_key]), do: {public_key, nil}
-  defp extra_add_args([public_key, auth_key]), do: {public_key, auth_key}
 
   # Adapted from https://github.com/erlang/otp/blob/3eddb0f762de248d3230b38bc9d478bfbc8e7331/lib/public_key/src/public_key.erl#L824
   defp ssh_hostkey_fingerprint(key) do

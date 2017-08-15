@@ -155,7 +155,8 @@ defmodule HexTest.Case do
 
   def setup_auth(username, password) do
     {:ok, {201, body, _}} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
-    Mix.Tasks.Hex.persist_key(password, body["secret"])
+    key = Mix.Tasks.Hex.encrypt_key(password, body["secret"])
+    Mix.Tasks.Hex.update_key("hexpm", key)
   end
 
   def get_auth(username, password) do
@@ -165,17 +166,19 @@ defmodule HexTest.Case do
 
   public_key = File.read!(Path.join(__DIR__, "../fixtures/test_pub.pem"))
 
-  {:ok, _} = Hex.State.start_link
+  {:ok, _} = Hex.State.start_link()
 
   Hex.State.put(:home, Path.expand("../../tmp/hex_home", __DIR__))
   Hex.State.put(:hexpm_pk, File.read!(Path.join(__DIR__, "../fixtures/test_pub.pem")))
-  Hex.State.put(:api, "http://localhost:4043/api")
   Hex.State.update!(:repos, &put_in(&1["hexpm"].url, "http://localhost:4043/repo"))
+  Hex.State.update!(:repos, &put_in(&1["hexpm"].api_url, "http://localhost:4043/api"))
   Hex.State.update!(:repos, &put_in(&1["hexpm"].public_key, public_key))
+  Hex.State.update!(:repos, &put_in(&1["hexpm"].api_key, nil))
+  Hex.State.update!(:repos, &put_in(&1["hexpm"].auth_key, nil))
   Hex.State.put(:pbkdf2_iters, 10)
   Hex.State.put(:clean_pass, false)
-  @hex_state Hex.State.get_all
-  Hex.State.stop
+  @hex_state Hex.State.get_all()
+  Hex.State.stop()
 
   def reset_state do
     Hex.State.put_all(@hex_state)

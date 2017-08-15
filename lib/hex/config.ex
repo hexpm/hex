@@ -1,5 +1,6 @@
 defmodule Hex.Config do
   @hexpm_url "https://repo.hex.pm"
+  @hexpm_api_url "https://hex.pm/api"
   @hexpm_public_key """
   -----BEGIN PUBLIC KEY-----
   MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApqREcFDt5vV21JVe2QNB
@@ -12,7 +13,7 @@ defmodule Hex.Config do
   -----END PUBLIC KEY-----
   """
 
-  def read do
+  def read() do
     case File.read(config_path()) do
       {:ok, binary} ->
         case decode_term(binary) do
@@ -46,14 +47,16 @@ defmodule Hex.Config do
     path = config_path()
     File.mkdir_p!(Path.dirname(path))
     File.write!(path, string)
+    config
   end
 
-  defp config_path do
+  defp config_path() do
     Path.join(hex_home(), "hex.config")
   end
 
-  defp hex_home do
-    if Process.whereis(Hex.State) do
+  defp hex_home() do
+    state_pid = Process.whereis(Hex.State)
+    if state_pid && state_pid != self() do
       Hex.State.fetch!(:home)
     else
       Path.expand(System.get_env("HEX_HOME") || "~/.hex")
@@ -90,27 +93,44 @@ defmodule Hex.Config do
 
   def read_repos(config) do
     (config[:"$repos"] || %{})
-    |> merge_hexpm()
+    |> merge_hexpm(config)
   end
 
   def update_repos(repos) do
-    repos = remove_hexpm(repos)
-    Hex.Config.update([{:"$repos", repos}])
+    repos = clean_hexpm(repos)
+    config = Hex.Config.update([{:"$repos", repos}])
+    Hex.State.refresh_repos(config)
   end
 
-  defp default_hexpm do
-    %{url: @hexpm_url, public_key: @hexpm_public_key, auth_key: nil}
+  defp default_hexpm(config) do
+    %{
+      url: @hexpm_url,
+      public_key: @hexpm_public_key,
+      auth_key: nil,
+      api_url: @hexpm_api_url,
+      api_key: config[:encrypted_key],
+    }
   end
 
-  defp merge_hexpm(repos) do
-    Map.update(repos, "hexpm", default_hexpm(), &Map.merge(default_hexpm(), &1))
+  defp merge_hexpm(repos, config) do
+    hexpm = default_hexpm(config)
+    Map.update(repos, "hexpm", hexpm, &Map.merge(hexpm, &1))
   end
 
-  defp remove_hexpm(repos) do
-    if Map.get(repos, "hexpm") == default_hexpm() do
-      Map.delete(repos, "hexpm")
-    else
-      repos
-    end
+  defp clean_hexpm(repos) do
+    repo = Map.fetch!(repos, "hexpm")
+    repo = Enum.reduce(default_hexpm([]), repo, fn {key, value}, repo ->
+      if value == repo_value(repo, key) do
+        Map.delete(repo, key)
+      else
+        repo
+      end
+    end)
+
+    Map.put(repos, "hexpm", repo)
   end
+
+  defp repo_value(_repo, :url), do: Hex.State.fetch!(:mirror_url)
+  defp repo_value(_repo, :api_url), do: Hex.State.fetch!(:api_url)
+  defp repo_value(repo, key), do: Map.fetch!(repo, key)
 end
