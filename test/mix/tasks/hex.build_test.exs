@@ -45,6 +45,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       Hex.State.put(:home, tmp_path())
       File.write!("myfile.txt", "hello")
       File.write!("executable.sh", "world")
+      File.chmod!("myfile.txt", 0o100644)
       File.chmod!("executable.sh", 0o100755)
 
       Mix.Tasks.Hex.Build.run([])
