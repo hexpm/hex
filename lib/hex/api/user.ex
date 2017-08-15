@@ -1,6 +1,10 @@
 defmodule Hex.API.User do
   alias Hex.API
 
+  def me(auth) do
+    API.request(:get, "users/me", auth)
+  end
+
   def get(username) do
     API.request(:get, "users/#{username}")
   end

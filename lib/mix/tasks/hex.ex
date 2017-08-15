@@ -79,7 +79,7 @@ defmodule Mix.Tasks.Hex do
     end)
   end
 
-  def generate_key(username, password) do
+  def generate_key(repo, username, password) do
     Hex.Shell.info("Generating API key...")
     {:ok, name} = :inet.gethostname()
     name = List.to_string(name)
@@ -88,10 +88,7 @@ defmodule Mix.Tasks.Hex do
       {:ok, {201, body, _}} ->
         Hex.Shell.info("Encrypting API key with user password...")
         encrypted_key = Hex.Crypto.encrypt(body["secret"], password, @apikey_tag)
-        Hex.Config.update(
-          username: username,
-          encrypted_key: encrypted_key
-        )
+        update_key(repo, encrypted_key)
 
       other ->
         Mix.shell.error("Generation of API key failed")
@@ -99,38 +96,32 @@ defmodule Mix.Tasks.Hex do
     end
   end
 
-  def auth_info(config) do
-    cond do
-      encrypted_key = config[:encrypted_key] ->
-        [key: decrypt_key(encrypted_key)]
+  def update_key(repo, key) do
+    Hex.State.fetch!(:repos)
+    |> Map.update!(repo, &Map.put(&1, :api_key, key))
+    |> Hex.Config.update_repos()
+  end
 
-      key = config[:key] ->
-        Hex.Shell.info "Your stored API key is not encrypted, please " <>
-                       "supply a passphrase to encrypt it"
-        encrypt_key(config, key)
-        [key: key]
-
-      true ->
-        Mix.raise "No authorized user found. Run 'mix hex.user auth'"
+  def auth_info(repo) do
+    if key = Hex.State.fetch!(:repos)[repo].api_key do
+      [key: prompt_decrypt_key(key)]
+    else
+      Mix.raise "No authorized user found. Run 'mix hex.user auth'"
     end
   end
 
-  def encrypt_key(config, key, challenge \\ "Passphrase") do
-    password = password_get("#{challenge}:") |> Hex.string_trim
-    confirm = password_get("#{challenge} (confirm):") |> Hex.string_trim
+  def prompt_encrypt_key(repo, key, challenge \\ "Passphrase") do
+    password = password_get("#{challenge}:") |> Hex.string_trim()
+    confirm = password_get("#{challenge} (confirm):") |> Hex.string_trim()
     if password != confirm do
       Mix.raise "Entered passphrases do not match"
     end
 
     encrypted_key = Hex.Crypto.encrypt(key, password, @apikey_tag)
-
-    config
-    |> Keyword.delete(:key)
-    |> Keyword.merge([encrypted_key: encrypted_key])
-    |> Hex.Config.write
+    update_key(repo, encrypted_key)
   end
 
-  def decrypt_key(encrypted_key, challenge \\ "Passphrase") do
+  def prompt_decrypt_key(encrypted_key, challenge \\ "Passphrase") do
     password = password_get("#{challenge}:") |> Hex.string_trim()
 
     case Hex.Crypto.decrypt(encrypted_key, password, @apikey_tag) do
@@ -143,14 +134,8 @@ defmodule Mix.Tasks.Hex do
     end
   end
 
-  def generate_encrypted_key(password, key) do
-    encrypted_key = Hex.Crypto.encrypt(key, password, @apikey_tag)
-    [encrypted_key: encrypted_key]
-  end
-
-  def persist_key(password, key) do
-    generate_encrypted_key(password, key)
-    |> Hex.Config.update()
+  def encrypt_key(password, key) do
+    Hex.Crypto.encrypt(key, password, @apikey_tag)
   end
 
   def required_opts(opts, required) do

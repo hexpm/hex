@@ -37,16 +37,15 @@ defmodule Mix.Tasks.Hex.Retire do
     Hex.start()
 
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
-    config = Hex.Config.read()
     retire? = !opts[:unretire]
 
     case args do
       [package, version, reason] when retire? ->
-        auth = Mix.Tasks.Hex.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info("hexpm")
         retire(package, version, reason, opts, auth)
 
       [package, version] when not retire? ->
-        auth = Mix.Tasks.Hex.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info("hexpm")
         unretire(package, version, auth)
 
       _ ->

@@ -38,24 +38,20 @@ defmodule Mix.Tasks.Hex.Owner do
 
   def run(args) do
     Hex.start()
-    config = Hex.Config.read()
 
     case args do
       ["add", package, owner] ->
-        auth = Mix.Tasks.Hex.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info("hexpm")
         add_owner(package, owner, auth)
-
       ["remove", package, owner] ->
-        auth = Mix.Tasks.Hex.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info("hexpm")
         remove_owner(package, owner, auth)
-
       ["list", package] ->
-        auth = Mix.Tasks.Hex.auth_info(config)
+        auth = Mix.Tasks.Hex.auth_info("hexpm")
         list_owners(package, auth)
-
       ["packages"] ->
-        list_owned_packages(config)
-
+        auth = Mix.Tasks.Hex.auth_info("hexpm")
+        list_owned_packages(auth)
       _ ->
         Mix.raise """
         Invalid arguments, expected one of:
@@ -101,10 +97,8 @@ defmodule Mix.Tasks.Hex.Owner do
     end
   end
 
-  def list_owned_packages(config) do
-    {:ok, username} = Keyword.fetch(config, :username)
-
-    case Hex.API.User.get(username) do
+  def list_owned_packages(opts) do
+    case Hex.API.User.me(opts) do
       {:ok, {code, body, _headers}} when code in 200..299 ->
         Enum.each(body["owned_packages"], fn {name, _url} ->
           Hex.Shell.info("#{name} - #{url(name)}")

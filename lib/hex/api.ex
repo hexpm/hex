@@ -31,7 +31,8 @@ defmodule Hex.API do
   end
 
   defp url(path) do
-    Hex.State.fetch!(:api) <> "/" <> path
+    api_url = Hex.State.fetch!(:repos)["hexpm"].api_url
+    api_url <> "/" <> path
   end
 
   defp headers(opts) do

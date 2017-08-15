@@ -2,34 +2,53 @@ defmodule Hex.State do
   @name __MODULE__
   @logged_keys ~w(http_proxy HTTP_PROXY https_proxy HTTPS_PROXY)
   @default_home "~/.hex"
-  @default_url "https://hex.pm/api"
+  @pbkdf2_iters 32_768
 
-  def start_link do
-    config = Hex.Config.read
+  def start_link() do
+    config = Hex.Config.read()
     Agent.start_link(__MODULE__, :init, [config], [name: @name])
   end
 
-  def stop do
+  def stop() do
     Agent.stop(@name)
   end
 
   def init(config) do
-    deprecations(config)
-    warn_on_deprecated_env("HEX_API", "HEX_API_URL")
+    {api_url, mirror_url, repos} = repos(config)
 
-    %{home: System.get_env("HEX_HOME") |> default(@default_home) |> Path.expand,
-      api: load_config(config, ["HEX_API_URL", "HEX_API"], :api_url) |> default(@default_url) |> trim_slash,
-      repos: Hex.Config.read_repos(config),
+    %{
+      home: System.get_env("HEX_HOME") |> default(@default_home) |> Path.expand(),
+      repos: repos,
+      api_url: api_url,
+      mirror_url: mirror_url,
       http_proxy: load_config(config, ["http_proxy", "HTTP_PROXY"], :http_proxy),
       https_proxy: load_config(config, ["https_proxy", "HTTPS_PROXY"], :https_proxy),
-      offline?: load_config(config, ["HEX_OFFLINE"], :offline) |> to_boolean |> default(false),
-      check_cert?: load_config(config, ["HEX_UNSAFE_HTTPS"], :unsafe_https) |> to_boolean |> default(false) |> Kernel.not,
-      check_registry?: load_config(config, ["HEX_UNSAFE_REGISTRY"], :unsafe_registry) |> to_boolean |> default(false) |> Kernel.not,
-      http_concurrency: load_config(config, ["HEX_HTTP_CONCURRENCY"], :http_concurrency) |> to_integer |> default(8),
+      offline?: load_config(config, ["HEX_OFFLINE"], :offline) |> to_boolean() |> default(false),
+      check_cert?: load_config(config, ["HEX_UNSAFE_HTTPS"], :unsafe_https) |> to_boolean() |> default(false) |> Kernel.not(),
+      check_registry?: load_config(config, ["HEX_UNSAFE_REGISTRY"], :unsafe_registry) |> to_boolean() |> default(false) |> Kernel.not(),
+      http_concurrency: load_config(config, ["HEX_HTTP_CONCURRENCY"], :http_concurrency) |> to_integer() |> default(8),
       httpc_profile: :hex,
       ssl_version: ssl_version(),
-      pbkdf2_iters: 32_768,
-      clean_pass: true}
+      pbkdf2_iters: @pbkdf2_iters,
+      clean_pass: true,
+    }
+  end
+
+  def refresh() do
+    Agent.update(@name, fn _ ->
+      init(Hex.Config.read())
+    end)
+  end
+
+  def refresh_repos(config) do
+    Agent.update(@name, fn state ->
+      {api_url, mirror_url, repos} = repos(config)
+      %{state |
+        repos: repos,
+        api_url: api_url,
+        mirror_url: mirror_url,
+      }
+    end)
   end
 
   def fetch(key) do
@@ -62,7 +81,7 @@ defmodule Hex.State do
     end)
   end
 
-  def get_all do
+  def get_all() do
     Agent.get(@name, & &1)
   end
 
@@ -137,26 +156,23 @@ defmodule Hex.State do
     end
   end
 
-  defp deprecations(config) do
-    repo = load_config(config, ["HEX_REPO", "HEX_REPO_URL"], :repo_url)
-    mirror = load_config(config, ["HEX_MIRROR", "HEX_MIRROR_URL"], :mirror_url)
-
-    if repo do
-      Mix.raise deprecation_message("HEX_REPO", :repo_url)
-    end
-
-    if mirror do
-      Mix.raise deprecation_message("HEX_MIRROR", :mirror_url)
-    end
+  defp repos(config) do
+    api_url = load_config(config, ["HEX_API_URL", "HEX_API"], :api_url) |> trim_slash()
+    mirror_url = load_config(config, ["HEX_MIRROR_URL", "HEX_MIRROR"], :mirror_url) |> trim_slash()
+    repos = read_repos(config, api_url, mirror_url)
+    {api_url, mirror_url, repos}
   end
 
-  defp deprecation_message(env, config) do
-    "The environment variable #{env} and configuration key #{config} have " <>
-    "been deprecated in favor of setting the repository configuration " <>
-    "through the `mix hex.repo` task"
+  defp read_repos(config, api, mirror) do
+    config
+    |> Hex.Config.read_repos()
+    |> Map.update!("hexpm", &Map.merge(&1, %{
+      api_url: api || &1.api_url,
+      url: mirror || &1.url,
+    }))
   end
 
-  defp ssl_version do
+  defp ssl_version() do
     {:ok, version} = :application.get_key(:ssl, :vsn)
     parse_ssl_version(version)
   end
@@ -175,10 +191,4 @@ defmodule Hex.State do
   defp version_pad([major, minor]), do: [major, minor, 0]
   defp version_pad([major, minor, patch]), do: [major, minor, patch]
   defp version_pad([major, minor, patch | _]), do: [major, minor, patch]
-
-  defp warn_on_deprecated_env(deprecated_varname, current_varname) do
-    if System.get_env(deprecated_varname) do
-      Hex.Shell.warn "#{deprecated_varname} is deprecated. Please use #{current_varname} instead."
-    end
-  end
 end

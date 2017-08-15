@@ -69,26 +69,23 @@ defmodule Mix.Tasks.Hex.User do
 
   def run(args) do
     Hex.start()
-    config = Hex.Config.read()
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
 
     case args do
       ["register"] ->
         register()
       ["whoami"] ->
-        whoami(config)
+        whoami()
       ["auth"] ->
         create_key()
       ["deauth"] ->
-        deauth(config)
+        deauth()
       ["passphrase"] ->
-        passphrase(config)
+        passphrase()
       ["key"] ->
-        process_key_task(opts, config)
+        process_key_task(opts)
       ["reset", "password"] ->
         reset_password()
-      ["test"] ->
-        test(config)
       _ ->
         Mix.raise """
         Invalid arguments, expected one of:
@@ -100,31 +97,38 @@ defmodule Mix.Tasks.Hex.User do
         mix hex.user key --remove-all
         mix hex.user key --remove KEY_NAME
         mix hex.user key --list
-        mix hex.user test
         mix hex.user reset password
         """
     end
   end
 
-  defp process_key_task([remove_all: true], config) do
-    remove_all_keys(config)
+  defp process_key_task([remove_all: true]) do
+    remove_all_keys()
   end
-  defp process_key_task([remove: key], config) do
-    remove_key(key, config)
+  defp process_key_task([remove: key]) do
+    remove_key(key)
   end
-  defp process_key_task([list: true], config) do
-    list_keys(config)
+  defp process_key_task([list: true]) do
+    list_keys()
   end
-  defp process_key_task(_, _) do
+  defp process_key_task(_opts) do
     Mix.raise "Invalid arguments. Run 'mix help hex.user'"
   end
 
-  defp whoami(config) do
-    username = local_user(config)
-    Hex.Shell.info(username)
+  defp whoami() do
+    # TODO: Support custom repo
+    auth = Mix.Tasks.Hex.auth_info("hexpm")
+
+    case Hex.API.User.me(auth) do
+      {:ok, {code, body, _}} when code in 200..299 ->
+        Hex.Shell.info(body["username"])
+      other ->
+        Hex.Shell.error("Failed to auth")
+        Hex.Utils.print_error_result(other)
+    end
   end
 
-  defp reset_password do
+  defp reset_password() do
     name = Hex.Shell.prompt("Username or Email:") |> Hex.string_trim()
 
     case Hex.API.User.password_reset(name) do
@@ -137,39 +141,35 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp deauth(config) do
-    username = local_user(config)
+  defp deauth() do
+    # TODO: Support custom repo
+    Mix.Tasks.Hex.update_key("hexpm", nil)
 
-    config
-    |> Keyword.drop([:username, :key, :key_cipher, :key_salt, :encrypted_key])
-    |> Hex.Config.write()
-
-    Hex.Shell.info "User `" <> username <> "` removed from the local machine. " <>
+    Hex.Shell.info "Authentication credentials removed from the local machine. " <>
                    "To authenticate again, run `mix hex.user auth` " <>
                    "or create a new user with `mix hex.user register`"
   end
 
-  defp passphrase(config) do
-    key = cond do
-      encrypted_key = config[:encrypted_key] ->
-        Mix.Tasks.Hex.decrypt_key(encrypted_key, "Current passphrase")
-      key = config[:key] ->
-        key
-      true ->
-        Mix.raise "No authorized user found. Run 'mix hex.user auth'"
+  defp passphrase() do
+    # TODO: Support custom repo
+    encrypted_key = Hex.State.fetch!(:repos)["hexpm"].api_key
+
+    unless encrypted_key do
+      Mix.raise "No authorized user found. Run 'mix hex.user auth'"
     end
 
-    Mix.Tasks.Hex.encrypt_key(config, key, "New passphrase")
+    decrypted_key = Mix.Tasks.Hex.prompt_decrypt_key(encrypted_key, "Current passphrase")
+    Mix.Tasks.Hex.prompt_encrypt_key("hexpm", decrypted_key, "New passphrase")
   end
 
-  defp register do
+  defp register() do
     Hex.Shell.info("By registering an account on Hex.pm you accept all our " <>
                    "policies and terms of service found at https://hex.pm/policies\n")
 
-    username = Hex.Shell.prompt("Username:") |> Hex.string_trim
-    email = Hex.Shell.prompt("Email:") |> Hex.string_trim
-    password = Mix.Tasks.Hex.password_get("Password:") |> Hex.string_trim
-    confirm = Mix.Tasks.Hex.password_get("Password (confirm):") |> Hex.string_trim
+    username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
+    email = Hex.Shell.prompt("Email:") |> Hex.string_trim()
+    password = Mix.Tasks.Hex.password_get("Password:") |> Hex.string_trim()
+    confirm = Mix.Tasks.Hex.password_get("Password (confirm):") |> Hex.string_trim()
 
     if password != confirm do
       Mix.raise "Entered passwords do not match"
@@ -182,7 +182,8 @@ defmodule Mix.Tasks.Hex.User do
   defp create_user(username, email, password) do
     case Hex.API.User.new(username, email, password) do
       {:ok, {code, _, _}} when code in 200..299 ->
-        Mix.Tasks.Hex.generate_key(username, password)
+        # TODO: Support custom repo
+        Mix.Tasks.Hex.generate_key("hexpm", username, password)
         Hex.Shell.info("You are required to confirm your email to access your account, " <>
                        "a confirmation email has been sent to #{email}")
       other ->
@@ -191,15 +192,16 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp create_key do
-    username = Hex.Shell.prompt("Username:") |> Hex.string_trim
-    password = Mix.Tasks.Hex.password_get("Password:") |> Hex.string_trim
+  defp create_key() do
+    username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
+    password = Mix.Tasks.Hex.password_get("Password:") |> Hex.string_trim()
 
-    Mix.Tasks.Hex.generate_key(username, password)
+    # TODO: Support custom repo
+    Mix.Tasks.Hex.generate_key("hexpm", username, password)
   end
 
-  defp remove_all_keys(config) do
-    auth = Mix.Tasks.Hex.auth_info(config)
+  defp remove_all_keys() do
+    auth = Mix.Tasks.Hex.auth_info("hexpm")
 
     Hex.Shell.info "Removing all keys..."
     case Hex.API.Key.delete_all(auth) do
@@ -211,8 +213,8 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp remove_key(key, config) do
-    auth = Mix.Tasks.Hex.auth_info(config)
+  defp remove_key(key) do
+    auth = Mix.Tasks.Hex.auth_info("hexpm")
 
     Hex.Shell.info "Removing key #{key}..."
     case Hex.API.Key.delete(key, auth) do
@@ -227,8 +229,8 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp list_keys(config) do
-    auth = Mix.Tasks.Hex.auth_info(config)
+  defp list_keys() do
+    auth = Mix.Tasks.Hex.auth_info("hexpm")
 
     case Hex.API.Key.get(auth) do
       {:ok, {code, body, _headers}} when code in 200..299 ->
@@ -239,29 +241,6 @@ defmodule Mix.Tasks.Hex.User do
       other ->
         Hex.Shell.error "Key fetching failed"
         Hex.Utils.print_error_result(other)
-    end
-  end
-
-  defp test(config) do
-    username = local_user(config)
-    auth = Mix.Tasks.Hex.auth_info(config)
-
-    case Hex.API.User.test(username, auth) do
-      {:ok, {code, _, _}} when code in 200..299 ->
-        Hex.Shell.info("Successfully authed. Your key works.")
-      other ->
-        Hex.Shell.error("Failed to auth")
-        Hex.Utils.print_error_result(other)
-    end
-  end
-
-  defp local_user(config) do
-    case Keyword.fetch(config, :username) do
-      {:ok, username} ->
-        username
-      :error ->
-        Mix.raise "No user authorised on the local machine. Run `mix hex.user auth` " <>
-                  "or create a new user with `mix hex.user register`"
     end
   end
 end
