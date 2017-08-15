@@ -39,13 +39,30 @@ defmodule Mix.Tasks.Hex.RepoTest do
     end
   end
 
-  test "set" do
+  test "set url" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
       Mix.Tasks.Hex.Repo.run(["set", "reponame", "--url", "other_url"])
       assert ["$repos": %{"reponame" => %{url: "other_url"}}] = Hex.Config.read()
+    end
+  end
+
+  test "set api_url" do
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
+      Mix.Tasks.Hex.Repo.run(["set", "reponame", "--api-url", "apiurl"])
+
+      assert ["$repos": %{"reponame" => %{api_url: "apiurl"}}] = Hex.Config.read()
+      assert Hex.State.fetch!(:repos)["reponame"].api_url == "apiurl"
+
+      Mix.Tasks.Hex.Repo.run(["set", "hexpm", "--api-url", "apiurl"])
+
+      assert ["$repos": %{"hexpm" => %{api_url: "apiurl"}}] = Hex.Config.read()
+      assert Hex.State.fetch!(:repos)["hexpm"].api_url == "apiurl"
     end
   end
 
