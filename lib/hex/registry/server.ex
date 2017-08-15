@@ -257,6 +257,7 @@ defmodule Hex.Registry.Server do
     end)
   catch
     :throw, {:norepo, repo, package} ->
+      # TODO: Elaborate on this
       message = "Trying to use package #{package} from repo #{repo} without " <>
                 "the repo being configured with `mix hex.repo`"
       {:error, message}

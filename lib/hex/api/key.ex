@@ -1,19 +1,19 @@
 defmodule Hex.API.Key do
   alias Hex.API
 
-  def new(name, auth) do
-    API.erlang_post_request("keys", %{name: name}, auth)
+  def new(repo, name, auth) do
+    API.erlang_post_request(repo, "keys", %{name: name}, auth)
   end
 
-  def get(auth) do
-    API.request(:get, "keys", auth)
+  def get(repo, auth) do
+    API.request(:get, repo, "keys", auth)
   end
 
-  def delete(name, auth) do
-    API.request(:delete, "keys/#{name}", auth)
+  def delete(repo, name, auth) do
+    API.request(:delete, repo, "keys/#{name}", auth)
   end
 
-  def delete_all(auth) do
-    API.request(:delete, "keys", auth)
+  def delete_all(repo, auth) do
+    API.request(:delete, repo, "keys", auth)
   end
 end

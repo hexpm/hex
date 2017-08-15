@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
     Mix.Tasks.Hex.User.run(["register"])
 
-    assert {:ok, {200, body, _}} = Hex.API.User.get("eric")
+    assert {:ok, {200, body, _}} = Hex.API.User.get("hexpm", "eric")
     assert body["username"] == "eric"
   end
 
@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       auth = Mix.Tasks.Hex.auth_info("hexpm")
-      assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
+      assert {:ok, {200, body, _}} = Hex.API.Key.get("hexpm", auth)
       assert name in Enum.map(body, &(&1["name"]))
     end
   end
@@ -95,7 +95,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       auth = Hexpm.new_user("list_keys", "list_keys@mail.com", "password", "list_keys")
       Mix.Tasks.Hex.update_key("hexpm", auth[:encrypted_key])
 
-      assert {:ok, {200, [%{"name" => "list_keys"}], _}} = Hex.API.Key.get(auth)
+      assert {:ok, {200, [%{"name" => "list_keys"}], _}} = Hex.API.Key.get("hexpm", auth)
 
       send self(), {:mix_shell_input, :prompt, "password"}
       Mix.Tasks.Hex.User.run(["key", "--list"])
@@ -111,22 +111,22 @@ defmodule Mix.Tasks.Hex.UserTest do
       auth_b = Hexpm.new_key("remove_key", "password", "remove_key_b")
       Mix.Tasks.Hex.update_key("hexpm", auth_a[:encrypted_key])
 
-      assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_a)
-      assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_b)
+      assert {:ok, {200, _, _}} = Hex.API.Key.get("hexpm", auth_a)
+      assert {:ok, {200, _, _}} = Hex.API.Key.get("hexpm", auth_b)
 
       send self(), {:mix_shell_input, :prompt, "password"}
       Mix.Tasks.Hex.User.run(["key", "--remove", "remove_key_b"])
       assert_received {:mix_shell, :info, ["Removing key remove_key_b..."]}
 
-      assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_a)
-      assert {:ok, {401, _, _}} = Hex.API.Key.get(auth_b)
+      assert {:ok, {200, _, _}} = Hex.API.Key.get("hexpm", auth_a)
+      assert {:ok, {401, _, _}} = Hex.API.Key.get("hexpm", auth_b)
 
       send self(), {:mix_shell_input, :prompt, "password"}
       Mix.Tasks.Hex.User.run(["key", "--remove", "remove_key_a"])
       assert_received {:mix_shell, :info, ["Removing key remove_key_a..."]}
       assert_received {:mix_shell, :info, ["Authentication credentials removed from the local machine." <> _]}
 
-      assert {:ok ,{401, _, _}} = Hex.API.Key.get(auth_a)
+      assert {:ok ,{401, _, _}} = Hex.API.Key.get("hexpm", auth_a)
     end
   end
 
@@ -138,16 +138,16 @@ defmodule Mix.Tasks.Hex.UserTest do
       auth_b = Hexpm.new_key("remove_all_keys", "password", "remove_all_keys_b")
       Mix.Tasks.Hex.update_key("hexpm", auth_a[:encrypted_key])
 
-      assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_a)
-      assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_b)
+      assert {:ok, {200, _, _}} = Hex.API.Key.get("hexpm", auth_a)
+      assert {:ok, {200, _, _}} = Hex.API.Key.get("hexpm", auth_b)
 
       send self(), {:mix_shell_input, :prompt, "password"}
       Mix.Tasks.Hex.User.run(["key", "--remove-all"])
       assert_received {:mix_shell, :info, ["Removing all keys..."]}
       assert_received {:mix_shell, :info, ["Authentication credentials removed from the local machine." <> _]}
 
-      assert {:ok, {401, _, _}} = Hex.API.Key.get(auth_a)
-      assert {:ok, {401, _, _}} = Hex.API.Key.get(auth_b)
+      assert {:ok, {401, _, _}} = Hex.API.Key.get("hexpm", auth_a)
+      assert {:ok, {401, _, _}} = Hex.API.Key.get("hexpm", auth_b)
     end
   end
 

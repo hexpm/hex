@@ -29,24 +29,26 @@ defmodule Mix.Tasks.Hex.Retire do
 
     * `--message "MESSAGE"` - Optional message (up to 140 characters) clarifying
       the retirement reason
+    * `--repo REPOSITORY` - The repository to communicate with (default: hexpm)
   """
 
-  @switches [message: :string, unretire: :boolean]
+  @switches [message: :string, unretire: :boolean, repo: :string]
 
   def run(args) do
     Hex.start()
-
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
+
     retire? = !opts[:unretire]
+    repo = opts[:repo]
 
     case args do
       [package, version, reason] when retire? ->
-        auth = Mix.Tasks.Hex.auth_info("hexpm")
-        retire(package, version, reason, opts, auth)
+        auth = Mix.Tasks.Hex.auth_info(repo)
+        retire(repo, package, version, reason, opts, auth)
 
       [package, version] when not retire? ->
-        auth = Mix.Tasks.Hex.auth_info("hexpm")
-        unretire(package, version, auth)
+        auth = Mix.Tasks.Hex.auth_info(repo)
+        unretire(repo, package, version, auth)
 
       _ ->
         Mix.raise """
@@ -57,9 +59,9 @@ defmodule Mix.Tasks.Hex.Retire do
     end
   end
 
-  defp retire(package, version, reason, opts, auth) do
+  defp retire(repo, package, version, reason, opts, auth) do
     body = %{reason: reason, message: opts[:message]}
-    case Hex.API.Release.retire(package, version, body, auth) do
+    case Hex.API.Release.retire(repo, package, version, body, auth) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
 
@@ -69,8 +71,8 @@ defmodule Mix.Tasks.Hex.Retire do
     end
   end
 
-  defp unretire(package, version, auth) do
-    case Hex.API.Release.unretire(package, version, auth) do
+  defp unretire(repo, package, version, auth) do
+    case Hex.API.Release.unretire(repo, package, version, auth) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
 
