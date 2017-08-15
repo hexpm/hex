@@ -84,7 +84,7 @@ defmodule Mix.Tasks.Hex do
     {:ok, name} = :inet.gethostname()
     name = List.to_string(name)
 
-    case Hex.API.Key.new(name, [user: username, pass: password]) do
+    case Hex.API.Key.new(repo, name, [user: username, pass: password]) do
       {:ok, {201, body, _}} ->
         Hex.Shell.info("Encrypting API key with user password...")
         encrypted_key = Hex.Crypto.encrypt(body["secret"], password, @apikey_tag)
@@ -98,12 +98,13 @@ defmodule Mix.Tasks.Hex do
 
   def update_key(repo, key) do
     Hex.State.fetch!(:repos)
-    |> Map.update!(repo, &Map.put(&1, :api_key, key))
+    |> Map.update!(repo || "hexpm", &Map.put(&1, :api_key, key))
     |> Hex.Config.update_repos()
   end
 
   def auth_info(repo) do
-    if key = Hex.State.fetch!(:repos)[repo].api_key do
+    repo = Hex.Repo.get_repo(repo)
+    if key = repo.api_key do
       [key: prompt_decrypt_key(key)]
     else
       Mix.raise "No authorized user found. Run 'mix hex.user auth'"

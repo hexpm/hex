@@ -154,13 +154,13 @@ defmodule HexTest.Case do
   end
 
   def setup_auth(username, password) do
-    {:ok, {201, body, _}} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
+    {:ok, {201, body, _}} = Hex.API.Key.new("hexpm", "setup_auth", [user: username, pass: password])
     key = Mix.Tasks.Hex.encrypt_key(password, body["secret"])
     Mix.Tasks.Hex.update_key("hexpm", key)
   end
 
   def get_auth(username, password) do
-    {:ok, {201, body, _}} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
+    {:ok, {201, body, _}} = Hex.API.Key.new("hexpm", "setup_auth", [user: username, pass: password])
     [key: body["secret"]]
   end
 
@@ -221,7 +221,7 @@ defmodule HexTest.Case do
   end
 
   def bypass_mirror() do
-    bypass = Bypass.open
+    bypass = Bypass.open()
     repos = Hex.State.fetch!(:repos)
     repos = put_in(repos["hexpm"].url, "http://localhost:#{bypass.port}")
     Hex.State.put(:repos, repos)
@@ -236,6 +236,32 @@ defmodule HexTest.Case do
           Plug.Conn.resp(conn, 200, package)
         %Plug.Conn{request_path: "/docs/docs_package"} ->
           Plug.Conn.resp(conn, 404, "")
+      end
+    end)
+
+    bypass
+  end
+
+  def bypass_repo(repo) do
+    bypass = Bypass.open()
+    map = %{
+      url: "http://localhost:#{bypass.port}/repo",
+      public_key: nil,
+      auth_key: nil,
+      api_url: "http://localhost:#{bypass.port}/api",
+      api_key: nil
+    }
+    repos = Hex.State.fetch!(:repos)
+    repos = Map.put(repos, repo, map)
+    Hex.State.put(:repos, repos)
+
+    Bypass.expect(bypass, fn conn ->
+      case conn do
+        %Plug.Conn{request_path: "/api/packages/ecto"} ->
+          body = %{"meta" => %{"description" => "ecto description"}}
+          conn
+          |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+          |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
       end
     end)
 

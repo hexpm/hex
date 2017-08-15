@@ -34,24 +34,32 @@ defmodule Mix.Tasks.Hex.Owner do
   Lists all packages owned by the current user.
 
       mix hex.owner packages
+
+  ## Command line options
+
+    * `--repo REPOSITORY` - The repository to communicate with (default: hexpm)
   """
+
+  @switches [repo: :string]
 
   def run(args) do
     Hex.start()
+    {opts, args, _} = OptionParser.parse(args, switches: @switches)
+    repo = opts[:repo]
 
     case args do
       ["add", package, owner] ->
-        auth = Mix.Tasks.Hex.auth_info("hexpm")
-        add_owner(package, owner, auth)
+        auth = Mix.Tasks.Hex.auth_info(repo)
+        add_owner(repo, package, owner, auth)
       ["remove", package, owner] ->
-        auth = Mix.Tasks.Hex.auth_info("hexpm")
-        remove_owner(package, owner, auth)
+        auth = Mix.Tasks.Hex.auth_info(repo)
+        remove_owner(repo, package, owner, auth)
       ["list", package] ->
-        auth = Mix.Tasks.Hex.auth_info("hexpm")
-        list_owners(package, auth)
+        auth = Mix.Tasks.Hex.auth_info(repo)
+        list_owners(repo, package, auth)
       ["packages"] ->
-        auth = Mix.Tasks.Hex.auth_info("hexpm")
-        list_owned_packages(auth)
+        auth = Mix.Tasks.Hex.auth_info(repo)
+        list_owned_packages(repo, auth)
       _ ->
         Mix.raise """
         Invalid arguments, expected one of:
@@ -63,10 +71,10 @@ defmodule Mix.Tasks.Hex.Owner do
     end
   end
 
-  defp add_owner(package, owner, opts) do
+  defp add_owner(repo, package, owner, opts) do
     Hex.Shell.info "Adding owner #{owner} to #{package}"
 
-    case Hex.API.Package.Owner.add(package, owner, opts) do
+    case Hex.API.Package.Owner.add(repo, package, owner, opts) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
       other ->
@@ -75,10 +83,10 @@ defmodule Mix.Tasks.Hex.Owner do
     end
   end
 
-  defp remove_owner(package, owner, opts) do
+  defp remove_owner(repo, package, owner, opts) do
     Hex.Shell.info "Removing owner #{owner} from #{package}"
 
-    case Hex.API.Package.Owner.delete(package, owner, opts) do
+    case Hex.API.Package.Owner.delete(repo, package, owner, opts) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
       other ->
@@ -87,8 +95,8 @@ defmodule Mix.Tasks.Hex.Owner do
     end
   end
 
-  defp list_owners(package, opts) do
-    case Hex.API.Package.Owner.get(package, opts) do
+  defp list_owners(repo, package, opts) do
+    case Hex.API.Package.Owner.get(repo, package, opts) do
       {:ok, {code, body, _headers}} when code in 200..299 ->
         Enum.each(body, &Hex.Shell.info(&1["email"]))
       other ->
@@ -97,8 +105,8 @@ defmodule Mix.Tasks.Hex.Owner do
     end
   end
 
-  def list_owned_packages(opts) do
-    case Hex.API.User.me(opts) do
+  def list_owned_packages(repo, opts) do
+    case Hex.API.User.me(repo, opts) do
       {:ok, {code, body, _headers}} when code in 200..299 ->
         Enum.each(body["owned_packages"], fn {name, _url} ->
           Hex.Shell.info("#{name} - #{url(name)}")

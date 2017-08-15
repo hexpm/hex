@@ -7,14 +7,21 @@ defmodule Mix.Tasks.Hex.Search do
   Displays packages matching the given search query.
 
       mix hex.search PACKAGE
+
+  ## Command line options
+
+    * `--repo REPOSITORY` - The repository to communicate with (default: hexpm)
   """
+
+  @switches [repo: :string]
 
   def run(args) do
     Hex.start()
+    {opts, args, _} = OptionParser.parse(args, switches: @switches)
 
     case args do
       [package] ->
-        Hex.API.Package.search(package)
+        Hex.API.Package.search(opts[:repo], package)
         |> lookup_packages()
 
       _ ->

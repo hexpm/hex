@@ -269,6 +269,7 @@ defmodule Hex.RemoteConverger do
 
   defp check_repo(repos, repo) do
     unless Map.has_key?(repos, repo) do
+      # TODO: Elaborate on this
       Mix.raise "Unknown repo #{repo}, add it with mix hex.repo"
     end
   end

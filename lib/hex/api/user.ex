@@ -1,23 +1,23 @@
 defmodule Hex.API.User do
   alias Hex.API
 
-  def me(auth) do
-    API.request(:get, "users/me", auth)
+  def me(repo, auth) do
+    API.request(:get, repo, "users/me", auth)
   end
 
-  def get(username) do
-    API.request(:get, "users/#{username}")
+  def get(repo, username) do
+    API.request(:get, repo, "users/#{username}")
   end
 
-  def test(username, auth) do
-    API.request(:get, "users/#{username}/test", auth)
+  def test(repo, username, auth) do
+    API.request(:get, repo, "users/#{username}/test", auth)
   end
 
-  def new(username, email, password) do
-    API.erlang_post_request("users", %{username: username, email: email, password: password})
+  def new(repo, username, email, password) do
+    API.erlang_post_request(repo, "users", %{username: username, email: email, password: password})
   end
 
-  def password_reset(name) do
-    API.erlang_post_request("users/#{name}/reset", %{})
+  def password_reset(repo, name) do
+    API.erlang_post_request(repo, "users/#{name}/reset", %{})
   end
 end

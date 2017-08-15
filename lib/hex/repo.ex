@@ -5,7 +5,7 @@ defmodule Hex.Repo do
 
   def get_repo(repo) do
     repos = Hex.State.fetch!(:repos)
-    case Map.fetch(repos, repo) do
+    case Map.fetch(repos, repo || "hexpm") do
       {:ok, config} ->
         config
       :error ->
@@ -37,7 +37,7 @@ defmodule Hex.Repo do
     payload
   end
 
-  def get_installs do
+  def get_installs() do
     config = Hex.State.fetch!(:repos)["hexpm"]
     url = config.url <> "/installs/hex-1.x.csv"
     HTTP.request(:get, url, %{}, nil)
