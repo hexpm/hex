@@ -29,6 +29,26 @@ defmodule Mix.Tasks.Hex.RepoTest do
     end
   end
 
+  test "add private repo" do
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+      auth = Hexpm.new_user("repoprivate", "repoprivate@mail.com", "password", "repoprivate")
+      Mix.Tasks.Hex.update_key("hexpm", auth[:encrypted_key])
+
+      send self(), {:mix_shell_input, :prompt, "password"}
+      Mix.Tasks.Hex.Repo.run(["add", "hexpm:myrepo"])
+
+      myrepo = Hex.Repo.get_repo("myrepo")
+      hexpm = Hex.Repo.get_repo("hexpm")
+
+      assert myrepo.public_key == hexpm.public_key
+      assert myrepo.api_key == hexpm.api_key
+      assert myrepo.url == hexpm.url <> "/repo/myrepo"
+      assert myrepo.api_url == hexpm.api_url <> "/repo/myrepo"
+      assert is_binary(myrepo.auth_key)
+    end
+  end
+
   test "remove" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)

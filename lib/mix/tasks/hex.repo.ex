@@ -28,6 +28,12 @@ defmodule Mix.Tasks.Hex.Repo do
 
       mix hex.repo add NAME URL
 
+  To add a private repository from hex.pm run the following command, it will
+  copy the settings from the "hexpm" repository and generate a new
+  repository key.
+
+      mix hex.repo add hexpm:NAME
+
   ### Command line options
 
     * `--public-key path` - Path to public key used to verify the registry (optional).
@@ -69,6 +75,8 @@ defmodule Mix.Tasks.Hex.Repo do
     case args do
       ["add", name, url] ->
         add(name, url, opts)
+      ["add", name] ->
+        add_private(name)
       ["set", name] ->
         set(name, opts)
       ["remove", name] ->
@@ -78,15 +86,20 @@ defmodule Mix.Tasks.Hex.Repo do
       ["list"] ->
         list()
       _ ->
-        Mix.raise """
-        Invalid arguments, expected one of:
-        mix hex.repo add NAME URL
-        mix hex.repo set NAME
-        mix hex.repo remove NAME
-        mix hex.repo show NAME
-        mix hex.repo list
-        """
+        invalid_args()
     end
+  end
+
+  defp invalid_args() do
+    Mix.raise """
+    Invalid arguments, expected one of:
+    mix hex.repo add NAME URL
+    mix hex.repo add hexpm:NAME
+    mix hex.repo set NAME
+    mix hex.repo remove NAME
+    mix hex.repo show NAME
+    mix hex.repo list
+    """
   end
 
   defp add(name, url, opts) do
@@ -105,6 +118,42 @@ defmodule Mix.Tasks.Hex.Repo do
     read_config()
     |> Map.put(name, repo)
     |> Hex.Config.update_repos()
+  end
+
+  defp add_private(name) do
+    case String.split(name, ":", parts: 2) do
+      [repo, name] ->
+        config = Hex.Repo.get_repo(repo)
+
+        config =
+          config
+          |> Map.update!(:url, &"#{&1}/repo/#{name}")
+          |> Map.update!(:api_url, &"#{&1}/repo/#{name}")
+          |> Map.put(:auth_key, generate_repo_key(repo, name))
+
+        read_config()
+        |> Map.put(name, config)
+        |> Hex.Config.update_repos()
+
+      _ ->
+        invalid_args()
+    end
+  end
+
+  defp generate_repo_key(repo, name) do
+    auth = Mix.Tasks.Hex.auth_info(repo)
+    permissions = [%{"domain" => "repository", "resource" => name}]
+
+    {:ok, host} = :inet.gethostname()
+    key = "#{host}-repository"
+
+    case Hex.API.Key.new(repo, key, permissions, auth) do
+      {:ok, {201, body, _}} ->
+        body["secret"]
+      other ->
+        Hex.Utils.print_error_result(other)
+        Mix.raise "Generation of repository key failed"
+    end
   end
 
   defp set(name, opts) do
