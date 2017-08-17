@@ -83,8 +83,8 @@ defmodule Mix.Tasks.Hex.AuditTest do
     output =
       [package, :reset, "  ", version, :reset, "    ", message, :reset,
         String.duplicate(" ", whitespace_length)]
-      |> IO.ANSI.format
-      |> List.to_string
+      |> IO.ANSI.format()
+      |> List.to_string()
 
     assert_received {:mix_shell, :info, [^output]}
   end
