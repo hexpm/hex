@@ -106,7 +106,7 @@ defmodule Mix.Tasks.Hex.Publish do
     build = Build.prepare_package()
     revert_version = opts[:revert]
     revert = !!revert_version
-    repo = opts[:repo]
+    repo = opts[:repo] || build.repo
 
     case args do
       ["package"] when revert ->

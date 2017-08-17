@@ -88,3 +88,16 @@ defmodule ReleaseFiles.Mixfile do
        maintainers: ["maintainers"]]]
   end
 end
+
+defmodule ReleaseRepo.Mixfile do
+  def project do
+    [app: :ecto,
+     description: "baz",
+     version: "0.0.1",
+     package: [
+       repo: "myrepo",
+       licenses: ["MIT"],
+       maintainers: ["maintainers"],
+       links: %{"a" => "http://a"}]]
+  end
+end

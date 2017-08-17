@@ -219,4 +219,54 @@ defmodule Mix.Tasks.Hex.PublishTest do
   after
     purge [ReleaseMeta.Mixfile]
   end
+
+  test "create package with :repo config" do
+    Mix.Project.push ReleaseRepo.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      bypass_repo("myrepo")
+      setup_auth("user", "hunter42", "myrepo")
+
+      send self(), {:mix_shell_input, :yes?, true}
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
+      assert_received {:mix_shell, :info, ["Package published to myrepo html_url" <> _]}
+    end
+  after
+    purge [ReleaseRepo.Mixfile]
+  end
+
+  test "create package with :repo config with no repo in user config" do
+    Mix.Project.push ReleaseRepo.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+
+      send self(), {:mix_shell_input, :yes?, true}
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      assert_raise Mix.Error, "Unknown repository \"myrepo\", add new repositories with the `mix hex.repo` task", fn ->
+        Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
+      end
+    end
+  after
+    purge [ReleaseRepo.Mixfile]
+  end
+
+  test "create package with --repo flag overrides :repo config" do
+    Mix.Project.push ReleaseRepo.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      bypass_repo("myrepo2")
+      setup_auth("user", "hunter42", "myrepo2")
+
+      send self(), {:mix_shell_input, :yes?, true}
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--repo", "myrepo2"])
+      assert_received {:mix_shell, :info, ["Package published to myrepo html_url" <> _]}
+    end
+  after
+    purge [ReleaseRepo.Mixfile]
+  end
 end
