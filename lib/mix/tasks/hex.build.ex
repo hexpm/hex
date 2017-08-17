@@ -37,9 +37,11 @@ defmodule Mix.Tasks.Hex.Build do
   `:git` or `:path` as the SCM `:package` is used.
 
       defp deps do
-        [ {:ecto, "~> 0.1.0"},
+        [
+          {:ecto, "~> 0.1.0"},
           {:postgrex, "~> 0.3.0"},
-          {:cowboy, github: "extend/cowboy"} ]
+          {:cowboy, github: "extend/cowboy"}
+        ]
       end
 
   As can be seen Hex package dependencies works alongside git dependencies.
@@ -86,12 +88,13 @@ defmodule Mix.Tasks.Hex.Build do
     Hex.Shell.info("Package checksum: #{checksum}")
   end
 
-  def prepare_package do
+  def prepare_package() do
     Mix.Project.get!()
     config = Mix.Project.config()
     raise_if_umbrella_project!(config)
 
     package = Enum.into(config[:package] || [], %{})
+    {repo, package} = Map.pop(package, :repo)
     {deps, exclude_deps} = dependencies()
     meta = meta_for(config, package, deps)
     raise_if_unstable_dependencies!(meta)
@@ -101,7 +104,8 @@ defmodule Mix.Tasks.Hex.Build do
       package: package,
       deps: deps,
       exclude_deps: exclude_deps,
-      meta: meta
+      meta: meta,
+      repo: repo,
     }
   end
 

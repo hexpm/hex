@@ -153,10 +153,10 @@ defmodule HexTest.Case do
      {:repo2, :repo2_deps, "0.1.0", [poison: ">= 0.0.0"]}]
   end
 
-  def setup_auth(username, password) do
-    {:ok, {201, body, _}} = Hex.API.Key.new("hexpm", "setup_auth", [user: username, pass: password])
+  def setup_auth(username, password, repo \\ "hexpm") do
+    {:ok, {201, body, _}} = Hex.API.Key.new(repo, "setup_auth", [user: username, pass: password])
     key = Mix.Tasks.Hex.encrypt_key(password, body["secret"])
-    Mix.Tasks.Hex.update_key("hexpm", key)
+    Mix.Tasks.Hex.update_key(repo, key)
   end
 
   def get_auth(username, password) do
@@ -257,11 +257,21 @@ defmodule HexTest.Case do
 
     Bypass.expect(bypass, fn conn ->
       case conn do
-        %Plug.Conn{request_path: "/api/packages/ecto"} ->
+        %Plug.Conn{method: "GET", request_path: "/api/packages/ecto"} ->
           body = %{"meta" => %{"description" => "ecto description"}}
           conn
           |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
           |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
+        %Plug.Conn{method: "POST", request_path: "/api/packages/ecto/releases"} ->
+          body = %{"html_url" => "myrepo html_url"}
+          conn
+          |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+          |> Plug.Conn.resp(201, Hex.Utils.safe_serialize_erlang(body))
+        %Plug.Conn{method: "POST", request_path: "/api/keys"} ->
+          body = %{"secret" => "myrepo secret"}
+          conn
+          |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+          |> Plug.Conn.resp(201, Hex.Utils.safe_serialize_erlang(body))
       end
     end)
 
