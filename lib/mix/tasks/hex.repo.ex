@@ -112,7 +112,7 @@ defmodule Mix.Tasks.Hex.Repo do
       api_url: nil,
       api_key: nil
     }
-    |> Map.merge(Map.new(opts))
+    |> Map.merge(Enum.into(opts, %{}))
     |> Map.put(:public_key, public_key)
 
     read_config()
@@ -164,7 +164,7 @@ defmodule Mix.Tasks.Hex.Repo do
     end
 
     read_config()
-    |> Map.update!(name, &Map.merge(&1, Map.new(opts)))
+    |> Map.update!(name, &Map.merge(&1, Enum.into(opts, %{})))
     |> Hex.Config.update_repos()
   end
 
