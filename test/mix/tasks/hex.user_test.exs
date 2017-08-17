@@ -126,7 +126,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       assert_received {:mix_shell, :info, ["Removing key remove_key_a..."]}
       assert_received {:mix_shell, :info, ["Authentication credentials removed from the local machine." <> _]}
 
-      assert {:ok ,{401, _, _}} = Hex.API.Key.get("hexpm", auth_a)
+      assert {:ok, {401, _, _}} = Hex.API.Key.get("hexpm", auth_a)
     end
   end
 

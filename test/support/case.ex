@@ -199,6 +199,7 @@ defmodule HexTest.Case do
       ets_path = tmp_path("cache.ets")
       File.rm(ets_path)
       create_test_registry(ets_path)
+      reset_state()
     end
     :ok
   end

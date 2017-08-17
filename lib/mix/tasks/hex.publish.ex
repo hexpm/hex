@@ -97,8 +97,6 @@ defmodule Mix.Tasks.Hex.Publish do
 
   @switches [revert: :string, progress: :boolean, canonical: :string, repo: :string]
 
-  # TODO: Make sure to handle :repo option on config also, flag should override it
-
   def run(args) do
     Hex.start()
     {opts, args, _} = OptionParser.parse(args, switches: @switches)

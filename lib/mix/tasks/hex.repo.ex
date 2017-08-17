@@ -108,7 +108,11 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp set(name, opts) do
-    opts = Keyword.replace(opts, :public_key, read_public_key(opts[:public_key]))
+    opts = if public_key = opts[:public_key] do
+      Keyword.put(opts, :public_key, read_public_key(public_key))
+    else
+      opts
+    end
 
     read_config()
     |> Map.update!(name, &Map.merge(&1, Map.new(opts)))
