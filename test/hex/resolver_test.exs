@@ -240,6 +240,8 @@ defmodule Hex.ResolverTest do
   end
 
   test "multiple repos" do
+    add_repo("repo2")
+
     deps = [{:repo2, :repo2_deps, ">= 0.0.0"}]
     assert equal? locked([{:repo2, :repo2_deps, "0.1.0"}, {:repo2, :poison, "2.0.0"}]),
            resolve(deps, [], %{"repos_deps" => "repo2"})
@@ -257,8 +259,22 @@ defmodule Hex.ResolverTest do
   end
 
   test "implicit override repo" do
+    add_repo("repo2")
+
     deps = [{:repo2, :repo2_deps, ">= 0.0.0"}, {:hexpm, :poison, ">= 0.0.0"}]
     assert equal? locked([{:hexpm, :poison, "2.0.0"}, {:repo2, :repo2_deps, "0.1.0"}]),
                   resolve(deps, [], %{"repos_deps" => "repo2", "poison" => "hexpm"})
+  end
+
+  defp add_repo(repo) do
+    config = %{
+      url: repo,
+      public_key: nil,
+      auth_key: nil,
+      api_url: nil,
+      api_key: nil
+    }
+
+    Hex.State.update!(:repos, &Map.put(&1, repo, config))
   end
 end

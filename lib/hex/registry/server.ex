@@ -239,28 +239,16 @@ defmodule Hex.Registry.Server do
   end
 
   defp purge_repo_from_cache(packages, %{ets: ets}) do
-    config = Hex.State.fetch!(:repos)
-
-    Enum.each(packages, fn {repo, package} ->
-      case Map.fetch(config, repo) do
-        {:ok, %{url: url}} ->
-          case :ets.lookup(ets, {:repo, repo}) do
-            [{_key, ^url}] -> :ok
-            [] -> :ok
-            _ -> purge_repo(repo, ets)
-          end
-          :ets.insert(ets, {{:repo, repo}, url})
-
-        :error ->
-          throw {:norepo, repo, package}
+    Enum.each(packages, fn {repo, _package} ->
+      config = Hex.Repo.get_repo(repo)
+      url = config.url
+      case :ets.lookup(ets, {:repo, repo}) do
+        [{_key, ^url}] -> :ok
+        [] -> :ok
+        _ -> purge_repo(repo, ets)
       end
+      :ets.insert(ets, {{:repo, repo}, url})
     end)
-  catch
-    :throw, {:norepo, repo, package} ->
-      # TODO: Elaborate on this
-      message = "Trying to use package #{package} from repo #{repo} without " <>
-                "the repo being configured with `mix hex.repo`"
-      {:error, message}
   end
 
   # :ets.fun2ms(fn

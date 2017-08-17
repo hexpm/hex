@@ -120,7 +120,6 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp whoami(repo) do
-    # TODO: Support custom repo
     auth = Mix.Tasks.Hex.auth_info(repo)
 
     case Hex.API.User.me(repo, auth) do
@@ -184,7 +183,6 @@ defmodule Mix.Tasks.Hex.User do
   defp create_user(repo, username, email, password) do
     case Hex.API.User.new(repo, username, email, password) do
       {:ok, {code, _, _}} when code in 200..299 ->
-        # TODO: Support custom repo
         Mix.Tasks.Hex.generate_key(repo, username, password)
         Hex.Shell.info("You are required to confirm your email to access your account, " <>
                        "a confirmation email has been sent to #{email}")
