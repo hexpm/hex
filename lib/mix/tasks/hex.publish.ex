@@ -36,18 +36,14 @@ defmodule Mix.Tasks.Hex.Publish do
   ## Command line options
 
     * `--revert VERSION` - Revert given version
-    * `--repo REPOSITORY` - The repository to communicate with (default: hexpm)
+    * `--organization ORGANIZATION` - The organization the package belongs to
 
   ## Configuration
 
     * `:app` - Package name (required).
-
     * `:version` - Package version (required).
-
     * `:deps` - List of package dependencies (see Dependencies below).
-
     * `:description` - Short description of the project.
-
     * `:package` - Hex specific configuration (see Package configuration below).
 
   ## Dependencies
@@ -56,9 +52,11 @@ defmodule Mix.Tasks.Hex.Publish do
   `:git` or `:path` as the SCM `:package` is used.
 
       defp deps do
-        [{:ecto, "~> 0.1.0"},
-        {:postgrex, "~> 0.3.0"},
-        {:cowboy, github: "extend/cowboy"}]
+        [
+          {:ecto, "~> 0.1.0"},
+          {:postgrex, "~> 0.3.0"},
+          {:cowboy, github: "extend/cowboy"}
+        ]
       end
 
   As can be seen Hex package dependencies works alongside git dependencies.
@@ -73,21 +71,14 @@ defmodule Mix.Tasks.Hex.Publish do
 
     * `:name` - Set this if the package name is not the same as the application
       name.
-
-    * `:repo` - Set this if you are publishing to a repository that is not the
-      default hex.pm repository. `:api_url` needs to be set via the `hex.repo`
-      task.
-
+    * `:organization` - Set this if you are publishing to an organization instead
+      of the default public hex.pm.
     * `:files` - List of files and directories to include in the package,
       can include wildcards. Defaults to `["lib", "priv", "mix.exs", "README*",
       "readme*", "LICENSE*", "license*", "CHANGELOG*", "changelog*", "src"]`.
-
     * `:maintainers` - List of names and/or emails of maintainers.
-
     * `:licenses` - List of licenses used by the package.
-
     * `:links` - Map of links relevant to the package.
-
     * `:build_tools` - List of build tools that can build the package. Hex will
       try to automatically detect the build tools, it will do this based on the
       files in the package. If a "rebar" or "rebar.config" file is present Hex
@@ -95,7 +86,7 @@ defmodule Mix.Tasks.Hex.Publish do
       by setting this field.
   """
 
-  @switches [revert: :string, progress: :boolean, canonical: :string, repo: :string]
+  @switches [revert: :string, progress: :boolean, canonical: :string, organization: :string]
 
   def run(args) do
     Hex.start()
@@ -104,37 +95,38 @@ defmodule Mix.Tasks.Hex.Publish do
     build = Build.prepare_package()
     revert_version = opts[:revert]
     revert = !!revert_version
-    repo = opts[:repo] || build.repo
+    organization = opts[:organization] || build.organization
 
     case args do
       ["package"] when revert ->
-        auth = Mix.Tasks.Hex.auth_info(repo)
-        revert_package(build, repo, revert_version, auth)
+        auth = Mix.Tasks.Hex.auth_info()
+        revert_package(build, organization, revert_version, auth)
 
       ["docs"] when revert ->
-        auth = Mix.Tasks.Hex.auth_info(repo)
-        revert_docs(build, repo, revert_version, auth)
+        auth = Mix.Tasks.Hex.auth_info()
+        revert_docs(build, organization, revert_version, auth)
 
       [] when revert ->
-        auth = Mix.Tasks.Hex.auth_info(repo)
-        revert(build, repo, revert_version, auth)
+        auth = Mix.Tasks.Hex.auth_info()
+        revert(build, organization, revert_version, auth)
 
       ["package"] ->
-        auth = Mix.Tasks.Hex.auth_info(repo)
-        if proceed?(build), do: create_release(build, repo, auth, opts)
+        auth = Mix.Tasks.Hex.auth_info()
+        if proceed?(build), do: create_release(build, organization, auth, opts)
 
       ["docs"] ->
-        auth = Mix.Tasks.Hex.auth_info(repo)
+        auth = Mix.Tasks.Hex.auth_info()
         docs_task(build, opts)
-        create_docs(build, repo, auth, opts)
+        create_docs(build, organization, auth, opts)
 
       [] ->
-        auth = Mix.Tasks.Hex.auth_info(repo)
-        create(build, repo, auth, opts)
+        auth = Mix.Tasks.Hex.auth_info()
+        create(build, organization, auth, opts)
 
       _ ->
         Mix.raise """
         Invalid arguments, expected one of:
+
         mix hex.publish
         mix hex.publish package
         mix hex.publish docs
@@ -142,20 +134,20 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp create(build, repo, auth, opts) do
+  defp create(build, organization, auth, opts) do
     if proceed?(build) do
       Hex.Shell.info("Building docs...")
       docs_task(build, opts)
       Hex.Shell.info("Publishing package...")
 
-      if :ok == create_release(build, repo, auth, opts) do
+      if :ok == create_release(build, organization, auth, opts) do
         Hex.Shell.info("Publishing docs...")
-        create_docs(build, repo, auth, opts)
+        create_docs(build, organization, auth, opts)
       end
     end
   end
 
-  defp create_docs(build, repo, auth, opts) do
+  defp create_docs(build, organization, auth, opts) do
     directory = docs_dir()
     name = build.meta.name
     version = build.meta.version
@@ -166,7 +158,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
     progress? = Keyword.get(opts, :progress, true)
     tarball = build_tarball(name, version, directory)
-    send_tarball(repo, name, version, tarball, auth, progress?)
+    send_tarball(organization, name, version, tarball, auth, progress?)
   end
 
   defp docs_task(build, opts) do
@@ -201,18 +193,18 @@ defmodule Mix.Tasks.Hex.Publish do
     Hex.Shell.info "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct"
   end
 
-  defp revert(build, repo, version, auth) do
+  defp revert(build, organization, version, auth) do
     Hex.Shell.info("Reverting package...")
-    revert_package(build, repo, version, auth)
+    revert_package(build, organization, version, auth)
     Hex.Shell.info("Reverting docs...")
-    revert_docs(build, repo, version, auth)
+    revert_docs(build, organization, version, auth)
   end
 
-  defp revert_package(build, repo, version, auth) do
+  defp revert_package(build, organization, version, auth) do
     version = Mix.Tasks.Hex.clean_version(version)
     name = build.meta.name
 
-    case Hex.API.Release.delete(repo, name, version, auth) do
+    case Hex.API.Release.delete(organization, name, version, auth) do
       {:ok, {code, _, _}} when code in 200..299 ->
         Hex.Shell.info("Reverted #{name} #{version}")
       other ->
@@ -221,11 +213,11 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp revert_docs(build, repo, version, auth) do
+  defp revert_docs(build, organization, version, auth) do
     version = Mix.Tasks.Hex.clean_version(version)
     name = build.meta.name
 
-    case Hex.API.ReleaseDocs.delete(repo, name, version, auth) do
+    case Hex.API.ReleaseDocs.delete(organization, name, version, auth) do
       {:ok, {code, _, _}} when code in 200..299 ->
         Hex.Shell.info "Reverted docs for #{name} #{version}"
       other ->
@@ -244,10 +236,10 @@ defmodule Mix.Tasks.Hex.Publish do
     data
   end
 
-  defp send_tarball(repo, name, version, tarball, auth, progress?) do
+  defp send_tarball(organization, name, version, tarball, auth, progress?) do
     progress = progress_fun(progress?, byte_size(tarball))
 
-    case Hex.API.ReleaseDocs.new(repo, name, version, tarball, auth, progress) do
+    case Hex.API.ReleaseDocs.new(organization, name, version, tarball, auth, progress) do
       {:ok, {code, _, _}} when code in 200..299 ->
         Hex.Shell.info ""
         Hex.Shell.info "Docs published to #{Hex.Utils.hexdocs_url(name, version)}"
@@ -289,13 +281,13 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp create_release(build, repo, auth, opts) do
+  defp create_release(build, organization, auth, opts) do
     meta = build.meta
     {tarball, checksum} = Hex.Tar.create(meta, meta.files)
     progress? = Keyword.get(opts, :progress, true)
     progress = progress_fun(progress?, byte_size(tarball))
 
-    case Hex.API.Release.new(repo, meta.name, tarball, auth, progress) do
+    case Hex.API.Release.new(organization, meta.name, tarball, auth, progress) do
       {:ok, {code, body, _}} when code in 200..299 ->
         location = body["html_url"] || body["url"]
         Hex.Shell.info ""

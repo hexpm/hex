@@ -24,34 +24,22 @@ defmodule Mix.Tasks.Hex.Repo do
   parent package. To override which repository a package is fetched from add
   add the `:repo` option to the package in your dependencies.
 
+  To configure organizations, see the `hex.organization` task.
+
   ## Add a repo
 
       mix hex.repo add NAME URL
-
-  To add a private repository from hex.pm run the following command, it will
-  copy the settings from the "hexpm" repository and generate a new
-  repository key.
-
-      mix hex.repo add hexpm:NAME
 
   ### Command line options
 
     * `--public-key path` - Path to public key used to verify the registry (optional).
     * `--auth-key key` - Key used to authenticate HTTP requests to repository (optional).
-    * `--api-url url` - This URL will be used when publishing packages to the
-      repository when the `:repo` configuration is set in the package configuration.
-      It will also be used when passing the `--repo` flag to tasks such as
-      `hex.owner` (optional).
-    * `--api-key key` - Key used to authenticate requests to the API associated
-      with the repository (optional).
 
   ## Set config for repo
 
       mix hex.repo set NAME --url URL
       mix hex.repo set NAME --public-key PATH
       mix hex.repo set NAME --auth-key KEY
-      mix hex.repo set NAME --api-url URL
-      mix hex.repo set NAME --api-key KEY
 
   ## Remove repo
 
@@ -66,7 +54,7 @@ defmodule Mix.Tasks.Hex.Repo do
       mix hex.repo list
   """
 
-  @switches [public_key: :string, auth_key: :string, api_url: :string, api_key: :string]
+  @switches [url: :string, public_key: :string, auth_key: :string]
 
   def run(args) do
     Hex.start()
@@ -75,8 +63,6 @@ defmodule Mix.Tasks.Hex.Repo do
     case args do
       ["add", name, url] ->
         add(name, url, opts)
-      ["add", name] ->
-        add_private(name)
       ["set", name] ->
         set(name, opts)
       ["remove", name] ->
@@ -93,8 +79,8 @@ defmodule Mix.Tasks.Hex.Repo do
   defp invalid_args() do
     Mix.raise """
     Invalid arguments, expected one of:
+
     mix hex.repo add NAME URL
-    mix hex.repo add hexpm:NAME
     mix hex.repo set NAME
     mix hex.repo remove NAME
     mix hex.repo show NAME
@@ -109,8 +95,7 @@ defmodule Mix.Tasks.Hex.Repo do
       url: url,
       public_key: nil,
       auth_key: nil,
-      api_url: nil,
-      api_key: nil
+      organization: nil,
     }
     |> Map.merge(Enum.into(opts, %{}))
     |> Map.put(:public_key, public_key)
@@ -118,42 +103,6 @@ defmodule Mix.Tasks.Hex.Repo do
     read_config()
     |> Map.put(name, repo)
     |> Hex.Config.update_repos()
-  end
-
-  defp add_private(name) do
-    case String.split(name, ":", parts: 2) do
-      [repo, name] ->
-        config = Hex.Repo.get_repo(repo)
-
-        config =
-          config
-          |> Map.update!(:url, &"#{&1}/repo/#{name}")
-          |> Map.update!(:api_url, &"#{&1}/repo/#{name}")
-          |> Map.put(:auth_key, generate_repo_key(repo, name))
-
-        read_config()
-        |> Map.put(name, config)
-        |> Hex.Config.update_repos()
-
-      _ ->
-        invalid_args()
-    end
-  end
-
-  defp generate_repo_key(repo, name) do
-    auth = Mix.Tasks.Hex.auth_info(repo)
-    permissions = [%{"domain" => "repository", "resource" => name}]
-
-    {:ok, host} = :inet.gethostname()
-    key = "#{host}-repository"
-
-    case Hex.API.Key.new(repo, key, permissions, auth) do
-      {:ok, {201, body, _}} ->
-        body["secret"]
-      other ->
-        Hex.Utils.print_error_result(other)
-        Mix.raise "Generation of repository key failed"
-    end
   end
 
   defp set(name, opts) do
@@ -175,7 +124,7 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp list do
-    header = ["Name", "URL", "Public key", "Auth key", "API URL", "API key"]
+    header = ["Name", "URL", "Public key", "Auth key", "Organization"]
     values =
       Enum.map(read_config(), fn {name, config} ->
         [
@@ -183,8 +132,7 @@ defmodule Mix.Tasks.Hex.Repo do
           config[:url],
           show_public_key(config[:public_key]),
           config[:auth_key],
-          config[:api_url],
-          config[:api_key],
+          config[:organization],
         ]
       end)
     Mix.Tasks.Hex.print_table(header, values)
@@ -249,8 +197,8 @@ defmodule Mix.Tasks.Hex.Repo do
         Mix.raise "Config does not contain repo #{name}"
       _ ->
         Mix.Tasks.Hex.print_table(
-          ["URL", "Public key", "Auth key"],
-          [[repo.url, show_public_key(repo.public_key), repo.auth_key]]
+          ["URL", "Public key", "Auth key", "Organization"],
+          [[repo.url, show_public_key(repo.public_key), repo.auth_key, repo.organization]]
         )
     end
   end

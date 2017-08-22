@@ -22,13 +22,9 @@ defmodule Mix.Tasks.Hex.Build do
   ## Configuration
 
     * `:app` - Package name (required).
-
     * `:version` - Package version (required).
-
     * `:deps` - List of package dependencies (see Dependencies below).
-
     * `:description` - Short description of the project.
-
     * `:package` - Hex specific configuration (see Package configuration below).
 
   ## Dependencies
@@ -55,17 +51,12 @@ defmodule Mix.Tasks.Hex.Build do
 
     * `:name` - Set this if the package name is not the same as the application
        name.
-
     * `:files` - List of files and directories to include in the package,
       can include wildcards. Defaults to `["lib", "priv", "mix.exs", "README*",
       "readme*", "LICENSE*", "license*", "CHANGELOG*", "changelog*", "src"]`.
-
     * `:maintainers` - List of names and/or emails of maintainers.
-
     * `:licenses` - List of licenses used by the package.
-
     * `:links` - Map of links relevant to the package.
-
     * `:build_tools` - List of build tools that can build the package. Hex will
       try to automatically detect the build tools based on the files in the
       package. If a "rebar" or "rebar.config" file is present Hex will mark it
@@ -94,7 +85,7 @@ defmodule Mix.Tasks.Hex.Build do
     raise_if_umbrella_project!(config)
 
     package = Enum.into(config[:package] || [], %{})
-    {repo, package} = Map.pop(package, :repo)
+    {organization, package} = Map.pop(package, :organization)
     {deps, exclude_deps} = dependencies()
     meta = meta_for(config, package, deps)
     raise_if_unstable_dependencies!(meta)
@@ -105,7 +96,7 @@ defmodule Mix.Tasks.Hex.Build do
       deps: deps,
       exclude_deps: exclude_deps,
       meta: meta,
-      repo: repo,
+      organization: organization,
     }
   end
 

@@ -29,39 +29,38 @@ defmodule Mix.Tasks.Hex.Retire do
 
     * `--message "MESSAGE"` - Optional message (up to 140 characters) clarifying
       the retirement reason
-    * `--repo REPOSITORY` - The repository to communicate with (default: hexpm)
+    * `--organization ORGANIZATION` - The organization the package belongs to
   """
 
-  @switches [message: :string, unretire: :boolean, repo: :string]
+  @switches [message: :string, unretire: :boolean, organization: :string]
 
   def run(args) do
     Hex.start()
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
 
     retire? = !opts[:unretire]
-    repo = opts[:repo]
+    organization = opts[:organization]
 
     case args do
       [package, version, reason] when retire? ->
-        auth = Mix.Tasks.Hex.auth_info(repo)
-        retire(repo, package, version, reason, opts, auth)
-
+        retire(organization, package, version, reason, opts)
       [package, version] when not retire? ->
-        auth = Mix.Tasks.Hex.auth_info(repo)
-        unretire(repo, package, version, auth)
-
+        unretire(organization, package, version)
       _ ->
         Mix.raise """
         Invalid arguments, expected one of:
+
         mix hex.retire PACKAGE VERSION REASON
         mix hex.retire PACKAGE VERSION --unretire
         """
     end
   end
 
-  defp retire(repo, package, version, reason, opts, auth) do
+  defp retire(organization, package, version, reason, opts) do
+    auth = Mix.Tasks.Hex.auth_info()
     body = %{reason: reason, message: opts[:message]}
-    case Hex.API.Release.retire(repo, package, version, body, auth) do
+
+    case Hex.API.Release.retire(organization, package, version, body, auth) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
 
@@ -71,8 +70,10 @@ defmodule Mix.Tasks.Hex.Retire do
     end
   end
 
-  defp unretire(repo, package, version, auth) do
-    case Hex.API.Release.unretire(repo, package, version, auth) do
+  defp unretire(organization, package, version) do
+    auth = Mix.Tasks.Hex.auth_info()
+
+    case Hex.API.Release.unretire(organization, package, version, auth) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
 

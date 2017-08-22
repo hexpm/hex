@@ -82,7 +82,7 @@ defmodule ReleaseRepo.Mixfile do
      description: "baz",
      version: "0.0.1",
      package: [
-       repo: "myrepo",
+       organization: "myorg",
        licenses: ["MIT"],
        maintainers: ["maintainers"],
        links: %{"a" => "http://a"}]]

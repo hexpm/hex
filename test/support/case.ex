@@ -153,14 +153,14 @@ defmodule HexTest.Case do
      {:repo2, :repo2_deps, "0.1.0", [poison: ">= 0.0.0"]}]
   end
 
-  def setup_auth(username, password, repo \\ "hexpm") do
-    {:ok, {201, body, _}} = Hex.API.Key.new(repo, "setup_auth", [user: username, pass: password])
+  def setup_auth(username, password) do
+    {:ok, {201, body, _}} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
     key = Mix.Tasks.Hex.encrypt_key(password, body["secret"])
-    Mix.Tasks.Hex.update_key(repo, key)
+    Mix.Tasks.Hex.update_key(key)
   end
 
   def get_auth(username, password) do
-    {:ok, {201, body, _}} = Hex.API.Key.new("hexpm", "setup_auth", [user: username, pass: password])
+    {:ok, {201, body, _}} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
     [key: body["secret"]]
   end
 
@@ -170,10 +170,10 @@ defmodule HexTest.Case do
 
   Hex.State.put(:home, Path.expand("../../tmp/hex_home", __DIR__))
   Hex.State.put(:hexpm_pk, File.read!(Path.join(__DIR__, "../fixtures/test_pub.pem")))
+  Hex.State.put(:api_url, "http://localhost:4043/api")
+  Hex.State.put(:api_key, nil)
   Hex.State.update!(:repos, &put_in(&1["hexpm"].url, "http://localhost:4043/repo"))
-  Hex.State.update!(:repos, &put_in(&1["hexpm"].api_url, "http://localhost:4043/api"))
   Hex.State.update!(:repos, &put_in(&1["hexpm"].public_key, public_key))
-  Hex.State.update!(:repos, &put_in(&1["hexpm"].api_key, nil))
   Hex.State.update!(:repos, &put_in(&1["hexpm"].auth_key, nil))
   Hex.State.put(:pbkdf2_iters, 10)
   Hex.State.put(:clean_pass, false)
@@ -249,21 +249,24 @@ defmodule HexTest.Case do
       url: "http://localhost:#{bypass.port}/repo",
       public_key: nil,
       auth_key: nil,
-      api_url: "http://localhost:#{bypass.port}/api",
-      api_key: nil
+      organization: "hexpm",
     }
     repos = Hex.State.fetch!(:repos)
     repos = Map.put(repos, repo, map)
     Hex.State.put(:repos, repos)
+    Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+    package_path = "/api/repos/#{repo}/packages/ecto"
+    release_path = "/api/repos/#{repo}/packages/ecto/releases"
 
     Bypass.expect(bypass, fn conn ->
       case conn do
-        %Plug.Conn{method: "GET", request_path: "/api/packages/ecto"} ->
+        %Plug.Conn{method: "GET", request_path: ^package_path} ->
           body = %{"meta" => %{"description" => "ecto description"}}
           conn
           |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
           |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
-        %Plug.Conn{method: "POST", request_path: "/api/packages/ecto/releases"} ->
+        %Plug.Conn{method: "POST", request_path: ^release_path} ->
           body = %{"html_url" => "myrepo html_url"}
           conn
           |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")

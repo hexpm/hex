@@ -11,10 +11,4 @@ defmodule Mix.Tasks.HexTest do
       System.put_env("MIX_NO_DEPS", "0")
     end
   end
-
-  test "run with invalid arguments" do
-    assert_raise Mix.Error, "Invalid arguments, expected: mix hex", fn ->
-      Mix.Tasks.Hex.run(["invalid"])
-    end
-  end
 end

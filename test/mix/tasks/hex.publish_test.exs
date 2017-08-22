@@ -98,15 +98,8 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Hex.State.put(:home, tmp_path())
       setup_auth("user", "hunter42")
 
-      raised_message = """
-      Invalid arguments, expected one of:
-      mix hex.publish
-      mix hex.publish package
-      mix hex.publish docs
-      """
-
       send self(), {:mix_shell_input, :prompt, "hunter42"}
-      assert_raise Mix.Error, raised_message, fn ->
+      assert_raise Mix.Error, ~r"Invalid arguments", fn ->
         Mix.Tasks.Hex.Publish.run(["invalid", "--no-progress"])
       end
 
@@ -220,13 +213,13 @@ defmodule Mix.Tasks.Hex.PublishTest do
     purge [ReleaseMeta.Mixfile]
   end
 
-  test "create package with :repo config" do
+  test "create package with :organization config" do
     Mix.Project.push ReleaseRepo.Mixfile
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
-      bypass_repo("myrepo")
-      setup_auth("user", "hunter42", "myrepo")
+      bypass_repo("myorg")
+      setup_auth("user", "hunter42")
 
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
@@ -237,33 +230,32 @@ defmodule Mix.Tasks.Hex.PublishTest do
     purge [ReleaseRepo.Mixfile]
   end
 
-  test "create package with :repo config with no repo in user config" do
+  test "create package with :organization config with no organization in user config" do
     Mix.Project.push ReleaseRepo.Mixfile
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
+      setup_auth("user", "hunter42")
 
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
-      assert_raise Mix.Error, "Unknown repository \"myrepo\", add new repositories with the `mix hex.repo` task", fn ->
-        Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
-      end
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
     end
   after
     purge [ReleaseRepo.Mixfile]
   end
 
-  test "create package with --repo flag overrides :repo config" do
+  test "create package with --organization flag overrides :organization config" do
     Mix.Project.push ReleaseRepo.Mixfile
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
-      bypass_repo("myrepo2")
-      setup_auth("user", "hunter42", "myrepo2")
+      bypass_repo("myorg2")
+      setup_auth("user", "hunter42")
 
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
-      Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--repo", "myrepo2"])
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--organization", "myorg2"])
       assert_received {:mix_shell, :info, ["Package published to myrepo html_url" <> _]}
     end
   after

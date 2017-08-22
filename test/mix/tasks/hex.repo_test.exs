@@ -29,26 +29,6 @@ defmodule Mix.Tasks.Hex.RepoTest do
     end
   end
 
-  test "add private repo" do
-    in_tmp fn ->
-      Hex.State.put(:home, System.cwd!)
-      auth = Hexpm.new_user("repoprivate", "repoprivate@mail.com", "password", "repoprivate")
-      Mix.Tasks.Hex.update_key("hexpm", auth[:encrypted_key])
-
-      send self(), {:mix_shell_input, :prompt, "password"}
-      Mix.Tasks.Hex.Repo.run(["add", "hexpm:myrepo"])
-
-      myrepo = Hex.Repo.get_repo("myrepo")
-      hexpm = Hex.Repo.get_repo("hexpm")
-
-      assert myrepo.public_key == hexpm.public_key
-      assert myrepo.api_key == hexpm.api_key
-      assert myrepo.url == hexpm.url <> "/repo/myrepo"
-      assert myrepo.api_url == hexpm.api_url <> "/repo/myrepo"
-      assert is_binary(myrepo.auth_key)
-    end
-  end
-
   test "remove" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
@@ -66,23 +46,6 @@ defmodule Mix.Tasks.Hex.RepoTest do
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
       Mix.Tasks.Hex.Repo.run(["set", "reponame", "--url", "other_url"])
       assert ["$repos": %{"reponame" => %{url: "other_url"}}] = Hex.Config.read()
-    end
-  end
-
-  test "set api_url" do
-    in_tmp fn ->
-      Hex.State.put(:home, System.cwd!)
-
-      Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
-      Mix.Tasks.Hex.Repo.run(["set", "reponame", "--api-url", "apiurl"])
-
-      assert ["$repos": %{"reponame" => %{api_url: "apiurl"}}] = Hex.Config.read()
-      assert Hex.State.fetch!(:repos)["reponame"].api_url == "apiurl"
-
-      Mix.Tasks.Hex.Repo.run(["set", "hexpm", "--api-url", "apiurl"])
-
-      assert ["$repos": %{"hexpm" => %{api_url: "apiurl"}}] = Hex.Config.read()
-      assert Hex.State.fetch!(:repos)["hexpm"].api_url == "apiurl"
     end
   end
 

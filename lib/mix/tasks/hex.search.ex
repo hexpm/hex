@@ -10,10 +10,10 @@ defmodule Mix.Tasks.Hex.Search do
 
   ## Command line options
 
-    * `--repo REPOSITORY` - The repository to communicate with (default: hexpm)
+    * `--organization ORGANIZATION` - The organization the package belongs to
   """
 
-  @switches [repo: :string]
+  @switches [organization: :string]
 
   def run(args) do
     Hex.start()
@@ -21,12 +21,13 @@ defmodule Mix.Tasks.Hex.Search do
 
     case args do
       [package] ->
-        Hex.API.Package.search(opts[:repo], package)
+        Hex.API.Package.search(opts[:organization], package)
         |> lookup_packages()
 
       _ ->
         Mix.raise """
         Invalid arguments, expected:
+
         mix hex.search PACKAGE
         """
     end

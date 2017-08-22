@@ -23,9 +23,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
       retire_test_package "0.1.0", "security"
 
       Mix.Task.run "hex.audit"
-
       assert_output_row @package_name, "0.1.0", "(security)"
-
       assert_received {:mix_shell, :error, ["Found retired packages"]}
     end
   end
@@ -35,9 +33,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
       retire_test_package "0.2.0", "invalid", "Superseded by v1.0.0"
 
       Mix.Task.run "hex.audit"
-
       assert_output_row @package_name, "0.2.0", "(invalid) Superseded by v1.0.0"
-
       assert_received {:mix_shell, :error, ["Found retired packages"]}
     end
   end
@@ -45,7 +41,6 @@ defmodule Mix.Tasks.Hex.AuditTest do
   test "audit (no retired packages)", context do
     with_test_package "1.0.0", context, fn ->
       Mix.Task.run "hex.audit"
-
       assert_received {:mix_shell, :info, ["No retired packages found"]}
     end
   end
@@ -57,12 +52,11 @@ defmodule Mix.Tasks.Hex.AuditTest do
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
-      Mix.Tasks.Hex.update_key("hexpm", auth[:encrypted_key])
+      Mix.Tasks.Hex.update_key(auth[:encrypted_key])
       Mix.Dep.Lock.write(%{@package => {:hex, @package, version}})
 
       Mix.Task.run "deps.get"
       flush()
-
       fun.()
     end
   end
