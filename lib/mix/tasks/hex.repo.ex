@@ -6,23 +6,26 @@ defmodule Mix.Tasks.Hex.Repo do
   @moduledoc """
   Manages the list of available Hex repositories.
 
-  To use a package from another repository add `repo: :my_repo` to the
+  The repository is where packages and the registry of packages is stored.
+  You can fetch packages from multiple different repositories and packages
+  can depend on packages from other repositories. To use a package from another
+  repository than the global default `hexpm` add `repo: "my_repo"` to the
   dependency declaration in `mix.exs`:
 
-      {:plug, "~> 1.0", repo: :my_repo}
+      {:plug, "~> 1.0", repo: "my_repo"}
 
-  By default all dependencies of plug will also be fetched from `:my_repo`
+  By default all dependencies of plug will also be fetched from `my_repo`
   unless plug has declared otherwise in its dependency definition.
 
-  To use packages from `:my_repo` you need to add it to your configuration
+  To use packages from `my_repo` you need to add it to your configuration
   first. You do that by calling `mix hex.repo my_repo https://myrepo.example.com`.
 
-  The default repo is called `:hexpm` and points to https://repo.hex.pm. This
+  The default repo is called `hexpm` and points to https://repo.hex.pm. This
   can be overridden by using `mix hex.repo set ...`.
 
-  Child dependencies will always be fetched from the same repository as the
-  parent package. To override which repository a package is fetched from add
-  add the `:repo` option to the package in your dependencies.
+  A repository configured from an organization will have `hexpm:` prefixed to
+  its name. To depend on packages from an organization add `repo: "hexpm:my_organization"`
+  to the dependency declaration or simply `organization: "my_organization"`.
 
   To configure organizations, see the `hex.organization` task.
 
@@ -95,7 +98,6 @@ defmodule Mix.Tasks.Hex.Repo do
       url: url,
       public_key: nil,
       auth_key: nil,
-      organization: nil,
     }
     |> Map.merge(Enum.into(opts, %{}))
     |> Map.put(:public_key, public_key)
@@ -123,8 +125,8 @@ defmodule Mix.Tasks.Hex.Repo do
     |> Hex.Config.update_repos()
   end
 
-  defp list do
-    header = ["Name", "URL", "Public key", "Auth key", "Organization"]
+  defp list() do
+    header = ["Name", "URL", "Public key", "Auth key"]
     values =
       Enum.map(read_config(), fn {name, config} ->
         [
@@ -132,7 +134,6 @@ defmodule Mix.Tasks.Hex.Repo do
           config[:url],
           show_public_key(config[:public_key]),
           config[:auth_key],
-          config[:organization],
         ]
       end)
     Mix.Tasks.Hex.print_table(header, values)
@@ -197,8 +198,8 @@ defmodule Mix.Tasks.Hex.Repo do
         Mix.raise "Config does not contain repo #{name}"
       _ ->
         Mix.Tasks.Hex.print_table(
-          ["URL", "Public key", "Auth key", "Organization"],
-          [[repo.url, show_public_key(repo.public_key), repo.auth_key, repo.organization]]
+          ["URL", "Public key", "Auth key"],
+          [[repo.url, show_public_key(repo.public_key), repo.auth_key]]
         )
     end
   end

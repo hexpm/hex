@@ -87,7 +87,7 @@ defmodule Mix.Tasks.Hex do
     end
   end
 
-  def update_key( key) do
+  def update_key(key) do
     Hex.Config.update([encrypted_key: key])
     Hex.State.put(:api_key, key)
   end
