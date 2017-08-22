@@ -47,25 +47,29 @@ matrix:
   - otp_release: 20.0
     env: ELIXIR=master
   - otp_release: 20.0
+    env: ELIXIR=v1.5.1
+  - otp_release: 20.0
     env: ELIXIR=v1.4.5
-  - otp_release: 19.3
-    env: ELIXIR=master
-  - otp_release: 19.3
-    env: ELIXIR=v1.4.5
+  # - otp_release: 19.3
+  #   env: ELIXIR=master
+  # - otp_release: 19.3
+  #   env: ELIXIR=v1.5.1
+  # - otp_release: 19.3
+  #   env: ELIXIR=v1.4.5
   - otp_release: 19.3
     env: ELIXIR=v1.3.4
   - otp_release: 19.3
     env: ELIXIR=v1.2.6
-  - otp_release: 18.3
-    env: ELIXIR=v1.3.4
-  - otp_release: 18.3
-    env: ELIXIR=v1.2.6
+  # - otp_release: 18.3
+  #   env: ELIXIR=v1.3.4
+  # - otp_release: 18.3
+  #   env: ELIXIR=v1.2.6
   - otp_release: 18.3
     env: ELIXIR=v1.1.1
-  - otp_release: 18.3
-    env: ELIXIR=v1.0.5
-  - otp_release: 17.5
-    env: ELIXIR=v1.1.1
+  # - otp_release: 18.3
+  #   env: ELIXIR=v1.0.5
+  # - otp_release: 17.5
+  #   env: ELIXIR=v1.1.1
   - otp_release: 17.5
     env: ELIXIR=v1.0.5
 notifications:
