@@ -97,8 +97,12 @@ defmodule Hex.Config do
   end
 
   def update_repos(repos) do
-    Hex.Config.update([{:"$repos", repos}])
-    Hex.State.put(:"$repos", repos)
+    Hex.Config.update([{:"$repos", clean_hexpm(repos)}])
+    repos =
+      repos
+      |> merge_hexpm()
+      |> update_organizations()
+    Hex.State.put(:repos, repos)
   end
 
   defp default_hexpm() do
@@ -106,7 +110,6 @@ defmodule Hex.Config do
       url: @hexpm_url,
       public_key: @hexpm_public_key,
       auth_key: nil,
-      organization: nil,
     }
   end
 
@@ -116,19 +119,36 @@ defmodule Hex.Config do
   end
 
   defp update_organizations(repos) do
-    Enum.into(repos, %{}, fn {key, repo} ->
-      if repo.organization do
-        source = Map.fetch!(repos, repo.organization)
-        repo =
-          repo
-          |> Map.put(:url, merge_values(repo.url, source.url <> "/repos/#{key}"))
-          |> Map.put(:public_key, merge_values(repo.public_key, source.public_key))
-        {key, repo}
-      else
-        {key, repo}
+    Enum.into(repos, %{}, fn {name, repo} ->
+      case String.split(name, ":", parts: 2) do
+        [source, organization] ->
+          source = Map.fetch!(repos, source)
+          repo =
+            repo
+            |> Map.put(:url, merge_values(repo.url, source.url <> "/repos/#{organization}"))
+            |> Map.put(:public_key, merge_values(repo.public_key, source.public_key))
+          {name, repo}
+        _ ->
+          {name, repo}
       end
     end)
   end
+
+  defp clean_hexpm(repos) do
+    repo = Map.fetch!(repos, "hexpm")
+    repo = Enum.reduce(default_hexpm(), repo, fn {key, value}, repo ->
+      if value == repo_value(repo, key) do
+        Map.delete(repo, key)
+      else
+        repo
+      end
+    end)
+
+    Map.put(repos, "hexpm", repo)
+  end
+
+  defp repo_value(_repo, :url), do: Hex.State.fetch!(:mirror_url)
+  defp repo_value(repo, key), do: Map.fetch!(repo, key)
 
   defp merge_values(nil, right), do: right
   defp merge_values(left, _right), do: left
