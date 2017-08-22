@@ -186,18 +186,18 @@ defmodule HexTest.Hexpm do
   end
 
   def new_user(username, email, password, key) do
-    {:ok, {201, _, _}} = Hex.API.User.new("hexpm", username, email, password)
-    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new("hexpm", key, [user: username, pass: password])
+    {:ok, {201, _, _}} = Hex.API.User.new(username, email, password)
+    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new(key, [user: username, pass: password])
     [key: secret, encrypted_key: Mix.Tasks.Hex.encrypt_key(password, secret)]
   end
 
   def new_key(auth) do
-    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new("hexpm", "key", auth)
+    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new("key", auth)
     [key: secret]
   end
 
   def new_key(username, password, key) do
-    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new("hexpm", key, [user: username, pass: password])
+    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new(key, [user: username, pass: password])
     [key: secret, encrypted_key: Mix.Tasks.Hex.encrypt_key(password, secret)]
   end
 

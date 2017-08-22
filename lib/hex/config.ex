@@ -1,6 +1,5 @@
 defmodule Hex.Config do
   @hexpm_url "https://repo.hex.pm"
-  @hexpm_api_url "https://hex.pm/api"
   @hexpm_public_key """
   -----BEGIN PUBLIC KEY-----
   MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApqREcFDt5vV21JVe2QNB
@@ -93,44 +92,44 @@ defmodule Hex.Config do
 
   def read_repos(config) do
     (config[:"$repos"] || %{})
-    |> merge_hexpm(config)
+    |> merge_hexpm()
+    |> update_organizations()
   end
 
   def update_repos(repos) do
-    repos = clean_hexpm(repos)
-    config = Hex.Config.update([{:"$repos", repos}])
-    Hex.State.refresh_repos(config)
+    Hex.Config.update([{:"$repos", repos}])
+    Hex.State.put(:"$repos", repos)
   end
 
-  defp default_hexpm(config) do
+  defp default_hexpm() do
     %{
       url: @hexpm_url,
       public_key: @hexpm_public_key,
       auth_key: nil,
-      api_url: @hexpm_api_url,
-      api_key: config[:encrypted_key],
+      organization: nil,
     }
   end
 
-  defp merge_hexpm(repos, config) do
-    hexpm = default_hexpm(config)
+  defp merge_hexpm(repos) do
+    hexpm = default_hexpm()
     Map.update(repos, "hexpm", hexpm, &Map.merge(hexpm, &1))
   end
 
-  defp clean_hexpm(repos) do
-    repo = Map.fetch!(repos, "hexpm")
-    repo = Enum.reduce(default_hexpm([]), repo, fn {key, value}, repo ->
-      if value == repo_value(repo, key) do
-        Map.delete(repo, key)
+  defp update_organizations(repos) do
+    Enum.into(repos, %{}, fn {key, repo} ->
+      if repo.organization do
+        source = Map.fetch!(repos, repo.organization)
+        repo =
+          repo
+          |> Map.put(:url, merge_values(repo.url, source.url <> "/repos/#{key}"))
+          |> Map.put(:public_key, merge_values(repo.public_key, source.public_key))
+        {key, repo}
       else
-        repo
+        {key, repo}
       end
     end)
-
-    Map.put(repos, "hexpm", repo)
   end
 
-  defp repo_value(_repo, :url), do: Hex.State.fetch!(:mirror_url)
-  defp repo_value(_repo, :api_url), do: Hex.State.fetch!(:api_url)
-  defp repo_value(repo, key), do: Map.fetch!(repo, key)
+  defp merge_values(nil, right), do: right
+  defp merge_values(left, _right), do: left
 end

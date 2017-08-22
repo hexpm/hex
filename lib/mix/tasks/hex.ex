@@ -13,23 +13,14 @@ defmodule Mix.Tasks.Hex do
   See `mix help hex.config` to see all available configuration options.
   """
 
-  def run(args) do
+  def run(_args) do
     Hex.start()
-    {_opts, args, _} = OptionParser.parse(args)
 
-    case args do
-      [] -> general()
-      _ ->
-        Mix.raise "Invalid arguments, expected: mix hex"
-    end
-  end
-
-  defp general() do
-    Hex.Shell.info "Hex v" <> Hex.version
+    Hex.Shell.info "Hex v" <> Hex.version()
     Hex.Shell.info "Hex is a package manager for the Erlang ecosystem."
     line_break()
 
-    if Hex.Version.match?(System.version, ">= 1.1.0-dev") do
+    if Hex.Version.match?(System.version(), ">= 1.1.0-dev") do
       Hex.Shell.info "Available tasks:"
       line_break()
       Mix.Task.run("help", ["--search", "hex."])
@@ -79,16 +70,16 @@ defmodule Mix.Tasks.Hex do
     end)
   end
 
-  def generate_key(repo, username, password) do
+  def generate_key(username, password) do
     Hex.Shell.info("Generating API key...")
     {:ok, name} = :inet.gethostname()
     name = List.to_string(name)
 
-    case Hex.API.Key.new(repo, name, [user: username, pass: password]) do
+    case Hex.API.Key.new(name, [user: username, pass: password]) do
       {:ok, {201, body, _}} ->
         Hex.Shell.info("Encrypting API key with user password...")
         encrypted_key = Hex.Crypto.encrypt(body["secret"], password, @apikey_tag)
-        update_key(repo, encrypted_key)
+        update_key(encrypted_key)
 
       other ->
         Mix.shell.error("Generation of API key failed")
@@ -96,22 +87,20 @@ defmodule Mix.Tasks.Hex do
     end
   end
 
-  def update_key(repo, key) do
-    Hex.State.fetch!(:repos)
-    |> Map.update!(repo || "hexpm", &Map.put(&1, :api_key, key))
-    |> Hex.Config.update_repos()
+  def update_key( key) do
+    Hex.Config.update([encrypted_key: key])
+    Hex.State.put(:api_key, key)
   end
 
-  def auth_info(repo) do
-    repo = Hex.Repo.get_repo(repo)
-    if key = repo.api_key do
+  def auth_info() do
+    if key = Hex.State.fetch!(:api_key) do
       [key: prompt_decrypt_key(key)]
     else
       Mix.raise "No authorized user found. Run 'mix hex.user auth'"
     end
   end
 
-  def prompt_encrypt_key(repo, key, challenge \\ "Passphrase") do
+  def prompt_encrypt_key(key, challenge \\ "Passphrase") do
     password = password_get("#{challenge}:") |> Hex.string_trim()
     confirm = password_get("#{challenge} (confirm):") |> Hex.string_trim()
     if password != confirm do
@@ -119,7 +108,7 @@ defmodule Mix.Tasks.Hex do
     end
 
     encrypted_key = Hex.Crypto.encrypt(key, password, @apikey_tag)
-    update_key(repo, encrypted_key)
+    update_key(encrypted_key)
   end
 
   def prompt_decrypt_key(encrypted_key, challenge \\ "Passphrase") do

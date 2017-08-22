@@ -23,13 +23,14 @@ defmodule Mix.Tasks.Hex.Install do
       _ ->
         Mix.raise """
         Invalid arguments, expected:
+
         mix hex.install VERSION
         """
     end
   end
 
   defp install(hex_version) do
-    hex_mirror = Hex.State.fetch!(:mirror)
+    hex_mirror = Hex.State.fetch!(:mirror_url)
     csv_url = hex_mirror <> @hex_list_path
 
     case find_matching_versions_from_signed_csv!("Hex", csv_url, hex_version) do

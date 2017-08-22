@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.RetireTest do
     Hexpm.new_package("retire_package", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
-    Mix.Tasks.Hex.update_key("hexpm", auth[:encrypted_key])
+    Mix.Tasks.Hex.update_key(auth[:encrypted_key])
 
     send self(), {:mix_shell_input, :prompt, "passpass"}
     Mix.Tasks.Hex.Retire.run(["retire_package", "0.0.1", "renamed", "--message", "message"])

@@ -9,7 +9,8 @@ defmodule Hex.Repo do
       {:ok, config} ->
         config
       :error ->
-        Mix.raise "Unknown repository #{inspect repo}, add new repositories with the `mix hex.repo` task"
+        Mix.raise "Unknown repository #{inspect repo}, add new repositories" <>
+                  "with the `mix hex.repo` or `mix hex.organization` tasks"
     end
   end
 

@@ -19,10 +19,10 @@ defmodule Mix.Tasks.Hex.Info do
 
   ## Command line options
 
-    * `--repo REPOSITORY` - The repository to communicate with (default: hexpm)
+    * `--organization ORGANIZATION` - The organization the package belongs to
   """
 
-  @switches [repo: :string]
+  @switches [organization: :string]
 
   def run(args) do
     Hex.start()
@@ -32,12 +32,13 @@ defmodule Mix.Tasks.Hex.Info do
       [] ->
         general()
       [package] ->
-        package(opts[:repo], package)
+        package(opts[:organization], package)
       [package, version] ->
-        release(opts[:repo], package, version)
+        release(opts[:organization], package, version)
       _ ->
         Mix.raise """
         Invalid arguments, expected:
+
         mix hex.info [PACKAGE [VERSION]]
         """
     end
@@ -55,8 +56,8 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Registry.Server.close()
   end
 
-  defp package(repo, package) do
-    case Hex.API.Package.get(repo, package) do
+  defp package(organization, package) do
+    case Hex.API.Package.get(organization, package) do
       {:ok, {code, body, _}} when code in 200..299 ->
         print_package(body)
       {:ok, {404, _, _}} ->
@@ -67,8 +68,8 @@ defmodule Mix.Tasks.Hex.Info do
     end
   end
 
-  defp release(repo, package, version) do
-    case Hex.API.Release.get(repo, package, version) do
+  defp release(organization, package, version) do
+    case Hex.API.Release.get(organization, package, version) do
       {:ok, {code, body, _}} when code in 200..299 ->
         print_release(package, body)
       {:ok, {404, _, _}} ->

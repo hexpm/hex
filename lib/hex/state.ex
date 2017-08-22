@@ -1,5 +1,6 @@
 defmodule Hex.State do
   @name __MODULE__
+  @api_url "https://hex.pm/api"
   @logged_keys ~w(http_proxy HTTP_PROXY https_proxy HTTPS_PROXY)
   @default_home "~/.hex"
   @pbkdf2_iters 32_768
@@ -13,14 +14,15 @@ defmodule Hex.State do
     Agent.stop(@name)
   end
 
-  def init(config) do
-    {api_url, mirror_url, repos} = repos(config)
+  # TODO: mirror_url
 
+  def init(config) do
     %{
       home: System.get_env("HEX_HOME") |> default(@default_home) |> Path.expand(),
-      repos: repos,
-      api_url: api_url,
-      mirror_url: mirror_url,
+      repos: Hex.Config.read_repos(config),
+      api_url: load_config(config, ["HEX_API_URL", "HEX_API"], :api_url) |> trim_slash() |> default(@api_url),
+      api_key: load_config(config, [], :encrypted_key),
+      mirror_url: load_config(config, ["HEX_MIRROR_URL", "HEX_MIRROR"], :mirror_url) |> trim_slash(),
       http_proxy: load_config(config, ["http_proxy", "HTTP_PROXY"], :http_proxy),
       https_proxy: load_config(config, ["https_proxy", "HTTPS_PROXY"], :https_proxy),
       offline?: load_config(config, ["HEX_OFFLINE"], :offline) |> to_boolean() |> default(false),
@@ -37,17 +39,6 @@ defmodule Hex.State do
   def refresh() do
     Agent.update(@name, fn _ ->
       init(Hex.Config.read())
-    end)
-  end
-
-  def refresh_repos(config) do
-    Agent.update(@name, fn state ->
-      {api_url, mirror_url, repos} = repos(config)
-      %{state |
-        repos: repos,
-        api_url: api_url,
-        mirror_url: mirror_url,
-      }
     end)
   end
 
@@ -154,22 +145,6 @@ defmodule Hex.State do
     else
       string
     end
-  end
-
-  defp repos(config) do
-    api_url = load_config(config, ["HEX_API_URL", "HEX_API"], :api_url) |> trim_slash()
-    mirror_url = load_config(config, ["HEX_MIRROR_URL", "HEX_MIRROR"], :mirror_url) |> trim_slash()
-    repos = read_repos(config, api_url, mirror_url)
-    {api_url, mirror_url, repos}
-  end
-
-  defp read_repos(config, api, mirror) do
-    config
-    |> Hex.Config.read_repos()
-    |> Map.update!("hexpm", &Map.merge(&1, %{
-      api_url: api || &1.api_url,
-      url: mirror || &1.url,
-    }))
   end
 
   defp ssl_version() do

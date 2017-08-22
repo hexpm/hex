@@ -31,9 +31,13 @@ defmodule Hex.API do
   end
 
   defp url(repo, path) do
-    api_url = Hex.Repo.get_repo(repo).api_url
-    api_url <> "/" <> path
+    api_url = Hex.State.fetch!(:api_url)
+    api_url <> repo_path(repo) <> path
   end
+
+  defp repo_path(nil), do: "/"
+  defp repo_path("hexpm"), do: "/"
+  defp repo_path(org), do: "/repos/#{org}/"
 
   defp headers(opts) do
     %{'accept' => @erlang_content}

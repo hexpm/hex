@@ -13,8 +13,8 @@ defmodule Mix.Tasks.Hex.InfoTest do
   end
 
   test "package with custom repo" do
-    bypass_repo("myrepo")
-    Mix.Tasks.Hex.Info.run(["ecto", "--repo", "myrepo"])
+    bypass_repo("myorg")
+    Mix.Tasks.Hex.Info.run(["ecto", "--organization", "myorg"])
     assert_received {:mix_shell, :info, ["ecto description\n"]}
   end
 

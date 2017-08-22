@@ -1,10 +1,10 @@
 defmodule Mix.Tasks.Hex.Config do
   use Mix.Task
 
-  @shortdoc "Reads, updates or deletes Hex config"
+  @shortdoc "Reads, updates or deletes local Hex config"
 
   @moduledoc """
-  Reads, updates or deletes Hex configuration keys.
+  Reads, updates or deletes local Hex configuration.
 
       mix hex.config KEY [VALUE]
 
@@ -60,6 +60,7 @@ defmodule Mix.Tasks.Hex.Config do
       _ ->
         Mix.raise """
         Invalid arguments, expected:
+
         mix hex.config KEY [VALUE]
         """
     end
