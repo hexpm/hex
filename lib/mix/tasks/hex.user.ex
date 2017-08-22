@@ -34,19 +34,19 @@ defmodule Mix.Tasks.Hex.User do
 
       mix hex.user passphrase
 
-  ### Remove key
+  ### Revoke key
 
   Removes given API key from account.
 
   The key can no longer be used to authenticate API requests.
 
-      mix hex.user key --remove key_name
+      mix hex.user key --revoke key_name
 
-  ### Remove all keys
+  ### Revoke all keys
 
-  Remove all API keys from your account.
+  Revoke all API keys from your account.
 
-      mix hex.user key --remove-all
+      mix hex.user key --revoke-all
 
   ### List keys
 
@@ -65,7 +65,7 @@ defmodule Mix.Tasks.Hex.User do
       mix hex.user reset password
   """
 
-  @switches [remove_all: :boolean, remove: :string, list: :boolean]
+  @switches [revoke_all: :boolean, revoke: :string, list: :boolean]
 
   def run(args) do
     Hex.start()
@@ -87,32 +87,36 @@ defmodule Mix.Tasks.Hex.User do
       ["reset", "password"] ->
         reset_password()
       _ ->
-        Mix.raise """
-        Invalid arguments, expected one of:
-
-        mix hex.user register
-        mix hex.user whoami
-        mix hex.user auth
-        mix hex.user deauth
-        mix hex.user passphrase
-        mix hex.user key --revoke-all
-        mix hex.user key --revoke KEY_NAME
-        mix hex.user key --list
-        mix hex.user reset password
-        """
+        invalid_args()
     end
+  end
+
+  defp invalid_args() do
+    Mix.raise """
+    Invalid arguments, expected one of:
+
+    mix hex.user register
+    mix hex.user whoami
+    mix hex.user auth
+    mix hex.user deauth
+    mix hex.user passphrase
+    mix hex.user key --revoke-all
+    mix hex.user key --revoke KEY_NAME
+    mix hex.user key --list
+    mix hex.user reset password
+    """
   end
 
   defp process_key_task(opts) do
     cond do
-      opts[:remove_all] ->
-        remove_all_keys()
-      key = opts[:remove] ->
-        remove_key(key)
+      opts[:revoke_all] ->
+        revoke_all_keys()
+      key = opts[:revoke] ->
+        revoke_key(key)
       opts[:list] ->
         list_keys()
       true ->
-        Mix.raise "Invalid arguments. Run 'mix help hex.user'"
+        invalid_args()
     end
   end
 
@@ -196,23 +200,23 @@ defmodule Mix.Tasks.Hex.User do
     Mix.Tasks.Hex.generate_key(username, password)
   end
 
-  defp remove_all_keys() do
+  defp revoke_all_keys() do
     auth = Mix.Tasks.Hex.auth_info()
 
-    Hex.Shell.info "Removing all keys..."
+    Hex.Shell.info "Revoking all keys..."
     case Hex.API.Key.delete_all(auth) do
       {:ok, {code, %{"name" => _, "authing_key" => true}, _headers}} when code in 200..299 ->
         Mix.Tasks.Hex.User.run(["deauth"])
       other ->
-        Hex.Shell.error "Key removal failed"
+        Hex.Shell.error "Key revokal failed"
         Hex.Utils.print_error_result(other)
     end
   end
 
-  defp remove_key(key) do
+  defp revoke_key(key) do
     auth = Mix.Tasks.Hex.auth_info()
 
-    Hex.Shell.info "Removing key #{key}..."
+    Hex.Shell.info "Revoking key #{key}..."
     case Hex.API.Key.delete(key, auth) do
       {:ok, {200, %{"name" => ^key, "authing_key" => true}, _headers}} ->
         Mix.Tasks.Hex.User.run(["deauth"])
@@ -220,7 +224,7 @@ defmodule Mix.Tasks.Hex.User do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
       other ->
-        Hex.Shell.error "Key removal failed"
+        Hex.Shell.error "Key revokal failed"
         Hex.Utils.print_error_result(other)
     end
   end
