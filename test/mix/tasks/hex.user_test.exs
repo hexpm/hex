@@ -103,47 +103,47 @@ defmodule Mix.Tasks.Hex.UserTest do
     end
   end
 
-  test "remove key" do
+  test "revoke key" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      auth_a = Hexpm.new_user("remove_key", "remove_key@mail.com", "password", "remove_key_a")
-      auth_b = Hexpm.new_key("remove_key", "password", "remove_key_b")
+      auth_a = Hexpm.new_user("revoke_key", "revoke_key@mail.com", "password", "revoke_key_a")
+      auth_b = Hexpm.new_key("revoke_key", "password", "revoke_key_b")
       Mix.Tasks.Hex.update_key(auth_a[:encrypted_key])
 
       assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_a)
       assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_b)
 
       send self(), {:mix_shell_input, :prompt, "password"}
-      Mix.Tasks.Hex.User.run(["key", "--remove", "remove_key_b"])
-      assert_received {:mix_shell, :info, ["Removing key remove_key_b..."]}
+      Mix.Tasks.Hex.User.run(["key", "--revoke", "revoke_key_b"])
+      assert_received {:mix_shell, :info, ["Revoking key revoke_key_b..."]}
 
       assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_a)
       assert {:ok, {401, _, _}} = Hex.API.Key.get(auth_b)
 
       send self(), {:mix_shell_input, :prompt, "password"}
-      Mix.Tasks.Hex.User.run(["key", "--remove", "remove_key_a"])
-      assert_received {:mix_shell, :info, ["Removing key remove_key_a..."]}
+      Mix.Tasks.Hex.User.run(["key", "--revoke", "revoke_key_a"])
+      assert_received {:mix_shell, :info, ["Revoking key revoke_key_a..."]}
       assert_received {:mix_shell, :info, ["Authentication credentials removed from the local machine." <> _]}
 
       assert {:ok, {401, _, _}} = Hex.API.Key.get(auth_a)
     end
   end
 
-  test "remove all keys" do
+  test "revoke all keys" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      auth_a = Hexpm.new_user("remove_all_keys", "remove_all_keys@mail.com", "password", "remove_all_keys_a")
-      auth_b = Hexpm.new_key("remove_all_keys", "password", "remove_all_keys_b")
+      auth_a = Hexpm.new_user("revoke_all_keys", "revoke_all_keys@mail.com", "password", "revoke_all_keys_a")
+      auth_b = Hexpm.new_key("revoke_all_keys", "password", "revoke_all_keys_b")
       Mix.Tasks.Hex.update_key(auth_a[:encrypted_key])
 
       assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_a)
       assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_b)
 
       send self(), {:mix_shell_input, :prompt, "password"}
-      Mix.Tasks.Hex.User.run(["key", "--remove-all"])
-      assert_received {:mix_shell, :info, ["Removing all keys..."]}
+      Mix.Tasks.Hex.User.run(["key", "--revoke-all"])
+      assert_received {:mix_shell, :info, ["Revoking all keys..."]}
       assert_received {:mix_shell, :info, ["Authentication credentials removed from the local machine." <> _]}
 
       assert {:ok, {401, _, _}} = Hex.API.Key.get(auth_a)
