@@ -1,4 +1,4 @@
-defmodule Sample.Fixture.Mixfile do
+defmodule Sample.Fixture.MixProject do
   use Mix.Project
 
   def project do

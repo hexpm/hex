@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
   use HexTest.Case
   @moduletag :integration
 
-  defmodule OutdatedDeps.Mixfile do
+  defmodule OutdatedDeps.MixProject do
     def project do
       [app: :outdated_app,
        version: "0.0.2",
@@ -11,7 +11,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
-  defmodule OutdatedBetaDeps.Mixfile do
+  defmodule OutdatedBetaDeps.MixProject do
     def project do
       [app: :outdated_app,
        version: "0.0.1",
@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
-  defmodule OutdatedApp.Mixfile do
+  defmodule OutdatedApp.MixProject do
     def project do
       [app: :outdated_app,
        version: "0.0.1",
@@ -29,7 +29,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
-  defmodule NotOutdatedApp.Mixfile do
+  defmodule NotOutdatedApp.MixProject do
     def project do
       [app: :outdated_app,
        version: "0.0.1",
@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
-  defmodule WithoutHexDeps.Mixfile do
+  defmodule WithoutHexDeps.MixProject do
     def project do
       [app: :outdated_app,
        version: "0.0.1",
@@ -45,7 +45,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
-  defmodule OutdatedMultiDeps.Mixfile do
+  defmodule OutdatedMultiDeps.MixProject do
     def project do
       [app: :outdated_app,
        version: "0.0.2",
@@ -55,7 +55,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
   end
 
   test "outdated" do
-    Mix.Project.push OutdatedDeps.Mixfile
+    Mix.Project.push OutdatedDeps.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -76,7 +76,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
   end
 
   test "outdated --all" do
-    Mix.Project.push OutdatedDeps.Mixfile
+    Mix.Project.push OutdatedDeps.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -106,7 +106,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
   end
 
   test "outdated --all with multiple dependent packages" do
-    Mix.Project.push OutdatedMultiDeps.Mixfile
+    Mix.Project.push OutdatedMultiDeps.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -130,7 +130,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
   end
 
   test "outdated --pre" do
-    Mix.Project.push OutdatedBetaDeps.Mixfile
+    Mix.Project.push OutdatedBetaDeps.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -157,7 +157,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
   end
 
   test "outdated app" do
-    Mix.Project.push OutdatedApp.Mixfile
+    Mix.Project.push OutdatedApp.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -190,7 +190,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
   end
 
   test "not outdated app" do
-    Mix.Project.push NotOutdatedApp.Mixfile
+    Mix.Project.push NotOutdatedApp.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -208,7 +208,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
   end
 
   test "without hex deps" do
-    Mix.Project.push WithoutHexDeps.Mixfile
+    Mix.Project.push WithoutHexDeps.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -223,7 +223,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
   test "umbrella projects" do
     in_tmp "umbrella", fn ->
       File.write! "mix.exs", """
-      defmodule Umbrella.Mixfile do
+      defmodule Umbrella.MixProject do
         use Mix.Project
 
         def project do
@@ -237,7 +237,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Mix.Project.in_project :umbrella, ".", fn _ ->
         File.mkdir_p!("apps/bacon")
         File.write! "apps/bacon/mix.exs", """
-        defmodule Bacon.Mixfile do
+        defmodule Bacon.MixProject do
           use Mix.Project
 
           def project do

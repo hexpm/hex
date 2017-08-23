@@ -28,8 +28,8 @@ defmodule HexTest.Hexpm do
     }
   end
 
-  @mixfile_template """
-  defmodule ~s.NoConflict.Mixfile do
+  @mix_exs_template """
+  defmodule ~s.NoConflict.MixProject do
     use Mix.Project
 
     def project do
@@ -227,9 +227,9 @@ defmodule HexTest.Hexpm do
 
     deps = inspect(deps, pretty: true)
     module = String.capitalize(name)
-    mixfile = :io_lib.format(@mixfile_template, [module, name, version, deps])
+    mix_exs = :io_lib.format(@mix_exs_template, [module, name, version, deps])
 
-    files = [{"mix.exs", List.to_string(mixfile)}]
+    files = [{"mix.exs", List.to_string(mix_exs)}]
     {tar, _checksum} = Hex.Tar.create(meta, files)
 
     {:ok, {result, %{"version" => ^version}, _}} = Hex.API.Release.new("hexpm", name, tar, auth)
