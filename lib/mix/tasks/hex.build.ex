@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Hex.Build do
 
   @default_files ~w(lib priv mix.exs README* readme* LICENSE*
                     license* CHANGELOG* changelog* src)
-  @error_fields ~w(files app name description version build_tools)a
+  @error_fields ~w(app name files description version build_tools)a
   @warn_fields ~w(licenses maintainers links)a
   @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir extra)a
   @max_description_length 300
@@ -69,12 +69,13 @@ defmodule Mix.Tasks.Hex.Build do
     Hex.start()
     build = prepare_package()
 
+    organization = build.organization
     meta = build.meta
     package = build.package
     exclude_deps = build.exclude_deps
 
     Hex.Shell.info("Building #{meta.name} #{meta.version}")
-    print_info(meta, exclude_deps, package[:files])
+    print_info(meta, organization, exclude_deps, package[:files])
 
     {_tar, checksum} = Hex.Tar.create(meta, meta.files, false)
     Hex.Shell.info("Package checksum: #{checksum}")
@@ -101,7 +102,7 @@ defmodule Mix.Tasks.Hex.Build do
     }
   end
 
-  def print_info(meta, exclude_deps, package_files) do
+  def print_info(meta, organization, exclude_deps, package_files) do
     if meta[:requirements] != [] do
       Hex.Shell.info("  Dependencies:")
       Enum.each(meta[:requirements], fn %{name: name, app: app, requirement: req, optional: opt, repository: repo} ->
@@ -111,6 +112,10 @@ defmodule Mix.Tasks.Hex.Build do
         message = "    #{name} #{req}#{app}#{repo}#{opt}"
         Hex.Shell.info(message)
       end)
+    end
+
+    if organization do
+      Hex.Shell.info("  Organization: #{organization}")
     end
 
     Enum.each(@meta_fields, &print_metadata(meta, &1))

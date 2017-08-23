@@ -107,21 +107,21 @@ defmodule Mix.Tasks.Hex.Publish do
         revert_docs(build, organization, revert_version, auth)
 
       [] when revert ->
-        auth = Mix.Tasks.Hex.auth_info()
-        revert(build, organization, revert_version, auth)
+        revert(build, organization, revert_version)
 
       ["package"] ->
-        auth = Mix.Tasks.Hex.auth_info()
-        if proceed?(build), do: create_release(build, organization, auth, opts)
+        if proceed?(build) do
+          auth = Mix.Tasks.Hex.auth_info()
+          create_release(build, organization, auth, opts)
+        end
 
       ["docs"] ->
-        auth = Mix.Tasks.Hex.auth_info()
         docs_task(build, opts)
+        auth = Mix.Tasks.Hex.auth_info()
         create_docs(build, organization, auth, opts)
 
       [] ->
-        auth = Mix.Tasks.Hex.auth_info()
-        create(build, organization, auth, opts)
+        create(build, organization, opts)
 
       _ ->
         Mix.raise """
@@ -134,10 +134,11 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp create(build, organization, auth, opts) do
+  defp create(build, organization, opts) do
     if proceed?(build) do
       Hex.Shell.info("Building docs...")
       docs_task(build, opts)
+      auth = Mix.Tasks.Hex.auth_info()
       Hex.Shell.info("Publishing package...")
 
       if :ok == create_release(build, organization, auth, opts) do
@@ -178,11 +179,12 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp proceed?(build) do
     meta = build.meta
+    organization = build.organization
     exclude_deps = build.exclude_deps
     package = build.package
 
     Hex.Shell.info("Publishing #{meta.name} #{meta.version}")
-    Build.print_info(meta, exclude_deps, package[:files])
+    Build.print_info(meta, organization, exclude_deps, package[:files])
 
     print_link_to_coc()
 
@@ -193,7 +195,8 @@ defmodule Mix.Tasks.Hex.Publish do
     Hex.Shell.info "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct"
   end
 
-  defp revert(build, organization, version, auth) do
+  defp revert(build, organization, version) do
+    auth = Mix.Tasks.Hex.auth_info()
     Hex.Shell.info("Reverting package...")
     revert_package(build, organization, version, auth)
     Hex.Shell.info("Reverting docs...")
