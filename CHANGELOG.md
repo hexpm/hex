@@ -1,6 +1,35 @@
-## v0.16.2-dev
+## v0.17.0-dev
 
-## v0.16.1
+### Private packages and organizations
+
+Hex.pm is adding support for private packages with organizations. See https://hex.pm/docs/private
+for more details. To authorize an organization on your machine run `mix hex.organization auth acme`,
+this will store the organization's repository details in Hex so that you can fetch
+packages from the repository. As soon as you are added as a member to an organization
+you can administer and publish packages, if you have the appropriate role, with
+the `--organization` flag or by setting the `:organization` option on the package
+configuration.
+
+Different from the last release packages will always be pulled from the default
+`hexpm` repository and you have to override it with the `:organization` or
+`:repo` options on the dependency configuration.
+
+### Enhancements
+  * Add `hex.organization` task
+  * Rename `hex.user key` flag `--remove*` to `--revoke*` to clarify what it does
+  * Add `--organization` flag to tasks working on packages
+  * Add `:organization` option to package configuration
+  * Add support for publishing to organizations
+  * Improve error message when docs task is missing
+  * Add `--confirm` flag to `hex.publish` task
+
+### Bug fixes
+  * Fix version validation exceptions
+  * Reintroduce `HEX_MIRROR` environment variable
+  * Preserve file modes when building tarball
+  * Disallow `:app` option for dependencies
+
+## v0.16.1 (2017-06-22)
 
 ### Enhancements
   * Add `mix hex.repo show` task for showing repo configuration
@@ -15,7 +44,7 @@
   * Fix race condition where some entries may not be cached if they were added just before application closed
   * Support PAX tarballs, created on OTP 20, when using older OTP versions. Additionally, make it less likely PAX tarballs are created
 
-## v0.16.0
+## v0.16.0 (2017-04-18)
 
 ### Multiple repository support
 
