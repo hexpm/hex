@@ -60,6 +60,21 @@ defmodule Mix.Tasks.Hex.PublishTest do
     purge [ReleaseSimple.Mixfile]
   end
 
+  test "create a package without confirming" do
+    Mix.Project.push ReleaseSimple.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user", "hunter42")
+      # note that we don't need the yes? input here
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--no-confirm"])
+      assert {:ok, {200, _, _}} = Hex.API.Release.get("release_a", "0.0.1")
+    end
+  after
+    purge [ReleaseSimple.Mixfile]
+  end
+
   test "create and revert docs" do
     Mix.Project.push DocsSimple.Mixfile
 
@@ -116,6 +131,25 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
       assert {:ok, {200, body, _}} = Hex.API.Release.get("hexpm", "released_name", "0.0.1")
+      assert body["meta"]["app"] == "release_d"
+    end
+  after
+    purge [ReleaseName.Mixfile]
+  end
+
+  test "package create with package name no confirm" do
+    Mix.Project.push ReleaseName.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user", "hunter42")
+
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      Mix.Tasks.Hex.Publish.run(["--no-progress", "--no-confirm"])
+      msg = "Publishing released_name 0.0.1"
+      assert_received {:mix_shell, :info, [^msg]}
+
+      assert {:ok, {200, body, _}} = Hex.API.Release.get("released_name", "0.0.1")
       assert body["meta"]["app"] == "release_d"
     end
   after
