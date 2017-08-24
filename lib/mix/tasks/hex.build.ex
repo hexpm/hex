@@ -3,10 +3,11 @@ defmodule Mix.Tasks.Hex.Build do
 
   @default_files ~w(lib priv mix.exs README* readme* LICENSE*
                     license* CHANGELOG* changelog* src)
-  @error_fields ~w(files app name description version build_tools)a
+  @error_fields ~w(app name files description version build_tools)a
   @warn_fields ~w(licenses maintainers links)a
   @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir extra)a
   @max_description_length 300
+  @default_repo "hexpm"
 
   @shortdoc "Builds a new package version locally"
 
@@ -22,13 +23,9 @@ defmodule Mix.Tasks.Hex.Build do
   ## Configuration
 
     * `:app` - Package name (required).
-
     * `:version` - Package version (required).
-
     * `:deps` - List of package dependencies (see Dependencies below).
-
     * `:description` - Short description of the project.
-
     * `:package` - Hex specific configuration (see Package configuration below).
 
   ## Dependencies
@@ -37,9 +34,11 @@ defmodule Mix.Tasks.Hex.Build do
   `:git` or `:path` as the SCM `:package` is used.
 
       defp deps do
-        [ {:ecto, "~> 0.1.0"},
+        [
+          {:ecto, "~> 0.1.0"},
           {:postgrex, "~> 0.3.0"},
-          {:cowboy, github: "extend/cowboy"} ]
+          {:cowboy, github: "extend/cowboy"}
+        ]
       end
 
   As can be seen Hex package dependencies works alongside git dependencies.
@@ -53,17 +52,12 @@ defmodule Mix.Tasks.Hex.Build do
 
     * `:name` - Set this if the package name is not the same as the application
        name.
-
     * `:files` - List of files and directories to include in the package,
       can include wildcards. Defaults to `["lib", "priv", "mix.exs", "README*",
       "readme*", "LICENSE*", "license*", "CHANGELOG*", "changelog*", "src"]`.
-
     * `:maintainers` - List of names and/or emails of maintainers.
-
     * `:licenses` - List of licenses used by the package.
-
     * `:links` - Map of links relevant to the package.
-
     * `:build_tools` - List of build tools that can build the package. Hex will
       try to automatically detect the build tools based on the files in the
       package. If a "rebar" or "rebar.config" file is present Hex will mark it
@@ -75,23 +69,25 @@ defmodule Mix.Tasks.Hex.Build do
     Hex.start()
     build = prepare_package()
 
+    organization = build.organization
     meta = build.meta
     package = build.package
     exclude_deps = build.exclude_deps
 
     Hex.Shell.info("Building #{meta.name} #{meta.version}")
-    print_info(meta, exclude_deps, package[:files])
+    print_info(meta, organization, exclude_deps, package[:files])
 
     {_tar, checksum} = Hex.Tar.create(meta, meta.files, false)
     Hex.Shell.info("Package checksum: #{checksum}")
   end
 
-  def prepare_package do
+  def prepare_package() do
     Mix.Project.get!()
     config = Mix.Project.config()
     raise_if_umbrella_project!(config)
 
     package = Enum.into(config[:package] || [], %{})
+    {organization, package} = Map.pop(package, :organization)
     {deps, exclude_deps} = dependencies()
     meta = meta_for(config, package, deps)
     raise_if_unstable_dependencies!(meta)
@@ -101,19 +97,25 @@ defmodule Mix.Tasks.Hex.Build do
       package: package,
       deps: deps,
       exclude_deps: exclude_deps,
-      meta: meta
+      meta: meta,
+      organization: organization,
     }
   end
 
-  def print_info(meta, exclude_deps, package_files) do
+  def print_info(meta, organization, exclude_deps, package_files) do
     if meta[:requirements] != [] do
       Hex.Shell.info("  Dependencies:")
-      Enum.each(meta[:requirements], fn %{name: name, app: app, requirement: req, optional: opt} ->
+      Enum.each(meta[:requirements], fn %{name: name, app: app, requirement: req, optional: opt, repository: repo} ->
         app = if name != app, do: " (app: #{app})"
         opt = if opt, do: " (optional)"
-        message = "    #{name} #{req}#{app}#{opt}"
+        repo = if repo != @default_repo, do: " (repo: #{repo})"
+        message = "    #{name} #{req}#{app}#{repo}#{opt}"
         Hex.Shell.info(message)
       end)
+    end
+
+    if organization do
+      Hex.Shell.info("  Organization: #{organization}")
     end
 
     Enum.each(@meta_fields, &print_metadata(meta, &1))
@@ -169,7 +171,8 @@ defmodule Mix.Tasks.Hex.Build do
     include =
       Enum.map(include, fn %Mix.Dep{app: app, requirement: req, opts: opts} ->
         name = opts[:hex] || app
-        %{name: name, app: app, requirement: req, optional: opts[:optional] || false}
+        repo = opts[:repo] || @default_repo
+        %{name: name, app: app, requirement: req, optional: opts[:optional] || false, repository: repo}
       end)
 
     exclude = Enum.map(exclude, & &1.app)

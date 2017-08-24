@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Hex.Audit do
   use Mix.Task
   alias Hex.Registry.Server, as: Registry
 
-  @shortdoc "Shows retired Hex dependencies"
+  @shortdoc "Shows retired Hex deps for the current project"
 
   @moduledoc """
   Shows all Hex dependencies that have been marked as retired.

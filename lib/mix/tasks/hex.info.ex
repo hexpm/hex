@@ -16,21 +16,29 @@ defmodule Mix.Tasks.Hex.Info do
 
   If `package` and `version` is given print release information. This includes
   remote Git URL and Git ref, and all package dependencies.
+
+  ## Command line options
+
+    * `--organization ORGANIZATION` - The organization the package belongs to
   """
+
+  @switches [organization: :string]
 
   def run(args) do
     Hex.start()
+    {opts, args, _} = OptionParser.parse(args, switches: @switches)
 
     case args do
       [] ->
         general()
       [package] ->
-        package(package)
+        package(opts[:organization], package)
       [package, version] ->
-        release(package, version)
+        release(opts[:organization], package, version)
       _ ->
         Mix.raise """
         Invalid arguments, expected:
+
         mix hex.info [PACKAGE [VERSION]]
         """
     end
@@ -48,8 +56,8 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Registry.Server.close()
   end
 
-  defp package(package) do
-    case Hex.API.Package.get(package) do
+  defp package(organization, package) do
+    case Hex.API.Package.get(organization, package) do
       {:ok, {code, body, _}} when code in 200..299 ->
         print_package(body)
       {:ok, {404, _, _}} ->
@@ -60,8 +68,8 @@ defmodule Mix.Tasks.Hex.Info do
     end
   end
 
-  defp release(package, version) do
-    case Hex.API.Release.get(package, version) do
+  defp release(organization, package, version) do
+    case Hex.API.Release.get(organization, package, version) do
       {:ok, {code, body, _}} when code in 200..299 ->
         print_release(package, body)
       {:ok, {404, _, _}} ->
@@ -76,16 +84,15 @@ defmodule Mix.Tasks.Hex.Info do
     meta = package["meta"]
     desc = meta["description"] || "No description provided"
     Hex.Shell.info desc <> "\n"
-    rels = package["releases"]
-    print_config(package["name"], hd(rels))
-    Hex.Shell.info "Releases: " <> format_releases(rels) <> "\n"
+    releases = package["releases"] || []
+    print_config(package["name"], List.first(releases))
+    Hex.Shell.info "Releases: " <> format_releases(releases) <> "\n"
     print_meta(meta)
   end
 
   defp format_releases(releases) do
     {releases, rest} = Enum.split(releases, 8)
-    Enum.map_join(releases, ", ", &(&1["version"])) <>
-      if(rest != [], do: ", ..." , else: "")
+    Enum.map_join(releases, ", ", &(&1["version"])) <> if(rest != [], do: ", ..." , else: "")
   end
 
   defp print_meta(meta) do
@@ -114,6 +121,9 @@ defmodule Mix.Tasks.Hex.Info do
     end
   end
 
+  defp print_config(name, nil) do
+    Hex.Shell.info "Config: " <> format_config_snippet(">= 0.0.0", name, name)
+  end
   defp print_config(name, release) do
     app_name = String.to_atom(release["meta"]["app"] || name)
     name = String.to_atom(name)

@@ -13,20 +13,20 @@ defmodule Hex.APITest do
 
     meta = %{name: :pear, app: :pear, version: "0.0.1", build_tools: ["mix"], requirements: [], licenses: ["MIT"], description: "pear"}
     {tar, _checksum} = Hex.Tar.create(meta, [])
-    assert {:ok, {404, _, _}} = Hex.API.Release.get("pear", "0.0.1")
-    assert {:ok, {201, _, _}} = Hex.API.Release.new("pear", tar, auth)
-    assert {:ok, {200, body, _}} = Hex.API.Release.get("pear", "0.0.1")
+    assert {:ok, {404, _, _}} = Hex.API.Release.get("hexpm", "pear", "0.0.1")
+    assert {:ok, {201, _, _}} = Hex.API.Release.new("hexpm", "pear", tar, auth)
+    assert {:ok, {200, body, _}} = Hex.API.Release.get("hexpm", "pear", "0.0.1")
     assert body["requirements"] == %{}
 
     reqs = [%{name: :pear, app: :pear, requirement: "~> 0.0.1", optional: false}]
     meta = %{name: :grape, app: :grape, version: "0.0.2", build_tools: ["mix"], requirements: reqs, licenses: ["MIT"], description: "grape"}
     {tar, _checksum} = Hex.Tar.create(meta, [])
-    assert {:ok, {201, _, _}} = Hex.API.Release.new("grape", tar, auth)
-    assert {:ok, {200, body, _}} = Hex.API.Release.get("grape", "0.0.2")
+    assert {:ok, {201, _, _}} = Hex.API.Release.new("hexpm", "grape", tar, auth)
+    assert {:ok, {200, body, _}} = Hex.API.Release.get("hexpm", "grape", "0.0.2")
     assert body["requirements"] == %{"pear" => %{"app" => "pear", "requirement" => "~> 0.0.1", "optional" => false}}
 
-    assert {:ok, {204, _, _}} = Hex.API.Release.delete("grape", "0.0.2", auth)
-    assert {:ok, {404, _, _}} = Hex.API.Release.get("grape", "0.0.2")
+    assert {:ok, {204, _, _}} = Hex.API.Release.delete("hexpm", "grape", "0.0.2", auth)
+    assert {:ok, {404, _, _}} = Hex.API.Release.get("hexpm", "grape", "0.0.2")
   end
 
   test "docs" do
@@ -34,17 +34,17 @@ defmodule Hex.APITest do
 
     meta = %{name: :tangerine, app: :tangerine, version: "0.0.1", build_tools: ["mix"], requirements: [], licenses: ["MIT"], description: "tangerine"}
     {tar, _checksum} = Hex.Tar.create(meta, [])
-    assert {:ok, {201, _, _}} = Hex.API.Release.new("tangerine", tar, auth)
+    assert {:ok, {201, _, _}} = Hex.API.Release.new("hexpm", "tangerine", tar, auth)
 
     tarball = Path.join(tmp_path(), "docs.tar.gz")
     :ok = :hex_erl_tar.create(tarball, [{'index.html', "heya"}], [:compressed])
     tar = File.read!(tarball)
 
-    assert {:ok, {201, _, _}} = Hex.API.ReleaseDocs.new("tangerine", "0.0.1", tar, auth)
-    assert {:ok, {200, %{"has_docs" => true}, _}} = Hex.API.Release.get("tangerine", "0.0.1")
+    assert {:ok, {201, _, _}} = Hex.API.ReleaseDocs.new("hexpm", "tangerine", "0.0.1", tar, auth)
+    assert {:ok, {200, %{"has_docs" => true}, _}} = Hex.API.Release.get("hexpm", "tangerine", "0.0.1")
 
-    assert {:ok, {204, _, _}} = Hex.API.ReleaseDocs.delete("tangerine", "0.0.1", auth)
-    assert {:ok, {200, %{"has_docs" => false}, _}} = Hex.API.Release.get("tangerine", "0.0.1")
+    assert {:ok, {204, _, _}} = Hex.API.ReleaseDocs.delete("hexpm", "tangerine", "0.0.1", auth)
+    assert {:ok, {200, %{"has_docs" => false}, _}} = Hex.API.Release.get("hexpm", "tangerine", "0.0.1")
   end
 
   test "keys" do
@@ -92,17 +92,17 @@ defmodule Hex.APITest do
     Hexpm.new_package("orange", "0.0.1", %{}, %{}, auth)
     Hex.API.User.new("orange_user", "orange_user@mail.com", "hunter42")
 
-    assert {:ok, {200, [%{"username" => "user"}], _}} = Hex.API.Package.Owner.get("orange", auth)
+    assert {:ok, {200, [%{"username" => "user"}], _}} = Hex.API.Package.Owner.get("hexpm", "orange", auth)
 
-    assert {:ok, {204, _, _}} = Hex.API.Package.Owner.add("orange", "orange_user@mail.com", auth)
+    assert {:ok, {204, _, _}} = Hex.API.Package.Owner.add("hexpm", "orange", "orange_user@mail.com", auth)
 
-    assert {:ok, {200, owners, _}} = Hex.API.Package.Owner.get("orange", auth)
+    assert {:ok, {200, owners, _}} = Hex.API.Package.Owner.get("hexpm", "orange", auth)
     assert length(owners) == 2
     assert Enum.any?(owners, &match?(%{"username" => "user"}, &1))
     assert Enum.any?(owners, &match?(%{"username" => "orange_user"}, &1))
 
-    assert {:ok, {204, _, _}} = Hex.API.Package.Owner.delete("orange", "orange_user@mail.com", auth)
+    assert {:ok, {204, _, _}} = Hex.API.Package.Owner.delete("hexpm", "orange", "orange_user@mail.com", auth)
 
-    assert {:ok, {200, [%{"username" => "user"}], _}} = Hex.API.Package.Owner.get("orange", auth)
+    assert {:ok, {200, [%{"username" => "user"}], _}} = Hex.API.Package.Owner.get("hexpm", "orange", auth)
   end
 end

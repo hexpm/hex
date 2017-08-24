@@ -37,7 +37,7 @@
          extract/1, extract/2,
          table/1, table/2, t/1, tt/1,
          open/2, close/1,
-         add/3, add/4,
+         add/3, add/4, add/5,
          format_error/1]).
 
 -include_lib("kernel/include/file.hrl").
@@ -443,12 +443,15 @@ do_create(TarFile, [Name|Rest], Opts) ->
 -spec add(reader(), add_type(), [add_opt()]) -> ok | {error, term()}.
 add(Reader, {NameInArchive, Name}, Opts)
   when is_list(NameInArchive), is_list(Name) ->
-    do_add(Reader, Name, NameInArchive, Opts);
+    do_add(Reader, Name, NameInArchive, undefined, Opts);
 add(Reader, {NameInArchive, Bin}, Opts)
   when is_list(NameInArchive), is_binary(Bin) ->
-    do_add(Reader, Bin, NameInArchive, Opts);
+    do_add(Reader, Bin, NameInArchive, undefined, Opts);
+add(Reader, {NameInArchive, Bin, Mode}, Opts)
+  when is_list(NameInArchive), is_binary(Bin), is_integer(Mode) ->
+    do_add(Reader, Bin, NameInArchive, Mode, Opts);
 add(Reader, Name, Opts) when is_list(Name) ->
-    do_add(Reader, Name, Name, Opts).
+    do_add(Reader, Name, Name, undefined, Opts).
 
 
 -spec add(reader(), string() | binary(), string(), [add_opt()]) ->
@@ -456,16 +459,23 @@ add(Reader, Name, Opts) when is_list(Name) ->
 add(Reader, NameOrBin, NameInArchive, Options)
   when is_list(NameOrBin); is_binary(NameOrBin),
        is_list(NameInArchive), is_list(Options) ->
-    do_add(Reader, NameOrBin, NameInArchive, Options).
+    do_add(Reader, NameOrBin, NameInArchive, undefined, Options).
 
-do_add(#reader{access=write}=Reader, Name, NameInArchive, Options)
+-spec add(reader(), string() | binary(), string(), integer(), [add_opt()]) ->
+                 ok | {error, term()}.
+add(Reader, NameOrBin, NameInArchive, Mode, Options)
+  when is_list(NameOrBin); is_binary(NameOrBin),
+       is_list(NameInArchive), is_integer(Mode), is_list(Options) ->
+    do_add(Reader, NameOrBin, NameInArchive, Mode, Options).
+
+do_add(#reader{access=write}=Reader, Name, NameInArchive, Mode, Options)
   when is_list(NameInArchive), is_list(Options) ->
     RF = fun(F) -> file:read_link_info(F, [{time, posix}]) end,
     Opts = #add_opts{read_info=RF},
-    add1(Reader, Name, NameInArchive, add_opts(Options, Opts));
-do_add(#reader{access=read},_,_,_) ->
+    add1(Reader, Name, NameInArchive, Mode, add_opts(Options, Opts));
+do_add(#reader{access=read},_,_,_,_) ->
     {error, eacces};
-do_add(Reader,_,_,_) ->
+do_add(Reader,_,_,_,_) ->
     {error, {badarg, Reader}}.
 
 add_opts([dereference|T], Opts) ->
@@ -480,7 +490,7 @@ add_opts([_|T], Opts) ->
 add_opts([], Opts) ->
     Opts.
 
-add1(#reader{}=Reader, Name, NameInArchive, #add_opts{read_info=ReadInfo}=Opts)
+add1(#reader{}=Reader, Name, NameInArchive, undefined, #add_opts{read_info=ReadInfo}=Opts)
   when is_list(Name) ->
     Res = case ReadInfo(Name) of
               {error, Reason0} ->
@@ -511,7 +521,7 @@ add1(#reader{}=Reader, Name, NameInArchive, #add_opts{read_info=ReadInfo}=Opts)
         {ok, _Reader} -> ok;
         {error, _Reason} = Err -> Err
     end;
-add1(Reader, Bin, NameInArchive, Opts) when is_binary(Bin) ->
+add1(Reader, Bin, NameInArchive, Mode, Opts) when is_binary(Bin) ->
     add_verbose(Opts, "a ~ts~n", [NameInArchive]),
     Header = #tar_header{
                 name = NameInArchive,
@@ -520,7 +530,7 @@ add1(Reader, Bin, NameInArchive, Opts) when is_binary(Bin) ->
                 atime = 0,
                 mtime = 0,
                 ctime = 0,
-                mode = 8#100644},
+                mode = default_mode(Mode, 8#100644)},
     {ok, Reader2} = add_header(Reader, Header, Opts),
     Padding = skip_padding(byte_size(Bin)),
     Data = [Bin, <<0:Padding/unit:8>>],
@@ -528,6 +538,9 @@ add1(Reader, Bin, NameInArchive, Opts) when is_binary(Bin) ->
         {ok, _Reader3} -> ok;
         {error, Reason} -> {error, {NameInArchive, Reason}}
     end.
+
+default_mode(undefined, Mode) -> Mode;
+default_mode(Mode, _) -> Mode.
 
 add_directory(Reader, DirName, NameInArchive, Info, Opts) ->
     case file:list_dir(DirName) of

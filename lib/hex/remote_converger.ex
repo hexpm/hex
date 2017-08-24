@@ -245,11 +245,9 @@ defmodule Hex.RemoteConverger do
   end
 
   defp check_lock(lock) do
-    repos = Hex.State.fetch!(:repos)
     Enum.each(lock, fn {_app, info} ->
       case Hex.Utils.lock(info) do
         %{name: name, version: version, repo: repo} ->
-          check_repo(repos, repo)
           check_dep(repo, name, version)
         nil ->
           :ok
@@ -258,18 +256,14 @@ defmodule Hex.RemoteConverger do
   end
 
   defp check_dep(repo, name, version) do
+    Hex.Repo.get_repo(repo)
+
     if versions = Registry.versions(repo, name) do
       unless version in versions do
         Mix.raise "Unknown package version #{name} #{version} in lockfile"
       end
     else
       Mix.raise "Unknown package #{name} in lockfile"
-    end
-  end
-
-  defp check_repo(repos, repo) do
-    unless Map.has_key?(repos, repo) do
-      Mix.raise "Unknown repo #{repo}, add it with mix hex.repo"
     end
   end
 

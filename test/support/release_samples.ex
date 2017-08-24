@@ -17,6 +17,19 @@ defmodule ReleaseDeps.Mixfile do
   end
 end
 
+defmodule ReleaseCustomRepoDeps.Mixfile do
+  def project do
+    [
+      app: :release_b_custom, description: "bar", version: "0.0.2",
+      deps: [
+        {:ex_doc, "0.0.1"},
+        {:ecto, "0.0.1", repo: :my_repo},
+      ],
+      package: [licenses: ["MIT"]]
+    ]
+  end
+end
+
 defmodule ReleaseMeta.Mixfile do
   def project do
     [app: :release_c, version: "0.0.3",
@@ -60,5 +73,31 @@ defmodule ReleasePreDeps.Mixfile do
        licenses: ["MIT"],
        links: %{"a" => "http://a"},
        maintainers: ["maintainers"]]]
+  end
+end
+
+defmodule ReleaseFiles.Mixfile do
+  def project do
+    [app: :release_h,
+     version: "0.0.1",
+     description: "foo",
+     package: [
+       files: ["myfile.txt", "executable.sh"],
+       licenses: ["MIT"],
+       links: %{"a" => "http://a"},
+       maintainers: ["maintainers"]]]
+  end
+end
+
+defmodule ReleaseRepo.Mixfile do
+  def project do
+    [app: :ecto,
+     description: "baz",
+     version: "0.0.1",
+     package: [
+       organization: "myorg",
+       licenses: ["MIT"],
+       maintainers: ["maintainers"],
+       links: %{"a" => "http://a"}]]
   end
 end

@@ -5,34 +5,39 @@ defmodule Hex.API do
   @tar_content 'application/octet-stream'
   @tar_chunk_size 10_000
 
-  def request(method, path, opts \\ []) do
-    HTTP.request(method, url(path), headers(opts), nil)
+  def request(method, repo, path, opts \\ []) do
+    HTTP.request(method, url(repo, path), headers(opts), nil)
     |> handle_response()
   end
 
-  def erlang_post_request(path, body, opts \\ []) do
-    HTTP.request(:post, url(path), headers(opts), encode_erlang(body))
+  def erlang_post_request(repo, path, body, opts \\ []) do
+    HTTP.request(:post, url(repo, path), headers(opts), encode_erlang(body))
     |> handle_response()
   end
 
-  def erlang_put_request(path, body, opts \\ []) do
-    HTTP.request(:put, url(path), headers(opts), encode_erlang(body))
+  def erlang_put_request(repo, path, body, opts \\ []) do
+    HTTP.request(:put, url(repo, path), headers(opts), encode_erlang(body))
     |> handle_response()
   end
 
-  def tar_post_request(path, body, opts \\ []) do
+  def tar_post_request(repo, path, body, opts \\ []) do
     progress = Keyword.fetch!(opts, :progress)
     headers =
       %{'content-length' => Hex.to_charlist(byte_size(body))}
       |> Map.merge(headers(opts))
 
-    HTTP.request(:post, url(path), headers, encode_tar(body, progress))
+    HTTP.request(:post, url(repo, path), headers, encode_tar(body, progress))
     |> handle_response()
   end
 
-  defp url(path) do
-    Hex.State.fetch!(:api) <> "/" <> path
+  defp url(repo, path) do
+    api_url = Hex.State.fetch!(:api_url)
+    api_url <> repo_path(repo) <> path
   end
+
+  defp repo_path(nil), do: "/"
+  defp repo_path("hexpm"), do: "/"
+  defp repo_path(org), do: "/repos/#{org}/"
 
   defp headers(opts) do
     %{'accept' => @erlang_content}

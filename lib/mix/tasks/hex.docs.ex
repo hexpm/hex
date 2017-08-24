@@ -18,67 +18,59 @@ defmodule Mix.Tasks.Hex.Docs do
 
     * `--offline` - Open a local version available in your filesystem
     * `--module Some.Module` - Open a specified module documentation page inside desired package
+    * `--organization ORGANIZATION - The organization the package belongs to
 
   It will open the specified version of the documentation for a package in a
   Web browser. If you do not specify the `version` argument, this task will
   open the latest documentation.
   """
 
-  @switches [offline: :boolean, module: :string]
+  @switches [offline: :boolean, module: :string, organization: :string]
 
   def run(args) do
     Hex.start()
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
 
     case args do
-      [] ->
-        Mix.raise """
-        [deprecation] The "mix hex.docs" command has changed. To use the old
-        behaviour (publishing docs), use:
-
-            mix hex.publish docs
-
-        The new "mix hex.docs" command has to be invoked with at least one
-        argument. Call "mix help hex.docs" for more information.
-        """
       ["fetch" | remaining] ->
-        fetch_docs(remaining)
+        fetch_docs(opts[:organization], remaining)
       ["open" | remaining] ->
         open_docs(remaining, opts)
       _ ->
         Mix.raise """
         Invalid arguments, expected one of:
+
         mix hex.docs fetch PACKAGE [VERSION]
         mix hex.docs open PACKAGE [VERSION]
         """
     end
   end
 
-  defp fetch_docs([]) do
+  defp fetch_docs(_organization, []) do
     Mix.raise "You must specify at least the name of a package"
   end
 
-  defp fetch_docs([name]) do
-    latest_version = find_package_latest_version(name)
-    fetch_docs([name, latest_version])
+  defp fetch_docs(organization, [name]) do
+    latest_version = find_package_latest_version(organization, name)
+    fetch_docs(organization, [name, latest_version])
   end
 
-  defp fetch_docs([name, version]) do
+  defp fetch_docs(organization, [name, version]) do
     target_dir = Path.join([docs_dir(), name, version])
 
     if File.exists? target_dir do
       Hex.Shell.info "Docs already fetched: #{target_dir}"
     else
       target = Path.join(target_dir, "#{name}-#{version}.tar.gz")
-      retrieve_compressed_docs(name, version, target)
+      retrieve_compressed_docs(organization, name, version, target)
       File.mkdir_p!(target_dir)
       extract_doc_contents(target)
       Hex.Shell.info "Docs fetched: #{target_dir}"
     end
   end
 
-  defp find_package_latest_version(package) do
-    %{"releases" => releases} = retrieve_package_info(package)
+  defp find_package_latest_version(organization, package) do
+    %{"releases" => releases} = retrieve_package_info(organization, package)
 
     latest_release =
       releases
@@ -88,8 +80,8 @@ defmodule Mix.Tasks.Hex.Docs do
     latest_release["version"]
  end
 
-  defp retrieve_package_info(package) do
-    case Hex.API.Package.get(package) do
+  defp retrieve_package_info(organization, package) do
+    case Hex.API.Package.get(organization, package) do
       {:ok, {code, body, _}} when code in 200..299 ->
         body
       {:ok, {404, _, _}} ->
@@ -115,9 +107,9 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp open_docs_offline([name], opts) do
-    {missing?, latest_version} = find_package_version(name)
+    {missing?, latest_version} = find_package_version(opts[:organization], name)
     if missing? do
-      fetch_docs([name])
+      fetch_docs(opts[:organization], [name])
     end
     open_docs([name, latest_version], opts)
   end
@@ -128,12 +120,12 @@ defmodule Mix.Tasks.Hex.Docs do
     |> open_file()
   end
 
-  defp find_package_version(name) do
+  defp find_package_version(organization, name) do
     path = Path.join(docs_dir(), name)
     if File.exists?(path) do
       {false, find_latest_version(path)}
     else
-      {true, find_package_latest_version(name)}
+      {true, find_package_latest_version(organization, name)}
     end
   end
 
@@ -189,16 +181,16 @@ defmodule Mix.Tasks.Hex.Docs do
     |> List.first()
   end
 
-  defp retrieve_compressed_docs(package, version, target) do
+  defp retrieve_compressed_docs(organization, package, version, target) do
     File.mkdir_p!(Path.dirname(target))
 
     unless File.exists?(target) do
-      request_docs_from_mirror(package, version, target)
+      request_docs_from_mirror(organization, package, version, target)
     end
   end
 
-  defp request_docs_from_mirror(package, version, target) do
-    {:ok, {200, body, _}} = Hex.Repo.get_docs("hexpm", package, version)
+  defp request_docs_from_mirror(organization, package, version, target) do
+    {:ok, {200, body, _}} = Hex.Repo.get_docs(organization, package, version)
     File.write!(target, body)
   end
 

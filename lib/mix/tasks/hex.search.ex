@@ -7,19 +7,27 @@ defmodule Mix.Tasks.Hex.Search do
   Displays packages matching the given search query.
 
       mix hex.search PACKAGE
+
+  ## Command line options
+
+    * `--organization ORGANIZATION` - The organization the package belongs to
   """
+
+  @switches [organization: :string]
 
   def run(args) do
     Hex.start()
+    {opts, args, _} = OptionParser.parse(args, switches: @switches)
 
     case args do
       [package] ->
-        Hex.API.Package.search(package)
+        Hex.API.Package.search(opts[:organization], package)
         |> lookup_packages()
 
       _ ->
         Mix.raise """
         Invalid arguments, expected:
+
         mix hex.search PACKAGE
         """
     end

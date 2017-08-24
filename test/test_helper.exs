@@ -13,8 +13,8 @@ Case.reset_state()
 
 # Set up package fixtures
 unless :integration in ExUnit.configuration[:exclude] do
-  Hexpm.init
-  Hexpm.start
+  Hexpm.init()
+  Hexpm.start()
 
   pkg_meta = %{
     "maintainers" => ["John Doe", "Jane Doe"],

@@ -29,38 +29,38 @@ defmodule Mix.Tasks.Hex.Retire do
 
     * `--message "MESSAGE"` - Optional message (up to 140 characters) clarifying
       the retirement reason
+    * `--organization ORGANIZATION` - The organization the package belongs to
   """
 
-  @switches [message: :string, unretire: :boolean]
+  @switches [message: :string, unretire: :boolean, organization: :string]
 
   def run(args) do
     Hex.start()
-
     {opts, args, _} = OptionParser.parse(args, switches: @switches)
-    config = Hex.Config.read()
+
     retire? = !opts[:unretire]
+    organization = opts[:organization]
 
     case args do
       [package, version, reason] when retire? ->
-        auth = Mix.Tasks.Hex.auth_info(config)
-        retire(package, version, reason, opts, auth)
-
+        retire(organization, package, version, reason, opts)
       [package, version] when not retire? ->
-        auth = Mix.Tasks.Hex.auth_info(config)
-        unretire(package, version, auth)
-
+        unretire(organization, package, version)
       _ ->
         Mix.raise """
         Invalid arguments, expected one of:
+
         mix hex.retire PACKAGE VERSION REASON
         mix hex.retire PACKAGE VERSION --unretire
         """
     end
   end
 
-  defp retire(package, version, reason, opts, auth) do
+  defp retire(organization, package, version, reason, opts) do
+    auth = Mix.Tasks.Hex.auth_info()
     body = %{reason: reason, message: opts[:message]}
-    case Hex.API.Release.retire(package, version, body, auth) do
+
+    case Hex.API.Release.retire(organization, package, version, body, auth) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
 
@@ -70,8 +70,10 @@ defmodule Mix.Tasks.Hex.Retire do
     end
   end
 
-  defp unretire(package, version, auth) do
-    case Hex.API.Release.unretire(package, version, auth) do
+  defp unretire(organization, package, version) do
+    auth = Mix.Tasks.Hex.auth_info()
+
+    case Hex.API.Release.unretire(organization, package, version, auth) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
 

@@ -18,13 +18,13 @@ defmodule Mix.Tasks.Hex.RepoTest do
       Hex.State.put(:home, System.cwd!)
 
       File.write!("public_key.pem", @public_key)
-      Mix.Tasks.Hex.Repo.run(["add", "reponame", "url", "public_key.pem"])
+      Mix.Tasks.Hex.Repo.run(["add", "reponame", "url", "--public-key", "public_key.pem"])
       assert ["$repos": %{"reponame" => %{auth_key: nil, public_key: "-----BEGIN PUBLIC KEY" <> _, url: "url"}}] =
-             Hex.Config.read
+        Hex.Config.read()
 
       File.write!("foo.pem", "INVALID PUBLIC KEY")
       assert_raise Mix.Error, fn ->
-        Mix.Tasks.Hex.Repo.run(["add", "reponame", "url", "foo.pem"])
+        Mix.Tasks.Hex.Repo.run(["add", "reponame", "url", "--public-key", "foo.pem"])
       end
     end
   end
@@ -35,17 +35,17 @@ defmodule Mix.Tasks.Hex.RepoTest do
 
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
       Mix.Tasks.Hex.Repo.run(["remove", "reponame"])
-      assert ["$repos": %{}] = Hex.Config.read
+      assert ["$repos": %{}] = Hex.Config.read()
     end
   end
 
-  test "set" do
+  test "set url" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
-      Mix.Tasks.Hex.Repo.run(["set", "url", "reponame", "other_url"])
-      assert ["$repos": %{"reponame" => %{url: "other_url"}}] = Hex.Config.read
+      Mix.Tasks.Hex.Repo.run(["set", "reponame", "--url", "other_url"])
+      assert ["$repos": %{"reponame" => %{url: "other_url"}}] = Hex.Config.read()
     end
   end
 

@@ -41,6 +41,12 @@ defmodule Mix.Tasks.Hex.Outdated do
         single(deps, lock, app, opts)
       [] ->
         all(deps, lock, opts)
+      _ ->
+        Mix.raise """
+        Invalid arguments, expected:
+
+        mix hex.outdated [APP]
+        """
     end
   end
 

@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     end
   end
 
-  test "validate" do
+  test "ensure user exists" do
     Mix.Project.push ReleaseSimple.Mixfile
     Hex.State.put(:home, tmp_path("does_not_exist"))
 
@@ -43,7 +43,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
       assert_received {:mix_shell, :info, ["Package published to http://localhost:4043/packages/release_a/0.0.1" <> _]}
-      assert {:ok, {200, _, _}} = Hex.API.Release.get("release_a", "0.0.1")
+      assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
 
       msg = "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct"
       assert_received {:mix_shell, :info, [^msg]}
@@ -51,7 +51,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["package", "--revert", "0.0.1"])
-      assert {:ok, {404, _, _}} = Hex.API.Release.get("release_a", "0.0.1")
+      assert {:ok, {404, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
     end
   after
     purge [ReleaseSimple.Mixfile]
@@ -113,15 +113,8 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Hex.State.put(:home, tmp_path())
       setup_auth("user", "hunter42")
 
-      raised_message = """
-      Invalid arguments, expected one of:
-      mix hex.publish
-      mix hex.publish package
-      mix hex.publish docs
-      """
-
       send self(), {:mix_shell_input, :prompt, "hunter42"}
-      assert_raise Mix.Error, raised_message, fn ->
+      assert_raise Mix.Error, ~r"Invalid arguments", fn ->
         Mix.Tasks.Hex.Publish.run(["invalid", "--no-progress"])
       end
 
@@ -134,7 +127,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
-      assert {:ok, {200, body, _}} = Hex.API.Release.get("released_name", "0.0.1")
+      assert {:ok, {200, body, _}} = Hex.API.Release.get("hexpm", "released_name", "0.0.1")
       assert body["meta"]["app"] == "release_d"
     end
   after
@@ -170,7 +163,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
-      assert {:ok, {200, _, _}} = Hex.API.Release.get("release_a", "0.0.1")
+      assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
     end
   after
     purge [ReleaseSimple.Mixfile]
@@ -194,7 +187,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
         Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
 
         assert_received {:mix_shell, :error, ["No files"]}
-        assert {:ok, {200, _, _}} = Hex.API.Release.get("release_b", "0.0.2")
+        assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_b", "0.0.2")
       end
     end
   after
@@ -252,5 +245,54 @@ defmodule Mix.Tasks.Hex.PublishTest do
     end
   after
     purge [ReleaseMeta.Mixfile]
+  end
+
+  test "create package with :organization config" do
+    Mix.Project.push ReleaseRepo.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      bypass_repo("myorg")
+      setup_auth("user", "hunter42")
+
+      send self(), {:mix_shell_input, :yes?, true}
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
+      assert_received {:mix_shell, :info, ["Package published to myrepo html_url" <> _]}
+    end
+  after
+    purge [ReleaseRepo.Mixfile]
+  end
+
+  test "create package with :organization config with no organization in user config" do
+    Mix.Project.push ReleaseRepo.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user", "hunter42")
+
+      send self(), {:mix_shell_input, :yes?, true}
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
+    end
+  after
+    purge [ReleaseRepo.Mixfile]
+  end
+
+  test "create package with --organization flag overrides :organization config" do
+    Mix.Project.push ReleaseRepo.Mixfile
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      bypass_repo("myorg2")
+      setup_auth("user", "hunter42")
+
+      send self(), {:mix_shell_input, :yes?, true}
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--organization", "myorg2"])
+      assert_received {:mix_shell, :info, ["Package published to myrepo html_url" <> _]}
+    end
+  after
+    purge [ReleaseRepo.Mixfile]
   end
 end

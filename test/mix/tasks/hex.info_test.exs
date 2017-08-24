@@ -12,6 +12,12 @@ defmodule Mix.Tasks.Hex.InfoTest do
     assert_received {:mix_shell, :error, ["No package with name no_package"]}
   end
 
+  test "package with custom repo" do
+    bypass_repo("myorg")
+    Mix.Tasks.Hex.Info.run(["ecto", "--organization", "myorg"])
+    assert_received {:mix_shell, :info, ["ecto description\n"]}
+  end
+
   test "release" do
     Mix.Tasks.Hex.Info.run(["ex_doc", "0.0.1"])
     assert_received {:mix_shell, :info, ["Config: {:ex_doc, \"~> 0.0.1\"}"]}
