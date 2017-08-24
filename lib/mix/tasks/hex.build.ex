@@ -166,6 +166,10 @@ defmodule Mix.Tasks.Hex.Build do
       if opts[:manager] do
         Mix.raise "Can't build package when :manager is set for dependency #{app}, remove `manager: ...`"
       end
+
+      if opts[:app] do
+        Mix.raise "Can't build package when :app is set for dependency #{app}, remove `app: ...`"
+      end
     end)
 
     include =
