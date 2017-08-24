@@ -69,7 +69,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       # note that we don't need the yes? input here
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--no-confirm"])
-      assert {:ok, {200, _, _}} = Hex.API.Release.get("release_a", "0.0.1")
+      assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
     end
   after
     purge [ReleaseSimple.Mixfile]
@@ -149,7 +149,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       msg = "Publishing released_name 0.0.1"
       assert_received {:mix_shell, :info, [^msg]}
 
-      assert {:ok, {200, body, _}} = Hex.API.Release.get("released_name", "0.0.1")
+      assert {:ok, {200, body, _}} = Hex.API.Release.get("hexpm", "released_name", "0.0.1")
       assert body["meta"]["app"] == "release_d"
     end
   after
