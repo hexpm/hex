@@ -25,8 +25,11 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push ReleaseSimple.Mixfile
     Hex.State.put(:home, tmp_path("does_not_exist"))
 
-    assert_raise Mix.Error, "No authorized user found. Run 'mix hex.user auth'", fn ->
-      Mix.Tasks.Hex.Publish.run([])
+    in_tmp fn ->
+      send self(), {:mix_shell_input, :yes?, true}
+      assert_raise Mix.Error, "No authorized user found. Run 'mix hex.user auth'", fn ->
+        Mix.Tasks.Hex.Publish.run([])
+      end
     end
   after
     purge [ReleaseSimple.Mixfile]

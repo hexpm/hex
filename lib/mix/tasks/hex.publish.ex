@@ -170,9 +170,13 @@ defmodule Mix.Tasks.Hex.Publish do
       Mix.Task.run("docs", ["--canonical", canonical])
     rescue ex in [Mix.NoTaskError] ->
       stacktrace = System.stacktrace
-      Mix.shell.error ~s(The "docs" task is unavailable. Please add {:ex_doc, ">= 0.0.0", only: :dev} ) <>
-                      ~s(to your dependencies in your mix.exs. If ex_doc was already added, make sure ) <>
-                      ~s(you run the task in the same environment it is configured to)
+      Mix.shell.error """
+      Publication failed because the "docs" task is unavailable. You may resolve this by:
+
+        1. Adding {:ex_doc, ">= 0.0.0", only: :dev} to your dependencies in your mix.exs and trying again
+        2. If ex_doc was already added, make sure you run "mix hex.publish" in the same environment as the ex_doc package
+        3. Publishing the package without docs by running "mix hex.publish package" (not recommended)
+      """
       reraise ex, stacktrace
     end
   end
