@@ -50,6 +50,10 @@ defmodule Mix.Tasks.Hex.Docs do
     Mix.raise "You must specify at least the name of a package"
   end
 
+  defp fetch_docs(organization, [name]) when name in ["eex", "elixir", "ex_unit", "iex", "logger", "mix"] do
+    fetch_docs(organization, [name, System.version()])
+  end
+
   defp fetch_docs(organization, [name]) do
     latest_version = find_package_latest_version(organization, name)
     fetch_docs(organization, [name, latest_version])
