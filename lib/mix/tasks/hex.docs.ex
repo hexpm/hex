@@ -182,16 +182,19 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp retrieve_compressed_docs(organization, package, version, target) do
-    File.mkdir_p!(Path.dirname(target))
-
     unless File.exists?(target) do
       request_docs_from_mirror(organization, package, version, target)
     end
   end
 
   defp request_docs_from_mirror(organization, package, version, target) do
-    {:ok, {200, body, _}} = Hex.Repo.get_docs(organization, package, version)
-    File.write!(target, body)
+    case Hex.Repo.get_docs(organization, package, version) do
+      {:ok, {200, body, _}} ->
+        File.mkdir_p!(Path.dirname(target))
+        File.write!(target, body)
+      _ ->
+        Mix.raise "No package with name #{package} or version #{version}"
+    end
   end
 
   defp extract_doc_contents(target) do
