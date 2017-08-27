@@ -61,7 +61,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
   end
 
   test "create a package without confirming" do
-    Mix.Project.push ReleaseSimple.Mixfile
+    Mix.Project.push ReleaseSimple.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -72,7 +72,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
     end
   after
-    purge [ReleaseSimple.Mixfile]
+    purge [ReleaseSimple.MixProject]
   end
 
   test "create and revert docs" do
@@ -138,7 +138,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
   end
 
   test "package create with package name no confirm" do
-    Mix.Project.push ReleaseName.Mixfile
+    Mix.Project.push ReleaseName.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -153,7 +153,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert body["meta"]["app"] == "release_d"
     end
   after
-    purge [ReleaseName.Mixfile]
+    purge [ReleaseName.MixProject]
   end
 
   test "create with key" do
