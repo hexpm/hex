@@ -318,7 +318,7 @@ defmodule Hex.Registry.Server do
       :ets.insert(tid, {{:retired, repo, package, version}, release[:retired]})
 
       deps = Enum.map(deps, fn dep ->
-        {dep[:repository] || "hexpm",
+        {dep[:repository] || repo,
          dep[:package],
          dep[:app] || dep[:package],
          dep[:requirement],
