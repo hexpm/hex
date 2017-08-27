@@ -13,7 +13,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "create" do
-    Mix.Project.push ReleaseSimple.Mixfile
+    Mix.Project.push ReleaseSimple.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -22,11 +22,11 @@ defmodule Mix.Tasks.Hex.BuildTest do
       assert package_created?("release_a-0.0.1")
     end
   after
-    purge [ReleaseSimple.Mixfile]
+    purge [ReleaseSimple.MixProject]
   end
 
   test "create with package name" do
-    Mix.Project.push ReleaseName.Mixfile
+    Mix.Project.push ReleaseName.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -35,11 +35,11 @@ defmodule Mix.Tasks.Hex.BuildTest do
       assert package_created?("released_name-0.0.1")
     end
   after
-    purge [ReleaseName.Mixfile]
+    purge [ReleaseName.MixProject]
   end
 
   test "create with files" do
-    Mix.Project.push ReleaseFiles.Mixfile
+    Mix.Project.push ReleaseFiles.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -56,11 +56,11 @@ defmodule Mix.Tasks.Hex.BuildTest do
       assert File.stat!("unzip/executable.sh").mode == 0o100755
     end
   after
-    purge [ReleaseFiles.Mixfile]
+    purge [ReleaseFiles.MixProject]
   end
 
   test "create with deps" do
-    Mix.Project.push ReleaseDeps.Mixfile
+    Mix.Project.push ReleaseDeps.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -78,12 +78,12 @@ defmodule Mix.Tasks.Hex.BuildTest do
       end
     end
   after
-    purge [ReleaseDeps.Mixfile]
+    purge [ReleaseDeps.MixProject]
   end
 
   # TODO: convert to integration test
   test "create with custom repo deps" do
-    Mix.Project.push ReleaseCustomRepoDeps.Mixfile
+    Mix.Project.push ReleaseCustomRepoDeps.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -95,11 +95,11 @@ defmodule Mix.Tasks.Hex.BuildTest do
       ] = build.meta.requirements
     end
   after
-    purge [ReleaseCustomRepoDeps.Mixfile]
+    purge [ReleaseCustomRepoDeps.MixProject]
   end
 
   test "create with meta" do
-    Mix.Project.push ReleaseMeta.Mixfile
+    Mix.Project.push ReleaseMeta.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -117,11 +117,11 @@ defmodule Mix.Tasks.Hex.BuildTest do
       end
     end
   after
-    purge [ReleaseMeta.Mixfile]
+    purge [ReleaseMeta.MixProject]
   end
 
   test "reject package if description is missing" do
-    Mix.Project.push ReleaseNoDescription.Mixfile
+    Mix.Project.push ReleaseNoDescription.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -138,11 +138,11 @@ defmodule Mix.Tasks.Hex.BuildTest do
       end
     end
   after
-    purge [ReleaseNoDescription.Mixfile]
+    purge [ReleaseNoDescription.MixProject]
   end
 
   test "error if description is too long" do
-    Mix.Project.push ReleaseTooLongDescription.Mixfile
+    Mix.Project.push ReleaseTooLongDescription.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -156,11 +156,11 @@ defmodule Mix.Tasks.Hex.BuildTest do
       end
     end
   after
-    purge [ReleaseTooLongDescription.Mixfile]
+    purge [ReleaseTooLongDescription.MixProject]
   end
 
   test "error if package has unstable dependencies" do
-    Mix.Project.push ReleasePreDeps.Mixfile
+    Mix.Project.push ReleasePreDeps.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -172,6 +172,6 @@ defmodule Mix.Tasks.Hex.BuildTest do
       end
     end
   after
-    purge [ReleasePreDeps.Mixfile]
+    purge [ReleasePreDeps.MixProject]
   end
 end

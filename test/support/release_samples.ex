@@ -1,4 +1,4 @@
-defmodule ReleaseSimple.Mixfile do
+defmodule ReleaseSimple.MixProject do
   def project do
     [app: :release_a,
      description: "baz",
@@ -9,7 +9,7 @@ defmodule ReleaseSimple.Mixfile do
   end
 end
 
-defmodule ReleaseDeps.Mixfile do
+defmodule ReleaseDeps.MixProject do
   def project do
     [app: :release_b, description: "bar", version: "0.0.2",
      deps: [{:ex_doc, "0.0.1"}],
@@ -17,7 +17,7 @@ defmodule ReleaseDeps.Mixfile do
   end
 end
 
-defmodule ReleaseCustomRepoDeps.Mixfile do
+defmodule ReleaseCustomRepoDeps.MixProject do
   def project do
     [
       app: :release_b_custom, description: "bar", version: "0.0.2",
@@ -30,7 +30,7 @@ defmodule ReleaseCustomRepoDeps.Mixfile do
   end
 end
 
-defmodule ReleaseMeta.Mixfile do
+defmodule ReleaseMeta.MixProject do
   def project do
     [app: :release_c, version: "0.0.3",
      description: "foo",
@@ -42,7 +42,7 @@ defmodule ReleaseMeta.Mixfile do
   end
 end
 
-defmodule ReleaseName.Mixfile do
+defmodule ReleaseName.MixProject do
   def project do
     [app: :release_d, description: "Whatever", version: "0.0.1",
      package: [name: :released_name,
@@ -52,20 +52,20 @@ defmodule ReleaseName.Mixfile do
   end
 end
 
-defmodule ReleaseNoDescription.Mixfile do
+defmodule ReleaseNoDescription.MixProject do
   def project do
     [app: :release_e, version: "0.0.1"]
   end
 end
 
-defmodule ReleaseTooLongDescription.Mixfile do
+defmodule ReleaseTooLongDescription.MixProject do
   def project do
     [app: :release_f, description: String.duplicate("w", 301),
      version: "0.0.1"]
   end
 end
 
-defmodule ReleasePreDeps.Mixfile do
+defmodule ReleasePreDeps.MixProject do
   def project do
     [app: :release_g, description: "bar", version: "0.0.1",
      deps: [{:ex_doc, "~> 0.0.1-pre"}],
@@ -76,7 +76,7 @@ defmodule ReleasePreDeps.Mixfile do
   end
 end
 
-defmodule ReleaseFiles.Mixfile do
+defmodule ReleaseFiles.MixProject do
   def project do
     [app: :release_h,
      version: "0.0.1",
@@ -89,7 +89,7 @@ defmodule ReleaseFiles.Mixfile do
   end
 end
 
-defmodule ReleaseRepo.Mixfile do
+defmodule ReleaseRepo.MixProject do
   def project do
     [app: :ecto,
      description: "baz",

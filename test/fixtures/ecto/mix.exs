@@ -1,4 +1,4 @@
-defmodule Ecto.Fixture.Mixfile do
+defmodule Ecto.Fixture.MixProject do
   use Mix.Project
 
   def project do

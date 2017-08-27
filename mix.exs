@@ -1,4 +1,4 @@
-defmodule Hex.Mixfile do
+defmodule Hex.MixProject do
   use Mix.Project
 
   @version "0.16.2-dev"

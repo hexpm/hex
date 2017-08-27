@@ -1,4 +1,4 @@
-defmodule HasHexDep.Fixture.Mixfile do
+defmodule HasHexDep.Fixture.MixProject do
   use Mix.Project
 
   def project do

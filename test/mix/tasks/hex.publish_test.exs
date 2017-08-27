@@ -9,20 +9,20 @@ defmodule Mix.Tasks.Hex.PublishTest do
   use HexTest.Case
   @moduletag :integration
 
-  defmodule DocsSimple.Mixfile do
+  defmodule DocsSimple.MixProject do
     def project do
       [app: :ex_doc, version: "0.1.0"]
     end
   end
 
-  defmodule DocsError.Mixfile do
+  defmodule DocsError.MixProject do
     def project do
       [app: :ex_doc, version: "0.1.1"]
     end
   end
 
   test "ensure user exists" do
-    Mix.Project.push ReleaseSimple.Mixfile
+    Mix.Project.push ReleaseSimple.MixProject
     Hex.State.put(:home, tmp_path("does_not_exist"))
 
     in_tmp fn ->
@@ -32,11 +32,11 @@ defmodule Mix.Tasks.Hex.PublishTest do
       end
     end
   after
-    purge [ReleaseSimple.Mixfile]
+    purge [ReleaseSimple.MixProject]
   end
 
   test "create and revert a package" do
-    Mix.Project.push ReleaseSimple.Mixfile
+    Mix.Project.push ReleaseSimple.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -57,7 +57,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert {:ok, {404, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
     end
   after
-    purge [ReleaseSimple.Mixfile]
+    purge [ReleaseSimple.MixProject]
   end
 
   test "create a package without confirming" do
@@ -76,7 +76,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
   end
 
   test "create and revert docs" do
-    Mix.Project.push DocsSimple.Mixfile
+    Mix.Project.push DocsSimple.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -93,7 +93,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
   end
 
   test "docs when package is not published yet" do
-    Mix.Project.push DocsError.Mixfile
+    Mix.Project.push DocsError.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -110,7 +110,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
   end
 
   test "package create with package name" do
-    Mix.Project.push ReleaseName.Mixfile
+    Mix.Project.push ReleaseName.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -134,7 +134,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert body["meta"]["app"] == "release_d"
     end
   after
-    purge [ReleaseName.Mixfile]
+    purge [ReleaseName.MixProject]
   end
 
   test "package create with package name no confirm" do
@@ -157,7 +157,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
   end
 
   test "create with key" do
-    Mix.Project.push ReleaseSimple.Mixfile
+    Mix.Project.push ReleaseSimple.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -169,11 +169,11 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
     end
   after
-    purge [ReleaseSimple.Mixfile]
+    purge [ReleaseSimple.MixProject]
   end
 
   test "create with deps" do
-    Mix.Project.push ReleaseDeps.Mixfile
+    Mix.Project.push ReleaseDeps.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -194,11 +194,11 @@ defmodule Mix.Tasks.Hex.PublishTest do
       end
     end
   after
-    purge [ReleaseDeps.Mixfile]
+    purge [ReleaseDeps.MixProject]
   end
 
   test "raise for missing metadata" do
-    Mix.Project.push ReleaseMeta.Mixfile
+    Mix.Project.push ReleaseMeta.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -221,11 +221,11 @@ defmodule Mix.Tasks.Hex.PublishTest do
       end
     end
   after
-    purge [ReleaseMeta.Mixfile]
+    purge [ReleaseMeta.MixProject]
   end
 
   test "create with metadata" do
-    Mix.Project.push ReleaseMeta.Mixfile
+    Mix.Project.push ReleaseMeta.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -247,11 +247,11 @@ defmodule Mix.Tasks.Hex.PublishTest do
       refute_received {:mix_shell, :error, ["Missing metadata fields" <> _]}
     end
   after
-    purge [ReleaseMeta.Mixfile]
+    purge [ReleaseMeta.MixProject]
   end
 
   test "create package with :organization config" do
-    Mix.Project.push ReleaseRepo.Mixfile
+    Mix.Project.push ReleaseRepo.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -264,11 +264,11 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert_received {:mix_shell, :info, ["Package published to myrepo html_url" <> _]}
     end
   after
-    purge [ReleaseRepo.Mixfile]
+    purge [ReleaseRepo.MixProject]
   end
 
   test "create package with :organization config with no organization in user config" do
-    Mix.Project.push ReleaseRepo.Mixfile
+    Mix.Project.push ReleaseRepo.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -279,11 +279,11 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
     end
   after
-    purge [ReleaseRepo.Mixfile]
+    purge [ReleaseRepo.MixProject]
   end
 
   test "create package with --organization flag overrides :organization config" do
-    Mix.Project.push ReleaseRepo.Mixfile
+    Mix.Project.push ReleaseRepo.MixProject
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
@@ -296,6 +296,6 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert_received {:mix_shell, :info, ["Package published to myrepo html_url" <> _]}
     end
   after
-    purge [ReleaseRepo.Mixfile]
+    purge [ReleaseRepo.MixProject]
   end
 end

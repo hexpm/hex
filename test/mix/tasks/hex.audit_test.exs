@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
   @package :test_package
   @package_name Atom.to_string(@package)
 
-  defmodule RetiredDeps.Mixfile do
+  defmodule RetiredDeps.MixProject do
     def project do
       [app: :test_app,
        version: "0.0.1",
@@ -46,7 +46,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
   end
 
   def with_test_package(version, %{auth: auth}, fun) do
-    Mix.Project.push RetiredDeps.Mixfile
+    Mix.Project.push RetiredDeps.MixProject
 
     Hexpm.new_package(@package_name, version, [], %{}, auth)
 
