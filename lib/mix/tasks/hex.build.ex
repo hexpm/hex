@@ -175,12 +175,19 @@ defmodule Mix.Tasks.Hex.Build do
     include =
       Enum.map(include, fn %Mix.Dep{app: app, requirement: req, opts: opts} ->
         name = opts[:hex] || app
-        repo = opts[:repo] || @default_repo
+        repo = deorg_repo(opts[:repo] || @default_repo)
         %{name: name, app: app, requirement: req, optional: opts[:optional] || false, repository: repo}
       end)
 
     exclude = Enum.map(exclude, & &1.app)
     {include, exclude}
+  end
+
+  defp deorg_repo(repo) do
+    case String.split(repo, ":", parts: 2) do
+      [_source, repo] -> repo
+      [repo] -> repo
+    end
   end
 
   def package(package, config) do
