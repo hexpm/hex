@@ -22,7 +22,7 @@ This document simply outlines the release process:
 
 10. Upload builds, csv and signed files to S3 (see below for paths)
 
-11. Add new release by running `mix run scripts/add_install.exs HEX_VERSION ELIXIR_VERSION [, ELIXIR_VERSION]`
+11. Add new release by running `mix run scripts/add_install.exs HEX_VERSION ELIXIR_VERSION [ELIXIR_VERSION ...]`
 
 12. Increment version and add `-dev` extension to versions (see below for all files)
 

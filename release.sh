@@ -73,7 +73,7 @@ function upload {
 # UPDATE THIS FOR EVERY RELEASE
 hex_version=$1
 
-build ${hex_version} 20.0 1.5.1 1.5.0
+build ${hex_version} 18.3 1.5.1 1.5.0
 build ${hex_version} 18.3 1.4.5 1.4.0
 build ${hex_version} 18.3 1.3.4 1.3.0
 build ${hex_version} 18.3 1.2.6 1.2.0
