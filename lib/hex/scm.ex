@@ -19,8 +19,11 @@ defmodule Hex.SCM do
     case Hex.Utils.lock(opts[:lock]) do
       %{name: name, version: version, checksum: nil} ->
         "#{version} (#{name})"
-      %{name: name, version: version, checksum: <<checksum::binary-8, _::binary>>} ->
+      %{name: name, version: version, checksum: <<checksum::binary-8, _::binary>>, repo: repo}
+          when repo in [nil, "hexpm"] ->
         "#{version} (#{name}) #{checksum}"
+      %{name: name, version: version, checksum: <<checksum::binary-8, _::binary>>, repo: repo} ->
+        "#{version} (#{repo}/#{name}) #{checksum}"
       nil ->
         nil
     end
