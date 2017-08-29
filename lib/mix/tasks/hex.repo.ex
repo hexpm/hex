@@ -35,8 +35,8 @@ defmodule Mix.Tasks.Hex.Repo do
 
   ### Command line options
 
-    * `--public-key path` - Path to public key used to verify the registry (optional).
-    * `--auth-key key` - Key used to authenticate HTTP requests to repository (optional).
+    * `--public-key PATH` - Path to public key used to verify the registry (optional).
+    * `--auth-key KEY` - Key used to authenticate HTTP requests to repository (optional).
 
   ## Set config for repo
 

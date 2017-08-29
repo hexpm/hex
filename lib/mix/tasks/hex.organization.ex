@@ -22,23 +22,42 @@ defmodule Mix.Tasks.Hex.Organization do
 
       mix hex.organization auth NAME
 
+  ### Command line options
+
+    * `--key KEY` - Key used to authenticate HTTP requests to repository, if
+      omitted will generate a new key with your account credentials. This flag
+      is useful if you have a key pre-generated with `mix hex.organization key`
+      and want to authenticate on a CI server or similar system
+
   ## Deauthorize and remove an organization
 
       mix hex.organization deauth NAME
+
+  ## Generate a repository autentication key
+
+  This command is useful to pre-generate keys for use with `mix hex.organization auth NAME --key KEY`
+  on CI servers or similar systems.
+
+      mix hex.organization key NAME
 
   ## List all authorized organizations
 
       mix hex.organization list
   """
 
+  @switches [key: :string]
+
   def run(args) do
     Hex.start()
+    {opts, args, _} = OptionParser.parse(args, switches: @switches)
 
     case args do
       ["auth", name] ->
-        auth(name)
+        auth(name, opts)
       ["deauth", name] ->
         deauth(name)
+      ["key", name] ->
+        key(name)
       ["list"] ->
         list()
       _ ->
@@ -52,12 +71,12 @@ defmodule Mix.Tasks.Hex.Organization do
     end
   end
 
-  def auth(name) do
+  defp auth(name, opts) do
     hexpm = Hex.Repo.get_repo("hexpm")
     repo = %{
       url: hexpm.url <> "/repos/#{name}",
       public_key: nil,
-      auth_key: generate_repo_key(name),
+      auth_key: opts[:key] || generate_repo_key(name),
     }
 
     read_config()
@@ -69,6 +88,10 @@ defmodule Mix.Tasks.Hex.Organization do
     read_config()
     |> Map.delete("hexpm:#{name}")
     |> Hex.Config.update_repos()
+  end
+
+  defp key(name) do
+    Hex.Shell.info generate_repo_key(name)
   end
 
   defp list() do
