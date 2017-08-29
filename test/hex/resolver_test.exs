@@ -3,16 +3,16 @@ defmodule Hex.ResolverTest do
   alias Hex.Registry.Server, as: Registry
 
   defp resolve(reqs, locked \\ [], repos \\ %{}) do
-    reqs      = Enum.reverse(reqs)
-    deps      = deps(reqs)
+    reqs = Enum.reverse(reqs)
+    deps = deps(reqs)
     top_level = Enum.map(deps, &elem(&1, 1))
-    reqs      = reqs(reqs)
-    locked    = locked(locked)
+    reqs = reqs(reqs)
+    locked = locked(locked)
 
     [reqs, locked]
-    |> Enum.concat
+    |> Enum.concat()
     |> Enum.map(&{elem(&1, 0), elem(&1, 1)})
-    |> Registry.prefetch
+    |> Registry.prefetch()
 
     case Hex.Resolver.resolve(Registry, reqs, deps, top_level, repos, locked) do
       {:ok, dict} -> dict
@@ -68,25 +68,25 @@ defmodule Hex.ResolverTest do
 
     deps = [bar: nil, foo: "~> 0.3.0"]
     assert resolve(deps) == """
-    \e[4mFailed to use "foo" because\e[0m
+    \e[4mFailed to use "foo" because there are no packages that matches the requirement\e[0m
       \e[1mmix.exs\e[0m specifies \e[31m~> 0.3.0\e[0m\n\e[0m
     """
 
     deps = [foo: "~> 0.3.0", bar: nil]
     assert resolve(deps) == """
-    \e[4mFailed to use \"foo\" because\e[0m
+    \e[4mFailed to use \"foo\" because there are no packages that matches the requirement\e[0m
       \e[1mmix.exs\e[0m specifies \e[31m~> 0.3.0\e[0m\n\e[0m
     """
 
     deps = [bar: "~> 0.3.0", foo: nil]
     assert resolve(deps) == """
-    \e[4mFailed to use "bar" because\e[0m
+    \e[4mFailed to use "bar" because there are no packages that matches the requirement\e[0m
       \e[1mmix.exs\e[0m specifies \e[31m~> 0.3.0\e[0m\n\e[0m
     """
 
     deps = [foo: nil, bar: "~> 0.3.0"]
     assert resolve(deps) == """
-    \e[4mFailed to use "bar" because\e[0m
+    \e[4mFailed to use "bar" because there are no packages that matches the requirement\e[0m
       \e[1mmix.exs\e[0m specifies \e[31m~> 0.3.0\e[0m\n\e[0m
     """
   end
@@ -215,7 +215,7 @@ defmodule Hex.ResolverTest do
   test "pre-release message" do
     deps = [beta: "~> 1.0 and > 1.0.0"]
     assert resolve(deps) == """
-    \e[4mFailed to use "beta" because\e[0m
+    \e[4mFailed to use "beta" because there are no packages that matches the requirement\e[0m
       \e[1mmix.exs\e[0m specifies \e[31m~> 1.0 and > 1.0.0\e[0m *
     \e[0m
     * This requirement does not match pre-releases. To match pre-releases include a pre-release in the requirement, such as: \"~> 2.0-beta\".\n

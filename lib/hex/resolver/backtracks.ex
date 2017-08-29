@@ -164,10 +164,18 @@ defmodule Hex.Resolver.Backtracks do
       IO.ANSI.format([
         :underline, "Failed to use \"", name, "\"",
         versions_message(registry, repo, name, versions),
-        " because", :reset, "\n", parent_messages
+        " because", single_parent_message(parents), :reset, "\n",
+        parent_messages
       ])
       |> IO.iodata_to_binary()
     end
+  end
+
+  defp single_parent_message(parents) when length(parents) < 2 do
+    " there are no packages that matches the requirement"
+  end
+  defp single_parent_message(_parents) do
+    ""
   end
 
   defp parent_messages(registry, parents, child_repo, child, child_versions) do
