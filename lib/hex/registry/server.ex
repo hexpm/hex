@@ -337,21 +337,32 @@ defmodule Hex.Registry.Server do
   defp write_result({:ok, {304, _, _}}, _repo, _package, _state) do
     :ok
   end
-  defp write_result({:ok, {404, _, _}}, repo, package, %{ets: tid}) do
-    delete_package(repo, package, tid)
-    :ok
-  end
 
-  defp write_result(other, _repo, package, %{ets: tid}) do
+  defp write_result(other, repo, package, %{ets: tid}) do
     cached? = !!:ets.lookup(tid, {:versions, package})
-    cached_message = if cached?, do: " (using cache)"
-    Hex.Shell.error("Failed to fetch record for '#{package}' from registry#{cached_message}")
-    Hex.Utils.print_error_result(other)
+    print_error(other, repo, package, cached?)
 
     unless cached? do
       raise "Stopping due to errors"
     end
   end
+
+  defp print_error(result, repo, package, cached?) do
+    cached_message = if cached?, do: " (using cache)"
+    repo_message = if repo, do: "#{repo}/"
+    Hex.Shell.error "Failed to fetch record for '#{repo_message}#{package}' from registry#{cached_message}"
+
+    if missing_status?(result) do
+      Hex.Shell.error "This could be because the package does not exist, it was spelled " <>
+                      "incorrectly or you don't have permissions to it"
+    end
+
+    if not missing_status?(result) or Mix.debug?() do
+      Hex.Utils.print_error_result(result)
+    end
+  end
+
+  defp missing_status?({:ok, {status, _, _}}), do: status in [403, 404]
 
   defp maybe_wait(package, from, state, fun) do
     cond do
