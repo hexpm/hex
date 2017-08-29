@@ -1,4 +1,11 @@
-## v0.17.1-dev
+## v0.17.1 (2017-08-29)
+
+### Enhancements
+  * Improve error message when package does not exist
+  * Improve error message when no versions exist for given requirement
+  * Add `--key` flag to `hex.organization auth` to authorize by giving a key directly
+    without supplying a password
+  * Add `hex.organization key` to generate a key for accessing the organization's repository
 
 ## v0.17.0 (2017-08-28)
 
