@@ -24,7 +24,7 @@ defmodule Mix.Tasks.Hex.Organization do
 
   ### Command line options
 
-    * `--key KEY` - Key used to authenticate HTTP requests to repository, if
+    * `--key KEY` - Hash of key used to authenticate HTTP requests to repository, if
       omitted will generate a new key with your account credentials. This flag
       is useful if you have a key pre-generated with `mix hex.organization key`
       and want to authenticate on a CI server or similar system
@@ -36,7 +36,8 @@ defmodule Mix.Tasks.Hex.Organization do
   ## Generate a repository autentication key
 
   This command is useful to pre-generate keys for use with `mix hex.organization auth NAME --key KEY`
-  on CI servers or similar systems.
+  on CI servers or similar systems. It returns the hash of the generated key that you can pass to
+  `auth NAME --key KEY`
 
       mix hex.organization key NAME
 
