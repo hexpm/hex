@@ -185,6 +185,10 @@ defmodule HexTest.Hexpm do
     end
   end
 
+  def new_repo(repository, auth) do
+    Hex.API.erlang_post_request(nil, "repo", %{"name" => repository}, auth)
+  end
+
   def new_user(username, email, password, key) do
     {:ok, {201, _, _}} = Hex.API.User.new(username, email, password)
     {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new(key, [user: username, pass: password])

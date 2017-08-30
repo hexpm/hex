@@ -28,7 +28,7 @@ defmodule Hex.API do
       |> Map.merge(headers(opts))
     opts = [timeout: Hex.State.fetch!(:http_timeout) || @tar_timeout]
 
-    HTTP.request(:post, url(repo, path), headers, encode_tar(body, progress))
+    HTTP.request(:post, url(repo, path), headers, encode_tar(body, progress), opts)
     |> handle_response()
   end
 

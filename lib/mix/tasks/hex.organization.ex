@@ -73,11 +73,14 @@ defmodule Mix.Tasks.Hex.Organization do
   end
 
   defp auth(name, opts) do
+    key = opts[:key]
+    if key, do: test_key(key, name)
+
     hexpm = Hex.Repo.get_repo("hexpm")
     repo = %{
       url: hexpm.url <> "/repos/#{name}",
       public_key: nil,
-      auth_key: opts[:key] || generate_repo_key(name),
+      auth_key: key || generate_repo_key(name),
     }
 
     read_config()
@@ -124,6 +127,16 @@ defmodule Mix.Tasks.Hex.Organization do
       other ->
         Hex.Utils.print_error_result(other)
         Mix.raise "Generation of repository key failed"
+    end
+  end
+
+  defp test_key(key, name) do
+    case Hex.API.Auth.get("repository", name, [key: key]) do
+      {:ok, {code, _body, _}} when code in 200..299 ->
+        :ok
+      other ->
+        Hex.Utils.print_error_result(other)
+        Mix.raise "Failed to authenticate against repository with given key"
     end
   end
 end
