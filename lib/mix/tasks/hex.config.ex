@@ -10,8 +10,6 @@ defmodule Mix.Tasks.Hex.Config do
 
   ## Config keys
 
-    * `username` - Hex username
-    * `key` - Hex API key
     * `api_url` - Hex API URL. Can be overridden by setting the environment
       variable `HEX_API_URL` (Default: `"https://hex.pm/api"`)
     * `offline` - If set to true Hex will not fetch the registry or packages and
@@ -26,12 +24,14 @@ defmodule Mix.Tasks.Hex.Config do
       setting the environment variable `HEX_UNSAFE_REGISTRY` (Default:
       `false`)
     * `http_proxy` - HTTP proxy server. Can be overridden by setting the
-      environment variable `HTTP_PROXY` (Default: `nil`)
+      environment variable `HTTP_PROXY`
     * `https_proxy` - HTTPS proxy server. Can be overridden by setting the
-      environment variable `HTTPS_PROXY` (Default: `nil`)
+      environment variable `HTTPS_PROXY`
     * `http_concurrency` - Limits the number of concurrent HTTP requests in
       flight. Can be overridden by setting the environment variable
       `HEX_HTTP_CONCURRENCY` (Default: `8`)
+    * `http_timeout` - Changes the timeout for HTTP requests. Can be overridden
+      by setting the environment variable `HEX_HTTP_TIMEOUT`
 
   ## Command line options
 

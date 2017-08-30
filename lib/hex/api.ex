@@ -4,6 +4,7 @@ defmodule Hex.API do
   @erlang_content 'application/vnd.hex+erlang'
   @tar_content 'application/octet-stream'
   @tar_chunk_size 10_000
+  @tar_timeout 60_000
 
   def request(method, repo, path, opts \\ []) do
     HTTP.request(method, url(repo, path), headers(opts), nil)
@@ -25,6 +26,7 @@ defmodule Hex.API do
     headers =
       %{'content-length' => Hex.to_charlist(byte_size(body))}
       |> Map.merge(headers(opts))
+    opts = [timeout: Hex.State.fetch!(:http_timeout) || @tar_timeout]
 
     HTTP.request(:post, url(repo, path), headers, encode_tar(body, progress))
     |> handle_response()

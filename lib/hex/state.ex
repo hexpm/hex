@@ -29,6 +29,7 @@ defmodule Hex.State do
       check_cert?: load_config(config, ["HEX_UNSAFE_HTTPS"], :unsafe_https) |> to_boolean() |> default(false) |> Kernel.not(),
       check_registry?: load_config(config, ["HEX_UNSAFE_REGISTRY"], :unsafe_registry) |> to_boolean() |> default(false) |> Kernel.not(),
       http_concurrency: load_config(config, ["HEX_HTTP_CONCURRENCY"], :http_concurrency) |> to_integer() |> default(8),
+      http_timeout: load_config(config, ["HEX_HTTP_TIMEOUT"], :http_concurrency) |> to_integer(),
       httpc_profile: :hex,
       ssl_version: ssl_version(),
       pbkdf2_iters: @pbkdf2_iters,
@@ -166,4 +167,7 @@ defmodule Hex.State do
   defp version_pad([major, minor]), do: [major, minor, 0]
   defp version_pad([major, minor, patch]), do: [major, minor, patch]
   defp version_pad([major, minor, patch | _]), do: [major, minor, patch]
+
+  defp http_timeout(nil), do: nil
+  defp http_timeout(seconds), do: seconds * 1000
 end

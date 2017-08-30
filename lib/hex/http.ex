@@ -3,8 +3,9 @@ defmodule Hex.HTTP do
   @request_redirects 3
   @request_retries 2
 
-  def request(method, url, headers, body) do
+  def request(method, url, headers, body, opts \\ []) do
     headers = build_headers(headers)
+    timeout = opts[:timeout] || Hex.State.fetch!(:http_timeout) || @request_timeout
     http_opts = build_http_opts(url)
     opts = [body_format: :binary]
     request = build_request(url, headers, body)
@@ -12,7 +13,7 @@ defmodule Hex.HTTP do
 
     retry(method, request, @request_retries, fn request ->
       redirect(request, @request_redirects, fn request ->
-        timeout(request, @request_timeout, fn request ->
+        timeout(request, timeout, fn request ->
           :httpc.request(method, request, http_opts, opts, profile)
           |> handle_response()
         end)
