@@ -30,8 +30,8 @@ defmodule Mix.Tasks.Hex.Config do
     * `http_concurrency` - Limits the number of concurrent HTTP requests in
       flight. Can be overridden by setting the environment variable
       `HEX_HTTP_CONCURRENCY` (Default: `8`)
-    * `http_timeout` - Changes the timeout for HTTP requests. Can be overridden
-      by setting the environment variable `HEX_HTTP_TIMEOUT`
+    * `http_timeout` - Sets the timeout for HTTP requests in seconds. Can be
+      overridden by setting the environment variable `HEX_HTTP_TIMEOUT`
 
   ## Command line options
 
