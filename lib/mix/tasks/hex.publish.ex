@@ -193,7 +193,14 @@ defmodule Mix.Tasks.Hex.Publish do
 
     print_link_to_coc()
 
-    if confirm?, do: Hex.Shell.yes?("Proceed?"), else: true
+    cond do
+      not confirm? ->
+        true
+      build.organization in [nil, "hexpm"] ->
+        Hex.Shell.yes?("Publishing package to public repository hexpm. Proceed?")
+      true ->
+        Hex.Shell.yes?("Publishing package to private repository #{build.organization}. Proceed?")
+    end
   end
 
   defp print_link_to_coc() do

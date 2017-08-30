@@ -29,7 +29,7 @@ defmodule Hex.State do
       check_cert?: load_config(config, ["HEX_UNSAFE_HTTPS"], :unsafe_https) |> to_boolean() |> default(false) |> Kernel.not(),
       check_registry?: load_config(config, ["HEX_UNSAFE_REGISTRY"], :unsafe_registry) |> to_boolean() |> default(false) |> Kernel.not(),
       http_concurrency: load_config(config, ["HEX_HTTP_CONCURRENCY"], :http_concurrency) |> to_integer() |> default(8),
-      http_timeout: load_config(config, ["HEX_HTTP_TIMEOUT"], :http_timeout) |> to_integer(),
+      http_timeout: load_config(config, ["HEX_HTTP_TIMEOUT"], :http_timeout) |> to_integer() |> http_timeout(),
       httpc_profile: :hex,
       ssl_version: ssl_version(),
       pbkdf2_iters: @pbkdf2_iters,
