@@ -90,7 +90,7 @@ defmodule Mix.Tasks.Hex.Build do
     {organization, package} = Map.pop(package, :organization)
     {deps, exclude_deps} = dependencies()
     meta = meta_for(config, package, deps)
-    raise_if_unstable_dependencies!(meta)
+    raise_if_unstable_dependencies!(organization, meta)
 
     %{
       config: config,
@@ -215,8 +215,8 @@ defmodule Mix.Tasks.Hex.Build do
     end
   end
 
-  defp raise_if_unstable_dependencies!(meta) do
-    if not pre_requirement?(meta.version) and has_pre_requirements?(meta) do
+  defp raise_if_unstable_dependencies!(organization, meta) do
+    if organization in [nil, "hexpm"] and not pre_requirement?(meta.version) and has_pre_requirements?(meta) do
       Mix.raise "A stable package release cannot have a pre-release dependency."
     end
   end
