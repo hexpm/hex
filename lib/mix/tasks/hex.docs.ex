@@ -18,7 +18,7 @@ defmodule Mix.Tasks.Hex.Docs do
 
     * `--offline` - Open a local version available in your filesystem
     * `--module Some.Module` - Open a specified module documentation page inside desired package
-    * `--organization ORGANIZATION - The organization the package belongs to
+    * `--organization ORGANIZATION` - The organization the package belongs to
 
   It will open the specified version of the documentation for a package in a
   Web browser. If you do not specify the `version` argument, this task will

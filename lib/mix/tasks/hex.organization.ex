@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.Organization do
   Manages the list of authorized Hex.pm organizations.
 
   Organizations is a feature of Hex.pm to host and manage private packages. See
-  https://hex.pm/docs/private for more information.
+  <https://hex.pm/docs/private> for more information.
 
   By authorizing a new organization a new key is created for fetching packages
   from the organizations repository and the repository and key is stored on the
@@ -16,7 +16,7 @@ defmodule Mix.Tasks.Hex.Organization do
   To use a package from an organization add `organization: "my_organization"` to the
   dependency declaration in `mix.exs`:
 
-      {:plug, "~> 1.0", repo: "my_organization"}
+      {:plug, "~> 1.0", organization: "my_organization"}
 
   ## Authorize an organization
 
