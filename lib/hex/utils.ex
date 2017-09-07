@@ -81,6 +81,20 @@ defmodule Hex.Utils do
     safe_tuple(tuple, n - 1)
   end
 
+  def truncate(string, options \\ []) do
+    length = options[:length] || 50
+    omission = options[:omission] || "..."
+
+    cond do
+      not String.valid?(string) ->
+        string
+      String.length(string) < length ->
+        string
+      true ->
+        String.slice(string, 0, length) <> omission
+    end
+  end
+
   def binarify(term, opts \\ [])
 
   def binarify(binary, _opts) when is_binary(binary) do
