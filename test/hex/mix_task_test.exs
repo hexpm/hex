@@ -135,6 +135,14 @@ defmodule Hex.MixTaskTest do
     end
   end
 
+  defmodule WithOnlyMatchingPreRequirement do
+    def project do
+      [app: :with_only_matching_pre_requirement,
+       version: "0.1.0",
+       deps: [{:beta, "~> 1.1.0"}]]
+    end
+  end
+
   test "deps.get" do
     Mix.Project.push Simple
 
@@ -497,7 +505,20 @@ defmodule Hex.MixTaskTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      message = ~s"No matching version for ex_doc ~> 100.0.0 (from: mix.exs) in registry"
+      message = ~r{No matching version for ex_doc ~> 100.0.0.*\n\nThe latest version is: 0.1.0}
+      assert_raise Mix.Error, message, fn ->
+        Mix.Task.run "deps.get"
+      end
+    end
+  end
+
+  test "deps.get with only matching pre requirement" do
+    Mix.Project.push WithOnlyMatchingPreRequirement
+
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      message = ~r{No matching version for beta ~> 1.1.0.*\n\n.*pre-releases available.*\n\n  \* 1.1.0-beta}
       assert_raise Mix.Error, message, fn ->
         Mix.Task.run "deps.get"
       end

@@ -168,7 +168,9 @@ defmodule Hex.RemoteConverger do
   end
 
   defp check_package_req(repo, name, req, from) do
-    unless versions = Registry.versions(repo, name) do
+    versions = Registry.versions(repo, name)
+
+    unless versions do
       Mix.raise "No package with name #{name} (from: #{from}) in registry"
     end
 
@@ -177,7 +179,30 @@ defmodule Hex.RemoteConverger do
     end
 
     if req != nil and not Enum.any?(versions, &Hex.Version.match?(&1, req)) do
-      Mix.raise "No matching version for #{name} #{req} (from: #{from}) in registry"
+      Mix.raise "No matching version for #{name} #{req} (from: #{from}) in registry#{matching_versions_message(versions, req)}"
+    end
+  end
+
+  defp matching_versions_message(versions, req) do
+    versions = Enum.map(versions, &Hex.Version.parse!/1)
+    pre_versions = matching_pre_versions(versions, req)
+
+    if pre_versions != [] do
+      "\n\nWhile there is no package matching the requirement above, there are pre-releases available:\n\n" <>
+        Enum.map_join(pre_versions, "\n", &"  * #{&1}") <>
+        "\n\nIn order to match any of them, you need to include the \"-pre\" suffix in your requirement, " <>
+        "where \"pre\" is one of the suffixes listed above."
+    else
+      latest = List.last(versions)
+      "\n\nThe latest version is: #{latest}"
+    end
+  end
+
+  defp matching_pre_versions(versions, req) do
+    for version <- versions,
+        version.pre != [],
+        Hex.Version.match?(%{version | pre: []}, req) do
+      version
     end
   end
 
