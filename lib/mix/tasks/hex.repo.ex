@@ -61,7 +61,7 @@ defmodule Mix.Tasks.Hex.Repo do
 
   def run(args) do
     Hex.start()
-    {opts, args, _} = OptionParser.parse(args, switches: @switches)
+    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
 
     case args do
       ["add", name, url] ->

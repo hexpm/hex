@@ -36,7 +36,7 @@ defmodule Mix.Tasks.Hex.Retire do
 
   def run(args) do
     Hex.start()
-    {opts, args, _} = OptionParser.parse(args, switches: @switches)
+    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
 
     retire? = !opts[:unretire]
     organization = opts[:organization]
