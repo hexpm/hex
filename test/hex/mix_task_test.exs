@@ -505,7 +505,7 @@ defmodule Hex.MixTaskTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      message = ~s"No matching version for ex_doc ~> 100.0.0 (from: mix.exs) in registry"
+      message = ~r{No matching version for ex_doc ~> 100.0.0.*\n\nThe latest version is: 0.1.0}
       assert_raise Mix.Error, message, fn ->
         Mix.Task.run "deps.get"
       end
@@ -518,7 +518,7 @@ defmodule Hex.MixTaskTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      message = ~r{No matching version for beta ~> 1.1.0 \(from: mix.exs\) in registry}
+      message = ~r{No matching version for beta ~> 1.1.0.*\n\n.*pre-releases available.*\n\n  \* 1.1.0-beta}
       assert_raise Mix.Error, message, fn ->
         Mix.Task.run "deps.get"
       end
