@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Hex.Search do
 
   def run(args) do
     Hex.start()
-    {opts, args, _} = OptionParser.parse(args, switches: @switches)
+    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
 
     case args do
       [package] ->

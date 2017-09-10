@@ -50,7 +50,7 @@ defmodule Mix.Tasks.Hex.Organization do
 
   def run(args) do
     Hex.start()
-    {opts, args, _} = OptionParser.parse(args, switches: @switches)
+    {opts, args} = Hex.OptionParser.parse!(args, switches: @switches)
 
     case args do
       ["auth", name] ->
