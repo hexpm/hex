@@ -363,6 +363,7 @@ defmodule Hex.Registry.Server do
   end
 
   defp missing_status?({:ok, {status, _, _}}), do: status in [403, 404]
+  defp missing_status?(_), do: false
 
   defp maybe_wait(package, from, state, fun) do
     cond do
