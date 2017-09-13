@@ -1,5 +1,6 @@
 defmodule Mix.Tasks.Hex.OrganizationTest do
   use HexTest.Case
+  @moduletag :integration
 
   test "auth" do
     in_tmp fn ->
