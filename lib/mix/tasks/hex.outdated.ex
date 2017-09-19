@@ -122,7 +122,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     if Enum.empty?(values) do
       Hex.Shell.info "No hex dependencies"
     else
-      header = ["Dependency", "Current", "Latest", "Update possible"]
+      header = ["Dependency", "Current", "Latest", "Update possible", "URL"]
       Mix.Tasks.Hex.print_table(header, values)
 
       message =
@@ -198,7 +198,8 @@ defmodule Mix.Tasks.Hex.Outdated do
       [:bright, package],
       lock,
       [latest_color, latest],
-      [update_possible_color, update_possible]
+      [update_possible_color, update_possible],
+      [:bright, "https://hex.pm/packages/#{package}"]
     ]
   end
 
