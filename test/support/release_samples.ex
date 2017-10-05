@@ -101,3 +101,35 @@ defmodule ReleaseRepo.MixProject do
        links: %{"a" => "http://a"}]]
   end
 end
+
+defmodule ReleaseMisspelledOrganization.MixProject do
+  def project do
+    [
+      app: :release_a,
+      description: "baz",
+      version: "0.0.1",
+      package: [
+        organisation: "myorg",
+        licenses: ["MIT"],
+        maintainers: ["maintainers"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
+defmodule ReleaseOrganizationWrongLocation.MixProject do
+  def project do
+    [
+      app: :ecto,
+      description: "baz",
+      version: "0.0.1",
+      organization: "myorg",
+      package: [
+        licenses: ["MIT"],
+        maintainers: ["maintainers"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end

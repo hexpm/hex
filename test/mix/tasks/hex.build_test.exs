@@ -165,7 +165,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
 
-      error_msg = "A stable package release cannot have a pre-release dependency."
+      error_msg = "A stable package release cannot have a pre-release dependency"
 
       assert_raise Mix.Error, error_msg, fn ->
         Mix.Tasks.Hex.Build.run([])
@@ -173,5 +173,35 @@ defmodule Mix.Tasks.Hex.BuildTest do
     end
   after
     purge [ReleasePreDeps.MixProject]
+  end
+
+  test "error if misspelled organization" do
+    Mix.Project.push ReleaseMisspelledOrganization.MixProject
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+
+      error_msg = "Invalid Hex package config :organisation, use spelling :organization"
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+      end
+    end
+  after
+    purge [ReleaseMisspelledOrganization.MixProject]
+  end
+
+  test "warn if misplaced config" do
+    Mix.Project.push ReleaseOrganizationWrongLocation.MixProject
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+
+      Mix.Tasks.Hex.Build.run([])
+      assert_received {:mix_shell, :info, ["Building ecto 0.0.1"]}
+      assert_received {:mix_shell, :info, ["\e[33mMix configuration :organization also belongs under the :package key, did you misplace it?\e[0m"]}
+    end
+  after
+    purge [ReleaseOrganizationWrongLocation.MixProject]
   end
 end

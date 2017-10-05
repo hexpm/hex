@@ -6,6 +6,7 @@ defmodule Mix.Tasks.Hex.Build do
   @error_fields ~w(app name files description version build_tools)a
   @warn_fields ~w(licenses maintainers links)a
   @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir extra)a
+  @root_fields ~w(app version elixir description)a
   @max_description_length 300
   @default_repo "hexpm"
 
@@ -84,13 +85,15 @@ defmodule Mix.Tasks.Hex.Build do
   def prepare_package() do
     Mix.Project.get!()
     config = Mix.Project.config()
-    raise_if_umbrella_project!(config)
+    check_umbrella_project!(config)
+    check_root_fields!(config)
 
     package = Enum.into(config[:package] || [], %{})
+    check_misspellings!(package)
     {organization, package} = Map.pop(package, :organization)
     {deps, exclude_deps} = dependencies()
     meta = meta_for(config, package, deps)
-    raise_if_unstable_dependencies!(organization, meta)
+    check_unstable_dependencies!(organization, meta)
 
     %{
       config: config,
@@ -140,7 +143,7 @@ defmodule Mix.Tasks.Hex.Build do
 
   defp meta_for(config, package, deps) do
     config
-    |> Keyword.take([:app, :version, :elixir, :description])
+    |> Keyword.take(@root_fields)
     |> Enum.into(%{})
     |> Map.merge(package)
     |> package(config)
@@ -209,15 +212,31 @@ defmodule Mix.Tasks.Hex.Build do
     end
   end
 
-  def raise_if_umbrella_project!(config) do
+  def check_umbrella_project!(config) do
     if Mix.Project.umbrella?(config) do
       Mix.raise "Hex does not support umbrella projects"
     end
   end
 
-  defp raise_if_unstable_dependencies!(organization, meta) do
+  defp check_unstable_dependencies!(organization, meta) do
     if organization in [nil, "hexpm"] and not pre_requirement?(meta.version) and has_pre_requirements?(meta) do
-      Mix.raise "A stable package release cannot have a pre-release dependency."
+      Mix.raise "A stable package release cannot have a pre-release dependency"
+    end
+  end
+
+  defp check_misspellings!(opts) do
+    if opts[:organisation] do
+      Mix.raise "Invalid Hex package config :organisation, use spelling :organization"
+    end
+  end
+
+  defp check_root_fields!(config) do
+    package_only_fields = [:organisation, :organization] ++ @meta_fields -- @root_fields
+    config_keys = Keyword.keys(config)
+    invalid_field = Enum.find(config_keys, &(&1 in package_only_fields))
+
+    if invalid_field do
+      Hex.Shell.warn "Mix configuration #{inspect invalid_field} also belongs under the :package key, did you misplace it?"
     end
   end
 
