@@ -34,9 +34,7 @@ defmodule Hex do
     opts = [
       max_sessions: 8,
       max_keep_alive_length: 4,
-      max_pipeline_length: 4,
       keep_alive_timeout: 120_000,
-      pipeline_timeout: 60_000
     ]
     :httpc.set_options(opts, :hex)
   end
