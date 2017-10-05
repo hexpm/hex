@@ -6,7 +6,7 @@ defmodule Hex.HTTP do
   def request(method, url, headers, body, opts \\ []) do
     headers = build_headers(headers)
     timeout = opts[:timeout] || Hex.State.fetch!(:http_timeout) || @request_timeout
-    http_opts = build_http_opts(url)
+    http_opts = build_http_opts(url, timeout)
     opts = [body_format: :binary]
     request = build_request(url, headers, body)
     profile = Hex.State.fetch!(:httpc_profile)
@@ -27,10 +27,10 @@ defmodule Hex.HTTP do
     Map.merge(default_headers, headers)
   end
 
-  defp build_http_opts(url) do
+  defp build_http_opts(url, timeout) do
     [
       relaxed: true,
-      timeout: @request_timeout,
+      timeout: timeout,
       ssl: Hex.HTTP.SSL.ssl_opts(url),
       autoredirect: false
     ] ++ proxy_config(url)
