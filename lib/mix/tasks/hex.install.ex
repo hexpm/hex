@@ -30,13 +30,13 @@ defmodule Mix.Tasks.Hex.Install do
   end
 
   defp install(hex_version) do
-    hex_mirror = Hex.State.fetch!(:mirror_url)
-    csv_url = hex_mirror <> @hex_list_path
+    hex_url = Hex.Repo.get_repo("hexpm").url
+    csv_url = hex_url <> @hex_list_path
 
     case find_matching_versions_from_signed_csv!("Hex", csv_url, hex_version) do
       {elixir_version, sha512} ->
         archive_url =
-          (hex_mirror <> @hex_archive_path)
+          (hex_url <> @hex_archive_path)
           |> String.replace("[ELIXIR_VERSION]", elixir_version)
           |> String.replace("[HEX_VERSION]", hex_version)
 

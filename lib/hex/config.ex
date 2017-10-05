@@ -135,20 +135,21 @@ defmodule Hex.Config do
   end
 
   defp clean_hexpm(repos) do
-    repo = Map.fetch!(repos, "hexpm")
+    repo = Map.get(repos, "hexpm", default_hexpm())
     repo = Enum.reduce(default_hexpm(), repo, fn {key, value}, repo ->
-      if value == repo_value(repo, key) do
+      if value == Map.get(repo, key) do
         Map.delete(repo, key)
       else
         repo
       end
     end)
 
-    Map.put(repos, "hexpm", repo)
+    if repo == %{} do
+      Map.delete(repos, "hexpm")
+    else
+      Map.put(repos, "hexpm", repo)
+    end
   end
-
-  defp repo_value(_repo, :url), do: Hex.State.fetch!(:mirror_url)
-  defp repo_value(repo, key), do: Map.fetch!(repo, key)
 
   defp merge_values(nil, right), do: right
   defp merge_values(left, _right), do: left

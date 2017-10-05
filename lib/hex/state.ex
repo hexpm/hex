@@ -14,7 +14,6 @@ defmodule Hex.State do
     Agent.stop(@name)
   end
 
-  # TODO: mirror_url
 
   def init(config) do
     %{
