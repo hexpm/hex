@@ -11,7 +11,7 @@ defmodule Hex.API.Key do
   end
 
   def delete(name, auth) do
-    API.request(:delete, nil, "keys/#{name}", auth)
+    API.request(:delete, nil, "keys/#{URI.encode(name)}", auth)
   end
 
   def delete_all(auth) do

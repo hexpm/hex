@@ -6,11 +6,11 @@ defmodule Hex.API.User do
   end
 
   def get(username) do
-    API.request(:get, nil, "users/#{username}")
+    API.request(:get, nil, "users/#{URI.encode(username)}")
   end
 
   def test(username, auth) do
-    API.request(:get, nil, "users/#{username}/test", auth)
+    API.request(:get, nil, "users/#{URI.encode(username)}/test", auth)
   end
 
   def new(username, email, password) do
@@ -18,6 +18,6 @@ defmodule Hex.API.User do
   end
 
   def password_reset(name) do
-    API.erlang_post_request(nil, "users/#{name}/reset", %{})
+    API.erlang_post_request(nil, "users/#{URI.encode(name)}/reset", %{})
   end
 end

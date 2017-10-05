@@ -59,17 +59,17 @@ defmodule Hex.Repo do
 
   defp package_url(repo, package) do
     config = get_repo(repo)
-    config.url <> "/packages/#{package}"
+    config.url <> "/packages/#{URI.encode(package)}"
   end
 
   defp docs_url(repo, package, version) do
     config = get_repo(repo)
-    config.url <> "/docs/#{package}-#{version}.tar.gz"
+    config.url <> "/docs/#{URI.encode(package)}-#{URI.encode(version)}.tar.gz"
   end
 
   defp tarball_url(repo, package, version) do
     config = get_repo(repo)
-    config.url <> "/tarballs/#{package}-#{version}.tar"
+    config.url <> "/tarballs/#{URI.encode(package)}-#{URI.encode(version)}.tar"
   end
 
   defp etag_headers(nil), do: %{}
