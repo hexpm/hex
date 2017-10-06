@@ -199,7 +199,7 @@ defmodule Mix.Tasks.Hex.Build do
     package
     |> Map.put(:files, files)
     |> maybe_put(:description, package[:description], &Hex.string_trim/1)
-    |> maybe_put(:name, package[:name] || config[:app], &(&1))
+    |> maybe_put(:name, package[:name] || config[:app], &to_string(&1))
     |> maybe_put(:build_tools, !package[:build_tools] && guess_build_tools(files), &(&1))
     |> Map.take(@meta_fields)
   end
