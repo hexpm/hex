@@ -33,6 +33,9 @@ defmodule Mix.Tasks.Hex.Config do
     * `http_timeout` - Sets the timeout for HTTP requests in seconds. Can be
       overridden by setting the environment variable `HEX_HTTP_TIMEOUT`
 
+  `HEX_HOME` environment variable can be set to point to the directory where Hex
+  stores the cache and configuration (Default: `~/.hex`)
+
   ## Command line options
 
     * `--delete` - Remove a specific config key
