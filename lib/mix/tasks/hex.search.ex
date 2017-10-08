@@ -42,20 +42,15 @@ defmodule Mix.Tasks.Hex.Search do
         [
           package["name"],
           Hex.Utils.truncate(package["meta"]["description"] |> trim_heredoc),
-          latest(package["releases"]),
           latest_stable(package["releases"]),
           package["html_url"] || package["url"]
         ]
       end)
 
     Mix.Tasks.Hex.print_table(
-      ["Package", "Description", "Latest", "Stable", "URL"],
+      ["Package", "Description", "Version", "URL"],
       values
     )
-  end
-
-  defp latest([%{"version" => version} | _]) do
-    version
   end
 
   defp latest_stable(releases) do
