@@ -60,14 +60,16 @@ defmodule Mix.Tasks.Hex.Search do
 
   defp latest_stable(releases) do
     %{"version" => version} = releases
-    |> Enum.find(fn %{"version" => version} ->
-      case Version.parse(version) do
-        {:ok, parsed_version} -> parsed_version.pre == []
-        _ -> false
-      end
-    end)
+    |> Enum.find(%{"version" => nil}, &is_stable/1)
 
     version
+  end
+
+  defp is_stable(%{"version" => version}) do
+    case Version.parse(version) do
+      {:ok, parsed_version} -> parsed_version.pre == []
+      _ -> false
+    end
   end
 
   defp trim_heredoc(string) do
