@@ -54,8 +54,11 @@ defmodule Mix.Tasks.Hex.Search do
   end
 
   defp latest_stable(releases) do
-    %{"version" => version} = releases
-    |> Enum.find(%{"version" => nil}, &is_stable/1)
+    %{"version" => version} = Enum.find(
+      releases,
+      %{"version" => nil},
+      &is_stable/1
+    )
 
     version
   end
