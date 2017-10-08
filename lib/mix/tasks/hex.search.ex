@@ -64,10 +64,8 @@ defmodule Mix.Tasks.Hex.Search do
   end
 
   defp is_stable(%{"version" => version}) do
-    case Version.parse(version) do
-      {:ok, parsed_version} -> parsed_version.pre == []
-      _ -> false
-    end
+    parsed_version = Hex.Version.parse!(version)
+    parsed_version.pre == []
   end
 
   defp trim_heredoc(string) do
