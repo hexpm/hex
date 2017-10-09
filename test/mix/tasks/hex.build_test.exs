@@ -204,4 +204,22 @@ defmodule Mix.Tasks.Hex.BuildTest do
   after
     purge [ReleaseOrganizationWrongLocation.MixProject]
   end
+
+  test "error if hex_metadata.config is included" do
+    Mix.Project.push ReleaseIncludeReservedFile.MixProject
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+
+      error_msg = "Stopping package build due to errors.\n" <>
+                  "Do not include this file: hex_metadata.config"
+
+      assert_raise Mix.Error, error_msg, fn ->
+        File.write!("hex_metadata.config", "hello")
+        Mix.Tasks.Hex.Build.run([])
+      end
+    end
+  after
+    purge [ReleaseIncludeReservedFile.MixProject]
+  end
 end

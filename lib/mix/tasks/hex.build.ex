@@ -9,7 +9,7 @@ defmodule Mix.Tasks.Hex.Build do
   @root_fields ~w(app version elixir description)a
   @max_description_length 300
   @default_repo "hexpm"
-
+  @metadata_config "hex_metadata.config"
   @shortdoc "Builds a new package version locally"
 
   @moduledoc """
@@ -127,6 +127,7 @@ defmodule Mix.Tasks.Hex.Build do
       check_missing_fields(meta) ++
       check_description_length(meta) ++
       check_missing_files(package_files || []) ++
+      check_reserved_files(package_files || []) ++
       check_excluded_deps(exclude_deps)
 
     if errors != [] do
@@ -339,6 +340,17 @@ defmodule Mix.Tasks.Hex.Build do
         []
       missing ->
         ["Missing files: #{Enum.join(missing, ", ")}"]
+    end
+  end
+
+  defp check_reserved_files(package_files) do
+    reserved_file = @metadata_config
+    invalid_file = Enum.find(package_files, &(reserved_file in Path.wildcard(&1)))
+
+    if invalid_file do
+      ["Do not include this file: #{reserved_file}"]
+    else
+      []
     end
   end
 

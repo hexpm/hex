@@ -55,6 +55,7 @@ defmodule Hex.Tar do
         check_files(files)
         checksum(files, repo, name, version)
         extract_contents(files['contents.tar.gz'], dest)
+        copy_metadata(files['metadata.config'], dest)
         decode_metadata(files['metadata.config'])
 
       :ok ->
@@ -150,6 +151,17 @@ defmodule Hex.Tar do
 
       {:error, reason} ->
         Mix.raise "Error reading package metadata: #{inspect reason}"
+    end
+  end
+
+  defp copy_metadata(content, dest) do
+    file_name = "hex_metadata.config"
+    path = Path.join(dest, file_name)
+
+    if File.exists?(path) do
+      Hex.Shell.warn("#{file_name} already exists")
+    else
+      File.write!(path, content)
     end
   end
 
