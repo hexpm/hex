@@ -39,14 +39,33 @@ defmodule Mix.Tasks.Hex.Search do
   defp lookup_packages({:ok, {200, packages, _headers}}) do
     values =
       Enum.map(packages, fn package ->
-        [package["name"], Hex.Utils.truncate(package["meta"]["description"] |> trim_heredoc), latest(package["releases"]), package["html_url"] || package["url"]]
+        [
+          package["name"],
+          Hex.Utils.truncate(package["meta"]["description"] |> trim_heredoc),
+          latest_stable(package["releases"]),
+          package["html_url"] || package["url"]
+        ]
       end)
 
-    Mix.Tasks.Hex.print_table(["Package", "Description", "Version", "URL"], values)
+    Mix.Tasks.Hex.print_table(
+      ["Package", "Description", "Version", "URL"],
+      values
+    )
   end
 
-  defp latest([%{"version" => version} | _]) do
+  defp latest_stable(releases) do
+    %{"version" => version} = Enum.find(
+      releases,
+      %{"version" => nil},
+      &is_stable/1
+    )
+
     version
+  end
+
+  defp is_stable(%{"version" => version}) do
+    parsed_version = Hex.Version.parse!(version)
+    parsed_version.pre == []
   end
 
   defp trim_heredoc(string) do
