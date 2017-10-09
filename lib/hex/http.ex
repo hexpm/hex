@@ -49,13 +49,21 @@ defmodule Hex.HTTP do
   end
 
   defp retry(:get, request, times, fun) do
-    case fun.(request) do
-      {:http_error, _, _} when times > 0 ->
+    result =
+      case fun.(request) do
+        {:http_error, _, _} = error ->
+          {:retry, error}
+        {:error, :socket_closed_remotely} = error ->
+          {:retry, error}
+        other ->
+          {:noretry, other}
+      end
+
+    case result do
+      {:retry, _} when times > 0 ->
         retry(:get, request, times - 1, fun)
-      {:http_error, _, _} = error ->
-        error
-      other ->
-        other
+      {_other, result} ->
+        result
     end
   end
   defp retry(_method, request, _times, fun), do: fun.(request)
