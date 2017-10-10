@@ -149,3 +149,21 @@ defmodule ReleaseIncludeReservedFile.MixProject do
     ]
   end
 end
+
+defmodule ReleaseIncludeRepoDeps.MixProject do
+  def project do
+    [
+      app: :release_a,
+      description: "baz",
+      version: "0.0.1",
+      package: [
+        licenses: ["MIT"],
+        maintainers: ["maintainers"],
+        links: %{"a" => "http://repo"},
+      ],
+      deps: [
+        {:ex_doc, "0.0.1"},
+      ]
+    ]
+  end
+end
