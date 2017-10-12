@@ -13,7 +13,8 @@ defmodule Hex.TarTest do
 
       assert File.exists?(path)
 
-      meta = with {:ok, meta} <- :file.consult(path), do: Enum.into(meta, %{})
+      assert {:ok, meta} = :file.consult(path)
+      meta = Enum.into(meta, %{})
       assert package == meta["app"]
       assert "0.0.1" == meta["version"]
     end)
