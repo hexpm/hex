@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Hex.Organization do
 
   This command is useful to pre-generate keys for use with `mix hex.organization auth NAME --key KEY`
   on CI servers or similar systems. It returns the hash of the generated key that you can pass to
-  `auth NAME --key KEY`
+  `auth NAME --key KEY`. This key allows read-only access to the repository
 
       mix hex.organization key NAME
 
