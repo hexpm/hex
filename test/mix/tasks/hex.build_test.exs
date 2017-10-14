@@ -222,4 +222,101 @@ defmodule Mix.Tasks.Hex.BuildTest do
   after
     purge [ReleaseIncludeReservedFile.MixProject]
   end
+
+  test "error if smoke directory already exists" do
+    Mix.Project.push(ReleaseIncludeRepoDeps.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+
+      pkg_dir = "release_a-0.0.1-smoke"
+
+      error_msg = "Please delete '#{pkg_dir}' if you want to continue. Exiting..."
+
+      assert_raise(Mix.Error, error_msg, fn ->
+        File.mkdir!(pkg_dir)
+        Mix.Tasks.Hex.Build.run(["--smoke"])
+      end)
+    end)
+  after
+    purge([ReleaseIncludeRepoDeps.MixProject])
+  end
+
+  test "error if invalid option is given" do
+    Mix.Project.push(ReleaseIncludeRepoDeps.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+
+      error_msg = "1 error found!\n--invalid : Unknown option"
+
+      assert_raise(OptionParser.ParseError, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run(["--invalid"])
+      end)
+    end)
+  after
+    purge([ReleaseIncludeRepoDeps.MixProject])
+  end
+
+  test "error if invalid argument is given" do
+    Mix.Project.push(ReleaseIncludeRepoDeps.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+
+      error_msg = "Invalid arguments, expected:\n\nmix hex.build [--smoke [command]...]\n"
+
+      assert_raise(Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run(["echo hello"])
+      end)
+    end)
+  after
+    purge([ReleaseIncludeRepoDeps.MixProject])
+  end
+
+  test "create smoke package" do
+    Mix.Project.push(ReleaseFiles.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+      Mix.shell(Mix.Shell.IO)
+
+      fun = fn ->
+        File.write!("myfile.txt", "hello")
+        File.write!("executable.sh", "world")
+        assert Mix.Tasks.Hex.Build.run(["--smoke"]) == :ok
+      end
+
+      assert capture_io(fun) =~ "Building release_h 0.0.1"
+    end)
+  after
+    Mix.shell(Mix.Shell.Process)
+    purge([ReleaseFiles.MixProject])
+  end
+
+  test "create smoke package with extra commands" do
+    Mix.Project.push(ReleaseFiles.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+      Mix.shell(Mix.Shell.IO)
+
+      fun = fn ->
+        File.write!("myfile.txt", "hello")
+        File.write!("executable.sh", "world")
+        assert Mix.Tasks.Hex.Build.run(["--smoke", "touch end.txt"]) == :ok
+      end
+
+      assert capture_io(fun) =~ "Building release_h 0.0.1"
+      assert File.exists?("release_h-0.0.1-smoke/contents/end.txt")
+    end)
+  after
+    Mix.shell(Mix.Shell.Process)
+    purge([ReleaseFiles.MixProject])
+  end
+
+  ## Helper
+  defp capture_io(fun) do
+    fun |> ExUnit.CaptureIO.capture_io() |> String.replace("\r\n", "\n")
+  end
 end

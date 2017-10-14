@@ -64,10 +64,32 @@ defmodule Mix.Tasks.Hex.Build do
       package. If a "rebar" or "rebar.config" file is present Hex will mark it
       as able to build with rebar. This detection can be overridden by setting
       this field.
+
+  ## Smoke tests
+
+  If you want to run some smoke tests before publishing your Hex package, you
+  can execute the following command:
+
+      $ mix hex.build --smoke "command"...
+
+  The previous command will build your Hex package in memory and then will
+  extract its contents in a directory, after that it will try to get your
+  dependencies and compile your app, optionally you can pass a list of commands
+  to execute inside that directory. For example:
+
+      $ mix hex.build --smoke "mix docs"
+
+  Will build your Hex package, retrieve its dependencies and compile your
+  application, finally it will execute the command `mix docs`.
+
   """
 
-  def run(_args) do
+  @switches [smoke: :boolean]
+
+  def run(args) do
     Hex.start()
+    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
+
     build = prepare_package()
 
     organization = build.organization
@@ -78,8 +100,57 @@ defmodule Mix.Tasks.Hex.Build do
     Hex.Shell.info("Building #{meta.name} #{meta.version}")
     print_info(meta, organization, exclude_deps, package[:files])
 
+    case {opts, args} do
+      {[], []} ->
+        build_package(meta)
+      {[smoke: true], _} ->
+        build_smoke_package(meta, args)
+      _ ->
+        message = """
+        Invalid arguments, expected:
+
+        mix hex.build [--smoke [command]...]
+        """
+        Mix.raise(message)
+    end
+  end
+
+  defp build_package(meta) do
     {_tar, checksum} = Hex.Tar.create(meta, meta.files, false)
     Hex.Shell.info("Package checksum: #{checksum}")
+  end
+
+  defp build_smoke_package(meta, args) do
+    {tar, _checksum} = Hex.Tar.create(meta, meta.files)
+    pkg_dir = "#{meta.name}-#{meta.version}-smoke"
+    content_dir = Path.join(pkg_dir, "contents")
+
+    if File.exists?(pkg_dir) do
+      Mix.raise("Please delete '#{pkg_dir}' if you want to continue. Exiting...")
+    else
+      File.mkdir_p!(content_dir)
+    end
+
+    case :hex_erl_tar.extract({:binary, tar}, [:compressed, cwd: pkg_dir]) do
+      :ok ->
+        pkg_dir
+        |> Path.join("contents.tar.gz")
+        |> File.read!()
+        |> Hex.Tar.extract_contents(content_dir)
+
+      File.cd!(content_dir, fn ->
+        opts = [env: [{"MIX_ENV", "prod"}]]
+        Mix.Shell.cmd("mix do deps.get, compile", opts, &IO.write/1)
+
+        # Running custom commands
+        Enum.each(args, fn cmd ->
+          Mix.Shell.cmd(cmd, opts, &IO.write/1)
+        end)
+      end)
+      {:error, reason} ->
+        errors = reason |> :hex_erl_tar.format_error() |> List.to_string()
+        Mix.raise("Unpacking tarball failed: " <> errors)
+    end
   end
 
   def prepare_package() do
