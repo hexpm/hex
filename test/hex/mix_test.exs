@@ -1,7 +1,7 @@
 defmodule Hex.MixTest do
-  use HexTest.Case, async: true
+  use HexTest.Case
 
-  test "from mixlock" do
+  test "from_lock/1" do
     lock = [ex_doc: {:hex, :ex_doc, "0.1.0"},
             postgrex: {:hex, :fork, "0.2.1"}]
     assert Hex.Mix.from_lock(lock) ==
@@ -9,7 +9,24 @@ defmodule Hex.MixTest do
             {"hexpm", "fork", "postgrex", "0.2.1"}]
   end
 
-  test "flatten_deps with only dependencies" do
+  test "from_lock/1 warns on newer lock versions" do
+    message = {:mix_shell, :info, ["\e[33mThe mix.lock file was generated with a newer version of Hex. Update your client by running `mix local.hex` to avoid losing data.\e[0m"]}
+
+    lock = [ex_doc: {:hex, :ex_doc, "0.1.0", "checksum", [:mix], [{:dep, ">= 0.0.0", [hex: :dep]}], "hexpm"}]
+    Hex.Server.reset()
+    Hex.Mix.from_lock(lock)
+    refute_received ^message
+
+    lock = [ex_doc: {:hex, :ex_doc, "0.1.0", "checksum", [:mix], [{:dep, ">= 0.0.0", [hex: :dep]}], "hexpm", "entry from newer version"}]
+    Hex.Server.reset()
+    Hex.Mix.from_lock(lock)
+    assert_received ^message
+
+    Hex.Mix.from_lock(lock)
+    refute_received ^message
+  end
+
+  test "flatten_deps/2 with only dependencies" do
     ecto = %Mix.Dep{app: :ecto, deps: [], top_level: false}
     postgrex = %Mix.Dep{app: :postgrex, deps: [], top_level: false}
     ex_doc = %Mix.Dep{app: :ex_doc, deps: [], top_level: false, opts: [only: :doc]}
@@ -24,7 +41,7 @@ defmodule Hex.MixTest do
     refute ex_doc in flattened_deps
   end
 
-  test "flatten_deps with overridden dependencies" do
+  test "flatten_deps/2 with overridden dependencies" do
     ecto = %Mix.Dep{app: :ecto, deps: [], top_level: false}
     postgrex = %Mix.Dep{app: :postgrex, deps: [], top_level: false, opts: [override: true]}
     overridden_postgrex = %Mix.Dep{app: :postgrex, deps: [], top_level: false}
