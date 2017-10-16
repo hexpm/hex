@@ -232,7 +232,7 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   defp check_root_fields!(config) do
-    package_only_fields = [:organisation, :organization] ++ @meta_fields -- @root_fields
+    package_only_fields = ([:organisation, :organization] ++ @meta_fields) -- (@root_fields ++ [:name])
     config_keys = Keyword.keys(config)
     invalid_field = Enum.find(config_keys, &(&1 in package_only_fields))
 
