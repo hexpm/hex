@@ -242,38 +242,6 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge([ReleaseIncludeRepoDeps.MixProject])
   end
 
-  test "error if invalid option is given" do
-    Mix.Project.push(ReleaseIncludeRepoDeps.MixProject)
-
-    in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
-
-      error_msg = "1 error found!\n--invalid : Unknown option"
-
-      assert_raise(OptionParser.ParseError, error_msg, fn ->
-        Mix.Tasks.Hex.Build.run(["--invalid"])
-      end)
-    end)
-  after
-    purge([ReleaseIncludeRepoDeps.MixProject])
-  end
-
-  test "error if invalid argument is given" do
-    Mix.Project.push(ReleaseIncludeRepoDeps.MixProject)
-
-    in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
-
-      error_msg = "Invalid arguments, expected:\n\nmix hex.build [--smoke [command]...]\n"
-
-      assert_raise(Mix.Error, error_msg, fn ->
-        Mix.Tasks.Hex.Build.run(["echo hello"])
-      end)
-    end)
-  after
-    purge([ReleaseIncludeRepoDeps.MixProject])
-  end
-
   test "create smoke package" do
     Mix.Project.push(ReleaseFiles.MixProject)
 
