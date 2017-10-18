@@ -222,6 +222,13 @@ defmodule Hex.Utils do
   end
 
   def lock(tuple) when elem(tuple, 0) == :hex do
+    if tuple_size(tuple) > 7 and Hex.Server.should_warn_lock_version?() do
+      Hex.Shell.warn(
+        "The mix.lock file was generated with a newer version of Hex. Update " <>
+        "your client by running `mix local.hex` to avoid losing data."
+      )
+    end
+
     destructure [:hex, name, version, checksum, managers, deps, repo],
                 Tuple.to_list(tuple)
     %{
