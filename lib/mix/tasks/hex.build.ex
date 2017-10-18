@@ -140,11 +140,11 @@ defmodule Mix.Tasks.Hex.Build do
 
       File.cd!(content_dir, fn ->
         opts = [env: [{"MIX_ENV", "prod"}]]
-        Mix.Shell.cmd("mix do deps.get, compile", opts, &IO.write/1)
+        Mix.shell().cmd("mix do deps.get, compile", opts)
 
         # Running custom commands
         Enum.each(args, fn cmd ->
-          Mix.Shell.cmd(cmd, opts, &IO.write/1)
+          Mix.shell().cmd(cmd, opts)
         end)
       end)
       {:error, reason} ->
