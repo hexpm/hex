@@ -261,7 +261,6 @@ defmodule Mix.Tasks.Hex.Build do
 
   defp expand_paths(paths, dir) do
     expand_dir = Path.expand(dir)
-
     paths
     |> Enum.map(&Path.join(dir, &1))
     |> Enum.flat_map(&Path.wildcard/1)
@@ -274,7 +273,7 @@ defmodule Mix.Tasks.Hex.Build do
 
   defp dir_files(path) do
     if File.dir?(path) do
-      Path.wildcard(Path.join(path, "**"))
+      Path.wildcard(Path.join(path, "**"), match_dot: true)
     else
       [path]
     end
