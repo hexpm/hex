@@ -122,14 +122,12 @@ defmodule Mix.Tasks.Hex.Build do
 
   defp build_smoke_package(meta, cmd \\ nil) do
     {tar, _checksum} = Hex.Tar.create(meta, meta.files)
-    pkg_dir = "#{meta.name}-#{meta.version}-smoke"
+    pkg_dir = "#{meta.name}-smoke"
     content_dir = Path.join(pkg_dir, "contents")
 
-    if File.exists?(pkg_dir) do
-      Mix.raise("Please delete '#{pkg_dir}' if you want to continue. Exiting...")
-    else
-      File.mkdir_p!(content_dir)
-    end
+    if File.exists?(pkg_dir), do: File.rm_rf!(pkg_dir)
+ 
+    File.mkdir_p!(content_dir)
 
     case :hex_erl_tar.extract({:binary, tar}, [:compressed, cwd: pkg_dir]) do
       :ok ->

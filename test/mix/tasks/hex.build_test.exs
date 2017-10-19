@@ -223,25 +223,6 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge [ReleaseIncludeReservedFile.MixProject]
   end
 
-  test "error if smoke directory already exists" do
-    Mix.Project.push(ReleaseIncludeRepoDeps.MixProject)
-
-    in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
-
-      pkg_dir = "release_a-0.0.1-smoke"
-
-      error_msg = "Please delete '#{pkg_dir}' if you want to continue. Exiting..."
-
-      assert_raise(Mix.Error, error_msg, fn ->
-        File.mkdir!(pkg_dir)
-        Mix.Tasks.Hex.Build.run(["--smoke"])
-      end)
-    end)
-  after
-    purge([ReleaseIncludeRepoDeps.MixProject])
-  end
-
   test "create smoke package" do
     Mix.Project.push(ReleaseFiles.MixProject)
 
@@ -276,7 +257,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       end
 
       assert capture_io(fun) =~ "Building release_h 0.0.1"
-      assert File.exists?("release_h-0.0.1-smoke/contents/end.txt")
+      assert File.exists?("release_h-smoke/contents/end.txt")
     end)
   after
     Mix.shell(Mix.Shell.Process)
