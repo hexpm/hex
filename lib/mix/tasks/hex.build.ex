@@ -362,16 +362,16 @@ defmodule Mix.Tasks.Hex.Build do
     |> Enum.flat_map(&Path.wildcard/1)
     |> Enum.flat_map(&dir_files/1)
     |> Enum.map(&Path.expand/1)
-    |> Enum.filter(&File.regular?/1)
     |> Enum.uniq()
     |> Enum.map(&Path.relative_to(&1, expand_dir))
   end
 
   defp dir_files(path) do
-    if File.dir?(path) do
-      Path.wildcard(Path.join(path, "**"), match_dot: true)
-    else
-      [path]
+    case File.lstat(path) do
+      {:ok, %File.Stat{type: :directory}} ->
+        [path | Path.wildcard(Path.join(path, "**"), match_dot: true)]
+      _ ->
+        [path]
     end
   end
 

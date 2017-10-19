@@ -43,9 +43,16 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
+
       File.mkdir!("empty_dir")
+      File.write!("empty_dir/.dotfile", "")
+      File.ln_s("empty_dir", "link_dir")
+
+      mtime_dir = File.stat!("empty_dir").mtime
+      mtime_file = File.stat!("empty_dir/.dotfile").mtime
+      mtime_link = File.stat!("link_dir").mtime
+
       File.write!("myfile.txt", "hello")
-      File.write!("empty_dir/.empty", "")
       File.write!("executable.sh", "world")
       File.chmod!("myfile.txt", 0o100644)
       File.chmod!("executable.sh", 0o100755)
@@ -53,10 +60,19 @@ defmodule Mix.Tasks.Hex.BuildTest do
       Mix.Tasks.Hex.Build.run([])
 
       extract("release_h-0.0.1.tar", "unzip")
+
+      #Check that mtimes are not retained for files and directories and symlinks
+      assert File.stat!("unzip/empty_dir").mtime != mtime_dir
+      assert File.stat!("unzip/empty_dir/.dotfile").mtime != mtime_file
+      assert File.stat!("unzip/linkdir").mtime != mtime_link
+
+      assert File.lstat!("unzip/link_dir").type == :symlink
+      assert File.lstat!("unzip/empty_dir").type == :directory
       assert File.read!("unzip/myfile.txt") == "hello"
-      assert File.read!("unzip/empty_dir/.empty") == ""
+      assert File.read!("unzip/empty_dir/.dotfile") == ""
       assert File.stat!("unzip/myfile.txt").mode == 0o100644
       assert File.stat!("unzip/executable.sh").mode == 0o100755
+      IO.inspect File.stat!("unzip/link_dir")
     end
   after
     purge [ReleaseFiles.MixProject]
