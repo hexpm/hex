@@ -252,7 +252,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       fun = fn ->
         File.write!("myfile.txt", "hello")
         File.write!("executable.sh", "world")
-        assert Mix.Tasks.Hex.Build.run(["--smoke"]) == :ok
+        Mix.Tasks.Hex.Build.run(["--smoke"])
       end
 
       assert capture_io(fun) =~ "Building release_h 0.0.1"
@@ -272,7 +272,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       fun = fn ->
         File.write!("myfile.txt", "hello")
         File.write!("executable.sh", "world")
-        assert Mix.Tasks.Hex.Build.run(["--smoke", "touch end.txt"]) == :ok
+        Mix.Tasks.Hex.Build.run(["--smoke", "touch end.txt"])
       end
 
       assert capture_io(fun) =~ "Building release_h 0.0.1"

@@ -70,12 +70,12 @@ defmodule Mix.Tasks.Hex.Build do
   If you want to run some smoke tests before publishing your Hex package, you
   can execute the following command:
 
-      $ mix hex.build --smoke "command"...
+      $ mix hex.build --smoke "command"
 
   The previous command will build your Hex package in memory and then will
   extract its contents in a directory, after that it will try to get your
-  dependencies and compile your app, optionally you can pass a list of commands
-  to execute inside that directory. For example:
+  dependencies and compile your app, optionally you can pass a command to
+  execute inside that directory. For example:
 
       $ mix hex.build --smoke "mix docs"
 
@@ -84,11 +84,9 @@ defmodule Mix.Tasks.Hex.Build do
 
   """
 
-  @switches [smoke: :boolean]
-
   def run(args) do
     Hex.start()
-    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
+    {opts, _args} = Hex.OptionParser.parse!(args)
 
     build = prepare_package()
 
@@ -100,16 +98,18 @@ defmodule Mix.Tasks.Hex.Build do
     Hex.Shell.info("Building #{meta.name} #{meta.version}")
     print_info(meta, organization, exclude_deps, package[:files])
 
-    case {opts, args} do
-      {[], []} ->
+    case opts do
+      [] ->
         build_package(meta)
-      {[smoke: true], _} ->
-        build_smoke_package(meta, args)
+      [smoke: true] ->
+        build_smoke_package(meta)
+      [smoke: cmd] ->
+        build_smoke_package(meta, cmd)
       _ ->
         message = """
         Invalid arguments, expected:
 
-        mix hex.build [--smoke [command]...]
+        mix hex.build [--smoke [command]]
         """
         Mix.raise(message)
     end
@@ -120,7 +120,7 @@ defmodule Mix.Tasks.Hex.Build do
     Hex.Shell.info("Package checksum: #{checksum}")
   end
 
-  defp build_smoke_package(meta, args) do
+  defp build_smoke_package(meta, cmd \\ nil) do
     {tar, _checksum} = Hex.Tar.create(meta, meta.files)
     pkg_dir = "#{meta.name}-#{meta.version}-smoke"
     content_dir = Path.join(pkg_dir, "contents")
@@ -142,10 +142,8 @@ defmodule Mix.Tasks.Hex.Build do
         opts = [env: [{"MIX_ENV", "prod"}]]
         Mix.shell().cmd("mix do deps.get, compile", opts)
 
-        # Running custom commands
-        Enum.each(args, fn cmd ->
-          Mix.shell().cmd(cmd, opts)
-        end)
+        # Run custom command
+        if cmd, do: Mix.shell().cmd(cmd, opts)
       end)
       {:error, reason} ->
         errors = reason |> :hex_erl_tar.format_error() |> List.to_string()
