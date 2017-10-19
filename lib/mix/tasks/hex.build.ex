@@ -126,7 +126,7 @@ defmodule Mix.Tasks.Hex.Build do
     content_dir = Path.join(pkg_dir, "contents")
 
     if File.exists?(pkg_dir), do: File.rm_rf!(pkg_dir)
- 
+
     File.mkdir_p!(content_dir)
 
     case :hex_erl_tar.extract({:binary, tar}, [:compressed, cwd: pkg_dir]) do
