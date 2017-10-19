@@ -158,7 +158,7 @@ defmodule Mix.Tasks.Hex.Build do
       |> Enum.filter(&prod_dep?/1)
       |> Hex.enum_split_with(&package_dep?/1)
 
-    Enum.each(include, fn %Mix.Dep{app: app, opts: opts} ->
+    Enum.each(include, fn %Mix.Dep{app: app, opts: opts} = dep ->
       if opts[:override] do
         Mix.raise "Can't build package with overridden dependency #{app}, remove `override: true`"
       end
@@ -173,6 +173,10 @@ defmodule Mix.Tasks.Hex.Build do
 
       if opts[:app] do
         Mix.raise "Can't build package when :app is set for dependency #{app}, remove `app: ...`"
+      end
+
+      if Map.get(dep, :system_env) do
+        Mix.raise "Can't build package when :system_env is set for dependency #{app}, remove `system_env: ...`"
       end
     end)
 
