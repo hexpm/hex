@@ -44,7 +44,7 @@ defmodule Mix.Tasks.Hex.Build do
 
   As can be seen Hex package dependencies works alongside git dependencies.
   Important to note is that non-Hex dependencies will not be used during
-  dependency resolution and neither will be they listed as dependencies of the
+  dependency resolution and neither will they be listed as dependencies of the
   package.
 
   ## Package configuration
