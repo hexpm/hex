@@ -175,7 +175,7 @@ defmodule Mix.Tasks.Hex.Build do
         Mix.raise "Can't build package when :app is set for dependency #{app}, remove `app: ...`"
       end
 
-      if Map.get(dep, :system_env) do
+      if Map.get(dep, :system_env, []) != [] do
         Mix.raise "Can't build package when :system_env is set for dependency #{app}, remove `system_env: ...`"
       end
     end)
