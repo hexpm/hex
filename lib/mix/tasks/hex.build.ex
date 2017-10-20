@@ -101,16 +101,20 @@ defmodule Mix.Tasks.Hex.Build do
     case opts do
       [] ->
         build_package(meta)
+
       [smoke: true] ->
         build_smoke_package(meta)
+
       [smoke: cmd] ->
         build_smoke_package(meta, cmd)
+
       _ ->
         message = """
         Invalid arguments, expected:
 
         mix hex.build [--smoke [command]]
         """
+
         Mix.raise(message)
     end
   end
@@ -136,13 +140,14 @@ defmodule Mix.Tasks.Hex.Build do
         |> File.read!()
         |> Hex.Tar.extract_contents(content_dir)
 
-      File.cd!(content_dir, fn ->
-        opts = [env: [{"MIX_ENV", "prod"}]]
-        Mix.shell().cmd("mix do deps.get, compile", opts)
+        File.cd!(content_dir, fn ->
+          opts = [env: [{"MIX_ENV", "prod"}]]
+          Mix.shell().cmd("mix do deps.get, compile", opts)
 
-        # Run custom command
-        if cmd, do: Mix.shell().cmd(cmd, opts)
-      end)
+          # Run custom command
+          if cmd, do: Mix.shell().cmd(cmd, opts)
+        end)
+
       {:error, reason} ->
         errors = reason |> :hex_erl_tar.format_error() |> List.to_string()
         Mix.raise("Unpacking tarball failed: " <> errors)
@@ -192,10 +197,9 @@ defmodule Mix.Tasks.Hex.Build do
 
     errors =
       check_missing_fields(meta) ++
-      check_description_length(meta) ++
-      check_missing_files(package_files || []) ++
-      check_reserved_files(package_files || []) ++
-      check_excluded_deps(exclude_deps)
+        check_description_length(meta) ++
+        check_missing_files(package_files || []) ++
+        check_reserved_files(package_files || []) ++ check_excluded_deps(exclude_deps)
 
     if errors != [] do
       ["Stopping package build due to errors." | errors]
@@ -251,7 +255,14 @@ defmodule Mix.Tasks.Hex.Build do
       Enum.map(include, fn %Mix.Dep{app: app, requirement: req, opts: opts} ->
         name = opts[:hex] || app
         repo = deorg_repo(opts[:repo] || @default_repo)
-        %{name: name, app: app, requirement: req, optional: opts[:optional] || false, repository: repo}
+
+        %{
+          name: name,
+          app: app,
+          requirement: req,
+          optional: opts[:optional] || false,
+          repository: repo
+        }
       end)
 
     exclude = Enum.map(exclude, & &1.app)
@@ -266,13 +277,13 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   def package(package, config) do
-    files = expand_paths(package[:files] || @default_files, File.cwd!)
+    files = expand_paths(package[:files] || @default_files, File.cwd!())
 
     package
     |> Map.put(:files, files)
     |> maybe_put(:description, package[:description], &Hex.string_trim/1)
     |> maybe_put(:name, package[:name] || config[:app], &to_string(&1))
-    |> maybe_put(:build_tools, !package[:build_tools] && guess_build_tools(files), &(&1))
+    |> maybe_put(:build_tools, !package[:build_tools] && guess_build_tools(files), & &1)
     |> Map.take(@meta_fields)
   end
 
@@ -286,24 +297,27 @@ defmodule Mix.Tasks.Hex.Build do
 
   def check_umbrella_project!(config) do
     if Mix.Project.umbrella?(config) do
-      Mix.raise "Hex does not support umbrella projects"
+      Mix.raise("Hex does not support umbrella projects")
     end
   end
 
   defp check_unstable_dependencies!(organization, meta) do
-    if organization in [nil, "hexpm"] and not pre_requirement?(meta.version) and has_pre_requirements?(meta) do
-      Mix.raise "A stable package release cannot have a pre-release dependency"
+    if organization in [nil, "hexpm"] and not pre_requirement?(meta.version) and
+         has_pre_requirements?(meta) do
+      Mix.raise("A stable package release cannot have a pre-release dependency")
     end
   end
 
   defp check_misspellings!(opts) do
     if opts[:organisation] do
-      Mix.raise "Invalid Hex package config :organisation, use spelling :organization"
+      Mix.raise("Invalid Hex package config :organisation, use spelling :organization")
     end
   end
 
   defp check_root_fields!(config) do
-    package_only_fields = ([:organisation, :organization] ++ @meta_fields) -- (@root_fields ++ [:name])
+    package_only_fields =
+      ([:organisation, :organization] ++ @meta_fields) -- (@root_fields ++ [:name])
+
     config_keys = Keyword.keys(config)
     invalid_field = Enum.find(config_keys, &(&1 in package_only_fields))
 
@@ -355,6 +369,7 @@ defmodule Mix.Tasks.Hex.Build do
     case metadata[:files] do
       [] ->
         Hex.Shell.error("No files")
+
       files ->
         Hex.Shell.info("  Files:")
         Enum.each(files, &Hex.Shell.info("    #{&1}"))
@@ -368,6 +383,7 @@ defmodule Mix.Tasks.Hex.Build do
         |> Atom.to_string()
         |> String.replace("_", " ")
         |> String.capitalize()
+
       value = format_metadata_value(value)
       Hex.Shell.info("  #{key}: #{value}")
     end
@@ -376,9 +392,11 @@ defmodule Mix.Tasks.Hex.Build do
   defp format_metadata_value(list) when is_list(list) do
     Enum.join(list, ", ")
   end
+
   defp format_metadata_value(map) when is_map(map) do
     "\n    " <> Enum.map_join(map, "\n    ", fn {key, val} -> "#{key}: #{val}" end)
   end
+
   defp format_metadata_value(value) do
     value
   end
@@ -390,6 +408,7 @@ defmodule Mix.Tasks.Hex.Build do
     case fields -- taken_fields do
       [] ->
         []
+
       missing ->
         ["Missing metadata fields: #{Enum.join(missing, ", ")}"]
     end
@@ -409,6 +428,7 @@ defmodule Mix.Tasks.Hex.Build do
     case Enum.filter(package_files, &(Path.wildcard(&1) == [])) do
       [] ->
         []
+
       missing ->
         ["Missing files: #{Enum.join(missing, ", ")}"]
     end
@@ -440,7 +460,7 @@ defmodule Mix.Tasks.Hex.Build do
     base_files =
       paths
       |> Enum.filter(&(Path.dirname(&1) == "."))
-      |> Enum.into(Hex.Set.new)
+      |> Enum.into(Hex.Set.new())
 
     for {file, tool} <- @build_tools, file in base_files do
       tool
