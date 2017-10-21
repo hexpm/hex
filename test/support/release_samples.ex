@@ -82,7 +82,7 @@ defmodule ReleaseFiles.MixProject do
      version: "0.0.1",
      description: "foo",
      package: [
-       files: ["myfile.txt", "executable.sh"],
+       files: ["myfile.txt", "executable.sh", "empty_dir"],
        licenses: ["MIT"],
        links: %{"a" => "http://a"},
        maintainers: ["maintainers"]]]

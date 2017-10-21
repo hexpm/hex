@@ -43,7 +43,9 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
+      File.mkdir!("empty_dir")
       File.write!("myfile.txt", "hello")
+      File.write!("empty_dir/.empty", "")
       File.write!("executable.sh", "world")
       File.chmod!("myfile.txt", 0o100644)
       File.chmod!("executable.sh", 0o100755)
@@ -52,6 +54,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
       extract("release_h-0.0.1.tar", "unzip")
       assert File.read!("unzip/myfile.txt") == "hello"
+      assert File.read!("unzip/empty_dir/.empty") == ""
       assert File.stat!("unzip/myfile.txt").mode == 0o100644
       assert File.stat!("unzip/executable.sh").mode == 0o100755
     end
