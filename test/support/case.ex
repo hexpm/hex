@@ -68,7 +68,7 @@ defmodule HexTest.Case do
   def in_fixture(which, tmp, function) do
     src = fixture_path(which)
     dest = tmp_path(String.replace(tmp, ":", "_"))
-    flag = String.to_charlist(tmp_path())
+    flag = Hex.string_to_charlist(tmp_path())
 
     File.rm_rf!(dest)
     File.mkdir_p!(dest)
