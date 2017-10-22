@@ -22,7 +22,9 @@ defmodule Mix.Tasks.Hex.AuditTest do
     with_test_package "0.1.0", context, fn ->
       retire_test_package "0.1.0", "security"
 
-      Mix.Task.run "hex.audit"
+      assert catch_throw(
+        Mix.Task.run "hex.audit"
+      ) == {:exit_code, 1}
       assert_output_row @package_name, "0.1.0", "(security)"
       assert_received {:mix_shell, :error, ["Found retired packages"]}
     end
@@ -32,7 +34,9 @@ defmodule Mix.Tasks.Hex.AuditTest do
     with_test_package "0.2.0", context, fn ->
       retire_test_package "0.2.0", "invalid", "Superseded by v1.0.0"
 
-      Mix.Task.run "hex.audit"
+      assert catch_throw(
+        Mix.Task.run "hex.audit"
+      ) == {:exit_code, 1}
       assert_output_row @package_name, "0.2.0", "(invalid) Superseded by v1.0.0"
       assert_received {:mix_shell, :error, ["Found retired packages"]}
     end

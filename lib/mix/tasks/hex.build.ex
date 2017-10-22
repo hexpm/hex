@@ -103,10 +103,10 @@ defmodule Mix.Tasks.Hex.Build do
         build_package(meta)
 
       [smoke: true] ->
-        build_smoke_package(meta)
+        build_smoke_package(meta, nil)
 
-      [smoke: cmd] ->
-        build_smoke_package(meta, cmd)
+      [smoke: command] ->
+        build_smoke_package(meta, command)
 
       _ ->
         message = """
@@ -124,7 +124,7 @@ defmodule Mix.Tasks.Hex.Build do
     Hex.Shell.info("Package checksum: #{checksum}")
   end
 
-  defp build_smoke_package(meta, cmd \\ nil) do
+  defp build_smoke_package(meta, command) do
     {tar, _checksum} = Hex.Tar.create(meta, meta.files)
     pkg_dir = "#{meta.name}-smoke"
     content_dir = Path.join(pkg_dir, "contents")
@@ -141,16 +141,27 @@ defmodule Mix.Tasks.Hex.Build do
         |> Hex.Tar.extract_contents(content_dir)
 
         File.cd!(content_dir, fn ->
-          opts = [env: [{"MIX_ENV", "prod"}]]
-          Mix.shell().cmd("mix do deps.get, compile", opts)
-
-          # Run custom command
-          if cmd, do: Mix.shell().cmd(cmd, opts)
+          run_smoke_command("mix do deps.get, compile") && run_smoke_command(command)
         end)
 
       {:error, reason} ->
         errors = reason |> :hex_erl_tar.format_error() |> List.to_string()
         Mix.raise("Unpacking tarball failed: " <> errors)
+    end
+  end
+
+  defp run_smoke_command(nil), do: true
+
+  defp run_smoke_command(command) do
+    Hex.Shell.info("Running command: #{command}")
+    opts = [env: [{"MIX_ENV", "prod"}]]
+    case Mix.shell().cmd(command, opts) do
+      0 ->
+        true
+      code ->
+        Hex.Shell.error("Command exited with code #{code}: #{command}")
+        Mix.Tasks.Hex.set_exit_code(code)
+        false
     end
   end
 

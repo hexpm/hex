@@ -1,3 +1,15 @@
+defmodule Sample.MixProject do
+  def project do
+    [app: :sample,
+     description: "sample",
+     version: "0.0.1",
+     deps: [],
+     package: [licenses: ["MIT"],
+      maintainers: ["maintainers"],
+      links: %{"a" => "http://a"}]]
+  end
+end
+
 defmodule ReleaseSimple.MixProject do
   def project do
     [app: :release_a,

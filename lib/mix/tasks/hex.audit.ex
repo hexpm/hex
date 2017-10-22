@@ -32,7 +32,7 @@ defmodule Mix.Tasks.Hex.Audit do
         header = ["Dependency", "Version", "Retirement reason"]
         Mix.Tasks.Hex.print_table(header, packages)
         Hex.Shell.error "Found retired packages"
-        set_exit_code(1)
+        Mix.Tasks.Hex.set_exit_code(1)
     end
   end
 
@@ -48,11 +48,5 @@ defmodule Mix.Tasks.Hex.Audit do
       %{} -> [package, version, Hex.Utils.package_retirement_message(retired)]
       nil -> []
     end
-  end
-
-  if Mix.env() == :test do
-    defp set_exit_code(_code), do: :ok
-  else
-    defp set_exit_code(code), do: System.at_exit(fn(_) -> System.halt(code) end)
   end
 end

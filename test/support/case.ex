@@ -55,6 +55,40 @@ defmodule HexTest.Case do
     File.cd!(path, function)
   end
 
+  defmacro in_fixture(which, block) do
+    module = inspect(__CALLER__.module)
+    function = Atom.to_string(elem(__CALLER__.function, 0))
+    tmp = Path.join(module, function)
+
+    quote do
+      unquote(__MODULE__).in_fixture(unquote(which), unquote(tmp), unquote(block))
+    end
+  end
+
+  def in_fixture(which, tmp, function) do
+    src = fixture_path(which)
+    dest = tmp_path(String.replace(tmp, ":", "_"))
+    flag = String.to_charlist(tmp_path())
+
+    File.rm_rf!(dest)
+    File.mkdir_p!(dest)
+    File.cp_r!(src, dest)
+
+    get_path = :code.get_path()
+    previous = :code.all_loaded()
+
+    try do
+      File.cd!(dest, function)
+    after
+      :code.set_path(get_path)
+
+      for {mod, file} <- :code.all_loaded() -- previous,
+          file == [] or (is_list(file) and :lists.prefix(flag, file)) do
+        purge([mod])
+      end
+    end
+  end
+
   def purge(modules) do
     Enum.each modules, fn(m) ->
       :code.delete(m)

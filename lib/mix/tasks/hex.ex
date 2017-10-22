@@ -194,4 +194,10 @@ defmodule Mix.Tasks.Hex do
 
   def clean_version("v" <> version), do: version
   def clean_version(version), do: version
+
+  if Mix.env() == :test do
+    def set_exit_code(code), do: throw {:exit_code, code}
+  else
+    def set_exit_code(code), do: System.at_exit(fn(_) -> System.halt(code) end)
+  end
 end

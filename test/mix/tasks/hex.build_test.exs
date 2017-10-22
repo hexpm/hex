@@ -227,50 +227,38 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "create smoke package" do
-    Mix.Project.push(ReleaseFiles.MixProject)
+    Mix.Project.push Sample.MixProject
 
-    in_tmp(fn ->
+    in_fixture("sample", fn ->
       Hex.State.put(:home, tmp_path())
-      Mix.shell(Mix.Shell.IO)
-
-      fun = fn ->
-        File.mkdir!("empty_dir")
-        File.write!("myfile.txt", "hello")
-        File.write!("executable.sh", "world")
-        Mix.Tasks.Hex.Build.run(["--smoke"])
-      end
-
-      assert capture_io(fun) =~ "Building release_h 0.0.1"
+      Mix.Tasks.Hex.Build.run(["--smoke"])
     end)
   after
-    Mix.shell(Mix.Shell.Process)
-    purge([ReleaseFiles.MixProject])
+    purge [Sample.MixProject]
   end
 
   test "create smoke package with extra commands" do
-    Mix.Project.push(ReleaseFiles.MixProject)
+    Mix.Project.push Sample.MixProject
 
-    in_tmp(fn ->
+    in_fixture("sample", fn ->
       Hex.State.put(:home, tmp_path())
-      Mix.shell(Mix.Shell.IO)
-
-      fun = fn ->
-        File.mkdir!("empty_dir")
-        File.write!("myfile.txt", "hello")
-        File.write!("executable.sh", "world")
-        Mix.Tasks.Hex.Build.run(["--smoke", "touch end.txt"])
-      end
-
-      assert capture_io(fun) =~ "Building release_h 0.0.1"
-      assert File.exists?("release_h-smoke/contents/end.txt")
+      Mix.Tasks.Hex.Build.run(["--smoke", "touch end.txt"])
+      assert File.exists?("sample-smoke/contents/end.txt")
     end)
   after
-    Mix.shell(Mix.Shell.Process)
-    purge([ReleaseFiles.MixProject])
+    purge [Sample.MixProject]
   end
 
-  ## Helper
-  defp capture_io(fun) do
-    fun |> ExUnit.CaptureIO.capture_io() |> String.replace("\r\n", "\n")
+  test "create smoke package with failing extra command" do
+    Mix.Project.push Sample.MixProject
+
+    in_fixture("sample", fn ->
+      Hex.State.put(:home, tmp_path())
+      assert catch_throw(
+        Mix.Tasks.Hex.Build.run(["--smoke", "mix run -e 'System.halt(1)'"])
+      ) == {:exit_code, 1}
+    end)
+  after
+    purge [Sample.MixProject]
   end
 end
