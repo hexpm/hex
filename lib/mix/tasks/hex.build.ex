@@ -367,7 +367,7 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   defp dir_files(path) do
-    case File.lstat(path) do
+    case Hex.file_lstat(path) do
       {:ok, %File.Stat{type: :directory}} ->
         [path | Path.wildcard(Path.join(path, "**"), match_dot: true)]
       _ ->

@@ -55,6 +55,25 @@ defmodule Hex do
     def enum_split_with(enum, fun), do: Enum.split_with(enum, fun)
   end
 
+  def file_lstat(path, opts \\ []) do
+    opts = Keyword.put_new(opts, :time, :universal)
+    case :file.read_link_info(IO.chardata_to_string(path), opts) do
+      {:ok, fileinfo} ->
+        {:ok, File.Stat.from_record(fileinfo)}
+      error ->
+        error
+    end
+  end
+
+  def file_lstat!(path, opts \\ []) do
+    case file_lstat(path, opts) do
+      {:ok, info}      -> info
+      {:error, reason} ->
+        raise File.Error, reason: reason, action: "read file stats",
+          path: IO.chardata_to_string(path)
+    end
+  end
+
   if Mix.env == :test do
     defp children do
       import Supervisor.Spec
