@@ -1,36 +1,42 @@
 defmodule Hex.HTTP do
   @request_timeout 15_000
+  @chunk_size 1460
   @request_redirects 3
   @request_retries 2
 
   def request(method, url, headers, body, opts \\ []) do
-    headers = build_headers(headers)
+    headers = build_headers(headers, body)
     timeout = opts[:timeout] || Hex.State.fetch!(:http_timeout) || @request_timeout
-    http_opts = build_http_opts(url, timeout)
-    opts = [body_format: :binary]
+    http_opts = build_http_opts(url)
+    opts = [body_format: :binary, sync: false, stream: :self]
     request = build_request(url, headers, body)
     profile = Hex.State.fetch!(:httpc_profile)
 
     retry(method, request, @request_retries, fn request ->
       redirect(request, @request_redirects, fn request ->
-        timeout(request, timeout, fn request ->
+        timeout(timeout, fn ->
           :httpc.request(method, request, http_opts, opts, profile)
-          |> handle_response()
         end)
+        |> handle_response()
       end)
     end)
   end
 
-  defp build_headers(headers) do
-    default_headers = %{'user-agent' => user_agent()}
-    headers = Enum.into(headers, %{})
-    Map.merge(default_headers, headers)
+  defp build_headers(headers, body) do
+    %{'user-agent' => user_agent()}
+    |> Map.merge(content_length(body))
+    |> Map.merge(Enum.into(headers, %{}))
   end
 
-  defp build_http_opts(url, timeout) do
+  defp content_length({_content_type, body, _fun}) do
+    length = body |> byte_size() |> Hex.to_charlist()
+    %{'content-length' => length}
+  end
+  defp content_length(nil), do: %{}
+
+  defp build_http_opts(url) do
     [
       relaxed: true,
-      timeout: timeout,
       ssl: Hex.HTTP.SSL.ssl_opts(url),
       autoredirect: false
     ] ++ proxy_config(url)
@@ -41,11 +47,27 @@ defmodule Hex.HTTP do
     headers = Map.to_list(headers)
 
     case body do
-      {content_type, body} ->
-        {url, headers, content_type, body}
+      {content_type, body, fun} ->
+        {url, headers, content_type, build_body(body, fun)}
       nil ->
         {url, headers}
     end
+  end
+
+  defp build_body(body, fun) do
+    body = fn
+      {size, pid} when size < byte_size(body) ->
+        new_size = min(size + @chunk_size, byte_size(body))
+        chunk = new_size - size
+        fun.(new_size)
+        send(pid, :request_progress)
+        {:ok, :binary.part(body, size, chunk), {new_size, pid}}
+      {_size, pid} ->
+        send(pid, :request_done)
+        :eof
+    end
+
+    {body, {0, self()}}
   end
 
   defp retry(:get, request, times, fun) do
@@ -110,29 +132,51 @@ defmodule Hex.HTTP do
     {new_url, headers}
   end
 
-  defp timeout(request, timeout, fun) do
-    Task.async(fn ->
-      fun.(request)
-    end)
-    |> task_await(:timeout, timeout)
+  defp timeout(timeout, fun) do
+    case fun.() do
+      {:ok, _} ->
+        stream_response(timeout, :start)
+      other ->
+        other
+    end
   end
 
-  defp task_await(%Task{ref: ref, pid: pid} = task, reason, timeout) do
+  defp stream_response(timeout, :start) do
     receive do
-      {^ref, result} ->
-        Process.demonitor(ref, [:flush])
-        result
-      {:DOWN, ^ref, _, _, _reason} ->
-        {:error, :timeout}
+      :request_progress ->
+        stream_response(timeout, :start)
+      :request_done ->
+        stream_response(timeout, :start)
+      {:http, {_request_id, :stream_start, headers}} ->
+        stream_response(timeout, {headers, ""})
+      {:http, {_request_id, {status, headers, body}}} ->
+        {:ok, {status, headers, body}}
+      {:http, {_request_id, {:error, reason}}} ->
+        {:error, reason}
     after
       timeout ->
-        Process.unlink(pid)
-        Process.exit(pid, reason)
-        task_await(task, :kill, timeout)
+        {:error, :timeout}
+    end
+  end
+
+  defp stream_response(timeout, {headers, body}) do
+    receive do
+      {:http, {_request_id, :stream, body_part}} ->
+        stream_response(timeout, {headers, [body|body_part]})
+      {:http, {_request_id, :stream_end, headers_part}} ->
+        {:ok, {200, headers ++ headers_part, IO.iodata_to_binary(body)}}
+      {:http, {_request_id, {:error, reason}}} ->
+        {:error, reason}
+    after
+      timeout ->
+        {:error, :timeout}
     end
   end
 
   defp handle_response({:ok, {{_version, code, _reason}, headers, body}}) do
+    handle_response({:ok, {code, headers, body}})
+  end
+  defp handle_response({:ok, {code, headers, body}}) do
     headers = Enum.into(headers, %{})
     handle_hex_message(headers['x-hex-message'])
     {:ok, {code, unzip(body, headers), headers}}
