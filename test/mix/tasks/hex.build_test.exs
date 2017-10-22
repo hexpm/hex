@@ -234,6 +234,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       Mix.shell(Mix.Shell.IO)
 
       fun = fn ->
+        File.mkdir!("empty_dir")
         File.write!("myfile.txt", "hello")
         File.write!("executable.sh", "world")
         Mix.Tasks.Hex.Build.run(["--smoke"])
@@ -254,6 +255,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       Mix.shell(Mix.Shell.IO)
 
       fun = fn ->
+        File.mkdir!("empty_dir")
         File.write!("myfile.txt", "hello")
         File.write!("executable.sh", "world")
         Mix.Tasks.Hex.Build.run(["--smoke", "touch end.txt"])
