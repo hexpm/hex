@@ -38,7 +38,7 @@ defmodule Hex.Tar do
         {name, contents} ->
           :ok = :hex_erl_tar.add(tar, contents, Hex.string_to_charlist(name), [])
         name ->
-          case File.lstat(name) do
+          case Hex.file_lstat(name) do
             {:ok, %File.Stat{type: type}} when type in [:directory, :symlink] ->
               :ok = :hex_erl_tar.add(tar, Hex.string_to_charlist(name), [])
             _stat ->
