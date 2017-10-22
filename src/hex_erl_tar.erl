@@ -1261,12 +1261,10 @@ convert_header(_Bin, _Reader) ->
 %% If the file is a directory, a slash is appended to the name.
 fileinfo_to_header(Name, #file_info{}=Fi, Link) when is_list(Name) ->
     BaseHeader = #tar_header{name=Name,
-                             mtime=Fi#file_info.mtime,
-                             atime=Fi#file_info.atime,
-                             ctime=Fi#file_info.ctime,
+                             mtime=0,
+                             atime=0,
+                             ctime=0,
                              mode=Fi#file_info.mode,
-                             uid=Fi#file_info.uid,
-                             gid=Fi#file_info.gid,
                              typeflag=?TYPE_REGULAR},
     do_fileinfo_to_header(BaseHeader, Fi, Link).
 
