@@ -1,4 +1,5 @@
 defmodule Hex.HTTP do
+  @max_timeout 600_000
   @request_timeout 15_000
   @chunk_size 1460
   @request_redirects 3
@@ -9,17 +10,43 @@ defmodule Hex.HTTP do
     timeout = opts[:timeout] || Hex.State.fetch!(:http_timeout) || @request_timeout
     http_opts = build_http_opts(url)
     opts = [body_format: :binary, sync: false, stream: :self]
-    request = build_request(url, headers, body)
     profile = Hex.State.fetch!(:httpc_profile)
+    watch_task = Task.async(fn -> watcher(timeout) end)
+    request = build_request(url, headers, body, watch_task)
 
-    retry(method, request, @request_retries, fn request ->
-      redirect(request, @request_redirects, fn request ->
-        timeout(timeout, fn ->
-          :httpc.request(method, request, http_opts, opts, profile)
-        end)
-        |> handle_response()
+    {:ok, request_task} = Task.start_link(fn ->
+      do_request(method, request, watch_task, fn request ->
+        :httpc.request(method, request, http_opts, opts, profile)
       end)
     end)
+
+    response = Task.await(watch_task, @max_timeout)
+    Process.unlink(request_task)
+    Process.exit(request_task, :kill)
+    handle_response(response)
+  end
+
+  defp watcher(timeout) do
+    receive do
+      :progress ->
+        watcher(timeout)
+      {:result, result} ->
+        result
+    after
+      timeout ->
+        {:error, :timeout}
+    end
+  end
+
+  defp do_request(method, request, watcher, fun) do
+    result =
+      retry(method, request, @request_retries, fn request ->
+        redirect(request, @request_redirects, fn request ->
+          stream(watcher, fn -> fun.(request) end)
+        end)
+      end)
+
+    send(watcher.pid, {:result, result})
   end
 
   defp build_headers(headers, body) do
@@ -42,32 +69,32 @@ defmodule Hex.HTTP do
     ] ++ proxy_config(url)
   end
 
-  defp build_request(url, headers, body) do
+  defp build_request(url, headers, body, watcher) do
     url = Hex.string_to_charlist(url)
     headers = Map.to_list(headers)
 
     case body do
       {content_type, body, fun} ->
-        {url, headers, content_type, build_body(body, fun)}
+        {url, headers, content_type, build_body(body, fun, watcher)}
       nil ->
         {url, headers}
     end
   end
 
-  defp build_body(body, fun) do
+  defp build_body(body, fun, watcher) do
     body = fn
-      {size, pid} when size < byte_size(body) ->
+      size when size < byte_size(body) ->
         new_size = min(size + @chunk_size, byte_size(body))
         chunk = new_size - size
         fun.(new_size)
-        send(pid, :request_progress)
-        {:ok, :binary.part(body, size, chunk), {new_size, pid}}
-      {_size, pid} ->
-        send(pid, :request_done)
+        send(watcher.pid, :progress)
+        {:ok, :binary.part(body, size, chunk), new_size}
+      _size ->
+        send(watcher.pid, :progress)
         :eof
     end
 
-    {body, {0, self()}}
+    {body, 0}
   end
 
   defp retry(:get, request, times, fun) do
@@ -132,44 +159,36 @@ defmodule Hex.HTTP do
     {new_url, headers}
   end
 
-  defp timeout(timeout, fun) do
+  defp stream(watcher, fun) do
     case fun.() do
       {:ok, _} ->
-        stream_response(timeout, :start)
+        stream_response(watcher, :start)
       other ->
         other
     end
   end
 
-  defp stream_response(timeout, :start) do
+  defp stream_response(watcher, :start) do
     receive do
-      :request_progress ->
-        stream_response(timeout, :start)
-      :request_done ->
-        stream_response(timeout, :start)
       {:http, {_request_id, :stream_start, headers}} ->
-        stream_response(timeout, {headers, ""})
+        stream_response(watcher, {headers, ""})
       {:http, {_request_id, {status, headers, body}}} ->
         {:ok, {status, headers, body}}
       {:http, {_request_id, {:error, reason}}} ->
         {:error, reason}
-    after
-      timeout ->
-        {:error, :timeout}
     end
   end
 
-  defp stream_response(timeout, {headers, body}) do
+  defp stream_response(watcher, {headers, body}) do
+    send(watcher.pid, :progress)
+
     receive do
       {:http, {_request_id, :stream, body_part}} ->
-        stream_response(timeout, {headers, [body|body_part]})
+        stream_response(watcher, {headers, [body|body_part]})
       {:http, {_request_id, :stream_end, headers_part}} ->
         {:ok, {200, headers ++ headers_part, IO.iodata_to_binary(body)}}
       {:http, {_request_id, {:error, reason}}} ->
         {:error, reason}
-    after
-      timeout ->
-        {:error, :timeout}
     end
   end
 
