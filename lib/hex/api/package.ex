@@ -6,7 +6,11 @@ defmodule Hex.API.Package do
   end
 
   def search(repo, search) do
-    API.request(:get, repo, "packages?search=#{URI.encode(search)}&sort=downloads")
+    search(repo, search, [])
+  end
+
+  def search(repo, search, auth) do
+    API.request(:get, repo, "packages?search=#{URI.encode(search)}&sort=downloads", auth)
   end
 
   defmodule Owner do
