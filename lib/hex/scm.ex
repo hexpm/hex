@@ -120,6 +120,7 @@ defmodule Hex.SCM do
 
       {:error, reason} ->
         Hex.Shell.error(reason)
+        IO.inspect(reason, limit: :infinity)
         unless File.exists?(path) do
           Mix.raise "Package fetch failed and no cached copy available"
         end
