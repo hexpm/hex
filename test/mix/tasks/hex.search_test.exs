@@ -15,6 +15,10 @@ defmodule Mix.Tasks.Hex.SearchTest do
     assert_received {:mix_shell, :info, ["No packages found"]}
   end
 
+  # TODO: Right now we can't test this properly. Consider that we can't test
+  # this new feature without a private package, and we can't test a private
+  # packages without being able to create organizations first. The latter
+  # would require some changes from on the hexpm side.
   test "search with authenticated user" do
     in_tmp fn ->
       Hex.State.put(:home, tmp_path())
