@@ -35,20 +35,4 @@ defmodule Mix.Tasks.Hex.SearchTest do
       assert only_doc =~ ~r"\w*0\.1\.0.*http://localhost:4043/packages/only_doc"
     end
   end
-
-  test "search without an authenticated user" do
-    in_tmp fn ->
-      Hex.State.put(:home, tmp_path())
-      setup_auth("user", "hunter42")
-
-      send self(), {:mix_shell_input, :yes?, false}
-      send self(), {:mix_shell_input, :prompt, "hunter43"}
-      Mix.Tasks.Hex.Search.run(["doc"])
-
-      assert_received {:mix_shell, :info, ["ex_doc\e[0m" <> ex_doc]}
-      assert_received {:mix_shell, :info, ["only_doc\e[0m" <> only_doc]}
-      assert ex_doc =~ ~r"\w*0\.1\.0.*http://localhost:4043/packages/ex_doc"
-      assert only_doc =~ ~r"\w*0\.1\.0.*http://localhost:4043/packages/only_doc"
-    end
-  end
 end
