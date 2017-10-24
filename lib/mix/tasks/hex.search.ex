@@ -34,13 +34,13 @@ defmodule Mix.Tasks.Hex.Search do
 
   defp search_package(package, organization) do
     result =
-      try do
-        auth = Mix.Tasks.Hex.auth_info()
-        Hex.API.Package.search(organization, package, auth)
-      rescue
-        Mix.Error ->
-          Hex.API.Package.search(organization, package)
+      if key = Hex.State.fetch!(:api_key) do
+        decrypted_key = Mix.Tasks.Hex.prompt_decrypt_key(key)
+        Hex.API.Package.search(organization, package, [key: decrypted_key])
+      else
+        Hex.API.Package.search(organization, package)
       end
+
     lookup_packages(result)
   end
 
