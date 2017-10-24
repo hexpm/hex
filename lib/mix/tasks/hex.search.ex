@@ -34,14 +34,13 @@ defmodule Mix.Tasks.Hex.Search do
 
   defp search_package(package, organization) do
     result =
-      case Keyword.fetch(Hex.Config.read(), :username) do
-        {:ok, _username} ->
-          auth = Mix.Tasks.Hex.auth_info()
-          Hex.API.Package.search(organization, package, auth)
-        :error ->
+      try do
+        auth = Mix.Tasks.Hex.auth_info()
+        Hex.API.Package.search(organization, package, auth)
+      rescue
+        Mix.Error ->
           Hex.API.Package.search(organization, package)
       end
-
     lookup_packages(result)
   end
 
