@@ -3,8 +3,6 @@ defmodule Hex.API do
 
   @erlang_content 'application/vnd.hex+erlang'
   @tar_content 'application/octet-stream'
-  @tar_chunk_size 10_000
-  @tar_timeout 60_000
 
   def request(method, repo, path, opts \\ []) do
     HTTP.request(method, url(repo, path), headers(opts), nil)
@@ -23,12 +21,7 @@ defmodule Hex.API do
 
   def tar_post_request(repo, path, body, opts \\ []) do
     progress = Keyword.fetch!(opts, :progress)
-    headers =
-      %{'content-length' => Hex.to_charlist(byte_size(body))}
-      |> Map.merge(headers(opts))
-    opts = [timeout: Hex.State.fetch!(:http_timeout) || @tar_timeout]
-
-    HTTP.request(:post, url(repo, path), headers, encode_tar(body, progress), opts)
+    HTTP.request(:post, url(repo, path), headers(opts), encode_tar(body, progress), opts)
     |> handle_response()
   end
 
@@ -59,21 +52,11 @@ defmodule Hex.API do
   end
 
   defp encode_erlang(body) do
-    {@erlang_content, Hex.Utils.safe_serialize_erlang(body)}
+    {@erlang_content, Hex.Utils.safe_serialize_erlang(body), & &1}
   end
 
   defp encode_tar(body, progress) do
-    body = fn
-      size when size < byte_size(body) ->
-        new_size = min(size + @tar_chunk_size, byte_size(body))
-        chunk = new_size - size
-        progress.(new_size)
-        {:ok, :binary.part(body, size, chunk), new_size}
-      _size ->
-        :eof
-    end
-
-    {@tar_content, {body, 0}}
+    {@tar_content, body, progress}
   end
 
   defp handle_response({:ok, {code, body, headers}}) do

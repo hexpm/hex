@@ -1,51 +1,100 @@
 defmodule Hex.HTTP do
+  @max_timeout 600_000
   @request_timeout 15_000
+  @chunk_size 1460
   @request_redirects 3
   @request_retries 2
 
   def request(method, url, headers, body, opts \\ []) do
-    headers = build_headers(headers)
+    headers = build_headers(headers, body)
     timeout = opts[:timeout] || Hex.State.fetch!(:http_timeout) || @request_timeout
-    http_opts = build_http_opts(url, timeout)
-    opts = [body_format: :binary]
-    request = build_request(url, headers, body)
+    http_opts = build_http_opts(url)
+    opts = [body_format: :binary, sync: false, stream: :self]
     profile = Hex.State.fetch!(:httpc_profile)
+    watch_task = Task.async(fn -> watcher(timeout) end)
+    request = build_request(url, headers, body, watch_task)
 
-    retry(method, request, @request_retries, fn request ->
-      redirect(request, @request_redirects, fn request ->
-        timeout(request, timeout, fn request ->
-          :httpc.request(method, request, http_opts, opts, profile)
-          |> handle_response()
-        end)
+    {:ok, request_task} = Task.start_link(fn ->
+      do_request(method, request, watch_task, fn request ->
+        :httpc.request(method, request, http_opts, opts, profile)
       end)
     end)
+
+    response = Task.await(watch_task, @max_timeout)
+    Process.unlink(request_task)
+    Process.exit(request_task, :kill)
+    handle_response(response)
   end
 
-  defp build_headers(headers) do
-    default_headers = %{'user-agent' => user_agent()}
-    headers = Enum.into(headers, %{})
-    Map.merge(default_headers, headers)
+  defp watcher(timeout) do
+    receive do
+      :progress ->
+        watcher(timeout)
+      {:result, result} ->
+        result
+    after
+      timeout ->
+        {:error, :timeout}
+    end
   end
 
-  defp build_http_opts(url, timeout) do
+  defp do_request(method, request, watcher, fun) do
+    result =
+      retry(method, request, @request_retries, fn request ->
+        redirect(request, @request_redirects, fn request ->
+          stream(watcher, fn -> fun.(request) end)
+        end)
+      end)
+
+    send(watcher.pid, {:result, result})
+  end
+
+  defp build_headers(headers, body) do
+    %{'user-agent' => user_agent()}
+    |> Map.merge(content_length(body))
+    |> Map.merge(Enum.into(headers, %{}))
+  end
+
+  defp content_length({_content_type, body, _fun}) do
+    length = body |> byte_size() |> Hex.to_charlist()
+    %{'content-length' => length}
+  end
+  defp content_length(nil), do: %{}
+
+  defp build_http_opts(url) do
     [
       relaxed: true,
-      timeout: timeout,
       ssl: Hex.HTTP.SSL.ssl_opts(url),
       autoredirect: false
     ] ++ proxy_config(url)
   end
 
-  defp build_request(url, headers, body) do
+  defp build_request(url, headers, body, watcher) do
     url = Hex.string_to_charlist(url)
     headers = Map.to_list(headers)
 
     case body do
-      {content_type, body} ->
-        {url, headers, content_type, body}
+      {content_type, body, fun} ->
+        {url, headers, content_type, build_body(body, fun, watcher)}
       nil ->
         {url, headers}
     end
+  end
+
+  defp build_body(body, fun, watcher) do
+    body = fn
+      size when size < byte_size(body) ->
+        new_size = min(size + @chunk_size, byte_size(body))
+        chunk = new_size - size
+        fun.(new_size)
+        send(watcher.pid, :progress)
+        {:ok, :binary.part(body, size, chunk), new_size}
+      _size ->
+        send(watcher.pid, :progress)
+        :eof
+    end
+
+    {body, 0}
   end
 
   defp retry(:get, request, times, fun) do
@@ -110,29 +159,43 @@ defmodule Hex.HTTP do
     {new_url, headers}
   end
 
-  defp timeout(request, timeout, fun) do
-    Task.async(fn ->
-      fun.(request)
-    end)
-    |> task_await(:timeout, timeout)
+  defp stream(watcher, fun) do
+    case fun.() do
+      {:ok, _} ->
+        stream_response(watcher, :start)
+      other ->
+        other
+    end
   end
 
-  defp task_await(%Task{ref: ref, pid: pid} = task, reason, timeout) do
+  defp stream_response(watcher, :start) do
     receive do
-      {^ref, result} ->
-        Process.demonitor(ref, [:flush])
-        result
-      {:DOWN, ^ref, _, _, _reason} ->
-        {:error, :timeout}
-    after
-      timeout ->
-        Process.unlink(pid)
-        Process.exit(pid, reason)
-        task_await(task, :kill, timeout)
+      {:http, {_request_id, :stream_start, headers}} ->
+        stream_response(watcher, {headers, ""})
+      {:http, {_request_id, {status, headers, body}}} ->
+        {:ok, {status, headers, body}}
+      {:http, {_request_id, {:error, reason}}} ->
+        {:error, reason}
+    end
+  end
+
+  defp stream_response(watcher, {headers, body}) do
+    send(watcher.pid, :progress)
+
+    receive do
+      {:http, {_request_id, :stream, body_part}} ->
+        stream_response(watcher, {headers, [body|body_part]})
+      {:http, {_request_id, :stream_end, headers_part}} ->
+        {:ok, {200, headers ++ headers_part, IO.iodata_to_binary(body)}}
+      {:http, {_request_id, {:error, reason}}} ->
+        {:error, reason}
     end
   end
 
   defp handle_response({:ok, {{_version, code, _reason}, headers, body}}) do
+    handle_response({:ok, {code, headers, body}})
+  end
+  defp handle_response({:ok, {code, headers, body}}) do
     headers = Enum.into(headers, %{})
     handle_hex_message(headers['x-hex-message'])
     {:ok, {code, unzip(body, headers), headers}}
