@@ -54,12 +54,6 @@ defmodule Mix.Tasks.Hex.User do
 
       mix hex.user key --list
 
-  ### Test authentication
-
-  Tests if authentication works with the stored API key.
-
-      mix hex.user test
-
   ### Reset user password
 
       mix hex.user reset password
