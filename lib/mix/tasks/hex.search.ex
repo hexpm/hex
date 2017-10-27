@@ -11,6 +11,7 @@ defmodule Mix.Tasks.Hex.Search do
   ## Command line options
 
     * `--organization ORGANIZATION` - The organization the package belongs to
+
   """
 
   @switches [organization: :string]
@@ -21,9 +22,7 @@ defmodule Mix.Tasks.Hex.Search do
 
     case args do
       [package] ->
-        Hex.API.Package.search(opts[:organization], package)
-        |> lookup_packages()
-
+        search_package(package, opts[:organization])
       _ ->
         Mix.raise """
         Invalid arguments, expected:
@@ -31,6 +30,18 @@ defmodule Mix.Tasks.Hex.Search do
         mix hex.search PACKAGE
         """
     end
+  end
+
+  defp search_package(package, organization) do
+    result =
+      if key = Hex.State.fetch!(:api_key) do
+        decrypted_key = Mix.Tasks.Hex.prompt_decrypt_key(key)
+        Hex.API.Package.search(organization, package, [key: decrypted_key])
+      else
+        Hex.API.Package.search(organization, package)
+      end
+
+    lookup_packages(result)
   end
 
   defp lookup_packages({:ok, {200, [], _headers}}) do
