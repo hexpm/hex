@@ -152,7 +152,7 @@ defmodule Hex.SCM do
   end
 
   defp maybe_use_updated_lock({:hex, _, _, _, [], _, _}, updated_lock), do: updated_lock
-  defp maybe_use_updated_lock(old_lock, _updated_lock), do: old_lock
+  defp maybe_use_updated_lock({:hex, _, _, _, _managers, _, _} = old_lock, _updated_lock), do: old_lock
 
   @build_tools [
     {"mix.exs"     , "mix"},
