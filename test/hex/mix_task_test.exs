@@ -538,6 +538,16 @@ defmodule Hex.MixTaskTest do
     old_lock
   end
 
+  test "deps.get populates managers" do
+    Mix.Project.push Simple
+
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+      Mix.Task.run "deps.get"
+      assert %{ecto: {:hex, _, _, _, [:mix], _, _}} = Mix.Dep.Lock.read()
+    end
+  end
+
   test "deps.get does not rewrite the lock file when deps are already present" do
     Mix.Project.push Simple
 
@@ -584,10 +594,11 @@ defmodule Hex.MixTaskTest do
 
       Mix.Task.run "deps.update", ["ex_doc"]
 
-      new_lock = Mix.Dep.Lock.read()
-      assert %{ecto: {:hex, :ecto, "0.2.0", _},
-               postgrex: {:hex, :postgrex, "0.2.0", _}} = new_lock
-      assert tuple_size(new_lock.ex_doc) > 4
+      assert %{
+               ecto: {:hex, :ecto, "0.2.0", _},
+               ex_doc: {:hex, :ex_doc, "0.0.1", _, [:mix], _, _},
+               postgrex: {:hex, :postgrex, "0.2.0", _}
+             } = Mix.Dep.Lock.read()
     end
   after
     purge [Ecto.NoConflict.MixProject, Postgrex.NoConflict.MixProject,
