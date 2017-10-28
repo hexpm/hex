@@ -148,6 +148,7 @@ defmodule Hex.SCM do
 
   def checkout(opts) do
     update(opts)
+    opts[:lock]
   end
 
   @build_tools [
