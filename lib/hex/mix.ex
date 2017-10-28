@@ -195,28 +195,30 @@ defmodule Hex.Mix do
         |> Enum.map(&registry_dep_to_def/1)
         |> Enum.sort()
 
-      {String.to_atom(app), {:hex, String.to_atom(name), version, checksum, managers(app), deps, repo}}
+      managers =
+        managers(app)
+        |> Enum.sort()
+        |> Enum.uniq()
+
+      {String.to_atom(app), {:hex, String.to_atom(name), version, checksum, managers, deps, repo}}
     end)
   end
 
   # We need to get managers from manifest if a dependency is not in the lock
   # but it's already fetched. Without the manifest we would only get managers
   # from metadata during checkout or from the lock entry.
-  defp managers(nil), do: nil
+  defp managers(nil), do: []
   defp managers(app) do
     path = Path.join([Mix.Project.deps_path(), app, ".hex"])
 
     case File.read(path) do
       {:ok, file} ->
         case Hex.SCM.parse_manifest(file) do
-          [_name, _version, _checksum, managers | _] ->
-            managers |> Enum.sort() |> Enum.uniq()
-
-          _ ->
-            nil
+          [_name, _version, _checksum, managers | _] -> managers
+          _ -> []
         end
       _ ->
-        nil
+        []
     end
   end
 

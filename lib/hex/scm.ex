@@ -147,8 +147,8 @@ defmodule Hex.SCM do
   end
 
   def checkout(opts) do
-    updated_lock = update(opts)
-    maybe_use_updated_lock(opts[:lock], updated_lock)
+    update(opts)
+    opts[:lock]
   end
 
   @build_tools [
@@ -182,9 +182,6 @@ defmodule Hex.SCM do
     end)
     |> Enum.uniq()
   end
-
-  defp maybe_use_updated_lock({:hex, _, _, _, nil, _, _}, updated_lock), do: updated_lock
-  defp maybe_use_updated_lock(old_lock, _updated_lock), do: old_lock
 
   defp ensure_lock(nil, opts) do
     Mix.raise "The lock is missing for package #{opts[:hex]}. This could be " <>
