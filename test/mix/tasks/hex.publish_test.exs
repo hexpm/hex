@@ -48,7 +48,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert_received {:mix_shell, :info, ["Package published to http://localhost:4043/packages/release_a/0.0.1" <> _]}
       assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
 
-      msg = "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct"
+      msg = "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct\n"
       assert_received {:mix_shell, :info, [^msg]}
 
       send self(), {:mix_shell_input, :yes?, true}

@@ -205,14 +205,16 @@ defmodule Mix.Tasks.Hex.Publish do
       not confirm? ->
         true
       build.organization in [nil, "hexpm"] ->
-        Hex.Shell.yes?("Publishing package to public repository hexpm. Proceed?")
+        Hex.Shell.info(["Publishing package to ", IO.ANSI.cyan(), "public repository hexpm", IO.ANSI.white(), ".\n"])
+        Hex.Shell.yes?("Proceed?")
       true ->
-        Hex.Shell.yes?("Publishing package to private repository #{build.organization}. Proceed?")
+        Hex.Shell.info(["Publishing package to ", IO.ANSI.yellow(), "private repository #{build.organization}", IO.ANSI.white(), ".\n"])
+        Hex.Shell.yes?("Proceed?")
     end
   end
 
   defp print_link_to_coc() do
-    Hex.Shell.info "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct"
+    Hex.Shell.info "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct\n"
   end
 
   defp revert(build, organization, version) do
