@@ -96,6 +96,7 @@ defmodule Mix.Tasks.Hex.Publish do
   ]
 
   def run(args) do
+    Hex.check_deps()
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
 

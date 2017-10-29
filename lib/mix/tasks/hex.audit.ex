@@ -14,6 +14,7 @@ defmodule Mix.Tasks.Hex.Audit do
   """
 
   def run(_) do
+    Hex.check_deps()
     Hex.start()
 
     lock = Mix.Dep.Lock.read()
