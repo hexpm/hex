@@ -526,7 +526,7 @@ defmodule Hex.MixTaskTest do
   end
 
   defp old_lock_tuple(lock_tuple) do
-    lock_tuple |> Tuple.to_list() |> Enum.take(6) |> List.to_tuple()
+    {elem(lock_tuple, 0), elem(lock_tuple, 1), elem(lock_tuple, 2), elem(lock_tuple, 3)}
   end
 
   defp rewrite_lock_in_old_format() do
@@ -595,9 +595,9 @@ defmodule Hex.MixTaskTest do
       Mix.Task.run "deps.update", ["ex_doc"]
 
       assert %{
-               ecto: {:hex, :ecto, "0.2.0", _, _, _},
+               ecto: {:hex, :ecto, "0.2.0", _},
                ex_doc: {:hex, :ex_doc, "0.0.1", _, [:mix], _, _},
-               postgrex: {:hex, :postgrex, "0.2.0", _, _, _}
+               postgrex: {:hex, :postgrex, "0.2.0", _}
              } = Mix.Dep.Lock.read()
     end
   after
