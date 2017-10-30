@@ -205,11 +205,19 @@ defmodule Mix.Tasks.Hex.Publish do
       not confirm? ->
         true
       build.organization in [nil, "hexpm"] ->
-        Hex.Shell.info("Publishing package to **public** repository hexpm.")
+        Hex.Shell.info(["Publishing package to ", emphasis("public"), " repository hexpm."])
         Hex.Shell.yes?("Proceed?")
       true ->
-        Hex.Shell.info("Publishing package to **private** repository #{build.organization}.")
+        Hex.Shell.info(["Publishing package to ", emphasis("private"), " repository #{build.organization}."])
         Hex.Shell.yes?("Proceed?")
+    end
+  end
+
+  defp emphasis(text) do
+    if IO.ANSI.enabled? do
+      [IO.ANSI.bright(), text, IO.ANSI.reset()]
+    else
+      ["**", text, "**"]
     end
   end
 
