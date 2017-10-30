@@ -196,7 +196,7 @@ defmodule Mix.Tasks.Hex.Publish do
     exclude_deps = build.exclude_deps
     package = build.package
 
-    Hex.Shell.info("Publishing #{meta.name} #{meta.version}")
+    Hex.Shell.info("Building #{meta.name} #{meta.version}")
     Build.print_info(meta, organization, exclude_deps, package[:files])
 
     print_link_to_coc()
