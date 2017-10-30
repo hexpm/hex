@@ -205,10 +205,10 @@ defmodule Mix.Tasks.Hex.Publish do
       not confirm? ->
         true
       build.organization in [nil, "hexpm"] ->
-        Hex.Shell.info(["Publishing package to ", IO.ANSI.cyan(), "public repository hexpm", IO.ANSI.white(), ".\n"])
+        Hex.Shell.info("Publishing package to **public** repository hexpm.")
         Hex.Shell.yes?("Proceed?")
       true ->
-        Hex.Shell.info(["Publishing package to ", IO.ANSI.yellow(), "private repository #{build.organization}", IO.ANSI.white(), ".\n"])
+        Hex.Shell.info("Publishing package to **private** repository #{build.organization}.")
         Hex.Shell.yes?("Proceed?")
     end
   end
