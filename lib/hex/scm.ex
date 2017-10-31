@@ -147,12 +147,16 @@ defmodule Hex.SCM do
   end
 
   def checkout(opts) do
-    updated_lock = update(opts)
-    maybe_use_updated_lock(opts[:lock], updated_lock)
+    fetched_lock = update(opts)
+    maybe_use_fetched_lock(opts[:lock], fetched_lock)
   end
 
-  defp maybe_use_updated_lock({:hex, _, _, _, [], _, _}, updated_lock), do: updated_lock
-  defp maybe_use_updated_lock({:hex, _, _, _, _managers, _, _} = old_lock, _updated_lock), do: old_lock
+  defp maybe_use_fetched_lock(current_lock, fetched_lock) do
+    case Hex.Utils.lock(current_lock) do
+      %{managers: []} -> fetched_lock
+      _ -> current_lock
+    end
+  end
 
   @build_tools [
     {"mix.exs"     , "mix"},
