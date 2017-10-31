@@ -48,7 +48,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert_received {:mix_shell, :info, ["Package published to http://localhost:4043/packages/release_a/0.0.1" <> _]}
       assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
 
-      msg = "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct"
+      msg = "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct\n"
       assert_received {:mix_shell, :info, [^msg]}
 
       send self(), {:mix_shell_input, :yes?, true}
@@ -124,7 +124,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["--no-progress"])
-      msg = "Publishing released_name 0.0.1"
+      msg = "Building released_name 0.0.1"
       assert_received {:mix_shell, :info, [^msg]}
 
       send self(), {:mix_shell_input, :yes?, true}
@@ -146,7 +146,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["--no-progress", "--no-confirm"])
-      msg = "Publishing released_name 0.0.1"
+      msg = "Building released_name 0.0.1"
       assert_received {:mix_shell, :info, [^msg]}
 
       assert {:ok, {200, body, _}} = Hex.API.Release.get("hexpm", "released_name", "0.0.1")
@@ -213,7 +213,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
         send self(), {:mix_shell_input, :prompt, "hunter42"}
         Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
 
-        assert_received {:mix_shell, :info, ["Publishing release_c 0.0.3"]}
+        assert_received {:mix_shell, :info, ["Building release_c 0.0.3"]}
         assert_received {:mix_shell, :info, ["  Files:"]}
         assert_received {:mix_shell, :info, ["    myfile.txt"]}
         assert_received {:mix_shell, :info, ["  Extra: \n    c: d"]}
@@ -240,7 +240,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
 
-      assert_received {:mix_shell, :info, ["Publishing release_c 0.0.3"]}
+      assert_received {:mix_shell, :info, ["Building release_c 0.0.3"]}
       assert_received {:mix_shell, :info, ["  Files:"]}
       assert_received {:mix_shell, :info, ["    myfile.txt"]}
       assert_received {:mix_shell, :info, ["  Extra: \n    c: d"]}

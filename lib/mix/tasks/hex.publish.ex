@@ -196,7 +196,7 @@ defmodule Mix.Tasks.Hex.Publish do
     exclude_deps = build.exclude_deps
     package = build.package
 
-    Hex.Shell.info("Publishing #{meta.name} #{meta.version}")
+    Hex.Shell.info("Building #{meta.name} #{meta.version}")
     Build.print_info(meta, organization, exclude_deps, package[:files])
 
     print_link_to_coc()
@@ -205,14 +205,24 @@ defmodule Mix.Tasks.Hex.Publish do
       not confirm? ->
         true
       build.organization in [nil, "hexpm"] ->
-        Hex.Shell.yes?("Publishing package to public repository hexpm. Proceed?")
+        Hex.Shell.info(["Publishing package to ", emphasis("public"), " repository hexpm."])
+        Hex.Shell.yes?("Proceed?")
       true ->
-        Hex.Shell.yes?("Publishing package to private repository #{build.organization}. Proceed?")
+        Hex.Shell.info(["Publishing package to ", emphasis("private"), " repository #{build.organization}."])
+        Hex.Shell.yes?("Proceed?")
+    end
+  end
+
+  defp emphasis(text) do
+    if IO.ANSI.enabled? do
+      [IO.ANSI.bright(), text, IO.ANSI.reset()]
+    else
+      ["**", text, "**"]
     end
   end
 
   defp print_link_to_coc() do
-    Hex.Shell.info "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct"
+    Hex.Shell.info "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct\n"
   end
 
   defp revert(build, organization, version) do
