@@ -102,28 +102,26 @@ defmodule Hex.SCM do
     url = Hex.Repo.get_repo(repo).url <> "/tarballs/#{filename}"
     safe_url = Regex.replace(~r/\/\/([^:]*):[^@]+@/, url, "//\\1:******@")
 
-    Hex.Shell.info "  Checking package (#{safe_url})"
-
     case Hex.Parallel.await(:hex_fetcher, {:tarball, repo, name, lock.version}, @fetch_timeout) do
       {:ok, :cached} ->
-        Hex.Shell.info "  Using locally cached package"
+        Hex.Shell.info "  Using locally cached package (#{path})"
 
       {:ok, :offline} ->
-        Hex.Shell.info "  [OFFLINE] Using locally cached package"
+        Hex.Shell.info "  [OFFLINE] Using locally cached package (#{path})"
 
       {:ok, :new, etag} ->
         Registry.tarball_etag(repo, name, lock.version, etag)
         if Version.compare(System.version, "1.4.0") == :lt do
           Registry.persist()
         end
-        Hex.Shell.info "  Fetched package"
+        Hex.Shell.info "  Fetched package (#{safe_url})"
 
       {:error, reason} ->
         Hex.Shell.error(reason)
         unless File.exists?(path) do
-          Mix.raise "Package fetch failed and no cached copy available"
+          Mix.raise "Package fetch failed and no cached copy available (#{safe_url})"
         end
-        Hex.Shell.info "  Fetch failed. Using locally cached package"
+        Hex.Shell.info "  Fetch failed. Using locally cached package (#{path})"
     end
 
     File.rm_rf!(dest)
