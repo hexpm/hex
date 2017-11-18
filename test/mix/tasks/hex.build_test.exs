@@ -81,6 +81,17 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge [ReleaseFiles.MixProject]
   end
 
+  test "create with custom output path" do
+    Mix.Project.push Sample.MixProject
+
+    in_tmp fn ->
+      Hex.State.put(:home, tmp_path())
+      Mix.Tasks.Hex.Build.run(["-o", "custom.tar"])
+
+      assert File.exists?("custom.tar")
+    end
+  end
+
   test "create with deps" do
     Mix.Project.push ReleaseDeps.MixProject
 
@@ -254,6 +265,11 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
       assert File.exists?("sample-0.0.1/mix.exs")
       assert File.exists?("sample-0.0.1/hex_metadata.config")
+
+      Mix.Tasks.Hex.Build.run(["--unpack", "-o", "custom"])
+
+      assert File.exists?("custom/mix.exs")
+      assert File.exists?("custom/hex_metadata.config")
     end)
   after
     purge [Sample.MixProject]

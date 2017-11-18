@@ -67,11 +67,12 @@ defmodule Mix.Tasks.Hex.Build do
 
   """
 
-  @switches [unpack: :boolean]
+  @switches [unpack: :boolean, output: :string]
+  @aliases [o: :output]
 
   def run(args) do
     Hex.start()
-    {opts, _args} = Hex.OptionParser.parse!(args, strict: @switches)
+    {opts, _args} = Hex.OptionParser.parse!(args, strict: @switches, aliases: @aliases)
 
     build = prepare_package()
 
@@ -83,27 +84,17 @@ defmodule Mix.Tasks.Hex.Build do
     Hex.Shell.info("Building #{meta.name} #{meta.version}")
     print_info(meta, organization, exclude_deps, package[:files])
 
-    case opts do
-      [] ->
-        build_package(meta)
-
-      [unpack: true] ->
-        dest = "#{meta.name}-#{meta.version}"
-        build_and_unpack_package(meta, dest)
-
-      _ ->
-        message = """
-        Invalid arguments, expected:
-
-        mix hex.build [--unpack]
-        """
-
-        Mix.raise(message)
+    if opts[:unpack] do
+      dest = Keyword.get(opts, :output, "#{meta.name}-#{meta.version}")
+      build_and_unpack_package(meta, dest)
+    else
+      opts = Keyword.merge(opts, [cleanup_tarball?: false])
+      build_package(meta, opts)
     end
   end
 
-  defp build_package(meta) do
-    {_tar, checksum} = Hex.Tar.create(meta, meta.files, cleanup_tarball?: false)
+  defp build_package(meta, opts) do
+    {_tar, checksum} = Hex.Tar.create(meta, meta.files, opts)
     Hex.Shell.info("Package checksum: #{checksum}")
   end
 
