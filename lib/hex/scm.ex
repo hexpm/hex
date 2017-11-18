@@ -125,8 +125,9 @@ defmodule Hex.SCM do
     end
 
     File.rm_rf!(dest)
+    registry_checksum = Hex.Registry.Server.checksum(repo, to_string(name), lock.version)
 
-    meta = Hex.Tar.unpack(path, dest, repo, name, lock.version)
+    meta = Hex.Tar.unpack(path, dest, registry_checksum)
     build_tools = guess_build_tools(meta)
     managers =
       build_tools
