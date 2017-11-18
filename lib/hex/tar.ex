@@ -52,13 +52,13 @@ defmodule Hex.Tar do
     end
   end
 
-  def unpack(path, dest, repo, name, version) do
+  def unpack(path, dest, registry_checksum) do
     case :hex_erl_tar.extract(path, [:memory]) do
       {:ok, files} ->
         files = Enum.into(files, %{})
         check_version(files['VERSION'])
         check_files(files)
-        checksum(files, repo, name, version)
+        checksum(files, registry_checksum)
         extract_contents(files['contents.tar.gz'], dest)
         copy_metadata(files['metadata.config'], dest)
         decode_metadata(files['metadata.config'])
@@ -91,12 +91,11 @@ defmodule Hex.Tar do
     end
   end
 
-  defp checksum(files, repo, name, version) do
+  defp checksum(files, registry_checksum) do
     case Base.decode16(files['CHECKSUM'], case: :mixed) do
       {:ok, tar_checksum} ->
         meta = files['metadata.config']
         blob = files['VERSION'] <> meta <> files['contents.tar.gz']
-        registry_checksum = Hex.Registry.Server.checksum(repo, to_string(name), version)
         checksum = :crypto.hash(:sha256, blob)
 
         if checksum != tar_checksum do
