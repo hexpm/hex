@@ -3,9 +3,11 @@ defmodule Hex.Tar do
   @version "3"
   @required_files ~w(VERSION CHECKSUM metadata.config contents.tar.gz)c
 
-  def create(meta, files, cleanup_tarball? \\ true) do
+  def create(meta, files, opts \\ []) do
+    output = Keyword.get(opts, :output, "#{meta[:name]}-#{meta[:version]}.tar")
+    cleanup_tarball? = Keyword.get(opts, :cleanup_tarball?, true)
+
     contents_path = "#{meta[:name]}-#{meta[:version]}-contents.tar.gz"
-    path = "#{meta[:name]}-#{meta[:version]}.tar"
 
     :ok = create_tar(contents_path, files, [:compressed])
     contents = File.read!(contents_path)
@@ -20,11 +22,11 @@ defmodule Hex.Tar do
       {"metadata.config", meta_string},
       {"contents.tar.gz", contents}
     ]
-    :ok = create_tar(path, files, [])
+    :ok = create_tar(output, files, [])
 
-    tar = File.read!(path)
+    tar = File.read!(output)
     File.rm!(contents_path)
-    if cleanup_tarball?, do: File.rm!(path)
+    if cleanup_tarball?, do: File.rm!(output)
     {tar, checksum}
   end
 
