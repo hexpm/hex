@@ -65,6 +65,16 @@ defmodule Mix.Tasks.Hex.Build do
       as able to build with rebar. This detection can be overridden by setting
       this field.
 
+  ### Command line options
+
+    * `--unpack` - Builds the tarball and unpacks contents into a directory.
+      Useful for making sure the tarball contains all needed files before
+      publishing. See `--output` below for setting the output path.
+
+    * `-o`, `--output` - Sets output path. When used with `--unpack` it means
+      the directory (Default: `<app>-<version>`). Otherwise, it specifies
+      tarball path (Default: `<app>-<version>.tar`)
+
   """
 
   @switches [unpack: :boolean, output: :string]
