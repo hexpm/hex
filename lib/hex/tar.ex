@@ -52,16 +52,16 @@ defmodule Hex.Tar do
     end
   end
 
-  def unpack(path, dest, registry_checksum) do
+  def unpack(path, dest) do
     case :hex_erl_tar.extract(path, [:memory]) do
       {:ok, files} ->
         files = Enum.into(files, %{})
         check_version(files['VERSION'])
         check_files(files)
-        checksum(files, registry_checksum)
+        checksum = checksum(files)
         extract_contents(files['contents.tar.gz'], dest)
         copy_metadata(files['metadata.config'], dest)
-        decode_metadata(files['metadata.config'])
+        {decode_metadata(files['metadata.config']), checksum}
 
       :ok ->
         Mix.raise "Unpacking tarball failed: tarball empty"
@@ -91,18 +91,17 @@ defmodule Hex.Tar do
     end
   end
 
-  defp checksum(files, registry_checksum) do
+  defp checksum(files) do
     case Base.decode16(files['CHECKSUM'], case: :mixed) do
       {:ok, tar_checksum} ->
         meta = files['metadata.config']
         blob = files['VERSION'] <> meta <> files['contents.tar.gz']
         checksum = :crypto.hash(:sha256, blob)
 
-        if checksum != tar_checksum do
+        if checksum == tar_checksum do
+          checksum
+        else
           Mix.raise "Checksum mismatch in tarball"
-        end
-        if checksum != registry_checksum do
-          Mix.raise "Checksum mismatch against registry"
         end
 
       :error ->
