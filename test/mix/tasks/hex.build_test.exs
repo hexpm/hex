@@ -245,37 +245,15 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge [ReleaseIncludeReservedFile.MixProject]
   end
 
-  test "create smoke package" do
+  test "build and unpack" do
     Mix.Project.push Sample.MixProject
 
     in_fixture("sample", fn ->
       Hex.State.put(:home, tmp_path())
-      Mix.Tasks.Hex.Build.run(["--smoke"])
-    end)
-  after
-    purge [Sample.MixProject]
-  end
+      Mix.Tasks.Hex.Build.run(["--unpack"])
 
-  test "create smoke package with extra commands" do
-    Mix.Project.push Sample.MixProject
-
-    in_fixture("sample", fn ->
-      Hex.State.put(:home, tmp_path())
-      Mix.Tasks.Hex.Build.run(["--smoke", "touch end.txt"])
-      assert File.exists?("sample-smoke/contents/end.txt")
-    end)
-  after
-    purge [Sample.MixProject]
-  end
-
-  test "create smoke package with failing extra command" do
-    Mix.Project.push Sample.MixProject
-
-    in_fixture("sample", fn ->
-      Hex.State.put(:home, tmp_path())
-      assert catch_throw(
-        Mix.Tasks.Hex.Build.run(["--smoke", "mix run -e 'System.halt(1)'"])
-      ) == {:exit_code, 1}
+      assert File.exists?("sample-0.0.1/mix.exs")
+      assert File.exists?("sample-0.0.1/hex_metadata.config")
     end)
   after
     purge [Sample.MixProject]

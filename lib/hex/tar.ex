@@ -52,8 +52,9 @@ defmodule Hex.Tar do
     end
   end
 
-  def unpack(path, dest) do
-    case :hex_erl_tar.extract(path, [:memory]) do
+  @spec unpack(Path.t() | {:binary, binary}, Path.t()) :: {map(), String.t()}
+  def unpack(tar, dest) do
+    case :hex_erl_tar.extract(tar, [:memory]) do
       {:ok, files} ->
         files = Enum.into(files, %{})
         check_version(files['VERSION'])
