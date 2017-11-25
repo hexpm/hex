@@ -11,8 +11,13 @@ defmodule Hex.SCM do
     true
   end
 
-  def format(_opts) do
-    "Hex package"
+  def format(opts) do
+    case Hex.Utils.lock(opts[:lock]) do
+      %{version: version} ->
+        "Hex package v#{version}"
+      nil ->
+        "Hex package"
+    end
   end
 
   def format_lock(opts) do
