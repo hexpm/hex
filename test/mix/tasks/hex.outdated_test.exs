@@ -277,7 +277,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
         Mix.Task.run "hex.outdated"
         assert_received {:mix_shell, :info, [^ex_doc]}
-        refute_received {:mix_shell, :info, [^bar]}
+        assert_received {:mix_shell, :info, [^bar]}
         refute_received {:mix_shell, :info, [^foo]}
 
         Mix.Tasks.Hex.Outdated.run ["--all"]
