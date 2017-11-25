@@ -11,6 +11,12 @@ defmodule Hex.Shell do
     Mix.shell.error(output)
   end
 
+  def debug(output) do
+    if function_exported?(Mix, :debug?, 0) and Mix.debug?() do
+      info(output)
+    end
+  end
+
   def yes?(output) do
     Mix.shell.yes?(output)
   end
