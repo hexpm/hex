@@ -260,21 +260,30 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         Mix.Task.run "deps.get"
         flush()
 
-        ex_doc = [:bright, "ex_doc", :reset, "      ", "0.0.1", :reset, "    ", :red, "0.1.0", :reset, "   ", :red, "No", :reset, "               "]
-                 |> IO.ANSI.format()
-                 |> List.to_string()
+        ex_doc =
+          [:bright, "ex_doc", :reset, "      ", "0.0.1", :reset, "    ", :red, "0.1.0", :reset, "   ", :red, "No", :reset, "               "]
+          |> IO.ANSI.format()
+          |> List.to_string()
 
-        bar = [:bright, "bar", :reset, "         ", "0.1.0", :reset, "    ", :green, "0.1.0", :reset, "   ", :green, "", :reset, "                 "]
-              |> IO.ANSI.format()
-              |> List.to_string()
+        bar =
+          [:bright, "bar", :reset, "         ", "0.1.0", :reset, "    ", :green, "0.1.0", :reset, "   ", :green, "", :reset, "                 "]
+          |> IO.ANSI.format()
+          |> List.to_string()
+
+        foo =
+          [:bright, "foo", :reset, "         ", "0.1.1", :reset, "    ", :green, "0.1.1", :reset, "   ", :green, "", :reset, "                 "]
+          |> IO.ANSI.format()
+          |> List.to_string()
 
         Mix.Task.run "hex.outdated"
         assert_received {:mix_shell, :info, [^ex_doc]}
         refute_received {:mix_shell, :info, [^bar]}
+        refute_received {:mix_shell, :info, [^foo]}
 
         Mix.Tasks.Hex.Outdated.run ["--all"]
         assert_received {:mix_shell, :info, [^ex_doc]}
         assert_received {:mix_shell, :info, [^bar]}
+        assert_received {:mix_shell, :info, [^foo]}
       end
     end
   end
