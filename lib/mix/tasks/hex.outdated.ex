@@ -114,7 +114,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   defp all(deps, lock, opts) do
     values =
-      if(opts[:all], do: deps, else: Enum.filter(deps, & &1.top_level))
+      deps
       |> sort()
       |> get_versions(lock, opts[:pre])
       |> Enum.map(&format_all_row/1)
