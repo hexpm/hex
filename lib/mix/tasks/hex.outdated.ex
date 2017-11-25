@@ -142,9 +142,9 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   def umbrella_top_level_deps(deps) do
     if Mix.Project.umbrella?() do
-      apps_paths = Enum.map(Mix.Project.apps_paths(), fn {_, path} -> Path.join(File.cwd!(), path) end)
+      apps_paths = Path.expand(Mix.Project.config[:apps_path], File.cwd!())
 
-      Enum.filter(deps, &Path.dirname(&1.from) in apps_paths)
+      Enum.filter(deps, &String.contains?(Path.dirname(Path.dirname(&1.from)), apps_paths))
     else
       []
     end
