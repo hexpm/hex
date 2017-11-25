@@ -104,17 +104,17 @@ defmodule Hex.SCM do
 
     case Hex.Parallel.await(:hex_fetcher, {:tarball, repo, name, lock.version}, @fetch_timeout) do
       {:ok, :cached} ->
-        Hex.Shell.info "  Using locally cached package (#{path})"
+        Hex.Shell.debug "  Using locally cached package (#{path})"
 
       {:ok, :offline} ->
-        Hex.Shell.info "  [OFFLINE] Using locally cached package (#{path})"
+        Hex.Shell.debug "  [OFFLINE] Using locally cached package (#{path})"
 
       {:ok, :new, etag} ->
         Registry.tarball_etag(repo, name, lock.version, etag)
         if Version.compare(System.version, "1.4.0") == :lt do
           Registry.persist()
         end
-        Hex.Shell.info "  Fetched package (#{safe_url})"
+        Hex.Shell.debug "  Fetched package (#{safe_url})"
 
       {:error, reason} ->
         Hex.Shell.error(reason)

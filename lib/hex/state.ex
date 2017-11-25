@@ -111,10 +111,8 @@ defmodule Hex.State do
   end
 
   defp log_value(key, value) do
-    if function_exported?(Mix, :debug?, 0) and Mix.debug? do
-      if key in @logged_keys do
-        Hex.Shell.info "Using #{key} = #{value}"
-      end
+    if key in @logged_keys do
+      Hex.Shell.debug "Using #{key} = #{value}"
     end
   end
 
