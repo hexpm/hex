@@ -113,8 +113,10 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp all(deps, lock, opts) do
+    deps = if opts[:all], do: deps, else: top_level_deps(deps)
+
     values =
-      if(opts[:all], do: deps, else: Enum.filter(deps, & &1.top_level))
+      deps
       |> sort()
       |> get_versions(lock, opts[:pre])
       |> Enum.map(&format_all_row/1)
@@ -131,6 +133,20 @@ defmodule Mix.Tasks.Hex.Outdated do
         "if your current requirement matches the latest version.\n" <>
         "Run `mix hex.outdated APP` to see requirements for a specific dependency."
       Hex.Shell.info ["\n" | message]
+    end
+  end
+
+  defp top_level_deps(deps) do
+    Enum.filter(deps, & &1.top_level) ++ umbrella_top_level_deps(deps)
+  end
+
+  def umbrella_top_level_deps(deps) do
+    if Mix.Project.umbrella?() do
+      apps_paths = Path.expand(Mix.Project.config[:apps_path], File.cwd!())
+
+      Enum.filter(deps, &String.contains?(Path.dirname(Path.dirname(&1.from)), apps_paths))
+    else
+      []
     end
   end
 
