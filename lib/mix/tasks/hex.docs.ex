@@ -73,7 +73,7 @@ defmodule Mix.Tasks.Hex.Docs do
     end
   end
 
-  defp find_package_latest_version(organization, package) do
+  def find_package_latest_version(organization, package) do
     %{"releases" => releases} = retrieve_package_info(organization, package)
 
     latest_release =
