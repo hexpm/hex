@@ -299,5 +299,5 @@ defmodule Mix.Tasks.Hex do
         Hex.Shell.error "Failed to retrieve package information"
         Hex.Utils.print_error_result(other)
     end
-  end  
+  end
 end
