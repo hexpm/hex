@@ -1,23 +1,21 @@
 defmodule Mix.Tasks.Hex.Download do
   use Mix.Task
 
-  @shortdoc "Fetches a specific Hex package"
+  @shortdoc "Fetches a Hex package"
 
   @moduledoc """
-  Fetches a specific Hex package.
+  Fetches a Hex package.
 
       mix hex.download PACKAGE [VERSION]
 
-  It will retrieve and unpack the specified version of an Hex package. If you do
-  not specify the `version` argument, this task will retrieve the latest version
-  of the given package available in the mirror.
+  Fetches and optionally unpacks the Hex package. The latest stable version of
+  the package will be fetched unless a specific version is given.
 
   ## Command line options
 
-    * `--unpack` - retrieve the tarball and unpacks its content into a directory.
-    See `--output` below for setting the output path.
-    * `-o`, `--output` - Sets output directory path. Default: Current Working Directory
-    * `--organization ORGANIZATION` - The organization the package belongs to
+    * `--unpack` - unpacks the package tarball.
+    * `-o`, `--output` - sets output directory. Default: current directory
+    * `--organization ORGANIZATION` - the organization the package belongs to
 
   """
 
@@ -45,7 +43,7 @@ defmodule Mix.Tasks.Hex.Download do
   end
 
   defp fetch_package([name], opts) do
-    latest_version = Mix.Tasks.Hex.Docs.find_package_latest_version(opts[:organization], name)
+    latest_version = Mix.Tasks.Hex.find_package_latest_version(opts[:organization], name)
     fetch_package([name, latest_version], opts)
   end
 

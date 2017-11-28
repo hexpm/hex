@@ -277,4 +277,27 @@ defmodule Mix.Tasks.Hex do
   else
     def set_exit_code(code), do: System.at_exit(fn(_) -> System.halt(code) end)
   end
+
+  def find_package_latest_version(organization, package) do
+    %{"releases" => releases} = retrieve_package_info(organization, package)
+
+    latest_release =
+      releases
+      |> Enum.sort(&(Hex.Version.compare(&1["version"], &2["version"]) == :gt))
+      |> List.first()
+
+    latest_release["version"]
+  end
+
+  defp retrieve_package_info(organization, package) do
+    case Hex.API.Package.get(organization, package) do
+      {:ok, {code, body, _}} when code in 200..299 ->
+        body
+      {:ok, {404, _, _}} ->
+        Mix.raise "No package with name #{package}"
+      other ->
+        Hex.Shell.error "Failed to retrieve package information"
+        Hex.Utils.print_error_result(other)
+    end
+  end  
 end
