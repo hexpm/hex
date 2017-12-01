@@ -165,7 +165,7 @@ defmodule Hex.Tar do
     path = Path.join(dest, file_name)
 
     if File.exists?(path) do
-      Hex.Shell.warn("#{file_name} already exists")
+      Hex.Shell.warn("Skipping #{file_name} because it already exists in destination directory")
     else
       File.write!(path, content)
     end
