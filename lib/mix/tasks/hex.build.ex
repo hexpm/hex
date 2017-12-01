@@ -96,7 +96,6 @@ defmodule Mix.Tasks.Hex.Build do
 
     if opts[:unpack] do
       dest = Keyword.get(opts, :output, "#{meta.name}-#{meta.version}")
-      File.rm_rf!(dest)
       build_and_unpack_package(meta, dest)
     else
       opts = Keyword.merge(opts, [cleanup_tarball?: false])
