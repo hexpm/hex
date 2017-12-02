@@ -30,7 +30,7 @@ defmodule Hex.TarTest do
       assert {:ok, {tar, checksum}} = Hex.Tar.create(@metadata, @files, "a/b.tar")
       assert {:ok, {metadata2, ^checksum}} = Hex.Tar.unpack("a/b.tar", "unpack/")
 
-      assert checksum == "523518DD40CB7250140639AA3025E8E09A8F370A4E9F6D6BEF4D81132467ACA8"
+      assert byte_size(checksum) == 32
       assert File.read!("a/b.tar") == tar
       assert File.ls!("unpack") == ["hex_metadata.config", "mix.exs"]
       assert {:ok, metadata_kw} = :file.consult("unpack/hex_metadata.config")
@@ -87,7 +87,7 @@ defmodule Hex.TarTest do
       :ok = :hex_erl_tar.create('badchecksum.tar', files, [:write])
       assert {:error, :invalid_checksum} = Hex.Tar.unpack("badchecksum.tar", :memory)
 
-      files = replace_file(valid_files, 'CHECKSUM', Base.encode16("bad"))
+      files = replace_file(valid_files, 'metadata.config', "{<<\"name\">>,<<\"foo\">>}")
       :ok = :hex_erl_tar.create('checksummismatch.tar', files, [:write])
       assert {:error, {:checksum_mismatch, _, _}} = Hex.Tar.unpack("checksummismatch.tar", :memory)
 

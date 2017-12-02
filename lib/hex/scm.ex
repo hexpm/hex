@@ -128,7 +128,7 @@ defmodule Hex.SCM do
     registry_checksum = Hex.Registry.Server.checksum(repo, to_string(name), lock.version)
     {meta, tar_checksum} = Hex.unpack_tar!(path, dest)
 
-    if Base.decode16!(tar_checksum) != registry_checksum, do: raise "Checksum mismatch against registry"
+    if tar_checksum != registry_checksum, do: raise "Checksum mismatch against registry"
 
     build_tools = guess_build_tools(meta)
     managers =

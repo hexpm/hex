@@ -58,11 +58,11 @@ defmodule Hex.Tar do
 
     meta_string = encode_term(meta)
     blob = @version <> meta_string <> contents
-    checksum = :crypto.hash(:sha256, blob) |> Base.encode16()
+    checksum = :crypto.hash(:sha256, blob)
 
     files = [
       {"VERSION", @version},
-      {"CHECKSUM", checksum},
+      {"CHECKSUM", Base.encode16(checksum)},
       {"metadata.config", meta_string},
       {"contents.tar.gz", contents}
     ]
@@ -208,7 +208,7 @@ defmodule Hex.Tar do
         actual_checksum = :crypto.hash(:sha256, blob)
 
         if expected_checksum == actual_checksum do
-          %{state | checksum: checksum_base16}
+          %{state | checksum: expected_checksum}
         else
           {:error, {:checksum_mismatch, expected_checksum, actual_checksum}}
         end
@@ -314,8 +314,10 @@ defmodule Hex.Tar do
   def format_error({:metadata, reason}), do: @metadata_error <> format_metadata_error(reason)
   def format_error(:invalid_checksum), do: "Invalid tarball checksum"
 
-  def format_error({:checksum_mismatch, expected, actual}) do
-    "Tarball checksum mismatch\n\nExpected: #{inspect(expected)}\nActual:  #{inspect(actual)}\n"
+  def format_error({:checksum_mismatch, expected_checksum, actual_checksum}) do
+    "Tarball checksum mismatch\n\n" <>
+      "Expected (base16-encoded): #{Base.encode16(expected_checksum)}\n" <>
+      "Actual   (base16-encoded): #{Base.encode16(actual_checksum)}"
   end
 
   defp format_tarball_error(reason) do
