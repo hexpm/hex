@@ -316,7 +316,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp create_release(build, organization, auth, opts) do
     meta = build.meta
-    {tarball, checksum} = Hex.Tar.create(meta, meta.files)
+    {tarball, checksum} = Hex.create_tar!(meta, meta.files, :memory)
     progress? = Keyword.get(opts, :progress, true)
     progress = progress_fun(progress?, byte_size(tarball))
 
