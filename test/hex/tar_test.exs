@@ -28,15 +28,15 @@ defmodule Hex.TarTest do
       File.write!("mix.exs", @mix_exs)
 
       assert {:ok, {tar, checksum}} = Hex.Tar.create(@metadata, @files, "a/b.tar")
-      assert {:ok, {metadata2, ^checksum}} = Hex.Tar.unpack("a/b.tar", "unpack/")
+      assert {:ok, {metadata, ^checksum}} = Hex.Tar.unpack("a/b.tar", "unpack/")
 
       assert byte_size(checksum) == 32
       assert File.read!("a/b.tar") == tar
       assert File.ls!("unpack") == ["hex_metadata.config", "mix.exs"]
       assert {:ok, metadata_kw} = :file.consult("unpack/hex_metadata.config")
       assert File.read!("unpack/mix.exs") == File.read!("mix.exs")
-      assert Map.new(metadata_kw) == metadata2
-      assert Map.new(metadata2) == stringify(@metadata)
+      assert Enum.into(metadata_kw, %{}) == metadata
+      assert metadata == stringify(@metadata)
     end)
   end
 
@@ -46,7 +46,7 @@ defmodule Hex.TarTest do
 
       assert {:ok, {tar, checksum}} = Hex.Tar.create(@metadata, files, :memory)
       assert {:ok, {metadata2, ^checksum, ^files}} = Hex.Tar.unpack({:binary, tar}, :memory)
-      assert Map.new(metadata2) == stringify(@metadata)
+      assert metadata2 == stringify(@metadata)
     end)
   end
 
@@ -140,6 +140,6 @@ defmodule Hex.TarTest do
   end
 
   defp stringify(%{} = map) do
-    Map.new(map, fn {k, v} -> {Atom.to_string(k), v} end)
+    Enum.into(map, %{}, fn {k, v} -> {Atom.to_string(k), v} end)
   end
 end
