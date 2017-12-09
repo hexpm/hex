@@ -4,7 +4,7 @@ sudo: false
 addons:
   postgresql: 9.6
 before_install:
-- wget https://s3.amazonaws.com/travis-otp-releases/binaries/ubuntu/12.04/x86_64/erlang-${HEXPM_OTP}-nonroot.tar.bz2
+- wget https://s3.amazonaws.com/travis-otp-releases/binaries/ubuntu/14.04/x86_64/erlang-${HEXPM_OTP}-nonroot.tar.bz2
 - mkdir -p ${HEXPM_OTP_PATH}
 - tar -xf erlang-${HEXPM_OTP}-nonroot.tar.bz2 -C ${HEXPM_OTP_PATH} --strip-components=1
 - "${HEXPM_OTP_PATH}/Install -minimal $(pwd)/${HEXPM_OTP_PATH}"
@@ -35,8 +35,8 @@ script:
 - mix test
 env:
   global:
-  - HEXPM_OTP=20.0
-  - HEXPM_ELIXIR=v1.4.5
+  - HEXPM_OTP=20.1
+  - HEXPM_ELIXIR=v1.5.2
   - HEXPM_PATH=hexpm
   - HEXPM_ELIXIR_PATH=hexpm_elixir
   - HEXPM_OTP_PATH=hexpm_otp
