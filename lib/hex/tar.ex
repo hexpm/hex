@@ -4,7 +4,7 @@ defmodule Hex.Tar do
   # TODO: convert strings to atoms when unpacking
   #
   # @type metadata() :: %{
-  #         app: String.t(),
+  #         name: String.t(),
   #         version: String.t(),
   #         app: String.t(),
   #         description: String.t(),
@@ -165,6 +165,7 @@ defmodule Hex.Tar do
         |> check_checksum()
         |> copy_metadata(dest)
         |> decode_metadata()
+        |> normalize_metadata()
         |> extract_contents(dest)
 
       {:ok, []} ->
@@ -210,7 +211,7 @@ defmodule Hex.Tar do
         if expected_checksum == actual_checksum do
           %{state | checksum: expected_checksum}
         else
-          {:error, {:checksum_mismatch, expected_checksum, actual_checksum}}
+          {:error, {:checksum_mismatch, expected_checksum, Base.encode16(actual_checksum)}}
         end
 
       :error ->
@@ -238,6 +239,46 @@ defmodule Hex.Tar do
 
       {:error, {_line, :safe_erl_term, reason}, _line2} ->
         {:error, {:metadata, reason}}
+    end
+  end
+
+  defp normalize_metadata({:error, _} = error), do: error
+
+  defp normalize_metadata(state) do
+    Map.update!(state, :metadata, fn metadata ->
+      metadata
+      |> try_update("requirements", &normalize_requirements/1)
+      |> try_update("links", &try_into_map/1)
+      |> try_update("extra", &try_into_map/1)
+    end)
+  end
+
+  defp normalize_requirements(requirements) do
+    if is_list(requirements) and is_list(List.first(requirements)) do
+      # TODO: deprecate this shape of requirements
+      Enum.into(requirements, %{}, fn requirement ->
+        map = Enum.into(requirement, %{})
+        {Map.fetch!(map, "name"), Map.delete(map, "name")}
+      end)
+    else
+      try_into_map(requirements, fn {key, value} ->
+        {key, try_into_map(value)}
+      end)
+    end
+  end
+
+  defp try_update(map, key, fun) do
+    case Map.fetch(map, key) do
+      {:ok, value} -> Map.put(map, key, fun.(value))
+      :error -> map
+    end
+  end
+
+  defp try_into_map(input, fun \\ fn x -> x end) do
+    if is_list(input) and Enum.all?(input, &(is_tuple(&1) and tuple_size(&1) == 2)) do
+      Enum.into(input, %{}, fun)
+    else
+      input
     end
   end
 

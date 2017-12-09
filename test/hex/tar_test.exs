@@ -18,7 +18,13 @@ defmodule Hex.TarTest do
 
   @metadata %{
     name: "foo",
-    version: "0.1.0"
+    version: "0.1.0",
+    app: "foo",
+    requirements: %{
+      bar: %{
+        app: :bar, optional: "false", requirement: "0.1.0"
+      }
+    }
   }
 
   @files ["mix.exs"]
@@ -34,8 +40,8 @@ defmodule Hex.TarTest do
       assert File.read!("a/b.tar") == tar
       assert File.ls!("unpack") == ["hex_metadata.config", "mix.exs"]
       assert {:ok, metadata_kw} = :file.consult("unpack/hex_metadata.config")
+      assert :proplists.get_keys(metadata_kw) == ~w(name app version requirements)
       assert File.read!("unpack/mix.exs") == File.read!("mix.exs")
-      assert Enum.into(metadata_kw, %{}) == metadata
       assert metadata == stringify(@metadata)
     end)
   end
@@ -61,10 +67,48 @@ defmodule Hex.TarTest do
     end)
   end
 
+  test "unpack optional fields" do
+  end
+
+  test "unpack with legacy requirements format" do
+    in_tmp(fn ->
+      files = [{"mix.exs", @mix_exs}]
+      {:ok, {tar, _checksum}} = Hex.Tar.create(@metadata, files, :memory)
+      {:ok, files} = :hex_erl_tar.extract({:binary, tar}, [:memory])
+
+      files =
+        files
+        |> replace_file('CHECKSUM', "22D7C2C004D6096D8B4BB40D984782D4D9D97E059F38632A947B4550C28A2B4A")
+        |> replace_file('metadata.config', """
+                        {<<\"app\">>,<<\"foo\">>}.
+                        {<<\"name\">>,<<\"foo\">>}.
+                        {<<\"version\">>,<<\"0.1.0\">>}.
+                        {<<\"requirements\">>,[
+                          [
+                            {<<\"name\">>,<<\"bar\">>},
+                            {<<\"app\">>,<<\"bar\">>},
+                            {<<\"requirement\">>,<<\"~> 0.1.0\">>},
+                            {<<\"optional\">>,false}]
+                          ]
+                        }.
+                        """)
+
+      :ok = :hex_erl_tar.create('legacy_requirements.tar', files, [:write])
+      assert {:ok, {metadata, _checksum, _files}} = Hex.Tar.unpack("legacy_requirements.tar", :memory)
+      assert metadata["requirements"] == %{
+               "bar" => %{
+                 "app" => "bar",
+                 "optional" => false,
+                 "requirement" => "~> 0.1.0"
+               }
+             }
+    end)
+  end
+
   test "unpack error handling" do
     in_tmp(fn ->
       files = [{"mix.exs", @mix_exs}]
-      assert {:ok, {tar, _checksum}} = Hex.Tar.create(@metadata, files, :memory)
+      {:ok, {tar, _checksum}} = Hex.Tar.create(@metadata, files, :memory)
       {:ok, valid_files} = :hex_erl_tar.extract({:binary, tar}, [:memory])
 
       # tarball
@@ -128,7 +172,7 @@ defmodule Hex.TarTest do
       files =
         valid_files
         |> replace_file('contents.tar.gz', "badtar")
-        |> replace_file('CHECKSUM', "03DFE6D4BB5A0A9C853BFF85A849766D71D4F0C3039BB9C3002CD1763174CD96")
+        |> replace_file('CHECKSUM', "4C68A4E04D1B7B29A7511B27EFCCB6117F8748A99C98E4397EEF0F076E1C19AB")
 
       :ok = :hex_erl_tar.create('badcontents.tar', files, [:write])
       assert {:error, {:inner_tarball, :eof}} = Hex.Tar.unpack("badcontents.tar", :memory)
@@ -140,6 +184,24 @@ defmodule Hex.TarTest do
   end
 
   defp stringify(%{} = map) do
-    Enum.into(map, %{}, fn {k, v} -> {Atom.to_string(k), v} end)
+    Enum.into(map, %{}, &stringify/1)
+  end
+  defp stringify(list) when is_list(list) do
+    Enum.map(list, &stringify/1)
+  end
+  defp stringify({key, value}) do
+    {stringify(key), stringify(value)}
+  end
+  defp stringify(atom) when is_atom(atom) do
+    Atom.to_string(atom)
+  end
+  defp stringify(true) do
+    "true"
+  end
+  defp stringify(false) do
+    "false"
+  end
+  defp stringify(value) do
+    value
   end
 end
