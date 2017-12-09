@@ -163,12 +163,7 @@ defmodule Hex.Tar do
   defp copy_metadata(content, dest) do
     file_name = "hex_metadata.config"
     path = Path.join(dest, file_name)
-
-    if File.exists?(path) do
-      Hex.Shell.warn("Skipping #{file_name} because it already exists in destination directory")
-    else
-      File.write!(path, content)
-    end
+    File.write!(path, content)
   end
 
   # Some older packages have invalid unicode
