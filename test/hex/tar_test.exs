@@ -119,8 +119,18 @@ defmodule Hex.TarTest do
       :ok = :hex_erl_tar.create('empty.tar', [], [:write])
       assert {:error, {:tarball, :empty}} = Hex.Tar.unpack("empty.tar", :memory)
 
-      :ok = :hex_erl_tar.create('missing.tar', [{'VERSION', "3"}, {'ignored', "IGNORED"}], [:write])
-      assert {:error, {:missing_files, ['CHECKSUM' | _]}} = Hex.Tar.unpack("missing.tar", :memory)
+      :ok = :hex_erl_tar.create('missing.tar', [{'VERSION', "3"}], [:write])
+      assert {:error, {:tarball, {:missing_files, ['CHECKSUM' | _]}}} = Hex.Tar.unpack("missing.tar", :memory)
+
+      files = [
+        {'VERSION', ""},
+        {'CHECKSUM', ""},
+        {'metadata.config', ""},
+        {'contents.tar.gz', ""},
+        {'invalid.txt', ""},
+      ]
+      :ok = :hex_erl_tar.create('missing.tar', files, [:write])
+      assert {:error, {:tarball, {:invalid_files, ['invalid.txt']}}} = Hex.Tar.unpack("missing.tar", :memory)
 
       files = replace_file(valid_files, 'VERSION', "0")
       :ok = :hex_erl_tar.create('badversion.tar', files, [:write])

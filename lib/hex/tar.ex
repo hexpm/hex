@@ -191,9 +191,15 @@ defmodule Hex.Tar do
   defp check_files({:error, _} = error), do: error
 
   defp check_files(state) do
-    case @required_files -- Map.keys(state.files) do
-      [] -> state
-      diff -> {:error, {:missing_files, diff}}
+    case diff_keys(state.files, @required_files, []) do
+      :ok ->
+        state
+
+      {:error, {:missing_keys, missing_files}} ->
+        {:error, {:tarball, {:missing_files, missing_files}}}
+
+      {:error, {:unknown_keys, invalid_files}} ->
+        {:error, {:tarball, {:invalid_files, invalid_files}}}
     end
   end
 
@@ -348,6 +354,8 @@ defmodule Hex.Tar do
   @metadata_error "Error reading package metadata: "
 
   def format_error({:tarball, :empty}), do: @tarball_error <> "Empty tarball"
+  def format_error({:tarball, {:missing_files, files}}), do: @tarball_error <> "Missing files: #{inspect files}"
+  def format_error({:tarball, {:invalid_files, files}}), do: @tarball_error <> "Invalid files: #{inspect files}"
   def format_error({:tarball, reason}), do: @tarball_error <> format_tarball_error(reason)
   def format_error({:inner_tarball, reason}), do: @inner_error <> format_tarball_error(reason)
   def format_error({:metadata, :invalid_terms}), do: @metadata_error <> "Invalid terms"
@@ -370,6 +378,23 @@ defmodule Hex.Tar do
   end
 
   # Utils
+
+  defp diff_keys(map, required_keys, optional_keys) do
+    keys = Map.keys(map)
+    missing_keys = required_keys -- keys
+    unknown_keys = keys -- (required_keys ++ optional_keys)
+
+    case {missing_keys, unknown_keys} do
+      {[], []} ->
+        :ok
+
+      {[_ | _], _} ->
+        {:error, {:missing_keys, missing_keys}}
+
+      {_, _} ->
+        {:error, {:unknown_keys, unknown_keys}}
+    end
+  end
 
   # Some older packages have invalid unicode
   defp safe_to_charlist(string) do
