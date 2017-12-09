@@ -35,8 +35,8 @@ script:
 - mix test
 env:
   global:
-  - HEXPM_OTP=20.0
-  - HEXPM_ELIXIR=v1.4.5
+  - HEXPM_OTP=20.1
+  - HEXPM_ELIXIR=v1.5.2
   - HEXPM_PATH=hexpm
   - HEXPM_ELIXIR_PATH=hexpm_elixir
   - HEXPM_OTP_PATH=hexpm_otp
