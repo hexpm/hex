@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Hex.Build do
   use Mix.Task
 
-  @default_files ~w(lib priv mix.exs README* readme* LICENSE*
+  @default_files ~w(lib priv .formatter.exs mix.exs README* readme* LICENSE*
                     license* CHANGELOG* changelog* src)
   @error_fields ~w(app name files description version build_tools)a
   @warn_fields ~w(licenses maintainers links)a
@@ -54,8 +54,9 @@ defmodule Mix.Tasks.Hex.Build do
     * `:name` - Set this if the package name is not the same as the application
        name.
     * `:files` - List of files and directories to include in the package,
-      can include wildcards. Defaults to `["lib", "priv", "mix.exs", "README*",
-      "readme*", "LICENSE*", "license*", "CHANGELOG*", "changelog*", "src"]`.
+      can include wildcards. Defaults to `["lib", "priv", ".formatter.exs",
+      "mix.exs", "README*", "readme*", "LICENSE*", "license*", "CHANGELOG*",
+      "changelog*", "src"]`.
     * `:maintainers` - List of names and/or emails of maintainers.
     * `:licenses` - List of licenses used by the package.
     * `:links` - Map of links relevant to the package.
