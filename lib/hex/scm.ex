@@ -150,6 +150,18 @@ defmodule Hex.SCM do
   end
 
   def checkout(opts) do
+    # For checkout (deps.get) it's important the lock is not modified in the parts of
+    # the lock entries that actually locks the dependency. Those entries are the package repo,
+    # name, version and checksum. We have additional entries that describe the dependency,
+    # the managers and the deps, these are used for optimizations such as avoiding
+    # loading the `mix.exs` for dependencies.
+    #
+    # We need to retrieve the managers in the SCM because the RemoteConverger, where
+    # the lock is initially is built does not have this information.
+    #
+    # Here we update the lock entry with additional information but make sure we only
+    # change the lock when the dependency is being updated or changed in some way.
+
     fetched_lock = update(opts)
     maybe_use_fetched_lock(opts[:lock], fetched_lock)
   end
