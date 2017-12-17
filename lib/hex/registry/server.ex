@@ -278,7 +278,7 @@ defmodule Hex.Registry.Server do
   defp prefetch_online(packages, state) do
     Enum.each(packages, fn {repo, package} ->
       etag = package_etag(repo, package, state)
-      Hex.Parallel.run(:hex_fetcher, {:registry, package}, [await: false], fn ->
+      Hex.Parallel.run(:hex_fetcher, {:registry, repo, package}, [await: false], fn ->
         {:get_package, repo, package, Hex.Repo.get_package(repo, package, etag)}
       end)
     end)
