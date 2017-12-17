@@ -119,7 +119,7 @@ defmodule Mix.Tasks.Hex.Organization do
     permissions = [%{"domain" => "repository", "resource" => name}]
 
     {:ok, host} = :inet.gethostname()
-    key = "#{host}-repository"
+    key = "#{host}-#{name}-repository"
 
     case Hex.API.Key.new(key, permissions, auth) do
       {:ok, {201, body, _}} ->
