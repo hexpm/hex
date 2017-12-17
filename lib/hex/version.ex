@@ -1,6 +1,4 @@
 defmodule Hex.Version do
-  use GenServer
-
   defmodule Requirement do
     defstruct [:source, :req]
   end
