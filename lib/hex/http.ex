@@ -89,7 +89,7 @@ defmodule Hex.HTTP do
     end
   end
 
-  defp handle_redirect({{_version, code, _reason}, headers, _body})
+  defp handle_redirect({code, _body, headers})
        when code in [301, 302, 303, 307, 308] do
     headers = Enum.into(headers, %{})
 
