@@ -3,21 +3,39 @@ defmodule Hex.Repo do
 
   @public_keys_html "https://hex.pm/docs/public_keys"
 
-  def get_repo(repo) do
+  def fetch_repo(repo) do
     repo = repo || "hexpm"
     repos = Hex.State.fetch!(:repos)
     case Map.fetch(repos, repo) do
       {:ok, config} ->
         mirror_url = Hex.State.fetch!(:mirror_url)
         if repo == "hexpm" and mirror_url do
-          Map.put(config, :url, mirror_url)
+          {:ok, Map.put(config, :url, mirror_url)}
         else
-          config
+          {:ok, config}
         end
       :error ->
-        Mix.raise "Unknown repository #{inspect repo}, add new repositories " <>
-                  "with the `mix hex.repo` or `mix hex.organization` tasks"
+        :error
     end
+  end
+
+  def get_repo(repo) do
+    case fetch_repo(repo) do
+      {:ok, config} ->
+        config
+      :error ->
+        unknown_repo_error(repo)
+    end
+  end
+
+  defp unknown_repo_error("hexpm:" <> organization) do
+    Mix.raise "Unknown organization #{inspect organization}, add new organizations " <>
+              "with the `mix hex.organization` task"
+  end
+
+  defp unknown_repo_error(repo) do
+    Mix.raise "Unknown repository #{inspect repo}, add new repositories " <>
+              "with the `mix hex.repo` task"
   end
 
   def get_package(repo, package, etag) do
