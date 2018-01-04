@@ -70,9 +70,6 @@ defmodule Hex.TarTest do
     end)
   end
 
-  test "unpack optional fields" do
-  end
-
   test "unpack with legacy requirements format" do
     in_tmp(fn ->
       files = [{"mix.exs", @mix_exs}]
