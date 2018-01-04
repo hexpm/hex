@@ -24,7 +24,9 @@ defmodule Hex.TarTest do
       bar: %{
         app: :bar, optional: "false", requirement: "0.1.0"
       }
-    }
+    },
+    files: ["mix.exs"],
+    build_tools: ["mix"]
   }
 
   @files ["mix.exs"]
@@ -40,9 +42,10 @@ defmodule Hex.TarTest do
       assert File.read!("a/b.tar") == tar
       assert File.ls!("unpack") == ["hex_metadata.config", "mix.exs"]
       assert {:ok, metadata_kw} = :file.consult("unpack/hex_metadata.config")
-      assert :proplists.get_keys(metadata_kw) == ~w(name app version requirements)
+      assert :proplists.get_keys(metadata_kw) == ~w(files name app build_tools version requirements)
       assert File.read!("unpack/mix.exs") == File.read!("mix.exs")
       assert metadata == stringify(@metadata)
+      assert metadata["build_tools"] == ["mix"]
     end)
   end
 
@@ -182,7 +185,7 @@ defmodule Hex.TarTest do
       files =
         valid_files
         |> replace_file('contents.tar.gz', "badtar")
-        |> replace_file('CHECKSUM', "4C68A4E04D1B7B29A7511B27EFCCB6117F8748A99C98E4397EEF0F076E1C19AB")
+        |> replace_file('CHECKSUM', "892343F3E69A7408B75BFF02F438716B890828E06715EFED75F6FCAD2FC9E44E")
 
       :ok = :hex_erl_tar.create('badcontents.tar', files, [:write])
       assert {:error, {:inner_tarball, :eof}} = Hex.Tar.unpack("badcontents.tar", :memory)

@@ -221,7 +221,7 @@ defmodule Hex.Tar do
         if expected_checksum == actual_checksum do
           %{state | checksum: expected_checksum}
         else
-          {:error, {:checksum_mismatch, expected_checksum, Base.encode16(actual_checksum)}}
+          {:error, {:checksum_mismatch, expected_checksum, actual_checksum}}
         end
 
       :error ->
@@ -257,10 +257,44 @@ defmodule Hex.Tar do
   defp normalize_metadata(state) do
     Map.update!(state, :metadata, fn metadata ->
       metadata
+      |> guess_build_tools()
       |> try_update("requirements", &normalize_requirements/1)
       |> try_update("links", &try_into_map/1)
       |> try_update("extra", &try_into_map/1)
     end)
+  end
+
+  @build_tools [
+    {"mix.exs"     , "mix"},
+    {"rebar.config", "rebar"},
+    {"rebar"       , "rebar"},
+    {"Makefile"    , "make"},
+    {"Makefile.win", "make"}
+  ]
+
+  defp guess_build_tools(%{"build_tools" => _} = meta) do
+    meta
+  end
+
+  defp guess_build_tools(meta) do
+    base_files =
+      (meta["files"] || [])
+      |> Enum.filter(&(Path.dirname(&1) == "."))
+      |> MapSet.new()
+
+    build_tools =
+      Enum.flat_map(@build_tools, fn {file, tool} ->
+        if file in base_files,
+            do: [tool],
+          else: []
+      end)
+      |> Enum.uniq()
+
+    if build_tools != [] do
+      Map.put(meta, "build_tools", build_tools)
+    else
+      meta
+    end
   end
 
   defp normalize_requirements(requirements) do
