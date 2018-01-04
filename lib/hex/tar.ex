@@ -35,6 +35,7 @@ defmodule Hex.Tar do
   @supported ["3"]
   @version "3"
   @required_files ~w(VERSION CHECKSUM metadata.config contents.tar.gz)c
+  @tar_max_size 8 * 1024 * 1024
 
   @doc """
   Creates a package tarball.
@@ -154,6 +155,9 @@ defmodule Hex.Tar do
           {:ok, {metadata(), checksum()}} | {:error, term()}
   @spec unpack(file :: Path.t() | {:binary, binary()}, output :: :memory) ::
           {:ok, {metadata(), checksum(), files :: [{Path.t(), binary()}]}} | {:error, term()}
+  def unpack({:binary, tar}, _dest) when byte_size(tar) > @tar_max_size do
+    {:error, {:tarball, :too_big}}
+  end
   def unpack(tar, dest) do
     case :hex_erl_tar.extract(tar, [:memory]) do
       {:ok, files} when files != [] ->
@@ -354,6 +358,7 @@ defmodule Hex.Tar do
   @metadata_error "Error reading package metadata: "
 
   def format_error({:tarball, :empty}), do: @tarball_error <> "Empty tarball"
+  def format_error({:tarball, :too_big}), do: @tarball_error <> "Tarball is too big"
   def format_error({:tarball, {:missing_files, files}}), do: @tarball_error <> "Missing files: #{inspect files}"
   def format_error({:tarball, {:invalid_files, files}}), do: @tarball_error <> "Invalid files: #{inspect files}"
   def format_error({:tarball, reason}), do: @tarball_error <> format_tarball_error(reason)
