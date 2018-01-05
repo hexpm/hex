@@ -24,9 +24,10 @@ defmodule Mix.Tasks.Hex.User do
   ### Deauthorize the user
 
   Deauthorizes the user from the local machine by removing the API key from the
-  Hex config.
+  Hex config. This task will also deauthorize all organizations unless `--skip-organizations`
+  is given.
 
-      mix hex.user deauth
+      mix hex.user deauth [--skip-organizations]
 
   ### Reencrypt API key
 
@@ -59,7 +60,7 @@ defmodule Mix.Tasks.Hex.User do
       mix hex.user reset password
   """
 
-  @switches [revoke_all: :boolean, revoke: :string, list: :boolean]
+  @switches [revoke_all: :boolean, revoke: :string, list: :boolean, skip_organizations: :boolean]
 
   def run(args) do
     Hex.start()
@@ -73,7 +74,7 @@ defmodule Mix.Tasks.Hex.User do
       ["auth"] ->
         create_key()
       ["deauth"] ->
-        deauth()
+        deauth(opts)
       ["passphrase"] ->
         passphrase()
       ["key"] ->
@@ -139,12 +140,27 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp deauth() do
+  defp deauth(opts) do
     Mix.Tasks.Hex.update_key(nil)
+    unless opts[:skip_organizations] do
+      deauth_organizations()
+    end
 
     Hex.Shell.info "Authentication credentials removed from the local machine. " <>
                    "To authenticate again, run `mix hex.user auth` " <>
                    "or create a new user with `mix hex.user register`"
+  end
+
+  defp deauth_organizations() do
+    read_repo_config()
+    |> Enum.reject(fn {name, _config} -> String.starts_with?(name, "hexpm:") end)
+    |> Enum.into(%{})
+    |> Hex.Config.update_repos()
+  end
+
+  defp read_repo_config() do
+    Hex.Config.read()
+    |> Hex.Config.read_repos()
   end
 
   defp passphrase() do

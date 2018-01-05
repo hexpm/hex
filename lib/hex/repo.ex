@@ -30,12 +30,12 @@ defmodule Hex.Repo do
 
   defp unknown_repo_error("hexpm:" <> organization) do
     Mix.raise "Unknown organization #{inspect organization}, add new organizations " <>
-              "with the `mix hex.organization` task"
+              "with the `mix hex.organization auth` task"
   end
 
   defp unknown_repo_error(repo) do
     Mix.raise "Unknown repository #{inspect repo}, add new repositories " <>
-              "with the `mix hex.repo` task"
+              "with the `mix hex.repo add` task"
   end
 
   def get_package(repo, package, etag) do
