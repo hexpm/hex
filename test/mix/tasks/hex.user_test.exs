@@ -83,29 +83,6 @@ defmodule Mix.Tasks.Hex.UserTest do
     end
   end
 
-  test "passphrase" do
-    in_tmp fn ->
-      Hex.State.put(:home, System.cwd!)
-
-      Mix.Tasks.Hex.update_key(Mix.Tasks.Hex.encrypt_key("hunter42", "qwerty"))
-      first_key = Hex.Config.read()[:encrypted_key]
-
-      send self(), {:mix_shell_input, :prompt, "hunter42"}
-      send self(), {:mix_shell_input, :prompt, "hunter43"}
-      send self(), {:mix_shell_input, :prompt, "hunter43"}
-      Mix.Tasks.Hex.User.run(["passphrase"])
-
-      assert Hex.Config.read()[:encrypted_key] != first_key
-
-      send self(), {:mix_shell_input, :prompt, "wrong"}
-      send self(), {:mix_shell_input, :prompt, "hunter43"}
-      send self(), {:mix_shell_input, :prompt, "hunter44"}
-      send self(), {:mix_shell_input, :prompt, "hunter44"}
-      Mix.Tasks.Hex.User.run(["passphrase"])
-      assert_received {:mix_shell, :error, ["Wrong password. Try again"]}
-    end
-  end
-
   test "whoami" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
@@ -181,12 +158,35 @@ defmodule Mix.Tasks.Hex.UserTest do
     end
   end
 
-  test "reset password" do
+  test "reset account password" do
     Hexpm.new_user("reset_password", "reset_password@mail.com", "password", "reset_password")
 
     send self(), {:mix_shell_input, :prompt, "reset_password"}
-    Mix.Tasks.Hex.User.run(["reset", "password"])
+    Mix.Tasks.Hex.User.run(["reset_password", "account"])
 
     assert_received {:mix_shell, :info, ["We’ve sent you an email" <> _]}
+  end
+
+  test "reset local password" do
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      Mix.Tasks.Hex.update_key(Mix.Tasks.Hex.encrypt_key("hunter42", "qwerty"))
+      first_key = Hex.Config.read()[:encrypted_key]
+
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      send self(), {:mix_shell_input, :prompt, "hunter43"}
+      send self(), {:mix_shell_input, :prompt, "hunter43"}
+      Mix.Tasks.Hex.User.run(["reset_password", "local"])
+
+      assert Hex.Config.read()[:encrypted_key] != first_key
+
+      send self(), {:mix_shell_input, :prompt, "wrong"}
+      send self(), {:mix_shell_input, :prompt, "hunter43"}
+      send self(), {:mix_shell_input, :prompt, "hunter44"}
+      send self(), {:mix_shell_input, :prompt, "hunter44"}
+      Mix.Tasks.Hex.User.run(["reset_password", "local"])
+      assert_received {:mix_shell, :error, ["Wrong password. Try again"]}
+    end
   end
 end
