@@ -40,7 +40,7 @@ defmodule Hex.TarTest do
 
       assert byte_size(checksum) == 32
       assert File.read!("a/b.tar") == tar
-      assert File.ls!("unpack") == ["hex_metadata.config", "mix.exs"]
+      assert Enum.sort(File.ls!("unpack")) == ["hex_metadata.config", "mix.exs"]
       assert {:ok, metadata_kw} = :file.consult("unpack/hex_metadata.config")
       assert :proplists.get_keys(metadata_kw) == ~w(files name app build_tools version requirements)
       assert File.read!("unpack/mix.exs") == File.read!("mix.exs")
