@@ -18,6 +18,8 @@ defmodule Mix.Tasks.Hex.UserTest do
     send self(), {:mix_shell_input, :yes?, false}
     send self(), {:mix_shell_input, :prompt, "hunter42"}
     send self(), {:mix_shell_input, :prompt, "hunter42"}
+    send self(), {:mix_shell_input, :prompt, "hunter43"}
+    send self(), {:mix_shell_input, :prompt, "hunter43"}
 
     Mix.Tasks.Hex.User.run(["register"])
 
@@ -31,12 +33,14 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       send self(), {:mix_shell_input, :prompt, "user"}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
+      send self(), {:mix_shell_input, :prompt, "hunter43"}
+      send self(), {:mix_shell_input, :prompt, "hunter43"}
       Mix.Tasks.Hex.User.run(["auth"])
 
       {:ok, name} = :inet.gethostname()
       name = List.to_string(name)
 
-      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      send self(), {:mix_shell_input, :prompt, "hunter43"}
       auth = Mix.Tasks.Hex.auth_info()
       assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
       assert name in Enum.map(body, &(&1["name"]))
@@ -93,10 +97,12 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       assert Hex.Config.read()[:encrypted_key] != first_key
 
-      assert_raise Mix.Error, ~r"^Wrong passphrase", fn ->
-        send self(), {:mix_shell_input, :prompt, "wrong"}
-        Mix.Tasks.Hex.User.run(["passphrase"])
-      end
+      send self(), {:mix_shell_input, :prompt, "wrong"}
+      send self(), {:mix_shell_input, :prompt, "hunter43"}
+      send self(), {:mix_shell_input, :prompt, "hunter44"}
+      send self(), {:mix_shell_input, :prompt, "hunter44"}
+      Mix.Tasks.Hex.User.run(["passphrase"])
+      assert_received {:mix_shell, :error, ["Wrong password. Try again"]}
     end
   end
 

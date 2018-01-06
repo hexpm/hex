@@ -31,7 +31,7 @@ defmodule Mix.Tasks.Hex.User do
 
   ### Reencrypt API key
 
-  Updates the passphrase for the locally stored API key.
+  Updates the local password for the stored API key.
 
       mix hex.user passphrase
 
@@ -55,7 +55,7 @@ defmodule Mix.Tasks.Hex.User do
 
       mix hex.user key --list
 
-  ### Reset user password
+  ### Reset user account password
 
       mix hex.user reset password
   """
@@ -132,8 +132,9 @@ defmodule Mix.Tasks.Hex.User do
 
     case Hex.API.User.password_reset(name) do
       {:ok, {code, _, _}} when code in 200..299 ->
-        Hex.Shell.info "We’ve sent you an email containing a link that will allow you to reset your password for the next 24 hours. " <>
-                       "Please check your spam folder if the email doesn’t appear within a few minutes."
+        Hex.Shell.info "We’ve sent you an email containing a link that will allow you to reset " <>
+          "your account password for the next 24 hours. Please check your spam folder if the " <>
+          "email doesn’t appear within a few minutes."
       other ->
         Hex.Shell.error("Initiating password reset for #{name} failed")
         Hex.Utils.print_error_result(other)
@@ -167,11 +168,11 @@ defmodule Mix.Tasks.Hex.User do
     encrypted_key = Hex.State.fetch!(:api_key)
 
     unless encrypted_key do
-      Mix.raise "No authorized user found. Run 'mix hex.user auth'"
+      Mix.raise "No authorized user found. Run `mix hex.user auth`"
     end
 
-    decrypted_key = Mix.Tasks.Hex.prompt_decrypt_key(encrypted_key, "Current passphrase")
-    Mix.Tasks.Hex.prompt_encrypt_key(decrypted_key, "New passphrase")
+    decrypted_key = Mix.Tasks.Hex.prompt_decrypt_key(encrypted_key, "Current local password")
+    Mix.Tasks.Hex.prompt_encrypt_key(decrypted_key, "New local password")
   end
 
   defp register() do
@@ -180,8 +181,8 @@ defmodule Mix.Tasks.Hex.User do
 
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
     email = Hex.Shell.prompt("Email:") |> Hex.string_trim()
-    password = Mix.Tasks.Hex.password_get("Password:") |> Hex.string_trim()
-    confirm = Mix.Tasks.Hex.password_get("Password (confirm):") |> Hex.string_trim()
+    password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.string_trim()
+    confirm = Mix.Tasks.Hex.password_get("Account password (confirm):") |> Hex.string_trim()
 
     if password != confirm do
       Mix.raise "Entered passwords do not match"
