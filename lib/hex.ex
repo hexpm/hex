@@ -109,4 +109,18 @@ defmodule Hex do
   else
     defp dev_setup, do: :ok
   end
+
+  def create_tar!(metadata, files, output) do
+    case Hex.Tar.create(metadata, files, output) do
+      {:ok, result} -> result
+      {:error, reason} -> Mix.raise Hex.Tar.format_error(reason)
+    end
+  end
+
+  def unpack_tar!(path, dest) do
+    case Hex.Tar.unpack(path, dest) do
+      {:ok, result} -> result
+      {:error, reason} -> Mix.raise Hex.Tar.format_error(reason)
+    end
+  end
 end
