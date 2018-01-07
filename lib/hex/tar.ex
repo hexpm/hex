@@ -280,7 +280,7 @@ defmodule Hex.Tar do
     base_files =
       (meta["files"] || [])
       |> Enum.filter(&(Path.dirname(&1) == "."))
-      |> Hex.Set.new()
+      |> Enum.uniq()
 
     build_tools =
       Enum.flat_map(@build_tools, fn {file, tool} ->
