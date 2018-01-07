@@ -24,15 +24,10 @@ defmodule Mix.Tasks.Hex.User do
   ### Deauthorize the user
 
   Deauthorizes the user from the local machine by removing the API key from the
-  Hex config.
+  Hex config. This task will also deauthorize all organizations unless `--skip-organizations`
+  is given.
 
-      mix hex.user deauth
-
-  ### Reencrypt API key
-
-  Updates the passphrase for the locally stored API key.
-
-      mix hex.user passphrase
+      mix hex.user deauth [--skip-organizations]
 
   ### Revoke key
 
@@ -54,12 +49,20 @@ defmodule Mix.Tasks.Hex.User do
 
       mix hex.user key --list
 
-  ### Reset user password
+  ### Reset user account password
 
-      mix hex.user reset password
+  Starts the process for reseting account password.
+
+      mix hex.user reset_password account
+
+  ### Reset local password
+
+  Updates the local password for your local authentication credentials.
+
+      mix hex.user reset_password local
   """
 
-  @switches [revoke_all: :boolean, revoke: :string, list: :boolean]
+  @switches [revoke_all: :boolean, revoke: :string, list: :boolean, skip_organizations: :boolean]
 
   def run(args) do
     Hex.start()
@@ -71,15 +74,15 @@ defmodule Mix.Tasks.Hex.User do
       ["whoami"] ->
         whoami()
       ["auth"] ->
-        create_key()
+        auth()
       ["deauth"] ->
-        deauth()
-      ["passphrase"] ->
-        passphrase()
+        deauth(opts)
       ["key"] ->
         process_key_task(opts)
-      ["reset", "password"] ->
-        reset_password()
+      ["reset_password", "account"] ->
+        reset_account_password()
+      ["reset_password", "local"] ->
+        reset_local_password()
       _ ->
         invalid_args()
     end
@@ -93,11 +96,11 @@ defmodule Mix.Tasks.Hex.User do
     mix hex.user whoami
     mix hex.user auth
     mix hex.user deauth
-    mix hex.user passphrase
     mix hex.user key --revoke-all
     mix hex.user key --revoke KEY_NAME
     mix hex.user key --list
-    mix hex.user reset password
+    mix hex.user reset_password account
+    mix hex.user reset_password local
     """
   end
 
@@ -126,36 +129,52 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp reset_password() do
+  defp reset_account_password() do
     name = Hex.Shell.prompt("Username or Email:") |> Hex.string_trim()
 
     case Hex.API.User.password_reset(name) do
       {:ok, {code, _, _}} when code in 200..299 ->
-        Hex.Shell.info "We’ve sent you an email containing a link that will allow you to reset your password for the next 24 hours. " <>
-                       "Please check your spam folder if the email doesn’t appear within a few minutes."
+        Hex.Shell.info "We’ve sent you an email containing a link that will allow you to reset " <>
+          "your account password for the next 24 hours. Please check your spam folder if the " <>
+          "email doesn’t appear within a few minutes."
       other ->
         Hex.Shell.error("Initiating password reset for #{name} failed")
         Hex.Utils.print_error_result(other)
     end
   end
 
-  defp deauth() do
+  defp reset_local_password() do
+    encrypted_key = Hex.State.fetch!(:api_key)
+
+    unless encrypted_key do
+      Mix.raise "No authorized user found. Run `mix hex.user auth`"
+    end
+
+    decrypted_key = Mix.Tasks.Hex.prompt_decrypt_key(encrypted_key, "Current local password")
+    Mix.Tasks.Hex.prompt_encrypt_key(decrypted_key, "New local password")
+  end
+
+  defp deauth(opts) do
     Mix.Tasks.Hex.update_key(nil)
+    unless opts[:skip_organizations] do
+      deauth_organizations()
+    end
 
     Hex.Shell.info "Authentication credentials removed from the local machine. " <>
                    "To authenticate again, run `mix hex.user auth` " <>
                    "or create a new user with `mix hex.user register`"
   end
 
-  defp passphrase() do
-    encrypted_key = Hex.State.fetch!(:api_key)
+  defp deauth_organizations() do
+    read_repo_config()
+    |> Enum.reject(fn {name, _config} -> String.starts_with?(name, "hexpm:") end)
+    |> Enum.into(%{})
+    |> Hex.Config.update_repos()
+  end
 
-    unless encrypted_key do
-      Mix.raise "No authorized user found. Run 'mix hex.user auth'"
-    end
-
-    decrypted_key = Mix.Tasks.Hex.prompt_decrypt_key(encrypted_key, "Current passphrase")
-    Mix.Tasks.Hex.prompt_encrypt_key(decrypted_key, "New passphrase")
+  defp read_repo_config() do
+    Hex.Config.read()
+    |> Hex.Config.read_repos()
   end
 
   defp register() do
@@ -164,8 +183,8 @@ defmodule Mix.Tasks.Hex.User do
 
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
     email = Hex.Shell.prompt("Email:") |> Hex.string_trim()
-    password = Mix.Tasks.Hex.password_get("Password:") |> Hex.string_trim()
-    confirm = Mix.Tasks.Hex.password_get("Password (confirm):") |> Hex.string_trim()
+    password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.string_trim()
+    confirm = Mix.Tasks.Hex.password_get("Account password (confirm):") |> Hex.string_trim()
 
     if password != confirm do
       Mix.raise "Entered passwords do not match"
@@ -181,17 +200,15 @@ defmodule Mix.Tasks.Hex.User do
         Mix.Tasks.Hex.generate_key(username, password)
         Hex.Shell.info("You are required to confirm your email to access your account, " <>
                        "a confirmation email has been sent to #{email}")
+
       other ->
         Hex.Shell.error("Registration of user #{username} failed")
         Hex.Utils.print_error_result(other)
     end
   end
 
-  defp create_key() do
-    username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
-    password = Mix.Tasks.Hex.password_get("Password:") |> Hex.string_trim()
-
-    Mix.Tasks.Hex.generate_key(username, password)
+  defp auth() do
+    Mix.Tasks.Hex.auth()
   end
 
   defp revoke_all_keys() do

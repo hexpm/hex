@@ -96,24 +96,22 @@ defmodule Mix.Tasks.Hex.Build do
     print_info(meta, organization, exclude_deps, package[:files])
 
     if opts[:unpack] do
-      dest = Keyword.get(opts, :output, "#{meta.name}-#{meta.version}")
-      build_and_unpack_package(meta, dest)
+      output = Keyword.get(opts, :output, "#{meta.name}-#{meta.version}")
+      build_and_unpack_package(meta, output)
     else
-      opts = Keyword.merge(opts, [cleanup_tarball?: false])
-      build_package(meta, opts)
+      output = Keyword.get(opts, :output, "#{meta.name}-#{meta.version}.tar")
+      build_package(meta, output)
     end
   end
 
-  defp build_package(meta, opts) do
-    {_tar, checksum} = Hex.Tar.create(meta, meta.files, opts)
+  defp build_package(meta, output) do
+    {_tar, checksum} = Hex.create_tar!(meta, meta.files, output)
     Hex.Shell.info("Package checksum: #{checksum}")
   end
 
-  defp build_and_unpack_package(meta, dest) do
-    {tar, checksum} = Hex.Tar.create(meta, meta.files)
-
-    {_meta, unpack_checksum} = Hex.Tar.unpack({:binary, tar}, dest)
-    ^checksum = Base.encode16(unpack_checksum)
+  defp build_and_unpack_package(meta, output) do
+    {tar, checksum} = Hex.create_tar!(meta, meta.files, :memory)
+    {_meta, ^checksum} = Hex.unpack_tar!({:binary, tar}, output)
   end
 
   def prepare_package() do

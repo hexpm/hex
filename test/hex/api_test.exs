@@ -12,7 +12,7 @@ defmodule Hex.APITest do
     auth = Hexpm.new_key([user: "user", pass: "hunter42"])
 
     meta = %{name: :pear, app: :pear, version: "0.0.1", build_tools: ["mix"], requirements: [], licenses: ["MIT"], description: "pear"}
-    {tar, _checksum} = Hex.Tar.create(meta, [])
+    {tar, _checksum} = Hex.create_tar!(meta, [], :memory)
     assert {:ok, {404, _, _}} = Hex.API.Release.get("hexpm", "pear", "0.0.1")
     assert {:ok, {201, _, _}} = Hex.API.Release.new("hexpm", "pear", tar, auth)
     assert {:ok, {200, body, _}} = Hex.API.Release.get("hexpm", "pear", "0.0.1")
@@ -20,7 +20,7 @@ defmodule Hex.APITest do
 
     reqs = [%{name: :pear, app: :pear, requirement: "~> 0.0.1", optional: false}]
     meta = %{name: :grape, app: :grape, version: "0.0.2", build_tools: ["mix"], requirements: reqs, licenses: ["MIT"], description: "grape"}
-    {tar, _checksum} = Hex.Tar.create(meta, [])
+    {tar, _checksum} = Hex.create_tar!(meta, [], :memory)
     assert {:ok, {201, _, _}} = Hex.API.Release.new("hexpm", "grape", tar, auth)
     assert {:ok, {200, body, _}} = Hex.API.Release.get("hexpm", "grape", "0.0.2")
     assert body["requirements"] == %{"pear" => %{"app" => "pear", "requirement" => "~> 0.0.1", "optional" => false}}
@@ -33,7 +33,7 @@ defmodule Hex.APITest do
     auth = Hexpm.new_key([user: "user", pass: "hunter42"])
 
     meta = %{name: :tangerine, app: :tangerine, version: "0.0.1", build_tools: ["mix"], requirements: [], licenses: ["MIT"], description: "tangerine"}
-    {tar, _checksum} = Hex.Tar.create(meta, [])
+    {tar, _checksum} = Hex.create_tar!(meta, [], :memory)
     assert {:ok, {201, _, _}} = Hex.API.Release.new("hexpm", "tangerine", tar, auth)
 
     tarball = Path.join(tmp_path(), "docs.tar.gz")

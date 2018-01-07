@@ -11,7 +11,7 @@ defmodule Mix.Tasks.Hex.Retire do
       mix hex.retire PACKAGE VERSION --unretire
 
   Mark a package as retired when you no longer recommend it's usage. A retired
-  is still resolvable and usable but it will be flagged as retired in the
+  package is still resolvable and usable but it will be flagged as retired in the
   repository and a message will be displayed to users when they use the package.
 
   ## Retirement reasons

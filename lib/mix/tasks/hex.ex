@@ -70,6 +70,10 @@ defmodule Mix.Tasks.Hex do
     end)
   end
 
+  @local_password_prompt "You have authenticated on Hex using your account password. However, " <>
+    "Hex requires you to have a local password that applies only to this machine for security " <>
+    "purposes. Please enter it:"
+
   def generate_key(username, password) do
     Hex.Shell.info("Generating API key...")
     {:ok, name} = :inet.gethostname()
@@ -77,13 +81,13 @@ defmodule Mix.Tasks.Hex do
 
     case Hex.API.Key.new(name, [user: username, pass: password]) do
       {:ok, {201, body, _}} ->
-        Hex.Shell.info("Encrypting API key with user password...")
-        encrypted_key = Hex.Crypto.encrypt(body["secret"], password, @apikey_tag)
-        update_key(encrypted_key)
+        Hex.Shell.info(@local_password_prompt)
+        prompt_encrypt_key(body["secret"])
 
       other ->
         Mix.shell.error("Generation of API key failed")
         Hex.Utils.print_error_result(other)
+        nil
     end
   end
 
@@ -92,40 +96,66 @@ defmodule Mix.Tasks.Hex do
     Hex.State.put(:api_key, key)
   end
 
+  def auth() do
+    username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
+    password = Mix.Tasks.Hex.password_get("Local password:") |> Hex.string_trim()
+
+    generate_key(username, password)
+  end
+
   def auth_info() do
-    if key = Hex.State.fetch!(:api_key) do
-      [key: prompt_decrypt_key(key)]
-    else
-      Mix.raise "No authorized user found. Run 'mix hex.user auth'"
+    cond do
+      key = Hex.State.fetch!(:api_key) ->
+        [key: prompt_decrypt_key(key)]
+
+      Hex.Shell.yes?("No authenticated user found. Do you want to authenticate now?") ->
+        if password = auth() do
+          key = Hex.State.fetch!(:api_key)
+          [key: decrypt_key(key, password)]
+        else
+          no_auth_error()
+        end
+
+      true ->
+        no_auth_error()
     end
   end
 
-  def prompt_encrypt_key(key, challenge \\ "Passphrase") do
+  defp no_auth_error() do
+    Mix.raise "No authenticated user found. Run `mix hex.user auth`"
+  end
+
+  def prompt_encrypt_key(key, challenge \\ "Local password") do
     password = password_get("#{challenge}:") |> Hex.string_trim()
     confirm = password_get("#{challenge} (confirm):") |> Hex.string_trim()
     if password != confirm do
-      Mix.raise "Entered passphrases do not match"
+      Hex.Shell.error "Entered passwords do not match. Try again"
+      prompt_encrypt_key(key, challenge)
     end
 
     encrypted_key = Hex.Crypto.encrypt(key, password, @apikey_tag)
     update_key(encrypted_key)
+    password
   end
 
-  def prompt_decrypt_key(encrypted_key, challenge \\ "Passphrase") do
+  def prompt_decrypt_key(encrypted_key, challenge \\ "Local password") do
     password = password_get("#{challenge}:") |> Hex.string_trim()
 
     case Hex.Crypto.decrypt(encrypted_key, password, @apikey_tag) do
       {:ok, key} ->
         key
       :error ->
-        Mix.raise "Wrong passphrase\n\n" <>
-          "If you forgot your passphrase, you can reset it using `mix hex.user reset password`" <>
-          " or on the hex website: https://hex.pm/password/reset"
+        Hex.Shell.error "Wrong password. Try again"
+        prompt_decrypt_key(encrypted_key, challenge)
     end
   end
 
   def encrypt_key(password, key) do
     Hex.Crypto.encrypt(key, password, @apikey_tag)
+  end
+
+  def decrypt_key(password, key) do
+    Hex.Crypto.decrypt(key, password, @apikey_tag)
   end
 
   def required_opts(opts, required) do

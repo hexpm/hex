@@ -32,13 +32,14 @@ defmodule Hex.RemoteConverger do
       packages_from_requests(requests)
     ]
     |> Enum.concat()
+    |> verify_prefetches()
     |> Registry.prefetch()
 
     locked = prepare_locked(lock, old_lock, deps)
 
-    check_lock(lock)
-    check_deps(deps, top_level)
-    check_input(requests, locked)
+    verify_lock(lock)
+    verify_deps(deps, top_level)
+    verify_input(requests, locked)
 
     repos = repo_overrides(deps)
     deps = Hex.Mix.prepare_deps(deps)
@@ -148,7 +149,7 @@ defmodule Hex.RemoteConverger do
     end
   end
 
-  defp check_deps(deps, top_level) do
+  defp verify_deps(deps, top_level) do
     Enum.each(deps, fn dep ->
       if dep.app in top_level and dep.scm == Hex.SCM and dep.requirement == nil do
         Hex.Shell.warn "#{dep.app} is missing its version requirement, " <>
@@ -157,17 +158,17 @@ defmodule Hex.RemoteConverger do
     end)
   end
 
-  defp check_input(requests, locked) do
+  defp verify_input(requests, locked) do
     Enum.each(requests, fn {repo, name, _app, req, from} ->
-      check_package_req(repo, name, req, from)
+      verify_package_req(repo, name, req, from)
     end)
 
     Enum.each(locked, fn {repo, name, _app, req} ->
-      check_package_req(repo, name, req, "mix.lock")
+      verify_package_req(repo, name, req, "mix.lock")
     end)
   end
 
-  defp check_package_req(repo, name, req, from) do
+  defp verify_package_req(repo, name, req, from) do
     versions = Registry.versions(repo, name)
 
     unless versions do
@@ -231,6 +232,34 @@ defmodule Hex.RemoteConverger do
     Hex.Shell.warn "    #{Hex.Utils.package_retirement_message(retired)}"
   end
 
+  defp verify_prefetches(prefetches) do
+    prefetches
+    |> Enum.map(fn {repo, _package} -> repo end)
+    |> Enum.uniq()
+    |> Enum.each(&verify_repo/1)
+
+    prefetches
+  end
+
+  defp verify_repo(repo) do
+    case Hex.Repo.fetch_repo(repo) do
+      {:ok, _} ->
+        :ok
+      :error ->
+        case repo do
+          "hexpm:" <> organization ->
+            if Hex.Shell.yes?("No authenticated organization found for #{organization}. Do you want to authenticate it now?") do
+              Mix.Tasks.Hex.Organization.run(["auth", organization])
+            else
+              Hex.Repo.get_repo(repo)
+            end
+          _ ->
+            Mix.raise "Unknown repository #{inspect repo}, add new repositories " <>
+                      "with the `mix hex.repo add` task"
+        end
+    end
+  end
+
   defp verify_resolved(resolved, lock) do
     Enum.each(resolved, fn {repo, name, app, version} ->
       atom_name = String.to_atom(name)
@@ -265,22 +294,23 @@ defmodule Hex.RemoteConverger do
         }
       end)
 
-    if Enum.sort(deps) != Enum.sort(Registry.deps(repo, name, version)),
-      do: Mix.raise "Registry dependencies mismatch against lock (#{name} #{version})"
+    if Enum.sort(deps) != Enum.sort(Registry.deps(repo, name, version)) do
+       Mix.raise "Registry dependencies mismatch against lock (#{name} #{version})"
+     end
   end
 
-  defp check_lock(lock) do
+  defp verify_lock(lock) do
     Enum.each(lock, fn {_app, info} ->
       case Hex.Utils.lock(info) do
         %{name: name, version: version, repo: repo} ->
-          check_dep(repo, name, version)
+          verify_dep(repo, name, version)
         nil ->
           :ok
       end
     end)
   end
 
-  defp check_dep(repo, name, version) do
+  defp verify_dep(repo, name, version) do
     Hex.Repo.get_repo(repo)
 
     if versions = Registry.versions(repo, name) do

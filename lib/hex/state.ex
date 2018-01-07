@@ -32,7 +32,7 @@ defmodule Hex.State do
       httpc_profile: :hex,
       ssl_version: ssl_version(),
       pbkdf2_iters: @pbkdf2_iters,
-      clean_pass: true,
+      clean_pass: true
     }
   end
 

@@ -18,6 +18,8 @@ defmodule Mix.Tasks.Hex.UserTest do
     send self(), {:mix_shell_input, :yes?, false}
     send self(), {:mix_shell_input, :prompt, "hunter42"}
     send self(), {:mix_shell_input, :prompt, "hunter42"}
+    send self(), {:mix_shell_input, :prompt, "hunter43"}
+    send self(), {:mix_shell_input, :prompt, "hunter43"}
 
     Mix.Tasks.Hex.User.run(["register"])
 
@@ -31,48 +33,53 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       send self(), {:mix_shell_input, :prompt, "user"}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
+      send self(), {:mix_shell_input, :prompt, "hunter43"}
+      send self(), {:mix_shell_input, :prompt, "hunter43"}
       Mix.Tasks.Hex.User.run(["auth"])
 
       {:ok, name} = :inet.gethostname()
       name = List.to_string(name)
 
-      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      send self(), {:mix_shell_input, :prompt, "hunter43"}
       auth = Mix.Tasks.Hex.auth_info()
       assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
       assert name in Enum.map(body, &(&1["name"]))
     end
   end
 
-  test "deauth" do
+  test "deauth user and organizations" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      Mix.Tasks.Hex.update_key("key")
-      assert Hex.Config.read()[:encrypted_key] == "key"
+      auth = Hexpm.new_user("userdeauth1", "userdeauth1@mail.com", "password", "userdeauth1")
+      Hexpm.new_repo("myorguserdeauth1", auth)
+      Mix.Tasks.Hex.update_key(auth[:encrypted_key])
+      assert Hex.Config.read()[:encrypted_key] == auth[:encrypted_key]
+
+      send self(), {:mix_shell_input, :prompt, "password"}
+      Mix.Tasks.Hex.Organization.run(["auth", "myorguserdeauth1"])
 
       Mix.Tasks.Hex.User.run(["deauth"])
       refute Hex.Config.read()[:encrypted_key]
+      refute Hex.Config.read()[:"$repos"]["hexpm:myorguserdeauth1"]
     end
   end
 
-  test "passphrase" do
+  test "deauth user but skip organizations" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      Mix.Tasks.Hex.update_key(Mix.Tasks.Hex.encrypt_key("hunter42", "qwerty"))
-      first_key = Hex.Config.read()[:encrypted_key]
+      auth = Hexpm.new_user("userdeauth2", "userdeauth2@mail.com", "password", "userdeauth2")
+      Hexpm.new_repo("myorguserdeauth2", auth)
+      Mix.Tasks.Hex.update_key(auth[:encrypted_key])
+      assert Hex.Config.read()[:encrypted_key] == auth[:encrypted_key]
 
-      send self(), {:mix_shell_input, :prompt, "hunter42"}
-      send self(), {:mix_shell_input, :prompt, "hunter43"}
-      send self(), {:mix_shell_input, :prompt, "hunter43"}
-      Mix.Tasks.Hex.User.run(["passphrase"])
+      send self(), {:mix_shell_input, :prompt, "password"}
+      Mix.Tasks.Hex.Organization.run(["auth", "myorguserdeauth2"])
 
-      assert Hex.Config.read()[:encrypted_key] != first_key
-
-      assert_raise Mix.Error, ~r"^Wrong passphrase", fn ->
-        send self(), {:mix_shell_input, :prompt, "wrong"}
-        Mix.Tasks.Hex.User.run(["passphrase"])
-      end
+      Mix.Tasks.Hex.User.run(["deauth", "--skip-organizations"])
+      refute Hex.Config.read()[:encrypted_key]
+      assert Hex.Config.read()[:"$repos"]["hexpm:myorguserdeauth2"]
     end
   end
 
@@ -151,12 +158,35 @@ defmodule Mix.Tasks.Hex.UserTest do
     end
   end
 
-  test "reset password" do
+  test "reset account password" do
     Hexpm.new_user("reset_password", "reset_password@mail.com", "password", "reset_password")
 
     send self(), {:mix_shell_input, :prompt, "reset_password"}
-    Mix.Tasks.Hex.User.run(["reset", "password"])
+    Mix.Tasks.Hex.User.run(["reset_password", "account"])
 
     assert_received {:mix_shell, :info, ["We’ve sent you an email" <> _]}
+  end
+
+  test "reset local password" do
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      Mix.Tasks.Hex.update_key(Mix.Tasks.Hex.encrypt_key("hunter42", "qwerty"))
+      first_key = Hex.Config.read()[:encrypted_key]
+
+      send self(), {:mix_shell_input, :prompt, "hunter42"}
+      send self(), {:mix_shell_input, :prompt, "hunter43"}
+      send self(), {:mix_shell_input, :prompt, "hunter43"}
+      Mix.Tasks.Hex.User.run(["reset_password", "local"])
+
+      assert Hex.Config.read()[:encrypted_key] != first_key
+
+      send self(), {:mix_shell_input, :prompt, "wrong"}
+      send self(), {:mix_shell_input, :prompt, "hunter43"}
+      send self(), {:mix_shell_input, :prompt, "hunter44"}
+      send self(), {:mix_shell_input, :prompt, "hunter44"}
+      Mix.Tasks.Hex.User.run(["reset_password", "local"])
+      assert_received {:mix_shell, :error, ["Wrong password. Try again"]}
+    end
   end
 end
