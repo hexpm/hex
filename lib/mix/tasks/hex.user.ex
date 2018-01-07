@@ -29,12 +29,6 @@ defmodule Mix.Tasks.Hex.User do
 
       mix hex.user deauth [--skip-organizations]
 
-  ### Reencrypt API key
-
-  Updates the passphrase for the locally stored API key.
-
-      mix hex.user passphrase
-
   ### Revoke key
 
   Removes given API key from account.
@@ -55,9 +49,17 @@ defmodule Mix.Tasks.Hex.User do
 
       mix hex.user key --list
 
-  ### Reset user password
+  ### Reset user account password
 
-      mix hex.user reset password
+  Starts the process for reseting account password.
+
+      mix hex.user reset_password account
+
+  ### Reset local password
+
+  Updates the local password for your local authentication credentials.
+
+      mix hex.user reset_password local
   """
 
   @switches [revoke_all: :boolean, revoke: :string, list: :boolean, skip_organizations: :boolean]
@@ -75,12 +77,12 @@ defmodule Mix.Tasks.Hex.User do
         auth()
       ["deauth"] ->
         deauth(opts)
-      ["passphrase"] ->
-        passphrase()
       ["key"] ->
         process_key_task(opts)
-      ["reset", "password"] ->
-        reset_password()
+      ["reset_password", "account"] ->
+        reset_account_password()
+      ["reset_password", "local"] ->
+        reset_local_password()
       _ ->
         invalid_args()
     end
@@ -94,11 +96,11 @@ defmodule Mix.Tasks.Hex.User do
     mix hex.user whoami
     mix hex.user auth
     mix hex.user deauth
-    mix hex.user passphrase
     mix hex.user key --revoke-all
     mix hex.user key --revoke KEY_NAME
     mix hex.user key --list
-    mix hex.user reset password
+    mix hex.user reset_password account
+    mix hex.user reset_password local
     """
   end
 
@@ -127,17 +129,29 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp reset_password() do
+  defp reset_account_password() do
     name = Hex.Shell.prompt("Username or Email:") |> Hex.string_trim()
 
     case Hex.API.User.password_reset(name) do
       {:ok, {code, _, _}} when code in 200..299 ->
-        Hex.Shell.info "We’ve sent you an email containing a link that will allow you to reset your password for the next 24 hours. " <>
-                       "Please check your spam folder if the email doesn’t appear within a few minutes."
+        Hex.Shell.info "We’ve sent you an email containing a link that will allow you to reset " <>
+          "your account password for the next 24 hours. Please check your spam folder if the " <>
+          "email doesn’t appear within a few minutes."
       other ->
         Hex.Shell.error("Initiating password reset for #{name} failed")
         Hex.Utils.print_error_result(other)
     end
+  end
+
+  defp reset_local_password() do
+    encrypted_key = Hex.State.fetch!(:api_key)
+
+    unless encrypted_key do
+      Mix.raise "No authorized user found. Run `mix hex.user auth`"
+    end
+
+    decrypted_key = Mix.Tasks.Hex.prompt_decrypt_key(encrypted_key, "Current local password")
+    Mix.Tasks.Hex.prompt_encrypt_key(decrypted_key, "New local password")
   end
 
   defp deauth(opts) do
@@ -163,25 +177,14 @@ defmodule Mix.Tasks.Hex.User do
     |> Hex.Config.read_repos()
   end
 
-  defp passphrase() do
-    encrypted_key = Hex.State.fetch!(:api_key)
-
-    unless encrypted_key do
-      Mix.raise "No authorized user found. Run 'mix hex.user auth'"
-    end
-
-    decrypted_key = Mix.Tasks.Hex.prompt_decrypt_key(encrypted_key, "Current passphrase")
-    Mix.Tasks.Hex.prompt_encrypt_key(decrypted_key, "New passphrase")
-  end
-
   defp register() do
     Hex.Shell.info("By registering an account on Hex.pm you accept all our " <>
                    "policies and terms of service found at https://hex.pm/policies\n")
 
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
     email = Hex.Shell.prompt("Email:") |> Hex.string_trim()
-    password = Mix.Tasks.Hex.password_get("Password:") |> Hex.string_trim()
-    confirm = Mix.Tasks.Hex.password_get("Password (confirm):") |> Hex.string_trim()
+    password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.string_trim()
+    confirm = Mix.Tasks.Hex.password_get("Account password (confirm):") |> Hex.string_trim()
 
     if password != confirm do
       Mix.raise "Entered passwords do not match"
