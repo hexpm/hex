@@ -27,7 +27,8 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp fn ->
       send self(), {:mix_shell_input, :yes?, true}
-      assert_raise Mix.Error, "No authorized user found. Run 'mix hex.user auth'", fn ->
+      send self(), {:mix_shell_input, :yes?, false}
+      assert_raise Mix.Error, "No authenticated user found. Run `mix hex.user auth`", fn ->
         Mix.Tasks.Hex.Publish.run([])
       end
     end

@@ -71,7 +71,7 @@ defmodule Mix.Tasks.Hex.User do
       ["whoami"] ->
         whoami()
       ["auth"] ->
-        create_key()
+        auth()
       ["deauth"] ->
         deauth()
       ["passphrase"] ->
@@ -181,17 +181,15 @@ defmodule Mix.Tasks.Hex.User do
         Mix.Tasks.Hex.generate_key(username, password)
         Hex.Shell.info("You are required to confirm your email to access your account, " <>
                        "a confirmation email has been sent to #{email}")
+
       other ->
         Hex.Shell.error("Registration of user #{username} failed")
         Hex.Utils.print_error_result(other)
     end
   end
 
-  defp create_key() do
-    username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
-    password = Mix.Tasks.Hex.password_get("Password:") |> Hex.string_trim()
-
-    Mix.Tasks.Hex.generate_key(username, password)
+  defp auth() do
+    Mix.Tasks.Hex.auth()
   end
 
   defp revoke_all_keys() do

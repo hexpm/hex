@@ -248,7 +248,7 @@ defmodule Hex.RemoteConverger do
       :error ->
         case repo do
           "hexpm:" <> organization ->
-            if Hex.Shell.yes?("No authenticated organization found for #{organization}. Do you want to authenticate it?") do
+            if Hex.Shell.yes?("No authenticated organization found for #{organization}. Do you want to authenticate it now?") do
               Mix.Tasks.Hex.Organization.run(["auth", organization])
             else
               Hex.Repo.get_repo(repo)

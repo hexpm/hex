@@ -80,10 +80,12 @@ defmodule Mix.Tasks.Hex do
         Hex.Shell.info("Encrypting API key with user password...")
         encrypted_key = Hex.Crypto.encrypt(body["secret"], password, @apikey_tag)
         update_key(encrypted_key)
+        password
 
       other ->
         Mix.shell.error("Generation of API key failed")
         Hex.Utils.print_error_result(other)
+        nil
     end
   end
 
@@ -92,12 +94,33 @@ defmodule Mix.Tasks.Hex do
     Hex.State.put(:api_key, key)
   end
 
+  def auth() do
+    username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
+    password = Mix.Tasks.Hex.password_get("Password:") |> Hex.string_trim()
+
+    generate_key(username, password)
+  end
+
   def auth_info() do
-    if key = Hex.State.fetch!(:api_key) do
-      [key: prompt_decrypt_key(key)]
-    else
-      Mix.raise "No authorized user found. Run 'mix hex.user auth'"
+    cond do
+      key = Hex.State.fetch!(:api_key) ->
+        [key: prompt_decrypt_key(key)]
+
+      Hex.Shell.yes?("No authenticated user found. Do you want to authenticate now?") ->
+        if password = auth() do
+          key = Hex.State.fetch!(:api_key)
+          [key: decrypt_key(key, password)]
+        else
+          no_auth_error()
+        end
+
+      true ->
+        no_auth_error()
     end
+  end
+
+  defp no_auth_error() do
+    Mix.raise "No authenticated user found. Run `mix hex.user auth`"
   end
 
   def prompt_encrypt_key(key, challenge \\ "Passphrase") do
@@ -126,6 +149,10 @@ defmodule Mix.Tasks.Hex do
 
   def encrypt_key(password, key) do
     Hex.Crypto.encrypt(key, password, @apikey_tag)
+  end
+
+  def decrypt_key(password, key) do
+    Hex.Crypto.decrypt(key, password, @apikey_tag)
   end
 
   def required_opts(opts, required) do
