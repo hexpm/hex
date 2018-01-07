@@ -159,17 +159,9 @@ defmodule Mix.Tasks.Hex.Info do
   defp print_retirement(nil), do: ""
   defp print_retirement(%{"retirement" => nil}), do: ""
   defp print_retirement(release) do
-    reason = release["retirement"]["reason"]
-    message = release["retirement"]["message"]
-    Hex.Shell.info [[:bright, "This version has been retired "], [:reset, format_retirement_info(reason, message)]]
+    retirement = %{reason: release["retirement"]["reason"], message: release["retirement"]["message"]}
+    Hex.Shell.warn [[:bright, "This version has been retired"], [:normal, ": "], [:normal, Hex.Utils.package_retirement_message(retirement)]]
   end
-  defp format_retirement_info(reason, nil) do
-    "(#{reason})"
-  end
-  defp format_retirement_info(reason, message) do
-    "(#{reason} - #{message})"
-  end
-
   defp format_pre([]) do
     ""
   end
