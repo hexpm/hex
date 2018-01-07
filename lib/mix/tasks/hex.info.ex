@@ -104,6 +104,9 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp print_release(package, release) do
     version = release["version"]
+
+    print_retirement(release)
+
     print_config(package, release)
 
     if release["has_docs"] do
@@ -151,6 +154,20 @@ defmodule Mix.Tasks.Hex.Info do
   end
   defp format_version(%Version{major: major, minor: minor, patch: patch, pre: pre}) do
     "~> #{major}.#{minor}.#{patch}#{format_pre(pre)}"
+  end
+
+  defp print_retirement(nil), do: ""
+  defp print_retirement(%{"retirement" => nil}), do: ""
+  defp print_retirement(release) do
+    reason = release["retirement"]["reason"]
+    message = release["retirement"]["message"]
+    Hex.Shell.info [[:bright, "This version has been retired "], [:reset, format_retirement_info(reason, message)]]
+  end
+  defp format_retirement_info(reason, nil) do
+    "(#{reason})"
+  end
+  defp format_retirement_info(reason, message) do
+    "(#{reason} - #{message})"
   end
 
   defp format_pre([]) do
