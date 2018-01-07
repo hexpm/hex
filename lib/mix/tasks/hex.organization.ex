@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Hex.Organization do
 
   ## Authorize an organization
 
-      mix hex.organization auth NAME
+      mix hex.organization auth ORGANIZATION
 
   ### Command line options
 
@@ -35,11 +35,11 @@ defmodule Mix.Tasks.Hex.Organization do
 
   ## Generate a repository autentication key
 
-  This command is useful to pre-generate keys for use with `mix hex.organization auth NAME --key KEY`
+  This command is useful to pre-generate keys for use with `mix hex.organization auth ORGANIZATION --key KEY`
   on CI servers or similar systems. It returns the hash of the generated key that you can pass to
-  `auth NAME --key KEY`. This key allows read-only access to the repository
+  `auth ORGANIZATION --key KEY`. This key allows read-only access to the repository
 
-      mix hex.organization key NAME
+      mix hex.organization key ORGANIZATION
 
   ## List all authorized organizations
 
@@ -65,8 +65,8 @@ defmodule Mix.Tasks.Hex.Organization do
         Mix.raise """
         Invalid arguments, expected one of:
 
-        mix hex.organization auth NAME
-        mix hex.organization deauth NAME
+        mix hex.organization auth ORGANIZATION
+        mix hex.organization deauth ORGANIZATION
         mix hex.organization list
         """
     end

@@ -43,15 +43,39 @@ defmodule Mix.Tasks.Hex.UserTest do
     end
   end
 
-  test "deauth" do
+  test "deauth user and organizations" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      Mix.Tasks.Hex.update_key("key")
-      assert Hex.Config.read()[:encrypted_key] == "key"
+      auth = Hexpm.new_user("userdeauth1", "userdeauth1@mail.com", "password", "userdeauth1")
+      Hexpm.new_repo("myorguserdeauth1", auth)
+      Mix.Tasks.Hex.update_key(auth[:encrypted_key])
+      assert Hex.Config.read()[:encrypted_key] == auth[:encrypted_key]
+
+      send self(), {:mix_shell_input, :prompt, "password"}
+      Mix.Tasks.Hex.Organization.run(["auth", "myorguserdeauth1"])
 
       Mix.Tasks.Hex.User.run(["deauth"])
       refute Hex.Config.read()[:encrypted_key]
+      refute Hex.Config.read()[:"$repos"]["hexpm:myorguserdeauth1"]
+    end
+  end
+
+  test "deauth user but skip organizations" do
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      auth = Hexpm.new_user("userdeauth2", "userdeauth2@mail.com", "password", "userdeauth2")
+      Hexpm.new_repo("myorguserdeauth2", auth)
+      Mix.Tasks.Hex.update_key(auth[:encrypted_key])
+      assert Hex.Config.read()[:encrypted_key] == auth[:encrypted_key]
+
+      send self(), {:mix_shell_input, :prompt, "password"}
+      Mix.Tasks.Hex.Organization.run(["auth", "myorguserdeauth2"])
+
+      Mix.Tasks.Hex.User.run(["deauth", "--skip-organizations"])
+      refute Hex.Config.read()[:encrypted_key]
+      assert Hex.Config.read()[:"$repos"]["hexpm:myorguserdeauth2"]
     end
   end
 

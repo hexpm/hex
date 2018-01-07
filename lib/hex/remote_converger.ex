@@ -255,7 +255,7 @@ defmodule Hex.RemoteConverger do
             end
           _ ->
             Mix.raise "Unknown repository #{inspect repo}, add new repositories " <>
-                      "with the `mix hex.repo` task"
+                      "with the `mix hex.repo add` task"
         end
     end
   end
