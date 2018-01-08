@@ -47,6 +47,23 @@ defmodule Mix.Tasks.Hex.UserTest do
     end
   end
 
+  test "auth organizations" do
+    in_tmp fn ->
+      Hex.State.put(:home, System.cwd!)
+
+      auth = Hexpm.new_user("userauthorg", "userauthorg@mail.com", "password", "userauthorg")
+      Hexpm.new_repo("myuserauthorg", auth)
+
+      send self(), {:mix_shell_input, :prompt, "userauthorg"}
+      send self(), {:mix_shell_input, :prompt, "password"}
+      send self(), {:mix_shell_input, :prompt, "password"}
+      send self(), {:mix_shell_input, :prompt, "password"}
+      Mix.Tasks.Hex.User.run(["auth"])
+
+      assert {:ok, _} = Hex.Repo.fetch_repo("hexpm:myuserauthorg")
+    end
+  end
+
   test "deauth user and organizations" do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)

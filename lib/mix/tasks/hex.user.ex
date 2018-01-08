@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Hex.User do
   Authorizes a new user on the local machine by generating a new API key and
   storing it in the Hex config.
 
-      mix hex.user auth
+      mix hex.user auth [--skip-organizations]
 
   ### Deauthorize the user
 
@@ -74,7 +74,7 @@ defmodule Mix.Tasks.Hex.User do
       ["whoami"] ->
         whoami()
       ["auth"] ->
-        auth()
+        auth(opts)
       ["deauth"] ->
         deauth(opts)
       ["key"] ->
@@ -197,7 +197,7 @@ defmodule Mix.Tasks.Hex.User do
   defp create_user(username, email, password) do
     case Hex.API.User.new(username, email, password) do
       {:ok, {code, _, _}} when code in 200..299 ->
-        Mix.Tasks.Hex.generate_key(username, password)
+        Mix.Tasks.Hex.generate_api_key(username, password)
         Hex.Shell.info("You are required to confirm your email to access your account, " <>
                        "a confirmation email has been sent to #{email}")
 
@@ -207,8 +207,8 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp auth() do
-    Mix.Tasks.Hex.auth()
+  defp auth(opts) do
+    Mix.Tasks.Hex.auth(opts)
   end
 
   defp revoke_all_keys() do
