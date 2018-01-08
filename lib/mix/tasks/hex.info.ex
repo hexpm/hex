@@ -156,7 +156,6 @@ defmodule Mix.Tasks.Hex.Info do
     "~> #{major}.#{minor}.#{patch}#{format_pre(pre)}"
   end
 
-  defp print_retirement(nil), do: ""
   defp print_retirement(%{"retirement" => nil}), do: ""
   defp print_retirement(release) do
     retirement = %{reason: release["retirement"]["reason"], message: release["retirement"]["message"]}
