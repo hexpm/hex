@@ -1,6 +1,5 @@
 defmodule Hex.TarTest do
   use HexTest.Case
-  @moduletag :integration
 
   @mix_exs """
   defmodule Foo.MixProject do
@@ -78,7 +77,7 @@ defmodule Hex.TarTest do
 
       files =
         files
-        |> replace_file('CHECKSUM', "22D7C2C004D6096D8B4BB40D984782D4D9D97E059F38632A947B4550C28A2B4A")
+        |> replace_file('CHECKSUM', "B3B3F6EF099FF41CB8323A57121BF445D62919A2F8F6FE3C86AF3AB47B627FB0")
         |> replace_file('metadata.config', """
                         {<<\"app\">>,<<\"foo\">>}.
                         {<<\"name\">>,<<\"foo\">>}.
@@ -149,7 +148,7 @@ defmodule Hex.TarTest do
       files =
         valid_files
         |> replace_file('metadata.config', "ok $")
-        |> replace_file('CHECKSUM', "7CC4126B1B4DA063841229BA8952AA4BAA4F21615F8CBD69DA8B36C0733F7151")
+        |> replace_file('CHECKSUM', "F518E93D179E7E08204BA23F7C798115B549573837ECD3DEB60BCB3767C60A01")
 
       :ok = :hex_erl_tar.create('badmetadata.tar', files, [:write])
       assert {:error, {:metadata, {:illegal, '$'}}} = Hex.Tar.unpack("badmetadata.tar", :memory)
@@ -157,7 +156,7 @@ defmodule Hex.TarTest do
       files =
         valid_files
         |> replace_file('metadata.config', "ok[")
-        |> replace_file('CHECKSUM', "7E65497E24EB8D39D7A2882928DF254D2CF6C8950998C651B88D3F12EB3D2152")
+        |> replace_file('CHECKSUM', "129352225A4A168A0109D0BF7866B8FAB00B09D12525562D578FAA6374F1AA0F")
 
       :ok = :hex_erl_tar.create('badmetadata.tar', files, [:write])
       assert {:error, {:metadata, :invalid_terms}} = Hex.Tar.unpack("badmetadata.tar", :memory)
@@ -165,7 +164,7 @@ defmodule Hex.TarTest do
       files =
         valid_files
         |> replace_file('metadata.config', "asdfasdfasdfasdf.")
-        |> replace_file('CHECKSUM', "72749F733A9825E0DEAD3378AD7FB9AC97559A4E9D6BD1F73E8A6C349A662203")
+        |> replace_file('CHECKSUM', "145ACF0F595484B179041F58706E8C5EAB05E4A714BAA756507CF889AB92E80B")
 
       :ok = :hex_erl_tar.create('badmetadata.tar', files, [:write])
       assert {:error, {:metadata, {:user, 'illegal atom asdfasdfasdfasdf'}}} = Hex.Tar.unpack("badmetadata.tar", :memory)
@@ -173,7 +172,7 @@ defmodule Hex.TarTest do
       files =
         valid_files
         |> replace_file('metadata.config', "ok.")
-        |> replace_file('CHECKSUM', "B4BF57D33731B5C4D64055BEF7BB0D4A80DB5ACD8A2117A6657A14DC5C207E2E")
+        |> replace_file('CHECKSUM', "4477712AF5857ACCA5B09E8B37C7D775513AB33D76589590BF23ABF2FBB29C47")
 
       :ok = :hex_erl_tar.create('badmetadata.tar', files, [:write])
       assert {:error, {:metadata, :not_key_value}} = Hex.Tar.unpack("badmetadata.tar", :memory)

@@ -106,9 +106,46 @@ defmodule Hex.Tar do
       end
 
     if compressed? do
-      :zlib.gzip(binary)
+      gzip(binary)
     else
       binary
+    end
+  end
+
+  # Reproducible gzip by not setting mtime and OS
+  #
+  # From https://tools.ietf.org/html/rfc1952
+  #
+  # +---+---+---+---+---+---+---+---+---+---+
+  # |ID1|ID2|CM |FLG|     MTIME     |XFL|OS | (more-->)
+  # +---+---+---+---+---+---+---+---+---+---+
+  #
+  # +=======================+
+  # |...compressed blocks...| (more-->)
+  # +=======================+
+  #
+  # +---+---+---+---+---+---+---+---+
+  # |     CRC32     |     ISIZE     |
+  # +---+---+---+---+---+---+---+---+
+  def gzip(uncompressed) do
+    compressed = gzip_no_header(uncompressed)
+    header = <<31, 139, 8, 0, 0, 0, 0, 0, 0, 0>>
+    crc = :erlang.crc32(uncompressed)
+    size = byte_size(uncompressed)
+    trailer = <<crc::integer-32-little, size::integer-32-little>>
+    IO.iodata_to_binary([header, compressed, trailer])
+  end
+
+  defp gzip_no_header(uncompressed) do
+    zstream = :zlib.open()
+
+    try do
+      :zlib.deflateInit(zstream, :default, :deflated, -15, 8, :default)
+      compressed = :zlib.deflate(zstream, uncompressed, :finish)
+      :zlib.deflateEnd(zstream)
+      IO.iodata_to_binary(compressed)
+    after
+      :zlib.close(zstream)
     end
   end
 
