@@ -38,6 +38,12 @@ defmodule Hex.MixProject do
   # Can't use hex dependencies because the elixir compiler loads dependencies
   # and calls the dependency SCM. This would cause us to crash if the SCM was
   # Hex because we have to unload Hex before compiling it.
+  defp deps(elixir_version) when elixir_version >= {1, 5, 0} do
+    [
+      {:stream_data, github: "whatyouhide/stream_data", tag: "v0.4.0", only: :test},
+      {:plug, github: "elixir-lang/plug", tag: "v1.2.0", only: :test, override: true}
+    ] ++ deps()
+  end
   defp deps(elixir_version) when elixir_version >= {1, 2, 3} do
     [{:plug, github: "elixir-lang/plug", tag: "v1.2.0", only: :test, override: true}] ++
       deps()
