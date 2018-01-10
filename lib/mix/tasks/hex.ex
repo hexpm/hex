@@ -92,7 +92,7 @@ defmodule Mix.Tasks.Hex do
   end
 
   def update_key(key) do
-    Hex.Config.update([encrypted_key: key])
+    Hex.Config.update(["$encrypted_key": key, encrypted_key: nil])
     Hex.State.put(:api_key, key)
   end
 

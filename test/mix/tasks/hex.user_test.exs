@@ -53,14 +53,14 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       auth = Hexpm.new_user("userdeauth1", "userdeauth1@mail.com", "password", "userdeauth1")
       Hexpm.new_repo("myorguserdeauth1", auth)
-      Mix.Tasks.Hex.update_key(auth[:encrypted_key])
-      assert Hex.Config.read()[:encrypted_key] == auth[:encrypted_key]
+      Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
+      assert Hex.Config.read()[:"$encrypted_key"] == auth[:"$encrypted_key"]
 
       send self(), {:mix_shell_input, :prompt, "password"}
       Mix.Tasks.Hex.Organization.run(["auth", "myorguserdeauth1"])
 
       Mix.Tasks.Hex.User.run(["deauth"])
-      refute Hex.Config.read()[:encrypted_key]
+      refute Hex.Config.read()[:"$encrypted_key"]
       refute Hex.Config.read()[:"$repos"]["hexpm:myorguserdeauth1"]
     end
   end
@@ -71,14 +71,14 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       auth = Hexpm.new_user("userdeauth2", "userdeauth2@mail.com", "password", "userdeauth2")
       Hexpm.new_repo("myorguserdeauth2", auth)
-      Mix.Tasks.Hex.update_key(auth[:encrypted_key])
-      assert Hex.Config.read()[:encrypted_key] == auth[:encrypted_key]
+      Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
+      assert Hex.Config.read()[:"$encrypted_key"] == auth[:"$encrypted_key"]
 
       send self(), {:mix_shell_input, :prompt, "password"}
       Mix.Tasks.Hex.Organization.run(["auth", "myorguserdeauth2"])
 
       Mix.Tasks.Hex.User.run(["deauth", "--skip-organizations"])
-      refute Hex.Config.read()[:encrypted_key]
+      refute Hex.Config.read()[:"$encrypted_key"]
       assert Hex.Config.read()[:"$repos"]["hexpm:myorguserdeauth2"]
     end
   end
@@ -87,7 +87,7 @@ defmodule Mix.Tasks.Hex.UserTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
       auth = Hexpm.new_user("whoami", "whoami@mail.com", "password", "whoami")
-      Mix.Tasks.Hex.update_key(auth[:encrypted_key])
+      Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
 
       send self(), {:mix_shell_input, :prompt, "password"}
       Mix.Tasks.Hex.User.run(["whoami"])
@@ -100,7 +100,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       Hex.State.put(:home, System.cwd!)
 
       auth = Hexpm.new_user("list_keys", "list_keys@mail.com", "password", "list_keys")
-      Mix.Tasks.Hex.update_key(auth[:encrypted_key])
+      Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
 
       assert {:ok, {200, [%{"name" => "list_keys"}], _}} = Hex.API.Key.get(auth)
 
@@ -116,7 +116,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       auth_a = Hexpm.new_user("revoke_key", "revoke_key@mail.com", "password", "revoke_key_a")
       auth_b = Hexpm.new_key("revoke_key", "password", "revoke_key_b")
-      Mix.Tasks.Hex.update_key(auth_a[:encrypted_key])
+      Mix.Tasks.Hex.update_key(auth_a[:"$encrypted_key"])
 
       assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_a)
       assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_b)
@@ -143,7 +143,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       auth_a = Hexpm.new_user("revoke_all_keys", "revoke_all_keys@mail.com", "password", "revoke_all_keys_a")
       auth_b = Hexpm.new_key("revoke_all_keys", "password", "revoke_all_keys_b")
-      Mix.Tasks.Hex.update_key(auth_a[:encrypted_key])
+      Mix.Tasks.Hex.update_key(auth_a[:"$encrypted_key"])
 
       assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_a)
       assert {:ok, {200, _, _}} = Hex.API.Key.get(auth_b)
@@ -172,14 +172,14 @@ defmodule Mix.Tasks.Hex.UserTest do
       Hex.State.put(:home, System.cwd!)
 
       Mix.Tasks.Hex.update_key(Mix.Tasks.Hex.encrypt_key("hunter42", "qwerty"))
-      first_key = Hex.Config.read()[:encrypted_key]
+      first_key = Hex.Config.read()[:"$encrypted_key"]
 
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       send self(), {:mix_shell_input, :prompt, "hunter43"}
       send self(), {:mix_shell_input, :prompt, "hunter43"}
       Mix.Tasks.Hex.User.run(["reset_password", "local"])
 
-      assert Hex.Config.read()[:encrypted_key] != first_key
+      assert Hex.Config.read()[:"$encrypted_key"] != first_key
 
       send self(), {:mix_shell_input, :prompt, "wrong"}
       send self(), {:mix_shell_input, :prompt, "hunter43"}
