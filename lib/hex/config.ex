@@ -41,6 +41,7 @@ defmodule Hex.Config do
   end
 
   def write(config) do
+    config = Enum.reject(config, fn {_key, value} -> is_nil(value) end)
     string = encode_term(config)
 
     path = config_path()

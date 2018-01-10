@@ -70,13 +70,13 @@ defmodule Mix.Tasks.Hex.Config do
   end
 
   defp list() do
-    Enum.each(Hex.Config.read, fn {key, value} ->
+    Enum.each(config(), fn {key, value} ->
       Hex.Shell.info "#{key}: #{inspect(value, pretty: true)}"
     end)
   end
 
   defp read(key) do
-    case Keyword.fetch(Hex.Config.read, :"#{key}") do
+    case Keyword.fetch(config(), :"#{key}") do
       {:ok, value} ->
         Hex.Shell.info inspect(value, pretty: true)
       :error ->
@@ -90,5 +90,11 @@ defmodule Mix.Tasks.Hex.Config do
 
   defp set(key, value) do
     Hex.Config.update([{:"#{key}", value}])
+  end
+
+  defp config() do
+    Hex.Config.read()
+    |> Enum.reject(fn {key, _value} -> String.starts_with?(Atom.to_string(key), "$") end)
+    |> Keyword.delete(:encrypted_key)
   end
 end
