@@ -95,6 +95,6 @@ defmodule Mix.Tasks.Hex.Config do
   defp config() do
     Hex.Config.read()
     |> Enum.reject(fn {key, _value} -> String.starts_with?(Atom.to_string(key), "$") end)
-    |> List.delete("encrypted_key")
+    |> Keyword.delete(:encrypted_key)
   end
 end
