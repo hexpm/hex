@@ -72,9 +72,9 @@ defmodule Mix.Tasks.Hex do
 
   @local_password_prompt "You have authenticated on Hex using your account password. However, " <>
     "Hex requires you to have a local password that applies only to this machine for security " <>
-    "purposes. Please enter it:"
+    "purposes. Please enter it."
 
-  def generate_key(username, password) do
+  def generate_api_key(username, password) do
     Hex.Shell.info("Generating API key...")
     {:ok, name} = :inet.gethostname()
     name = List.to_string(name)
@@ -87,7 +87,23 @@ defmodule Mix.Tasks.Hex do
       other ->
         Mix.shell.error("Generation of API key failed")
         Hex.Utils.print_error_result(other)
-        nil
+        :error
+    end
+  end
+
+  def generate_organization_key(name, auth \\ nil) do
+    auth = auth || auth_info()
+    permissions = [%{"domain" => "repository", "resource" => name}]
+
+    {:ok, host} = :inet.gethostname()
+    key = "#{host}-#{name}-organization"
+
+    case Hex.API.Key.new(key, permissions, auth) do
+      {:ok, {201, body, _}} ->
+        body["secret"]
+      other ->
+        Hex.Utils.print_error_result(other)
+        Mix.raise "Generation of organization key failed"
     end
   end
 
@@ -96,11 +112,42 @@ defmodule Mix.Tasks.Hex do
     Hex.State.put(:api_key, key)
   end
 
-  def auth() do
+  def auth(opts \\ []) do
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
-    password = Mix.Tasks.Hex.password_get("Local password:") |> Hex.string_trim()
+    password = password_get("Account password:") |> Hex.string_trim()
 
-    generate_key(username, password)
+    unless opts[:skip_organizations] do
+      case generate_api_key(username, password) do
+        {:ok, key, password} ->
+          Hex.Shell.info("Generating organization keys...")
+          auth = [key: key]
+          {:ok, {200, user, _headers}} = Hex.API.User.me(auth)
+
+          Enum.each(user["organizations"] || [], fn %{"name" => name} ->
+            key = generate_organization_key(name, auth)
+            auth_organization(name, key)
+          end)
+
+          {:ok, key, password}
+
+        :error ->
+          :ok
+      end
+    end
+  end
+
+  def auth_organization(name, key) do
+    hexpm = Hex.Repo.get_repo("hexpm")
+    repo = %{
+      url: hexpm.url <> "/repos/#{name}",
+      public_key: nil,
+      auth_key: key
+    }
+
+    Hex.Config.read()
+    |> Hex.Config.read_repos()
+    |> Map.put("hexpm:#{name}", repo)
+    |> Hex.Config.update_repos()
   end
 
   def auth_info() do
@@ -135,7 +182,7 @@ defmodule Mix.Tasks.Hex do
 
     encrypted_key = Hex.Crypto.encrypt(key, password, @apikey_tag)
     update_key(encrypted_key)
-    password
+    {:ok, key, password}
   end
 
   def prompt_decrypt_key(encrypted_key, challenge \\ "Local password") do

@@ -74,18 +74,10 @@ defmodule Mix.Tasks.Hex.Organization do
 
   defp auth(name, opts) do
     key = opts[:key]
-    if key, do: test_key(key, name)
+    if opts[:key], do: test_key(key, name)
+    key = key || Mix.Tasks.Hex.generate_organization_key(name)
 
-    hexpm = Hex.Repo.get_repo("hexpm")
-    repo = %{
-      url: hexpm.url <> "/repos/#{name}",
-      public_key: nil,
-      auth_key: key || generate_repo_key(name),
-    }
-
-    read_config()
-    |> Map.put("hexpm:#{name}", repo)
-    |> Hex.Config.update_repos()
+    Mix.Tasks.Hex.auth_organization(name, key)
   end
 
   defp deauth(name) do
@@ -95,7 +87,7 @@ defmodule Mix.Tasks.Hex.Organization do
   end
 
   defp key(name) do
-    Hex.Shell.info generate_repo_key(name)
+    Hex.Shell.info Mix.Tasks.Hex.generate_organization_key(name)
   end
 
   defp list() do
@@ -112,22 +104,6 @@ defmodule Mix.Tasks.Hex.Organization do
   defp read_config() do
     Hex.Config.read()
     |> Hex.Config.read_repos()
-  end
-
-  defp generate_repo_key(name) do
-    auth = Mix.Tasks.Hex.auth_info()
-    permissions = [%{"domain" => "repository", "resource" => name}]
-
-    {:ok, host} = :inet.gethostname()
-    key = "#{host}-#{name}-repository"
-
-    case Hex.API.Key.new(key, permissions, auth) do
-      {:ok, {201, body, _}} ->
-        body["secret"]
-      other ->
-        Hex.Utils.print_error_result(other)
-        Mix.raise "Generation of repository key failed"
-    end
   end
 
   defp test_key(key, name) do
