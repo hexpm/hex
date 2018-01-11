@@ -99,6 +99,10 @@ defmodule HexTest.Hexpm do
     wait_on_start()
   end
 
+  def url() do
+    "http://localhost:4043"
+  end
+
   defp check_hexpm do
     dir = hexpm_dir()
 
@@ -176,7 +180,7 @@ defmodule HexTest.Hexpm do
   end
 
   defp wait_on_start do
-    case :httpc.request(:get, {'http://localhost:4043', []}, [], []) do
+    case :httpc.request(:get, {Hex.string_to_charlist(url()), []}, [], []) do
       {:ok, _} ->
         :ok
       {:error, _} ->

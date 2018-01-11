@@ -111,17 +111,12 @@ defmodule Mix.Tasks.Hex.Owner do
 
     case Hex.API.User.me(auth) do
       {:ok, {code, body, _headers}} when code in 200..299 ->
-        Enum.each(body["owned_packages"], fn {name, _url} ->
-          Hex.Shell.info("#{name} - #{url(name)}")
+        Enum.each(body["packages"], fn package ->
+          Hex.Shell.info("#{package["name"]} - #{package["html_url"]}")
         end)
       other ->
         Hex.Shell.error("Listing owned packages failed")
         Hex.Utils.print_error_result(other)
     end
-  end
-
-  # TODO: Use html_url
-  defp url(name) do
-    "https://hex.pm/packages/#{name}"
   end
 end
