@@ -112,11 +112,15 @@ defmodule Mix.Tasks.Hex.Owner do
     case Hex.API.User.me(auth) do
       {:ok, {code, body, _headers}} when code in 200..299 ->
         Enum.each(body["packages"], fn package ->
-          Hex.Shell.info("#{package["name"]} - #{package["html_url"]}")
+          name = package_name(package["repository"], package["name"])
+          Hex.Shell.info("#{name} - #{package["html_url"]}")
         end)
       other ->
         Hex.Shell.error("Listing owned packages failed")
         Hex.Utils.print_error_result(other)
     end
   end
+
+  defp package_name("hexpm", package_name), do: package_name
+  defp package_name(repository_name, package_name), do: repository_name <> "/" <> package_name
 end
