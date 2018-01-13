@@ -86,14 +86,31 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Shell.info desc <> "\n"
     releases = package["releases"] || []
     print_config(package["name"], List.first(releases))
-    Hex.Shell.info "Releases: " <> format_releases(releases) <> "\n"
+    retirements = package["retirement"] || %{}
+    Hex.Shell.info ["Releases: "] ++ format_releases(releases, retirements) ++ ["\n"]
     print_meta(meta)
   end
 
-  defp format_releases(releases) do
+  defp format_releases(releases, retirements) do
     {releases, rest} = Enum.split(releases, 8)
-    Enum.map_join(releases, ", ", &(&1["version"])) <> if(rest != [], do: ", ..." , else: "")
+    Enum.map(releases, fn(r) -> color_retired_version(r["version"], Map.keys(retirements)) end)
+    |> join_formatted_releases([])
+    |> Kernel.++(if(rest != [], do: [:reset, ", ..."] , else: [""]))
   end
+
+  defp color_retired_version(version, retired_versions) do
+    if Enum.member?(retired_versions, version) do
+      [:yellow, version]
+    else
+      [:reset, version]
+    end
+  end
+
+  defp join_formatted_releases([h | []], collection), do: collection ++ h
+  defp join_formatted_releases([h | t], collection) do
+    join_formatted_releases(t, collection ++ [h, [:reset, ", "]])
+  end
+  defp join_formatted_releases([], collection), do: collection
 
   defp print_meta(meta) do
     print_list(meta, "contributors")
