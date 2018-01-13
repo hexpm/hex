@@ -86,7 +86,7 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Shell.info desc <> "\n"
     releases = package["releases"] || []
     print_config(package["name"], List.first(releases))
-    retirements = package["retirement"] || %{}
+    retirements = package["retirements"] || %{}
     Hex.Shell.info ["Releases: "] ++ format_releases(releases, retirements) ++ ["\n"]
     print_meta(meta)
   end
@@ -100,7 +100,7 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp color_retired_version(version, retired_versions) do
     if Enum.member?(retired_versions, version) do
-      [:yellow, version]
+      [:yellow, version, " (retired)", :reset]
     else
       [:reset, version]
     end
@@ -108,7 +108,7 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp join_formatted_releases([h | []], collection), do: collection ++ h
   defp join_formatted_releases([h | t], collection) do
-    join_formatted_releases(t, collection ++ [h, [:reset, ", "]])
+    join_formatted_releases(t, collection ++ [h, ", "])
   end
   defp join_formatted_releases([], collection), do: collection
 
