@@ -102,7 +102,7 @@ defmodule Mix.Tasks.Hex.Info do
     if Enum.member?(retired_versions, version) do
       [:yellow, version, " (retired)", :reset]
     else
-      [:reset, version]
+      [version]
     end
   end
 

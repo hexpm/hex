@@ -13,6 +13,11 @@ defmodule Mix.Tasks.Hex.InfoTest do
     assert_received {:mix_shell, :error, ["No package with name no_package"]}
   end
 
+  test "package with retired release" do
+    Mix.Tasks.Hex.Info.run(["tired"])
+    assert_received {:mix_shell, :info, ["Releases: 0.2.0, 0.1.0 (retired)\n"]}
+  end
+
   test "package with custom repo" do
     bypass_repo("myorg")
     Mix.Tasks.Hex.Info.run(["ecto", "--organization", "myorg"])
