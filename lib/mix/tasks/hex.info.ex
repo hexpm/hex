@@ -87,19 +87,19 @@ defmodule Mix.Tasks.Hex.Info do
     releases = package["releases"] || []
     print_config(package["name"], List.first(releases))
     retirements = package["retirements"] || %{}
-    Hex.Shell.info ["Releases: "] ++ format_releases(releases, retirements) ++ ["\n"]
+    Hex.Shell.info ["Releases: "] ++ format_releases(releases, Map.keys(retirements)) ++ ["\n"]
     print_meta(meta)
   end
 
   defp format_releases(releases, retirements) do
     {releases, rest} = Enum.split(releases, 8)
-    Enum.map(releases, fn(r) -> color_retired_version(r["version"], Map.keys(retirements)) end)
+    Enum.map(releases, &format_version(&1, retirements))
     |> join_formatted_releases([])
     |> Kernel.++(if(rest != [], do: [:reset, ", ..."] , else: [""]))
   end
 
-  defp color_retired_version(version, retired_versions) do
-    if Enum.member?(retired_versions, version) do
+  defp format_version(%{"version" => version}, retirements) do
+    if version in retirements do
       [:yellow, version, " (retired)", :reset]
     else
       [version]
