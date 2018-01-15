@@ -94,8 +94,8 @@ defmodule Mix.Tasks.Hex.Info do
   defp format_releases(releases, retirements) do
     {releases, rest} = Enum.split(releases, 8)
     Enum.map(releases, &format_version(&1, retirements))
-    |> join_formatted_releases([])
-    |> Kernel.++(if(rest != [], do: [:reset, ", ..."] , else: [""]))
+    |> Enum.intersperse([", "])
+    |> add_ellipsis(rest)
   end
 
   defp format_version(%{"version" => version}, retirements) do
@@ -106,11 +106,8 @@ defmodule Mix.Tasks.Hex.Info do
     end
   end
 
-  defp join_formatted_releases([h | []], collection), do: collection ++ h
-  defp join_formatted_releases([h | t], collection) do
-    join_formatted_releases(t, collection ++ [h, ", "])
-  end
-  defp join_formatted_releases([], collection), do: collection
+  defp add_ellipsis(output, []), do: output
+  defp add_ellipsis(output, _rest), do: output ++ [", ..."]
 
   defp print_meta(meta) do
     print_list(meta, "contributors")
