@@ -86,14 +86,28 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Shell.info desc <> "\n"
     releases = package["releases"] || []
     print_config(package["name"], List.first(releases))
-    Hex.Shell.info "Releases: " <> format_releases(releases) <> "\n"
+    retirements = package["retirements"] || %{}
+    Hex.Shell.info ["Releases: "] ++ format_releases(releases, Map.keys(retirements)) ++ ["\n"]
     print_meta(meta)
   end
 
-  defp format_releases(releases) do
+  defp format_releases(releases, retirements) do
     {releases, rest} = Enum.split(releases, 8)
-    Enum.map_join(releases, ", ", &(&1["version"])) <> if(rest != [], do: ", ..." , else: "")
+    Enum.map(releases, &format_version(&1, retirements))
+    |> Enum.intersperse([", "])
+    |> add_ellipsis(rest)
   end
+
+  defp format_version(%{"version" => version}, retirements) do
+    if version in retirements do
+      [:yellow, version, " (retired)", :reset]
+    else
+      [version]
+    end
+  end
+
+  defp add_ellipsis(output, []), do: output
+  defp add_ellipsis(output, _rest), do: output ++ [", ..."]
 
   defp print_meta(meta) do
     print_list(meta, "contributors")

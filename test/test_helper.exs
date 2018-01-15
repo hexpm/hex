@@ -43,4 +43,7 @@ unless :integration in ExUnit.configuration[:exclude] do
   Hexpm.new_package("baz", "0.1.0", [foo: "0.1.0"], pkg_meta, auth)
   Hexpm.new_package("beta", "1.0.0", [], pkg_meta, auth)
   Hexpm.new_package("beta", "1.1.0-beta", [], pkg_meta, auth)
+  Hexpm.new_package("tired", "0.1.0", [], pkg_meta, auth)
+  Hexpm.new_package("tired", "0.2.0", [], pkg_meta, auth)
+  {:ok, _} = Hex.API.Release.retire("hexpm", "tired", "0.1.0", %{reason: "invalid"}, auth)
 end
