@@ -106,7 +106,7 @@ defmodule Mix.Tasks.Hex.Build do
 
   defp build_package(meta, output) do
     {_tar, checksum} = Hex.create_tar!(meta, meta.files, output)
-    Hex.Shell.info("Package checksum: #{checksum}")
+    Hex.Shell.info("Package checksum: #{Base.encode16(checksum, case: :lower)}")
   end
 
   defp build_and_unpack_package(meta, output) do
