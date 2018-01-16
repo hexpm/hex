@@ -112,7 +112,7 @@ defmodule Mix.Tasks.Hex.Organization do
         :ok
       other ->
         Hex.Utils.print_error_result(other)
-        Mix.raise "Failed to authenticate against repository with given key"
+        Mix.raise "Failed to authenticate against organization repository with given key"
     end
   end
 end
