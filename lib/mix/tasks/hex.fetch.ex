@@ -59,13 +59,12 @@ defmodule Mix.Tasks.Hex.Fetch do
     organization = opts[:organization]
 
     if File.exists?(target) do
-      verify_checksum(target, name, version, organization)
       Hex.Shell.info("Package already fetched: #{target}")
     else
       request_package_from_mirror(target, name, version, organization)
 
       if opts[:unpack] do
-        Hex.Tar.unpack(target, parent_directory)
+        Hex.unpack_tar!(target, parent_directory)
         File.rm_rf!(target)
       end
 
@@ -81,30 +80,6 @@ defmodule Mix.Tasks.Hex.Fetch do
 
       _ ->
         Mix.raise("No package with name #{package} or version #{version}")
-    end
-  end
-
-  defp verify_checksum(tarball, package, version, organization) do
-    case :hex_erl_tar.extract(tarball, [:memory]) do
-      {:ok, files} ->
-        files = Enum.into(files, %{})
-
-        registry_checksum =
-          Hex.Registry.Server.checksum(organization, package, version)
-          |> Base.encode16(case: :lower)
-
-        {:ok, tarball_checksum} = Base.decode16(files["CHECKSUM"], case: :lower)
-
-        if registry_checksum != tarball_checksum do
-          Mix.raise("Checksum mismatch in tarball against registry")
-        end
-
-      :ok ->
-        Mix.raise("Unpacking tarball failed: tarball empty")
-
-      {:error, reason} ->
-        error_message = reason |> :hex_erl_tar.format_error() |> List.to_string()
-        Mix.raise("Unpacking tarball failed: " <> error_message)
     end
   end
 end

@@ -62,17 +62,4 @@ defmodule Mix.Tasks.Hex.FetchTest do
       assert File.exists?(Path.join(parent_directory, "ex_doc-0.1.0.tar"))
     end)
   end
-
-  test "invalid tarball" do
-    in_tmp(fn ->
-      tarball = "ex_doc-0.1.0.tar"
-
-      File.touch!(tarball)
-      message = "Unpacking tarball failed: Unexpected end of file"
-
-      assert_raise(Mix.Error, message, fn ->
-        Mix.Tasks.Hex.Fetch.run(["ex_doc"])
-      end)
-    end)
-  end
 end
