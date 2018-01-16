@@ -40,6 +40,6 @@ defmodule Hex.Shell do
       end
     end
   else
-    defp validate_output!(output), do: :ok
+    defp validate_output!(_output), do: :ok
   end
 end
