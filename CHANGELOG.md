@@ -2,6 +2,42 @@
 
 ## v0.17.2-dev
 
+### Enhancements
+
+* Increase `hex.publish` timeouts and make it configurable with `:http_timeout` config and
+  `HEX_HTTP_TIMEOUT` variable
+* Test key before adding it with `hex.organization auth NAME --key KEY`
+* Remove pre-release publish restriction for private packages
+* Add package descriptions to `hex.search` task
+* Improve error message when there are no versions matching requirement
+* Add latest stable version to `hex.search` task
+* Add `metadata.config` file to checked out dependency directory
+* Warn if we detect a lock entry from a newer Hex version
+* Add `hex.build --output` and `hex.build --unpack` tasks
+* Preserve symlinks and empty directories in tar
+* Simplify Hex output on deps.get
+* General improvements to tarball creation and unpacking
+* List umbrella children's top level dependencies in `hex.outdated`
+* Include `.formatter.exs` file in default package builds
+* Prompt user when authentication is required
+* Automatically auth all organizations when authing user with `hex.user auth`
+* Highlight if a package release has been retired in `hex.info`
+* Display package website links in `mix hex.owner packages`
+
+### Bug fixes
+
+* Do not crash if failing to write tarball
+* Disable HTTP pipelining to avoid bugs in HTTP client
+* Also purge registry etags when repository source changed
+* Retry HTTP requests on `:socket_closed_remotely` errors
+* Fix package tarballs being reproducible
+* Authenticate HTTP requests for `hex.search`
+* Populate managers when initially getting dependencies
+* Check dependencies on `hex.audit` and `hex.publish`
+* Fix fetching of private packages that overrides public packages
+* Fix HTTP redirect handling
+* Don't display internal configs in `hex.config`
+
 ## v0.17.1 (2017-08-29)
 
 ### Enhancements
