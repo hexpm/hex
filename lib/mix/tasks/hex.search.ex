@@ -79,6 +79,7 @@ defmodule Mix.Tasks.Hex.Search do
     parsed_version.pre == []
   end
 
+  defp trim_heredoc(nil), do: ""
   defp trim_heredoc(string) do
     string |> String.split("\n", trim: true) |> Enum.map_join(" ", &(&1 |> Hex.string_trim()))
   end
