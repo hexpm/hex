@@ -1,4 +1,4 @@
-defmodule HexDemoTest do
+defmodule HexTest do
   use HexTest.Case
   @moduletag :integration
 
