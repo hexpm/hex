@@ -56,15 +56,16 @@ defmodule Mix.Tasks.Hex.Fetch do
       end
 
     target = Path.join(parent_directory, "#{name}-#{version}.tar")
-    organization = opts[:organization]
+    opts = opts |> Hex.organization_to_repo() |> Keyword.put_new(:repo, "hexpm")
+    repo = opts[:repo]
 
     if File.exists?(target) do
       Hex.Shell.info("Package already fetched: #{target}")
     else
-      request_package_from_mirror(target, name, version, organization)
+      request_package_from_mirror(target, name, version, repo)
 
       if opts[:unpack] do
-        Hex.unpack_and_verify_tar!(target, parent_directory, organization, name, version)
+        Hex.unpack_and_verify_tar!(target, parent_directory, repo, name, version)
         File.rm_rf!(target)
       end
 
@@ -72,8 +73,8 @@ defmodule Mix.Tasks.Hex.Fetch do
     end
   end
 
-  defp request_package_from_mirror(target, package, version, organization) do
-    case Hex.Repo.get_tarball(organization, package, version, nil) do
+  defp request_package_from_mirror(target, package, version, repo) do
+    case Hex.Repo.get_tarball(repo, package, version, nil) do
       {:ok, {200, body, _}} ->
         target |> Path.dirname() |> File.mkdir_p!()
         File.write!(target, body)

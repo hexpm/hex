@@ -30,22 +30,11 @@ defmodule Hex.SCM do
 
   def accepts_options(name, opts) do
     opts
-    |> organization_to_repo()
+    |> Hex.organization_to_repo()
     |> Keyword.put_new(:hex, name)
     |> Keyword.put_new(:repo, "hexpm")
     |> Keyword.update!(:hex, &to_string/1)
     |> Keyword.update!(:repo, &to_string/1)
-  end
-
-  defp organization_to_repo(opts) do
-    case Keyword.fetch(opts, :organization) do
-      {:ok, org} ->
-        opts
-        |> Keyword.delete(:organization)
-        |> Keyword.put(:repo, "hexpm:#{org}")
-      :error ->
-        opts
-    end
   end
 
   def checked_out?(opts) do

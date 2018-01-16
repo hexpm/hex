@@ -132,4 +132,15 @@ defmodule Hex do
 
     {meta, tar_checksum}
   end
+
+  def organization_to_repo(opts) do
+    case Keyword.fetch(opts, :organization) do
+      {:ok, org} ->
+        opts
+        |> Keyword.delete(:organization)
+        |> Keyword.put(:repo, "hexpm:#{org}")
+      :error ->
+        opts
+    end
+  end
 end
