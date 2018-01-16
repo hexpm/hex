@@ -35,8 +35,8 @@ script:
 - mix test
 env:
   global:
-  - HEXPM_OTP=20.1
-  - HEXPM_ELIXIR=v1.5.2
+  - HEXPM_OTP=20.2
+  - HEXPM_ELIXIR=master
   - HEXPM_PATH=hexpm
   - HEXPM_ELIXIR_PATH=hexpm_elixir
   - HEXPM_OTP_PATH=hexpm_otp
@@ -44,36 +44,18 @@ env:
   - HEXPM_MIX_ARCHIVES=hexpm_mix
 matrix:
   include:
-  - otp_release: 20.0
-    env: ELIXIR=master
-  - otp_release: 20.0
-    env: ELIXIR=v1.5.1
-  - otp_release: 20.0
+  - otp_release: 20.2
+    env: ELIXIR=v1.5.3
+  - otp_release: 20.2
     env: ELIXIR=v1.4.5
-  # - otp_release: 19.3
-  #   env: ELIXIR=master
-  # - otp_release: 19.3
-  #   env: ELIXIR=v1.5.1
-  # - otp_release: 19.3
-  #   env: ELIXIR=v1.4.5
   - otp_release: 19.3
     env: ELIXIR=v1.3.4
   - otp_release: 19.3
     env: ELIXIR=v1.2.6
-  # - otp_release: 18.3
-  #   env: ELIXIR=v1.3.4
-  # - otp_release: 18.3
-  #   env: ELIXIR=v1.2.6
   - otp_release: 18.3
     env: ELIXIR=v1.1.1
-  # - otp_release: 18.3
-  #   env: ELIXIR=v1.0.5
-  # - otp_release: 17.5
-  #   env: ELIXIR=v1.1.1
   - otp_release: 17.5
     env: ELIXIR=v1.0.5
 notifications:
   recipients:
   - eric.meadows.jonsson@gmail.com
-  slack:
-    secure: T5QN9luR7rMH4v88yD944QW3C3Itgd3Bh89oJbxNDweC2dyTqOuvJOgzfcFwBtnaT5j/kHOobd4QL7VHFZ+0UawOxxuy8fl7+A9mn02xVOIpn3Ky0qbpW//oApwKVz2x3X3OhuJASYDNj/w074WrjycIuk2iYkjCpIAnY2dSjo0=
