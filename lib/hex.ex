@@ -123,4 +123,13 @@ defmodule Hex do
       {:error, reason} -> Mix.raise Hex.Tar.format_error(reason)
     end
   end
+
+  def unpack_and_verify_tar!(path, dest, repo, name, version) do
+    registry_checksum = Hex.Registry.Server.checksum(repo, to_string(name), version)
+    {meta, tar_checksum} = Hex.unpack_tar!(path, dest)
+
+    if tar_checksum != registry_checksum, do: Mix.raise("Checksum mismatch against registry")
+
+    {meta, tar_checksum}
+  end
 end

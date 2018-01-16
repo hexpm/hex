@@ -64,7 +64,7 @@ defmodule Mix.Tasks.Hex.Fetch do
       request_package_from_mirror(target, name, version, organization)
 
       if opts[:unpack] do
-        Hex.unpack_tar!(target, parent_directory)
+        Hex.unpack_and_verify_tar!(target, parent_directory, organization, name, version)
         File.rm_rf!(target)
       end
 
