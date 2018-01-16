@@ -48,36 +48,36 @@ defmodule Mix.Tasks.Hex.Fetch do
   end
 
   defp fetch_package([name, version], opts) do
-    parent_directory =
+    dest =
       if opts[:output] do
         Path.expand(opts[:output])
       else
         File.cwd!()
       end
 
-    target = Path.join(parent_directory, "#{name}-#{version}.tar")
+    tar_file = Path.join(dest, "#{name}-#{version}.tar")
     opts = opts |> Hex.organization_to_repo() |> Keyword.put_new(:repo, "hexpm")
     repo = opts[:repo]
 
-    if File.exists?(target) do
-      Hex.Shell.info("Package already fetched: #{target}")
+    if File.exists?(tar_file) do
+      Hex.Shell.info("Package already fetched: #{tar_file}")
     else
-      request_package_from_mirror(target, name, version, repo)
+      request_package_from_mirror(tar_file, name, version, repo)
 
       if opts[:unpack] do
-        Hex.unpack_and_verify_tar!(target, parent_directory, repo, name, version)
-        File.rm_rf!(target)
+        Hex.unpack_and_verify_tar!(tar_file, dest, repo, name, version)
+        File.rm_rf!(tar_file)
       end
 
-      Hex.Shell.info("Package fetched at: #{parent_directory}")
+      Hex.Shell.info("Package fetched at: #{dest}")
     end
   end
 
-  defp request_package_from_mirror(target, package, version, repo) do
+  defp request_package_from_mirror(tar_file, package, version, repo) do
     case Hex.Repo.get_tarball(repo, package, version, nil) do
       {:ok, {200, body, _}} ->
-        target |> Path.dirname() |> File.mkdir_p!()
-        File.write!(target, body)
+        tar_file |> Path.dirname() |> File.mkdir_p!()
+        File.write!(tar_file, body)
 
       _ ->
         Mix.raise("No package with name #{package} or version #{version}")
