@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Hex.Download do
+defmodule Mix.Tasks.Hex.Fetch do
   use Mix.Task
 
   @shortdoc "Fetches a Hex package"
@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Hex.Download do
   @moduledoc """
   Fetches a Hex package.
 
-      mix hex.download PACKAGE [VERSION]
+      mix hex.fetch PACKAGE [VERSION]
 
   Fetches and optionally unpacks the Hex package. The latest stable version of
   the package will be fetched unless a specific version is given.
@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Hex.Download do
         Mix.raise("""
         Invalid arguments, expected:
 
-        mix hex.download PACKAGE [VERSION] [--output PATH] [--unpack]
+        mix hex.fetch PACKAGE [VERSION] [--output PATH] [--unpack]
         """)
     end
   end
