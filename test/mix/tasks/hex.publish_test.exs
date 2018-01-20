@@ -245,6 +245,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert_received {:mix_shell, :info, ["  Files:"]}
       assert_received {:mix_shell, :info, ["    myfile.txt"]}
       assert_received {:mix_shell, :info, ["  Extra: \n    c: d"]}
+      assert_received {:mix_shell, :info, ["Publishing package to \e[1mpublic\e[0m repository hexpm."]}
       refute_received {:mix_shell, :error, ["Missing metadata fields" <> _]}
     end
   after
@@ -262,6 +263,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
+      assert_received {:mix_shell, :info, ["Publishing package to \e[1mprivate\e[0m repository myorg."]}
       assert_received {:mix_shell, :info, ["Package published to myrepo html_url" <> _]}
     end
   after
@@ -294,6 +296,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send self(), {:mix_shell_input, :yes?, true}
       send self(), {:mix_shell_input, :prompt, "hunter42"}
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--organization", "myorg2"])
+      assert_received {:mix_shell, :info, ["Publishing package to \e[1mprivate\e[0m repository myorg2."]}
       assert_received {:mix_shell, :info, ["Package published to myrepo html_url" <> _]}
     end
   after
