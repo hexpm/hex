@@ -118,7 +118,7 @@ defmodule Mix.Tasks.Hex.Publish do
         revert(build, organization, revert_version)
 
       ["package"] ->
-        if proceed?(build, opts) do
+        if proceed?(build, organization, opts) do
           auth = Mix.Tasks.Hex.auth_info()
           create_release(build, organization, auth, opts)
         end
@@ -143,7 +143,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp create(build, organization, opts) do
-    if proceed?(build, opts) do
+    if proceed?(build, organization, opts) do
       Hex.Shell.info("Building docs...")
       docs_task(build, opts)
       auth = Mix.Tasks.Hex.auth_info()
@@ -189,10 +189,9 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp proceed?(build, opts) do
+  defp proceed?(build, organization, opts) do
     confirm? = Keyword.get(opts, :confirm, true)
     meta = build.meta
-    organization = build.organization
     exclude_deps = build.exclude_deps
     package = build.package
 
@@ -204,11 +203,11 @@ defmodule Mix.Tasks.Hex.Publish do
     cond do
       not confirm? ->
         true
-      build.organization in [nil, "hexpm"] ->
+      organization in [nil, "hexpm"] ->
         Hex.Shell.info(["Publishing package to ", emphasis("public"), " repository hexpm."])
         Hex.Shell.yes?("Proceed?")
       true ->
-        Hex.Shell.info(["Publishing package to ", emphasis("private"), " repository #{build.organization}."])
+        Hex.Shell.info(["Publishing package to ", emphasis("private"), " repository #{organization}."])
         Hex.Shell.yes?("Proceed?")
     end
   end
