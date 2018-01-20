@@ -43,7 +43,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp fn ->
       Hex.State.put(:home, System.cwd!)
 
-      assert_raise Mix.Error, "Failed to authenticate against repository with given key", fn ->
+      assert_raise Mix.Error, "Failed to authenticate against organization repository with given key", fn ->
         Mix.Tasks.Hex.Organization.run(["auth", "myorg", "--key", "mykey"])
       end
     end
