@@ -33,7 +33,7 @@ defmodule Mix.Tasks.Hex.Organization do
 
       mix hex.organization deauth NAME
 
-  ## Generate a repository autentication key
+  ## Generate a repository authentication key
 
   This command is useful to pre-generate keys for use with `mix hex.organization auth ORGANIZATION --key KEY`
   on CI servers or similar systems. It returns the hash of the generated key that you can pass to
