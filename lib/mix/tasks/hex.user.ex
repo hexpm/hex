@@ -219,7 +219,7 @@ defmodule Mix.Tasks.Hex.User do
       {:ok, {code, %{"name" => _, "authing_key" => true}, _headers}} when code in 200..299 ->
         Mix.Tasks.Hex.User.run(["deauth"])
       other ->
-        Hex.Shell.error "Key revokal failed"
+        Hex.Shell.error "Key revocation failed"
         Hex.Utils.print_error_result(other)
     end
   end
@@ -235,7 +235,7 @@ defmodule Mix.Tasks.Hex.User do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
       other ->
-        Hex.Shell.error "Key revokal failed"
+        Hex.Shell.error "Key revocation failed"
         Hex.Utils.print_error_result(other)
     end
   end
