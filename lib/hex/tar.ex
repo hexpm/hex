@@ -154,23 +154,25 @@ defmodule Hex.Tar do
   defp file_op(:read2, {fd, size}), do: :file.read(fd, size)
   defp file_op(:close, _fd), do: :ok
 
+  @tar_opts [atime: 0, mtime: 0, ctime: 0, uid: 0, gid: 0]
+
   defp add_files(tar, files) do
     Enum.each(files, fn
       {name, contents, mode} ->
-        :ok = :hex_erl_tar.add(tar, contents, string_to_charlist(name), mode, [])
+        :ok = :hex_erl_tar.add(tar, contents, string_to_charlist(name), mode, @tar_opts)
 
       {name, contents} ->
-        :ok = :hex_erl_tar.add(tar, contents, string_to_charlist(name), [])
+        :ok = :hex_erl_tar.add(tar, contents, string_to_charlist(name), @tar_opts)
 
       name ->
         case file_lstat(name) do
           {:ok, %File.Stat{type: type}} when type in [:directory, :symlink] ->
-            :ok = :hex_erl_tar.add(tar, string_to_charlist(name), [])
+            :ok = :hex_erl_tar.add(tar, string_to_charlist(name), @tar_opts)
 
           _stat ->
             contents = File.read!(name)
             mode = File.stat!(name).mode
-            :ok = :hex_erl_tar.add(tar, contents, string_to_charlist(name), mode, [])
+            :ok = :hex_erl_tar.add(tar, contents, string_to_charlist(name), mode, @tar_opts)
         end
     end)
   end
