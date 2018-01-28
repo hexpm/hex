@@ -154,7 +154,11 @@ defmodule Hex.Tar do
   defp file_op(:read2, {fd, size}), do: :file.read(fd, size)
   defp file_op(:close, _fd), do: :ok
 
-  @tar_opts [atime: 0, mtime: 0, ctime: 0, uid: 0, gid: 0]
+  unix_epoch = :calendar.datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}})
+  y2k = :calendar.datetime_to_gregorian_seconds({{2000, 1, 1}, {0, 0, 0}})
+  epoch = y2k - unix_epoch
+
+  @tar_opts [atime: epoch, mtime: epoch, ctime: epoch, uid: 0, gid: 0]
 
   defp add_files(tar, files) do
     Enum.each(files, fn
@@ -260,7 +264,7 @@ defmodule Hex.Tar do
         if expected_checksum == actual_checksum do
           %{state | checksum: expected_checksum}
         else
-          {:error, {:checksum_mismatch, expected_checksum, actual_checksum}}
+          {:error, {:checksum_mismatch, expected_checksum, Base.encode16(actual_checksum)}}
         end
 
       :error ->
