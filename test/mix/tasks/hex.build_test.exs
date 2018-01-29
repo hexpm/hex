@@ -238,7 +238,8 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
       message =
         "\e[33mMix configuration :organization also belongs under the :package key, " <>
-        "did you misplace it?\e[0m"
+          "did you misplace it?\e[0m"
+
       assert_received {:mix_shell, :info, [^message]}
     end)
   after

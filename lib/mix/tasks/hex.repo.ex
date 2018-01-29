@@ -209,7 +209,7 @@ defmodule Mix.Tasks.Hex.Repo do
         Mix.raise("Config does not contain repo #{name}")
 
       _ ->
-        header =["URL", "Public key", "Auth key"]
+        header = ["URL", "Public key", "Auth key"]
         rows = [[repo.url, show_public_key(repo.public_key), repo.auth_key]]
         Mix.Tasks.Hex.print_table(header, rows)
     end

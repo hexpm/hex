@@ -49,7 +49,7 @@ defmodule Hex.State do
       offline?: load_config(config, ["HEX_OFFLINE"], [:offline]) |> to_boolean() |> default(false),
       pbkdf2_iters: @pbkdf2_iters,
       repos: Hex.Config.read_repos(config),
-      ssl_version: ssl_version(),
+      ssl_version: ssl_version()
     }
   end
 

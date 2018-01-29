@@ -37,7 +37,7 @@ defmodule ReleaseDeps.MixProject do
       version: "0.0.2",
       deps: [
         {:ex_doc, "0.0.1"}
-        ],
+      ],
       package: [
         licenses: ["MIT"]
       ]
@@ -98,7 +98,8 @@ end
 defmodule ReleaseNoDescription.MixProject do
   def project do
     [
-      app: :release_e, version: "0.0.1"
+      app: :release_e,
+      version: "0.0.1"
     ]
   end
 end
@@ -106,7 +107,9 @@ end
 defmodule ReleaseTooLongDescription.MixProject do
   def project do
     [
-      app: :release_f, description: String.duplicate("w", 301), version: "0.0.1"
+      app: :release_f,
+      description: String.duplicate("w", 301),
+      version: "0.0.1"
     ]
   end
 end
@@ -119,7 +122,7 @@ defmodule ReleasePreDeps.MixProject do
       version: "0.0.1",
       deps: [
         {:ex_doc, "~> 0.0.1-pre"}
-        ],
+      ],
       package: [
         files: ["myfile.txt"],
         licenses: ["MIT"],
