@@ -46,6 +46,8 @@ env:
 matrix:
   include:
   - otp_release: 20.2
+    env: ELIXIR=v1.6.1
+  - otp_release: 20.2
     env: ELIXIR=v1.5.3
   - otp_release: 20.2
     env: ELIXIR=v1.4.5
