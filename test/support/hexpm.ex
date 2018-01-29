@@ -14,6 +14,7 @@ defmodule HexTest.Hexpm do
         fn
           term, {:cont, x} ->
             collectable_fun.(term, {:cont, fun.(x)})
+
           term, command ->
             collectable_fun.(term, command)
         end
@@ -72,23 +73,26 @@ defmodule HexTest.Hexpm do
     ]
 
     spawn_link(fn ->
-      port = Port.open({:spawn_executable, hexpm_mix()}, [
-                       :exit_status,
-                       :use_stdio,
-                       :stderr_to_stdout,
-                       :binary,
-                       :hide,
-                       env: env,
-                       cd: hexpm_dir(),
-                       args: ["phx.server"]])
+      port =
+        Port.open({:spawn_executable, hexpm_mix()}, [
+          :exit_status,
+          :use_stdio,
+          :stderr_to_stdout,
+          :binary,
+          :hide,
+          env: env,
+          cd: hexpm_dir(),
+          args: ["phx.server"]
+        ])
 
       fun = fn fun ->
         receive do
           {^port, {:data, data}} ->
-            IO.ANSI.format([:blue, data]) |> IO.write
+            IO.ANSI.format([:blue, data]) |> IO.write()
             fun.(fun)
+
           {^port, {:exit_status, status}} ->
-            IO.puts "Hexpm quit with status #{status}"
+            IO.puts("Hexpm quit with status #{status}")
             System.halt(status)
         end
       end
@@ -103,8 +107,11 @@ defmodule HexTest.Hexpm do
     dir = hexpm_dir()
 
     unless File.exists?(dir) do
-      IO.puts "Unable to find #{dir}, make sure to clone the hexpm repository " <>
-              "into it to run integration tests or set HEXPM_PATH to its location"
+      IO.puts(
+        "Unable to find #{dir}, make sure to clone the hexpm repository " <>
+          "into it to run integration tests or set HEXPM_PATH to its location"
+      )
+
       System.halt(1)
     end
   end
@@ -125,7 +132,7 @@ defmodule HexTest.Hexpm do
   defp hexpm_elixir do
     if path = System.get_env("HEXPM_ELIXIR_PATH") do
       path
-      |> Path.expand
+      |> Path.expand()
       |> Path.join("bin")
     end
   end
@@ -133,24 +140,24 @@ defmodule HexTest.Hexpm do
   defp hexpm_otp do
     if path = System.get_env("HEXPM_OTP_PATH") do
       path
-      |> Path.expand
+      |> Path.expand()
       |> Path.join("bin")
     end
   end
 
   defp hexpm_mix_home do
-    (System.get_env("HEXPM_MIX_HOME") || Mix.Utils.mix_home)
-    |> Path.expand
+    (System.get_env("HEXPM_MIX_HOME") || Mix.Utils.mix_home())
+    |> Path.expand()
   end
 
   defp hexpm_mix_archives do
     archives_path =
       if function_exported?(Mix.Local, :path_for, 1),
         do: Mix.Local.path_for(:archive),
-      else: Mix.Local.archives_path
+        else: Mix.Local.archives_path()
 
     (System.get_env("HEXPM_MIX_ARCHIVES") || archives_path)
-    |> Path.expand
+    |> Path.expand()
   end
 
   defp cmd(command, args) do
@@ -158,14 +165,10 @@ defmodule HexTest.Hexpm do
       {"MIX_ENV", "hex"},
       {"PATH", path()},
       {"MIX_HOME", hexpm_mix_home()},
-      {"MIX_ARCHIVES", hexpm_mix_archives()},
+      {"MIX_ARCHIVES", hexpm_mix_archives()}
     ]
 
-    opts = [
-        stderr_to_stdout: true,
-        into: stream_hexpm(),
-        env: env,
-        cd: hexpm_dir()]
+    opts = [stderr_to_stdout: true, into: stream_hexpm(), env: env, cd: hexpm_dir()]
 
     0 = System.cmd(command, args, opts) |> elem(1)
   end
@@ -179,6 +182,7 @@ defmodule HexTest.Hexpm do
     case :httpc.request(:get, {'http://localhost:4043', []}, [], []) do
       {:ok, _} ->
         :ok
+
       {:error, _} ->
         :timer.sleep(10)
         wait_on_start()
@@ -191,7 +195,7 @@ defmodule HexTest.Hexpm do
 
   def new_user(username, email, password, key) do
     {:ok, {201, _, _}} = Hex.API.User.new(username, email, password)
-    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new(key, [user: username, pass: password])
+    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new(key, user: username, pass: password)
     [key: secret, "$encrypted_key": Mix.Tasks.Hex.encrypt_key(password, secret)]
   end
 
@@ -201,7 +205,7 @@ defmodule HexTest.Hexpm do
   end
 
   def new_key(username, password, key) do
-    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new(key, [user: username, pass: password])
+    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new(key, user: username, pass: password)
     [key: secret, "$encrypted_key": Mix.Tasks.Hex.encrypt_key(password, secret)]
   end
 
@@ -212,14 +216,16 @@ defmodule HexTest.Hexpm do
         _ -> true
       end)
 
-    reqs = Enum.into(reqs, %{}, fn
-      {app, req} ->
-        {app, %{app: app, requirement: req, optional: false}}
-      {app, req, opts} ->
-        opts = Enum.into(opts, %{})
-        default_opts = %{app: app, requirement: req, optional: false}
-        {opts[:hex] || app, Map.merge(default_opts, opts)}
-    end)
+    reqs =
+      Enum.into(reqs, %{}, fn
+        {app, req} ->
+          {app, %{app: app, requirement: req, optional: false}}
+
+        {app, req, opts} ->
+          opts = Enum.into(opts, %{})
+          default_opts = %{app: app, requirement: req, optional: false}
+          {opts[:hex] || app, Map.merge(default_opts, opts)}
+      end)
 
     meta =
       meta

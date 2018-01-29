@@ -201,6 +201,7 @@ defmodule Hex.Tar do
   def unpack({:binary, tar}, _dest) when byte_size(tar) > @tar_max_size do
     {:error, {:tarball, :too_big}}
   end
+
   def unpack(tar, dest) do
     case :hex_erl_tar.extract(tar, [:memory]) do
       {:ok, files} when files != [] ->
@@ -308,10 +309,10 @@ defmodule Hex.Tar do
   end
 
   @build_tools [
-    {"mix.exs"     , "mix"},
+    {"mix.exs", "mix"},
     {"rebar.config", "rebar"},
-    {"rebar"       , "rebar"},
-    {"Makefile"    , "make"},
+    {"rebar", "rebar"},
+    {"Makefile", "make"},
     {"Makefile.win", "make"}
   ]
 
@@ -328,7 +329,7 @@ defmodule Hex.Tar do
     build_tools =
       Enum.flat_map(@build_tools, fn {file, tool} ->
         if file in base_files,
-            do: [tool],
+          do: [tool],
           else: []
       end)
       |> Enum.uniq()
@@ -434,22 +435,26 @@ defmodule Hex.Tar do
   @inner_error "Unpacking inner tarball failed: "
   @metadata_error "Error reading package metadata: "
 
-  def format_error({:tarball, :empty}), do: @tarball_error <> "Empty tarball"
-  def format_error({:tarball, :too_big}), do: @tarball_error <> "Tarball is too big"
-  def format_error({:tarball, {:missing_files, files}}), do: @tarball_error <> "Missing files: #{inspect files}"
-  def format_error({:tarball, {:invalid_files, files}}), do: @tarball_error <> "Invalid files: #{inspect files}"
-  def format_error({:tarball, reason}), do: @tarball_error <> format_tarball_error(reason)
-  def format_error({:inner_tarball, reason}), do: @inner_error <> format_tarball_error(reason)
-  def format_error({:metadata, :invalid_terms}), do: @metadata_error <> "Invalid terms"
-  def format_error({:metadata, :not_key_value}), do: @metadata_error <> "Not in key-value format"
-  def format_error({:metadata, reason}), do: @metadata_error <> format_metadata_error(reason)
-  def format_error(:invalid_checksum), do: "Invalid tarball checksum"
+  def format_error({:tarball, {:missing_files, files}}),
+    do: @tarball_error <> "Missing files: #{inspect(files)}"
+
+  def format_error({:tarball, {:invalid_files, files}}),
+    do: @tarball_error <> "Invalid files: #{inspect(files)}"
 
   def format_error({:checksum_mismatch, expected_checksum, actual_checksum}) do
     "Tarball checksum mismatch\n\n" <>
       "Expected (base16-encoded): #{Base.encode16(expected_checksum)}\n" <>
       "Actual   (base16-encoded): #{Base.encode16(actual_checksum)}"
   end
+
+  def format_error({:tarball, :empty}), do: @tarball_error <> "Empty tarball"
+  def format_error({:tarball, :too_big}), do: @tarball_error <> "Tarball is too big"
+  def format_error({:tarball, reason}), do: @tarball_error <> format_tarball_error(reason)
+  def format_error({:inner_tarball, reason}), do: @inner_error <> format_tarball_error(reason)
+  def format_error({:metadata, :invalid_terms}), do: @metadata_error <> "Invalid terms"
+  def format_error({:metadata, :not_key_value}), do: @metadata_error <> "Not in key-value format"
+  def format_error({:metadata, reason}), do: @metadata_error <> format_metadata_error(reason)
+  def format_error(:invalid_checksum), do: "Invalid tarball checksum"
 
   defp format_tarball_error(reason) do
     reason |> :hex_erl_tar.format_error() |> List.to_string()

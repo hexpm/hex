@@ -23,9 +23,11 @@ defmodule Hex.API do
 
   def tar_post_request(repo, path, body, opts \\ []) do
     progress = Keyword.fetch!(opts, :progress)
+
     headers =
       %{'content-length' => Hex.to_charlist(byte_size(body))}
       |> Map.merge(headers(opts))
+
     opts = [timeout: Hex.State.fetch!(:http_timeout) || @tar_timeout]
 
     HTTP.request(:post, url(repo, path), headers, encode_tar(body, progress), opts)
@@ -50,9 +52,11 @@ defmodule Hex.API do
     cond do
       opts[:key] ->
         %{'authorization' => Hex.string_to_charlist(opts[:key])}
+
       opts[:user] && opts[:pass] ->
         base64 = :base64.encode_to_string(opts[:user] <> ":" <> opts[:pass])
         %{'authorization' => 'Basic ' ++ base64}
+
       true ->
         %{}
     end
@@ -69,6 +73,7 @@ defmodule Hex.API do
         chunk = new_size - size
         progress.(new_size)
         {:ok, :binary.part(body, size, chunk), new_size}
+
       _size ->
         :eof
     end
@@ -79,6 +84,7 @@ defmodule Hex.API do
   defp handle_response({:ok, {code, body, headers}}) do
     {:ok, {code, decode_body(body, headers), headers}}
   end
+
   defp handle_response({:error, term}) do
     {:error, term}
   end

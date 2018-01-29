@@ -1,9 +1,9 @@
 defmodule Hex.Registry do
-  @type repo :: String.t
-  @type package :: String.t
-  @type version :: String.t
-  @type requirement :: String.t
-  @type app :: String.t
+  @type repo :: String.t()
+  @type package :: String.t()
+  @type version :: String.t()
+  @type requirement :: String.t()
+  @type app :: String.t()
   @type optional :: boolean
 
   @callback prefetch([{repo, package}]) :: :ok

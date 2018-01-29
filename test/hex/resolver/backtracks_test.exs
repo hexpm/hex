@@ -10,14 +10,42 @@ defmodule Hex.Resolver.BacktracksTest do
   end
 
   test "merge versions" do
-    assert IO.iodata_to_binary(message({"foo", ["0.0.1", "0.1.0", "0.2.0"], "hexpm", []}, Registry)) ==
-           format([:underline, ~s'Failed to use "foo" (versions 0.0.1 to 0.2.0) because there are no packages that matches the requirement', :reset, "\n"])
+    expected =
+      format([
+        :underline,
+        ~s'Failed to use "foo" (versions 0.0.1 to 0.2.0) ',
+        "because there are no packages that matches the requirement",
+        :reset,
+        "\n"
+      ])
 
-    assert IO.iodata_to_binary(message({"foo", ["0.0.1", "0.1.0", "0.2.1"], "hexpm", []}, Registry)) ==
-           format([:underline, ~s'Failed to use "foo" (versions 0.0.1, 0.1.0, 0.2.1) because there are no packages that matches the requirement', :reset, "\n"])
+    actual = message({"foo", ["0.0.1", "0.1.0", "0.2.0"], "hexpm", []}, Registry)
+    assert expected == IO.iodata_to_binary(actual)
 
-    assert IO.iodata_to_binary(message({"foo", ["0.1.0", "0.2.1"], "hexpm", []}, Registry)) ==
-           format([:underline, ~s'Failed to use "foo" (versions 0.1.0 and 0.2.1) because there are no packages that matches the requirement', :reset, "\n"])
+    expected =
+      format([
+        :underline,
+        ~s'Failed to use "foo" (versions 0.0.1, 0.1.0, 0.2.1) ',
+        "because there are no packages that matches the requirement",
+        :reset,
+        "\n"
+      ])
+
+    actual = message({"foo", ["0.0.1", "0.1.0", "0.2.1"], "hexpm", []}, Registry)
+    assert expected == IO.iodata_to_binary(actual)
+
+    expected =
+      format([
+        :underline,
+        ~s'Failed to use "foo" (versions 0.1.0 and 0.2.1) ',
+        "because there are no packages that matches the requirement",
+        :reset,
+        "\n"
+      ])
+
+    assert actual = message({"foo", ["0.1.0", "0.2.1"], "hexpm", []}, Registry)
+
+    assert expected == IO.iodata_to_binary(actual)
   end
 
   defp format(message) do

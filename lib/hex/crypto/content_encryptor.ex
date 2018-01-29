@@ -3,42 +3,46 @@ defmodule Hex.Crypto.ContentEncryptor do
   alias __MODULE__
 
   @type t :: %ContentEncryptor{
-    module: module,
-    params: any
-  }
+          module: module,
+          params: any
+        }
 
-  defstruct [
-    module: nil,
-    params: nil
-  ]
+  defstruct module: nil,
+            params: nil
 
-  @callback init(protected :: map, opts :: Keyword.t) ::
-            {:ok, any} | {:error, String.t}
+  @callback init(protected :: map, opts :: Keyword.t()) :: {:ok, any} | {:error, String.t()}
 
-  @callback encrypt(params :: any, key :: binary, iv :: binary, {aad :: binary, plain_text :: binary}) ::
-            {binary, binary}
+  @callback encrypt(
+              params :: any,
+              key :: binary,
+              iv :: binary,
+              {aad :: binary, plain_text :: binary}
+            ) :: {binary, binary}
 
-  @callback decrypt(params :: any, key :: binary, iv :: binary, {aad :: binary, cipher_text :: binary, cipher_tag :: binary}) ::
-            {:ok, binary} | :error
+  @callback decrypt(
+              params :: any,
+              key :: binary,
+              iv :: binary,
+              {aad :: binary, cipher_text :: binary, cipher_tag :: binary}
+            ) :: {:ok, binary} | :error
 
-  @callback generate_key(params :: any) ::
-            binary
+  @callback generate_key(params :: any) :: binary
 
-  @callback generate_iv(params :: any) ::
-            binary
+  @callback generate_iv(params :: any) :: binary
 
-  @callback key_length(params :: any) ::
-            non_neg_integer
+  @callback key_length(params :: any) :: non_neg_integer
 
   def init(protected = %{enc: enc}, opts) do
     case content_encryptor_module(enc) do
       :error ->
-        {:error, "Unrecognized ContentEncryptor algorithm: #{inspect enc}"}
+        {:error, "Unrecognized ContentEncryptor algorithm: #{inspect(enc)}"}
+
       module ->
         case module.init(protected, opts) do
           {:ok, params} ->
             content_encryptor = %ContentEncryptor{module: module, params: params}
             {:ok, content_encryptor}
+
           content_encryptor_error ->
             content_encryptor_error
         end
@@ -49,7 +53,12 @@ defmodule Hex.Crypto.ContentEncryptor do
     module.encrypt(params, key, iv, {aad, plain_text})
   end
 
-  def decrypt(%ContentEncryptor{module: module, params: params}, key, iv, {aad, cipher_text, cipher_tag}) do
+  def decrypt(
+        %ContentEncryptor{module: module, params: params},
+        key,
+        iv,
+        {aad, cipher_text, cipher_tag}
+      ) do
     module.decrypt(params, key, iv, {aad, cipher_text, cipher_tag})
   end
 

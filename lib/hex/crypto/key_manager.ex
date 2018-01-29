@@ -4,23 +4,24 @@ defmodule Hex.Crypto.KeyManager do
   alias __MODULE__
 
   @type t :: %KeyManager{
-    module: module,
-    params: any
-  }
+          module: module,
+          params: any
+        }
 
-  defstruct [
-    module: nil,
-    params: nil
-  ]
+  defstruct module: nil,
+            params: nil
 
-  @callback init(protected :: map, opts :: Keyword.t) ::
-            {:ok, any} | {:error, String.t}
+  @callback init(protected :: map, opts :: Keyword.t()) :: {:ok, any} | {:error, String.t()}
 
-  @callback encrypt(params :: any, protected :: map, content_encryptor :: ContentEncryptor.t) ::
-            {:ok, map, binary, binary} | {:error, String.t}
+  @callback encrypt(params :: any, protected :: map, content_encryptor :: ContentEncryptor.t()) ::
+              {:ok, map, binary, binary} | {:error, String.t()}
 
-  @callback decrypt(params :: any, protected :: map, encrypted_key :: binary, content_encryptor :: ContentEncryptor.t) ::
-            {:ok, binary} | {:error, String.t}
+  @callback decrypt(
+              params :: any,
+              protected :: map,
+              encrypted_key :: binary,
+              content_encryptor :: ContentEncryptor.t()
+            ) :: {:ok, binary} | {:error, String.t()}
 
   def init(%{alg: alg} = protected, opts) do
     case key_manager_module(alg) do
@@ -29,6 +30,7 @@ defmodule Hex.Crypto.KeyManager do
           {:ok, params} ->
             key_manager = %KeyManager{module: module, params: params}
             fetch_content_encryptor(key_manager, protected, opts)
+
           key_manager_error ->
             key_manager_error
         end
@@ -44,6 +46,7 @@ defmodule Hex.Crypto.KeyManager do
         case module.encrypt(params, protected, content_encryptor) do
           {:ok, protected, key, encrypted_key} ->
             {:ok, protected, key, encrypted_key, content_encryptor}
+
           key_manager_error ->
             key_manager_error
         end
@@ -59,6 +62,7 @@ defmodule Hex.Crypto.KeyManager do
         case module.decrypt(params, protected, encrypted_key, content_encryptor) do
           {:ok, key} ->
             {:ok, key, content_encryptor}
+
           key_manager_error ->
             key_manager_error
         end
@@ -71,12 +75,13 @@ defmodule Hex.Crypto.KeyManager do
   defp key_manager_module("PBES2-HS256"), do: {:ok, Crypto.PBES2_HMAC_SHA2}
   defp key_manager_module("PBES2-HS384"), do: {:ok, Crypto.PBES2_HMAC_SHA2}
   defp key_manager_module("PBES2-HS512"), do: {:ok, Crypto.PBES2_HMAC_SHA2}
-  defp key_manager_module(alg), do: {:error, "Unrecognized KeyManager algorithm: #{inspect alg}"}
+  defp key_manager_module(alg), do: {:error, "Unrecognized KeyManager algorithm: #{inspect(alg)}"}
 
   defp fetch_content_encryptor(key_manager, protected, opts) do
     case ContentEncryptor.init(protected, opts) do
       {:ok, content_encryptor} ->
         {:ok, key_manager, content_encryptor}
+
       error ->
         error
     end

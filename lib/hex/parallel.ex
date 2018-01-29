@@ -10,12 +10,12 @@ defmodule Hex.Parallel do
     GenServer.start_link(__MODULE__, [], name: name)
   end
 
-  @spec run(GenServer.server, any, Keyword.t, (() -> any)) :: :ok
+  @spec run(GenServer.server(), any, Keyword.t(), (() -> any)) :: :ok
   def run(name, id, opts \\ [], fun) do
     GenServer.call(name, {:run, id, opts, fun})
   end
 
-  @spec await(GenServer.server, any, timeout) :: any
+  @spec await(GenServer.server(), any, timeout) :: any
   def await(name, id, timeout) do
     GenServer.call(name, {:await, id}, timeout)
   end
@@ -32,11 +32,12 @@ defmodule Hex.Parallel do
     await? = Keyword.get(opts, :await, true)
     state = run_task(id, fun, state)
 
-    state = if await? do
-      state
-    else
-      %{state | waiting_reply: Map.put(state.waiting_reply, id, {:send, pid})}
-    end
+    state =
+      if await? do
+        state
+      else
+        %{state | waiting_reply: Map.put(state.waiting_reply, id, {:send, pid})}
+      end
 
     {:reply, :ok, state}
   end
@@ -56,7 +57,7 @@ defmodule Hex.Parallel do
       Process.exit(pid, :stop)
     end)
 
-    state = %{state | running: %{}, finished: %{}, waiting: :queue.new, waiting_reply: %{}}
+    state = %{state | running: %{}, finished: %{}, waiting: :queue.new(), waiting_reply: %{}}
     {:reply, :ok, state}
   end
 
@@ -65,6 +66,7 @@ defmodule Hex.Parallel do
 
     if task = Enum.find(tasks, &(&1.ref == ref)) do
       id = state.running[task]
+
       state =
         %{state | running: Map.delete(state.running, task)}
         |> reply(id, message)
@@ -91,9 +93,11 @@ defmodule Hex.Parallel do
       {:gen, from} ->
         GenServer.reply(from, message)
         %{state | waiting_reply: Map.delete(state.waiting_reply, id)}
+
       {:send, pid} ->
         send(pid, message)
         %{state | waiting_reply: Map.delete(state.waiting_reply, id)}
+
       nil ->
         %{state | finished: Map.put(state.finished, id, message)}
     end
@@ -104,6 +108,7 @@ defmodule Hex.Parallel do
       {{:value, {id, fun}}, waiting} ->
         state = %{state | waiting: waiting}
         run_task(id, fun, state)
+
       {:empty, _} ->
         state
     end

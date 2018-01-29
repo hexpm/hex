@@ -6,14 +6,17 @@ defmodule Hex.Repo do
   def fetch_repo(repo) do
     repo = repo || "hexpm"
     repos = Hex.State.fetch!(:repos)
+
     case Map.fetch(repos, repo) do
       {:ok, config} ->
         mirror_url = Hex.State.fetch!(:mirror_url)
+
         if repo == "hexpm" and mirror_url do
           {:ok, Map.put(config, :url, mirror_url)}
         else
           {:ok, config}
         end
+
       :error ->
         :error
     end
@@ -23,19 +26,24 @@ defmodule Hex.Repo do
     case fetch_repo(repo) do
       {:ok, config} ->
         config
+
       :error ->
         unknown_repo_error(repo)
     end
   end
 
   defp unknown_repo_error("hexpm:" <> organization) do
-    Mix.raise "Unknown organization #{inspect organization}, add new organizations " <>
-              "with the `mix hex.organization auth` task"
+    Mix.raise(
+      "Unknown organization #{inspect(organization)}, add new organizations " <>
+        "with the `mix hex.organization auth` task"
+    )
   end
 
   defp unknown_repo_error(repo) do
-    Mix.raise "Unknown repository #{inspect repo}, add new repositories " <>
-              "with the `mix hex.repo add` task"
+    Mix.raise(
+      "Unknown repository #{inspect(repo)}, add new repositories " <>
+        "with the `mix hex.repo add` task"
+    )
   end
 
   def get_package(repo, package, etag) do
@@ -56,9 +64,11 @@ defmodule Hex.Repo do
   def verify(body, repo) do
     %{signature: signature, payload: payload} = :hex_pb_signed.decode_msg(body, :Signed)
     public_key = get_repo(repo).public_key
+
     if public_key && Hex.State.fetch!(:check_registry?) do
       do_verify(payload, signature, public_key, repo)
     end
+
     payload
   end
 
@@ -95,6 +105,7 @@ defmodule Hex.Repo do
 
   defp auth_headers(repo) do
     repo = get_repo(repo)
+
     if key = repo.auth_key do
       %{'authorization' => Hex.string_to_charlist(key)}
     else
@@ -109,7 +120,7 @@ defmodule Hex.Repo do
   end
 
   defp find_latest_eligible_version(entries) do
-    elixir_version = Hex.Version.parse!(System.version)
+    elixir_version = Hex.Version.parse!(System.version())
 
     entries
     |> Enum.reverse()
@@ -117,15 +128,16 @@ defmodule Hex.Repo do
   end
 
   defp find_version([hex_version, _digest | compatible_versions], elixir_version) do
-    if Enum.find(compatible_versions, &Hex.Version.compare(&1, elixir_version) != :gt) do
+    if Enum.find(compatible_versions, &(Hex.Version.compare(&1, elixir_version) != :gt)) do
       hex_version
     end
   end
 
   # Treat missing as latest
   defp is_version_newer(nil), do: :latest
+
   defp is_version_newer(hex_version) do
-    if Hex.Version.compare(hex_version, Hex.version) == :gt do
+    if Hex.Version.compare(hex_version, Hex.version()) == :gt do
       {:version, hex_version}
     else
       :latest
@@ -134,18 +146,22 @@ defmodule Hex.Repo do
 
   defp do_verify(payload, signature, public_key, repo) do
     unless public_key do
-      Mix.raise "No public key stored for #{repo}. Either install a public " <>
-                "key with `mix hex.public_keys` or disable the registry " <>
-                "verification check by setting `HEX_UNSAFE_REGISTRY=1`."
+      Mix.raise(
+        "No public key stored for #{repo}. Either install a public " <>
+          "key with `mix hex.public_keys` or disable the registry " <>
+          "verification check by setting `HEX_UNSAFE_REGISTRY=1`."
+      )
     end
 
     unless Hex.Crypto.PublicKey.verify(payload, :sha512, signature, [public_key], repo) do
-      Mix.raise "Could not verify authenticity of fetched registry file. " <>
-                "This may happen because a proxy or some entity is " <>
-                "interfering with the download or because you don't have a " <>
-                "public key to verify the registry.\n\nYou may try again " <>
-                "later or check if a new public key has been released on " <>
-                "our public keys page: #{@public_keys_html}"
+      Mix.raise(
+        "Could not verify authenticity of fetched registry file. " <>
+          "This may happen because a proxy or some entity is " <>
+          "interfering with the download or because you don't have a " <>
+          "public key to verify the registry.\n\nYou may try again " <>
+          "later or check if a new public key has been released on " <>
+          "our public keys page: #{@public_keys_html}"
+      )
     end
   end
 

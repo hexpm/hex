@@ -1,4 +1,4 @@
-{:ok, system_version} = Version.parse(System.version)
+{:ok, system_version} = Version.parse(System.version())
 elixir_version = {system_version.major, system_version.minor, system_version.patch}
 
 if elixir_version >= {1, 5, 0} do

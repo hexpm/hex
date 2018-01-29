@@ -33,6 +33,7 @@ before_script:
 script:
 - MIX_ENV=test mix compile
 - mix test
+- mix format --check-formatted
 env:
   global:
   - HEXPM_OTP=20.2

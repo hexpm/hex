@@ -18,7 +18,7 @@ defmodule Mix.Tasks.Hex.Audit do
     Hex.start()
 
     lock = Mix.Dep.Lock.read()
-    deps = Mix.Dep.loaded([]) |> Enum.filter(& &1.scm == Hex.SCM)
+    deps = Mix.Dep.loaded([]) |> Enum.filter(&(&1.scm == Hex.SCM))
 
     Registry.open()
 
@@ -28,11 +28,12 @@ defmodule Mix.Tasks.Hex.Audit do
 
     case retired_packages(deps, lock) do
       [] ->
-        Hex.Shell.info "No retired packages found"
+        Hex.Shell.info("No retired packages found")
+
       packages ->
         header = ["Dependency", "Version", "Retirement reason"]
         Mix.Tasks.Hex.print_table(header, packages)
-        Hex.Shell.error "Found retired packages"
+        Hex.Shell.error("Found retired packages")
         Mix.Tasks.Hex.set_exit_code(1)
     end
   end

@@ -19,10 +19,13 @@ defmodule Hex.SCM do
     case Hex.Utils.lock(opts[:lock]) do
       %{name: name, version: version, checksum: nil} ->
         "#{version} (#{name})"
+
       %{name: name, version: version, checksum: <<checksum::binary-8, _::binary>>, repo: "hexpm"} ->
         "#{version} (#{name}) #{checksum}"
+
       %{name: name, version: version, checksum: <<checksum::binary-8, _::binary>>, repo: repo} ->
         "#{version} (#{repo}/#{name}) #{checksum}"
+
       nil ->
         nil
     end
@@ -43,6 +46,7 @@ defmodule Hex.SCM do
         opts
         |> Keyword.delete(:organization)
         |> Keyword.put(:repo, "hexpm:#{org}")
+
       :error ->
         opts
     end
@@ -56,6 +60,7 @@ defmodule Hex.SCM do
     case Hex.Utils.lock(opts[:lock]) do
       %{name: name, version: version, checksum: checksum, repo: repo} ->
         lock_status(opts[:dest], name, version, checksum, repo)
+
       nil ->
         :mismatch
     end
@@ -85,6 +90,7 @@ defmodule Hex.SCM do
     case Hex.Utils.lock(opts[:lock]) do
       %{managers: managers} ->
         managers || []
+
       nil ->
         []
     end
@@ -104,33 +110,38 @@ defmodule Hex.SCM do
 
     case Hex.Parallel.await(:hex_fetcher, {:tarball, repo, name, lock.version}, @fetch_timeout) do
       {:ok, :cached} ->
-        Hex.Shell.debug "  Using locally cached package (#{path})"
+        Hex.Shell.debug("  Using locally cached package (#{path})")
 
       {:ok, :offline} ->
-        Hex.Shell.debug "  [OFFLINE] Using locally cached package (#{path})"
+        Hex.Shell.debug("  [OFFLINE] Using locally cached package (#{path})")
 
       {:ok, :new, etag} ->
         Registry.tarball_etag(repo, name, lock.version, etag)
-        if Version.compare(System.version, "1.4.0") == :lt do
+
+        if Version.compare(System.version(), "1.4.0") == :lt do
           Registry.persist()
         end
-        Hex.Shell.debug "  Fetched package (#{safe_url})"
+
+        Hex.Shell.debug("  Fetched package (#{safe_url})")
 
       {:error, reason} ->
         Hex.Shell.error(reason)
+
         unless File.exists?(path) do
-          Mix.raise "Package fetch failed and no cached copy available (#{safe_url})"
+          Mix.raise("Package fetch failed and no cached copy available (#{safe_url})")
         end
-        Hex.Shell.info "  Fetch failed. Using locally cached package (#{path})"
+
+        Hex.Shell.info("  Fetch failed. Using locally cached package (#{path})")
     end
 
     File.rm_rf!(dest)
     registry_checksum = Hex.Registry.Server.checksum(repo, to_string(name), lock.version)
     {meta, tar_checksum} = Hex.unpack_tar!(path, dest)
 
-    if tar_checksum != registry_checksum, do: raise "Checksum mismatch against registry"
+    if tar_checksum != registry_checksum, do: raise("Checksum mismatch against registry")
 
     build_tools = guess_build_tools(meta)
+
     managers =
       build_tools
       |> Enum.map(&String.to_atom/1)
@@ -141,7 +152,9 @@ defmodule Hex.SCM do
 
     deps =
       lock.deps
-      |> Enum.map(fn {dep, req, opts} -> {dep, req, Keyword.update!(opts, :hex, &String.to_atom/1)} end)
+      |> Enum.map(fn {dep, req, opts} ->
+        {dep, req, Keyword.update!(opts, :hex, &String.to_atom/1)}
+      end)
       |> Enum.sort()
 
     {:hex, String.to_atom(lock.name), lock.version, lock.checksum, managers, deps, lock.repo}
@@ -172,10 +185,10 @@ defmodule Hex.SCM do
   end
 
   @build_tools [
-    {"mix.exs"     , "mix"},
+    {"mix.exs", "mix"},
     {"rebar.config", "rebar"},
-    {"rebar"       , "rebar"},
-    {"Makefile"    , "make"},
+    {"rebar", "rebar"},
+    {"Makefile", "make"},
     {"Makefile.win", "make"}
   ]
 
@@ -191,7 +204,7 @@ defmodule Hex.SCM do
     base_files =
       (meta["files"] || [])
       |> Enum.filter(&(Path.dirname(&1) == "."))
-      |> Enum.into(Hex.Set.new)
+      |> Enum.into(Hex.Set.new())
 
     Enum.flat_map(@build_tools, fn {file, tool} ->
       if file in base_files do
@@ -204,11 +217,13 @@ defmodule Hex.SCM do
   end
 
   defp ensure_lock(nil, opts) do
-    Mix.raise "The lock is missing for package #{opts[:hex]}. This could be " <>
-              "because another package has configured the application name " <>
-              "for the dependency incorrectly. Verify with the maintainer " <>
-              "the parent application"
+    Mix.raise(
+      "The lock is missing for package #{opts[:hex]}. This could be " <>
+        "because another package has configured the application name " <>
+        "for the dependency incorrectly. Verify with the maintainer " <> "the parent application"
+    )
   end
+
   defp ensure_lock(lock, _opts), do: lock
 
   def parse_manifest(file) do
@@ -257,14 +272,15 @@ defmodule Hex.SCM do
   end
 
   defp fetch_from_lock(lock) do
-    deps_path = Mix.Project.deps_path
+    deps_path = Mix.Project.deps_path()
 
     Enum.flat_map(lock, fn {app, info} ->
       case Hex.Utils.lock(info) do
         %{name: name, version: version, repo: repo} ->
           dest = Path.join(deps_path, "#{app}")
-          case lock_status([dest: dest, lock: info]) do
-            :ok       -> []
+
+          case lock_status(dest: dest, lock: info) do
+            :ok -> []
             :mismatch -> [{repo, name, version}]
             :outdated -> [{repo, name, version}]
           end
@@ -294,7 +310,7 @@ defmodule Hex.SCM do
           {:error, "Request failed (#{code})"}
 
         {:error, reason} ->
-          {:error, "Request failed (#{inspect reason})"}
+          {:error, "Request failed (#{inspect(reason)})"}
       end
     end
   end
