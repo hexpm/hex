@@ -33,7 +33,6 @@ before_script:
 script:
 - MIX_ENV=test mix compile
 - mix test
-- if mix help | grep "mix format" > /dev/null; then mix format --check-formatted; else true; fi
 env:
   global:
   - HEXPM_OTP=20.2
