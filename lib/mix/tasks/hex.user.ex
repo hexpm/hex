@@ -71,25 +71,32 @@ defmodule Mix.Tasks.Hex.User do
     case args do
       ["register"] ->
         register()
+
       ["whoami"] ->
         whoami()
+
       ["auth"] ->
         auth(opts)
+
       ["deauth"] ->
         deauth(opts)
+
       ["key"] ->
         process_key_task(opts)
+
       ["reset_password", "account"] ->
         reset_account_password()
+
       ["reset_password", "local"] ->
         reset_local_password()
+
       _ ->
         invalid_args()
     end
   end
 
   defp invalid_args() do
-    Mix.raise """
+    Mix.raise("""
     Invalid arguments, expected one of:
 
     mix hex.user register
@@ -101,17 +108,20 @@ defmodule Mix.Tasks.Hex.User do
     mix hex.user key --list
     mix hex.user reset_password account
     mix hex.user reset_password local
-    """
+    """)
   end
 
   defp process_key_task(opts) do
     cond do
       opts[:revoke_all] ->
         revoke_all_keys()
+
       key = opts[:revoke] ->
         revoke_key(key)
+
       opts[:list] ->
         list_keys()
+
       true ->
         invalid_args()
     end
@@ -123,6 +133,7 @@ defmodule Mix.Tasks.Hex.User do
     case Hex.API.User.me(auth) do
       {:ok, {code, body, _}} when code in 200..299 ->
         Hex.Shell.info(body["username"])
+
       other ->
         Hex.Shell.error("Failed to auth")
         Hex.Utils.print_error_result(other)
@@ -134,9 +145,12 @@ defmodule Mix.Tasks.Hex.User do
 
     case Hex.API.User.password_reset(name) do
       {:ok, {code, _, _}} when code in 200..299 ->
-        Hex.Shell.info "We’ve sent you an email containing a link that will allow you to reset " <>
-          "your account password for the next 24 hours. Please check your spam folder if the " <>
-          "email doesn’t appear within a few minutes."
+        Hex.Shell.info(
+          "We’ve sent you an email containing a link that will allow you to reset " <>
+            "your account password for the next 24 hours. Please check your spam folder if the " <>
+            "email doesn’t appear within a few minutes."
+        )
+
       other ->
         Hex.Shell.error("Initiating password reset for #{name} failed")
         Hex.Utils.print_error_result(other)
@@ -147,7 +161,7 @@ defmodule Mix.Tasks.Hex.User do
     encrypted_key = Hex.State.fetch!(:api_key)
 
     unless encrypted_key do
-      Mix.raise "No authorized user found. Run `mix hex.user auth`"
+      Mix.raise("No authorized user found. Run `mix hex.user auth`")
     end
 
     decrypted_key = Mix.Tasks.Hex.prompt_decrypt_key(encrypted_key, "Current local password")
@@ -156,13 +170,16 @@ defmodule Mix.Tasks.Hex.User do
 
   defp deauth(opts) do
     Mix.Tasks.Hex.update_key(nil)
+
     unless opts[:skip_organizations] do
       deauth_organizations()
     end
 
-    Hex.Shell.info "Authentication credentials removed from the local machine. " <>
-                   "To authenticate again, run `mix hex.user auth` " <>
-                   "or create a new user with `mix hex.user register`"
+    Hex.Shell.info(
+      "Authentication credentials removed from the local machine. " <>
+        "To authenticate again, run `mix hex.user auth` " <>
+        "or create a new user with `mix hex.user register`"
+    )
   end
 
   defp deauth_organizations() do
@@ -178,8 +195,10 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp register() do
-    Hex.Shell.info("By registering an account on Hex.pm you accept all our " <>
-                   "policies and terms of service found at https://hex.pm/policies\n")
+    Hex.Shell.info(
+      "By registering an account on Hex.pm you accept all our " <>
+        "policies and terms of service found at https://hex.pm/policies\n"
+    )
 
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
     email = Hex.Shell.prompt("Email:") |> Hex.string_trim()
@@ -187,7 +206,7 @@ defmodule Mix.Tasks.Hex.User do
     confirm = Mix.Tasks.Hex.password_get("Account password (confirm):") |> Hex.string_trim()
 
     if password != confirm do
-      Mix.raise "Entered passwords do not match"
+      Mix.raise("Entered passwords do not match")
     end
 
     Hex.Shell.info("Registering...")
@@ -198,8 +217,11 @@ defmodule Mix.Tasks.Hex.User do
     case Hex.API.User.new(username, email, password) do
       {:ok, {code, _, _}} when code in 200..299 ->
         Mix.Tasks.Hex.generate_api_key(username, password)
-        Hex.Shell.info("You are required to confirm your email to access your account, " <>
-                       "a confirmation email has been sent to #{email}")
+
+        Hex.Shell.info(
+          "You are required to confirm your email to access your account, " <>
+            "a confirmation email has been sent to #{email}"
+        )
 
       other ->
         Hex.Shell.error("Registration of user #{username} failed")
@@ -214,12 +236,14 @@ defmodule Mix.Tasks.Hex.User do
   defp revoke_all_keys() do
     auth = Mix.Tasks.Hex.auth_info()
 
-    Hex.Shell.info "Revoking all keys..."
+    Hex.Shell.info("Revoking all keys...")
+
     case Hex.API.Key.delete_all(auth) do
       {:ok, {code, %{"name" => _, "authing_key" => true}, _headers}} when code in 200..299 ->
         Mix.Tasks.Hex.User.run(["deauth"])
+
       other ->
-        Hex.Shell.error "Key revocation failed"
+        Hex.Shell.error("Key revocation failed")
         Hex.Utils.print_error_result(other)
     end
   end
@@ -227,15 +251,18 @@ defmodule Mix.Tasks.Hex.User do
   defp revoke_key(key) do
     auth = Mix.Tasks.Hex.auth_info()
 
-    Hex.Shell.info "Revoking key #{key}..."
+    Hex.Shell.info("Revoking key #{key}...")
+
     case Hex.API.Key.delete(key, auth) do
       {:ok, {200, %{"name" => ^key, "authing_key" => true}, _headers}} ->
         Mix.Tasks.Hex.User.run(["deauth"])
         :ok
+
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
+
       other ->
-        Hex.Shell.error "Key revocation failed"
+        Hex.Shell.error("Key revocation failed")
         Hex.Utils.print_error_result(other)
     end
   end
@@ -246,12 +273,15 @@ defmodule Mix.Tasks.Hex.User do
 
     case Hex.API.Key.get(auth) do
       {:ok, {code, body, _headers}} when code in 200..299 ->
-        values = Enum.map(body, fn %{"name" => name, "inserted_at" => time} ->
-          [name, time]
-        end)
+        values =
+          Enum.map(body, fn %{"name" => name, "inserted_at" => time} ->
+            [name, time]
+          end)
+
         Mix.Tasks.Hex.print_table(["Name", "Created at"], values)
+
       other ->
-        Hex.Shell.error "Key fetching failed"
+        Hex.Shell.error("Key fetching failed")
         Hex.Utils.print_error_result(other)
     end
   end

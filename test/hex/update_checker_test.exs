@@ -3,7 +3,7 @@ defmodule Hex.UpdateCheckerTest do
   alias Hex.UpdateChecker
 
   defp bypass_csv(versions) do
-    bypass = Bypass.open
+    bypass = Bypass.open()
     repos = Hex.State.fetch!(:repos)
     repos = put_in(repos["hexpm"].url, "http://localhost:#{bypass.port}")
     Hex.State.put(:repos, repos)

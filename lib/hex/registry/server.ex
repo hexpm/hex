@@ -9,6 +9,7 @@ defmodule Hex.Registry.Server do
   defmacrop unwrap_mix_error(expr) do
     quote do
       trap_exit? = Process.flag(:trap_exit, true)
+
       try do
         unquote(expr)
       catch
@@ -44,6 +45,7 @@ defmodule Hex.Registry.Server do
     case GenServer.call(@name, {:prefetch, packages}, @timeout) do
       :ok ->
         :ok
+
       {:error, message} ->
         Mix.raise(message)
     end
@@ -114,32 +116,37 @@ defmodule Hex.Registry.Server do
     end
 
     path = opts[:registry_path] || path()
+
     ets =
       Hex.string_to_charlist(path)
       |> open_ets()
       |> check_version()
       |> set_version()
+
     state = %{state | ets: ets, path: path}
 
     {:reply, :ok, state}
   end
+
   def handle_call({:open, opts}, _from, state) do
     if Keyword.get(opts, :check_version, true) do
       Hex.UpdateChecker.start_check()
     end
+
     {:reply, :ok, state}
   end
 
   def handle_call(:close, from, %{ets: tid, path: path} = state) do
-    state = wait_closing(state, fn ->
-      if tid do
-        persist(tid, path)
-        :ets.delete(tid)
-      end
+    state =
+      wait_closing(state, fn ->
+        if tid do
+          persist(tid, path)
+          :ets.delete(tid)
+        end
 
-      GenServer.reply(from, :ok)
-      state()
-    end)
+        GenServer.reply(from, :ok)
+        state()
+      end)
 
     {:noreply, state}
   end
@@ -234,10 +241,12 @@ defmodule Hex.Registry.Server do
     case :ets.file2tab(path) do
       {:ok, tid} ->
         tid
+
       {:error, {:read_error, {:file_error, _path, :enoent}}} ->
         :ets.new(@name, [])
+
       {:error, reason} ->
-        Hex.Shell.error("Error opening ETS file #{path}: #{inspect reason}")
+        Hex.Shell.error("Error opening ETS file #{path}: #{inspect(reason)}")
         File.rm(path)
         :ets.new(@name, [])
     end
@@ -247,6 +256,7 @@ defmodule Hex.Registry.Server do
     case :ets.lookup(ets, :version) do
       [{:version, 1}] ->
         ets
+
       _ ->
         :ets.delete(ets)
         :ets.new(@name, [])
@@ -268,11 +278,13 @@ defmodule Hex.Registry.Server do
     Enum.each(packages, fn {repo, _package} ->
       config = Hex.Repo.get_repo(repo)
       url = config.url
+
       case :ets.lookup(ets, {:repo, repo}) do
         [{_key, ^url}] -> :ok
         [] -> :ok
         _ -> purge_repo(repo, ets)
       end
+
       :ets.insert(ets, {{:repo, repo}, url})
     end)
   end
@@ -288,13 +300,15 @@ defmodule Hex.Registry.Server do
   # end)
 
   defp purge_repo_matchspec(repo) do
-    [{{{:versions, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
-     {{{:deps, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
-     {{{:checksum, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
-     {{{:retired, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
-     {{{:tarball_etag, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
-     {{{:registry_etag, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
-     {:_, [], [false]}]
+    [
+      {{{:versions, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:deps, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:checksum, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:retired, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:tarball_etag, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:registry_etag, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {:_, [], [false]}
+    ]
   end
 
   defp purge_repo(repo, ets) do
@@ -304,6 +318,7 @@ defmodule Hex.Registry.Server do
   defp prefetch_online(packages, state) do
     Enum.each(packages, fn {repo, package} ->
       etag = package_etag(repo, package, state)
+
       Hex.Parallel.run(:hex_fetcher, {:registry, repo, package}, [await: false], fn ->
         {:get_package, repo, package, Hex.Repo.get_package(repo, package, etag)}
       end)
@@ -323,8 +338,10 @@ defmodule Hex.Registry.Server do
       end)
 
     if missing do
-      message = "Hex is running in offline mode and the registry entry for " <>
-                "package #{inspect missing} is not cached locally"
+      message =
+        "Hex is running in offline mode and the registry entry for " <>
+          "package #{inspect(missing)} is not cached locally"
+
       {:reply, {:error, message}, state}
     else
       fetched = Enum.into(packages, state.fetched)
@@ -332,7 +349,8 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  defp write_result({:ok, {code, body, headers}}, repo, package, %{ets: tid}) when code in 200..299 do
+  defp write_result({:ok, {code, body, headers}}, repo, package, %{ets: tid})
+       when code in 200..299 do
     releases =
       body
       |> :zlib.gunzip()
@@ -345,13 +363,12 @@ defmodule Hex.Registry.Server do
       :ets.insert(tid, {{:checksum, repo, package, version}, checksum})
       :ets.insert(tid, {{:retired, repo, package, version}, release[:retired]})
 
-      deps = Enum.map(deps, fn dep ->
-        {dep[:repository] || repo,
-         dep[:package],
-         dep[:app] || dep[:package],
-         dep[:requirement],
-         !!dep[:optional]}
-      end)
+      deps =
+        Enum.map(deps, fn dep ->
+          {dep[:repository] || repo, dep[:package], dep[:app] || dep[:package], dep[:requirement],
+           !!dep[:optional]}
+        end)
+
       :ets.insert(tid, {{:deps, repo, package, version}, deps})
     end)
 
@@ -362,6 +379,7 @@ defmodule Hex.Registry.Server do
       :ets.insert(tid, {{:registry_etag, repo, package}, List.to_string(etag)})
     end
   end
+
   defp write_result({:ok, {304, _, _}}, _repo, _package, _state) do
     :ok
   end
@@ -378,11 +396,16 @@ defmodule Hex.Registry.Server do
   defp print_error(result, repo, package, cached?) do
     cached_message = if cached?, do: " (using cache)"
     repo_message = if repo, do: "#{repo}/"
-    Hex.Shell.error "Failed to fetch record for '#{repo_message}#{package}' from registry#{cached_message}"
+
+    Hex.Shell.error(
+      "Failed to fetch record for '#{repo_message}#{package}' from registry#{cached_message}"
+    )
 
     if missing_status?(result) do
-      Hex.Shell.error "This could be because the package does not exist, it was spelled " <>
-                      "incorrectly or you don't have permissions to it"
+      Hex.Shell.error(
+        "This could be because the package does not exist, it was spelled " <>
+          "incorrectly or you don't have permissions to it"
+      )
     end
 
     if not missing_status?(result) or Mix.debug?() do
@@ -397,13 +420,15 @@ defmodule Hex.Registry.Server do
     cond do
       package in state.fetched ->
         {:reply, fun.(), state}
+
       package in state.pending ->
         tuple = {from, fun}
-        waiting = Map.update(state.waiting, package, [tuple], &[tuple|&1])
+        waiting = Map.update(state.waiting, package, [tuple], &[tuple | &1])
         state = %{state | waiting: waiting}
         {:noreply, state}
+
       true ->
-        Mix.raise("Package #{inspect package} not prefetched, please report this issue")
+        Mix.raise("Package #{inspect(package)} not prefetched, please report this issue")
     end
   end
 
@@ -419,6 +444,7 @@ defmodule Hex.Registry.Server do
   defp maybe_close(%{closing_fun: nil} = state) do
     state
   end
+
   defp maybe_close(%{closing_fun: fun} = state) do
     wait_closing(state, fun)
   end

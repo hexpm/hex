@@ -50,37 +50,42 @@ defmodule Mix.Tasks.Hex.Config do
     case args do
       [] ->
         list()
+
       ["$" <> _key | _] ->
-        Mix.raise "Invalid key name"
+        Mix.raise("Invalid key name")
+
       [key] ->
         if opts[:delete] do
           delete(key)
         else
           read(key)
         end
+
       [key, value] ->
         set(key, value)
+
       _ ->
-        Mix.raise """
+        Mix.raise("""
         Invalid arguments, expected:
 
         mix hex.config KEY [VALUE]
-        """
+        """)
     end
   end
 
   defp list() do
     Enum.each(config(), fn {key, value} ->
-      Hex.Shell.info "#{key}: #{inspect(value, pretty: true)}"
+      Hex.Shell.info("#{key}: #{inspect(value, pretty: true)}")
     end)
   end
 
   defp read(key) do
     case Keyword.fetch(config(), :"#{key}") do
       {:ok, value} ->
-        Hex.Shell.info inspect(value, pretty: true)
+        Hex.Shell.info(inspect(value, pretty: true))
+
       :error ->
-        Mix.raise "Config does not contain key #{key}"
+        Mix.raise("Config does not contain key #{key}")
     end
   end
 

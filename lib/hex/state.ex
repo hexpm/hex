@@ -7,32 +7,49 @@ defmodule Hex.State do
 
   def start_link() do
     config = Hex.Config.read()
-    Agent.start_link(__MODULE__, :init, [config], [name: @name])
+    Agent.start_link(__MODULE__, :init, [config], name: @name)
   end
 
   def stop() do
     Agent.stop(@name)
   end
 
-
   def init(config) do
     %{
-      home: System.get_env("HEX_HOME") |> default(@default_home) |> Path.expand(),
-      repos: Hex.Config.read_repos(config),
-      api_url: load_config(config, ["HEX_API_URL", "HEX_API"], [:api_url]) |> trim_slash() |> default(@api_url),
       api_key: load_config(config, [], [:"$encrypted_key", :encrypted_key]),
-      mirror_url: load_config(config, ["HEX_MIRROR_URL", "HEX_MIRROR"], [:mirror_url]) |> trim_slash(),
+      api_url:
+        load_config(config, ["HEX_API_URL", "HEX_API"], [:api_url])
+        |> trim_slash()
+        |> default(@api_url),
+      check_cert?:
+        load_config(config, ["HEX_UNSAFE_HTTPS"], [:unsafe_https])
+        |> to_boolean()
+        |> default(false)
+        |> Kernel.not(),
+      check_registry?:
+        load_config(config, ["HEX_UNSAFE_REGISTRY"], [:unsafe_registry])
+        |> to_boolean()
+        |> default(false)
+        |> Kernel.not(),
+      clean_pass: true,
+      http_concurrency:
+        load_config(config, ["HEX_HTTP_CONCURRENCY"], [:http_concurrency])
+        |> to_integer()
+        |> default(8),
       http_proxy: load_config(config, ["http_proxy", "HTTP_PROXY"], [:http_proxy]),
-      https_proxy: load_config(config, ["https_proxy", "HTTPS_PROXY"], [:https_proxy]),
-      offline?: load_config(config, ["HEX_OFFLINE"], [:offline]) |> to_boolean() |> default(false),
-      check_cert?: load_config(config, ["HEX_UNSAFE_HTTPS"], [:unsafe_https]) |> to_boolean() |> default(false) |> Kernel.not(),
-      check_registry?: load_config(config, ["HEX_UNSAFE_REGISTRY"], [:unsafe_registry]) |> to_boolean() |> default(false) |> Kernel.not(),
-      http_concurrency: load_config(config, ["HEX_HTTP_CONCURRENCY"], [:http_concurrency]) |> to_integer() |> default(8),
-      http_timeout: load_config(config, ["HEX_HTTP_TIMEOUT"], [:http_timeout]) |> to_integer() |> http_timeout(),
       httpc_profile: :hex,
-      ssl_version: ssl_version(),
+      https_proxy: load_config(config, ["https_proxy", "HTTPS_PROXY"], [:https_proxy]),
+      http_timeout:
+        load_config(config, ["HEX_HTTP_TIMEOUT"], [:http_timeout])
+        |> to_integer()
+        |> http_timeout(),
+      home: System.get_env("HEX_HOME") |> default(@default_home) |> Path.expand(),
+      mirror_url:
+        load_config(config, ["HEX_MIRROR_URL", "HEX_MIRROR"], [:mirror_url]) |> trim_slash(),
+      offline?: load_config(config, ["HEX_OFFLINE"], [:offline]) |> to_boolean() |> default(false),
       pbkdf2_iters: @pbkdf2_iters,
-      clean_pass: true
+      repos: Hex.Config.read_repos(config),
+      ssl_version: ssl_version()
     }
   end
 
@@ -50,6 +67,7 @@ defmodule Hex.State do
     case fetch(key) do
       {:ok, value} ->
         value
+
       :error ->
         raise KeyError, key: key, term: Hex.State
     end
@@ -112,29 +130,31 @@ defmodule Hex.State do
 
   defp log_value(key, value) do
     if key in @logged_keys do
-      Hex.Shell.debug "Using #{key} = #{value}"
+      Hex.Shell.debug("Using #{key} = #{value}")
     end
   end
 
-  defp to_boolean(nil),     do: nil
-  defp to_boolean(false),   do: false
-  defp to_boolean(true),    do: true
-  defp to_boolean("0"),     do: false
-  defp to_boolean("1"),     do: true
+  defp to_boolean(nil), do: nil
+  defp to_boolean(false), do: false
+  defp to_boolean(true), do: true
+  defp to_boolean("0"), do: false
+  defp to_boolean("1"), do: true
   defp to_boolean("false"), do: false
-  defp to_boolean("true"),  do: true
+  defp to_boolean("true"), do: true
 
   defp to_integer(nil), do: nil
   defp to_integer(""), do: nil
+
   defp to_integer(string) do
     {int, _} = Integer.parse(string)
     int
   end
 
   defp default(nil, value), do: value
-  defp default(value, _),   do: value
+  defp default(value, _), do: value
 
   defp trim_slash(nil), do: nil
+
   defp trim_slash(string) do
     if String.ends_with?(string, "/") do
       string

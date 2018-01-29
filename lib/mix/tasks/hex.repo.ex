@@ -66,21 +66,26 @@ defmodule Mix.Tasks.Hex.Repo do
     case args do
       ["add", name, url] ->
         add(name, url, opts)
+
       ["set", name] ->
         set(name, opts)
+
       ["remove", name] ->
         remove(name)
+
       ["show", name] ->
         show(name)
+
       ["list"] ->
         list()
+
       _ ->
         invalid_args()
     end
   end
 
   defp invalid_args() do
-    Mix.raise """
+    Mix.raise("""
     Invalid arguments, expected one of:
 
     mix hex.repo add NAME URL
@@ -88,19 +93,20 @@ defmodule Mix.Tasks.Hex.Repo do
     mix hex.repo remove NAME
     mix hex.repo show NAME
     mix hex.repo list
-    """
+    """)
   end
 
   defp add(name, url, opts) do
     public_key = read_public_key(opts[:public_key])
 
-    repo = %{
-      url: url,
-      public_key: nil,
-      auth_key: nil,
-    }
-    |> Map.merge(Enum.into(opts, %{}))
-    |> Map.put(:public_key, public_key)
+    repo =
+      %{
+        url: url,
+        public_key: nil,
+        auth_key: nil
+      }
+      |> Map.merge(Enum.into(opts, %{}))
+      |> Map.put(:public_key, public_key)
 
     read_config()
     |> Map.put(name, repo)
@@ -108,11 +114,12 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp set(name, opts) do
-    opts = if public_key = opts[:public_key] do
-      Keyword.put(opts, :public_key, read_public_key(public_key))
-    else
-      opts
-    end
+    opts =
+      if public_key = opts[:public_key] do
+        Keyword.put(opts, :public_key, read_public_key(public_key))
+      else
+        opts
+      end
 
     read_config()
     |> Map.update!(name, &Map.merge(&1, Enum.into(opts, %{})))
@@ -127,21 +134,24 @@ defmodule Mix.Tasks.Hex.Repo do
 
   defp list() do
     header = ["Name", "URL", "Public key", "Auth key"]
+
     values =
       Enum.map(read_config(), fn {name, config} ->
         [
           name,
           config[:url],
           show_public_key(config[:public_key]),
-          config[:auth_key],
+          config[:auth_key]
         ]
       end)
+
     Mix.Tasks.Hex.print_table(header, values)
   end
 
   defp read_public_key(nil) do
     nil
   end
+
   defp read_public_key(path) do
     key =
       path
@@ -157,13 +167,13 @@ defmodule Mix.Tasks.Hex.Repo do
     :public_key.pem_entry_decode(pem_entry)
   rescue
     _ ->
-      Mix.raise """
+      Mix.raise("""
       Could not decode public key. The public key contents are shown below.
 
       #{key}
 
       Public keys must be valid and be in the PEM format.
-      """
+      """)
   end
 
   defp read_config() do
@@ -172,6 +182,7 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp show_public_key(nil), do: nil
+
   defp show_public_key(public_key) do
     [pem_entry] = :public_key.pem_decode(public_key)
     public_key = :public_key.pem_entry_decode(pem_entry)
@@ -195,12 +206,12 @@ defmodule Mix.Tasks.Hex.Repo do
 
     case repo do
       nil ->
-        Mix.raise "Config does not contain repo #{name}"
+        Mix.raise("Config does not contain repo #{name}")
+
       _ ->
-        Mix.Tasks.Hex.print_table(
-          ["URL", "Public key", "Auth key"],
-          [[repo.url, show_public_key(repo.public_key), repo.auth_key]]
-        )
+        header = ["URL", "Public key", "Auth key"]
+        rows = [[repo.url, show_public_key(repo.public_key), repo.auth_key]]
+        Mix.Tasks.Hex.print_table(header, rows)
     end
   end
 end

@@ -20,6 +20,6 @@ defmodule Hex.VersionTest do
     assert {:ok, _} = V.parse_requirement("== 1.0.0 and == 1.0.0")
     assert {:ok, _} = V.parse_requirement("==1.0.0 and ==1.0.0")
 
-    assert :error   = V.parse_requirement("foo")
+    assert :error = V.parse_requirement("foo")
   end
 end

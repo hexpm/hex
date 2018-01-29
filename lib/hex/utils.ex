@@ -7,23 +7,25 @@ defmodule Hex.Utils do
     case safe_binary_to_term(binary) do
       {:ok, term} ->
         term
+
       :error ->
-        Mix.raise "Received malformed erlang from Hex API"
+        Mix.raise("Received malformed erlang from Hex API")
     end
   rescue
     ArgumentError ->
-      Mix.raise "Received malformed erlang from Hex API"
+      Mix.raise("Received malformed erlang from Hex API")
   end
 
   def safe_serialize_erlang(term) do
     binarify(term)
-    |> :erlang.term_to_binary
+    |> :erlang.term_to_binary()
   end
 
   def safe_binary_to_term!(binary, opts \\ []) do
     case safe_binary_to_term(binary, opts) do
       {:ok, term} ->
         term
+
       :error ->
         raise ArgumentError, "unsafe terms"
     end
@@ -43,39 +45,45 @@ defmodule Hex.Utils do
   defp safe_terms(list) when is_list(list) do
     safe_list(list)
   end
+
   defp safe_terms(tuple) when is_tuple(tuple) do
     safe_tuple(tuple, tuple_size(tuple))
   end
+
   defp safe_terms(map) when is_map(map) do
-    :maps.fold(fn key, value, acc ->
+    fun = fn key, value, acc ->
       safe_terms(key)
       safe_terms(value)
       acc
-    end, map, map)
+    end
+
+    :maps.fold(fun, map, map)
   end
+
   defp safe_terms(other)
-      when is_atom(other) or
-           is_number(other) or
-           is_bitstring(other) or
-           is_pid(other) or
-           is_reference(other) do
+       when is_atom(other) or is_number(other) or is_bitstring(other) or is_pid(other) or
+              is_reference(other) do
     other
   end
+
   defp safe_terms(_other) do
-    throw :safe_terms
+    throw(:safe_terms)
   end
 
   defp safe_list([]), do: :ok
+
   defp safe_list([h | t]) when is_list(t) do
     safe_terms(h)
     safe_list(t)
   end
+
   defp safe_list([h | t]) do
     safe_terms(h)
     safe_terms(t)
   end
 
   defp safe_tuple(_tuple, 0), do: :ok
+
   defp safe_tuple(tuple, n) do
     safe_terms(:erlang.element(n, tuple))
     safe_tuple(tuple, n - 1)
@@ -88,8 +96,10 @@ defmodule Hex.Utils do
     cond do
       not String.valid?(string) ->
         string
+
       String.length(string) < length ->
         string
+
       true ->
         String.slice(string, 0, length) <> omission
     end
@@ -100,22 +110,28 @@ defmodule Hex.Utils do
   def binarify(binary, _opts) when is_binary(binary) do
     binary
   end
+
   def binarify(number, _opts) when is_number(number) do
     number
   end
+
   def binarify(atom, _opts) when is_nil(atom) or is_boolean(atom) do
     atom
   end
+
   def binarify(atom, _opts) when is_atom(atom) do
     Atom.to_string(atom)
   end
+
   def binarify(list, opts) when is_list(list) do
     for(elem <- list, do: binarify(elem, opts))
   end
+
   def binarify(tuple, opts) when is_tuple(tuple) do
     for(elem <- Tuple.to_list(tuple), do: binarify(elem, opts))
     |> List.to_tuple()
   end
+
   def binarify(map, opts) when is_map(map) do
     if Keyword.get(opts, :maps, true) do
       for(elem <- map, into: %{}, do: binarify(elem, opts))
@@ -125,17 +141,19 @@ defmodule Hex.Utils do
   end
 
   def print_error_result({:error, reason}) do
-    Hex.Shell.info inspect(reason)
+    Hex.Shell.info(inspect(reason))
   end
+
   def print_error_result({:ok, {status, nil, _headers}}) do
     print_http_code(status)
   end
+
   def print_error_result({:ok, {status, "", _headers}}) do
     print_http_code(status)
   end
 
   def print_error_result({:ok, {_status, body, _headers}}) when is_binary(body) do
-    Hex.Shell.info body
+    Hex.Shell.info(body)
   end
 
   def print_error_result({:ok, {status, body, _headers}}) when is_map(body) do
@@ -143,7 +161,7 @@ defmodule Hex.Utils do
     errors = body["errors"]
 
     if message do
-      Hex.Shell.info message
+      Hex.Shell.info(message)
     end
 
     if errors do
@@ -152,21 +170,22 @@ defmodule Hex.Utils do
 
     unless message || errors do
       print_http_code(status)
-      Hex.Shell.info body
+      Hex.Shell.info(body)
     end
   end
 
   defp pretty_errors(errors, depth \\ 0) do
     Enum.each(errors, fn
       {key, map} when is_map(map) ->
-        Hex.Shell.info indent(depth) <> key <> ":"
+        Hex.Shell.info(indent(depth) <> key <> ":")
         pretty_errors(map, depth + 1)
+
       {key, value} ->
-        Hex.Shell.info indent(depth) <> key <> ": " <> value
+        Hex.Shell.info(indent(depth) <> key <> ": " <> value)
     end)
   end
 
-  defp print_http_code(code), do: Hex.Shell.info pretty_http_code(code)
+  defp print_http_code(code), do: Hex.Shell.info(pretty_http_code(code))
 
   defp pretty_http_code(401), do: "Authentication failed (401)"
   defp pretty_http_code(403), do: "Forbidden (403)"
@@ -180,6 +199,7 @@ defmodule Hex.Utils do
   def hexdocs_url(package) do
     "https://hexdocs.pm/#{package}"
   end
+
   def hexdocs_url(package, version) do
     "https://hexdocs.pm/#{package}/#{version}"
   end
@@ -187,27 +207,29 @@ defmodule Hex.Utils do
   def hexdocs_module_url(package, module) do
     "https://hexdocs.pm/#{package}/#{module}.html"
   end
+
   def hexdocs_module_url(package, version, module) do
     "https://hexdocs.pm/#{package}/#{version}/#{module}.html"
   end
 
-  def package_retirement_reason(:RETIRED_OTHER),      do: "other"
-  def package_retirement_reason(:RETIRED_INVALID),    do: "invalid"
-  def package_retirement_reason(:RETIRED_SECURITY),   do: "security"
+  def package_retirement_reason(:RETIRED_OTHER), do: "other"
+  def package_retirement_reason(:RETIRED_INVALID), do: "invalid"
+  def package_retirement_reason(:RETIRED_SECURITY), do: "security"
   def package_retirement_reason(:RETIRED_DEPRECATED), do: "deprecated"
-  def package_retirement_reason(:RETIRED_RENAMED),    do: "renamed"
+  def package_retirement_reason(:RETIRED_RENAMED), do: "renamed"
   def package_retirement_reason(other), do: other
 
   def package_retirement_message(%{reason: reason_code, message: message}) do
     "(#{package_retirement_reason(reason_code)}) #{message}"
   end
+
   def package_retirement_message(%{reason: reason_code}) do
     "(#{package_retirement_reason(reason_code)})"
   end
 
   # From https://github.com/fishcakez/dialyze/blob/6698ae582c77940ee10b4babe4adeff22f1b7779/lib/mix/tasks/dialyze.ex#L168
   def otp_version do
-    major = :erlang.system_info(:otp_release) |> List.to_string
+    major = :erlang.system_info(:otp_release) |> List.to_string()
     vsn_file = Path.join([:code.root_dir(), "releases", major, "OTP_VERSION"])
 
     try do
@@ -225,12 +247,12 @@ defmodule Hex.Utils do
     if tuple_size(tuple) > 7 and Hex.Server.should_warn_lock_version?() do
       Hex.Shell.warn(
         "The mix.lock file was generated with a newer version of Hex. Update " <>
-        "your client by running `mix local.hex` to avoid losing data."
+          "your client by running `mix local.hex` to avoid losing data."
       )
     end
 
-    destructure [:hex, name, version, checksum, managers, deps, repo],
-                Tuple.to_list(tuple)
+    destructure [:hex, name, version, checksum, managers, deps, repo], Tuple.to_list(tuple)
+
     %{
       name: to_string(name),
       version: version,
@@ -240,6 +262,7 @@ defmodule Hex.Utils do
       repo: repo || "hexpm"
     }
   end
+
   def lock(_) do
     nil
   end
@@ -247,12 +270,14 @@ defmodule Hex.Utils do
   defp lock_deps(nil) do
     nil
   end
+
   defp lock_deps(deps) do
     Enum.map(deps, fn {app, req, opts} ->
       opts =
         opts
         |> Keyword.put_new(:repo, "hexpm")
         |> Keyword.update!(:hex, &to_string/1)
+
       {app, req, opts}
     end)
   end

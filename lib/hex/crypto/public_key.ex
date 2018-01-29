@@ -7,13 +7,13 @@ defmodule Hex.Crypto.PublicKey do
     :public_key.pem_entry_decode(rsa_public_key)
   rescue
     _ ->
-      Mix.raise """
+      Mix.raise("""
       Could not decode public key for #{id}. The public key contents are shown below.
 
       #{key}
 
       Public keys must be valid and be in the PEM format.
-      """
+      """)
   end
 
   @doc """
