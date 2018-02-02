@@ -92,10 +92,21 @@ defmodule Mix.Tasks.Hex.Info do
     desc = meta["description"] || "No description provided"
     Hex.Shell.info(desc <> "\n")
     releases = package["releases"] || []
-    print_config(package["name"], List.first(releases))
     retirements = package["retirements"] || %{}
+    print_config(package["name"], latest_release(releases, retirements))
     Hex.Shell.info(["Releases: "] ++ format_releases(releases, Map.keys(retirements)) ++ ["\n"])
     print_meta(meta)
+  end
+
+  @doc false
+  def latest_release(releases, retirements) do
+    stable_active_releases =
+      Enum.filter(
+        releases,
+        &(Hex.Version.stable?(&1["version"]) and not(&1["version"] in retirements))
+      )
+
+    List.first(stable_active_releases) || List.first(releases)
   end
 
   defp format_releases(releases, retirements) do
