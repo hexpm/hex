@@ -71,15 +71,10 @@ defmodule Mix.Tasks.Hex.Search do
       Enum.find(
         releases,
         %{"version" => nil},
-        &is_stable/1
+        &Hex.Version.stable?(&1["version"])
       )
 
     version
-  end
-
-  defp is_stable(%{"version" => version}) do
-    parsed_version = Hex.Version.parse!(version)
-    parsed_version.pre == []
   end
 
   defp trim_heredoc(nil), do: ""

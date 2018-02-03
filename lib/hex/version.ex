@@ -34,6 +34,10 @@ defmodule Hex.Version do
     {:ok, []}
   end
 
+  def stable?(%Version{pre: []}), do: true
+  def stable?(%Version{}), do: false
+  def stable?(other), do: stable?(parse!(other))
+
   def match?(version, requirement, opts \\ []) do
     allow_pre = Keyword.get(opts, :allow_pre, false)
     req_source = requirement_source(requirement)
