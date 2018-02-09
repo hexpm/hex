@@ -74,7 +74,7 @@ defmodule Mix.Tasks.Hex.Fetch do
         Hex.unpack_and_verify_tar!(tar_file, :memory, registry_checksum)
       end
 
-      Hex.Shell.info("Package fetched at: #{dest}")
+      Hex.Shell.info("Package fetched at: #{tar_file}")
     end
   end
 
