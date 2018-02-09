@@ -63,10 +63,15 @@ defmodule Mix.Tasks.Hex.Fetch do
       Hex.Shell.info("Package already fetched: #{tar_file}")
     else
       request_package_from_mirror(tar_file, name, version, repo)
+      Hex.Registry.Server.open(check_version: false)
+      Hex.Registry.Server.prefetch([{repo, name}])
+      registry_checksum = Hex.Registry.Server.checksum(repo, name, version)
 
       if opts[:unpack] do
-        Hex.unpack_and_verify_tar!(tar_file, dest, repo, name, version)
+        Hex.unpack_and_verify_tar!(tar_file, dest, registry_checksum)
         File.rm_rf!(tar_file)
+      else
+        Hex.unpack_and_verify_tar!(tar_file, :memory, registry_checksum)
       end
 
       Hex.Shell.info("Package fetched at: #{dest}")

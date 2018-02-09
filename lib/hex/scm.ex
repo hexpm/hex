@@ -123,7 +123,8 @@ defmodule Hex.SCM do
     end
 
     File.rm_rf!(dest)
-    {meta, _tar_checksum} = Hex.unpack_and_verify_tar!(path, dest, repo, name, lock.version)
+    registry_checksum = Hex.Registry.Server.checksum(repo, name, lock.version)
+    {meta, _tar_checksum} = Hex.unpack_and_verify_tar!(path, dest, registry_checksum)
 
     build_tools = guess_build_tools(meta)
 

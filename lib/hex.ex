@@ -134,13 +134,16 @@ defmodule Hex do
     end
   end
 
-  def unpack_and_verify_tar!(path, dest, repo, name, version) do
-    registry_checksum = Hex.Registry.Server.checksum(repo, to_string(name), version)
-    {meta, tar_checksum} = Hex.unpack_tar!(path, dest)
+  def unpack_and_verify_tar!(path, dest, registry_checksum) do
+    case Hex.unpack_tar!(path, dest) do
+      {_meta, tar_checksum} = result ->
+        if tar_checksum != registry_checksum, do: Mix.raise("Checksum mismatch against registry")
+        result
 
-    if tar_checksum != registry_checksum, do: Mix.raise("Checksum mismatch against registry")
-
-    {meta, tar_checksum}
+      {_meta, tar_checksum, _files} = result ->
+        if tar_checksum != registry_checksum, do: Mix.raise("Checksum mismatch against registry")
+        result
+    end
   end
 
   def organization_to_repo(opts) do
