@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Hex.Install do
   use Mix.Task
 
-  @hex_list_path    "/installs/hex-1.x.csv"
+  @hex_list_path "/installs/hex-1.x.csv"
   @hex_archive_path "/installs/[ELIXIR_VERSION]/hex-[HEX_VERSION].ez"
   @public_keys_html "https://repo.hex.pm/installs/public_keys.html"
 
@@ -20,12 +20,13 @@ defmodule Mix.Tasks.Hex.Install do
     case args do
       [version] ->
         install(version)
+
       _ ->
-        Mix.raise """
+        Mix.raise("""
         Invalid arguments, expected:
 
         mix hex.install VERSION
-        """
+        """)
     end
   end
 
@@ -40,10 +41,12 @@ defmodule Mix.Tasks.Hex.Install do
           |> String.replace("[ELIXIR_VERSION]", elixir_version)
           |> String.replace("[HEX_VERSION]", hex_version)
 
-        Mix.Tasks.Archive.Install.run [archive_url, "--sha512", sha512, "--force"]
+        Mix.Tasks.Archive.Install.run([archive_url, "--sha512", sha512, "--force"])
 
       nil ->
-        Mix.raise "Failed to find installation for Hex #{hex_version} and Elixir #{System.version}"
+        Mix.raise(
+          "Failed to find installation for Hex #{hex_version} and Elixir #{System.version()}"
+        )
     end
   end
 
@@ -60,11 +63,13 @@ defmodule Mix.Tasks.Hex.Install do
       |> parse_csv()
       |> find_eligible_version(hex_version)
     else
-      Mix.raise "Could not install #{name} because Hex could not verify authenticity " <>
-                "of metadata file at #{path}. This may happen because a proxy or some " <>
-                "entity is interfering with the download or because you don't have a " <>
-                "public key to verify the download.\n\nYou may try again later or check " <>
-                "if a new public key has been released in our public keys page: #{@public_keys_html}"
+      Mix.raise(
+        "Could not install #{name} because Hex could not verify authenticity " <>
+          "of metadata file at #{path}. This may happen because a proxy or some " <>
+          "entity is interfering with the download or because you don't have a " <>
+          "public key to verify the download.\n\nYou may try again later or check " <>
+          "if a new public key has been released in our public keys page: #{@public_keys_html}"
+      )
     end
   end
 
@@ -72,12 +77,13 @@ defmodule Mix.Tasks.Hex.Install do
     case Mix.Utils.read_path(path) do
       {:ok, contents} ->
         contents
+
       {:remote, message} ->
-        Mix.raise """
+        Mix.raise("""
         #{message}
 
         Could not install #{name} because Hex could not download metadata at #{path}.
-        """
+        """)
     end
   end
 
@@ -88,7 +94,7 @@ defmodule Mix.Tasks.Hex.Install do
   end
 
   defp find_eligible_version(entries, hex_version) do
-    elixir_version = Hex.Version.parse!(System.version)
+    elixir_version = Hex.Version.parse!(System.version())
 
     entries
     |> Enum.reverse()
@@ -96,10 +102,11 @@ defmodule Mix.Tasks.Hex.Install do
   end
 
   defp find_version([hex_version, digest | versions], elixir_version, hex_version) do
-    if version = Enum.find(versions, &Version.compare(&1, elixir_version) != :gt) do
+    if version = Enum.find(versions, &(Version.compare(&1, elixir_version) != :gt)) do
       {version, digest}
     end
   end
+
   defp find_version(_versions, _elixir_version, _hex_version) do
     nil
   end

@@ -25,21 +25,23 @@ defmodule Hex do
     Supervisor.start_link(children(), opts)
   end
 
-  def version(), do: unquote(Mix.Project.config[:version])
-  def elixir_version(), do: unquote(System.version)
-  def otp_version(), do: unquote(Hex.Utils.otp_version)
+  def version(), do: unquote(Mix.Project.config()[:version])
+  def elixir_version(), do: unquote(System.version())
+  def otp_version(), do: unquote(Hex.Utils.otp_version())
 
   defp start_httpc do
     :inets.start(:httpc, profile: :hex)
+
     opts = [
       max_sessions: 8,
       max_keep_alive_length: 4,
-      keep_alive_timeout: 120_000,
+      keep_alive_timeout: 120_000
     ]
+
     :httpc.set_options(opts, :hex)
   end
 
-  if Version.compare(System.version, "1.3.0") == :lt do
+  if Version.compare(System.version(), "1.3.0") == :lt do
     def string_trim(string), do: String.strip(string)
     def to_charlist(term), do: Kernel.to_char_list(term)
     def string_to_charlist(string), do: String.to_char_list(string)
@@ -49,13 +51,13 @@ defmodule Hex do
     def string_to_charlist(string), do: String.to_charlist(string)
   end
 
-  if Version.compare(System.version, "1.4.0") == :lt do
+  if Version.compare(System.version(), "1.4.0") == :lt do
     def enum_split_with(enum, fun), do: Enum.partition(enum, fun)
   else
     def enum_split_with(enum, fun), do: Enum.split_with(enum, fun)
   end
 
-  if Version.compare(System.version, "1.3.2") == :lt do
+  if Version.compare(System.version(), "1.3.2") == :lt do
     def check_deps, do: Mix.Tasks.Deps.Check.run(["--no-compile"])
   else
     def check_deps, do: Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
@@ -63,9 +65,11 @@ defmodule Hex do
 
   def file_lstat(path, opts \\ []) do
     opts = Keyword.put_new(opts, :time, :universal)
+
     case :file.read_link_info(IO.chardata_to_string(path), opts) do
       {:ok, fileinfo} ->
         {:ok, File.Stat.from_record(fileinfo)}
+
       error ->
         error
     end
@@ -73,16 +77,21 @@ defmodule Hex do
 
   def file_lstat!(path, opts \\ []) do
     case file_lstat(path, opts) do
-      {:ok, info}      -> info
+      {:ok, info} ->
+        info
+
       {:error, reason} ->
-        raise File.Error, reason: reason, action: "read file stats",
+        raise File.Error,
+          reason: reason,
+          action: "read file stats",
           path: IO.chardata_to_string(path)
     end
   end
 
-  if Mix.env == :test do
+  if Mix.env() == :test do
     defp children do
       import Supervisor.Spec
+
       [
         worker(Hex.State, []),
         worker(Hex.Server, []),
@@ -92,6 +101,7 @@ defmodule Hex do
   else
     defp children do
       import Supervisor.Spec
+
       [
         worker(Hex.State, []),
         worker(Hex.Server, []),
@@ -102,7 +112,7 @@ defmodule Hex do
     end
   end
 
-  if Mix.env in [:dev, :test] do
+  if Mix.env() in [:dev, :test] do
     defp dev_setup do
       :erlang.system_flag(:backtrace_depth, 20)
     end
@@ -113,14 +123,14 @@ defmodule Hex do
   def create_tar!(metadata, files, output) do
     case Hex.Tar.create(metadata, files, output) do
       {:ok, result} -> result
-      {:error, reason} -> Mix.raise Hex.Tar.format_error(reason)
+      {:error, reason} -> Mix.raise(Hex.Tar.format_error(reason))
     end
   end
 
   def unpack_tar!(path, dest) do
     case Hex.Tar.unpack(path, dest) do
       {:ok, result} -> result
-      {:error, reason} -> Mix.raise Hex.Tar.format_error(reason)
+      {:error, reason} -> Mix.raise(Hex.Tar.format_error(reason))
     end
   end
 

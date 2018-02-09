@@ -2,12 +2,13 @@ defmodule Hex.HTTPTest do
   use HexTest.Case, async: false
 
   setup do
-    on_exit fn ->
-      Enum.map([:http_proxy, :https_proxy], &(Hex.State.put(&1, nil)))
+    on_exit(fn ->
+      Enum.map([:http_proxy, :https_proxy], &Hex.State.put(&1, nil))
+
       Enum.map([:proxy, :https_proxy], fn opt ->
         :httpc.set_options([{opt, {{'localhost', 80}, ['localhost']}}], :hex)
       end)
-    end
+    end)
 
     :ok
   end

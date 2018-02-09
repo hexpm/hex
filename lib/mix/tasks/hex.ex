@@ -16,21 +16,21 @@ defmodule Mix.Tasks.Hex do
   def run(_args) do
     Hex.start()
 
-    Hex.Shell.info "Hex v" <> Hex.version()
-    Hex.Shell.info "Hex is a package manager for the Erlang ecosystem."
+    Hex.Shell.info("Hex v" <> Hex.version())
+    Hex.Shell.info("Hex is a package manager for the Erlang ecosystem.")
     line_break()
 
     if Hex.Version.match?(System.version(), ">= 1.1.0-dev") do
-      Hex.Shell.info "Available tasks:"
+      Hex.Shell.info("Available tasks:")
       line_break()
       Mix.Task.run("help", ["--search", "hex."])
       line_break()
     end
 
-    Hex.Shell.info "Further information can be found here: https://hex.pm/docs/tasks"
+    Hex.Shell.info("Further information can be found here: https://hex.pm/docs/tasks")
   end
 
-  def line_break(), do: Hex.Shell.info ""
+  def line_break(), do: Hex.Shell.info("")
 
   def print_table(header, values) do
     header = Enum.map(header, &[:underline, &1])
@@ -43,9 +43,11 @@ defmodule Mix.Tasks.Hex do
   defp ansi_length(binary) when is_binary(binary) do
     byte_size(binary)
   end
+
   defp ansi_length(list) when is_list(list) do
     Enum.reduce(list, 0, &(ansi_length(&1) + &2))
   end
+
   defp ansi_length(atom) when is_atom(atom) do
     0
   end
@@ -71,21 +73,21 @@ defmodule Mix.Tasks.Hex do
   end
 
   @local_password_prompt "You have authenticated on Hex using your account password. However, " <>
-    "Hex requires you to have a local password that applies only to this machine for security " <>
-    "purposes. Please enter it."
+                           "Hex requires you to have a local password that applies only to this machine for security " <>
+                           "purposes. Please enter it."
 
   def generate_api_key(username, password) do
     Hex.Shell.info("Generating API key...")
     {:ok, name} = :inet.gethostname()
     name = List.to_string(name)
 
-    case Hex.API.Key.new(name, [user: username, pass: password]) do
+    case Hex.API.Key.new(name, user: username, pass: password) do
       {:ok, {201, body, _}} ->
         Hex.Shell.info(@local_password_prompt)
         prompt_encrypt_key(body["secret"])
 
       other ->
-        Mix.shell.error("Generation of API key failed")
+        Mix.shell().error("Generation of API key failed")
         Hex.Utils.print_error_result(other)
         :error
     end
@@ -101,14 +103,15 @@ defmodule Mix.Tasks.Hex do
     case Hex.API.Key.new(key, permissions, auth) do
       {:ok, {201, body, _}} ->
         body["secret"]
+
       other ->
         Hex.Utils.print_error_result(other)
-        Mix.raise "Generation of organization key failed"
+        Mix.raise("Generation of organization key failed")
     end
   end
 
   def update_key(key) do
-    Hex.Config.update(["$encrypted_key": key, encrypted_key: nil])
+    Hex.Config.update("$encrypted_key": key, encrypted_key: nil)
     Hex.State.put(:api_key, key)
   end
 
@@ -138,6 +141,7 @@ defmodule Mix.Tasks.Hex do
 
   def auth_organization(name, key) do
     hexpm = Hex.Repo.get_repo("hexpm")
+
     repo = %{
       url: hexpm.url <> "/repos/#{name}",
       public_key: nil,
@@ -169,14 +173,15 @@ defmodule Mix.Tasks.Hex do
   end
 
   defp no_auth_error() do
-    Mix.raise "No authenticated user found. Run `mix hex.user auth`"
+    Mix.raise("No authenticated user found. Run `mix hex.user auth`")
   end
 
   def prompt_encrypt_key(key, challenge \\ "Local password") do
     password = password_get("#{challenge}:") |> Hex.string_trim()
     confirm = password_get("#{challenge} (confirm):") |> Hex.string_trim()
+
     if password != confirm do
-      Hex.Shell.error "Entered passwords do not match. Try again"
+      Hex.Shell.error("Entered passwords do not match. Try again")
       prompt_encrypt_key(key, challenge)
     end
 
@@ -191,8 +196,9 @@ defmodule Mix.Tasks.Hex do
     case Hex.Crypto.decrypt(encrypted_key, password, @apikey_tag) do
       {:ok, key} ->
         key
+
       :error ->
-        Hex.Shell.error "Wrong password. Try again"
+        Hex.Shell.error("Wrong password. Try again")
         prompt_decrypt_key(encrypted_key, challenge)
     end
   end
@@ -208,7 +214,7 @@ defmodule Mix.Tasks.Hex do
   def required_opts(opts, required) do
     Enum.map(required, fn req ->
       unless Keyword.has_key?(opts, req) do
-        Mix.raise "Missing command line option: #{req}"
+        Mix.raise("Missing command line option: #{req}")
       end
     end)
   end
@@ -228,8 +234,8 @@ defmodule Mix.Tasks.Hex do
     ref = make_ref()
     value = IO.gets(prompt <> " ")
 
-    send pid, {:done, self(), ref}
-    receive do: ({:done, ^pid, ^ref}  -> :ok)
+    send(pid, {:done, self(), ref})
+    receive do: ({:done, ^pid, ^ref} -> :ok)
 
     value
   end
@@ -237,7 +243,7 @@ defmodule Mix.Tasks.Hex do
   defp loop(prompt) do
     receive do
       {:done, parent, ref} ->
-        send parent, {:done, self(), ref}
+        send(parent, {:done, self(), ref})
         IO.write(:standard_error, "\e[2K\r")
     after
       1 ->
@@ -273,9 +279,9 @@ defmodule Mix.Tasks.Hex do
   def clean_version(version), do: version
 
   if Mix.env() == :test do
-    def set_exit_code(code), do: throw {:exit_code, code}
+    def set_exit_code(code), do: throw({:exit_code, code})
   else
-    def set_exit_code(code), do: System.at_exit(fn(_) -> System.halt(code) end)
+    def set_exit_code(code), do: System.at_exit(fn _ -> System.halt(code) end)
   end
 
   def find_package_latest_version(organization, package) do

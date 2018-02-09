@@ -15,7 +15,7 @@ defmodule HexTest.Case do
 
   defp flush(acc) do
     receive do
-      any -> flush([any|acc])
+      any -> flush([any | acc])
     after
       0 -> Enum.reverse(acc)
     end
@@ -43,6 +43,7 @@ defmodule HexTest.Case do
 
   defmacro in_tmp(fun) do
     path = Path.join(["#{__CALLER__.module}", "#{elem(__CALLER__.function, 0)}"])
+
     quote do
       in_tmp(unquote(path), unquote(fun))
     end
@@ -90,10 +91,10 @@ defmodule HexTest.Case do
   end
 
   def purge(modules) do
-    Enum.each modules, fn(m) ->
+    Enum.each(modules, fn m ->
       :code.delete(m)
       :code.purge(m)
-    end
+    end)
   end
 
   @ets_table :hex_index
@@ -104,17 +105,19 @@ defmodule HexTest.Case do
         key = {Atom.to_string(repo), Atom.to_string(name)}
         Map.update(map, key, [vsn], &(&1 ++ [vsn]))
       end)
-      |> Enum.to_list
+      |> Enum.to_list()
 
     deps =
       Enum.map(test_registry(), fn {outer_repo, name, vsn, deps} ->
-        deps = Enum.map(deps, fn config ->
-          destructure [name, req, optional, app, repo], Tuple.to_list(config)
-          optional = optional || false
-          app = app || name
-          repo = repo || outer_repo
-          {Atom.to_string(repo), Atom.to_string(name), Atom.to_string(app), req, optional}
-        end)
+        deps =
+          Enum.map(deps, fn config ->
+            destructure [name, req, optional, app, repo], Tuple.to_list(config)
+            optional = optional || false
+            app = app || name
+            repo = repo || outer_repo
+            {Atom.to_string(repo), Atom.to_string(name), Atom.to_string(app), req, optional}
+          end)
+
         {{Atom.to_string(outer_repo), Atom.to_string(name), vsn}, deps}
       end)
 
@@ -123,12 +126,17 @@ defmodule HexTest.Case do
 
   defp create_registry(path, versions, deps) do
     tid = :ets.new(@ets_table, [])
-    versions = Enum.map(versions, fn {{repo, pkg}, versions} ->
-      {{:versions, repo, pkg}, versions}
-    end)
-    deps = Enum.map(deps, fn {{repo, pkg, vsn}, deps} ->
-      {{:deps, repo, pkg, vsn}, deps}
-    end)
+
+    versions =
+      Enum.map(versions, fn {{repo, pkg}, versions} ->
+        {{:versions, repo, pkg}, versions}
+      end)
+
+    deps =
+      Enum.map(deps, fn {{repo, pkg, vsn}, deps} ->
+        {{:deps, repo, pkg, vsn}, deps}
+      end)
+
     :ets.insert(tid, versions ++ deps ++ [{:version, 1}])
     :ok = :ets.tab2file(tid, Hex.string_to_charlist(path))
     :ets.delete(tid)
@@ -136,65 +144,67 @@ defmodule HexTest.Case do
 
   # Needs to be sorted on names and versions
   defp test_registry do
-    [{:hexpm, :bar, "0.0.1", []},
-     {:hexpm, :bar, "0.1.0", [foo: "~> 0.1.0"]},
-     {:hexpm, :bar, "0.2.0", [foo: "~> 0.2.0"]},
-     {:hexpm, :beta, "1.0.0", []},
-     {:hexpm, :beta, "1.1.0-beta", []},
-     {:hexpm, :decimal, "0.0.1", []},
-     {:hexpm, :decimal, "0.1.0", []},
-     {:hexpm, :decimal, "0.2.0", []},
-     {:hexpm, :decimal, "0.2.1", []},
-     {:hexpm, :depend_name, "0.2.0", [{:package_name, ">= 0.0.0", false, :app_name}]},
-     {:hexpm, :ecto, "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"]},
-     {:hexpm, :ecto, "0.2.1", [postgrex: "~> 0.2.1", ex_doc: "0.1.0"]},
-     {:hexpm, :ecto, "1.1.0", [poison: "~> 1.0"]},
-     {:hexpm, :eric, "0.0.1", []},
-     {:hexpm, :eric, "0.0.2", []},
-     {:hexpm, :eric, "0.1.0", [jose: "~> 0.1.0"]},
-     {:hexpm, :eric, "0.1.2", [jose: "~> 0.1.0"]},
-     {:hexpm, :eric, "0.2.0", [jose: "~> 0.3.0"]},
-     {:hexpm, :ex_doc, "0.0.1", []},
-     {:hexpm, :ex_doc, "0.0.2", []},
-     {:hexpm, :ex_doc, "0.1.0", []},
-     {:hexpm, :ex_plex, "0.0.1", []},
-     {:hexpm, :ex_plex, "0.0.2", [decimal: "0.1.1"]},
-     {:hexpm, :ex_plex, "0.1.0", [decimal: "~> 0.1.0"]},
-     {:hexpm, :ex_plex, "0.1.2", [decimal: "~> 0.1.0"]},
-     {:hexpm, :ex_plex, "0.2.0", [decimal: "~> 0.2.0"]},
-     {:hexpm, :foo, "0.0.1", []},
-     {:hexpm, :foo, "0.1.0", []},
-     {:hexpm, :foo, "0.2.0", []},
-     {:hexpm, :foo, "0.2.1", []},
-     {:hexpm, :has_optional, "0.1.0", [{:ex_doc, "~> 0.0.1", true}]},
-     {:hexpm, :jose, "0.2.0", []},
-     {:hexpm, :jose, "0.2.1", []},
-     {:hexpm, :only_doc, "0.1.0", [{:ex_doc, ">= 0.0.0", true}]},
-     {:hexpm, :package_name, "0.1.0", []},
-     {:hexpm, :phoenix, "0.0.1", [postgrex: "~> 0.2"]},
-     {:hexpm, :phoenix, "1.1.2", [poison: "~> 1.5 or ~> 2.0"]},
-     {:hexpm, :phoenix, "1.1.3", [poison: "~> 1.5 or ~> 2.0"]},
-     {:hexpm, :poison, "1.5.2", []},
-     {:hexpm, :poison, "2.0.0", []},
-     {:hexpm, :phoenix_ecto, "2.0.0", [ecto: "~> 1.1", poison: "~> 1.3"]},
-     {:hexpm, :phoenix_ecto, "2.0.1", [ecto: "~> 1.1", poison: "~> 1.3"]},
-     {:hexpm, :phoenix_live_reload, "1.0.0", [phoenix: "~> 0.16 or ~> 1.0"]},
-     {:hexpm, :phoenix_live_reload, "1.0.3", [phoenix: "~> 0.16 or ~> 1.0"]},
-     {:hexpm, :postgrex, "0.2.0", [ex_doc: "0.0.1"]},
-     {:hexpm, :postgrex, "0.2.1", [ex_doc: "~> 0.1.0"]},
-     {:repo2, :hexpm_deps, "0.1.0", [{:poison, ">= 0.0.0", false, :poison, :hexpm}]},
-     {:repo2, :poison, "2.0.0", []},
-     {:repo2, :repo2_deps, "0.1.0", [poison: ">= 0.0.0"]}]
+    [
+      {:hexpm, :bar, "0.0.1", []},
+      {:hexpm, :bar, "0.1.0", [foo: "~> 0.1.0"]},
+      {:hexpm, :bar, "0.2.0", [foo: "~> 0.2.0"]},
+      {:hexpm, :beta, "1.0.0", []},
+      {:hexpm, :beta, "1.1.0-beta", []},
+      {:hexpm, :decimal, "0.0.1", []},
+      {:hexpm, :decimal, "0.1.0", []},
+      {:hexpm, :decimal, "0.2.0", []},
+      {:hexpm, :decimal, "0.2.1", []},
+      {:hexpm, :depend_name, "0.2.0", [{:package_name, ">= 0.0.0", false, :app_name}]},
+      {:hexpm, :ecto, "0.2.0", [postgrex: "~> 0.2.0", ex_doc: "~> 0.0.1"]},
+      {:hexpm, :ecto, "0.2.1", [postgrex: "~> 0.2.1", ex_doc: "0.1.0"]},
+      {:hexpm, :ecto, "1.1.0", [poison: "~> 1.0"]},
+      {:hexpm, :eric, "0.0.1", []},
+      {:hexpm, :eric, "0.0.2", []},
+      {:hexpm, :eric, "0.1.0", [jose: "~> 0.1.0"]},
+      {:hexpm, :eric, "0.1.2", [jose: "~> 0.1.0"]},
+      {:hexpm, :eric, "0.2.0", [jose: "~> 0.3.0"]},
+      {:hexpm, :ex_doc, "0.0.1", []},
+      {:hexpm, :ex_doc, "0.0.2", []},
+      {:hexpm, :ex_doc, "0.1.0", []},
+      {:hexpm, :ex_plex, "0.0.1", []},
+      {:hexpm, :ex_plex, "0.0.2", [decimal: "0.1.1"]},
+      {:hexpm, :ex_plex, "0.1.0", [decimal: "~> 0.1.0"]},
+      {:hexpm, :ex_plex, "0.1.2", [decimal: "~> 0.1.0"]},
+      {:hexpm, :ex_plex, "0.2.0", [decimal: "~> 0.2.0"]},
+      {:hexpm, :foo, "0.0.1", []},
+      {:hexpm, :foo, "0.1.0", []},
+      {:hexpm, :foo, "0.2.0", []},
+      {:hexpm, :foo, "0.2.1", []},
+      {:hexpm, :has_optional, "0.1.0", [{:ex_doc, "~> 0.0.1", true}]},
+      {:hexpm, :jose, "0.2.0", []},
+      {:hexpm, :jose, "0.2.1", []},
+      {:hexpm, :only_doc, "0.1.0", [{:ex_doc, ">= 0.0.0", true}]},
+      {:hexpm, :package_name, "0.1.0", []},
+      {:hexpm, :phoenix, "0.0.1", [postgrex: "~> 0.2"]},
+      {:hexpm, :phoenix, "1.1.2", [poison: "~> 1.5 or ~> 2.0"]},
+      {:hexpm, :phoenix, "1.1.3", [poison: "~> 1.5 or ~> 2.0"]},
+      {:hexpm, :poison, "1.5.2", []},
+      {:hexpm, :poison, "2.0.0", []},
+      {:hexpm, :phoenix_ecto, "2.0.0", [ecto: "~> 1.1", poison: "~> 1.3"]},
+      {:hexpm, :phoenix_ecto, "2.0.1", [ecto: "~> 1.1", poison: "~> 1.3"]},
+      {:hexpm, :phoenix_live_reload, "1.0.0", [phoenix: "~> 0.16 or ~> 1.0"]},
+      {:hexpm, :phoenix_live_reload, "1.0.3", [phoenix: "~> 0.16 or ~> 1.0"]},
+      {:hexpm, :postgrex, "0.2.0", [ex_doc: "0.0.1"]},
+      {:hexpm, :postgrex, "0.2.1", [ex_doc: "~> 0.1.0"]},
+      {:repo2, :hexpm_deps, "0.1.0", [{:poison, ">= 0.0.0", false, :poison, :hexpm}]},
+      {:repo2, :poison, "2.0.0", []},
+      {:repo2, :repo2_deps, "0.1.0", [poison: ">= 0.0.0"]}
+    ]
   end
 
   def setup_auth(username, password) do
-    {:ok, {201, body, _}} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
+    {:ok, {201, body, _}} = Hex.API.Key.new("setup_auth", user: username, pass: password)
     key = Mix.Tasks.Hex.encrypt_key(password, body["secret"])
     Mix.Tasks.Hex.update_key(key)
   end
 
   def get_auth(username, password) do
-    {:ok, {201, body, _}} = Hex.API.Key.new("setup_auth", [user: username, pass: password])
+    {:ok, {201, body, _}} = Hex.API.Key.new("setup_auth", user: username, pass: password)
     [key: body["secret"]]
   end
 
@@ -221,6 +231,7 @@ defmodule HexTest.Case do
   def wait_on_exit({:ok, pid}) do
     on_exit(fn ->
       ref = Process.monitor(pid)
+
       receive do
         {:DOWN, ^ref, :process, ^pid, _info} ->
           :ok
@@ -235,6 +246,7 @@ defmodule HexTest.Case do
       create_test_registry(ets_path)
       reset_state()
     end
+
     :ok
   end
 
@@ -269,6 +281,7 @@ defmodule HexTest.Case do
           :hex_erl_tar.create(tar_file, [{index_file, ""}], [:compressed])
           package = File.read!(tar_file)
           Plug.Conn.resp(conn, 200, package)
+
         %Plug.Conn{request_path: "/docs/docs_package"} ->
           Plug.Conn.resp(conn, 404, "")
       end
@@ -279,12 +292,14 @@ defmodule HexTest.Case do
 
   def bypass_repo(repo) do
     bypass = Bypass.open()
+
     map = %{
       url: "http://localhost:#{bypass.port}/repo",
       public_key: nil,
       auth_key: nil,
-      organization: "hexpm",
+      organization: "hexpm"
     }
+
     repos = Hex.State.fetch!(:repos)
     repos = Map.put(repos, repo, map)
     Hex.State.put(:repos, repos)
@@ -297,16 +312,21 @@ defmodule HexTest.Case do
       case conn do
         %Plug.Conn{method: "GET", request_path: ^package_path} ->
           body = %{"meta" => %{"description" => "ecto description"}}
+
           conn
           |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
           |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
+
         %Plug.Conn{method: "POST", request_path: ^release_path} ->
           body = %{"html_url" => "myrepo html_url"}
+
           conn
           |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
           |> Plug.Conn.resp(201, Hex.Utils.safe_serialize_erlang(body))
+
         %Plug.Conn{method: "POST", request_path: "/api/keys"} ->
           body = %{"secret" => "myrepo secret"}
+
           conn
           |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
           |> Plug.Conn.resp(201, Hex.Utils.safe_serialize_erlang(body))

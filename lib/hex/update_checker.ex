@@ -28,6 +28,7 @@ defmodule Hex.UpdateChecker do
       Task.async(fn ->
         {:installs, Hex.Repo.get_installs()}
       end)
+
       {:noreply, %{state | started: true}}
     else
       {:noreply, %{state | started: true, done: true}}
@@ -37,12 +38,15 @@ defmodule Hex.UpdateChecker do
   def handle_call(:check, _from, %{started: true, done: true} = state) do
     {:reply, :already_checked, state}
   end
+
   def handle_call(:check, from, %{started: true, reply: nil} = state) do
     {:noreply, %{state | from: from}}
   end
+
   def handle_call(:check, from, %{started: true} = state) do
     {:reply, state.reply, %{state | from: from, done: true}}
   end
+
   def handle_call(:check, _from, %{started: false} = state) do
     {:reply, :latest, state}
   end
@@ -52,6 +56,7 @@ defmodule Hex.UpdateChecker do
       case result do
         {:ok, {code, body, _headers}} when code in 200..299 ->
           Hex.Repo.find_new_version_from_csv(body)
+
         other ->
           Hex.Shell.error("Failed to check for new Hex version")
           Hex.Utils.print_error_result(other)
@@ -70,23 +75,30 @@ defmodule Hex.UpdateChecker do
 
   defp print_update_message(:already_checked), do: :ok
   defp print_update_message(:latest), do: :ok
+
   defp print_update_message({:http_error, reason}) do
-    Hex.Shell.error "Hex update check failed, HTTP ERROR: #{inspect reason}"
+    Hex.Shell.error("Hex update check failed, HTTP ERROR: #{inspect(reason)}")
     :ok
   end
+
   defp print_update_message({:status, status}) do
-    Hex.Shell.error "Hex update check failed, status code: #{status}"
+    Hex.Shell.error("Hex update check failed, status code: #{status}")
     :ok
   end
+
   defp print_update_message({:version, version}) do
-    Hex.Shell.warn "A new Hex version is available (#{Hex.version} < #{version}), " <>
-                   "please update with `mix local.hex`"
+    Hex.Shell.warn(
+      "A new Hex version is available (#{Hex.version()} < #{version}), " <>
+        "please update with `mix local.hex`"
+    )
+
     :ok
   end
 
   defp reply(reply, %{from: nil} = state) do
     %{state | reply: reply}
   end
+
   defp reply(reply, %{from: from} = state) do
     GenServer.reply(from, reply)
     %{state | from: nil, done: true}

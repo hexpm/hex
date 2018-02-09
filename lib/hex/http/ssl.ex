@@ -26,19 +26,29 @@ defmodule Hex.HTTP.SSL do
 
   @secure_ssl_version {5, 3, 7}
 
-  Record.defrecordp :certificate, :OTPCertificate,
+  Record.defrecordp(
+    :certificate,
+    :OTPCertificate,
     Record.extract(:OTPCertificate, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
+  )
 
-  Record.defrecordp :tbs_certificate, :OTPTBSCertificate,
+  Record.defrecordp(
+    :tbs_certificate,
+    :OTPTBSCertificate,
     Record.extract(:OTPTBSCertificate, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
+  )
 
   def secure_ssl? do
     check? = Hex.State.fetch!(:check_cert?)
+
     if check? and Hex.State.fetch!(:ssl_version) <= @secure_ssl_version do
-      Mix.raise "Insecure HTTPS request (peer verification disabled), " <>
-                "please update to OTP 17.4 or later, or disable by setting " <>
-                "the environment variable HEX_UNSAFE_HTTPS=1"
+      Mix.raise(
+        "Insecure HTTPS request (peer verification disabled), " <>
+          "please update to OTP 17.4 or later, or disable by setting " <>
+          "the environment variable HEX_UNSAFE_HTTPS=1"
+      )
     end
+
     check?
   end
 
@@ -48,7 +58,7 @@ defmodule Hex.HTTP.SSL do
 
     if secure_ssl?() do
       verify_fun = {&VerifyHostname.verify_fun/3, check_hostname: hostname}
-      partial_chain = &partial_chain(Certs.cacerts, &1)
+      partial_chain = &partial_chain(Certs.cacerts(), &1)
 
       [
         verify: :verify_peer,

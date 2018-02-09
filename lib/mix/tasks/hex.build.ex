@@ -34,7 +34,7 @@ defmodule Mix.Tasks.Hex.Build do
   Dependencies are defined in mix's dependency format. But instead of using
   `:git` or `:path` as the SCM `:package` is used.
 
-      defp deps do
+      defp deps() do
         [
           {:ecto, "~> 0.1.0"},
           {:postgrex, "~> 0.3.0"},
@@ -106,7 +106,7 @@ defmodule Mix.Tasks.Hex.Build do
 
   defp build_package(meta, output) do
     {_tar, checksum} = Hex.create_tar!(meta, meta.files, output)
-    Hex.Shell.info("Package checksum: #{checksum}")
+    Hex.Shell.info("Package checksum: #{Base.encode16(checksum, case: :lower)}")
   end
 
   defp build_and_unpack_package(meta, output) do
@@ -133,14 +133,16 @@ defmodule Mix.Tasks.Hex.Build do
       deps: deps,
       exclude_deps: exclude_deps,
       meta: meta,
-      organization: organization,
+      organization: organization
     }
   end
 
   def print_info(meta, organization, exclude_deps, package_files) do
     if meta[:requirements] != [] do
       Hex.Shell.info("  Dependencies:")
-      Enum.each(meta[:requirements], fn %{name: name, app: app, requirement: req, optional: opt, repository: repo} ->
+
+      Enum.each(meta[:requirements], fn requirement ->
+        %{name: name, app: app, requirement: req, optional: opt, repository: repo} = requirement
         app = if name != app, do: " (app: #{app})"
         opt = if opt, do: " (optional)"
         repo = if repo != @default_repo, do: " (repo: #{repo})"
@@ -169,8 +171,13 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   defp check_excluded_deps([]), do: []
+
   defp check_excluded_deps(deps) do
-    ["Dependencies excluded from the package (only Hex packages can be dependencies): #{Enum.join(deps, ", ")}"]
+    [
+      "Dependencies excluded from the package (only Hex packages can be dependencies): #{
+        Enum.join(deps, ", ")
+      }"
+    ]
   end
 
   defp meta_for(config, package, deps) do
@@ -191,23 +198,31 @@ defmodule Mix.Tasks.Hex.Build do
 
     Enum.each(include, fn %Mix.Dep{app: app, opts: opts} = dep ->
       if opts[:override] do
-        Mix.raise "Can't build package with overridden dependency #{app}, remove `override: true`"
+        Mix.raise(
+          "Can't build package with overridden dependency #{app}, remove `override: true`"
+        )
       end
 
       if opts[:compile] do
-        Mix.raise "Can't build package when :compile is set for dependency #{app}, remove `compile: ...`"
+        Mix.raise(
+          "Can't build package when :compile is set for dependency #{app}, remove `compile: ...`"
+        )
       end
 
       if opts[:manager] do
-        Mix.raise "Can't build package when :manager is set for dependency #{app}, remove `manager: ...`"
+        Mix.raise(
+          "Can't build package when :manager is set for dependency #{app}, remove `manager: ...`"
+        )
       end
 
       if opts[:app] do
-        Mix.raise "Can't build package when :app is set for dependency #{app}, remove `app: ...`"
+        Mix.raise("Can't build package when :app is set for dependency #{app}, remove `app: ...`")
       end
 
       if Map.get(dep, :system_env, []) != [] do
-        Mix.raise "Can't build package when :system_env is set for dependency #{app}, remove `system_env: ...`"
+        Mix.raise(
+          "Can't build package when :system_env is set for dependency #{app}, remove `system_env: ...`"
+        )
       end
     end)
 
@@ -282,7 +297,9 @@ defmodule Mix.Tasks.Hex.Build do
     invalid_field = Enum.find(config_keys, &(&1 in package_only_fields))
 
     if invalid_field do
-      Hex.Shell.warn "Mix configuration #{inspect invalid_field} also belongs under the :package key, did you misplace it?"
+      Hex.Shell.warn(
+        "Mix configuration #{inspect(invalid_field)} also belongs under the :package key, did you misplace it?"
+      )
     end
   end
 
@@ -306,6 +323,7 @@ defmodule Mix.Tasks.Hex.Build do
 
   defp expand_paths(paths, dir) do
     expand_dir = Path.expand(dir)
+
     paths
     |> Enum.map(&Path.join(dir, &1))
     |> Enum.flat_map(&Path.wildcard/1)
@@ -319,6 +337,7 @@ defmodule Mix.Tasks.Hex.Build do
     case Hex.file_lstat(path) do
       {:ok, %File.Stat{type: :directory}} ->
         [path | Path.wildcard(Path.join(path, "**"), match_dot: true)]
+
       _ ->
         [path]
     end

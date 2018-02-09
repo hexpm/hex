@@ -7,6 +7,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
     package = "decimal"
     version = "1.1.2"
     message = "Documentation file not found: #{docs_home}/#{package}/#{version}/index.html"
+
     assert_raise Mix.Error, message, fn ->
       Mix.Tasks.Hex.Docs.run(["open", package, version, "--offline"])
     end
@@ -20,11 +21,11 @@ defmodule Mix.Tasks.Hex.DocsTest do
     Hex.State.put(:home, tmp_path())
     docs_home = Path.join(Hex.State.fetch!(:home), "docs")
 
-    auth = Hexpm.new_key([user: "user", pass: "hunter42"])
+    auth = Hexpm.new_key(user: "user", pass: "hunter42")
     Hexpm.new_package(package, old_version, %{}, %{}, auth)
     Hexpm.new_package(package, latest_version, %{}, %{}, auth)
 
-    in_tmp "docs", fn ->
+    in_tmp("docs", fn ->
       Mix.Tasks.Hex.Docs.run(["fetch", package])
       fetched_msg = "Docs fetched: #{docs_home}/#{package}/#{latest_version}"
       assert_received {:mix_shell, :info, [^fetched_msg]}
@@ -32,7 +33,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
       Mix.Tasks.Hex.Docs.run(["fetch", package])
       already_fetched_msg = "Docs already fetched: #{docs_home}/#{package}/#{latest_version}"
       assert_received {:mix_shell, :info, [^already_fetched_msg]}
-    end
+    end)
   end
 
   test "fetch and open a specific version of a package" do
@@ -46,7 +47,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
       |> Hex.State.fetch!()
       |> Path.join("docs")
 
-    in_tmp "docs", fn ->
+    in_tmp("docs", fn ->
       Mix.Tasks.Hex.Docs.run(["fetch", package, version])
       fetched_msg = "Docs fetched: #{docs_home}/#{package}/#{version}"
       assert_received {:mix_shell, :info, [^fetched_msg]}
@@ -54,13 +55,14 @@ defmodule Mix.Tasks.Hex.DocsTest do
       Mix.Tasks.Hex.Docs.run(["fetch", package, version])
       already_fetched_msg = "Docs already fetched: #{docs_home}/#{package}/#{version}"
       assert_received {:mix_shell, :info, [^already_fetched_msg]}
-    end
+    end)
   end
 
   test "fetch a package that does not exists" do
     package = "package_not_found"
 
     not_found_msg = "No package with name #{package}"
+
     assert_raise Mix.Error, not_found_msg, fn ->
       Mix.Tasks.Hex.Docs.run(["fetch", package])
     end
@@ -74,6 +76,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
 
   test "fetch and open tasks fails when package name is not provided" do
     msg = "You must specify at least the name of a package"
+
     assert_raise Mix.Error, msg, fn ->
       Mix.Tasks.Hex.Docs.run(["fetch"])
     end

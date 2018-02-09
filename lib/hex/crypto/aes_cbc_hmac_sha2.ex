@@ -9,12 +9,11 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
   See: https://tools.ietf.org/html/rfc7518#section-5.2.6
   """
 
-  @spec content_encrypt({binary, binary}, <<_::32>> | <<_::48>> | <<_::64>>, <<_::16>>) :: {binary, <<_::16>> | <<_::24>> | <<_::32>>}
+  @spec content_encrypt({binary, binary}, <<_::32>> | <<_::48>> | <<_::64>>, <<_::16>>) ::
+          {binary, <<_::16>> | <<_::24>> | <<_::32>>}
   def content_encrypt({aad, plain_text}, key, iv)
-      when is_binary(aad) and
-           is_binary(plain_text) and
-           bit_size(key) in [256, 384, 512] and
-           bit_size(iv) === 128 do
+      when is_binary(aad) and is_binary(plain_text) and bit_size(key) in [256, 384, 512] and
+             bit_size(iv) === 128 do
     mac_size = div(byte_size(key), 2)
     enc_size = mac_size
     tag_size = mac_size
@@ -26,13 +25,14 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
     {cipher_text, cipher_tag}
   end
 
-  @spec content_decrypt({binary, binary, <<_::16>> | <<_::24>> | <<_::32>>}, <<_::32>> | <<_::48>> | <<_::64>>, <<_::16>>) :: {:ok, binary} | :error
+  @spec content_decrypt(
+          {binary, binary, <<_::16>> | <<_::24>> | <<_::32>>},
+          <<_::32>> | <<_::48>> | <<_::64>>,
+          <<_::16>>
+        ) :: {:ok, binary} | :error
   def content_decrypt({aad, cipher_text, cipher_tag}, key, iv)
-      when is_binary(aad) and
-           is_binary(cipher_text) and
-           bit_size(cipher_tag) in [128, 192, 256] and
-           bit_size(key) in [256, 384, 512] and
-           bit_size(iv) === 128 do
+      when is_binary(aad) and is_binary(cipher_text) and bit_size(cipher_tag) in [128, 192, 256] and
+             bit_size(key) in [256, 384, 512] and bit_size(iv) === 128 do
     mac_size = div(byte_size(key), 2)
     enc_size = mac_size
     tag_size = mac_size
@@ -45,9 +45,11 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
         case aes_cbc_decrypt(enc_key, iv, cipher_text) do
           plain_text when is_binary(plain_text) ->
             pkcs7_unpad(plain_text)
+
           _ ->
             :error
         end
+
       _ ->
         :error
     end
@@ -104,9 +106,11 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
   defp hmac_sha2(mac_key, mac_data) when bit_size(mac_key) === 128 do
     :crypto.hmac(:sha256, mac_key, mac_data)
   end
+
   defp hmac_sha2(mac_key, mac_data) when bit_size(mac_key) === 192 do
     :crypto.hmac(:sha384, mac_key, mac_data)
   end
+
   defp hmac_sha2(mac_key, mac_data) when bit_size(mac_key) === 256 do
     :crypto.hmac(:sha512, mac_key, mac_data)
   end
@@ -128,11 +132,15 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
   defp pkcs7_unpad(<<>>) do
     :error
   end
+
   defp pkcs7_unpad(message) do
     padding_size = :binary.last(message)
+
     if padding_size <= 16 do
       message_size = byte_size(message)
-      if binary_part(message, message_size, -padding_size) === :binary.copy(<<padding_size>>, padding_size) do
+
+      if binary_part(message, message_size, -padding_size) ===
+           :binary.copy(<<padding_size>>, padding_size) do
         {:ok, binary_part(message, 0, message_size - padding_size)}
       else
         :error

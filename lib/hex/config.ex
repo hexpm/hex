@@ -18,11 +18,13 @@ defmodule Hex.Config do
         case decode_term(binary) do
           {:ok, term} ->
             term
+
           {:error, _} ->
             config = decode_elixir(binary)
             write(config)
             config
         end
+
       {:error, _} ->
         []
     end
@@ -56,6 +58,7 @@ defmodule Hex.Config do
 
   defp hex_home() do
     state_pid = Process.whereis(Hex.State)
+
     if state_pid && state_pid != self() do
       Hex.State.fetch!(:home)
     else
@@ -71,6 +74,7 @@ defmodule Hex.Config do
 
   defp decode_term(string) do
     {:ok, pid} = StringIO.open(string)
+
     try do
       consult(pid, [], string)
     after
@@ -80,9 +84,9 @@ defmodule Hex.Config do
 
   defp consult(pid, acc, string) when is_pid(pid) do
     case :io.read(pid, '') do
-      {:ok, term}      -> consult(pid, [term|acc], string)
+      {:ok, term} -> consult(pid, [term | acc], string)
       {:error, reason} -> {:error, reason}
-      :eof             -> {:ok, Enum.reverse(acc)}
+      :eof -> {:ok, Enum.reverse(acc)}
     end
   end
 
@@ -99,10 +103,12 @@ defmodule Hex.Config do
 
   def update_repos(repos) do
     Hex.Config.update([{:"$repos", clean_hexpm(repos)}])
+
     repos =
       repos
       |> merge_hexpm()
       |> update_organizations()
+
     Hex.State.put(:repos, repos)
   end
 
@@ -110,7 +116,7 @@ defmodule Hex.Config do
     %{
       url: @hexpm_url,
       public_key: @hexpm_public_key,
-      auth_key: nil,
+      auth_key: nil
     }
   end
 
@@ -124,11 +130,14 @@ defmodule Hex.Config do
       case String.split(name, ":", parts: 2) do
         [source, organization] ->
           source = Map.fetch!(repos, source)
+
           repo =
             repo
             |> Map.put(:url, merge_values(repo.url, source.url <> "/repos/#{organization}"))
             |> Map.put(:public_key, merge_values(repo.public_key, source.public_key))
+
           {name, repo}
+
         _ ->
           {name, repo}
       end
@@ -137,13 +146,15 @@ defmodule Hex.Config do
 
   defp clean_hexpm(repos) do
     repo = Map.get(repos, "hexpm", default_hexpm())
-    repo = Enum.reduce(default_hexpm(), repo, fn {key, value}, repo ->
-      if value == Map.get(repo, key) do
-        Map.delete(repo, key)
-      else
-        repo
-      end
-    end)
+
+    repo =
+      Enum.reduce(default_hexpm(), repo, fn {key, value}, repo ->
+        if value == Map.get(repo, key) do
+          Map.delete(repo, key)
+        else
+          repo
+        end
+      end)
 
     if repo == %{} do
       Map.delete(repos, "hexpm")

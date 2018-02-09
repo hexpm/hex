@@ -9,7 +9,9 @@ defmodule Hex.Crypto.Encryption do
         iv = ContentEncryptor.generate_iv(content_encryptor)
         protected = :erlang.term_to_binary(protected)
         aad = tag <> protected
-        {cipher_text, cipher_tag} = ContentEncryptor.encrypt(content_encryptor, key, iv, {aad, plain_text})
+
+        {cipher_text, cipher_tag} =
+          ContentEncryptor.encrypt(content_encryptor, key, iv, {aad, plain_text})
 
         %{
           protected: protected,
@@ -28,6 +30,7 @@ defmodule Hex.Crypto.Encryption do
 
   def decrypt({tag, cipher_text}, opts) do
     {:ok, cipher_text} = Crypto.base64url_decode(cipher_text)
+
     %{
       protected: protected,
       encrypted_key: encrypted_key,
@@ -42,6 +45,7 @@ defmodule Hex.Crypto.Encryption do
     case KeyManager.decrypt(protected, encrypted_key, opts) do
       {:ok, key, content_encryptor} ->
         ContentEncryptor.decrypt(content_encryptor, key, iv, {aad, cipher_text, cipher_tag})
+
       decrypt_init_error ->
         decrypt_init_error
     end

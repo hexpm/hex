@@ -23,12 +23,13 @@ defmodule Mix.Tasks.Hex.Search do
     case args do
       [package] ->
         search_package(package, opts[:organization])
+
       _ ->
-        Mix.raise """
+        Mix.raise("""
         Invalid arguments, expected:
 
         mix hex.search PACKAGE
-        """
+        """)
     end
   end
 
@@ -36,7 +37,7 @@ defmodule Mix.Tasks.Hex.Search do
     result =
       if key = Hex.State.fetch!(:api_key) do
         decrypted_key = Mix.Tasks.Hex.prompt_decrypt_key(key)
-        Hex.API.Package.search(organization, package, [key: decrypted_key])
+        Hex.API.Package.search(organization, package, key: decrypted_key)
       else
         Hex.API.Package.search(organization, package)
       end
@@ -45,8 +46,9 @@ defmodule Mix.Tasks.Hex.Search do
   end
 
   defp lookup_packages({:ok, {200, [], _headers}}) do
-    Hex.Shell.info "No packages found"
+    Hex.Shell.info("No packages found")
   end
+
   defp lookup_packages({:ok, {200, packages, _headers}}) do
     values =
       Enum.map(packages, fn package ->
@@ -65,19 +67,17 @@ defmodule Mix.Tasks.Hex.Search do
   end
 
   defp latest_stable(releases) do
-    %{"version" => version} = Enum.find(
-      releases,
-      %{"version" => nil},
-      &is_stable/1
-    )
+    %{"version" => version} =
+      Enum.find(
+        releases,
+        %{"version" => nil},
+        &Hex.Version.stable?(&1["version"])
+      )
 
     version
   end
 
-  defp is_stable(%{"version" => version}) do
-    parsed_version = Hex.Version.parse!(version)
-    parsed_version.pre == []
-  end
+  defp trim_heredoc(nil), do: ""
 
   defp trim_heredoc(string) do
     string |> String.split("\n", trim: true) |> Enum.map_join(" ", &(&1 |> Hex.string_trim()))

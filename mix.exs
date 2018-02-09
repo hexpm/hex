@@ -1,9 +1,9 @@
 defmodule Hex.MixProject do
   use Mix.Project
 
-  @version "0.17.3-dev"
+  @version "0.17.4-dev"
 
-  {:ok, system_version} = Version.parse(System.version)
+  {:ok, system_version} = Version.parse(System.version())
   @elixir_version {system_version.major, system_version.minor, system_version.patch}
 
   def project do
@@ -14,15 +14,15 @@ defmodule Hex.MixProject do
       aliases: aliases(),
       lockfile: lockfile(@elixir_version),
       deps: deps(@elixir_version),
-      elixirc_options: elixirc_options(Mix.env),
-      elixirc_paths: elixirc_paths(Mix.env),
+      elixirc_options: elixirc_options(Mix.env()),
+      elixirc_paths: elixirc_paths(Mix.env()),
       xref: xref()
     ]
   end
 
   def application do
     [
-      applications: applications(Mix.env),
+      applications: applications(Mix.env()),
       mod: {Hex, []}
     ]
   end
@@ -40,28 +40,30 @@ defmodule Hex.MixProject do
   # Hex because we have to unload Hex before compiling it.
   defp deps(elixir_version) when elixir_version >= {1, 5, 0} do
     [
-      {:stream_data, github: "whatyouhide/stream_data", tag: "v0.4.0", only: :test},
-      {:plug, github: "elixir-lang/plug", tag: "v1.2.0", only: :test, override: true}
+      {:stream_data, [github: "whatyouhide/stream_data", tag: "v0.4.0"] ++ test_opts()},
+      {:plug, [github: "elixir-lang/plug", tag: "v1.2.0"] ++ test_opts()}
     ] ++ deps()
   end
+
   defp deps(elixir_version) when elixir_version >= {1, 2, 3} do
-    [{:plug, github: "elixir-lang/plug", tag: "v1.2.0", only: :test, override: true}] ++
-      deps()
+    [{:plug, [github: "elixir-lang/plug", tag: "v1.2.0"] ++ test_opts()}] ++ deps()
   end
+
   defp deps(_) do
-    [{:plug, github: "elixir-lang/plug", tag: "v1.1.6", only: :test, override: true}] ++
-      deps()
+    [{:plug, [github: "elixir-lang/plug", tag: "v1.1.6"] ++ test_opts()}] ++ deps()
   end
 
   defp deps do
     [
-      {:bypass, github: "PSPDFKit-labs/bypass", only: :test},
-      {:mime,   github: "elixir-lang/mime", tag: "v1.0.1", only: :test, override: true},
-      {:cowboy, github: "ninenines/cowboy", tag: "1.0.4", only: :test, override: true, manager: :rebar3},
-      {:cowlib, github: "ninenines/cowlib", tag: "1.0.2", only: :test, override: true, manager: :rebar3},
-      {:ranch,  github: "ninenines/ranch", tag: "1.2.1", only: :test, override: true, manager: :rebar3}
+      {:bypass, [github: "PSPDFKit-labs/bypass", only: :test]},
+      {:mime, [github: "elixir-lang/mime", tag: "v1.0.1"] ++ test_opts()},
+      {:cowboy, [github: "ninenines/cowboy", tag: "1.0.4", manager: :rebar3] ++ test_opts()},
+      {:cowlib, [github: "ninenines/cowlib", tag: "1.0.2", manager: :rebar3] ++ test_opts()},
+      {:ranch, [github: "ninenines/ranch", tag: "1.2.1", manager: :rebar3] ++ test_opts()}
     ]
-   end
+  end
+
+  defp test_opts(), do: [only: :test, override: true]
 
   defp elixirc_options(:prod), do: [debug_info: false]
   defp elixirc_options(_), do: []
@@ -106,6 +108,7 @@ defmodule Hex.MixProject do
             module = String.to_atom(name)
             :code.delete(module)
             :code.purge(module)
+
           _ ->
             :ok
         end

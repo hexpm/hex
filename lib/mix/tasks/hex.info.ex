@@ -31,25 +31,28 @@ defmodule Mix.Tasks.Hex.Info do
     case args do
       [] ->
         general()
+
       [package] ->
         package(opts[:organization], package)
+
       [package, version] ->
         release(opts[:organization], package, version)
+
       _ ->
-        Mix.raise """
+        Mix.raise("""
         Invalid arguments, expected:
 
         mix hex.info [PACKAGE [VERSION]]
-        """
+        """)
     end
   end
 
   defp general do
-    Hex.Shell.info "Hex:    #{Hex.version}"
-    Hex.Shell.info "Elixir: #{System.version}"
-    Hex.Shell.info "OTP:    #{Hex.Utils.otp_version}"
-    Hex.Shell.info ""
-    Hex.Shell.info "Built with: Elixir #{Hex.elixir_version} and OTP #{Hex.otp_version}"
+    Hex.Shell.info("Hex:    #{Hex.version()}")
+    Hex.Shell.info("Elixir: #{System.version()}")
+    Hex.Shell.info("OTP:    #{Hex.Utils.otp_version()}")
+    Hex.Shell.info("")
+    Hex.Shell.info("Built with: Elixir #{Hex.elixir_version()} and OTP #{Hex.otp_version()}")
 
     Hex.Registry.Server.open()
     Hex.UpdateChecker.check()
@@ -60,10 +63,12 @@ defmodule Mix.Tasks.Hex.Info do
     case Hex.API.Package.get(organization, package) do
       {:ok, {code, body, _}} when code in 200..299 ->
         print_package(body)
+
       {:ok, {404, _, _}} ->
-        Hex.Shell.error "No package with name #{package}"
+        Hex.Shell.error("No package with name #{package}")
+
       other ->
-        Hex.Shell.error "Failed to retrieve package information"
+        Hex.Shell.error("Failed to retrieve package information")
         Hex.Utils.print_error_result(other)
     end
   end
@@ -72,10 +77,12 @@ defmodule Mix.Tasks.Hex.Info do
     case Hex.API.Release.get(organization, package, version) do
       {:ok, {code, body, _}} when code in 200..299 ->
         print_release(package, body)
+
       {:ok, {404, _, _}} ->
-        Hex.Shell.error "No release with name #{package} #{version}"
+        Hex.Shell.error("No release with name #{package} #{version}")
+
       other ->
-        Hex.Shell.error "Failed to retrieve release information"
+        Hex.Shell.error("Failed to retrieve release information")
         Hex.Utils.print_error_result(other)
     end
   end
@@ -83,16 +90,28 @@ defmodule Mix.Tasks.Hex.Info do
   defp print_package(package) do
     meta = package["meta"]
     desc = meta["description"] || "No description provided"
-    Hex.Shell.info desc <> "\n"
+    Hex.Shell.info(desc <> "\n")
     releases = package["releases"] || []
-    print_config(package["name"], List.first(releases))
     retirements = package["retirements"] || %{}
-    Hex.Shell.info ["Releases: "] ++ format_releases(releases, Map.keys(retirements)) ++ ["\n"]
+    print_config(package["name"], latest_release(releases, retirements))
+    Hex.Shell.info(["Releases: "] ++ format_releases(releases, Map.keys(retirements)) ++ ["\n"])
     print_meta(meta)
+  end
+
+  @doc false
+  def latest_release(releases, retirements) do
+    stable_active_releases =
+      Enum.filter(
+        releases,
+        &(Hex.Version.stable?(&1["version"]) and not(&1["version"] in retirements))
+      )
+
+    List.first(stable_active_releases) || List.first(releases)
   end
 
   defp format_releases(releases, retirements) do
     {releases, rest} = Enum.split(releases, 8)
+
     Enum.map(releases, &format_version(&1, retirements))
     |> Enum.intersperse([", "])
     |> add_ellipsis(rest)
@@ -124,23 +143,25 @@ defmodule Mix.Tasks.Hex.Info do
     print_config(package, release)
 
     if release["has_docs"] do
-      Hex.Shell.info "Documentation at: #{Hex.Utils.hexdocs_url(package, version)}"
+      Hex.Shell.info("Documentation at: #{Hex.Utils.hexdocs_url(package, version)}")
     end
 
     if requirements = release["requirements"] do
-      Hex.Shell.info "Dependencies:"
+      Hex.Shell.info("Dependencies:")
+
       Enum.each(requirements, fn {name, req} ->
         app = req["app"]
         app = if app && app != name, do: " (app: #{app})"
         optional = if req["optional"], do: " (optional)"
-        Hex.Shell.info "  #{name} #{req["requirement"]}#{app}#{optional}"
+        Hex.Shell.info("  #{name} #{req["requirement"]}#{app}#{optional}")
       end)
     end
   end
 
   defp print_config(name, nil) do
-    Hex.Shell.info "Config: " <> format_config_snippet(">= 0.0.0", name, name)
+    Hex.Shell.info("Config: " <> format_config_snippet(">= 0.0.0", name, name))
   end
+
   defp print_config(name, release) do
     app_name = String.to_atom(release["meta"]["app"] || name)
     name = String.to_atom(name)
@@ -150,34 +171,49 @@ defmodule Mix.Tasks.Hex.Info do
       version
       |> format_version()
       |> format_config_snippet(name, app_name)
-    Hex.Shell.info "Config: " <> snippet
+
+    Hex.Shell.info("Config: " <> snippet)
   end
 
   defp format_config_snippet(version, name, name) do
-    "{#{inspect name}, #{inspect version}}"
+    "{#{inspect(name)}, #{inspect(version)}}"
   end
+
   defp format_config_snippet(version, name, app_name) do
-    "{#{inspect app_name}, #{inspect version}, hex: #{inspect name}}"
+    "{#{inspect(app_name)}, #{inspect(version)}, hex: #{inspect(name)}}"
   end
 
   defp format_version(%Version{major: 0, minor: minor, patch: patch, pre: []}) do
     "~> 0.#{minor}.#{patch}"
   end
+
   defp format_version(%Version{major: major, minor: minor, pre: []}) do
     "~> #{major}.#{minor}"
   end
+
   defp format_version(%Version{major: major, minor: minor, patch: patch, pre: pre}) do
     "~> #{major}.#{minor}.#{patch}#{format_pre(pre)}"
   end
 
   defp print_retirement(%{"retirement" => nil}), do: ""
+
   defp print_retirement(release) do
-    retirement = %{reason: release["retirement"]["reason"], message: release["retirement"]["message"]}
-    Hex.Shell.warn [[:bright, "This version has been retired"], [:normal, ": "], [:normal, Hex.Utils.package_retirement_message(retirement)]]
+    retirement = %{
+      reason: release["retirement"]["reason"],
+      message: release["retirement"]["message"]
+    }
+
+    Hex.Shell.warn([
+      [:bright, "This version has been retired"],
+      [:normal, ": "],
+      [:normal, Hex.Utils.package_retirement_message(retirement)]
+    ])
   end
+
   defp format_pre([]) do
     ""
   end
+
   defp format_pre(pre) do
     "-" <>
       Enum.map_join(pre, ".", fn
@@ -188,6 +224,7 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp print_list(meta, name) do
     list = Map.get(meta, name, [])
+
     if list != [] do
       Hex.Shell.info(String.capitalize(name) <> ": " <> Enum.join(list, ", "))
     end
@@ -198,9 +235,10 @@ defmodule Mix.Tasks.Hex.Info do
     dict = Map.get(meta, name, [])
 
     if dict != [] do
-      Hex.Shell.info title <> ":"
+      Hex.Shell.info(title <> ":")
+
       Enum.each(dict, fn {key, val} ->
-        Hex.Shell.info "  #{key}: #{val}"
+        Hex.Shell.info("  #{key}: #{val}")
       end)
     end
   end

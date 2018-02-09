@@ -34,4 +34,21 @@ defmodule Mix.Tasks.Hex.InfoTest do
     Mix.Tasks.Hex.Info.run(["ex_doc", "1.2.3"])
     assert_received {:mix_shell, :error, ["No release with name ex_doc 1.2.3"]}
   end
+
+  test "latest_release/2" do
+    import Mix.Tasks.Hex.Info, only: [latest_release: 2]
+
+    v1_1_0_rc1 = %{"version" => "1.1.0-rc.1"}
+    v1_1_0_rc0 = %{"version" => "1.1.0-rc.0"}
+    v1_0_1 = %{"version" => "1.0.1"}
+    v1_0_0 = %{"version" => "1.0.0"}
+
+    assert latest_release([v1_0_1, v1_0_0], []) == v1_0_1
+
+    assert latest_release([v1_1_0_rc1, v1_0_0], []) == v1_0_0
+    assert latest_release([v1_1_0_rc1, v1_1_0_rc0], []) == v1_1_0_rc1
+
+    assert latest_release([v1_0_1, v1_0_0], ["1.0.1"]) == v1_0_0
+    assert latest_release([v1_0_1, v1_0_0], ["1.0.1", "1.0.0"]) == v1_0_1
+  end
 end

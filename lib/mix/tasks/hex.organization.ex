@@ -33,7 +33,7 @@ defmodule Mix.Tasks.Hex.Organization do
 
       mix hex.organization deauth NAME
 
-  ## Generate a repository autentication key
+  ## Generate a repository authentication key
 
   This command is useful to pre-generate keys for use with `mix hex.organization auth ORGANIZATION --key KEY`
   on CI servers or similar systems. It returns the hash of the generated key that you can pass to
@@ -55,20 +55,24 @@ defmodule Mix.Tasks.Hex.Organization do
     case args do
       ["auth", name] ->
         auth(name, opts)
+
       ["deauth", name] ->
         deauth(name)
+
       ["key", name] ->
         key(name)
+
       ["list"] ->
         list()
+
       _ ->
-        Mix.raise """
+        Mix.raise("""
         Invalid arguments, expected one of:
 
         mix hex.organization auth ORGANIZATION
         mix hex.organization deauth ORGANIZATION
         mix hex.organization list
-        """
+        """)
     end
   end
 
@@ -87,7 +91,7 @@ defmodule Mix.Tasks.Hex.Organization do
   end
 
   defp key(name) do
-    Hex.Shell.info Mix.Tasks.Hex.generate_organization_key(name)
+    Hex.Shell.info(Mix.Tasks.Hex.generate_organization_key(name))
   end
 
   defp list() do
@@ -95,6 +99,7 @@ defmodule Mix.Tasks.Hex.Organization do
       case String.split(name, ":", parts: 2) do
         ["hexpm", name] ->
           Hex.Shell.info(name)
+
         _ ->
           :ok
       end
@@ -107,12 +112,13 @@ defmodule Mix.Tasks.Hex.Organization do
   end
 
   defp test_key(key, name) do
-    case Hex.API.Auth.get("repository", name, [key: key]) do
+    case Hex.API.Auth.get("repository", name, key: key) do
       {:ok, {code, _body, _}} when code in 200..299 ->
         :ok
+
       other ->
         Hex.Utils.print_error_result(other)
-        Mix.raise "Failed to authenticate against organization repository with given key"
+        Mix.raise("Failed to authenticate against organization repository with given key")
     end
   end
 end

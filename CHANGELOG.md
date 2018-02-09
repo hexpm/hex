@@ -1,13 +1,19 @@
 # CHANGELOG
 
-## v0.17.3-dev
+## v0.17.4-dev
+
+## v0.17.3 (2018-01-17)
+
+### Bug fixes
+
+* Handle missing package descriptions in `hex.search` task
+* Fix printing of package checksum after publishing
 
 ## v0.17.2 (2018-01-16)
 
 ### Enhancements
 
-* Increase `hex.publish` timeouts and make it configurable with `:http_timeout` config and
-  `HEX_HTTP_TIMEOUT` variable
+* Increase `hex.publish` timeouts and make it configurable with `:http_timeout` config and `HEX_HTTP_TIMEOUT` variable
 * Test key before adding it with `hex.organization auth NAME --key KEY`
 * Remove pre-release publish restriction for private packages
 * Add package descriptions to `hex.search` task
@@ -46,27 +52,16 @@
 
 * Improve error message when package does not exist
 * Improve error message when no versions exist for given requirement
-* Add `--key` flag to `hex.organization auth` to authorize by giving a key
-  directly without supplying a password
-* Add `hex.organization key` to generate a key for accessing the organization's
-  repository
+* Add `--key` flag to `hex.organization auth` to authorize by giving a key directly without supplying a password
+* Add `hex.organization key` to generate a key for accessing the organization's repository
 
 ## v0.17.0 (2017-08-28)
 
 ### Private packages and organizations
 
-Hex.pm is adding support for private packages with organizations. See
-https://hex.pm/docs/private for more details. To authorize an organization on
-your machine run `mix hex.organization auth acme`, this will store the
-organization's repository details in Hex so that you can fetch packages from the
-repository. As soon as you are added as a member to an organization you can
-administer and publish packages, if you have the appropriate role, with the
-`--organization` flag or by setting the `:organization` option on the package
-configuration.
+Hex.pm is adding support for private packages with organizations. See https://hex.pm/docs/private for more details. To authorize an organization on your machine run `mix hex.organization auth acme`, this will store the organization's repository details in Hex so that you can fetch packages from the repository. As soon as you are added as a member to an organization you can administer and publish packages, if you have the appropriate role, with the `--organization` flag or by setting the `:organization` option on the package configuration.
 
-Different from the last release packages will always be pulled from the default
-`hexpm` repository and you have to override it with the `:organization` or
-`:repo` options on the dependency configuration.
+Different from the last release packages will always be pulled from the default `hexpm` repository and you have to override it with the `:organization` or `:repo` options on the dependency configuration.
 
 ### Enhancements
 
@@ -90,8 +85,7 @@ Different from the last release packages will always be pulled from the default
 ### Enhancements
 
 * Add `mix hex.repo show` task for showing repo configuration
-* Improve error message if there are no releases for given requirement in the
-  registry
+* Improve error message if there are no releases for given requirement in the registry
 * Add `mix hex.audit` task for checking for retired packages
 
 ### Bug fixes
@@ -100,24 +94,14 @@ Different from the last release packages will always be pulled from the default
 * Do not update lock entry if only metadata changed
 * Do not show authentication details when printing URLs
 * Fix password reset
-* Fix race condition where some entries may not be cached if they were added
-  just before application closed
-* Support PAX tarballs, created on OTP 20, when using older OTP versions.
-  Additionally, make it less likely PAX tarballs are created
+* Fix race condition where some entries may not be cached if they were added just before application closed
+* Support PAX tarballs, created on OTP 20, when using older OTP versions. Additionally, make it less likely PAX tarballs are created
 
 ## v0.16.0 (2017-04-18)
 
 ### Multiple repository support
 
-This version adds support for using packages from multiple repositories. With
-the `hex.repo` task additional repositories can be added to Hex. With it you
-can add additional repositories or replace the default "hexpm" repository
-by running `mix hex.repo add hexpm ...`, check the docs for more information.
-To use a dependency from another repository add `repo: :my_other_repo` to the
-dependency definition in `mix.exs` and make sure you have added `my_other_repo`
-with `mix hex.repo add my_other_repo`. Dependencies of a package will be
-automatically pulled from the same repository as the parent package unless
-otherwise stated with the `:repo` option on the dependency definition.
+This version adds support for using packages from multiple repositories. With the `hex.repo` task additional repositories can be added to Hex. With it you can add additional repositories or replace the default "hexpm" repository by running `mix hex.repo add hexpm ...`, check the docs for more information. To use a dependency from another repository add `repo: :my_other_repo` to the dependency definition in `mix.exs` and make sure you have added `my_other_repo` with `mix hex.repo add my_other_repo`. Dependencies of a package will be automatically pulled from the same repository as the parent package unless otherwise stated with the `:repo` option on the dependency definition.
 
 ### Enhancements
 
@@ -137,12 +121,7 @@ otherwise stated with the `:repo` option on the dependency definition.
 
 ### Package retirement
 
-With this new release you can mark versions of your packages as retired when you
-no longer recommend its use. This can be because the release has a serious
-security flaw, something went wrong with the release so that it's unusable or
-because the package has been renamed or deprecated. A retired version is still
-usable and fetchable but it will show as retired on hex.pm and when resolved Hex
-will show a warning to the user with the retirement message.
+With this new release you can mark versions of your packages as retired when you no longer recommend its use. This can be because the release has a serious security flaw, something went wrong with the release so that it's unusable or because the package has been renamed or deprecated. A retired version is still usable and fetchable but it will show as retired on hex.pm and when resolved Hex will show a warning to the user with the retirement message.
 
 ### Enhancements
 
@@ -161,8 +140,7 @@ will show a warning to the user with the retirement message.
 
 ### Enhancements
 
-* Add environment variable `HEX_HTTP_CONCURRENCY` for limiting number of
-  concurrent HTTP requests
+* Add environment variable `HEX_HTTP_CONCURRENCY` for limiting number of concurrent HTTP requests
 
 ### Bug fixes
 
@@ -177,29 +155,18 @@ will show a warning to the user with the retirement message.
 
 ### New registry format
 
-Hex has switched to a new registry format that is more efficient and will scale
-better as the registry grows. The new registry format is encoded with protocol
-buffers and is split into multiple files (one file per package) to avoid
-fetching one big file with data you will not need. The resolver will make more
-HTTP requests but will in total fetch much less data. The specification for the
-new format can be found here: https://github.com/hexpm/specifications/pull/10.
-The old ETS based registry format is no longer supported in the client but will
-continue to be available from the registry for the foreseeable future.
+Hex has switched to a new registry format that is more efficient and will scale better as the registry grows. The new registry format is encoded with protocol buffers and is split into multiple files (one file per package) to avoid fetching one big file with data you will not need. The resolver will make more HTTP requests but will in total fetch much less data. The specification for the new format can be found here: https://github.com/hexpm/specifications/pull/10. The old ETS based registry format is no longer supported in the client but will continue to be available from the registry for the foreseeable future.
 
 ### Enhancements
 
 * `hex.docs open` will by default open the online hexdocs for the given package
-* An `--offline` option has been added to `hex.docs open` for opening docs
-  stored on your local filesystem and it will automatically fetch the docs if
-  they are not available locally
-* Only support secure SSL ciphers and safe SSL versions (support for SSLv3 has
-  been dropped)
+* An `--offline` option has been added to `hex.docs open` for opening docs stored on your local filesystem and it will automatically fetch the docs if they are not available locally
+* Only support secure SSL ciphers and safe SSL versions (support for SSLv3 has been dropped)
 * Improvements to the language in the resolver error messages
 
 ### Bug fixes
 
-* Fix an issue where duplicate build tool names could be added to the package
-  metadata
+* Fix an issue where duplicate build tool names could be added to the package metadata
 
 ## v0.13.2 (2016-09-19)
 
@@ -230,16 +197,12 @@ continue to be available from the registry for the foreseeable future.
 * Show creation time of API keys in `hex.keys list`
 * Improve the error message if OTP has broken SNI in `:ssl` application
 * Verify dependencies from registry against lock
-* Hex will now automatically encrypt your local API key, use
-  `hex.user passphrase` to change the encryption passphrase
+* Hex will now automatically encrypt your local API key, use `hex.user passphrase` to change the encryption passphrase
 * Improve resolver error message to mention behavior of pre-releases and overrides
-* Improve error message if a dependency has configured the OTP application name
-  incorrectly for another dependency
-* `hex.publish` now also publishes docs by default, use `hex.publish package`
-  and `hex.publish docs` to respectively publish package and docs independently
+* Improve error message if a dependency has configured the OTP application name incorrectly for another dependency
+* `hex.publish` now also publishes docs by default, use `hex.publish package` and `hex.publish docs` to respectively publish package and docs independently
 * `hex.docs` will now open or fetch documentation tarballs
-* `hex.key remove` will now also de-auth the user if the local API key was
-  removed
+* `hex.key remove` will now also de-auth the user if the local API key was removed
 * Add status messages when publishing and reverting
 
 ### Bug fixes
@@ -263,10 +226,8 @@ continue to be available from the registry for the foreseeable future.
 
 ### Enhancements
 
-* Add package checksums to lock, ensuring a locked package can not change its
-  content
-* Add managers and deps to lock, allowing Hex to run without loading the
-  registry
+* Add package checksums to lock, ensuring a locked package can not change its content
+* Add managers and deps to lock, allowing Hex to run without loading the registry
 * Align deps fetching output from scm
 * Update hex.pm repo URL to https://repo.hex.pm
 * Link to policies when registering account
@@ -288,8 +249,7 @@ continue to be available from the registry for the foreseeable future.
 
 ### Bug fixes
 
-* Fix a bug where Hex was about a bit too enthusiastic when informing the user
-  of new versions
+* Fix a bug where Hex was about a bit too enthusiastic when informing the user of new versions
 * Fix some missing future-proofing of lock
 
 ## v0.11.4 (2016-04-06)
@@ -297,8 +257,7 @@ continue to be available from the registry for the foreseeable future.
 ### Enhancements
 
 * Use HTTPS to Hex.pm repository
-* Make lock backwards compatible by treating it as a list and only matching on
-  the front
+* Make lock backwards compatible by treating it as a list and only matching on the front
 
 ### Bug fixes
 
@@ -319,10 +278,8 @@ continue to be available from the registry for the foreseeable future.
 
 * Verify registry signature against public key
 * Improve missing registry error message
-* Deprecate `HEX_CDN` in favor of `HEX_REPO` and `HEX_MIRROR`. See the `hex`
-  task for more information
-* Deprecate `:cdn_url` config in favor of `:repo_url` and `mirror_url`. See the
-  `hex.config` task for more information
+* Deprecate `HEX_CDN` in favor of `HEX_REPO` and `HEX_MIRROR`. See the `hex` task for more information
+* Deprecate `:cdn_url` config in favor of `:repo_url` and `mirror_url`. See the `hex.config` task for more information
 * Improve performance of parallel package fetching
 * Use fastly instead of S3 for the Hex.pm repository
 * Add `--delete` option to `hex.config` task
@@ -353,8 +310,7 @@ continue to be available from the registry for the foreseeable future.
 * Pass canonical url to ex_doc task
 * Change hexdocs links to use https
 * Add `hex.outdated APP` to list all requirements on given dependency
-* Do not allow pre-releases for dependencies unless the requirement uses a
-  pre-release version
+* Do not allow pre-releases for dependencies unless the requirement uses a pre-release version
 * Optimize version cache memory usage
 
 ### Bug fixes
@@ -373,8 +329,7 @@ continue to be available from the registry for the foreseeable future.
 
 * Ensure registry can be opened/closed multiple times
 * Ensure `hex.search` task handles empty results
-* Fix experimental resolvers only backtracking on parents that had requirements
-  that failed
+* Fix experimental resolvers only backtracking on parents that had requirements that failed
 * Fix merging of overlapping parent and package versions in backtrack messages
 
 ## v0.10.3 (2016-01-23)
@@ -388,11 +343,9 @@ continue to be available from the registry for the foreseeable future.
 ### Enhancements
 
 * General optimizations in dependency resolver
-* Add experimental faster backtracker that does more aggressive backtracking,
-  set environment variable `HEX_EXPERIMENTAL_RESOLVER=1` to use it
+* Add experimental faster backtracker that does more aggressive backtracking, set environment variable `HEX_EXPERIMENTAL_RESOLVER=1` to use it
 * Merge backtrack messages that have similar parents
-* Merge multiple versions into version ranges when possible for more succinct
-  backtrack messages
+* Merge multiple versions into version ranges when possible for more succinct backtrack messages
 
 ### Bug fixes
 
@@ -436,15 +389,12 @@ continue to be available from the registry for the foreseeable future.
 * Warn if files are missing when building package
 * Improve error message when resolution fails because of a locked dependency
 * Add `hex.registry` task for loading and dumping registry
-* Add `HEX_OFFLINE` for running in offline mode which skips fetching registry
-  and packages
+* Add `HEX_OFFLINE` for running in offline mode which skips fetching registry and packages
 * Add `hex.build` task for building package without publishing
-* Reduce noise when users gets lots of resolution errors and generally improve
-  their output
+* Reduce noise when users gets lots of resolution errors and generally improve their output
 * Add Server Name Indication support for HTTPS requests
 * Add `HEX_UNSAFE_HTTPS` for disabling certificate checking
-* Rename `:contributors` metadata to `:maintainers` to better reflect purpose of
-  field
+* Rename `:contributors` metadata to `:maintainers` to better reflect purpose of field
 
 ### Bug fixes
 
@@ -457,10 +407,9 @@ continue to be available from the registry for the foreseeable future.
 
 ## v0.8.3 (2015-07-17)
 
-* Security fixes
-  * Fix a bug that would trust any certificate in the certificate chain signed
-    by a trusted CA, this could allow the certificate, that is not a CA, to
-    issue and sign new certificates for any host
+### Security fixes
+
+* Fix a bug that would trust any certificate in the certificate chain signed by a trusted CA, this could allow the certificate, that is not a CA, to issue and sign new certificates for any host
 
 ## v0.8.2 (2015-07-13)
 
@@ -502,16 +451,14 @@ continue to be available from the registry for the foreseeable future.
 ### Enhancements
 
 * Add task `hex.user test` for testing user authentication.
-* Add task `hex.outdated` for listing outdated packages compared to the
-  registry.
+* Add task `hex.outdated` for listing outdated packages compared to the registry.
 * Update CA store as of April 3.
 * Inform user if authentication failed because they did not confirm email.
 * Improve error message for unsupported tarball version.
 
 ### Bug fixes
 
-* Fix a bug where overriding a Hex dependency with a non-Hex dependency was
-  ignored when the overriding at least two levels deep in the dependency tree
+* Fix a bug where overriding a Hex dependency with a non-Hex dependency was ignored when the overriding at least two levels deep in the dependency tree
 
 ## v0.7.4 (2015-03-16)
 
@@ -530,15 +477,12 @@ continue to be available from the registry for the foreseeable future.
 
 ### Enhancements
 
-* Print messages on backtracks if dependency resolution failed, this is intended
-  to help users resolve conflicts
+* Print messages on backtracks if dependency resolution failed, this is intended to help users resolve conflicts
 
 ### Bug fixes
 
-* Fix a bug where a dependency converged in mix did not consider all its
-  requirements
-* Fix a bug where dependencies in the lock was considered even if they weren't
-  requested
+* Fix a bug where a dependency converged in mix did not consider all its requirements
+* Fix a bug where dependencies in the lock was considered even if they weren't requested
 
 ## v0.7.1 (2015-02-15)
 
@@ -557,8 +501,7 @@ continue to be available from the registry for the foreseeable future.
 ### Bug fixes
 
 * Verify peer certificate against CA certificate public key in `partial_chain`
-* Fix a bug where overriding a Hex dependency with a non-Hex dependency was
-  ignored when the overriding happened in a sub-dependency
+* Fix a bug where overriding a Hex dependency with a non-Hex dependency was ignored when the overriding happened in a sub-dependency
 * Create hex directory before writing registry
 
 ## v0.6.2 (2015-01-02)
@@ -581,8 +524,7 @@ continue to be available from the registry for the foreseeable future.
 
 ### Enhancements
 
-* Add support for packages with a different OTP application name than the
-  package name
+* Add support for packages with a different OTP application name than the package name
 * Add task `mix hex.docs` for uploading project documentation
 * Add email confirmation
 
@@ -609,8 +551,7 @@ continue to be available from the registry for the foreseeable future.
 
 * Add task `hex.user whoami` that prints the locally authorized user
 * Add task `hex.user deauth` to deauthorize the local user
-* Rename environment variable `HEX_URL` to `HEX_API` to not confuse it with
-  `HEX_CDN`
+* Rename environment variable `HEX_URL` to `HEX_API` to not confuse it with `HEX_CDN`
 
 ### Bug fixes
 
@@ -623,8 +564,7 @@ continue to be available from the registry for the foreseeable future.
 * Add progress bar for uploading the tarball when publishing
 * Compare tarball checksum against checksum in registry
 * Bump tarball support to version 3
-* Rename task for authenticating on the local machine from `hex.key new` to
-  `hex.user auth`
+* Rename task for authenticating on the local machine from `hex.key new` to `hex.user auth`
 * Remove the ability to pass password as a CLI parameter
 
 ### Bug fixes

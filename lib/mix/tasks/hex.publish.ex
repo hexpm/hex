@@ -51,7 +51,7 @@ defmodule Mix.Tasks.Hex.Publish do
   Dependencies are defined in mix's dependency format. But instead of using
   `:git` or `:path` as the SCM `:package` is used.
 
-      defp deps do
+      defp deps() do
         [
           {:ecto, "~> 0.1.0"},
           {:postgrex, "~> 0.3.0"},
@@ -92,7 +92,7 @@ defmodule Mix.Tasks.Hex.Publish do
     canonical: :string,
     organization: :string,
     organisation: :string,
-    confirm: :boolean,
+    confirm: :boolean
   ]
 
   def run(args) do
@@ -118,7 +118,7 @@ defmodule Mix.Tasks.Hex.Publish do
         revert(build, organization, revert_version)
 
       ["package"] ->
-        if proceed?(build, opts) do
+        if proceed?(build, organization, opts) do
           auth = Mix.Tasks.Hex.auth_info()
           create_release(build, organization, auth, opts)
         end
@@ -132,18 +132,18 @@ defmodule Mix.Tasks.Hex.Publish do
         create(build, organization, opts)
 
       _ ->
-        Mix.raise """
+        Mix.raise("""
         Invalid arguments, expected one of:
 
         mix hex.publish
         mix hex.publish package
         mix hex.publish docs
-        """
+        """)
     end
   end
 
   defp create(build, organization, opts) do
-    if proceed?(build, opts) do
+    if proceed?(build, organization, opts) do
       Hex.Shell.info("Building docs...")
       docs_task(build, opts)
       auth = Mix.Tasks.Hex.auth_info()
@@ -162,7 +162,7 @@ defmodule Mix.Tasks.Hex.Publish do
     version = build.meta.version
 
     unless File.exists?("#{directory}/index.html") do
-      Mix.raise "File not found: #{directory}/index.html"
+      Mix.raise("File not found: #{directory}/index.html")
     end
 
     progress? = Keyword.get(opts, :progress, true)
@@ -176,23 +176,25 @@ defmodule Mix.Tasks.Hex.Publish do
 
     try do
       Mix.Task.run("docs", ["--canonical", canonical])
-    rescue ex in [Mix.NoTaskError] ->
-      stacktrace = System.stacktrace
-      Mix.shell.error """
-      Publication failed because the "docs" task is unavailable. You may resolve this by:
+    rescue
+      ex in [Mix.NoTaskError] ->
+        stacktrace = System.stacktrace()
 
-        1. Adding {:ex_doc, ">= 0.0.0", only: :dev} to your dependencies in your mix.exs and trying again
-        2. If ex_doc was already added, make sure you run "mix hex.publish" in the same environment as the ex_doc package
-        3. Publishing the package without docs by running "mix hex.publish package" (not recommended)
-      """
-      reraise ex, stacktrace
+        Mix.shell().error("""
+        Publication failed because the "docs" task is unavailable. You may resolve this by:
+
+          1. Adding {:ex_doc, ">= 0.0.0", only: :dev} to your dependencies in your mix.exs and trying again
+          2. If ex_doc was already added, make sure you run "mix hex.publish" in the same environment as the ex_doc package
+          3. Publishing the package without docs by running "mix hex.publish package" (not recommended)
+        """)
+
+        reraise ex, stacktrace
     end
   end
 
-  defp proceed?(build, opts) do
+  defp proceed?(build, organization, opts) do
     confirm? = Keyword.get(opts, :confirm, true)
     meta = build.meta
-    organization = build.organization
     exclude_deps = build.exclude_deps
     package = build.package
 
@@ -204,17 +206,22 @@ defmodule Mix.Tasks.Hex.Publish do
     cond do
       not confirm? ->
         true
-      build.organization in [nil, "hexpm"] ->
+
+      organization in [nil, "hexpm"] ->
         Hex.Shell.info(["Publishing package to ", emphasis("public"), " repository hexpm."])
         Hex.Shell.yes?("Proceed?")
+
       true ->
-        Hex.Shell.info(["Publishing package to ", emphasis("private"), " repository #{build.organization}."])
+        Hex.Shell.info([
+          ["Publishing package to ", emphasis("private"), " repository #{organization}."]
+        ])
+
         Hex.Shell.yes?("Proceed?")
     end
   end
 
   defp emphasis(text) do
-    if IO.ANSI.enabled? do
+    if IO.ANSI.enabled?() do
       [IO.ANSI.bright(), text, IO.ANSI.reset()]
     else
       ["**", text, "**"]
@@ -222,7 +229,10 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp print_link_to_coc() do
-    Hex.Shell.info "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct\n"
+    Hex.Shell.info(
+      "Before publishing, please read the Code of Conduct: " <>
+        "https://hex.pm/policies/codeofconduct\n"
+    )
   end
 
   defp revert(build, organization, version) do
@@ -240,6 +250,7 @@ defmodule Mix.Tasks.Hex.Publish do
     case Hex.API.Release.delete(organization, name, version, auth) do
       {:ok, {code, _, _}} when code in 200..299 ->
         Hex.Shell.info("Reverted #{name} #{version}")
+
       other ->
         Hex.Shell.error("Reverting #{name} #{version} failed")
         Hex.Utils.print_error_result(other)
@@ -252,9 +263,10 @@ defmodule Mix.Tasks.Hex.Publish do
 
     case Hex.API.ReleaseDocs.delete(organization, name, version, auth) do
       {:ok, {code, _, _}} when code in 200..299 ->
-        Hex.Shell.info "Reverted docs for #{name} #{version}"
+        Hex.Shell.info("Reverted docs for #{name} #{version}")
+
       other ->
-        Hex.Shell.error "Reverting docs for #{name} #{version} failed"
+        Hex.Shell.error("Reverting docs for #{name} #{version} failed")
         Hex.Utils.print_error_result(other)
     end
   end
@@ -274,18 +286,18 @@ defmodule Mix.Tasks.Hex.Publish do
 
     case Hex.API.ReleaseDocs.new(organization, name, version, tarball, auth, progress) do
       {:ok, {code, _, _}} when code in 200..299 ->
-        Hex.Shell.info ""
-        Hex.Shell.info "Docs published to #{Hex.Utils.hexdocs_url(name, version)}"
+        Hex.Shell.info("")
+        Hex.Shell.info("Docs published to #{Hex.Utils.hexdocs_url(name, version)}")
         :ok
 
       {:ok, {404, _, _}} ->
-        Hex.Shell.info ""
-        Hex.Shell.error "Publishing docs failed due to the package not being published yet"
+        Hex.Shell.info("")
+        Hex.Shell.error("Publishing docs failed due to the package not being published yet")
         :error
 
       other ->
-        Hex.Shell.info ""
-        Hex.Shell.error "Publishing docs failed"
+        Hex.Shell.info("")
+        Hex.Shell.error("Publishing docs failed")
         Hex.Utils.print_error_result(other)
         :error
     end
@@ -307,10 +319,15 @@ defmodule Mix.Tasks.Hex.Publish do
     cond do
       File.exists?("doc") ->
         "doc"
+
       File.exists?("docs") ->
         "docs"
+
       true ->
-        Mix.raise("Documentation could not be found. Please ensure documentation is in the doc/ or docs/ directory")
+        Mix.raise(
+          "Documentation could not be found. " <>
+            "Please ensure documentation is in the doc/ or docs/ directory"
+        )
     end
   end
 
@@ -323,12 +340,13 @@ defmodule Mix.Tasks.Hex.Publish do
     case Hex.API.Release.new(organization, meta.name, tarball, auth, progress) do
       {:ok, {code, body, _}} when code in 200..299 ->
         location = body["html_url"] || body["url"]
-        Hex.Shell.info ""
-        Hex.Shell.info("Package published to #{location} (#{String.downcase(checksum)})")
+        checksum = String.downcase(Base.encode16(checksum, case: :lower))
+        Hex.Shell.info("")
+        Hex.Shell.info("Package published to #{location} (#{checksum})")
         :ok
 
       other ->
-        Hex.Shell.info ""
+        Hex.Shell.info("")
         Hex.Shell.error("Publishing failed")
         Hex.Utils.print_error_result(other)
         :error

@@ -34,23 +34,26 @@ defmodule Mix.Tasks.Hex.Docs do
     case args do
       ["fetch" | remaining] ->
         fetch_docs(opts[:organization], remaining)
+
       ["open" | remaining] ->
         open_docs(remaining, opts)
+
       _ ->
-        Mix.raise """
+        Mix.raise("""
         Invalid arguments, expected one of:
 
         mix hex.docs fetch PACKAGE [VERSION]
         mix hex.docs open PACKAGE [VERSION]
-        """
+        """)
     end
   end
 
   defp fetch_docs(_organization, []) do
-    Mix.raise "You must specify at least the name of a package"
+    Mix.raise("You must specify at least the name of a package")
   end
 
-  defp fetch_docs(organization, [name]) when name in ["eex", "elixir", "ex_unit", "iex", "logger", "mix"] do
+  defp fetch_docs(organization, [name])
+       when name in ["eex", "elixir", "ex_unit", "iex", "logger", "mix"] do
     fetch_docs(organization, [name, System.version()])
   end
 
@@ -62,19 +65,19 @@ defmodule Mix.Tasks.Hex.Docs do
   defp fetch_docs(organization, [name, version]) do
     target_dir = Path.join([docs_dir(), name, version])
 
-    if File.exists? target_dir do
-      Hex.Shell.info "Docs already fetched: #{target_dir}"
+    if File.exists?(target_dir) do
+      Hex.Shell.info("Docs already fetched: #{target_dir}")
     else
       target = Path.join(target_dir, "#{name}-#{version}.tar.gz")
       retrieve_compressed_docs(organization, name, version, target)
       File.mkdir_p!(target_dir)
       extract_doc_contents(target)
-      Hex.Shell.info "Docs fetched: #{target_dir}"
+      Hex.Shell.info("Docs fetched: #{target_dir}")
     end
   end
 
   defp open_docs([], _opts) do
-    Mix.raise "You must specify at least the name of a package"
+    Mix.raise("You must specify at least the name of a package")
   end
 
   defp open_docs(package, opts) do
@@ -89,9 +92,11 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp open_docs_offline([name], opts) do
     {missing?, latest_version} = find_package_version(opts[:organization], name)
+
     if missing? do
       fetch_docs(opts[:organization], [name])
     end
+
     open_docs([name, latest_version], opts)
   end
 
@@ -103,6 +108,7 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp find_package_version(organization, name) do
     path = Path.join(docs_dir(), name)
+
     if File.exists?(path) do
       {false, find_latest_version(path)}
     else
@@ -132,24 +138,21 @@ defmodule Mix.Tasks.Hex.Docs do
     if System.find_executable(start_command) do
       System.cmd(start_command, [path])
     else
-      Mix.raise "Command not found: #{start_command}"
+      Mix.raise("Command not found: #{start_command}")
     end
   end
 
   defp start_command() do
-    case :os.type do
-      {:win32, _} ->
-        "start"
-      {:unix, :darwin} ->
-        "open"
-      {:unix, _} ->
-        "xdg-open"
+    case :os.type() do
+      {:win32, _} -> "start"
+      {:unix, :darwin} -> "open"
+      {:unix, _} -> "xdg-open"
     end
   end
 
   defp open_file(path) do
     unless File.exists?(path) do
-      Mix.raise "Documentation file not found: #{path}"
+      Mix.raise("Documentation file not found: #{path}")
     end
 
     browser_open(path)
@@ -173,8 +176,9 @@ defmodule Mix.Tasks.Hex.Docs do
       {:ok, {200, body, _}} ->
         File.mkdir_p!(Path.dirname(target))
         File.write!(target, body)
+
       _ ->
-        Mix.raise "No package with name #{package} or version #{version}"
+        Mix.raise("No package with name #{package} or version #{version}")
     end
   end
 

@@ -44,15 +44,17 @@ defmodule Mix.Tasks.Hex.Retire do
     case args do
       [package, version, reason] when retire? ->
         retire(organization, package, version, reason, opts)
+
       [package, version] when not retire? ->
         unretire(organization, package, version)
+
       _ ->
-        Mix.raise """
+        Mix.raise("""
         Invalid arguments, expected one of:
 
         mix hex.retire PACKAGE VERSION REASON
         mix hex.retire PACKAGE VERSION --unretire
-        """
+        """)
     end
   end
 
@@ -65,7 +67,7 @@ defmodule Mix.Tasks.Hex.Retire do
         :ok
 
       other ->
-        Hex.Shell.error "Retiring package failed"
+        Hex.Shell.error("Retiring package failed")
         Hex.Utils.print_error_result(other)
     end
   end
@@ -78,7 +80,7 @@ defmodule Mix.Tasks.Hex.Retire do
         :ok
 
       other ->
-        Hex.Shell.error "Unretiring package failed"
+        Hex.Shell.error("Unretiring package failed")
         Hex.Utils.print_error_result(other)
     end
   end
