@@ -13,8 +13,13 @@ defmodule Mix.Tasks.Hex.Fetch do
 
   ## Command line options
 
-    * `--unpack` - unpacks the package tarball.
-    * `-o`, `--output` - sets output directory. Default: current directory
+    * `--unpack` - Unpacks the fetched package tarball into a directory.
+      See `--output` below for setting the output path.
+
+    * `-o`, `--output` - Sets output path. When used with `--unpack` it means
+      the directory (Default: `<app>-<version>`). Otherwise, it specifies
+      tarball path (Default: `<app>-<version>.tar`)
+
     * `--organization ORGANIZATION` - the organization the package belongs to
 
   """
@@ -48,41 +53,40 @@ defmodule Mix.Tasks.Hex.Fetch do
   end
 
   defp fetch_package([name, version], opts) do
-    dest =
-      if opts[:output] do
-        Path.expand(opts[:output])
+    output =
+      if opts[:unpack] do
+        Keyword.get(opts, :output, "#{name}-#{version}")
       else
-        File.cwd!()
+        Keyword.get(opts, :output, "#{name}-#{version}.tar")
       end
 
-    tar_file = Path.join(dest, "#{name}-#{version}.tar")
     opts = opts |> Hex.organization_to_repo() |> Keyword.put_new(:repo, "hexpm")
     repo = opts[:repo]
 
-    if File.exists?(tar_file) do
-      Hex.Shell.info("Package already fetched: #{tar_file}")
+    if File.exists?(output) do
+      Hex.Shell.info("Package already fetched: #{output}")
     else
-      request_package_from_mirror(tar_file, name, version, repo)
+      tarball = get_tarball!(name, version, repo)
       Hex.Registry.Server.open(check_version: false)
       Hex.Registry.Server.prefetch([{repo, name}])
       registry_checksum = Hex.Registry.Server.checksum(repo, name, version)
 
       if opts[:unpack] do
-        Hex.unpack_and_verify_tar!(tar_file, dest, registry_checksum)
-        File.rm_rf!(tar_file)
+        Hex.unpack_and_verify_tar!({:binary, tarball}, output, registry_checksum)
+        Hex.Shell.info("Package fetched and unpacked to: #{output}")
       else
-        Hex.unpack_and_verify_tar!(tar_file, :memory, registry_checksum)
+        output |> Path.dirname() |> File.mkdir_p!()
+        File.write!(output, tarball)
+        Hex.unpack_and_verify_tar!({:binary, tarball}, :memory, registry_checksum)
+        Hex.Shell.info("Package fetched at: #{output}")
       end
-
-      Hex.Shell.info("Package fetched at: #{tar_file}")
     end
   end
 
-  defp request_package_from_mirror(tar_file, package, version, repo) do
+  defp get_tarball!(package, version, repo) do
     case Hex.Repo.get_tarball(repo, package, version, nil) do
       {:ok, {200, body, _}} ->
-        tar_file |> Path.dirname() |> File.mkdir_p!()
-        File.write!(tar_file, body)
+        body
 
       _ ->
         Mix.raise("No package with name #{package} or version #{version}")

@@ -2,20 +2,16 @@ defmodule Mix.Tasks.Hex.FetchTest do
   use HexTest.Case
   @moduletag :integration
 
-  test "download latest version of a package" do
+  test "fetch latest version" do
     in_tmp(fn ->
       Mix.Tasks.Hex.Fetch.run(["ex_doc"])
-      parent_directory = File.cwd!()
-      message = "Package fetched at: #{parent_directory}/ex_doc-0.1.0.tar"
+      message = "Package fetched at: ex_doc-0.1.0.tar"
       assert_received {:mix_shell, :info, [^message]}
+      assert File.exists?("ex_doc-0.1.0.tar")
 
-      assert File.exists?(Path.join(parent_directory, "ex_doc-0.1.0.tar"))
-
-      error_message = "No package with name no_package"
-
-      assert_raise(Mix.Error, error_message, fn ->
+      assert_raise Mix.Error, "No package with name no_package", fn ->
         Mix.Tasks.Hex.Fetch.run(["no_package"])
-      end)
+      end
     end)
   end
 
@@ -23,43 +19,48 @@ defmodule Mix.Tasks.Hex.FetchTest do
     message =
       "Invalid arguments, expected:\n\nmix hex.fetch PACKAGE [VERSION] [--output PATH] [--unpack]\n"
 
-    assert_raise(Mix.Error, message, fn ->
+    assert_raise Mix.Error, message, fn ->
       Mix.Tasks.Hex.Fetch.run([])
-    end)
+    end
   end
 
-  test "download specific version of a package" do
+  test "fetch specific version of a package" do
     in_tmp(fn ->
-      Mix.Tasks.Hex.Fetch.run(["ex_doc", "0.1.0"])
-      parent_directory = File.cwd!()
-      message = "Package fetched at: #{parent_directory}/ex_doc-0.1.0.tar"
+      Mix.Tasks.Hex.Fetch.run(["ex_doc", "0.0.1"])
+      message = "Package fetched at: ex_doc-0.0.1.tar"
       assert_received {:mix_shell, :info, [^message]}
-
-      assert File.exists?(Path.join(parent_directory, "ex_doc-0.1.0.tar"))
+      assert File.exists?("ex_doc-0.0.1.tar")
     end)
   end
 
-  test "unpack package content" do
+  test "fetch to custom location" do
+    in_tmp(fn ->
+      output = "packages/ex_doc.tar"
+      Mix.Tasks.Hex.Fetch.run(["ex_doc", "-o", output])
+      message = "Package fetched at: #{output}"
+      assert_received {:mix_shell, :info, [^message]}
+      assert File.exists?(output)
+    end)
+  end
+
+  test "fetch and unpack" do
     in_tmp(fn ->
       Mix.Tasks.Hex.Fetch.run(["ex_doc", "--unpack"])
-      parent_directory = File.cwd!()
-      message = "Package fetched at: #{parent_directory}/ex_doc-0.1.0.tar"
+      message = "Package fetched and unpacked to: ex_doc-0.1.0"
       assert_received {:mix_shell, :info, [^message]}
-
-      refute File.exists?(Path.join(parent_directory, "ex_doc-0.1.0.tar"))
-
-      assert File.exists?(Path.join(parent_directory, "hex_metadata.config"))
+      refute File.exists?("ex_doc-0.1.0.tar")
+      assert File.exists?("ex_doc-0.1.0/hex_metadata.config")
     end)
   end
 
-  test "package in a given directory" do
+  test "fetch and unpack to custom location" do
     in_tmp(fn ->
-      parent_directory = Path.join(tmp_path(), "vendor/hex")
-      Mix.Tasks.Hex.Fetch.run(["ex_doc", "-o", parent_directory])
-      message = "Package fetched at: #{parent_directory}/ex_doc-0.1.0.tar"
+      output = "vendor/hex/ex_doc"
+      Mix.Tasks.Hex.Fetch.run(["ex_doc", "--unpack", "-o", output])
+      message = "Package fetched and unpacked to: #{output}"
       assert_received {:mix_shell, :info, [^message]}
-
-      assert File.exists?(Path.join(parent_directory, "ex_doc-0.1.0.tar"))
+      refute File.exists?("ex_doc-0.1.0.tar")
+      assert File.exists?("#{output}/hex_metadata.config")
     end)
   end
 end
