@@ -38,6 +38,14 @@ defmodule Mix.Tasks.Hex.Docs do
       ["open" | remaining] ->
         open_docs(remaining, opts)
 
+      ["online" | remaining] ->
+        opts = Keyword.merge(opts, offline: false)
+        open_docs(remaining, opts)
+
+      ["offline" | remaining] ->
+        opts = Keyword.merge(opts, offline: true)
+        open_docs(remaining, opts)
+
       _ ->
         Mix.raise("""
         Invalid arguments, expected one of:

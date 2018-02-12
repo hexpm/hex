@@ -85,4 +85,34 @@ defmodule Mix.Tasks.Hex.DocsTest do
       Mix.Tasks.Hex.Docs.run(["open", "--offline"])
     end
   end
+
+  test "open latest version offline using offline task" do
+    package = "docs_package"
+    old_version = "1.1.1"
+    latest_version = "1.1.2"
+    bypass_mirror()
+    Hex.State.put(:home, tmp_path())
+    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+
+    auth = Hexpm.new_key(user: "user", pass: "hunter42")
+    Hexpm.new_package(package, old_version, %{}, %{}, auth)
+    Hexpm.new_package(package, latest_version, %{}, %{}, auth)
+
+    in_tmp("docs", fn ->
+      Mix.Tasks.Hex.Docs.run(["offline", package])
+      fetched_msg = "Docs fetched: #{docs_home}/#{package}/#{latest_version}"
+      assert_received {:mix_shell, :info, [^fetched_msg]}
+    end)
+  end
+
+  test "offline fails when docs not found" do
+    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    package = "decimal"
+    version = "1.1.2"
+    message = "Documentation file not found: #{docs_home}/#{package}/#{version}/index.html"
+
+    assert_raise Mix.Error, message, fn ->
+      Mix.Tasks.Hex.Docs.run(["offline", package, version])
+    end
+  end
 end
