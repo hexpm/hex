@@ -14,6 +14,17 @@ defmodule Mix.Tasks.Hex.Docs do
 
       mix hex.docs open PACKAGE [VERSION]
 
+  Opens documentation without fetching it.
+
+      mix hex.docs offline PACKAGE [VERSION]
+
+  Opens a local version available in your filesystem. Alias for open with the
+  --offline flag.
+
+      mix hex.docs online PACKAGE [VERSION]
+
+  Opens documentation on hex.pm. Alias for open.
+
   ## Command line options
 
     * `--offline` - Open a local version available in your filesystem
