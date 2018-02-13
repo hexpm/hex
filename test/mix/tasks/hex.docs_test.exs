@@ -2,17 +2,6 @@ defmodule Mix.Tasks.Hex.DocsTest do
   use HexTest.Case
   @moduletag :integration
 
-  test "open fails when docs not found" do
-    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
-    package = "decimal"
-    version = "1.1.2"
-    message = "Documentation file not found: #{docs_home}/#{package}/#{version}/index.html"
-
-    assert_raise Mix.Error, message, fn ->
-      Mix.Tasks.Hex.Docs.run(["open", package, version, "--offline"])
-    end
-  end
-
   test "fetch and open the latest version of a package" do
     package = "docs_package"
     old_version = "1.1.1"
@@ -82,7 +71,17 @@ defmodule Mix.Tasks.Hex.DocsTest do
     end
 
     assert_raise Mix.Error, msg, fn ->
-      Mix.Tasks.Hex.Docs.run(["open", "--offline"])
+      Mix.Tasks.Hex.Docs.run(["offline"])
+    end
+  end
+
+  test "offline task fails when docs not found" do
+    package = "decimal"
+    version = "1.1.2"
+    message = "No package with name decimal or version 1.1.2"
+
+    assert_raise Mix.Error, message, fn ->
+      Mix.Tasks.Hex.Docs.run(["offline", package, version])
     end
   end
 
@@ -105,14 +104,38 @@ defmodule Mix.Tasks.Hex.DocsTest do
     end)
   end
 
-  test "offline fails when docs not found" do
-    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
-    package = "decimal"
+  test "offline package with version succeeds when package is available remotely" do
+    package = "docs_package"
     version = "1.1.2"
-    message = "Documentation file not found: #{docs_home}/#{package}/#{version}/index.html"
+    bypass_mirror()
+    Hex.State.put(:home, tmp_path())
 
-    assert_raise Mix.Error, message, fn ->
+    docs_home =
+      :home
+      |> Hex.State.fetch!()
+      |> Path.join("docs")
+
+    in_tmp("docs", fn ->
       Mix.Tasks.Hex.Docs.run(["offline", package, version])
+      fetched_msg = "Docs fetched: #{docs_home}/#{package}/#{version}"
+      assert_received {:mix_shell, :info, [^fetched_msg]}
+
+      Mix.Tasks.Hex.Docs.run(["fetch", package, version])
+      already_fetched_msg = "Docs already fetched: #{docs_home}/#{package}/#{version}"
+      assert_received {:mix_shell, :info, [^already_fetched_msg]}
+    end)
+  end
+
+  test "open raises an error" do
+    msg = """
+    Open has been removed, use one of:\n\nmix hex.docs online PACKAGE [VERSION]
+    mix hex.docs offline PACKAGE [VERSION]
+    """
+
+    package = "decimal"
+
+    assert_raise Mix.Error, msg, fn ->
+      Mix.Tasks.Hex.Docs.run(["open", package])
     end
   end
 end

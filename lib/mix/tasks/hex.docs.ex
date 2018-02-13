@@ -12,22 +12,16 @@ defmodule Mix.Tasks.Hex.Docs do
   for a package. If you do not specify the `version` argument, this task will
   retrieve the latest documentation available in the mirror.
 
-      mix hex.docs open PACKAGE [VERSION]
-
-  Opens documentation without fetching it.
-
       mix hex.docs offline PACKAGE [VERSION]
 
-  Opens a local version available in your filesystem. Alias for open with the
-  --offline flag.
+  Opens a local version available in your filesystem.
 
       mix hex.docs online PACKAGE [VERSION]
 
-  Opens documentation on hex.pm. Alias for open.
+  Opens documentation on hex.pm.
 
   ## Command line options
 
-    * `--offline` - Open a local version available in your filesystem
     * `--module Some.Module` - Open a specified module documentation page inside desired package
     * `--organization ORGANIZATION` - The organization the package belongs to
 
@@ -36,7 +30,7 @@ defmodule Mix.Tasks.Hex.Docs do
   open the latest documentation.
   """
 
-  @switches [offline: :boolean, module: :string, organization: :string]
+  @switches [module: :string, organization: :string]
 
   def run(args) do
     Hex.start()
@@ -46,23 +40,27 @@ defmodule Mix.Tasks.Hex.Docs do
       ["fetch" | remaining] ->
         fetch_docs(opts[:organization], remaining)
 
-      ["open" | remaining] ->
-        open_docs(remaining, opts)
+      ["open" | _] ->
+        Mix.raise("""
+        Open has been removed, use one of:
+
+        mix hex.docs online PACKAGE [VERSION]
+        mix hex.docs offline PACKAGE [VERSION]
+        """)
 
       ["online" | remaining] ->
-        opts = Keyword.merge(opts, offline: false)
         open_docs(remaining, opts)
 
       ["offline" | remaining] ->
-        opts = Keyword.merge(opts, offline: true)
-        open_docs(remaining, opts)
+        open_docs_offline(remaining, opts)
 
       _ ->
         Mix.raise("""
         Invalid arguments, expected one of:
 
         mix hex.docs fetch PACKAGE [VERSION]
-        mix hex.docs open PACKAGE [VERSION]
+        mix hex.docs offline PACKAGE [VERSION]
+        mix hex.docs online PACKAGE [VERSION]
         """)
     end
   end
@@ -125,13 +123,13 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp open_docs(package, opts) do
-    if opts[:offline] do
-      open_docs_offline(package, opts)
-    else
-      package
-      |> get_docs_url(opts)
-      |> browser_open()
-    end
+    package
+    |> get_docs_url(opts)
+    |> browser_open()
+  end
+
+  defp open_docs_offline([], _opts) do
+    Mix.raise("You must specify at least the name of a package")
   end
 
   defp open_docs_offline([name], opts) do
@@ -141,10 +139,16 @@ defmodule Mix.Tasks.Hex.Docs do
       fetch_docs(opts[:organization], [name])
     end
 
-    open_docs([name, latest_version], opts)
+    open_docs_offline([name, latest_version], opts)
   end
 
-  defp open_docs_offline([name, version], _opts) do
+  defp open_docs_offline([name, version], opts) do
+    available? = package_version_exists?(opts[:organization], name, version)
+
+    unless available? do
+      fetch_docs(opts[:organization], [name, version])
+    end
+
     [docs_dir(), name, version, 'index.html']
     |> Path.join()
     |> open_file()
@@ -158,6 +162,11 @@ defmodule Mix.Tasks.Hex.Docs do
     else
       {true, find_package_latest_version(organization, name)}
     end
+  end
+
+  defp package_version_exists?(_organization, name, version) do
+    path = Path.join(docs_dir(), [name, version])
+    File.exists?(path)
   end
 
   defp get_docs_url([name], opts) do
