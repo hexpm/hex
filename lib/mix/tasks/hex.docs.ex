@@ -5,29 +5,26 @@ defmodule Mix.Tasks.Hex.Docs do
 
   @moduledoc """
   Fetches or opens documentation of a package.
+  
+  ### Fetch documentation for offline use
+
+  Fetches documentation for the specified package that you can later open with
+  `mix hex.docs offline`.
 
       mix hex.docs fetch PACKAGE [VERSION]
-
-  It will retrieve and decompress the specified version of the documentation
-  for a package. If you do not specify the `version` argument, this task will
-  retrieve the latest documentation available in the mirror.
+  
+  ### Open a browser window with offline documentation
 
       mix hex.docs offline PACKAGE [VERSION]
-
-  Opens a local version available in your filesystem.
-
+      
+  ### Open a browser window with online documentation
+  
       mix hex.docs online PACKAGE [VERSION]
-
-  Opens documentation on hex.pm.
 
   ## Command line options
 
     * `--module Some.Module` - Open a specified module documentation page inside desired package
     * `--organization ORGANIZATION` - The organization the package belongs to
-
-  It will open the specified version of the documentation for a package in a
-  Web browser. If you do not specify the `version` argument, this task will
-  open the latest documentation.
   """
 
   @switches [module: :string, organization: :string]
