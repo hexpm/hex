@@ -102,7 +102,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
       fetched_msg = "Docs fetched: #{docs_home}/#{package}/#{latest_version}"
       browser_open_msg = "#{docs_home}/#{package}/#{latest_version}/index.html"
       assert_received {:mix_shell, :info, [^fetched_msg]}
-      assert_received {:hex_open, ^browser_open_msg}
+      assert_received {:hex_open, [^browser_open_msg]}
     end)
   end
 
@@ -122,7 +122,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
       fetched_msg = "Docs fetched: #{docs_home}/#{package}/#{version}"
       browser_open_msg = "#{docs_home}/#{package}/#{version}/index.html"
       assert_received {:mix_shell, :info, [^fetched_msg]}
-      assert_received {:hex_open, ^browser_open_msg}
+      assert_received {:hex_open, [^browser_open_msg]}
 
       Mix.Tasks.Hex.Docs.run(["fetch", package, version])
       already_fetched_msg = "Docs already fetched: #{docs_home}/#{package}/#{version}"
