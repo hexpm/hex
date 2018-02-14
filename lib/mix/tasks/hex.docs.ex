@@ -146,7 +146,9 @@ defmodule Mix.Tasks.Hex.Docs do
       fetch_docs(opts[:organization], [name, version])
     end
 
-    [docs_dir(), name, version, 'index.html']
+    page = Keyword.get(opts, :module, "index") <> ".html"
+
+    [docs_dir(), name, version, page]
     |> Path.join()
     |> open_file()
   end
