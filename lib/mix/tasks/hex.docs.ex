@@ -188,7 +188,14 @@ defmodule Mix.Tasks.Hex.Docs do
     start_command = start_command()
 
     if System.find_executable(start_command) do
+<<<<<<< HEAD
       system_cmd(start_command, [path])
+=======
+      case Mix.env() do
+        :test -> send self(), {:hex_open, path}
+        _ -> System.cmd(start_command, [path])
+      end
+>>>>>>> Instead of hex.docs online opening browser, test env sends message to mailbox (which can now be tested.)
     else
       Mix.raise("Command not found: #{start_command}")
     end
