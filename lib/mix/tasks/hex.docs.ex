@@ -5,20 +5,20 @@ defmodule Mix.Tasks.Hex.Docs do
 
   @moduledoc """
   Fetches or opens documentation of a package.
-  
+
   ### Fetch documentation for offline use
 
   Fetches documentation for the specified package that you can later open with
   `mix hex.docs offline`.
 
       mix hex.docs fetch PACKAGE [VERSION]
-  
+
   ### Open a browser window with offline documentation
 
       mix hex.docs offline PACKAGE [VERSION]
-      
+
   ### Open a browser window with online documentation
-  
+
       mix hex.docs online PACKAGE [VERSION]
 
   ## Command line options
@@ -162,7 +162,7 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp package_version_exists?(_organization, name, version) do
-    path = Path.join(docs_dir(), [name, version])
+    path = Path.join([docs_dir(), name, version])
     File.exists?(path)
   end
 
