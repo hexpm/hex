@@ -204,7 +204,6 @@ defmodule Mix.Tasks.Hex.Docs do
 
   if Mix.env() == :test do
     defp system_cmd(cmd, args) do
-      send self(), {:hex_open, args}
       send self(), {:hex_system_cmd, cmd, args}
     end
   else
