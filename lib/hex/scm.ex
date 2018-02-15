@@ -33,23 +33,11 @@ defmodule Hex.SCM do
 
   def accepts_options(name, opts) do
     opts
-    |> organization_to_repo()
+    |> Hex.organization_to_repo()
     |> Keyword.put_new(:hex, name)
     |> Keyword.put_new(:repo, "hexpm")
     |> Keyword.update!(:hex, &to_string/1)
     |> Keyword.update!(:repo, &to_string/1)
-  end
-
-  defp organization_to_repo(opts) do
-    case Keyword.fetch(opts, :organization) do
-      {:ok, org} ->
-        opts
-        |> Keyword.delete(:organization)
-        |> Keyword.put(:repo, "hexpm:#{org}")
-
-      :error ->
-        opts
-    end
   end
 
   def checked_out?(opts) do
@@ -135,10 +123,8 @@ defmodule Hex.SCM do
     end
 
     File.rm_rf!(dest)
-    registry_checksum = Hex.Registry.Server.checksum(repo, to_string(name), lock.version)
-    {meta, tar_checksum} = Hex.unpack_tar!(path, dest)
-
-    if tar_checksum != registry_checksum, do: raise("Checksum mismatch against registry")
+    registry_checksum = Hex.Registry.Server.checksum(repo, name, lock.version)
+    {meta, _tar_checksum} = Hex.unpack_and_verify_tar!(path, dest, registry_checksum)
 
     build_tools = guess_build_tools(meta)
 

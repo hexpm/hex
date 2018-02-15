@@ -133,4 +133,27 @@ defmodule Hex do
       {:error, reason} -> Mix.raise(Hex.Tar.format_error(reason))
     end
   end
+
+  def unpack_and_verify_tar!(path, dest, registry_checksum) do
+    case Hex.unpack_tar!(path, dest) do
+      {_meta, tar_checksum} = result ->
+        if tar_checksum != registry_checksum, do: Mix.raise("Checksum mismatch against registry")
+        result
+
+      {_meta, tar_checksum, _files} = result ->
+        if tar_checksum != registry_checksum, do: Mix.raise("Checksum mismatch against registry")
+        result
+    end
+  end
+
+  def organization_to_repo(opts) do
+    case Keyword.fetch(opts, :organization) do
+      {:ok, org} ->
+        opts
+        |> Keyword.delete(:organization)
+        |> Keyword.put(:repo, "hexpm:#{org}")
+      :error ->
+        opts
+    end
+  end
 end

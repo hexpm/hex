@@ -72,7 +72,7 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp fetch_docs(organization, [name]) do
-    latest_version = find_package_latest_version(organization, name)
+    latest_version = Mix.Tasks.Hex.find_package_latest_version(organization, name)
     fetch_docs(organization, [name, latest_version])
   end
 
@@ -87,31 +87,6 @@ defmodule Mix.Tasks.Hex.Docs do
       File.mkdir_p!(target_dir)
       extract_doc_contents(target)
       Hex.Shell.info("Docs fetched: #{target_dir}")
-    end
-  end
-
-  defp find_package_latest_version(organization, package) do
-    %{"releases" => releases} = retrieve_package_info(organization, package)
-
-    latest_release =
-      releases
-      |> Enum.sort(&(Hex.Version.compare(&1["version"], &2["version"]) == :gt))
-      |> List.first()
-
-    latest_release["version"]
-  end
-
-  defp retrieve_package_info(organization, package) do
-    case Hex.API.Package.get(organization, package) do
-      {:ok, {code, body, _}} when code in 200..299 ->
-        body
-
-      {:ok, {404, _, _}} ->
-        Mix.raise("No package with name #{package}")
-
-      other ->
-        Hex.Shell.error("Failed to retrieve package information")
-        Hex.Utils.print_error_result(other)
     end
   end
 
@@ -159,7 +134,7 @@ defmodule Mix.Tasks.Hex.Docs do
     if File.exists?(path) do
       {false, find_latest_version(path)}
     else
-      {true, find_package_latest_version(organization, name)}
+      {true, Mix.Tasks.Hex.find_package_latest_version(organization, name)}
     end
   end
 
