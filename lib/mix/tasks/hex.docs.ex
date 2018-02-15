@@ -188,7 +188,7 @@ defmodule Mix.Tasks.Hex.Docs do
     start_command = start_command()
 
     if System.find_executable(start_command) do
-      send_system_command(start_command, [path])
+      system_cmd(start_command, [path])
     else
       Mix.raise("Command not found: #{start_command}")
     end
@@ -203,11 +203,12 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   if Mix.env() == :test do
-    defp send_system_command(_cmd, args) do
+    defp system_cmd(cmd, args) do
       send self(), {:hex_open, args}
+      send self(), {:hex_system_cmd, cmd, args}
     end
   else
-    defp send_system_command(cmd, args) do
+    defp system_cmd(cmd, args) do
       System.cmd(cmd, args)
     end
   end
