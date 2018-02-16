@@ -159,7 +159,7 @@ defmodule Mix.Tasks.Hex.Docs do
     package_in_lock =
       deps_in_project() |> Enum.find(fn pkg -> pkg[:name] == List.first(package) end)
 
-    unless is_nil(package_in_lock) do
+    if !is_nil(package_in_lock) do
       version = package_in_lock[:version]
       open_docs([package, version], opts, true)
     else
@@ -196,7 +196,7 @@ defmodule Mix.Tasks.Hex.Docs do
       deps_in_project()
       |> Enum.find(fn pkg -> pkg[:name] == name end)
 
-    unless is_nil(package_in_lock) do
+    if !is_nil(package_in_lock) do
       latest_version = package_in_lock[:version]
       open_docs_offline([name, latest_version], opts, true)
     else
