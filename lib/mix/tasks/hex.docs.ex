@@ -64,8 +64,7 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp fetch_docs([], _opts, true) do
-    deps_in_project()
-    |> Enum.each(fn pkg ->
+    Enum.each(deps_in_project(), fn pkg ->
       fetch_docs([pkg[:name], pkg[:version]], %{organization: pkg[:repo]}, true)
     end)
   end
@@ -157,13 +156,13 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp open_docs(package, opts, true) do
     package_in_lock =
-      deps_in_project() |> Enum.find(fn pkg -> pkg[:name] == List.first(package) end)
+      Enum.find(deps_in_project(), fn pkg -> pkg[:name] == List.first(package) end)
 
-    if !is_nil(package_in_lock) do
+    if is_nil(package_in_lock) do
+      open_latest_docs(package, opts)
+    else
       version = package_in_lock[:version]
       open_docs([package, version], opts, true)
-    else
-      open_latest_docs(package, opts)
     end
   end
 
@@ -192,15 +191,13 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp open_docs_offline([name], opts, true) do
-    package_in_lock =
-      deps_in_project()
-      |> Enum.find(fn pkg -> pkg[:name] == name end)
+    package_in_lock = Enum.find(deps_in_project(), fn pkg -> pkg[:name] == name end)
 
-    if !is_nil(package_in_lock) do
+    if is_nil(package_in_lock) do
+      open_latest_docs_offline(name, opts)
+    else
       latest_version = package_in_lock[:version]
       open_docs_offline([name, latest_version], opts, true)
-    else
-      open_latest_docs_offline(name, opts)
     end
   end
 
@@ -283,7 +280,7 @@ defmodule Mix.Tasks.Hex.Docs do
 
   if Mix.env() == :test do
     defp system_cmd(cmd, args) do
-      send self(), {:hex_system_cmd, cmd, args}
+      send(self(), {:hex_system_cmd, cmd, args})
     end
   else
     defp system_cmd(cmd, args) do
