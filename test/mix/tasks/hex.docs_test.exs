@@ -2,6 +2,14 @@ defmodule Mix.Tasks.Hex.DocsTest do
   use HexTest.Case
   @moduletag :integration
 
+  test "fetch and open all packages in this applications deps" do
+
+  end
+
+  test "fetch the version of a dependency from this apps lock file" do
+
+  end
+
   test "fetch and open the latest version of a package" do
     package = "docs_package"
     old_version = "1.1.1"
@@ -23,6 +31,10 @@ defmodule Mix.Tasks.Hex.DocsTest do
       already_fetched_msg = "Docs already fetched: #{docs_home}/#{package}/#{latest_version}"
       assert_received {:mix_shell, :info, [^already_fetched_msg]}
     end)
+  end
+
+  test "fetch and open the latest version of a package using the latest flag" do
+
   end
 
   test "fetch and open a specific version of a package" do
@@ -47,7 +59,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
     end)
   end
 
-  test "fetch a package that does not exists" do
+  test "fetch a package that does not exist" do
     package = "package_not_found"
 
     not_found_msg = "No package with name #{package}"
@@ -141,5 +153,13 @@ defmodule Mix.Tasks.Hex.DocsTest do
     assert_raise Mix.Error, msg, fn ->
       Mix.Tasks.Hex.Docs.run(["open", package])
     end
+  end
+
+  test "open the version of a package this app uses online" do
+
+  end
+
+  test "open the version of a package this app uses offline" do
+
   end
 end

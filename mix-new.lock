@@ -1,9 +1,10 @@
-%{
+%{"alphabetify": {:hex, :alphabetify, "0.1.0", "6de173faa975034fec0136166cd503b3def3794dd18e75a2bc6bcaa86eeb927f", [:mix], [], "hexpm"},
   "bypass": {:git, "https://github.com/PSPDFKit-labs/bypass.git", "87721c7ff56e6b307cb0e04d8a44666ce502b28b", []},
+  "chameleon": {:hex, :chameleon, "1.0.3", "cb8c7343843d3fd1f6810d42cf85c973a29a54bc6f980715326f819da35d8e44", [:mix], [], "hexpm"},
   "cowboy": {:git, "https://github.com/ninenines/cowboy.git", "d08c2ab39d38c181abda279d5c2cadfac33a50c1", [tag: "1.0.4"]},
   "cowlib": {:git, "https://github.com/ninenines/cowlib.git", "45f750db410a4b08c68d142ad0af839f544c5d3d", [tag: "1.0.2"]},
+  "faker": {:hex, :faker, "0.9.0", "b22c55967fbd3413b9e5c121e59e75a553065587cf31e5aa2271b6fae2775cde", [:mix], [], "hexpm"},
   "mime": {:git, "https://github.com/elixir-lang/mime.git", "5ab714e38b25a59b68bda1df7b58da499b2c3aa7", [tag: "v1.0.1"]},
   "plug": {:git, "https://github.com/elixir-lang/plug.git", "1b161d55dc383df6f9e44e08f8359a862ad70b6c", [tag: "v1.2.0"]},
   "ranch": {:git, "https://github.com/ninenines/ranch.git", "a5d2efcde9a34ad38ab89a26d98ea5335e88625a", [tag: "1.2.1"]},
-  "stream_data": {:git, "https://github.com/whatyouhide/stream_data.git", "36d0d1a4787b62661c1d803a39934ffc8eea43e5", [tag: "v0.4.0"]},
-}
+  "stream_data": {:git, "https://github.com/whatyouhide/stream_data.git", "36d0d1a4787b62661c1d803a39934ffc8eea43e5", [tag: "v0.4.0"]}}

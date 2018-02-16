@@ -281,4 +281,8 @@ defmodule Hex.Utils do
       {app, req, opts}
     end)
   end
+
+  def in_mix_project?() do
+    !!Mix.Project.get()
+  end
 end

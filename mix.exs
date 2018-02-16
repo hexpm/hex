@@ -59,7 +59,10 @@ defmodule Hex.MixProject do
       {:mime, [github: "elixir-lang/mime", tag: "v1.0.1"] ++ test_opts()},
       {:cowboy, [github: "ninenines/cowboy", tag: "1.0.4", manager: :rebar3] ++ test_opts()},
       {:cowlib, [github: "ninenines/cowlib", tag: "1.0.2", manager: :rebar3] ++ test_opts()},
-      {:ranch, [github: "ninenines/ranch", tag: "1.2.1", manager: :rebar3] ++ test_opts()}
+      {:ranch, [github: "ninenines/ranch", tag: "1.2.1", manager: :rebar3] ++ test_opts()},
+      {:alphabetify, "~> 0.1.0"},
+      {:chameleon, ">= 0.0.0"},
+      {:faker, ">= 0.0.0"},
     ]
   end
 
