@@ -6,12 +6,20 @@ defmodule Mix.Tasks.Hex.Docs do
   @moduledoc """
   Fetches or opens documentation of a package.
 
+  If no version is specified, defaults to version used in the current mix project.
+  If called outside of a mix project or the dependency is not used in the
+  current mix project, defaults to the latest version.
+
   ### Fetch documentation for offline use
 
   Fetches documentation for the specified package that you can later open with
   `mix hex.docs offline`.
 
       mix hex.docs fetch PACKAGE [VERSION]
+
+  ### Fetch documentation for all dependencies in the current mix project
+
+      mix hex.docs fetch
 
   ### Open a browser window with offline documentation
 
@@ -25,6 +33,7 @@ defmodule Mix.Tasks.Hex.Docs do
 
     * `--module Some.Module` - Open a specified module documentation page inside desired package
     * `--organization ORGANIZATION` - The organization the package belongs to
+    * `--latest` - Looks for the latest release of a package
   """
 
   @switches [module: :string, organization: :string, latest: :boolean]
