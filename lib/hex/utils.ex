@@ -282,7 +282,5 @@ defmodule Hex.Utils do
     end)
   end
 
-  def in_mix_project?() do
-    !!Mix.Project.get()
-  end
+  def in_mix_project?(), do: !!Mix.Project.get()
 end

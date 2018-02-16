@@ -2,6 +2,18 @@ defmodule Mix.Tasks.Hex.DocsTest do
   use HexTest.Case
   @moduletag :integration
 
+  defmodule ExampleDeps.MixProject do
+    def project do
+      [
+        app: :example_app,
+        version: "0.1.0",
+        deps: [
+          {:foo, "0.1.0"}
+        ]
+      ]
+    end
+  end
+
   test "fetch and open all packages in this applications deps" do
 
   end
@@ -10,7 +22,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
 
   end
 
-  test "fetch and open the latest version of a package" do
+  test "fetch the latest version of a package" do
     package = "docs_package"
     old_version = "1.1.1"
     latest_version = "1.1.2"
@@ -33,11 +45,11 @@ defmodule Mix.Tasks.Hex.DocsTest do
     end)
   end
 
-  test "fetch and open the latest version of a package using the latest flag" do
+  test "fetch the latest version of a package using the latest flag" do
 
   end
 
-  test "fetch and open a specific version of a package" do
+  test "fetch a specific version of a package" do
     package = "docs_package"
     version = "1.1.2"
     bypass_mirror()
