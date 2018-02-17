@@ -6,15 +6,15 @@ defmodule Mix.Tasks.Hex.User do
   @moduledoc """
   Hex user tasks.
 
-  ### Register a new user
+  ## Register a new user
 
       mix hex.user register
 
-  ### Print the current user
+  ## Print the current user
 
       mix hex.user whoami
 
-  ### Authorize a new user
+  ## Authorize a new user
 
   Authorizes a new user on the local machine by generating a new API key and
   storing it in the Hex config.
@@ -33,11 +33,11 @@ defmodule Mix.Tasks.Hex.User do
 
       mix hex.user deauth [--skip-organizations]
 
-  ### Revoke key
   ## Command line options
 
     * `--skip-organizations` - Skip deauthorizing all organizations.
 
+  ## Revoke key
 
   Removes given API key from account.
 
@@ -45,25 +45,25 @@ defmodule Mix.Tasks.Hex.User do
 
       mix hex.user key --revoke KEY_NAME
 
-  ### Revoke all keys
+  ## Revoke all keys
 
   Revoke all API keys from your account.
 
       mix hex.user key --revoke-all
 
-  ### List keys
+  ## List keys
 
   Lists all API keys associated with your account.
 
       mix hex.user key --list
 
-  ### Reset user account password
+  ## Reset user account password
 
   Starts the process for reseting account password.
 
       mix hex.user reset_password account
 
-  ### Reset local password
+  ## Reset local password
 
   Updates the local password for your local authentication credentials.
 

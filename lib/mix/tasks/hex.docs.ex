@@ -6,18 +6,18 @@ defmodule Mix.Tasks.Hex.Docs do
   @moduledoc """
   Fetches or opens documentation of a package.
 
-  ### Fetch documentation for offline use
+  ## Fetch documentation for offline use
 
   Fetches documentation for the specified package that you can later open with
   `mix hex.docs offline`.
 
       mix hex.docs fetch PACKAGE [VERSION]
 
-  ### Open a browser window with offline documentation
+  ## Open a browser window with offline documentation
 
       mix hex.docs offline PACKAGE [VERSION]
 
-  ### Open a browser window with online documentation
+  ## Open a browser window with online documentation
 
       mix hex.docs online PACKAGE [VERSION]
 
