@@ -18,6 +18,33 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       assert myorg.public_key == hexpm.public_key
       assert myorg.url == "http://localhost:4043/repo/repos/myorgauth"
       assert is_binary(myorg.auth_key)
+
+      {:ok, hostname} = :inet.gethostname()
+      name = "#{hostname}-myorgauth-organization"
+      assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
+      assert name in Enum.map(body, & &1["name"])
+    end)
+  end
+
+  test "auth with --keyname" do
+    in_tmp(fn ->
+      Hex.State.put(:home, System.cwd!())
+      auth = Hexpm.new_user("orgauthwithkeyname", "orgauthwithkeyname@mail.com", "password", "orgauth")
+      Hexpm.new_repo("myorgauthwithkeyname", auth)
+      Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
+
+      send(self(), {:mix_shell_input, :prompt, "password"})
+      Mix.Tasks.Hex.Organization.run(["auth", "myorgauthwithkeyname", "--key-name", "orgauthkeyname"])
+
+      myorg = Hex.Repo.get_repo("hexpm:myorgauthwithkeyname")
+      hexpm = Hex.Repo.get_repo("hexpm")
+
+      assert myorg.public_key == hexpm.public_key
+      assert myorg.url == "http://localhost:4043/repo/repos/myorgauthwithkeyname"
+      assert is_binary(myorg.auth_key)
+
+      assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
+      assert "orgauthkeyname" in Enum.map(body, & &1["name"])
     end)
   end
 
@@ -79,6 +106,11 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
 
       assert_received {:mix_shell, :info, [key]}
       assert is_binary(key)
+
+      {:ok, hostname} = :inet.gethostname()
+      name = "#{hostname}-myorgkey-organization"
+      assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
+      assert name in Enum.map(body, & &1["name"])
     end)
   end
 end

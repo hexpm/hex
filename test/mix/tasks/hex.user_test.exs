@@ -47,6 +47,23 @@ defmodule Mix.Tasks.Hex.UserTest do
     end)
   end
 
+  test "auth with --key-name" do
+    in_tmp(fn ->
+      Hex.State.put(:home, System.cwd!())
+
+      send(self(), {:mix_shell_input, :prompt, "user"})
+      send(self(), {:mix_shell_input, :prompt, "hunter42"})
+      send(self(), {:mix_shell_input, :prompt, "hunter43"})
+      send(self(), {:mix_shell_input, :prompt, "hunter43"})
+      Mix.Tasks.Hex.User.run(["auth", "--key-name", "userauthkeyname"])
+
+      send(self(), {:mix_shell_input, :prompt, "hunter43"})
+      auth = Mix.Tasks.Hex.auth_info()
+      assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
+      assert "userauthkeyname" in Enum.map(body, & &1["name"])
+    end)
+  end
+
   test "auth organizations" do
     in_tmp(fn ->
       Hex.State.put(:home, System.cwd!())
