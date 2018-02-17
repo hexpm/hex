@@ -77,7 +77,7 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp fetch_docs(organization, [name, version]) do
-    target_dir = Path.join([docs_dir(), name, version])
+    target_dir = Path.join([docs_dir(), org_dir(organization), name, version])
 
     if File.exists?(target_dir) do
       Hex.Shell.info("Docs already fetched: #{target_dir}")
@@ -148,13 +148,13 @@ defmodule Mix.Tasks.Hex.Docs do
 
     page = Keyword.get(opts, :module, "index") <> ".html"
 
-    [docs_dir(), name, version, page]
+    [docs_dir(), org_dir(opts[:organization]), name, version, page]
     |> Path.join()
     |> open_file()
   end
 
   defp find_package_version(organization, name) do
-    path = Path.join(docs_dir(), name)
+    path = Path.join([docs_dir(), org_dir(organization), name])
 
     if File.exists?(path) do
       {false, find_latest_version(path)}
@@ -163,8 +163,8 @@ defmodule Mix.Tasks.Hex.Docs do
     end
   end
 
-  defp package_version_exists?(_organization, name, version) do
-    path = Path.join([docs_dir(), name, version])
+  defp package_version_exists?(organization, name, version) do
+    path = Path.join([docs_dir(), org_dir(organization), name, version])
     File.exists?(path)
   end
 
@@ -204,7 +204,7 @@ defmodule Mix.Tasks.Hex.Docs do
 
   if Mix.env() == :test do
     defp system_cmd(cmd, args) do
-      send self(), {:hex_system_cmd, cmd, args}
+      send(self(), {:hex_system_cmd, cmd, args})
     end
   else
     defp system_cmd(cmd, args) do
@@ -252,4 +252,7 @@ defmodule Mix.Tasks.Hex.Docs do
   defp docs_dir() do
     Path.join(Hex.State.fetch!(:home), "docs")
   end
+
+  defp org_dir(organization) when is_nil(organization), do: "hexpm"
+  defp org_dir(organization), do: "hexpm:#{organization}"
 end
