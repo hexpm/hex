@@ -78,17 +78,36 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp fetch_docs(organization, [name, version]) do
     target_dir = Path.join([docs_dir(), org_dir(organization), name, version])
+    fallback_dir = Path.join([docs_dir(), name, version])
 
-    if File.exists?(target_dir) do
-      Hex.Shell.info("Docs already fetched: #{target_dir}")
-    else
-      target = Path.join(target_dir, "#{name}-#{version}.tar.gz")
-      retrieve_compressed_docs(organization, name, version, target)
-      File.mkdir_p!(target_dir)
-      extract_doc_contents(target)
-      Hex.Shell.info("Docs fetched: #{target_dir}")
+    cond do
+      File.exists?(target_dir) ->
+        Hex.Shell.info("Docs already fetched: #{target_dir}")
+
+      file_exists_in_fallback?(organization, name, version) ->
+        Hex.Shell.info("Docs already fetched: #{fallback_dir}")
+
+      true ->
+        target = Path.join(target_dir, "#{name}-#{version}.tar.gz")
+        retrieve_compressed_docs(organization, name, version, target)
+        File.mkdir_p!(target_dir)
+        extract_doc_contents(target)
+        Hex.Shell.info("Docs fetched: #{target_dir}")
     end
   end
+
+  defp file_exists_in_fallback?(organization, name, version)
+       when organization in ["hexpm", "", nil] do
+    File.exists?(Path.join([docs_dir(), name, version]))
+  end
+
+  defp file_exists_in_fallback?(_organization, _name, _version), do: false
+
+  defp package_exists_in_fallback?(organization, name) when organization in ["hexpm", "", nil] do
+    File.exists?(Path.join([docs_dir(), name]))
+  end
+
+  defp package_exists_in_fallback?(_organization, _name), do: false
 
   defp find_package_latest_version(organization, package) do
     %{"releases" => releases} = retrieve_package_info(organization, package)
@@ -140,7 +159,7 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp open_docs_offline([name, version], opts) do
-    available? = package_version_exists?(opts[:organization], name, version)
+    {available?, file_location} = package_version_exists?(opts[:organization], name, version)
 
     unless available? do
       fetch_docs(opts[:organization], [name, version])
@@ -148,24 +167,40 @@ defmodule Mix.Tasks.Hex.Docs do
 
     page = Keyword.get(opts, :module, "index") <> ".html"
 
-    [docs_dir(), org_dir(opts[:organization]), name, version, page]
-    |> Path.join()
-    |> open_file()
+    available_doc_path =
+      if file_location == :fallback do
+        Path.join([docs_dir(), name, version, page])
+      else
+        Path.join([docs_dir(), org_dir(opts[:organization]), name, version, page])
+      end
+
+    open_file(available_doc_path)
   end
 
   defp find_package_version(organization, name) do
     path = Path.join([docs_dir(), org_dir(organization), name])
+    fallback_path = Path.join([docs_dir(), name])
 
-    if File.exists?(path) do
-      {false, find_latest_version(path)}
-    else
-      {true, find_package_latest_version(organization, name)}
+    cond do
+      File.exists?(path) ->
+        {false, find_latest_version(path)}
+
+      package_exists_in_fallback?(organization, name) ->
+        {false, find_latest_version(fallback_path)}
+
+      true ->
+        {true, find_package_latest_version(organization, name)}
     end
   end
 
   defp package_version_exists?(organization, name, version) do
     path = Path.join([docs_dir(), org_dir(organization), name, version])
-    File.exists?(path)
+
+    cond do
+      File.exists?(path) -> {true, :default}
+      file_exists_in_fallback?(organization, name, version) -> {true, :fallback}
+      true -> {false, :default}
+    end
   end
 
   defp get_docs_url([name], opts) do

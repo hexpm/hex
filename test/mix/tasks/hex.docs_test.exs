@@ -21,7 +21,10 @@ defmodule Mix.Tasks.Hex.DocsTest do
       assert_received {:mix_shell, :info, [^fetched_msg]}
 
       Mix.Tasks.Hex.Docs.run(["fetch", package])
-      already_fetched_msg = "Docs already fetched: #{docs_home}/#{org_dir}/#{package}/#{latest_version}"
+
+      already_fetched_msg =
+        "Docs already fetched: #{docs_home}/#{org_dir}/#{package}/#{latest_version}"
+
       assert_received {:mix_shell, :info, [^already_fetched_msg]}
     end)
   end
@@ -42,6 +45,26 @@ defmodule Mix.Tasks.Hex.DocsTest do
 
       Mix.Tasks.Hex.Docs.run(["fetch", package, version])
       already_fetched_msg = "Docs already fetched: #{docs_home}/#{org_dir}/#{package}/#{version}"
+      assert_received {:mix_shell, :info, [^already_fetched_msg]}
+    end)
+  end
+
+  test "fetch a specific version of a package that exists in the fallback location" do
+    package = "docs_package"
+    version = "1.1.2"
+    bypass_mirror()
+    Hex.State.put(:home, tmp_path())
+
+    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    org_dir = "hexpm"
+
+    in_tmp("docs", fn ->
+      Mix.Tasks.Hex.Docs.run(["fetch", package, version])
+      File.cp_r!("#{docs_home}/#{org_dir}/#{package}", "#{docs_home}/#{package}")
+      File.rm_rf!("#{docs_home}/#{org_dir}/#{package}/#{version}")
+
+      Mix.Tasks.Hex.Docs.run(["fetch", package, version])
+      already_fetched_msg = "Docs already fetched: #{docs_home}/#{package}/#{version}"
       assert_received {:mix_shell, :info, [^already_fetched_msg]}
     end)
   end
@@ -125,6 +148,26 @@ defmodule Mix.Tasks.Hex.DocsTest do
       Mix.Tasks.Hex.Docs.run(["fetch", package, version])
       already_fetched_msg = "Docs already fetched: #{docs_home}/#{org_dir}/#{package}/#{version}"
       assert_received {:mix_shell, :info, [^already_fetched_msg]}
+    end)
+  end
+
+  test "offline package with version uses fallback location" do
+    package = "docs_package"
+    version = "1.1.2"
+    bypass_mirror()
+    Hex.State.put(:home, tmp_path())
+
+    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    org_dir = "hexpm"
+
+    in_tmp("docs", fn ->
+      Mix.Tasks.Hex.Docs.run(["fetch", package, version])
+      File.cp_r!("#{docs_home}/#{org_dir}/#{package}", "#{docs_home}/#{package}")
+      File.rm_rf!("#{docs_home}/#{org_dir}/#{package}/#{version}")
+
+      Mix.Tasks.Hex.Docs.run(["offline", package, version])
+      browser_open_msg = "#{docs_home}/#{package}/#{version}/index.html"
+      assert_received {:hex_system_cmd, _cmd, [^browser_open_msg]}
     end)
   end
 
