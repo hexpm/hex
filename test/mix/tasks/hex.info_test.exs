@@ -18,10 +18,18 @@ defmodule Mix.Tasks.Hex.InfoTest do
     assert_received {:mix_shell, :info, ["Releases: 0.2.0, 0.1.0 (retired)\n"]}
   end
 
-  test "package with custom repo" do
-    bypass_repo("myorg")
-    Mix.Tasks.Hex.Info.run(["ecto", "--organization", "myorg"])
-    assert_received {:mix_shell, :info, ["ecto description\n"]}
+  test "package with --organization flag" do
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+      auth = Hexpm.new_user("infoorg", "infoorg@mail.com", "password", "infoorg")
+      Hexpm.new_repo("infoorg", auth)
+      Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
+
+      bypass_repo("infoorg")
+      send(self(), {:mix_shell_input, :prompt, "password"})
+      Mix.Tasks.Hex.Info.run(["ecto", "--organization", "infoorg"])
+      assert_received {:mix_shell, :info, ["ecto description\n"]}
+    end)
   end
 
   test "release" do

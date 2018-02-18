@@ -40,7 +40,6 @@ defmodule Hex.API do
   end
 
   defp repo_path(nil), do: "/"
-  defp repo_path("hexpm"), do: "/"
   defp repo_path(org), do: "/repos/#{org}/"
 
   defp headers(opts) do

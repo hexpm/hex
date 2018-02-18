@@ -1,9 +1,9 @@
 defmodule Hex.API.Release do
   alias Hex.API
 
-  def get(repo, name, version) do
+  def get(repo, name, version, auth \\ []) do
     path = "packages/#{URI.encode(name)}/releases/#{URI.encode(version)}"
-    API.request(:get, repo, path)
+    API.request(:get, repo, path, auth)
   end
 
   def new(repo, name, tar, auth, progress \\ fn _ -> nil end) do
