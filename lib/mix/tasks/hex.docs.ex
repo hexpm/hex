@@ -10,16 +10,16 @@ defmodule Mix.Tasks.Hex.Docs do
   If called outside of a mix project or the dependency is not used in the
   current mix project, defaults to the latest version.
 
+  ### Fetch documentation for all dependencies in the current mix project
+
+    mix hex.docs fetch
+
   ### Fetch documentation for offline use
 
   Fetches documentation for the specified package that you can later open with
   `mix hex.docs offline`.
 
       mix hex.docs fetch PACKAGE [VERSION]
-
-  ### Fetch documentation for all dependencies in the current mix project
-
-      mix hex.docs fetch
 
   ### Open a browser window with offline documentation
 
@@ -65,6 +65,7 @@ defmodule Mix.Tasks.Hex.Docs do
         Mix.raise("""
         Invalid arguments, expected one of:
 
+        mix hex.docs fetch
         mix hex.docs fetch PACKAGE [VERSION]
         mix hex.docs offline PACKAGE [VERSION]
         mix hex.docs online PACKAGE [VERSION]
@@ -72,14 +73,16 @@ defmodule Mix.Tasks.Hex.Docs do
     end
   end
 
-  defp fetch_docs([], _opts, true) do
+  defp fetch_docs([], _opts, true = _in_mix_project?) do
     Enum.each(deps_in_project(), fn pkg ->
       fetch_docs([pkg[:name], pkg[:version]], %{organization: pkg[:repo]}, true)
     end)
   end
 
-  defp fetch_docs([], _opts, _in_mix_project?) do
-    Mix.raise("You must specify at least the name of a package")
+  defp fetch_docs([], _opts, false = _in_mix_project?) do
+    Mix.raise(
+      "Specify a package name or run inside a Mix project to fetch docs for all dependencies"
+    )
   end
 
   defp fetch_docs([name], opts, in_mix_project?)
@@ -152,7 +155,7 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp open_docs([], _opts, _in_mix_project?) do
-    Mix.raise("You must specify at least the name of a package")
+    Mix.raise("You must specify the name of a package")
   end
 
   defp open_docs([package, version], opts, _in_mix_project?) do
@@ -186,7 +189,7 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp open_docs_offline([], _opts, _in_mix_project?) do
-    Mix.raise("You must specify at least the name of a package")
+    Mix.raise("You must specify the name of a package")
   end
 
   defp open_docs_offline([name], [latest: true] = opts, in_mix_project?) do
