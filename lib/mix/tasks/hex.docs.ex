@@ -41,7 +41,7 @@ defmodule Mix.Tasks.Hex.Docs do
   def run(args) do
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
-    in_mix_project? = Hex.Utils.in_mix_project?()
+    in_mix_project? = !!Mix.Project.get()
 
     case args do
       ["fetch" | remaining] ->
@@ -344,6 +344,6 @@ defmodule Mix.Tasks.Hex.Docs do
   defp deps_in_project() do
     Mix.Dep.Lock.read()
     |> Enum.map(fn {_app, info} -> Hex.Utils.lock(info) end)
-    |> Enum.filter(fn v -> v end)
+    |> Enum.reject(&is_nil/1)
   end
 end
