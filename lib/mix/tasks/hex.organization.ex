@@ -23,7 +23,7 @@ defmodule Mix.Tasks.Hex.Organization do
   This command will generate an API key used to authenticate access to the organization.
   See the `hex.user` tasks to list and control all your active API keys.
 
-      mix hex.organization auth ORGANIZATION  [--key KEY_NAME] [--key-name KEY_NAME]
+      mix hex.organization auth ORGANIZATION  [--key KEY] [--key-name KEY_NAME]
 
   ## Deauthorize and remove an organization
 
