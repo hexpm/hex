@@ -29,9 +29,9 @@ defmodule Mix.Tasks.Hex.DocsTest do
     in_tmp("docs", fn ->
       Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.2"}})
       Mix.Tasks.Hex.Docs.run(["fetch"])
-      fetched_msg = "Docs fetched: #{docs_home}/docs_package/1.1.2"
+      fetched_msg = "Docs fetched: #{docs_home}/hexpm/docs_package/1.1.2"
       assert_received {:mix_shell, :info, [^fetched_msg]}
-      assert File.exists?("#{docs_home}/docs_package/1.1.2")
+      assert File.exists?("#{docs_home}/hexpm/docs_package/1.1.2")
     end)
   end
 
@@ -44,15 +44,14 @@ defmodule Mix.Tasks.Hex.DocsTest do
     in_tmp("docs", fn ->
       Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.2"}})
       Mix.Tasks.Hex.Docs.run(["fetch", "docs_package"])
-      fetched_msg = "Docs fetched: #{docs_home}/docs_package/1.1.2"
+      fetched_msg = "Docs fetched: #{docs_home}/hexpm/docs_package/1.1.2"
       assert_received {:mix_shell, :info, [^fetched_msg]}
-      assert File.exists?("#{docs_home}/docs_package/1.1.2")
+      assert File.exists?("#{docs_home}/hexpm/docs_package/1.1.2")
     end)
   end
 
   test "fetch the latest version of a package" do
     package = "docs_package"
-    old_version = "1.1.1"
     latest_version = "1.1.2"
     bypass_mirror()
     Hex.State.put(:home, tmp_path())
@@ -80,9 +79,9 @@ defmodule Mix.Tasks.Hex.DocsTest do
     in_tmp("docs", fn ->
       Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.1"}})
       Mix.Tasks.Hex.Docs.run(["fetch", "docs_package", "--latest"])
-      fetched_msg = "Docs fetched: #{docs_home}/docs_package/1.1.2"
+      fetched_msg = "Docs fetched: #{docs_home}/hexpm/docs_package/1.1.2"
       assert_received {:mix_shell, :info, [^fetched_msg]}
-      assert File.exists?("#{docs_home}/docs_package/1.1.2")
+      assert File.exists?("#{docs_home}/hexpm/docs_package/1.1.2")
     end)
   end
 
@@ -166,16 +165,11 @@ defmodule Mix.Tasks.Hex.DocsTest do
 
   test "open latest version offline using offline task" do
     package = "docs_package"
-    old_version = "1.1.1"
     latest_version = "1.1.2"
     bypass_mirror()
     Hex.State.put(:home, tmp_path())
     docs_home = Path.join(Hex.State.fetch!(:home), "docs")
     org_dir = "hexpm"
-
-    auth = Hexpm.new_key(user: "user", pass: "hunter42")
-    Hexpm.new_package(package, old_version, %{}, %{}, auth)
-    Hexpm.new_package(package, latest_version, %{}, %{}, auth)
 
     in_tmp("docs", fn ->
       Mix.Tasks.Hex.Docs.run(["offline", package])
@@ -270,18 +264,20 @@ defmodule Mix.Tasks.Hex.DocsTest do
 
   test "open the version of a package this app uses offline" do
     Mix.Project.push(ExampleDeps.MixProject)
+    package = "docs_package"
+    version = "1.1.2"
     bypass_mirror()
     Hex.State.put(:home, tmp_path())
     docs_home = Path.join(Hex.State.fetch!(:home), "docs")
 
     in_tmp("docs", fn ->
-      Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.2"}})
-      Mix.Tasks.Hex.Docs.run(["offline", "docs_package"])
-      fetched_msg = "Docs fetched: #{docs_home}/docs_package/1.1.2"
-      browser_open_msg = "#{docs_home}/docs_package/1.1.2/index.html"
+      Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, version}})
+      Mix.Tasks.Hex.Docs.run(["offline", package])
+      fetched_msg = "Docs fetched: #{docs_home}/hexpm/#{package}/#{version}"
+      browser_open_msg = "#{docs_home}/hexpm/#{package}/#{version}/index.html"
       assert_received {:mix_shell, :info, [^fetched_msg]}
       assert_received {:hex_system_cmd, _cmd, [^browser_open_msg]}
-      assert File.exists?("#{docs_home}/docs_package/1.1.2")
+      assert File.exists?("#{docs_home}/hexpm/#{package}/#{version}")
     end)
   end
 end

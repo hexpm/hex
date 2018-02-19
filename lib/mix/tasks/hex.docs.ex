@@ -96,14 +96,14 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp fetch_docs([name, version], opts, _in_mix_project?, continue_on_error? \\ false) do
-    target_dir = Path.join([docs_dir(), org_dir(organization), name, version])
+    target_dir = Path.join([docs_dir(), org_dir(opts[:organization]), name, version])
     fallback_dir = Path.join([docs_dir(), name, version])
-    
+
     cond do
       File.exists?(target_dir) ->
         Hex.Shell.info("Docs already fetched: #{target_dir}")
 
-      file_exists_in_fallback?(organization, name, version) ->
+      file_exists_in_fallback?(opts[:organization], name, version) ->
         Hex.Shell.info("Docs already fetched: #{fallback_dir}")
 
       true ->
@@ -388,6 +388,6 @@ defmodule Mix.Tasks.Hex.Docs do
     |> Enum.reject(&is_nil/1)
   end
 
-  defp org_dir(organization) when is_nil(organization), do: "hexpm"
+  defp org_dir(organization) when organization in [nil, "hexpm"], do: "hexpm"
   defp org_dir(organization), do: "hexpm:#{organization}"
 end
