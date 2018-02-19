@@ -9,27 +9,27 @@ defmodule Mix.Tasks.Hex.Owner do
   Package owners have full permissions to the package. They can publish and
   revert releases and even remove other package owners.
 
-  ### Add owner
+  ## Add owner
 
   Adds an owner to package by specifying the package name and email of the new
   owner.
 
       mix hex.owner add PACKAGE EMAIL
 
-  ### Remove owner
+  ## Remove owner
 
   Removes an owner to package by specifying the package name and email of the new
   owner.
 
       mix hex.owner remove PACKAGE EMAIL
 
-  ### List owners
+  ## List owners
 
   Lists all owners of given package.
 
       mix hex.owner list PACKAGE
 
-  ### List owned packages
+  ## List owned packages
 
   Lists all packages owned by the current user.
 

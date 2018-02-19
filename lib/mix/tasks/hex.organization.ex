@@ -20,14 +20,10 @@ defmodule Mix.Tasks.Hex.Organization do
 
   ## Authorize an organization
 
-      mix hex.organization auth ORGANIZATION
+  This command will generate an API key used to authenticate access to the organization.
+  See the `hex.user` tasks to list and control all your active API keys.
 
-  ### Command line options
-
-    * `--key KEY` - Hash of key used to authenticate HTTP requests to repository, if
-      omitted will generate a new key with your account credentials. This flag
-      is useful if you have a key pre-generated with `mix hex.organization key`
-      and want to authenticate on a CI server or similar system
+      mix hex.organization auth ORGANIZATION  [--key KEY] [--key-name KEY_NAME]
 
   ## Deauthorize and remove an organization
 
@@ -39,14 +35,24 @@ defmodule Mix.Tasks.Hex.Organization do
   on CI servers or similar systems. It returns the hash of the generated key that you can pass to
   `auth ORGANIZATION --key KEY`. This key allows read-only access to the repository
 
-      mix hex.organization key ORGANIZATION
+      mix hex.organization key ORGANIZATION [--key-name KEY_NAME]
 
   ## List all authorized organizations
 
       mix hex.organization list
+
+  ## Command line options
+
+    * `--key KEY` - Hash of key used to authenticate HTTP requests to repository, if
+      omitted will generate a new key with your account credentials. This flag
+      is useful if you have a key pre-generated with `mix hex.organization key`
+      and want to authenticate on a CI server or similar system
+
+    * `--key-name KEY_NAME` - By default Hex will base the key name on your machine's
+      hostname and the organization name, use this option to give your own name.
   """
 
-  @switches [key: :string]
+  @switches [key: :string, key_name: :string]
 
   def run(args) do
     Hex.start()
@@ -60,7 +66,7 @@ defmodule Mix.Tasks.Hex.Organization do
         deauth(name)
 
       ["key", name] ->
-        key(name)
+        key(name, opts)
 
       ["list"] ->
         list()
@@ -79,7 +85,7 @@ defmodule Mix.Tasks.Hex.Organization do
   defp auth(name, opts) do
     key = opts[:key]
     if opts[:key], do: test_key(key, name)
-    key = key || Mix.Tasks.Hex.generate_organization_key(name)
+    key = key || Mix.Tasks.Hex.generate_organization_key(name, opts[:key_name])
 
     Mix.Tasks.Hex.auth_organization(name, key)
   end
@@ -90,8 +96,8 @@ defmodule Mix.Tasks.Hex.Organization do
     |> Hex.Config.update_repos()
   end
 
-  defp key(name) do
-    Hex.Shell.info(Mix.Tasks.Hex.generate_organization_key(name))
+  defp key(name, opts) do
+    Hex.Shell.info(Mix.Tasks.Hex.generate_organization_key(name, opts[:key_name]))
   end
 
   defp list() do
