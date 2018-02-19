@@ -96,17 +96,12 @@ defmodule Mix.Tasks.Hex.Docs do
     end
   end
 
-  defp file_exists_in_fallback?(organization, name, version)
-       when is_nil(organization) do
-    File.exists?(Path.join([docs_dir(), name, version]))
-  end
+  defp file_exists_in_fallback?(nil, name, version),
+    do: File.exists?(Path.join([docs_dir(), name, version]))
 
   defp file_exists_in_fallback?(_organization, _name, _version), do: false
 
-  defp package_exists_in_fallback?(organization, name) when is_nil(organization) do
-    File.exists?(Path.join([docs_dir(), name]))
-  end
-
+  defp package_exists_in_fallback?(nil, name), do: File.exists?(Path.join([docs_dir(), name]))
   defp package_exists_in_fallback?(_organization, _name), do: false
 
   defp find_package_latest_version(organization, package) do
