@@ -6,63 +6,77 @@ defmodule Mix.Tasks.Hex.User do
   @moduledoc """
   Hex user tasks.
 
-  ### Register a new user
+  ## Register a new user
 
       mix hex.user register
 
-  ### Print the current user
+  ## Print the current user
 
       mix hex.user whoami
 
-  ### Authorize a new user
+  ## Authorize a new user
 
   Authorizes a new user on the local machine by generating a new API key and
   storing it in the Hex config.
 
-      mix hex.user auth [--skip-organizations]
+      mix hex.user auth [--key-name KEY_NAME] [--skip-organizations]
 
-  ### Deauthorize the user
+  ## Command line options
 
-  Deauthorizes the user from the local machine by removing the API key from the
-  Hex config. This task will also deauthorize all organizations unless `--skip-organizations`
-  is given.
+    * `--key-name KEY_NAME` - By default Hex will base the key name on your machine's
+      hostname, use this option to give your own name.
+    * `--skip-organizations` - Skip authorizing all organizations your account has access to.
+
+  ## Deauthorize the user
+
+  Deauthorizes the user from the local machine by removing the API key from the Hex config.
 
       mix hex.user deauth [--skip-organizations]
 
-  ### Revoke key
+  ## Command line options
+
+    * `--skip-organizations` - Skip deauthorizing all organizations.
+
+  ## Revoke key
 
   Removes given API key from account.
 
   The key can no longer be used to authenticate API requests.
 
-      mix hex.user key --revoke key_name
+      mix hex.user key --revoke KEY_NAME
 
-  ### Revoke all keys
+  ## Revoke all keys
 
   Revoke all API keys from your account.
 
       mix hex.user key --revoke-all
 
-  ### List keys
+  ## List keys
 
   Lists all API keys associated with your account.
 
       mix hex.user key --list
 
-  ### Reset user account password
+  ## Reset user account password
 
   Starts the process for reseting account password.
 
       mix hex.user reset_password account
 
-  ### Reset local password
+  ## Reset local password
 
   Updates the local password for your local authentication credentials.
 
       mix hex.user reset_password local
   """
 
-  @switches [revoke_all: :boolean, revoke: :string, list: :boolean, skip_organizations: :boolean]
+  @switches [
+    revoke_all: :boolean,
+    revoke: :string,
+    list: :boolean,
+    skip_organizations: :boolean,
+    key_name: :string
+  ]
 
   def run(args) do
     Hex.start()
@@ -216,7 +230,7 @@ defmodule Mix.Tasks.Hex.User do
   defp create_user(username, email, password) do
     case Hex.API.User.new(username, email, password) do
       {:ok, {code, _, _}} when code in 200..299 ->
-        Mix.Tasks.Hex.generate_api_key(username, password)
+        Mix.Tasks.Hex.generate_api_key(username, password, nil)
 
         Hex.Shell.info(
           "You are required to confirm your email to access your account, " <>

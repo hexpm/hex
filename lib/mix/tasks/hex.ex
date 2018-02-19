@@ -76,12 +76,12 @@ defmodule Mix.Tasks.Hex do
                            "Hex requires you to have a local password that applies only to this machine for security " <>
                            "purposes. Please enter it."
 
-  def generate_api_key(username, password) do
+  def generate_api_key(username, password, key_name) do
     Hex.Shell.info("Generating API key...")
     {:ok, name} = :inet.gethostname()
-    name = List.to_string(name)
+    key_name = key_name || List.to_string(name)
 
-    case Hex.API.Key.new(name, user: username, pass: password) do
+    case Hex.API.Key.new(key_name, user: username, pass: password) do
       {:ok, {201, body, _}} ->
         Hex.Shell.info(@local_password_prompt)
         prompt_encrypt_key(body["secret"])
@@ -93,14 +93,14 @@ defmodule Mix.Tasks.Hex do
     end
   end
 
-  def generate_organization_key(name, auth \\ nil) do
+  def generate_organization_key(organization_name, key_name, auth \\ nil) do
     auth = auth || auth_info()
-    permissions = [%{"domain" => "repository", "resource" => name}]
+    permissions = [%{"domain" => "repository", "resource" => organization_name}]
 
     {:ok, host} = :inet.gethostname()
-    key = "#{host}-#{name}-organization"
+    key_name = key_name || "#{host}-#{organization_name}-organization"
 
-    case Hex.API.Key.new(key, permissions, auth) do
+    case Hex.API.Key.new(key_name, permissions, auth) do
       {:ok, {201, body, _}} ->
         body["secret"]
 
@@ -120,14 +120,14 @@ defmodule Mix.Tasks.Hex do
     password = password_get("Account password:") |> Hex.string_trim()
 
     unless opts[:skip_organizations] do
-      case generate_api_key(username, password) do
+      case generate_api_key(username, password, opts[:key_name]) do
         {:ok, key, password} ->
           Hex.Shell.info("Generating organization keys...")
           auth = [key: key]
           {:ok, {200, user, _headers}} = Hex.API.User.me(auth)
 
           Enum.each(user["organizations"] || [], fn %{"name" => name} ->
-            key = generate_organization_key(name, auth)
+            key = generate_organization_key(name, nil, auth)
             auth_organization(name, key)
           end)
 

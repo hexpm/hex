@@ -51,18 +51,22 @@ defmodule Mix.Tasks.Hex.DocsTest do
   end
 
   test "fetch the latest version of a package" do
+    package = "docs_package"
+    old_version = "1.1.1"
+    latest_version = "1.1.2"
     bypass_mirror()
     Hex.State.put(:home, tmp_path())
     docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    org_dir = "hexpm"
 
     in_tmp("docs", fn ->
-      Mix.Tasks.Hex.Docs.run(["fetch", "docs_package"])
-      fetched_msg = "Docs fetched: #{docs_home}/docs_package/1.1.2"
+      Mix.Tasks.Hex.Docs.run(["fetch", package])
+      fetched_msg = "Docs fetched: #{docs_home}/#{org_dir}/#{package}/#{latest_version}"
       assert_received {:mix_shell, :info, [^fetched_msg]}
-      assert File.exists?("#{docs_home}/docs_package/1.1.2")
 
-      Mix.Tasks.Hex.Docs.run(["fetch", "docs_package"])
-      already_fetched_msg = "Docs already fetched: #{docs_home}/docs_package/1.1.2"
+      Mix.Tasks.Hex.Docs.run(["fetch", package])
+      already_fetched_msg =
+        "Docs already fetched: #{docs_home}/#{org_dir}/#{package}/#{latest_version}"
       assert_received {:mix_shell, :info, [^already_fetched_msg]}
     end)
   end
@@ -83,25 +87,52 @@ defmodule Mix.Tasks.Hex.DocsTest do
   end
 
   test "fetch a specific version of a package" do
+    package = "docs_package"
+    version = "1.1.2"
     bypass_mirror()
     Hex.State.put(:home, tmp_path())
     docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    org_dir = "hexpm"
 
     in_tmp("docs", fn ->
-      Mix.Tasks.Hex.Docs.run(["fetch", "docs_package", "1.1.2"])
-      fetched_msg = "Docs fetched: #{docs_home}/docs_package/1.1.2"
+      Mix.Tasks.Hex.Docs.run(["fetch", package, version])
+      fetched_msg = "Docs fetched: #{docs_home}/#{org_dir}/#{package}/#{version}"
       assert_received {:mix_shell, :info, [^fetched_msg]}
-      assert File.exists?("#{docs_home}/docs_package/1.1.2")
 
-      Mix.Tasks.Hex.Docs.run(["fetch", "docs_package", "1.1.2"])
-      already_fetched_msg = "Docs already fetched: #{docs_home}/docs_package/1.1.2"
+      Mix.Tasks.Hex.Docs.run(["fetch", package, version])
+      already_fetched_msg =
+        "Docs already fetched: #{docs_home}/#{org_dir}/#{package}/#{version}"
+      assert_received {:mix_shell, :info, [^already_fetched_msg]}
+    end)
+  end
+
+  test "fetch a specific version of a package that exists in the fallback location" do
+    package = "docs_package"
+    version = "1.1.2"
+    bypass_mirror()
+    Hex.State.put(:home, tmp_path())
+
+    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    org_dir = "hexpm"
+
+    in_tmp("docs", fn ->
+      Mix.Tasks.Hex.Docs.run(["fetch", package, version])
+      File.cp_r!("#{docs_home}/#{org_dir}/#{package}", "#{docs_home}/#{package}")
+      File.rm_rf!("#{docs_home}/#{org_dir}/#{package}/#{version}")
+
+      Mix.Tasks.Hex.Docs.run(["fetch", package, version])
+      already_fetched_msg = "Docs already fetched: #{docs_home}/#{package}/#{version}"
       assert_received {:mix_shell, :info, [^already_fetched_msg]}
     end)
   end
 
   test "fetch a package that does not exist" do
-    assert_raise Mix.Error, "No package with name package_not_found", fn ->
-      Mix.Tasks.Hex.Docs.run(["fetch", "package_not_found"])
+    package = "package_not_found"
+
+    not_found_msg = "No package with name #{package}"
+
+    assert_raise Mix.Error, not_found_msg, fn ->
+      Mix.Tasks.Hex.Docs.run(["fetch", package])
     end
   end
 
@@ -124,57 +155,89 @@ defmodule Mix.Tasks.Hex.DocsTest do
   end
 
   test "offline task fails when docs not found" do
+    package = "decimal"
+    version = "1.1.2"
     message = "Couldn't find docs for package with name decimal or version 1.1.2"
 
     assert_raise Mix.Error, message, fn ->
-      Mix.Tasks.Hex.Docs.run(["offline", "decimal", "1.1.2"])
+      Mix.Tasks.Hex.Docs.run(["offline", package, version])
     end
   end
 
   test "open latest version offline using offline task" do
+    package = "docs_package"
+    old_version = "1.1.1"
+    latest_version = "1.1.2"
     bypass_mirror()
     Hex.State.put(:home, tmp_path())
     docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    org_dir = "hexpm"
+
+    auth = Hexpm.new_key(user: "user", pass: "hunter42")
+    Hexpm.new_package(package, old_version, %{}, %{}, auth)
+    Hexpm.new_package(package, latest_version, %{}, %{}, auth)
 
     in_tmp("docs", fn ->
-      Mix.Tasks.Hex.Docs.run(["offline", "docs_package"])
-      fetched_msg = "Docs fetched: #{docs_home}/docs_package/1.1.2"
-      browser_open_msg = "#{docs_home}/docs_package/1.1.2/index.html"
+      Mix.Tasks.Hex.Docs.run(["offline", package])
+      fetched_msg = "Docs fetched: #{docs_home}/#{org_dir}/#{package}/#{latest_version}"
+      browser_open_msg = "#{docs_home}/#{org_dir}/#{package}/#{latest_version}/index.html"
       assert_received {:mix_shell, :info, [^fetched_msg]}
       assert_received {:hex_system_cmd, _cmd, [^browser_open_msg]}
-      assert File.exists?("#{docs_home}/docs_package/1.1.2")
     end)
   end
 
   test "offline package with version succeeds when package is available remotely" do
+    package = "docs_package"
+    version = "1.1.2"
     bypass_mirror()
     Hex.State.put(:home, tmp_path())
+
     docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    org_dir = "hexpm"
 
     in_tmp("docs", fn ->
-      Mix.Tasks.Hex.Docs.run(["offline", "docs_package", "1.1.2"])
-      fetched_msg = "Docs fetched: #{docs_home}/docs_package/1.1.2"
-      browser_open_msg = "#{docs_home}/docs_package/1.1.2/index.html"
+      Mix.Tasks.Hex.Docs.run(["offline", package, version])
+      fetched_msg = "Docs fetched: #{docs_home}/#{org_dir}/#{package}/#{version}"
+      browser_open_msg = "#{docs_home}/#{org_dir}/#{package}/#{version}/index.html"
       assert_received {:mix_shell, :info, [^fetched_msg]}
       assert_received {:hex_system_cmd, _cmd, [^browser_open_msg]}
-      assert File.exists?("#{docs_home}/docs_package/1.1.2")
 
-      Mix.Tasks.Hex.Docs.run(["fetch", "docs_package", "1.1.2"])
-      already_fetched_msg = "Docs already fetched: #{docs_home}/docs_package/1.1.2"
+      Mix.Tasks.Hex.Docs.run(["fetch", package, version])
+      already_fetched_msg = "Docs already fetched: #{docs_home}/#{org_dir}/#{package}/#{version}"
       assert_received {:mix_shell, :info, [^already_fetched_msg]}
+    end)
+  end
+
+  test "offline package with version uses fallback location" do
+    package = "docs_package"
+    version = "1.1.2"
+    bypass_mirror()
+    Hex.State.put(:home, tmp_path())
+
+    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    org_dir = "hexpm"
+
+    in_tmp("docs", fn ->
+      Mix.Tasks.Hex.Docs.run(["fetch", package, version])
+      File.cp_r!("#{docs_home}/#{org_dir}/#{package}", "#{docs_home}/#{package}")
+      File.rm_rf!("#{docs_home}/#{org_dir}/#{package}/#{version}")
+
+      Mix.Tasks.Hex.Docs.run(["offline", package, version])
+      browser_open_msg = "#{docs_home}/#{package}/#{version}/index.html"
+      assert_received {:hex_system_cmd, _cmd, [^browser_open_msg]}
     end)
   end
 
   test "open raises an error" do
     msg = """
-    Open has been removed, use one of:
-
-    mix hex.docs online PACKAGE [VERSION]
+    Open has been removed, use one of:\n\nmix hex.docs online PACKAGE [VERSION]
     mix hex.docs offline PACKAGE [VERSION]
     """
 
+    package = "decimal"
+
     assert_raise Mix.Error, msg, fn ->
-      Mix.Tasks.Hex.Docs.run(["open", "decimal"])
+      Mix.Tasks.Hex.Docs.run(["open", package])
     end
   end
 
