@@ -75,7 +75,7 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp fetch_docs([], _opts, true = _in_mix_project?) do
     Enum.each(deps_in_project(), fn pkg ->
-      fetch_docs([pkg[:name], pkg[:version]], %{organization: pkg[:repo]}, true)
+      fetch_docs([pkg[:name], pkg[:version]], %{organization: pkg[:repo]}, true, true)
     end)
   end
 
@@ -95,17 +95,15 @@ defmodule Mix.Tasks.Hex.Docs do
     fetch_docs([name, locked_or_latest_version], opts, in_mix_project?)
   end
 
-  defp fetch_docs([name, version], opts, _in_mix_project?) do
+  defp fetch_docs([name, version], opts, _in_mix_project?, continue_on_error? \\ false) do
     target_dir = Path.join([docs_dir(), name, version])
 
     if File.exists?(target_dir) do
       Hex.Shell.info("Docs already fetched: #{target_dir}")
     else
       target = Path.join(target_dir, "#{name}-#{version}.tar.gz")
-      retrieve_compressed_docs(opts[:organization], name, version, target)
-      File.mkdir_p!(target_dir)
-      extract_doc_contents(target)
-      Hex.Shell.info("Docs fetched: #{target_dir}")
+      {_resp, retrieved?} = retrieve_compressed_docs(opts[:organization], name, version, target, continue_on_error?)
+      make_dir_and_extract(target, target_dir, retrieved?)
     end
   end
 
@@ -315,20 +313,33 @@ defmodule Mix.Tasks.Hex.Docs do
     |> List.first()
   end
 
-  defp retrieve_compressed_docs(organization, package, version, target) do
+  defp retrieve_compressed_docs(organization, package, version, target, continue_on_error?) do
     unless File.exists?(target) do
-      request_docs_from_mirror(organization, package, version, target)
+      request_docs_from_mirror(organization, package, version, target, continue_on_error?)
     end
   end
 
-  defp request_docs_from_mirror(organization, package, version, target) do
+  defp request_docs_from_mirror(organization, package, version, target, continue_on_error?) do
     case Hex.Repo.get_docs(organization, package, version) do
       {:ok, {200, body, _}} ->
         File.mkdir_p!(Path.dirname(target))
         File.write!(target, body)
-
+        {:ok, true}
       _ ->
-        Mix.raise("No package with name #{package} or version #{version}")
+        if continue_on_error? do
+          Hex.Shell.info("Couldn't find docs for package with name #{package} or version #{version}")
+        else
+          Mix.raise("Couldn't find docs for package with name #{package} or version #{version}")
+        end
+        {:error, false}
+    end
+  end
+
+  defp make_dir_and_extract(target, target_dir, retrieved?) do
+    if retrieved? do
+      File.mkdir_p!(target_dir)
+      extract_doc_contents(target)
+      Hex.Shell.info("Docs fetched: #{target_dir}")
     end
   end
 
