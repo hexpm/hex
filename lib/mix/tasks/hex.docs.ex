@@ -97,13 +97,13 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp file_exists_in_fallback?(organization, name, version)
-       when organization in ["hexpm", "", nil] do
+       when is_nil(organization) do
     File.exists?(Path.join([docs_dir(), name, version]))
   end
 
   defp file_exists_in_fallback?(_organization, _name, _version), do: false
 
-  defp package_exists_in_fallback?(organization, name) when organization in ["hexpm", "", nil] do
+  defp package_exists_in_fallback?(organization, name) when is_nil(organization) do
     File.exists?(Path.join([docs_dir(), name]))
   end
 
