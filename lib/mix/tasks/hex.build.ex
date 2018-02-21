@@ -57,6 +57,8 @@ defmodule Mix.Tasks.Hex.Build do
       can include wildcards. Defaults to `["lib", "priv", ".formatter.exs",
       "mix.exs", "README*", "readme*", "LICENSE*", "license*", "CHANGELOG*",
       "changelog*", "src"]`.
+    * `:exclude_patterns` - List of patterns matching files and directories to
+      exclude from the package.
     * `:maintainers` - List of names and/or emails of maintainers.
     * `:licenses` - List of licenses used by the package.
     * `:links` - Map of links relevant to the package.
@@ -252,7 +254,15 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   def package(package, config) do
-    files = expand_paths(package[:files] || @default_files, File.cwd!())
+    files = package[:files] || @default_files
+    exclude_patterns = package[:exclude_patterns] || []
+
+    files =
+      files
+      |> expand_paths(File.cwd!())
+      |> Enum.reject(fn path ->
+        Enum.any?(exclude_patterns, &(path =~ &1))
+      end)
 
     package
     |> Map.put(:files, files)
