@@ -148,7 +148,7 @@ defmodule Hex.Repo do
     unless public_key do
       Mix.raise(
         "No public key stored for #{repo}. Either install a public " <>
-          "key with `mix hex.public_keys` or disable the registry " <>
+          "key with `mix hex.repo` or disable the registry " <>
           "verification check by setting `HEX_UNSAFE_REGISTRY=1`."
       )
     end
