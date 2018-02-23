@@ -6,6 +6,14 @@ defmodule Mix.Tasks.Hex.Docs do
   @moduledoc """
   Fetches or opens documentation of a package.
 
+  If no version is specified, defaults to version used in the current mix project.
+  If called outside of a mix project or the dependency is not used in the
+  current mix project, defaults to the latest version.
+
+  ## Fetch documentation for all dependencies in the current mix project
+
+    mix hex.docs fetch
+
   ## Fetch documentation for offline use
 
   Fetches documentation for the specified package that you can later open with
@@ -25,17 +33,20 @@ defmodule Mix.Tasks.Hex.Docs do
 
     * `--module Some.Module` - Open a specified module documentation page inside desired package
     * `--organization ORGANIZATION` - The organization the package belongs to
+    * `--latest` - Looks for the latest release of a package
   """
 
-  @switches [module: :string, organization: :string]
+  @switches [module: :string, organization: :string, latest: :boolean]
 
   def run(args) do
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
+    opts = convert_organization_to_repo(opts)
+    in_mix_project? = !!Mix.Project.get()
 
     case args do
       ["fetch" | remaining] ->
-        fetch_docs(opts[:organization], remaining)
+        fetch_docs(remaining, opts, in_mix_project?)
 
       ["open" | _] ->
         Mix.raise("""
@@ -46,15 +57,16 @@ defmodule Mix.Tasks.Hex.Docs do
         """)
 
       ["online" | remaining] ->
-        open_docs(remaining, opts)
+        open_docs(remaining, opts, in_mix_project?)
 
       ["offline" | remaining] ->
-        open_docs_offline(remaining, opts)
+        open_docs_offline(remaining, opts, in_mix_project?)
 
       _ ->
         Mix.raise("""
         Invalid arguments, expected one of:
 
+        mix hex.docs fetch
         mix hex.docs fetch PACKAGE [VERSION]
         mix hex.docs offline PACKAGE [VERSION]
         mix hex.docs online PACKAGE [VERSION]
@@ -62,50 +74,76 @@ defmodule Mix.Tasks.Hex.Docs do
     end
   end
 
-  defp fetch_docs(_organization, []) do
-    Mix.raise("You must specify at least the name of a package")
+  defp fetch_docs([], _opts, true = _in_mix_project?) do
+    Enum.each(deps_in_project(), fn pkg ->
+      fetch_docs([pkg[:name], pkg[:version]], %{repo: pkg[:repo]}, true, true)
+    end)
   end
 
-  defp fetch_docs(organization, [name])
+  defp fetch_docs([], _opts, false = _in_mix_project?) do
+    Mix.raise(
+      "Specify a package name or run inside a Mix project to fetch docs for all dependencies"
+    )
+  end
+
+  defp fetch_docs([name], opts, in_mix_project?)
        when name in ["eex", "elixir", "ex_unit", "iex", "logger", "mix"] do
-    fetch_docs(organization, [name, System.version()])
+    fetch_docs([name, System.version()], opts, in_mix_project?)
   end
 
-  defp fetch_docs(organization, [name]) do
-    latest_version = find_package_latest_version(organization, name)
-    fetch_docs(organization, [name, latest_version])
+  defp fetch_docs([name], opts, in_mix_project?) do
+    locked_or_latest_version = find_package_locked_or_latest_version(opts, name, in_mix_project?)
+    fetch_docs([name, locked_or_latest_version], opts, in_mix_project?)
   end
 
-  defp fetch_docs(organization, [name, version]) do
-    target_dir = Path.join([docs_dir(), org_dir(organization), name, version])
+  defp fetch_docs([name, version], opts, _in_mix_project?, continue_on_error? \\ false) do
+    target_dir = Path.join([docs_dir(), org_dir(opts[:repo]), name, version])
     fallback_dir = Path.join([docs_dir(), name, version])
 
     cond do
       File.exists?(target_dir) ->
         Hex.Shell.info("Docs already fetched: #{target_dir}")
 
-      file_exists_in_fallback?(organization, name, version) ->
+      file_exists_in_fallback?(opts[:repo], name, version) ->
         Hex.Shell.info("Docs already fetched: #{fallback_dir}")
 
       true ->
         target = Path.join(target_dir, "#{name}-#{version}.tar.gz")
-        retrieve_compressed_docs(organization, name, version, target)
-        File.mkdir_p!(target_dir)
-        extract_doc_contents(target)
-        Hex.Shell.info("Docs fetched: #{target_dir}")
+        {_resp, retrieved?} = retrieve_compressed_docs(opts[:repo], name, version, target, continue_on_error?)
+        make_dir_and_extract(target, target_dir, retrieved?)
     end
+  end
+
+  defp find_package_locked_or_latest_version([latest: true] = opts, package, _in_mix_project?) do
+    find_package_latest_version(opts[:repo], package)
+  end
+
+  defp find_package_locked_or_latest_version(opts, package, true) do
+    package_in_lock =
+      deps_in_project()
+      |> Enum.find(fn pkg -> pkg[:name] == package end)
+
+    if is_nil(package_in_lock) do
+      find_package_latest_version(opts[:repo], package)
+    else
+      package_in_lock[:version]
+    end
+  end
+
+  defp find_package_locked_or_latest_version(opts, package, _in_mix_project?) do
+    find_package_latest_version(opts[:repo], package)
   end
 
   defp file_exists_in_fallback?(nil, name, version),
     do: File.exists?(Path.join([docs_dir(), name, version]))
 
-  defp file_exists_in_fallback?(_organization, _name, _version), do: false
+  defp file_exists_in_fallback?(_repo, _name, _version), do: false
 
   defp package_exists_in_fallback?(nil, name), do: File.exists?(Path.join([docs_dir(), name]))
-  defp package_exists_in_fallback?(_organization, _name), do: false
+  defp package_exists_in_fallback?(_repo, _name), do: false
 
-  defp find_package_latest_version(organization, package) do
-    %{"releases" => releases} = retrieve_package_info(organization, package)
+  defp find_package_latest_version(repo, package) do
+    %{"releases" => releases} = retrieve_package_info(repo, package)
 
     latest_release =
       releases
@@ -115,8 +153,8 @@ defmodule Mix.Tasks.Hex.Docs do
     latest_release["version"]
   end
 
-  defp retrieve_package_info(organization, package) do
-    case Hex.API.Package.get(organization, package) do
+  defp retrieve_package_info(repo, package) do
+    case Hex.API.Package.get(repo, package) do
       {:ok, {code, body, _}} when code in 200..299 ->
         body
 
@@ -129,35 +167,74 @@ defmodule Mix.Tasks.Hex.Docs do
     end
   end
 
-  defp open_docs([], _opts) do
-    Mix.raise("You must specify at least the name of a package")
+  defp open_docs([], _opts, _in_mix_project?) do
+    Mix.raise("You must specify the name of a package")
   end
 
-  defp open_docs(package, opts) do
+  defp open_docs([package, version], opts, _in_mix_project?) do
+    get_docs_url([package, version], opts) |> browser_open()
+  end
+
+  defp open_docs(package, [latest: true] = opts, _in_mix_project?) do
+    open_latest_docs(package, opts)
+  end
+
+  defp open_docs(package, opts, true) do
+    package_in_lock =
+      Enum.find(deps_in_project(), fn pkg -> pkg[:name] == List.first(package) end)
+
+    if is_nil(package_in_lock) do
+      open_latest_docs(package, opts)
+    else
+      version = package_in_lock[:version]
+      open_docs([package, version], opts, true)
+    end
+  end
+
+  defp open_docs(package, opts, _in_mix_project?) do
+    open_latest_docs(package, opts)
+  end
+
+  defp open_latest_docs(package, opts) do
     package
     |> get_docs_url(opts)
     |> browser_open()
   end
 
-  defp open_docs_offline([], _opts) do
-    Mix.raise("You must specify at least the name of a package")
+  defp open_docs_offline([], _opts, _in_mix_project?) do
+    Mix.raise("You must specify the name of a package")
   end
 
-  defp open_docs_offline([name], opts) do
-    {missing?, latest_version} = find_package_version(opts[:organization], name)
+  defp open_docs_offline([name], [latest: true] = opts, in_mix_project?) do
+    {missing?, latest_version} = find_package_version(opts[:repo], name)
 
     if missing? do
-      fetch_docs(opts[:organization], [name])
+      fetch_docs([name], opts, in_mix_project?)
     end
 
-    open_docs_offline([name, latest_version], opts)
+    open_docs_offline([name, latest_version], opts, in_mix_project?)
   end
 
-  defp open_docs_offline([name, version], opts) do
-    {available?, file_location} = package_version_exists?(opts[:organization], name, version)
+  defp open_docs_offline([name], opts, true) do
+    package_in_lock = Enum.find(deps_in_project(), fn pkg -> pkg[:name] == name end)
+
+    if is_nil(package_in_lock) do
+      open_latest_docs_offline(name, opts)
+    else
+      latest_version = package_in_lock[:version]
+      open_docs_offline([name, latest_version], opts, true)
+    end
+  end
+
+  defp open_docs_offline([name], opts, _in_mix_project?) do
+    open_latest_docs_offline(name, opts)
+  end
+
+  defp open_docs_offline([name, version], opts, in_mix_project?) do
+    {available?, file_location} = package_version_exists?(opts[:repo], name, version)
 
     unless available? do
-      fetch_docs(opts[:organization], [name, version])
+      fetch_docs([name, version], opts, in_mix_project?)
     end
 
     page = Keyword.get(opts, :module, "index") <> ".html"
@@ -166,34 +243,44 @@ defmodule Mix.Tasks.Hex.Docs do
       if file_location == :fallback do
         Path.join([docs_dir(), name, version, page])
       else
-        Path.join([docs_dir(), org_dir(opts[:organization]), name, version, page])
+        Path.join([docs_dir(), org_dir(opts[:repo]), name, version, page])
       end
 
     open_file(available_doc_path)
   end
 
-  defp find_package_version(organization, name) do
-    path = Path.join([docs_dir(), org_dir(organization), name])
+  defp open_latest_docs_offline(name, opts) do
+    {missing?, latest_version} = find_package_version(opts[:repo], name)
+
+    if missing? do
+      fetch_docs([name], opts, false)
+    end
+
+    open_docs_offline([name, latest_version], opts, true)
+  end
+
+  defp find_package_version(repo, name) do
+    path = Path.join([docs_dir(), org_dir(repo), name])
     fallback_path = Path.join([docs_dir(), name])
 
     cond do
       File.exists?(path) ->
         {false, find_latest_version(path)}
 
-      package_exists_in_fallback?(organization, name) ->
+      package_exists_in_fallback?(repo, name) ->
         {false, find_latest_version(fallback_path)}
 
       true ->
-        {true, find_package_latest_version(organization, name)}
+        {true, find_package_latest_version(repo, name)}
     end
   end
 
-  defp package_version_exists?(organization, name, version) do
-    path = Path.join([docs_dir(), org_dir(organization), name, version])
+  defp package_version_exists?(repo, name, version) do
+    path = Path.join([docs_dir(), org_dir(repo), name, version])
 
     cond do
       File.exists?(path) -> {true, :default}
-      file_exists_in_fallback?(organization, name, version) -> {true, :fallback}
+      file_exists_in_fallback?(repo, name, version) -> {true, :fallback}
       true -> {false, :default}
     end
   end
@@ -257,20 +344,33 @@ defmodule Mix.Tasks.Hex.Docs do
     |> List.first()
   end
 
-  defp retrieve_compressed_docs(organization, package, version, target) do
+  defp retrieve_compressed_docs(repo, package, version, target, continue_on_error?) do
     unless File.exists?(target) do
-      request_docs_from_mirror(organization, package, version, target)
+      request_docs_from_mirror(repo, package, version, target, continue_on_error?)
     end
   end
 
-  defp request_docs_from_mirror(organization, package, version, target) do
-    case Hex.Repo.get_docs(organization, package, version) do
+  defp request_docs_from_mirror(repo, package, version, target, continue_on_error?) do
+    case Hex.Repo.get_docs(repo, package, version) do
       {:ok, {200, body, _}} ->
         File.mkdir_p!(Path.dirname(target))
         File.write!(target, body)
-
+        {:ok, true}
       _ ->
-        Mix.raise("No package with name #{package} or version #{version}")
+        if continue_on_error? do
+          Hex.Shell.info("Couldn't find docs for package with name #{package} or version #{version}")
+        else
+          Mix.raise("Couldn't find docs for package with name #{package} or version #{version}")
+        end
+        {:error, false}
+    end
+  end
+
+  defp make_dir_and_extract(target, target_dir, retrieved?) do
+    if retrieved? do
+      File.mkdir_p!(target_dir)
+      extract_doc_contents(target)
+      Hex.Shell.info("Docs fetched: #{target_dir}")
     end
   end
 
@@ -283,6 +383,18 @@ defmodule Mix.Tasks.Hex.Docs do
     Path.join(Hex.State.fetch!(:home), "docs")
   end
 
-  defp org_dir(organization) when is_nil(organization), do: "hexpm"
-  defp org_dir(organization), do: "hexpm:#{organization}"
+  defp deps_in_project() do
+    Mix.Dep.Lock.read()
+    |> Enum.map(fn {_app, info} -> Hex.Utils.lock(info) end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp org_dir(repo) when repo in [nil, "hexpm"], do: "hexpm"
+  defp org_dir(repo), do: "hexpm:#{repo}"
+
+  defp convert_organization_to_repo(opts) do
+    opts
+    |> Keyword.put(:repo, opts[:organization])
+    |> Keyword.delete(:organization)
+  end
 end
