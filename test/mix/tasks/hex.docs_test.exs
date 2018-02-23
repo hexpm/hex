@@ -42,7 +42,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
     docs_home = Path.join(Hex.State.fetch!(:home), "docs")
 
     in_tmp("docs", fn ->
-      Mix.Dep.Lock.write(%{docs_package: {:hexpm, :docs_package, "1.1.2"}})
+      Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.2"}})
       Mix.Tasks.Hex.Docs.run(["fetch", "docs_package"])
       fetched_msg = "Docs fetched: #{docs_home}/hexpm/docs_package/1.1.2"
       assert_received {:mix_shell, :info, [^fetched_msg]}
@@ -77,7 +77,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
     docs_home = Path.join(Hex.State.fetch!(:home), "docs")
 
     in_tmp("docs", fn ->
-      Mix.Dep.Lock.write(%{docs_package: {:hexpm, :docs_package, "1.1.1"}})
+      Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.1"}})
       Mix.Tasks.Hex.Docs.run(["fetch", "docs_package", "--latest"])
       fetched_msg = "Docs fetched: #{docs_home}/hexpm/docs_package/1.1.2"
       assert_received {:mix_shell, :info, [^fetched_msg]}
@@ -256,7 +256,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
     Hex.State.put(:home, tmp_path())
 
     in_tmp("docs", fn ->
-      Mix.Dep.Lock.write(%{docs_package: {:hexpm, :docs_package, "1.1.1"}})
+      Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.1"}})
       Mix.Tasks.Hex.Docs.run(["online", "docs_package", "--latest"])
       assert_received {:hex_system_cmd, _cmd, ["https://hexdocs.pm/docs_package"]}
     end)
@@ -271,7 +271,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
     docs_home = Path.join(Hex.State.fetch!(:home), "docs")
 
     in_tmp("docs", fn ->
-      Mix.Dep.Lock.write(%{docs_package: {:hexpm, :docs_package, version}})
+      Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, version}})
       Mix.Tasks.Hex.Docs.run(["offline", package])
       fetched_msg = "Docs fetched: #{docs_home}/hexpm/#{package}/#{version}"
       browser_open_msg = "#{docs_home}/hexpm/#{package}/#{version}/index.html"
