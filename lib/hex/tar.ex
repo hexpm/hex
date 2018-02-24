@@ -270,7 +270,7 @@ defmodule Hex.Tar do
         if expected_checksum == actual_checksum do
           %{state | checksum: expected_checksum}
         else
-          {:error, {:checksum_mismatch, expected_checksum, Base.encode16(actual_checksum)}}
+          {:error, {:checksum_mismatch, expected_checksum, actual_checksum}}
         end
 
       :error ->
