@@ -83,8 +83,7 @@ defmodule Hex.TarTest do
 
   test "unpack with legacy requirements format" do
     in_tmp(fn ->
-      files = [{"mix.exs", @mix_exs}]
-      {:ok, {tar, _checksum}} = Hex.Tar.create(@metadata, files, :memory)
+      {:ok, {tar, _checksum}} = Hex.Tar.create(@metadata, [{"mix.exs", @mix_exs}], :memory)
       {:ok, files} = :hex_erl_tar.extract({:binary, tar}, [:memory])
 
       files =
@@ -107,11 +106,7 @@ defmodule Hex.TarTest do
         }.
         """)
 
-      :ok = :hex_erl_tar.create('legacy_requirements.tar', files, [:write])
-
-      assert {:ok, {metadata, _checksum, _files}} =
-               Hex.Tar.unpack("legacy_requirements.tar", :memory)
-
+      assert {:ok, {metadata, _checksum, _files}} = unpack_files(files)
       assert metadata["requirements"] == %{
                "bar" => %{
                  "app" => "bar",
