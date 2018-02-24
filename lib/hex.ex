@@ -123,14 +123,14 @@ defmodule Hex do
   def create_tar!(metadata, files, output) do
     case Hex.Tar.create(metadata, files, output) do
       {:ok, result} -> result
-      {:error, reason} -> Mix.raise(Hex.Tar.format_error(reason))
+      {:error, reason} -> Mix.raise("Creating tarball failed: " <> Hex.Tar.format_error(reason))
     end
   end
 
   def unpack_tar!(path, dest) do
     case Hex.Tar.unpack(path, dest) do
       {:ok, result} -> result
-      {:error, reason} -> Mix.raise(Hex.Tar.format_error(reason))
+      {:error, reason} -> Mix.raise("Unpacking tarball failed: " <> Hex.Tar.format_error(reason))
     end
   end
 end
