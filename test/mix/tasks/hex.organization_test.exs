@@ -29,12 +29,21 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
   test "auth with --keyname" do
     in_tmp(fn ->
       Hex.State.put(:home, System.cwd!())
-      auth = Hexpm.new_user("orgauthwithkeyname", "orgauthwithkeyname@mail.com", "password", "orgauth")
+
+      auth =
+        Hexpm.new_user("orgauthwithkeyname", "orgauthwithkeyname@mail.com", "password", "orgauth")
+
       Hexpm.new_repo("myorgauthwithkeyname", auth)
       Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
 
       send(self(), {:mix_shell_input, :prompt, "password"})
-      Mix.Tasks.Hex.Organization.run(["auth", "myorgauthwithkeyname", "--key-name", "orgauthkeyname"])
+
+      Mix.Tasks.Hex.Organization.run([
+        "auth",
+        "myorgauthwithkeyname",
+        "--key-name",
+        "orgauthkeyname"
+      ])
 
       myorg = Hex.Repo.get_repo("hexpm:myorgauthwithkeyname")
       hexpm = Hex.Repo.get_repo("hexpm")

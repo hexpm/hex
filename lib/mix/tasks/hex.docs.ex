@@ -108,7 +108,10 @@ defmodule Mix.Tasks.Hex.Docs do
 
       true ->
         target = Path.join(target_dir, "#{name}-#{version}.tar.gz")
-        {_resp, retrieved?} = retrieve_compressed_docs(opts[:organization], name, version, target, continue_on_error?)
+
+        {_resp, retrieved?} =
+          retrieve_compressed_docs(opts[:organization], name, version, target, continue_on_error?)
+
         make_dir_and_extract(target, target_dir, retrieved?)
     end
   end
@@ -355,12 +358,16 @@ defmodule Mix.Tasks.Hex.Docs do
         File.mkdir_p!(Path.dirname(target))
         File.write!(target, body)
         {:ok, true}
+
       _ ->
         if continue_on_error? do
-          Hex.Shell.info("Couldn't find docs for package with name #{package} or version #{version}")
+          Hex.Shell.info(
+            "Couldn't find docs for package with name #{package} or version #{version}"
+          )
         else
           Mix.raise("Couldn't find docs for package with name #{package} or version #{version}")
         end
+
         {:error, false}
     end
   end

@@ -443,7 +443,7 @@ defmodule Hex.Tar do
   def format_error({:tarball, :too_big}), do: "tarball is too big"
   def format_error({:tarball, {:missing_files, files}}), do: "missing files: #{inspect(files)}"
   def format_error({:tarball, {:invalid_files, files}}), do: "invalid files: #{inspect(files)}"
-  def format_error({:tarball, {:bad_version, version}}), do: "unsupported version: #{inspect(version)}"
+  def format_error({:tarball, {:bad_version, vsn}}), do: "unsupported version: #{inspect(vsn)}"
   def format_error({:tarball, reason}), do: format_tarball_error(reason)
   def format_error({:inner_tarball, reason}), do: @inner_error <> format_tarball_error(reason)
   def format_error({:metadata, :invalid_terms}), do: @metadata_error <> "invalid terms"

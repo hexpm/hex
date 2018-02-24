@@ -107,6 +107,7 @@ defmodule Hex.TarTest do
         """)
 
       assert {:ok, {metadata, _checksum, _files}} = unpack_files(files)
+
       assert metadata["requirements"] == %{
                "bar" => %{
                  "app" => "bar",

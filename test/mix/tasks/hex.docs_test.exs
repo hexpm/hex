@@ -64,8 +64,10 @@ defmodule Mix.Tasks.Hex.DocsTest do
       assert_received {:mix_shell, :info, [^fetched_msg]}
 
       Mix.Tasks.Hex.Docs.run(["fetch", package])
+
       already_fetched_msg =
         "Docs already fetched: #{docs_home}/#{org_dir}/#{package}/#{latest_version}"
+
       assert_received {:mix_shell, :info, [^already_fetched_msg]}
     end)
   end
@@ -99,8 +101,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
       assert_received {:mix_shell, :info, [^fetched_msg]}
 
       Mix.Tasks.Hex.Docs.run(["fetch", package, version])
-      already_fetched_msg =
-        "Docs already fetched: #{docs_home}/#{org_dir}/#{package}/#{version}"
+      already_fetched_msg = "Docs already fetched: #{docs_home}/#{org_dir}/#{package}/#{version}"
       assert_received {:mix_shell, :info, [^already_fetched_msg]}
     end)
   end
