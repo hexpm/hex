@@ -69,7 +69,12 @@ defmodule Hex.Tar do
     ]
 
     tar = create_tar(output, files, [])
-    {:ok, {tar, checksum}}
+
+    if byte_size(tar) > @tar_max_size do
+      {:error, {:tarball, :too_big}}
+    else
+      {:ok, {tar, checksum}}
+    end
   end
 
   def create_tar(path, files, opts) when is_binary(path) do
