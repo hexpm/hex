@@ -157,7 +157,7 @@ defmodule Hex.TarTest do
 
       files = replace_file(valid_files, 'VERSION', "0")
       :ok = :hex_erl_tar.create('badversion.tar', files, [:write])
-      assert {:error, {:unsupported_version, "0"}} = Hex.Tar.unpack("badversion.tar", :memory)
+      assert {:error, {:tarball, {:bad_version, "0"}}} = Hex.Tar.unpack("badversion.tar", :memory)
 
       # checksum
       files = replace_file(valid_files, 'CHECKSUM', "bad")
