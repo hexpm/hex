@@ -476,11 +476,11 @@ defmodule Hex.Tar do
       {[], []} ->
         :ok
 
-      {[_ | _], _} ->
-        {:error, {:missing_keys, missing_keys}}
+      {_, [_ | _]} ->
+        {:error, {:unknown_keys, unknown_keys}}
 
       {_, _} ->
-        {:error, {:unknown_keys, unknown_keys}}
+        {:error, {:missing_keys, missing_keys}}
     end
   end
 
