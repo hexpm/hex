@@ -43,9 +43,6 @@ defmodule Hex.TarTest do
       assert {:ok, {tar, checksum}} = Hex.Tar.create(@metadata, @files, "a/b.tar")
       assert {:ok, {metadata, ^checksum}} = Hex.Tar.unpack("a/b.tar", "unpack/")
 
-      {:ok, [version_entry, _, _, _]} = :hex_erl_tar.table('a/b.tar', [:verbose])
-      assert {'VERSION', :regular, _, @epoch, 0o100644, 0, 0} = version_entry
-
       assert byte_size(checksum) == 32
       assert File.read!("a/b.tar") == tar
       assert Enum.sort(File.ls!("unpack")) == ["hex_metadata.config", "mix.exs"]
@@ -57,6 +54,14 @@ defmodule Hex.TarTest do
       assert File.read!("unpack/mix.exs") == File.read!("mix.exs")
       assert metadata == stringify(@metadata)
       assert metadata["build_tools"] == ["mix"]
+    end)
+  end
+
+  test "file timestamps" do
+    in_tmp(fn ->
+      {:ok, {tarball, _checksum}} = Hex.Tar.create(@metadata, [{"mix.exs", ""}], :memory)
+      {:ok, [version_entry, _, _, _]} = :hex_erl_tar.table({:binary, tarball}, [:verbose])
+      assert {'VERSION', :regular, _, @epoch, 0o100644, 0, 0} = version_entry
     end)
   end
 
