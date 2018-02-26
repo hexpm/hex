@@ -90,26 +90,25 @@ defmodule Hex.TarTest do
     in_tmp(fn ->
       {:ok, {tar, _checksum}} = Hex.Tar.create(@metadata, [{"mix.exs", @mix_exs}], :memory)
       {:ok, files} = :hex_erl_tar.extract({:binary, tar}, [:memory])
+      files = Enum.into(files, %{})
 
-      files =
+      files = %{
         files
-        |> replace_file(
-          'CHECKSUM',
-          "351362112A71B8A6F4926E83E9DA37A87A8436A11B7718F2B168827E8B484607"
-        )
-        |> replace_file('metadata.config', """
-        {<<\"app\">>,<<\"foo\">>}.
-        {<<\"name\">>,<<\"foo\">>}.
-        {<<\"version\">>,<<\"0.1.0\">>}.
-        {<<\"requirements\">>,[
-          [
-            {<<\"name\">>,<<\"bar\">>},
-            {<<\"app\">>,<<\"bar\">>},
-            {<<\"requirement\">>,<<\"~> 0.1.0\">>},
-            {<<\"optional\">>,false}]
-          ]
-        }.
-        """)
+        | 'CHECKSUM' => "351362112A71B8A6F4926E83E9DA37A87A8436A11B7718F2B168827E8B484607",
+          'metadata.config' => """
+          {<<\"app\">>,<<\"foo\">>}.
+          {<<\"name\">>,<<\"foo\">>}.
+          {<<\"version\">>,<<\"0.1.0\">>}.
+          {<<\"requirements\">>,[
+            [
+              {<<\"name\">>,<<\"bar\">>},
+              {<<\"app\">>,<<\"bar\">>},
+              {<<\"requirement\">>,<<\"~> 0.1.0\">>},
+              {<<\"optional\">>,false}]
+            ]
+          }.
+          """
+      }
 
       assert {:ok, {metadata, _checksum, _files}} = unpack_files(files)
 
@@ -128,87 +127,62 @@ defmodule Hex.TarTest do
       files = [{"mix.exs", @mix_exs}]
       {:ok, {tar, _checksum}} = Hex.Tar.create(@metadata, files, :memory)
       {:ok, valid_files} = :hex_erl_tar.extract({:binary, tar}, [:memory])
+      valid_files = Enum.into(valid_files, %{})
 
       # tarball
       assert {:error, {:tarball, :eof}} = Hex.Tar.unpack({:binary, "badtar"}, :memory)
 
-      assert {:error, {:tarball, {"missing.tar", :enoent}}} = Hex.Tar.unpack("missing.tar", :memory)
+      assert {:error, {:tarball, {"missing.tar", :enoent}}} =
+               Hex.Tar.unpack("missing.tar", :memory)
 
       assert {:error, {:tarball, :empty}} = unpack_files([])
 
-      assert {:error, {:tarball, {:missing_files, ['CHECKSUM' | _]}}} = unpack_files([{'VERSION', "3"}])
+      assert {:error, {:tarball, {:missing_files, ['CHECKSUM' | _]}}} =
+               unpack_files([{'VERSION', "3"}])
 
       assert {:error, {:tarball, {:invalid_files, ['invalid.txt']}}} = unpack_files([{'invalid.txt', "3"}])
 
-      assert {:error, {:tarball, {:bad_version, "0"}}} = unpack_files(replace_file(valid_files, 'VERSION', "0"))
+      assert {:error, {:tarball, {:bad_version, "0"}}} =
+               unpack_files(%{valid_files | 'VERSION' => "0"})
 
       # checksum
-      assert {:error, :invalid_checksum} = unpack_files(replace_file(valid_files, 'CHECKSUM', "bad"))
+      assert {:error, :invalid_checksum} = unpack_files(%{valid_files | 'CHECKSUM' => "bad"})
 
       assert {:error, {:checksum_mismatch, _, _}} =
-               unpack_files(replace_file(valid_files, 'metadata.config', "{<<\"name\">>,<<\"foo\">>}"))
+               unpack_files(%{valid_files | 'metadata.config' => "{<<\"name\">>,<<\"foo\">>}"})
 
       # metadata
-      files =
-        valid_files
-        |> replace_file('metadata.config', "ok $")
-        |> replace_file(
-          'CHECKSUM',
-          "693703C2207D202A3E576A3D1F40DA58D7250C374F61950964B3CE54EB8B82F3"
-        )
-
+      checksum = "693703C2207D202A3E576A3D1F40DA58D7250C374F61950964B3CE54EB8B82F3"
+      files = %{valid_files | 'metadata.config' => "ok $", 'CHECKSUM' => checksum}
       assert {:error, {:metadata, {:illegal, '$'}}} = unpack_files(files)
 
-      files =
-        valid_files
-        |> replace_file('metadata.config', "ok[")
-        |> replace_file(
-          'CHECKSUM',
-          "E4923763C9CB95EDEFF724A2315468908DB05CD898D4C06FBA95286EB0F7F2C1"
-        )
-
+      checksum = "E4923763C9CB95EDEFF724A2315468908DB05CD898D4C06FBA95286EB0F7F2C1"
+      files = %{valid_files | 'metadata.config' => "ok[", 'CHECKSUM' => checksum}
       assert {:error, {:metadata, :invalid_terms}} = unpack_files(files)
 
-      files =
-        valid_files
-        |> replace_file('metadata.config', "asdfasdf.")
-        |> replace_file(
-          'CHECKSUM',
-          "59A5A2ED0E863ABBDDA3A778DB734D9BCD09B687DD7BF95E9EABEA8166E090A9"
-        )
-
+      checksum = "59A5A2ED0E863ABBDDA3A778DB734D9BCD09B687DD7BF95E9EABEA8166E090A9"
+      files = %{valid_files | 'metadata.config' => "asdfasdf.", 'CHECKSUM' => checksum}
       assert {:error, {:metadata, {:user, 'illegal atom asdfasdf'}}} = unpack_files(files)
 
-      files =
-        valid_files
-        |> replace_file('metadata.config', "ok.")
-        |> replace_file(
-          'CHECKSUM',
-          "3B2C506744F484D417440D66C680B554844B5FE2574E627E77778877F21D69AF"
-        )
-
+      checksum = "3B2C506744F484D417440D66C680B554844B5FE2574E627E77778877F21D69AF"
+      files = %{valid_files | 'metadata.config' => "ok.", 'CHECKSUM' => checksum}
       assert {:error, {:metadata, :not_key_value}} = unpack_files(files)
 
       # contents
-      files =
-        valid_files
-        |> replace_file('contents.tar.gz', "badtar")
-        |> replace_file(
-          'CHECKSUM',
-          "892343F3E69A7408B75BFF02F438716B890828E06715EFED75F6FCAD2FC9E44E"
-        )
-
+      checksum = "892343F3E69A7408B75BFF02F438716B890828E06715EFED75F6FCAD2FC9E44E"
+      files = %{valid_files | 'contents.tar.gz' => "badtar", 'CHECKSUM' => checksum}
       assert {:error, {:inner_tarball, :eof}} = unpack_files(files)
     end)
+  end
+
+  defp unpack_files(files) when is_map(files) do
+    files = Enum.to_list(files)
+    unpack_files(files)
   end
 
   defp unpack_files(files) do
     :ok = :hex_erl_tar.create('test.tar', files, [:write])
     Hex.Tar.unpack("test.tar", :memory)
-  end
-
-  defp replace_file(files, file, content) do
-    List.keyreplace(files, file, 0, {file, content})
   end
 
   defp stringify(%{} = map) do
