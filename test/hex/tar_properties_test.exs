@@ -10,14 +10,14 @@ if elixir_version >= {1, 5, 0} do
 
     property "gzip is circular" do
       check all binary <- binary() do
-        assert :zlib.gunzip(Hex.Tar.gzip(binary)) == binary
+        assert :zlib.gunzip(:vendored_hex_tarball.gzip(binary)) == binary
       end
     end
 
     property "Hex.Tar is equivalent to zlib" do
       check all binary <- binary() do
         assert <<31, 139, 8, 0, 0, 0, 0, 0, 0, _os, zlib_rest::binary>> = :zlib.gzip(binary)
-        assert <<31, 139, 8, 0, 0, 0, 0, 0, 0, 0, hex_rest::binary>> = Hex.Tar.gzip(binary)
+        assert <<31, 139, 8, 0, 0, 0, 0, 0, 0, 0, hex_rest::binary>> = :vendored_hex_tarball.gzip(binary)
         assert zlib_rest == hex_rest
       end
     end

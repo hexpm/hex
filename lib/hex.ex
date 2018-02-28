@@ -121,16 +121,37 @@ defmodule Hex do
   end
 
   def create_tar!(metadata, files, output) do
-    case Hex.Tar.create(metadata, files, output) do
-      {:ok, result} -> result
-      {:error, reason} -> Mix.raise("Creating tarball failed: " <> Hex.Tar.format_error(reason))
+    files =
+      Enum.map(files, fn
+        {filename, contents} -> {string_to_charlist(filename), contents}
+        filename -> string_to_charlist(filename)
+      end)
+
+    case :vendored_hex_tarball.create(metadata, files) do
+      {:ok, {tarball, _checksum} = result} ->
+        if output != :memory, do: File.write!(output, tarball)
+        result
+
+      {:error, reason} ->
+        Mix.raise("Creating tarball failed: #{:vendored_hex_tarball.format_error(reason)}")
     end
   end
 
   def unpack_tar!(path, dest) do
-    case Hex.Tar.unpack(path, dest) do
-      {:ok, result} -> result
-      {:error, reason} -> Mix.raise("Unpacking tarball failed: " <> Hex.Tar.format_error(reason))
+    tarball =
+      case path do
+        {:binary, tarball} -> tarball
+        _ -> File.read!(path)
+      end
+
+    dest = if dest == :memory, do: dest, else: string_to_charlist(dest)
+
+    case :vendored_hex_tarball.unpack(tarball, dest) do
+      {:ok, result} ->
+        result
+
+      {:error, reason} ->
+        Mix.raise("Unpacking tarball failed: #{:vendored_hex_tarball.format_error(reason)}")
     end
   end
 end

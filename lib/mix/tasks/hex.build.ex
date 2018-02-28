@@ -111,7 +111,7 @@ defmodule Mix.Tasks.Hex.Build do
 
   defp build_and_unpack_package(meta, output) do
     {tar, checksum} = Hex.create_tar!(meta, meta.files, :memory)
-    {_meta, ^checksum} = Hex.unpack_tar!({:binary, tar}, output)
+    %{checksum: ^checksum} = Hex.unpack_tar!({:binary, tar}, output)
   end
 
   def prepare_package() do

@@ -11,7 +11,7 @@ function join { local IFS="$1"; shift; echo "$*"; }
 function build {
   rm .tool-versions || true
   rm -rf _build || true
-  rm src/safe_erl_term.erl || true
+  rm src/vendored_safe_erl_term.erl || true
 
   printf "erlang ${2}\nelixir ${3}-otp-${2:0:2}" > .tool-versions
 

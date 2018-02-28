@@ -278,7 +278,7 @@ defmodule HexTest.Case do
         %Plug.Conn{request_path: "/docs/docs_package-1.1.2.tar.gz"} ->
           tar_file = tmp_path("docs_package-1.1.2.tar.gz")
           index_file = Hex.string_to_charlist("index.html")
-          :hex_erl_tar.create(tar_file, [{index_file, ""}], [:compressed])
+          :vendored_hex_erl_tar.create(tar_file, [{index_file, ""}], [:compressed])
           package = File.read!(tar_file)
           Plug.Conn.resp(conn, 200, package)
 
