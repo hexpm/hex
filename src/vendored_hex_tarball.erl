@@ -423,7 +423,7 @@ maybe_update_with(Key, Fun, Map) ->
     case maps:is_key(Key, Map) of
         true ->
             Value = maps:get(Key, Map),
-            Map#{Key => apply(Fun, [Value])};
+            maps:put(Key, apply(Fun, [Value]), Map);
 
         false ->
             Map
