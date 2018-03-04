@@ -28,6 +28,8 @@ defmodule Hex.Crypto.Encryption do
     end
   end
 
+  def decrypt({_tag, {:ok, hashed_string, _password}}, _opts), do: hashed_string
+
   def decrypt({tag, cipher_text}, opts) do
     {:ok, cipher_text} = Crypto.base64url_decode(cipher_text)
 
