@@ -149,6 +149,23 @@ defmodule ReleaseFiles.MixProject do
   end
 end
 
+defmodule ReleaseExcludePatterns.MixProject do
+  def project do
+    [
+      app: :release_i,
+      version: "0.0.1",
+      description: "foo",
+      package: [
+        files: ["myfile.txt"],
+        exclude_patterns: ["exclude.txt"],
+        licenses: ["MIT"],
+        links: %{"a" => "http://a"},
+        maintainers: ["maintainers"]
+      ]
+    ]
+  end
+end
+
 defmodule ReleaseRepo.MixProject do
   def project do
     [

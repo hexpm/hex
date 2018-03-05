@@ -81,6 +81,30 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge([ReleaseFiles.MixProject])
   end
 
+  test "create with excluded files" do
+    Mix.Project.push(ReleaseExcludePatterns.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+
+      File.write!("myfile.txt", "hello")
+      File.write!("exclude.txt", "world")
+      File.chmod!("myfile.txt", 0o100644)
+      File.chmod!("exclude.txt", 0o100644)
+
+      Mix.Tasks.Hex.Build.run([])
+
+      extract("release_i-0.0.1.tar", "unzip")
+
+      assert File.read!("unzip/myfile.txt") == "hello"
+      assert File.stat!("unzip/myfile.txt").mode == 0o100644
+
+      refute File.exists?("unzip/exclude")
+    end)
+  after
+    purge([ReleaseExcludePatterns.MixProject])
+  end
+
   test "create with custom output path" do
     Mix.Project.push(Sample.MixProject)
 
