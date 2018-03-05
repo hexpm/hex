@@ -157,7 +157,7 @@ defmodule ReleaseExcludePatterns.MixProject do
       description: "foo",
       package: [
         files: ["myfile.txt"],
-        exclude_patterns: ["exclude.txt"],
+        exclude_patterns: ["exclude.*"],
         licenses: ["MIT"],
         links: %{"a" => "http://a"},
         maintainers: ["maintainers"]

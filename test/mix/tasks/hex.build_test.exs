@@ -96,10 +96,9 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
       extract("release_i-0.0.1.tar", "unzip")
 
+      assert File.ls!("unzip/") == ["myfile.txt"]
       assert File.read!("unzip/myfile.txt") == "hello"
       assert File.stat!("unzip/myfile.txt").mode == 0o100644
-
-      refute File.exists?("unzip/exclude")
     end)
   after
     purge([ReleaseExcludePatterns.MixProject])
