@@ -160,9 +160,8 @@ defmodule Mix.Tasks.Hex do
         [key: prompt_decrypt_key(key)]
 
       Hex.Shell.yes?("No authenticated user found. Do you want to authenticate now?") ->
-        if password = auth() do
-          key = Hex.State.fetch!(:api_key)
-          [key: decrypt_key(key, password)]
+        if {:ok, key, _password} = auth() do
+          [key: key]
         else
           no_auth_error()
         end
