@@ -159,6 +159,7 @@ defmodule Hex.MixProject do
 
   defp vendor_hex_erl(_) do
     filenames = ~w(
+      hex_filename.erl
       hex_tarball.erl
       hex_erl_tar.erl
       hex_erl_tar.hrl

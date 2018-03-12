@@ -1648,7 +1648,7 @@ write_extracted_element(#tar_header{name=Name0}=Header, Bin, Opts) ->
 make_safe_path([$/|Path], Opts) ->
     make_safe_path(Path, Opts);
 make_safe_path(Path, #read_opts{cwd=Cwd}) ->
-    case hex_filename:safe_relative_path(Path) of
+    case vendored_hex_filename:safe_relative_path(Path) of
         unsafe ->
             throw({error,{Path,unsafe_path}});
         SafePath ->
