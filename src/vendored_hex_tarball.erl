@@ -3,7 +3,7 @@
 -module(vendored_hex_tarball).
 -export([create/2, unpack/2, format_checksum/1, format_error/1]).
 -ifdef(TEST).
--export([gzip/1, normalize_requirements/1]).
+-export([do_decode_metadata/1, gzip/1, normalize_requirements/1]).
 -endif.
 -define(VERSION, <<"3">>).
 -define(TARBALL_MAX_SIZE, 8 * 1024 * 1024).
@@ -229,12 +229,19 @@ check_checksum(#{files := Files} = State) ->
 decode_metadata({error, _} = Error) ->
     Error;
 decode_metadata(#{files := #{"metadata.config" := Binary}} = State) when is_binary(Binary) ->
-    String = safe_to_string(Binary),
+    case do_decode_metadata(Binary) of
+        #{} = Metadata -> maps:put(metadata, normalize_metadata(Metadata), State);
+        Other -> Other
+    end.
+
+do_decode_metadata(Binary) when is_binary(Binary) ->
+    {ok, String} = characters_to_list(Binary),
+
     case vendored_safe_erl_term:string(String) of
         {ok, Tokens, _Line} ->
             try
                 Terms = vendored_safe_erl_term:terms(Tokens),
-                maps:put(metadata, normalize_metadata(Terms), State)
+                maps:from_list(Terms)
             catch
                 error:function_clause ->
                     {error, {metadata, invalid_terms}};
@@ -247,15 +254,18 @@ decode_metadata(#{files := #{"metadata.config" := Binary}} = State) when is_bina
             {error, {metadata, Reason}}
     end.
 
-safe_to_string(Binary) ->
+characters_to_list(Binary) ->
     case unicode:characters_to_list(Binary) of
-        List when is_list(List) -> List;
-        {error, _, _} -> binary_to_list(Binary);
-        {incomplete, _, _} -> binary_to_list(Binary)
+        List when is_list(List) ->
+            {ok, List};
+        {error, _, _} ->
+            case unicode:characters_to_list(Binary, latin1) of
+                List when is_list(List) -> {ok, List};
+                Other -> Other
+            end
     end.
 
-normalize_metadata(Terms) ->
-    Metadata1 = maps:from_list(Terms),
+normalize_metadata(Metadata1) ->
     Metadata2 = maybe_update_with(<<"requirements">>, fun normalize_requirements/1, Metadata1),
     Metadata3 = maybe_update_with(<<"links">>, fun try_into_map/1, Metadata2),
     Metadata4 = maybe_update_with(<<"extra">>, fun try_into_map/1, Metadata3),
@@ -419,13 +429,9 @@ diff_keys(Map, RequiredKeys, OptionalKeys) ->
     end.
 
 maybe_update_with(Key, Fun, Map) ->
-    case maps:is_key(Key, Map) of
-        true ->
-            Value = maps:get(Key, Map),
-            maps:put(Key, apply(Fun, [Value]), Map);
-
-        false ->
-            Map
+    case maps:find(Key, Map) of
+        {ok, Value} -> maps:put(Key, Fun(Value), Map);
+        error -> Map
     end.
 
 try_into_map(List) ->
