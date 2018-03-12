@@ -304,29 +304,24 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp browser_open(path) do
-    start_command = start_command()
-
-    if System.find_executable(start_command) do
-      system_cmd(start_command, [path])
-    else
-      Mix.raise("Command not found: #{start_command}")
-    end
+    start_command = start_command(path)
+    system_cmd(start_command)
   end
 
-  defp start_command() do
+  defp start_command(path) do
     case :os.type() do
-      {:win32, _} -> "start"
-      {:unix, :darwin} -> "open"
-      {:unix, _} -> "xdg-open"
+      {:win32, _} -> {"cmd", ["/c", "start", path]}
+      {:unix, :darwin} -> {"open", [path]}
+      {:unix, _} -> {"xdg-open", [path]}
     end
   end
 
   if Mix.env() == :test do
-    defp system_cmd(cmd, args) do
+    defp system_cmd({cmd, args}) do
       send(self(), {:hex_system_cmd, cmd, args})
     end
   else
-    defp system_cmd(cmd, args) do
+    defp system_cmd({cmd, args}) do
       System.cmd(cmd, args)
     end
   end
