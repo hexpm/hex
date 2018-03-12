@@ -304,11 +304,12 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp browser_open(path) do
-    start_command = start_command(path)
-    system_cmd(start_command)
+    path
+    |> open_cmd()
+    |> system_cmd()
   end
 
-  defp start_command(path) do
+  defp open_cmd(path) do
     case :os.type() do
       {:win32, _} -> {"cmd", ["/c", "start", path]}
       {:unix, :darwin} -> {"open", [path]}
