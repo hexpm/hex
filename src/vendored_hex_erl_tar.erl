@@ -1,5 +1,12 @@
-% Copied from https://github.com/erlang/otp/blob/OTP-20.0.1/lib/stdlib/src/erl_tar.erl
-% with modifications on module name to `hex_erl_tar`
+%% Vendored from hex_erl, do not edit manually
+
+%% Copied from https://github.com/erlang/otp/blob/OTP-20.0.1/lib/stdlib/src/erl_tar.erl
+%% with modifications:
+%% - Change module name to `vendored_hex_erl_tar`
+%% - Set tar mtimes to 0 and remove dependency on :os.system_time/1
+%% - Preserve modes when building tarball
+%% - Do not crash if failing to write tar
+%% - Allow setting file_info opts on :vendored_hex_erl_tar.add
 
 %%
 %% %CopyrightBegin%
@@ -30,7 +37,7 @@
 %%   http://www.freebsd.org/cgi/man.cgi?query=tar&sektion=5
 %%   http://www.gnu.org/software/tar/manual/html_node/Standard.html
 %%   http://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html
--module(hex_erl_tar).
+-module(vendored_hex_erl_tar).
 
 -export([init/3,
          create/2, create/3,
@@ -41,7 +48,7 @@
          format_error/1]).
 
 -include_lib("kernel/include/file.hrl").
--include_lib("hex_erl_tar.hrl").
+-include_lib("vendored_hex_erl_tar.hrl").
 
 %% Converts the short error reason to a descriptive string.
 -spec format_error(term()) -> string().
@@ -1641,7 +1648,7 @@ write_extracted_element(#tar_header{name=Name0}=Header, Bin, Opts) ->
 make_safe_path([$/|Path], Opts) ->
     make_safe_path(Path, Opts);
 make_safe_path(Path, #read_opts{cwd=Cwd}) ->
-    case hex_filename:safe_relative_path(Path) of
+    case vendored_hex_filename:safe_relative_path(Path) of
         unsafe ->
             throw({error,{Path,unsafe_path}});
         SafePath ->

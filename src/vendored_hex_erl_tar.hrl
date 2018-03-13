@@ -1,3 +1,5 @@
+%% Vendored from hex_erl, do not edit manually
+
 % Copied from https://github.com/erlang/otp/blob/OTP-20.0.1/lib/stdlib/src/erl_tar.hrl
 
 %%

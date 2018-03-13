@@ -274,7 +274,7 @@ defmodule Mix.Tasks.Hex.Publish do
   defp build_tarball(name, version, directory) do
     tarball = "#{name}-#{version}-docs.tar.gz"
     files = files(directory)
-    :ok = :hex_erl_tar.create(tarball, files, [:compressed])
+    :ok = :vendored_hex_erl_tar.create(tarball, files, [:compressed])
     data = File.read!(tarball)
 
     File.rm!(tarball)
