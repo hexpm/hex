@@ -159,14 +159,26 @@ defmodule Hex.MixProject do
 
   defp vendor_hex_erl(_) do
     filenames = ~w(
-      hex_filename.erl
-      hex_tarball.erl
+      hex_erl.hrl
       hex_erl_tar.erl
       hex_erl_tar.hrl
+      hex_filename.erl
+      hex_pb_package.erl
+      hex_pb_signed.erl
+      hex_tarball.erl
       safe_erl_term.xrl
     )
 
-    module_names = filenames |> Enum.map(&Path.basename(&1, Path.extname(&1))) |> Enum.uniq()
+    search_to_replace = ~w(
+      hex_erl.hrl
+      hex_erl_tar
+      hex_filename
+      hex_tarball
+      hex_pb_package
+      hex_pb_signed
+      safe_erl_term
+    )
+
     Enum.each(Path.wildcard("src/vendored_*"), &File.rm!/1)
 
     for filename <- filenames do
@@ -174,7 +186,7 @@ defmodule Hex.MixProject do
       vendored_filename = Path.join(["src", "vendored_" <> filename])
 
       contents = "%% Vendored from hex_erl, do not edit manually\n\n" <> File.read!(original_filename)
-      contents = Enum.reduce(module_names, contents, &String.replace(&2, &1, "vendored_" <> &1))
+      contents = Enum.reduce(search_to_replace, contents, &String.replace(&2, &1, "vendored_" <> &1))
       File.write!(vendored_filename, contents)
     end
   end

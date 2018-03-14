@@ -62,7 +62,7 @@ defmodule Hex.Repo do
   end
 
   def verify(body, repo) do
-    %{signature: signature, payload: payload} = :hex_pb_signed.decode_msg(body, :Signed)
+    %{signature: signature, payload: payload} = :vendored_hex_pb_signed.decode_msg(body, :Signed)
     public_key = get_repo(repo).public_key
 
     if public_key && Hex.State.fetch!(:check_registry?) do
@@ -166,7 +166,7 @@ defmodule Hex.Repo do
   end
 
   def decode(body) do
-    %{releases: releases} = :hex_pb_package.decode_msg(body, :Package)
+    %{releases: releases} = :vendored_hex_pb_package.decode_msg(body, :Package)
     releases
   end
 end
