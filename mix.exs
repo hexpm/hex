@@ -166,6 +166,7 @@ defmodule Hex.MixProject do
       hex_pb_package.erl
       hex_pb_signed.erl
       hex_tarball.erl
+      hex_registry.erl
       safe_erl_term.xrl
     )
 
@@ -173,9 +174,10 @@ defmodule Hex.MixProject do
       hex_erl.hrl
       hex_erl_tar
       hex_filename
-      hex_tarball
       hex_pb_package
       hex_pb_signed
+      hex_registry
+      hex_tarball
       safe_erl_term
     )
 
