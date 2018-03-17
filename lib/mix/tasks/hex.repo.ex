@@ -18,7 +18,7 @@ defmodule Mix.Tasks.Hex.Repo do
   unless plug has declared otherwise in its dependency definition.
 
   To use packages from `my_repo` you need to add it to your configuration
-  first. You do that by calling `mix hex.repo my_repo https://myrepo.example.com`.
+  first. You do that by calling `mix hex.repo add my_repo https://myrepo.example.com`.
 
   The default repo is called `hexpm` and points to https://repo.hex.pm. This
   can be overridden by using `mix hex.repo set ...`.
