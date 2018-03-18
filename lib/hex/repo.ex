@@ -163,11 +163,17 @@ defmodule Hex.Repo do
             "This may happen because a proxy or some entity is " <>
             "interfering with the download or because you don't have a " <>
             "public key to verify the registry.\n\nYou may try again " <>
-            "later or check if a new public key has been released on " <>
-            "our public keys page: #{@public_keys_html}"
+            "later or check if a new public key has been released " <>
+            public_key_message(repo)
         )
+
+      {:error, :bad_key} ->
+        Mix.raise("invalid public key")
     end
   end
+
+  defp public_key_message("hexpm" <> _), do: "on our public keys page: #{@public_keys_html}"
+  defp public_key_message(repo), do: "for repo #{repo}"
 
   def decode(body) do
     %{releases: releases} = :vendored_hex_pb_package.decode_msg(body, :Package)
