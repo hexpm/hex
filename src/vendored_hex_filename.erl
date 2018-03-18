@@ -1,5 +1,6 @@
 %% Vendored from hex_erl, do not edit manually
 
+% @private
 % Excerpt from https://github.com/erlang/otp/blob/OTP-20.0.1/lib/stdlib/src/filename.erl#L761-L788
 % with modifications for changing local function calls to remote function calls
 % to the `filename` module, for the functions `pathtype/1`, `split/1`, and `join/1`

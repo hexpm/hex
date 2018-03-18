@@ -1,5 +1,6 @@
 %% Vendored from hex_erl, do not edit manually
 
+%% @private
 %% Copied from https://github.com/erlang/otp/blob/OTP-20.0.1/lib/stdlib/src/erl_tar.erl
 %% with modifications:
 %% - Change module name to `vendored_hex_erl_tar`

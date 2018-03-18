@@ -10,9 +10,14 @@
     decode_package/1,
     sign_protobuf/2,
     decode_signed/1,
-    decode_and_verify_signed/2
+    decode_and_verify_signed/2,
+    sign/2,
+    verify/3
 ]).
 -include_lib("public_key/include/public_key.hrl").
+
+-type private_key() :: public_key:rsa_private_key() | binary().
+-type public_key() :: public_key:rsa_public_key() | binary().
 
 %%====================================================================
 %% API functions
@@ -60,29 +65,35 @@ decode_signed(Signed) ->
     vendored_hex_pb_signed:decode_msg(Signed, 'Signed').
 
 %% @doc
-%% Decode message created with sign_protobuf/2 and verify it with PublicKey.
+%% Decode message created with sign_protobuf/2 and verify it against public key.
+-spec decode_and_verify_signed(map(), public_key()) -> {ok, binary()} | {error, term()}.
 decode_and_verify_signed(Signed, PublicKey) ->
     #{payload := Payload, signature := Signature} = decode_signed(Signed),
-    verify(Payload, Signature, PublicKey).
+    case verify(Payload, Signature, PublicKey) of
+        true -> {ok, Payload};
+        false -> {error, unverified};
+        {error, Reason} -> {error, Reason}
+    end.
+
+%% @doc
+%% Signs binary with given private key.
+-spec sign(binary(), private_key()) -> binary().
+sign(Binary, PrivateKey) ->
+    {ok, RSAPrivateKey} = key(PrivateKey),
+    public_key:sign(Binary, sha512, RSAPrivateKey).
+
+%% @doc
+%% Verifies binary against signature and a public key.
+-spec verify(binary(), binary(), public_key()) -> boolean() | {error, term()}.
+verify(Binary, Signature, PublicKey) ->
+    case key(PublicKey) of
+        {ok, RSAPublicKey} -> public_key:verify(Binary, sha512, Signature, RSAPublicKey);
+        {error, Reason} -> {error, Reason}
+    end.
 
 %%====================================================================
 %% Internal functions
 %%====================================================================
-
-sign(Binary, PrivateKeyBinary) ->
-    {ok, PrivateKey} = key(PrivateKeyBinary),
-    public_key:sign(Binary, sha512, PrivateKey).
-
-verify(Binary, Signature, PublicKeyBinary) ->
-    case key(PublicKeyBinary) of
-        {ok, PublicKey} ->
-            case public_key:verify(Binary, sha512, Signature, PublicKey) of
-                true -> {ok, Binary};
-                false -> {error, unverified}
-            end;
-        {error, Reason} ->
-            {error, Reason}
-    end.
 
 key(#'RSAPublicKey'{} = Key) ->
     {ok, Key};
