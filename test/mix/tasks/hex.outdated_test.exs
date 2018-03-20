@@ -78,6 +78,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
+  @tag ansi_enabled: true
   test "outdated" do
     Mix.Project.push(OutdatedDeps.MixProject)
 

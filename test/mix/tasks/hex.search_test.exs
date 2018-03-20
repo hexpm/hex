@@ -4,8 +4,8 @@ defmodule Mix.Tasks.Hex.SearchTest do
 
   test "search" do
     Mix.Tasks.Hex.Search.run(["doc"])
-    assert_received {:mix_shell, :info, ["ex_doc\e[0m" <> ex_doc]}
-    assert_received {:mix_shell, :info, ["only_doc\e[0m" <> only_doc]}
+    assert_received {:mix_shell, :info, ["ex_doc" <> ex_doc]}
+    assert_received {:mix_shell, :info, ["only_doc" <> only_doc]}
     assert ex_doc =~ ~r"\w*0\.1\.0.*http://localhost:4043/packages/ex_doc"
     assert only_doc =~ ~r"\w*0\.1\.0.*http://localhost:4043/packages/only_doc"
   end
@@ -29,8 +29,8 @@ defmodule Mix.Tasks.Hex.SearchTest do
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Search.run(["doc"])
 
-      assert_received {:mix_shell, :info, ["ex_doc\e[0m" <> ex_doc]}
-      assert_received {:mix_shell, :info, ["only_doc\e[0m" <> only_doc]}
+      assert_received {:mix_shell, :info, ["ex_doc" <> ex_doc]}
+      assert_received {:mix_shell, :info, ["only_doc" <> only_doc]}
       assert ex_doc =~ ~r"\w*0\.1\.0.*http://localhost:4043/packages/ex_doc"
       assert only_doc =~ ~r"\w*0\.1\.0.*http://localhost:4043/packages/only_doc"
     end)
