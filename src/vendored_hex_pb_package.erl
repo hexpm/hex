@@ -1,4 +1,4 @@
-%% Vendored from hex_erl v0.2.0, do not edit manually
+%% Vendored from hex_erl v0.1.0, do not edit manually
 
 %% @private
 %% -*- coding: utf-8 -*-
