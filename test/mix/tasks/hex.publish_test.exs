@@ -310,7 +310,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
 
-      message = "Publishing package to \e[1mprivate\e[0m repository myorg."
+      message = "Publishing package to **private** repository myorg."
       assert_received {:mix_shell, :info, [^message]}
 
       assert_received {:mix_shell, :info, ["Package published to myrepo html_url" <> _]}
@@ -346,7 +346,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--organization", "myorg2"])
 
-      message = "Publishing package to \e[1mprivate\e[0m repository myorg2."
+      message = "Publishing package to **private** repository myorg2."
       assert_received {:mix_shell, :info, [^message]}
 
       assert_received {:mix_shell, :info, ["Package published to myrepo html_url" <> _]}
