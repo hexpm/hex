@@ -85,8 +85,7 @@ defmodule Hex.MixProject do
       "compile.elixir": [&unload_hex/1, "compile.elixir"],
       run: [&unload_hex/1, "run"],
       install: ["archive.build -o hex.ez", "archive.install hex.ez --force"],
-      certdata: [&certdata/1],
-      vendor_hex_erl: &vendor_hex_erl/1
+      certdata: [&certdata/1]
     ]
   end
 
@@ -154,42 +153,6 @@ defmodule Hex.MixProject do
       Mix.Local.archive_ebin(archive)
     else
       Mix.Archive.ebin(archive)
-    end
-  end
-
-  defp vendor_hex_erl(_) do
-    filenames = ~w(
-      hex_erl.hrl
-      hex_erl_tar.erl
-      hex_erl_tar.hrl
-      hex_filename.erl
-      hex_pb_package.erl
-      hex_pb_signed.erl
-      hex_tarball.erl
-      hex_registry.erl
-      safe_erl_term.xrl
-    )
-
-    search_to_replace = ~w(
-      hex_erl.hrl
-      hex_erl_tar
-      hex_filename
-      hex_pb_package
-      hex_pb_signed
-      hex_registry
-      hex_tarball
-      safe_erl_term
-    )
-
-    Enum.each(Path.wildcard("src/vendored_*"), &File.rm!/1)
-
-    for filename <- filenames do
-      original_filename = Path.join(["..", "hex_erl", "src", filename])
-      vendored_filename = Path.join(["src", "vendored_" <> filename])
-
-      contents = "%% Vendored from hex_erl, do not edit manually\n\n" <> File.read!(original_filename)
-      contents = Enum.reduce(search_to_replace, contents, &String.replace(&2, &1, "vendored_" <> &1))
-      File.write!(vendored_filename, contents)
     end
   end
 end

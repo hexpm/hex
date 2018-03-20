@@ -1,4 +1,4 @@
-%% Vendored from hex_erl, do not edit manually
+%% Vendored from hex_erl v0.2.0, do not edit manually
 
 %%% Author  : Robert Virding
 %%% Purpose : Token definitions for Erlang.

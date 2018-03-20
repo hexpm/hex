@@ -1,4 +1,4 @@
-%% Vendored from hex_erl, do not edit manually
+%% Vendored from hex_erl v0.2.0, do not edit manually
 
 -module(vendored_hex_tarball).
 -export([create/2, unpack/2, format_checksum/1, format_error/1]).

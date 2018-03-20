@@ -1,4 +1,4 @@
-%% Vendored from hex_erl, do not edit manually
+%% Vendored from hex_erl v0.2.0, do not edit manually
 
 %% @private
 %% Copied from https://github.com/erlang/otp/blob/OTP-20.0.1/lib/stdlib/src/erl_tar.erl
