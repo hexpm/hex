@@ -237,6 +237,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     purge([ReleaseMeta.MixProject])
   end
 
+  @tag ansi_enabled: true
   test "create with metadata" do
     Mix.Project.push(ReleaseMeta.MixProject)
 
@@ -267,6 +268,36 @@ defmodule Mix.Tasks.Hex.PublishTest do
     purge([ReleaseMeta.MixProject])
   end
 
+  test "create with metadata (no ansi)" do
+    Mix.Project.push(ReleaseMeta.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user", "hunter42")
+
+      File.mkdir!("missing")
+      File.write!("myfile.txt", "hello")
+      File.write!("missing.txt", "hello")
+      File.write!("missing/file.txt", "hello")
+
+      send(self(), {:mix_shell_input, :yes?, true})
+      send(self(), {:mix_shell_input, :prompt, "hunter42"})
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
+
+      assert_received {:mix_shell, :info, ["Building release_c 0.0.3"]}
+      assert_received {:mix_shell, :info, ["  Files:"]}
+      assert_received {:mix_shell, :info, ["    myfile.txt"]}
+      assert_received {:mix_shell, :info, ["  Extra: \n    c: d"]}
+
+      message = "Publishing package to **public** repository hexpm."
+      assert_received {:mix_shell, :info, [^message]}
+
+      refute_received {:mix_shell, :error, ["Missing metadata fields" <> _]}
+    end)
+  after
+    purge([ReleaseMeta.MixProject])
+  end
+
   test "create package with :organization config" do
     Mix.Project.push(ReleaseRepo.MixProject)
 
@@ -279,7 +310,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
 
-      message = "Publishing package to \e[1mprivate\e[0m repository myorg."
+      message = "Publishing package to **private** repository myorg."
       assert_received {:mix_shell, :info, [^message]}
 
       assert_received {:mix_shell, :info, ["Package published to myrepo html_url" <> _]}
@@ -315,7 +346,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--organization", "myorg2"])
 
-      message = "Publishing package to \e[1mprivate\e[0m repository myorg2."
+      message = "Publishing package to **private** repository myorg2."
       assert_received {:mix_shell, :info, [^message]}
 
       assert_received {:mix_shell, :info, ["Package published to myrepo html_url" <> _]}
