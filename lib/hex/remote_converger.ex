@@ -2,6 +2,7 @@ defmodule Hex.RemoteConverger do
   @moduledoc false
 
   @behaviour Mix.RemoteConverger
+
   alias Hex.Registry.Server, as: Registry
 
   def post_converge() do
@@ -15,6 +16,7 @@ defmodule Hex.RemoteConverger do
 
   def converge(deps, lock) do
     Registry.open()
+
     # We cannot use given lock here, because all deps that are being
     # converged have been removed from the lock by Mix
     # We need the old lock to get the children of Hex packages
@@ -34,6 +36,7 @@ defmodule Hex.RemoteConverger do
     |> Registry.prefetch()
 
     locked = prepare_locked(lock, old_lock, deps)
+
     verify_lock(lock)
     verify_deps(deps, top_level)
     verify_input(requests, locked)
@@ -47,7 +50,6 @@ defmodule Hex.RemoteConverger do
 
     case Hex.Resolver.resolve(Registry, requests, deps, top_level, repos, locked) do
       {:ok, resolved} ->
-        # need to pass old_lock or a simpler form of it
         print_success(resolved, locked, old_lock)
         verify_resolved(resolved, old_lock)
         new_lock = Hex.Mix.to_lock(resolved)
