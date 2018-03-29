@@ -177,7 +177,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
       fetched_msg = "Docs fetched: #{docs_home}/#{org_dir}/#{package}/#{latest_version}"
       browser_open_msg = "#{docs_home}/#{org_dir}/#{package}/#{latest_version}/index.html"
       assert_received {:mix_shell, :info, [^fetched_msg]}
-      assert_received {:hex_system_cmd, _cmd, [^browser_open_msg]}
+      assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
+      assert Enum.fetch!(browser_open_cmd, -1) == browser_open_msg
     end)
   end
 
@@ -195,7 +196,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
       fetched_msg = "Docs fetched: #{docs_home}/#{org_dir}/#{package}/#{version}"
       browser_open_msg = "#{docs_home}/#{org_dir}/#{package}/#{version}/index.html"
       assert_received {:mix_shell, :info, [^fetched_msg]}
-      assert_received {:hex_system_cmd, _cmd, [^browser_open_msg]}
+      assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
+      assert Enum.fetch!(browser_open_cmd, -1) == browser_open_msg
 
       Mix.Tasks.Hex.Docs.run(["fetch", package, version])
       already_fetched_msg = "Docs already fetched: #{docs_home}/#{org_dir}/#{package}/#{version}"
@@ -219,7 +221,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
 
       Mix.Tasks.Hex.Docs.run(["offline", package, version])
       browser_open_msg = "#{docs_home}/#{package}/#{version}/index.html"
-      assert_received {:hex_system_cmd, _cmd, [^browser_open_msg]}
+      assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
+      assert Enum.fetch!(browser_open_cmd, -1) == browser_open_msg
     end)
   end
 
@@ -238,7 +241,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
 
   test "open docs online" do
     Mix.Tasks.Hex.Docs.run(["online", "ecto"])
-    assert_received {:hex_system_cmd, _cmd, ["https://hexdocs.pm/ecto"]}
+    assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
+    assert Enum.fetch!(browser_open_cmd, -1) == "https://hexdocs.pm/ecto"
   end
 
   test "open the version of a package this app uses online" do
@@ -248,7 +252,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
     in_tmp("docs", fn ->
       Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.1"}})
       Mix.Tasks.Hex.Docs.run(["online", "docs_package"])
-      assert_received {:hex_system_cmd, _cmd, ["https://hexdocs.pm/docs_package/1.1.1"]}
+      assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
+      assert Enum.fetch!(browser_open_cmd, -1) == "https://hexdocs.pm/docs_package/1.1.1"
     end)
   end
 
@@ -259,7 +264,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
     in_tmp("docs", fn ->
       Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.1"}})
       Mix.Tasks.Hex.Docs.run(["online", "docs_package", "--latest"])
-      assert_received {:hex_system_cmd, _cmd, ["https://hexdocs.pm/docs_package"]}
+      assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
+      assert Enum.fetch!(browser_open_cmd, -1) == "https://hexdocs.pm/docs_package"
     end)
   end
 
@@ -277,7 +283,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
       fetched_msg = "Docs fetched: #{docs_home}/hexpm/#{package}/#{version}"
       browser_open_msg = "#{docs_home}/hexpm/#{package}/#{version}/index.html"
       assert_received {:mix_shell, :info, [^fetched_msg]}
-      assert_received {:hex_system_cmd, _cmd, [^browser_open_msg]}
+      assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
+      assert Enum.fetch!(browser_open_cmd, -1) == browser_open_msg
       assert File.exists?("#{docs_home}/hexpm/#{package}/#{version}")
     end)
   end

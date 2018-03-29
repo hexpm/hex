@@ -37,12 +37,25 @@ defmodule HexTest.Case do
     Path.join(fixture_path(), extension)
   end
 
+  defp escape_path(path) do
+    case :os.type() do
+      {:win32, _} -> String.replace(path, ~R'[~#%&*{}\\:<>?/+|"]', "_")
+      _ -> path
+    end
+  end
+
   defmacro test_name do
-    Path.join(["#{__CALLER__.module}", "#{elem(__CALLER__.function, 0)}"])
+    module = escape_path("#{__CALLER__.module}")
+    function = escape_path("#{elem(__CALLER__.function, 0)}")
+
+    Path.join([module, function])
   end
 
   defmacro in_tmp(fun) do
-    path = Path.join(["#{__CALLER__.module}", "#{elem(__CALLER__.function, 0)}"])
+    module = escape_path("#{__CALLER__.module}")
+    function = escape_path("#{elem(__CALLER__.function, 0)}")
+
+    path = Path.join([module, function])
 
     quote do
       in_tmp(unquote(path), unquote(fun))
@@ -262,6 +275,11 @@ defmodule HexTest.Case do
       Mix.Shell.Process.flush()
       Mix.ProjectStack.clear_cache()
       Mix.ProjectStack.clear_stack()
+    end
+
+    if context[:ansi_enabled] do
+      Application.put_env(:elixir, :ansi_enabled, true)
+      on_exit(fn -> Application.put_env(:elixir, :ansi_enabled, false) end)
     end
 
     :ok
