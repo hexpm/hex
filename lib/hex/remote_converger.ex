@@ -234,9 +234,9 @@ defmodule Hex.RemoteConverger do
       Hex.Shell.info("Dependency resolution completed:")
 
       dep_changes =
-        Enum.reduce(Enum.sort(resolved), %{new: [], eq: [], gt: [], lt: []}, fn {name,
-                                                                                 {repo, version}},
-                                                                                acc ->
+        resolved
+        |> Enum.sort()
+        |> Enum.reduce(%{new: [], eq: [], gt: [], lt: []}, fn {name, {repo, version}}, acc ->
           previous_version =
             previously_locked_versions
             |> Map.get(String.to_atom(name))
