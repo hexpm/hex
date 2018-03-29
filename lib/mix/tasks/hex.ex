@@ -155,20 +155,25 @@ defmodule Mix.Tasks.Hex do
   end
 
   def auth_info() do
-    cond do
-      key = Hex.State.fetch!(:api_key) ->
-        [key: prompt_decrypt_key(key)]
+    key = Hex.State.fetch!(:api_key)
 
-      Hex.Shell.yes?("No authenticated user found. Do you want to authenticate now?") ->
-        if password = auth() do
-          key = Hex.State.fetch!(:api_key)
-          [key: decrypt_key(key, password)]
-        else
-          no_auth_error()
-        end
+    if key do
+      [key: prompt_decrypt_key(key)]
+    else
+      authenticate_inline()
+    end
+  end
 
-      true ->
-        no_auth_error()
+  defp authenticate_inline() do
+    authenticate? =
+      Hex.Shell.yes?("No authenticated user found. Do you want to authenticate now?")
+
+    if authenticate? do
+      {:ok, key, _password} = auth()
+      unless key, do: no_auth_error()
+      [key: key]
+    else
+      no_auth_error()
     end
   end
 

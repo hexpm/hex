@@ -62,14 +62,14 @@ defmodule Hex.Repo do
   end
 
   def verify(body, repo) do
-    %{signature: signature, payload: payload} = :hex_pb_signed.decode_msg(body, :Signed)
     public_key = get_repo(repo).public_key
 
-    if public_key && Hex.State.fetch!(:check_registry?) do
-      do_verify(payload, signature, public_key, repo)
+    if Hex.State.fetch!(:check_registry?) do
+      do_verify(body, public_key, repo)
+    else
+      %{payload: payload} = :vendored_hex_registry.decode_signed(body)
+      payload
     end
-
-    payload
   end
 
   def get_installs() do
@@ -144,7 +144,7 @@ defmodule Hex.Repo do
     end
   end
 
-  defp do_verify(payload, signature, public_key, repo) do
+  defp do_verify(body, public_key, repo) do
     unless public_key do
       Mix.raise(
         "No public key stored for #{repo}. Either install a public " <>
@@ -153,20 +153,30 @@ defmodule Hex.Repo do
       )
     end
 
-    unless Hex.Crypto.PublicKey.verify(payload, :sha512, signature, [public_key], repo) do
-      Mix.raise(
-        "Could not verify authenticity of fetched registry file. " <>
-          "This may happen because a proxy or some entity is " <>
-          "interfering with the download or because you don't have a " <>
-          "public key to verify the registry.\n\nYou may try again " <>
-          "later or check if a new public key has been released on " <>
-          "our public keys page: #{@public_keys_html}"
-      )
+    case :vendored_hex_registry.decode_and_verify_signed(body, public_key) do
+      {:ok, payload} ->
+        payload
+
+      {:error, :unverified} ->
+        Mix.raise(
+          "Could not verify authenticity of fetched registry file. " <>
+            "This may happen because a proxy or some entity is " <>
+            "interfering with the download or because you don't have a " <>
+            "public key to verify the registry.\n\nYou may try again " <>
+            "later or check if a new public key has been released " <>
+            public_key_message(repo)
+        )
+
+      {:error, :bad_key} ->
+        Mix.raise("invalid public key")
     end
   end
 
+  defp public_key_message("hexpm" <> _), do: "on our public keys page: #{@public_keys_html}"
+  defp public_key_message(repo), do: "for repo #{repo}"
+
   def decode(body) do
-    %{releases: releases} = :hex_pb_package.decode_msg(body, :Package)
+    %{releases: releases} = :vendored_hex_pb_package.decode_msg(body, :Package)
     releases
   end
 end
