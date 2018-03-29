@@ -223,10 +223,7 @@ defmodule Hex.RemoteConverger do
   defp print_success(resolved, locked, old_lock) do
     locked = Enum.map(locked, &elem(&1, 0))
 
-    previously_locked_versions =
-      Enum.into(old_lock, %{}, fn {name, {_src, _app, version, _key, _tool, _children, repo}} ->
-        {name, {repo, version}}
-      end)
+    previously_locked_versions = Enum.into(old_lock, %{}, &dep_info_from_lock(&1))
 
     resolved =
       Enum.into(resolved, %{}, fn {repo, name, _app, version} -> {name, {repo, version}} end)
@@ -263,6 +260,13 @@ defmodule Hex.RemoteConverger do
       end)
     end
   end
+
+  defp dep_info_from_lock({name, {_src, _app, version, _checksum, _build, _children, repo}}),
+    do: {name, {repo, version}}
+
+  defp dep_info_from_lock({name, {repo, _app, version, _checksum}}), do: {name, {repo, version}}
+
+  defp dep_info_from_lock({name, {repo, _app, version}}), do: {name, {repo, version}}
 
   defp version_string_or_nil(nil), do: nil
   defp version_string_or_nil({_repo, version_string}), do: version_string
