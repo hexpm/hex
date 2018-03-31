@@ -221,45 +221,41 @@ defmodule Hex.RemoteConverger do
   end
 
   defp print_success(resolved, locked, old_lock) do
-    locked = Enum.map(locked, &elem(&1, 0))
-
     previously_locked_versions = Enum.into(old_lock, %{}, &dep_info_from_lock(&1))
-
-    resolved =
-      Enum.into(resolved, %{}, fn {repo, name, _app, version} -> {name, {repo, version}} end)
-
-    resolved = Map.drop(resolved, locked)
+    resolved = resolve_dependencies(resolved, locked)
 
     if Map.size(resolved) != 0 do
       Hex.Shell.info("Dependency resolution completed:")
 
-      dep_changes =
-        resolved
-        |> Enum.sort()
-        |> Enum.reduce(%{new: [], eq: [], gt: [], lt: []}, fn {name, {repo, version}}, acc ->
-          previous_version =
-            previously_locked_versions
-            |> Map.get(String.to_atom(name))
-            |> version_string_or_nil()
-
-          change = categorize_dependency_change(previous_version, version)
-          Map.put(acc, change, acc[change] ++ [{name, repo, previous_version, version}])
-        end)
+      dep_changes = group_dependency_changes(resolved, previously_locked_versions)
 
       Enum.each(dep_changes, fn {mod, deps} ->
         unless length(deps) == 0, do: print_category(mod)
-
-        Enum.each(deps, fn {name, repo, previous_version, version} ->
-          print_status(
-            Registry.retired(repo, name, version),
-            mod,
-            name,
-            previous_version,
-            version
-          )
-        end)
+        print_dependency_group(deps, mod)
       end)
     end
+  end
+
+  defp resolve_dependencies(resolved, locked) do
+    locked = Enum.map(locked, &elem(&1, 0))
+
+    resolved
+    |> Enum.into(%{}, fn {repo, name, _app, version} -> {name, {repo, version}} end)
+    |> Map.drop(locked)
+  end
+
+  defp group_dependency_changes(resolved, previously_locked_versions) do
+    resolved
+    |> Enum.sort()
+    |> Enum.reduce(%{new: [], eq: [], gt: [], lt: []}, fn {name, {repo, version}}, acc ->
+      previous_version =
+        previously_locked_versions
+        |> Map.get(String.to_atom(name))
+        |> version_string_or_nil()
+
+      change = categorize_dependency_change(previous_version, version)
+      Map.put(acc, change, acc[change] ++ [{name, repo, previous_version, version}])
+    end)
   end
 
   defp dep_info_from_lock({name, {_src, _app, version, _checksum, _build, _children, repo}}),
@@ -285,6 +281,18 @@ defmodule Hex.RemoteConverger do
       :lt -> Hex.Shell.info("Downgraded:")
       :gt -> Hex.Shell.info("Upgraded:")
     end
+  end
+
+  defp print_dependency_group(deps, mod) do
+    Enum.each(deps, fn {name, repo, previous_version, version} ->
+      print_status(
+        Registry.retired(repo, name, version),
+        mod,
+        name,
+        previous_version,
+        version
+      )
+    end)
   end
 
   defp print_status(nil, mod, name, previous_version, version) do
