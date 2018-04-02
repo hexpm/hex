@@ -14,8 +14,7 @@ defmodule Mix.Tasks.Hex.Info do
   If `package` is given, print information about the package. This includes all
   released versions and package metadata.
 
-  If `package` and `version` is given print release information. This includes
-  remote Git URL and Git ref, and all package dependencies.
+  If `package` and `version` is given, print release information.
 
   ## Command line options
 
@@ -103,7 +102,7 @@ defmodule Mix.Tasks.Hex.Info do
     stable_active_releases =
       Enum.filter(
         releases,
-        &(Hex.Version.stable?(&1["version"]) and not(&1["version"] in retirements))
+        &(Hex.Version.stable?(&1["version"]) and not (&1["version"] in retirements))
       )
 
     List.first(stable_active_releases) || List.first(releases)
