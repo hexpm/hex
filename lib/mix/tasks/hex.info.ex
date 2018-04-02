@@ -14,8 +14,7 @@ defmodule Mix.Tasks.Hex.Info do
   If `package` is given, print information about the package. This includes all
   released versions and package metadata.
 
-  If `package` and `version` is given, print release information. This includes
-  remote Git URL and Git ref, as well as all package dependencies.
+  If `package` and `version` is given, print release information.
 
   ## Command line options
 
