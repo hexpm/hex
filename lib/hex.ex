@@ -51,16 +51,16 @@ defmodule Hex do
     def string_to_charlist(string), do: String.to_charlist(string)
   end
 
-  if Version.compare(System.version(), "1.4.0") == :lt do
-    def enum_split_with(enum, fun), do: Enum.partition(enum, fun)
-  else
-    def enum_split_with(enum, fun), do: Enum.split_with(enum, fun)
-  end
-
   if Version.compare(System.version(), "1.3.2") == :lt do
     def check_deps, do: Mix.Tasks.Deps.Check.run(["--no-compile"])
   else
     def check_deps, do: Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
+  end
+
+  if Version.compare(System.version(), "1.4.0") == :lt do
+    def enum_split_with(enum, fun), do: Enum.partition(enum, fun)
+  else
+    def enum_split_with(enum, fun), do: Enum.split_with(enum, fun)
   end
 
   def file_lstat(path, opts \\ []) do

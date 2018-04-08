@@ -9,7 +9,9 @@ defmodule Mix.Tasks.Hex.BuildTest do
   defp extract(name, path) do
     {:ok, files} = :vendored_hex_erl_tar.extract(name, [:memory])
     files = Enum.into(files, %{})
-    :ok = :vendored_hex_erl_tar.extract({:binary, files['contents.tar.gz']}, [:compressed, cwd: path])
+
+    :ok =
+      :vendored_hex_erl_tar.extract({:binary, files['contents.tar.gz']}, [:compressed, cwd: path])
   end
 
   test "create" do
@@ -260,7 +262,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       assert_received {:mix_shell, :info, ["Building ecto 0.0.1"]}
 
       message =
-        "\e[33mMix configuration :organization also belongs under the :package key, " <>
+        "\e[33mMix project configuration :organization belongs under the :package key, " <>
           "did you misplace it?\e[0m"
 
       assert_received {:mix_shell, :info, [^message]}

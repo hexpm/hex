@@ -308,7 +308,7 @@ defmodule Mix.Tasks.Hex.Build do
 
     if invalid_field do
       Hex.Shell.warn(
-        "Mix configuration #{inspect(invalid_field)} also belongs under the :package key, did you misplace it?"
+        "Mix project configuration #{inspect(invalid_field)} belongs under the :package key, did you misplace it?"
       )
     end
   end
@@ -389,6 +389,7 @@ defmodule Mix.Tasks.Hex.Build do
     value
   end
 
+  # TODO: Less strict validation for organizations
   defp check_missing_fields(metadata) do
     fields = @error_fields ++ @warn_fields
     taken_fields = Map.take(metadata, fields) |> Map.keys()

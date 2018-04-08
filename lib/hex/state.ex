@@ -43,10 +43,16 @@ defmodule Hex.State do
         load_config(config, ["HEX_HTTP_TIMEOUT"], [:http_timeout])
         |> to_integer()
         |> http_timeout(),
-      home: System.get_env("HEX_HOME") |> default(@default_home) |> Path.expand(),
+      home:
+      System.get_env("HEX_HOME")
+      |> default(@default_home)
+      |> Path.expand(),
       mirror_url:
-        load_config(config, ["HEX_MIRROR_URL", "HEX_MIRROR"], [:mirror_url]) |> trim_slash(),
-      offline?: load_config(config, ["HEX_OFFLINE"], [:offline]) |> to_boolean() |> default(false),
+        load_config(config, ["HEX_MIRROR_URL", "HEX_MIRROR"], [:mirror_url])
+        |> trim_slash(),
+      offline?:
+        load_config(config, ["HEX_OFFLINE"], [:offline]) |> to_boolean()
+        |> default(false),
       pbkdf2_iters: @pbkdf2_iters,
       repos: Hex.Config.read_repos(config),
       ssl_version: ssl_version()

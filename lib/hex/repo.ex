@@ -163,8 +163,7 @@ defmodule Hex.Repo do
             "This may happen because a proxy or some entity is " <>
             "interfering with the download or because you don't have a " <>
             "public key to verify the registry.\n\nYou may try again " <>
-            "later or check if a new public key has been released " <>
-            public_key_message(repo)
+            "later or check if a new public key has been released " <> public_key_message(repo)
         )
 
       {:error, :bad_key} ->

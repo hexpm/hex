@@ -49,7 +49,11 @@ unless :integration in ExUnit.configuration()[:exclude] do
   Hexpm.new_package(
     "ecto",
     "0.2.1",
-    [{:sample, "0.0.1", path: Case.fixture_path("sample")}, postgrex: "~> 0.2.1", ex_doc: "0.1.0"],
+    [
+      {:sample, "0.0.1", path: Case.fixture_path("sample")},
+      postgrex: "~> 0.2.1",
+      ex_doc: "0.1.0"
+    ],
     pkg_meta,
     auth
   )
