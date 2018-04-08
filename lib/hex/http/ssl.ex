@@ -26,6 +26,13 @@ defmodule Hex.HTTP.SSL do
 
   @secure_ssl_version {5, 3, 7}
 
+  @common_ssl_opts [
+    secure_renegotiate: true,
+    reuse_sessions: true,
+    honor_cipher_order: true,
+    versions: @default_versions
+  ]
+
   Record.defrecordp(
     :certificate,
     :OTPCertificate,
@@ -52,14 +59,22 @@ defmodule Hex.HTTP.SSL do
     check?
   end
 
+  def custom_cafile? do
+    Hex.State.get(:custom_cafile) != nil
+  end
+
   def ssl_opts(url) do
     hostname = Hex.string_to_charlist(URI.parse(url).host)
     ciphers = filter_ciphers(@default_ciphers)
 
-    if secure_ssl?() do
-      verify_fun = {&VerifyHostname.verify_fun/3, check_hostname: hostname}
-      partial_chain = &partial_chain(Certs.cacerts(), &1)
+    ssl_opts(hostname, ciphers, secure_ssl?(), custom_cafile?())
+  end
 
+  defp ssl_opts(hostname, ciphers, true, false) do
+    verify_fun = {&VerifyHostname.verify_fun/3, check_hostname: hostname}
+    partial_chain = &partial_chain(Certs.cacerts(), &1)
+
+    @common_ssl_opts ++
       [
         verify: :verify_peer,
         depth: 4,
@@ -67,23 +82,32 @@ defmodule Hex.HTTP.SSL do
         cacerts: Certs.cacerts(),
         verify_fun: verify_fun,
         server_name_indication: hostname,
-        secure_renegotiate: true,
-        reuse_sessions: true,
-        honor_cipher_order: true,
-        versions: @default_versions,
         ciphers: ciphers
       ]
-    else
+  end
+
+  defp ssl_opts(hostname, ciphers, true, true) do
+    verify_fun = {&VerifyHostname.verify_fun/3, check_hostname: hostname}
+    cacertfile = Hex.State.fetch!(:custom_cafile)
+
+    @common_ssl_opts ++
+      [
+        verify: :verify_peer,
+        depth: 4,
+        cacertfile: cacertfile,
+        verify_fun: verify_fun,
+        server_name_indication: hostname,
+        ciphers: ciphers
+      ]
+  end
+
+  defp ssl_opts(hostname, ciphers, _verify, _custom_cafile) do
+    @common_ssl_opts ++
       [
         verify: :verify_none,
         server_name_indication: hostname,
-        secure_renegotiate: true,
-        reuse_sessions: true,
-        honor_cipher_order: true,
-        versions: @default_versions,
         ciphers: ciphers
       ]
-    end
   end
 
   def partial_chain(cacerts, certs) do

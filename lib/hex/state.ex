@@ -4,7 +4,6 @@ defmodule Hex.State do
   @logged_keys ~w(http_proxy HTTP_PROXY https_proxy HTTPS_PROXY)
   @default_home "~/.hex"
   @pbkdf2_iters 32_768
-  @default_cafile Path.join(__DIR__, "http/ca-bundle.crt")
 
   def start_link() do
     config = Hex.Config.read()
@@ -51,7 +50,7 @@ defmodule Hex.State do
       pbkdf2_iters: @pbkdf2_iters,
       repos: Hex.Config.read_repos(config),
       ssl_version: ssl_version(),
-      cafile: load_config(config, ["HEX_CAFILE"], [:cafile]) |> default(@default_cafile)
+      custom_cafile: load_config(config, ["HEX_CAFILE"], [:cafile])
     }
   end
 
