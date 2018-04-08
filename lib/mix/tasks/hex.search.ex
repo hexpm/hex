@@ -11,10 +11,11 @@ defmodule Mix.Tasks.Hex.Search do
   ## Command line options
 
     * `--organization ORGANIZATION` - The organization the package belongs to
+    * `--all-organizations` - Search all organizations you have access to
 
   """
 
-  @switches [organization: :string]
+  @switches [organization: :string, all_organizations: :boolean]
 
   def run(args) do
     Hex.start()
@@ -22,7 +23,7 @@ defmodule Mix.Tasks.Hex.Search do
 
     case args do
       [package] ->
-        search_package(package, opts[:organization])
+        search_package(package, opts[:organization], opts[:all_organizations] || false)
 
       _ ->
         Mix.raise("""
@@ -33,16 +34,20 @@ defmodule Mix.Tasks.Hex.Search do
     end
   end
 
-  defp search_package(package, organization) do
-    result =
-      if key = Hex.State.fetch!(:api_key) do
-        decrypted_key = Mix.Tasks.Hex.prompt_decrypt_key(key)
-        Hex.API.Package.search(organization, package, key: decrypted_key)
-      else
-        Hex.API.Package.search(organization, package)
-      end
+  defp search_package(package, organization, all_organizations?) do
+    auth = if organization || all_organizations?, do: Mix.Tasks.Hex.auth_info()
+    organization = select_organization(organization, all_organizations?)
 
-    lookup_packages(result)
+    Hex.API.Package.search(organization, package, auth)
+    |> lookup_packages()
+  end
+
+  defp select_organization(_organization, true), do: nil
+  defp select_organization(nil, false), do: "hexpm"
+  defp select_organization(organization, false), do: organization
+
+  defp lookup_packages({:ok, {403, _body, _headers}}) do
+    Hex.Shell.error("Organization not found or not authorized for it")
   end
 
   defp lookup_packages({:ok, {200, [], _headers}}) do

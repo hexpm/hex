@@ -46,7 +46,7 @@ defmodule Mix.Tasks.Hex.Info do
     end
   end
 
-  defp general do
+  defp general() do
     Hex.Shell.info("Hex:    #{Hex.version()}")
     Hex.Shell.info("Elixir: #{System.version()}")
     Hex.Shell.info("OTP:    #{Hex.Utils.otp_version()}")
@@ -59,7 +59,9 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp package(organization, package) do
-    case Hex.API.Package.get(organization, package) do
+    auth = organization && Mix.Tasks.Hex.auth_info()
+
+    case Hex.API.Package.get(organization, package, auth) do
       {:ok, {code, body, _}} when code in 200..299 ->
         print_package(body)
 
@@ -73,7 +75,9 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp release(organization, package, version) do
-    case Hex.API.Release.get(organization, package, version) do
+    auth = organization && Mix.Tasks.Hex.auth_info()
+
+    case Hex.API.Release.get(organization, package, version, auth) do
       {:ok, {code, body, _}} when code in 200..299 ->
         print_release(package, body)
 

@@ -214,6 +214,7 @@ defmodule HexTest.Case do
     {:ok, {201, body, _}} = Hex.API.Key.new("setup_auth", user: username, pass: password)
     key = Mix.Tasks.Hex.encrypt_key(password, body["secret"])
     Mix.Tasks.Hex.update_key(key)
+    [key: key]
   end
 
   def get_auth(username, password) do

@@ -1,16 +1,12 @@
 defmodule Hex.API.Package do
   alias Hex.API
 
-  def get(repo, name) do
+  def get(repo, name, auth \\ []) do
     path = "packages/#{URI.encode(name)}"
-    API.request(:get, repo, path)
+    API.request(:get, repo, path, auth)
   end
 
-  def search(repo, search) do
-    search(repo, search, [])
-  end
-
-  def search(repo, search, auth) do
+  def search(repo, search, auth \\ []) do
     path = "packages?search=#{URI.encode(search)}&sort=downloads"
     API.request(:get, repo, path, auth)
   end
