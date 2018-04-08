@@ -1,15 +1,6 @@
 defmodule Mix.Tasks.Hex.Build do
   use Mix.Task
 
-  @default_files ~w(lib priv .formatter.exs mix.exs README* readme* LICENSE*
-                    license* CHANGELOG* changelog* src)
-  @error_fields ~w(app name files description version build_tools)a
-  @warn_fields ~w(licenses maintainers links)a
-  @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir extra)a
-  @root_fields ~w(app version elixir description)a
-  @max_description_length 300
-  @default_repo "hexpm"
-  @metadata_config "hex_metadata.config"
   @shortdoc "Builds a new package version locally"
 
   @moduledoc """
@@ -79,6 +70,16 @@ defmodule Mix.Tasks.Hex.Build do
       tarball path (Default: `<app>-<version>.tar`)
 
   """
+
+  @default_files ~w(lib priv .formatter.exs mix.exs README* readme* LICENSE*
+                    license* CHANGELOG* changelog* src)
+  @error_fields ~w(app name files version build_tools)a
+  @warn_fields ~w(description licenses maintainers links)a
+  @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir extra)a
+  @root_fields ~w(app version elixir description)a
+  @max_description_length 300
+  @default_repo "hexpm"
+  @metadata_config "hex_metadata.config"
 
   @switches [unpack: :boolean, output: :string]
   @aliases [o: :output]
@@ -160,10 +161,13 @@ defmodule Mix.Tasks.Hex.Build do
     Enum.each(@meta_fields, &print_metadata(meta, &1))
 
     errors =
-      check_missing_fields(meta) ++
-        check_description_length(meta) ++
-        check_missing_files(package_files || []) ++
-        check_reserved_files(package_files || []) ++ check_excluded_deps(exclude_deps)
+      Enum.concat([
+        check_missing_fields(meta, organization),
+        check_description_length(meta),
+        check_missing_files(package_files || []),
+        check_reserved_files(package_files || []),
+        check_excluded_deps(exclude_deps)
+      ])
 
     if errors != [] do
       ["Stopping package build due to errors." | errors]
@@ -389,17 +393,30 @@ defmodule Mix.Tasks.Hex.Build do
     value
   end
 
-  # TODO: Less strict validation for organizations
-  defp check_missing_fields(metadata) do
-    fields = @error_fields ++ @warn_fields
-    taken_fields = Map.take(metadata, fields) |> Map.keys()
+  defp check_missing_fields(metadata, organization) do
+    if organization in [nil, "hexpm"] do
+      check_error_fields(metadata, @error_fields ++ @warn_fields)
+    else
+      check_warn_fields(metadata, @warn_fields)
+      check_error_fields(metadata, @error_fields)
+    end
+  end
 
-    case fields -- taken_fields do
-      [] ->
-        []
+  defp check_warn_fields(metadata, warn_fields) do
+    case check_error_fields(metadata, warn_fields) do
+      [message] -> Hex.Shell.warn(message)
+      [] -> :ok
+    end
+  end
 
-      missing ->
-        ["Missing metadata fields: #{Enum.join(missing, ", ")}"]
+  defp check_error_fields(metadata, error_fields) do
+    taken_fields = Map.take(metadata, error_fields) |> Map.keys()
+    missing = error_fields -- taken_fields
+
+    if missing == [] do
+      []
+    else
+      ["Missing metadata fields: #{Enum.join(missing, ", ")}"]
     end
   end
 
@@ -407,7 +424,7 @@ defmodule Mix.Tasks.Hex.Build do
     descr = metadata[:description] || ""
 
     if String.length(descr) > @max_description_length do
-      ["Package description is very long (exceeds #{@max_description_length} characters)"]
+      ["Package description is too long (exceeds #{@max_description_length} characters)"]
     else
       []
     end
