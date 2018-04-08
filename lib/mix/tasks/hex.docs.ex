@@ -36,6 +36,7 @@ defmodule Mix.Tasks.Hex.Docs do
     * `--latest` - Looks for the latest release of a package
   """
 
+  @elixir_apps ~w(eex elixir ex_unit iex logger mix)
   @switches [module: :string, organization: :string, latest: :boolean]
 
   def run(args) do
@@ -78,8 +79,7 @@ defmodule Mix.Tasks.Hex.Docs do
     end)
   end
 
-  defp fetch_docs([name], opts)
-       when name in ["eex", "elixir", "ex_unit", "iex", "logger", "mix"] do
+  defp fetch_docs([name], opts) when name in @elixir_apps do
     fetch_docs([name, System.version()], opts)
   end
 
@@ -131,7 +131,9 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp retrieve_package_info(organization, name) do
-    case Hex.API.Package.get(organization, name) do
+    auth = if organization, do: Mix.Tasks.Hex.auth_info()
+
+    case Hex.API.Package.get(organization, name, auth) do
       {:ok, {code, body, _}} when code in 200..299 ->
         body
 

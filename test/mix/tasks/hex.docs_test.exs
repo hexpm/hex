@@ -155,14 +155,9 @@ defmodule Mix.Tasks.Hex.DocsTest do
   end
 
   test "offline task fails when docs not found" do
-    package = "decimal"
-    version = "1.1.2"
+    Mix.Tasks.Hex.Docs.run(["offline", "decimal", "1.1.2"])
+
     message = "Couldn't find docs for package with name decimal or version 1.1.2"
-
-    assert_raise Mix.Error, "Documentation not found", fn ->
-      Mix.Tasks.Hex.Docs.run(["offline", package, version])
-    end
-
     assert_received {:mix_shell, :error, [^message]}
   end
 
