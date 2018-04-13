@@ -278,6 +278,11 @@ defmodule HexTest.Case do
       Mix.ProjectStack.clear_stack()
     end
 
+    if context[:ansi_disabled] do
+      Application.put_env(:elixir, :ansi_enabled, false)
+      on_exit(fn -> Application.put_env(:elixir, :ansi_enabled, true) end)
+    end
+
     :ok
   end
 

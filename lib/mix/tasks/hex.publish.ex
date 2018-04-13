@@ -213,7 +213,11 @@ defmodule Mix.Tasks.Hex.Publish do
 
       true ->
         Hex.Shell.info([
-          ["Publishing package to ", emphasis("private"), " repository #{organization}."]
+          [
+            "Publishing package to ",
+            emphasis("private"),
+            " repository #{organization}."
+          ]
         ])
 
         Hex.Shell.yes?("Proceed?")
@@ -222,7 +226,10 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp emphasis(text) do
     if IO.ANSI.enabled?() do
-      [IO.ANSI.bright(), text, IO.ANSI.reset()]
+      IO.ANSI.format(
+        [:bright, text, :reset],
+        Hex.Shell.ansi_enabled?()
+      )
     else
       ["**", text, "**"]
     end
