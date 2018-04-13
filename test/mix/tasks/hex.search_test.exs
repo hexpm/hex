@@ -32,8 +32,6 @@ defmodule Mix.Tasks.Hex.SearchTest do
     end)
   end
 
-  @tag :skip
-  # This test is good, but there is a bug in the search code it is testing.
   test "search private package" do
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
