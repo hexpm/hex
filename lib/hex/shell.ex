@@ -43,4 +43,10 @@ defmodule Hex.Shell do
   else
     defp validate_output!(_output), do: :ok
   end
+
+  if Mix.env() == :test do
+    def ansi_enabled?(), do: false
+  else
+    def ansi_enabled?(), do: true
+  end
 end

@@ -112,10 +112,13 @@ defmodule Hex.Resolver do
 
   defp repo_conflict(name, parents) do
     message =
-      IO.ANSI.format([
-        [:underline, "Failed to use \"", name, "\" because", :reset, "\n"],
-        parent_messages(parents)
-      ])
+      IO.ANSI.format(
+        [
+          [:underline, "Failed to use \"", name, "\" because", :reset, "\n"],
+          parent_messages(parents)
+        ],
+        Hex.Shell.ansi_enabled?()
+      )
       |> IO.iodata_to_binary()
 
     throw({:repo_conflict, message})

@@ -236,6 +236,7 @@ defmodule Hex.RemoteConverger do
     end
   end
 
+<<<<<<< HEAD
   defp resolve_dependencies(resolved, locked) do
     locked = Enum.map(locked, &elem(&1, 0))
 
@@ -293,6 +294,10 @@ defmodule Hex.RemoteConverger do
         version
       )
     end)
+=======
+  defp print_status(nil, name, version) do
+    Hex.Shell.info(IO.ANSI.format([:green, "  #{name} #{version}"], Hex.Shell.ansi_enabled?()))
+>>>>>>> sets the IO.ANSI format/2 emit? arg based on mix env
   end
 
   defp print_status(nil, mod, name, previous_version, version) do

@@ -11,8 +11,6 @@ File.mkdir_p!(Case.tmp_path())
 
 Case.reset_state()
 
-Application.put_env(:elixir, :ansi_enabled, false)
-
 # Set up package fixtures
 unless :integration in ExUnit.configuration()[:exclude] do
   Hexpm.init()
