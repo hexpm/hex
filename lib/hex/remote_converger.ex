@@ -276,7 +276,7 @@ defmodule Hex.RemoteConverger do
 
   defp print_category(mod) do
     case mod do
-      :new -> Hex.Shell.info("Created:")
+      :new -> Hex.Shell.info("New:")
       :eq -> Hex.Shell.info("Unchanged:")
       :lt -> Hex.Shell.info("Downgraded:")
       :gt -> Hex.Shell.info("Upgraded:")
