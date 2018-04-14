@@ -42,8 +42,8 @@ defmodule Mix.Tasks.Hex.SearchTest do
       send(self(), {:mix_shell_input, :prompt, "password"})
       Mix.Tasks.Hex.Search.run(["doc", "--organization", "search2"])
 
-      refute_received {:mix_shell, :info, ["ex_doc\e[0m" <> _]}
-      refute_received {:mix_shell, :info, ["only_doc\e[0m" <> _]}
+      refute_received {:mix_shell, :info, ["ex_doc" <> _]}
+      refute_received {:mix_shell, :info, ["only_doc" <> _]}
     end)
   end
 end
