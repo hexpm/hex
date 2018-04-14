@@ -173,15 +173,12 @@ defmodule Hex.Resolver.Backtracks do
 
   def message({name, versions, repo, parents}, registry) do
     if parent_messages = parent_messages(registry, parents, repo, name, versions) do
-      IO.ANSI.format(
-        [
-          [:underline, "Failed to use \"", name, "\""],
-          versions_message(registry, repo, name, versions),
-          [" because", single_parent_message(parents), :reset, "\n"],
-          parent_messages
-        ],
-        Hex.Shell.ansi_enabled?()
-      )
+      Hex.Shell.format([
+        [:underline, "Failed to use \"", name, "\""],
+        versions_message(registry, repo, name, versions),
+        [" because", single_parent_message(parents), :reset, "\n"],
+        parent_messages
+      ])
       |> IO.iodata_to_binary()
     end
   end

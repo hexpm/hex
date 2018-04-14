@@ -296,8 +296,12 @@ defmodule Hex.RemoteConverger do
     end)
 =======
   defp print_status(nil, name, version) do
+<<<<<<< HEAD
     Hex.Shell.info(IO.ANSI.format([:green, "  #{name} #{version}"], Hex.Shell.ansi_enabled?()))
 >>>>>>> sets the IO.ANSI format/2 emit? arg based on mix env
+=======
+    Hex.Shell.info(Hex.Shell.format([:green, "  #{name} #{version}"]))
+>>>>>>> Refactors IO.ANSI.format to Hex.Shell.format
   end
 
   defp print_status(nil, mod, name, previous_version, version) do

@@ -226,10 +226,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp emphasis(text) do
     if IO.ANSI.enabled?() do
-      IO.ANSI.format(
-        [:bright, text, :reset],
-        Hex.Shell.ansi_enabled?()
-      )
+      Hex.Shell.format([:bright, text, :reset])
     else
       ["**", text, "**"]
     end
