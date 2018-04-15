@@ -50,7 +50,7 @@ defmodule Hex.Resolver.BacktracksTest do
 
   defp format(message) do
     message
-    |> IO.ANSI.format()
+    |> Hex.Shell.format()
     |> IO.iodata_to_binary()
   end
 end

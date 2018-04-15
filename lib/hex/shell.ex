@@ -32,6 +32,10 @@ defmodule Hex.Shell do
     Mix.shell().prompt(output)
   end
 
+  def format(output, emit? \\ Hex.Shell.ansi_enabled?()) do
+    IO.ANSI.format(output, emit?)
+  end
+
   if Mix.env() == :test do
     defp validate_output!(output) do
       formatted_output = output |> IO.ANSI.format_fragment(true) |> IO.chardata_to_string()
@@ -42,5 +46,11 @@ defmodule Hex.Shell do
     end
   else
     defp validate_output!(_output), do: :ok
+  end
+
+  if Mix.env() == :test do
+    def ansi_enabled?(), do: false
+  else
+    def ansi_enabled?(), do: true
   end
 end

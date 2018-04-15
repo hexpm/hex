@@ -78,7 +78,6 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
-  @tag ansi_enabled: true
   test "outdated" do
     Mix.Project.push(OutdatedDeps.MixProject)
 
@@ -103,7 +102,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         |> List.to_string()
 
       assert_received {:mix_shell, :info, [^bar]}
-      refute_received {:mix_shell, :info, ["\e[1mfoo" <> _]}
+      refute_received {:mix_shell, :info, ["foo" <> _]}
     end)
   end
 
