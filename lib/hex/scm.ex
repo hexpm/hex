@@ -309,6 +309,15 @@ defmodule Hex.SCM do
         {:ok, {code, _body, _headers}} ->
           {:error, "Request failed (#{code})"}
 
+        {:error, :timeout} ->
+          reason = """
+          Request failed (:timeout)
+          If this happens consistently, adjust your concurrency and timeout settings:
+          `HEX_HTTP_CONCURRENCY=1 HEX_HTTP_TIMEOUT=120 mix deps.get`.
+          """
+
+          {:error, reason}
+
         {:error, reason} ->
           {:error, "Request failed (#{inspect(reason)})"}
       end
