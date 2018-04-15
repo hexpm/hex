@@ -155,13 +155,10 @@ defmodule Mix.Tasks.Hex.DocsTest do
   end
 
   test "offline task fails when docs not found" do
-    package = "decimal"
-    version = "1.1.2"
-    message = "Couldn't find docs for package with name decimal or version 1.1.2"
+    Mix.Tasks.Hex.Docs.run(["offline", "decimal", "1.1.2"])
 
-    assert_raise Mix.Error, message, fn ->
-      Mix.Tasks.Hex.Docs.run(["offline", package, version])
-    end
+    message = "Couldn't find docs for package with name decimal or version 1.1.2"
+    assert_received {:mix_shell, :error, [^message]}
   end
 
   test "open latest version offline using offline task" do
@@ -224,19 +221,6 @@ defmodule Mix.Tasks.Hex.DocsTest do
       assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
       assert Enum.fetch!(browser_open_cmd, -1) == browser_open_msg
     end)
-  end
-
-  test "open raises an error" do
-    msg = """
-    Open has been removed, use one of:\n\nmix hex.docs online PACKAGE [VERSION]
-    mix hex.docs offline PACKAGE [VERSION]
-    """
-
-    package = "decimal"
-
-    assert_raise Mix.Error, msg, fn ->
-      Mix.Tasks.Hex.Docs.run(["open", package])
-    end
   end
 
   test "open docs online" do
