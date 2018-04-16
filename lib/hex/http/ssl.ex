@@ -26,13 +26,6 @@ defmodule Hex.HTTP.SSL do
 
   @secure_ssl_version {5, 3, 7}
 
-  @common_ssl_opts [
-    secure_renegotiate: true,
-    reuse_sessions: true,
-    honor_cipher_order: true,
-    versions: @default_versions
-  ]
-
   Record.defrecordp(
     :certificate,
     :OTPCertificate,
@@ -59,7 +52,7 @@ defmodule Hex.HTTP.SSL do
     check?
   end
 
-  def custom_cafile? do
+  defp custom_cafile? do
     Hex.State.get(:custom_cafile) != nil
   end
 
@@ -74,15 +67,13 @@ defmodule Hex.HTTP.SSL do
     verify_fun = {&VerifyHostname.verify_fun/3, check_hostname: hostname}
     partial_chain = &partial_chain(Certs.cacerts(), &1)
 
-    @common_ssl_opts ++
+    common_ssl_opts(hostname, ciphers) ++
       [
         verify: :verify_peer,
         depth: 4,
         partial_chain: partial_chain,
         cacerts: Certs.cacerts(),
-        verify_fun: verify_fun,
-        server_name_indication: hostname,
-        ciphers: ciphers
+        verify_fun: verify_fun
       ]
   end
 
@@ -90,24 +81,31 @@ defmodule Hex.HTTP.SSL do
     verify_fun = {&VerifyHostname.verify_fun/3, check_hostname: hostname}
     cacertfile = Hex.State.fetch!(:custom_cafile)
 
-    @common_ssl_opts ++
+    common_ssl_opts(hostname, ciphers) ++
       [
         verify: :verify_peer,
         depth: 4,
         cacertfile: cacertfile,
-        verify_fun: verify_fun,
-        server_name_indication: hostname,
-        ciphers: ciphers
+        verify_fun: verify_fun
       ]
   end
 
   defp ssl_opts(hostname, ciphers, _verify, _custom_cafile) do
-    @common_ssl_opts ++
+    common_ssl_opts(hostname, ciphers) ++
       [
-        verify: :verify_none,
-        server_name_indication: hostname,
-        ciphers: ciphers
+        verify: :verify_none
       ]
+  end
+
+  defp common_ssl_opts(hostname, ciphers) do
+    [
+      server_name_indication: hostname,
+      ciphers: ciphers,
+      secure_renegotiate: true,
+      reuse_sessions: true,
+      honor_cipher_order: true,
+      versions: @default_versions
+    ]
   end
 
   def partial_chain(cacerts, certs) do
