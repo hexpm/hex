@@ -314,7 +314,7 @@ defmodule Hex.SCM do
             "Request failed (:timeout)",
             :reset,
             "\nIf this happens consistently, adjust your concurrency and timeout settings:",
-            "\n`HEX_HTTP_CONCURRENCY=1 HEX_HTTP_TIMEOUT=120 mix deps.get`."
+            "\n\n    HEX_HTTP_CONCURRENCY=1 HEX_HTTP_TIMEOUT=120 mix deps.get"
           ]
 
           {:error, reason}
