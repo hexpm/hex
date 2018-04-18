@@ -221,7 +221,7 @@ defmodule Hex.RemoteConverger do
   end
 
   defp print_success(resolved, locked, old_lock) do
-    previously_locked_versions = Enum.into(old_lock, %{}, &dep_info_from_lock(&1))
+    previously_locked_versions = dep_info_from_lock(old_lock)
     resolved = resolve_dependencies(resolved, locked)
 
     if Map.size(resolved) != 0 do
@@ -260,9 +260,16 @@ defmodule Hex.RemoteConverger do
     end)
   end
 
-  defp dep_info_from_lock({_app, info}) do
-    %{name: name, repo: repo, version: version} = Hex.Utils.lock(info)
-    {name, {repo, version}}
+  defp dep_info_from_lock(lock) do
+    Enum.flat_map(lock, fn {_app, info} ->
+      case Hex.Utils.lock(info) do
+        %{name: name, repo: repo, version: version} ->
+          [{name, {repo, version}}]
+        nil ->
+          []
+      end
+    end)
+    |> Enum.into(%{})
   end
 
   defp version_string_or_nil(nil), do: nil

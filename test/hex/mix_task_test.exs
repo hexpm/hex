@@ -378,6 +378,26 @@ defmodule Hex.MixTaskTest do
     ])
   end
 
+  test "deps.update locked dependency from git" do
+    Mix.Project.push(EctoDep)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, System.cwd!())
+
+      File.write!("mix.lock", ~s(%{"ecto": {:git, "https://github.com/elixi-ecto/ecto", "CHECKSUM", []}}))
+      Mix.Task.run("deps.update", ["ecto"])
+
+      assert_received {:mix_shell, :info, ["  ecto 0.2.1"]}
+    end)
+  after
+    purge([
+      Ecto.NoConflict.MixProject,
+      Postgrex.NoConflict.MixProject,
+      Ex_doc.NoConflict.MixProject,
+      Sample.Fixture.MixProject
+    ])
+  end
+
   test "deps.get with override" do
     Mix.Project.push(Override)
 
