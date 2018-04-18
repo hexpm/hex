@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## v0.17.6-dev
+## v0.17.6 (2018-04-18)
+
+### Bug fixes
+
+* Fix crash when printing resolver output when having lock entries from other SCMs
 
 ## v0.17.5 (2018-04-18)
 
