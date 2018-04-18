@@ -245,12 +245,14 @@ defmodule Hex.RemoteConverger do
   end
 
   defp group_dependency_changes(resolved, previously_locked_versions) do
+    state = %{new: [], eq: [], gt: [], lt: []}
+
     resolved
     |> Enum.sort()
-    |> Enum.reduce(%{new: [], eq: [], gt: [], lt: []}, fn {name, {repo, version}}, acc ->
+    |> Enum.reduce(state, fn {name, {repo, version}}, acc ->
       previous_version =
         previously_locked_versions
-        |> Map.get(String.to_atom(name))
+        |> Map.get(name)
         |> version_string_or_nil()
 
       change = categorize_dependency_change(previous_version, version)
@@ -258,12 +260,10 @@ defmodule Hex.RemoteConverger do
     end)
   end
 
-  defp dep_info_from_lock({name, {_src, _app, version, _checksum, _build, _children, repo}}),
-    do: {name, {repo, version}}
-
-  defp dep_info_from_lock({name, {repo, _app, version, _checksum}}), do: {name, {repo, version}}
-
-  defp dep_info_from_lock({name, {repo, _app, version}}), do: {name, {repo, version}}
+  defp dep_info_from_lock({_app, info}) do
+    %{name: name, repo: repo, version: version} = Hex.Utils.lock(info)
+    {name, {repo, version}}
+  end
 
   defp version_string_or_nil(nil), do: nil
   defp version_string_or_nil({_repo, version_string}), do: version_string

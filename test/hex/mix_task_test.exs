@@ -318,13 +318,53 @@ defmodule Hex.MixTaskTest do
     ])
   end
 
-  test "deps.update locked dependency" do
+  test "deps.update locked dependency with minimal lock file" do
     Mix.Project.push(EctoDep)
 
     in_tmp(fn ->
       Hex.State.put(:home, System.cwd!())
 
       File.write!("mix.lock", ~s(%{"ecto": {:hex, :ecto, "0.2.0"}}))
+      Mix.Task.run("deps.update", ["ecto"])
+
+      assert_received {:mix_shell, :info, ["  ecto 0.2.0 => 0.2.1"]}
+    end)
+  after
+    purge([
+      Ecto.NoConflict.MixProject,
+      Postgrex.NoConflict.MixProject,
+      Ex_doc.NoConflict.MixProject,
+      Sample.Fixture.MixProject
+    ])
+  end
+
+  test "deps.update locked dependency with old lockfile" do
+    Mix.Project.push(EctoDep)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, System.cwd!())
+
+      File.write!("mix.lock", ~s(%{"ecto": {:hex, :ecto, "0.2.0", "CHECKSUM", [:mix]}}))
+      Mix.Task.run("deps.update", ["ecto"])
+
+      assert_received {:mix_shell, :info, ["  ecto 0.2.0 => 0.2.1"]}
+    end)
+  after
+    purge([
+      Ecto.NoConflict.MixProject,
+      Postgrex.NoConflict.MixProject,
+      Ex_doc.NoConflict.MixProject,
+      Sample.Fixture.MixProject
+    ])
+  end
+
+  test "deps.update locked dependency with new lockfile" do
+    Mix.Project.push(EctoDep)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, System.cwd!())
+
+      File.write!("mix.lock", ~s(%{"ecto": {:hex, :ecto, "0.2.0", "CHECKSUM", [:mix], [], "hexpm"}}))
       Mix.Task.run("deps.update", ["ecto"])
 
       assert_received {:mix_shell, :info, ["  ecto 0.2.0 => 0.2.1"]}
