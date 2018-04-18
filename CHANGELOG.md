@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## v0.17.5-dev
+## v0.17.5 (2018-04-18)
+
+### Bug fixes
+
+* Fix crash when printing resolver output for old lock files
 
 ## v0.17.4 (2018-04-18)
 
