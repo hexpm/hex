@@ -1,6 +1,26 @@
 # CHANGELOG
 
-## v0.17.4-dev
+## v0.17.4 (2018-04-18)
+
+### Enhancements
+
+* Tarball and registry code has been extracted to the `hex_erl` package
+* Hide retired versions when showing latest release in `hex.info` task
+* Add `hex.docs offline` and `hex.docs` online tasks
+* Add `--key-name` flag to key generation tasks
+* Add `:exclude_patterns` to package config for excluding files from package
+* Resolver now backtracks children before parents to improve versions selected when backtracking
+* Change some errors to warnings when building private packages
+* Group resolved dependency output into unchanged, updated, and downgraded when running `deps.get` and `deps.update` tasks
+* Add authentication to `hex.docs` task for showing private package documentation
+* Improve error message when package fetch times out
+* General improvements to tasks when accessing organizations
+
+### Bug fixes
+
+* Fix wrong publish message when using `--organization` flag in `hex.publish` task
+* Set file times inside tarballs to 2000-01-01 to fix tars on FAT file systems
+* Fix `hex.docs open` task on Windows
 
 ## v0.17.3 (2018-01-17)
 
