@@ -35,7 +35,7 @@ script:
 - mix test
 env:
   global:
-  - HEXPM_OTP=20.2
+  - HEXPM_OTP=20.3
   - HEXPM_ELIXIR=master
   - HEXPM_PATH=hexpm
   - HEXPM_ELIXIR_PATH=hexpm_elixir
@@ -44,9 +44,9 @@ env:
   - HEXPM_MIX_ARCHIVES=hexpm_mix
 matrix:
   include:
-  - otp_release: 20.2
-    env: ELIXIR=v1.6.1
-  - otp_release: 20.2
+  - otp_release: 20.3
+    env: ELIXIR=v1.6.4
+  - otp_release: 20.3
     env: ELIXIR=v1.5.3
   - otp_release: 20.2
     env: ELIXIR=v1.4.5
