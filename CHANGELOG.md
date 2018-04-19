@@ -1,6 +1,11 @@
 # CHANGELOG
 
-## v0.17.7-dev
+## v0.17.7 (2018-04-20)
+
+### Bug fixes
+
+* Fix crash when unpacking tarballs with broken symlinks
+* Correct the type of build tools package metadata
 
 ## v0.17.6 (2018-04-18)
 
