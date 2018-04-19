@@ -313,8 +313,20 @@ unpack_tarball(ContentsBinary, Output) ->
     end.
 
 touch(Path) ->
+    case do_touch(Path) of
+        ok -> ok;
+        {error, enoent} -> touch_new(Path)
+    end.
+
+touch_new(Path) ->
+    case file:write_file(Path, <<"">>, [append]) of
+        ok -> do_touch(Path);
+        {error, _} = Error -> Error
+    end.
+
+do_touch(Path) ->
     Time = calendar:universal_time(),
-    ok = file:write_file_info(Path, #file_info{mtime=Time}, [{time, universal}]).
+    file:write_file_info(Path, #file_info{mtime=Time}, [{time, universal}]).
 
 create_tarball(Files, Options) ->
     Tarball = create_memory_tarball(Files),
