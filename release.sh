@@ -84,6 +84,8 @@ build ${hex_version} 17.5 1.0.5 1.0.0
 hex_csv "${hex_version}" 1.0.0 1.1.0 1.2.0 1.3.0 1.4.0 1.5.0 1.6.0
 upload  "${hex_version}" 1.0.0 1.1.0 1.2.0 1.3.0 1.4.0 1.5.0 1.6.0
 
+heroku run -a hexpm mix run scripts/add_install.exs ${hex_version} 1.6.0 1.5.0 1.4.0 1.3.0 1.2.0 1.1.0 1.0.0
+
 # CDN also needs to be purged
 
 rm -rf _build

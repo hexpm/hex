@@ -2,33 +2,25 @@
 
 This document simply outlines the release process:
 
-1. Ensure you are running on the oldest supported Erlang version
+1. Remove all `-dev` extension from versions (see below for all files)
 
-2. Run `mix do clean --deps, clean && mix test` to ensure all tests pass from scratch and the CI is green
+2. Ensure CHANGELOG is updated and add current date
 
-3. Remove all `-dev` extension from versions (see below for all files)
+3. Commit changes above with title "Release vVERSION" and generate new tag
 
-4. Ensure CHANGELOG is updated and add current date
+4. Push master and the new tag
 
-5. Commit changes above with title "Release vVERSION" and generate new tag
+5. Update the local `release.sh` with the Elixir and OTP versions Hex should be built against
 
-6. Push master and the new tag
+6. Run the `release.sh` script and set the path to the private key for Elixir `ELIXIR_PEM=path/to/elixir.pem release.sh`
 
-7. Build Hex with `MIX_ENV=prod mix archive.build` against supported Elixir versions (see below)
+7. Purge the `installs` key on Fastly
 
-8. Build Hex with `MIX_ENV=prod mix archive.build -o hex.ez` giving the correct name in `-o` is important, renaming the file afterwards doesn't work
+8. Increment version and add `-dev` extension to versions (see below for all files)
 
-9. Update hex release csv, sign and upload to S3 (see below for instructions)
+9. Commit changes above with title "Bump to vVERSION-dev"
 
-10. Upload builds, csv and signed files to S3 (see below for paths)
-
-11. Add new release by running `mix run scripts/add_install.exs HEX_VERSION ELIXIR_VERSION [ELIXIR_VERSION ...]`
-
-12. Increment version and add `-dev` extension to versions (see below for all files)
-
-13. Commit changes above with title "Bump to vVERSION-dev"
-
-14. Push master
+10. Push master
 
 ## All builds
 
