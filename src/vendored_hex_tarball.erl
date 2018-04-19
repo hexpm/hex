@@ -8,7 +8,7 @@
 -define(VERSION, <<"3">>).
 -define(TARBALL_MAX_SIZE, 8 * 1024 * 1024).
 -define(BUILD_TOOL_FILES, [
-                            {<<"mix.exs">>, "mix"},
+                            {<<"mix.exs">>, <<"mix">>},
                             {<<"rebar.config">>, <<"rebar">>},
                             {<<"rebar">>, <<"rebar">>},
                             {<<"Makefile">>, <<"make">>},
