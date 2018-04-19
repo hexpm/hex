@@ -8,12 +8,12 @@
 -define(VERSION, <<"3">>).
 -define(TARBALL_MAX_SIZE, 8 * 1024 * 1024).
 -define(BUILD_TOOL_FILES, [
-                            {<<"mix.exs">>, <<"mix">>},
-                            {<<"rebar.config">>, <<"rebar">>},
-                            {<<"rebar">>, <<"rebar">>},
-                            {<<"Makefile">>, <<"make">>},
-                            {<<"Makefile.win">>, <<"make">>}
-                           ]).
+    {<<"mix.exs">>, <<"mix">>},
+    {<<"rebar.config">>, <<"rebar">>},
+    {<<"rebar">>, <<"rebar">>},
+    {<<"Makefile">>, <<"make">>},
+    {<<"Makefile.win">>, <<"make">>}
+]).
 -include_lib("kernel/include/file.hrl").
 
 -type checksum() :: binary().
@@ -50,10 +50,10 @@ create(Metadata, Files) ->
     ChecksumBase16 = encode_base16(Checksum),
 
     OuterFiles = [
-      {"VERSION", ?VERSION},
-      {"CHECKSUM", ChecksumBase16},
-      {"metadata.config", MetadataBinary},
-      {"contents.tar.gz", ContentsBinary}
+       {"VERSION", ?VERSION},
+       {"CHECKSUM", ChecksumBase16},
+       {"metadata.config", MetadataBinary},
+       {"contents.tar.gz", ContentsBinary}
     ],
 
     Tarball = create_tarball(OuterFiles, []),
@@ -139,10 +139,11 @@ checksum(Version, MetadataBinary, ContentsBinary) ->
     crypto:hash(sha256, Blob).
 
 encode_metadata(Meta) ->
-    Data = lists:map(fun(MetaPair) ->
-        String = io_lib_pretty:print(binarify(MetaPair), [{encoding, utf8}]),
-        unicode:characters_to_binary([String, ".\n"])
-      end, maps:to_list(Meta)),
+    Data = lists:map(
+        fun(MetaPair) ->
+            String = io_lib_pretty:print(binarify(MetaPair), [{encoding, utf8}]),
+            unicode:characters_to_binary([String, ".\n"])
+        end, maps:to_list(Meta)),
     iolist_to_binary(Data).
 
 do_unpack(Files, Output) ->
@@ -306,27 +307,17 @@ unpack_tarball(ContentsBinary, memory) ->
 unpack_tarball(ContentsBinary, Output) ->
     case vendored_hex_erl_tar:extract({binary, ContentsBinary}, [{cwd, Output}, compressed]) of
         ok ->
-            [touch(filename:join(Output, Path)) || Path <- filelib:wildcard("**", Output)],
+            [try_updating_mtime(filename:join(Output, Path)) || Path <- filelib:wildcard("**", Output)],
             ok;
         Other ->
             Other
     end.
 
-touch(Path) ->
-    case do_touch(Path) of
-        ok -> ok;
-        {error, enoent} -> touch_new(Path)
-    end.
-
-touch_new(Path) ->
-    case file:write_file(Path, <<"">>, [append]) of
-        ok -> do_touch(Path);
-        {error, _} = Error -> Error
-    end.
-
-do_touch(Path) ->
+%% let it silently fail for bad symlinks
+try_updating_mtime(Path) ->
     Time = calendar:universal_time(),
-    file:write_file_info(Path, #file_info{mtime=Time}, [{time, universal}]).
+    _ = file:write_file_info(Path, #file_info{mtime=Time}, [{time, universal}]),
+    ok.
 
 create_tarball(Files, Options) ->
     Tarball = create_memory_tarball(Files),
