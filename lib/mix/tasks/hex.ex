@@ -160,11 +160,12 @@ defmodule Mix.Tasks.Hex do
 
   def auth_info() do
     key = Hex.State.fetch!(:api_key)
+    hex_api_key = System.get_env("HEX_API_KEY")
 
-    if key do
-      [key: prompt_decrypt_key(key)]
-    else
-      authenticate_inline()
+    cond do
+      hex_api_key -> [key: hex_api_key]
+      key -> [key: prompt_decrypt_key(key)]
+      true -> authenticate_inline()
     end
   end
 
