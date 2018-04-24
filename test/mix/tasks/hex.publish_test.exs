@@ -197,7 +197,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert_received {:mix_shell, :info, ["Generating API key..."]}
       assert_received {:mix_shell, :info, [key]}
 
-      System.put_env("HEX_API_KEY", key)
+      Hex.State.put(:hex_api_key, key)
       Mix.Tasks.Hex.Publish.run(["package", "--no-confirm"])
 
       message = "Building release_a 0.0.1"
@@ -205,7 +205,6 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
     end)
   after
-    System.delete_env("HEX_API_KEY")
     purge([ReleaseSimple.MixProject])
   end
 
