@@ -87,7 +87,7 @@ defmodule Mix.Tasks.Hex do
           Hex.Shell.info(@local_password_prompt)
           prompt_encrypt_key(body["secret"])
         else
-          body["secret"]
+          Hex.Shell.info(body["secret"])
         end
 
       other ->

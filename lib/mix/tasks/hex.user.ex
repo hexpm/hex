@@ -315,6 +315,6 @@ defmodule Mix.Tasks.Hex.User do
     # get key from API
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
     password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.string_trim()
-    Hex.Shell.info(Mix.Tasks.Hex.generate_api_key(username, password, nil, false))
+    Mix.Tasks.Hex.generate_api_key(username, password, nil, false)
   end
 end

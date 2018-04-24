@@ -193,7 +193,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp proceed?(build, organization, opts) do
-    confirm? = Keyword.get(opts, :confirm, show_confirmation_default())
+    confirm? = Keyword.get(opts, :confirm, true)
     meta = build.meta
     exclude_deps = build.exclude_deps
     package = build.package
@@ -359,8 +359,6 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp progress_fun(true, size), do: Mix.Tasks.Hex.progress(size)
   defp progress_fun(false, _size), do: Mix.Tasks.Hex.progress(nil)
-
-  defp show_confirmation_default(), do: is_nil(System.get_env("HEX_API_KEY"))
 
   defp auth_info() do
     hex_api_key = System.get_env("HEX_API_KEY")
