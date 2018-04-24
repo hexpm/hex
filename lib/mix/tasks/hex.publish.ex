@@ -107,11 +107,11 @@ defmodule Mix.Tasks.Hex.Publish do
 
     case args do
       ["package"] when revert ->
-        auth = Mix.Tasks.Hex.auth_info()
+        auth = auth_info()
         revert_package(build, organization, revert_version, auth)
 
       ["docs"] when revert ->
-        auth = Mix.Tasks.Hex.auth_info()
+        auth = auth_info()
         revert_docs(build, organization, revert_version, auth)
 
       [] when revert ->
@@ -119,13 +119,13 @@ defmodule Mix.Tasks.Hex.Publish do
 
       ["package"] ->
         if proceed?(build, organization, opts) do
-          auth = Mix.Tasks.Hex.auth_info()
+          auth = auth_info()
           create_release(build, organization, auth, opts)
         end
 
       ["docs"] ->
         docs_task(build, opts)
-        auth = Mix.Tasks.Hex.auth_info()
+        auth = auth_info()
         create_docs(build, organization, auth, opts)
 
       [] ->
@@ -146,7 +146,7 @@ defmodule Mix.Tasks.Hex.Publish do
     if proceed?(build, organization, opts) do
       Hex.Shell.info("Building docs...")
       docs_task(build, opts)
-      auth = Mix.Tasks.Hex.auth_info()
+      auth = auth_info()
       Hex.Shell.info("Publishing package...")
 
       if :ok == create_release(build, organization, auth, opts) do
@@ -193,7 +193,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp proceed?(build, organization, opts) do
-    confirm? = Keyword.get(opts, :confirm, true)
+    confirm? = Keyword.get(opts, :confirm, show_confirmation_default())
     meta = build.meta
     exclude_deps = build.exclude_deps
     package = build.package
@@ -240,7 +240,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp revert(build, organization, version) do
-    auth = Mix.Tasks.Hex.auth_info()
+    auth = auth_info()
     Hex.Shell.info("Reverting package...")
     revert_package(build, organization, version, auth)
     Hex.Shell.info("Reverting docs...")
@@ -359,4 +359,16 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp progress_fun(true, size), do: Mix.Tasks.Hex.progress(size)
   defp progress_fun(false, _size), do: Mix.Tasks.Hex.progress(nil)
+
+  defp show_confirmation_default(), do: is_nil(System.get_env("HEX_API_KEY"))
+
+  defp auth_info() do
+    hex_api_key = System.get_env("HEX_API_KEY")
+
+    if hex_api_key do
+      [key: hex_api_key]
+    else
+      Mix.Tasks.Hex.auth_info()
+    end
+  end
 end

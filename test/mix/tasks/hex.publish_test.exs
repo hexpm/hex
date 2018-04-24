@@ -185,6 +185,34 @@ defmodule Mix.Tasks.Hex.PublishTest do
     purge([ReleaseSimple.MixProject])
   end
 
+  test "create with HEX_API_KEY" do
+    Mix.Project.push(ReleaseSimple.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user", "hunter42")
+      send(self(), {:mix_shell_input, :prompt, "user"})
+      send(self(), {:mix_shell_input, :prompt, "hunter42"})
+      Mix.Tasks.Hex.User.run(["key", "--generate"])
+      assert_received {:mix_shell, :info, ["Generating API key..."]}
+      assert_received {:mix_shell, :info, [key]}
+
+      System.put_env("HEX_API_KEY", key)
+      Mix.Tasks.Hex.Publish.run(["package"])
+
+      message =
+        "Package published to http://localhost:4043/packages/release_a/0.0.1 " <>
+          "(003480ccb7e23538f486689bda4f8a5ee50ff495e04a0bfd31e95640b7a6a02a)"
+
+      assert_received {:mix_shell, :info, [^message]}
+
+      assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
+    end)
+  after
+    System.delete_env("HEX_API_KEY")
+    purge([ReleaseSimple.MixProject])
+  end
+
   test "create with deps" do
     Mix.Project.push(ReleaseDeps.MixProject)
 

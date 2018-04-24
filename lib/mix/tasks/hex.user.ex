@@ -37,6 +37,12 @@ defmodule Mix.Tasks.Hex.User do
 
     * `--skip-organizations` - Skip deauthorizing all organizations.
 
+  ## Generate API key
+
+  Generates an unencrypted API key for your account
+
+      mix hex.user key --generate
+
   ## Revoke key
 
   Removes given API key from account.
@@ -75,7 +81,8 @@ defmodule Mix.Tasks.Hex.User do
     revoke: :string,
     list: :boolean,
     skip_organizations: :boolean,
-    key_name: :string
+    key_name: :string,
+    generate: :boolean
   ]
 
   def run(args) do
@@ -117,6 +124,7 @@ defmodule Mix.Tasks.Hex.User do
     mix hex.user whoami
     mix hex.user auth
     mix hex.user deauth
+    mix hex.user key --generate
     mix hex.user key --revoke-all
     mix hex.user key --revoke KEY_NAME
     mix hex.user key --list
@@ -135,6 +143,9 @@ defmodule Mix.Tasks.Hex.User do
 
       opts[:list] ->
         list_keys()
+
+      opts[:generate] ->
+        generate_unencrypted_key()
 
       true ->
         invalid_args()
@@ -298,5 +309,12 @@ defmodule Mix.Tasks.Hex.User do
         Hex.Shell.error("Key fetching failed")
         Hex.Utils.print_error_result(other)
     end
+  end
+
+  defp generate_unencrypted_key() do
+    # get key from API
+    username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
+    password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.string_trim()
+    Hex.Shell.info(Mix.Tasks.Hex.generate_api_key(username, password, nil, false))
   end
 end

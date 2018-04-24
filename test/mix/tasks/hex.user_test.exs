@@ -242,4 +242,17 @@ defmodule Mix.Tasks.Hex.UserTest do
       assert_received {:mix_shell, :error, ["Wrong password. Try again"]}
     end)
   end
+
+  test "key --generate" do
+    in_tmp(fn ->
+      Hex.State.put(:home, System.cwd!())
+      Hexpm.new_user("userkeygenerate", "userkeygenerate@mail.com", "password", "password")
+      send(self(), {:mix_shell_input, :prompt, "userkeygenerate"})
+      send(self(), {:mix_shell_input, :prompt, "password"})
+      Mix.Tasks.Hex.User.run(["key", "--generate"])
+      assert_received {:mix_shell, :info, ["Generating API key..."]}
+      assert_received {:mix_shell, :info, [key]}
+      assert is_binary(key)
+    end)
+  end
 end
