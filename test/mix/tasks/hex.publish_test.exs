@@ -205,6 +205,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
     end)
   after
+    Hex.State.put(:hex_api_key, nil)
     purge([ReleaseSimple.MixProject])
   end
 

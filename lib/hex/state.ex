@@ -32,7 +32,7 @@ defmodule Hex.State do
         |> default(false)
         |> Kernel.not(),
       clean_pass: true,
-      hex_api_key: load_config(config, ["HEX_API_KEY"], [:"$unencrypted_key"]),
+      hex_api_key: load_config(config, ["HEX_API_KEY"], [:hex_api_key]),
       http_concurrency:
         load_config(config, ["HEX_HTTP_CONCURRENCY"], [:http_concurrency])
         |> to_integer()
