@@ -106,7 +106,6 @@ defmodule Hex.SCM do
     filename = "#{name}-#{lock.version}.tar"
     path = cache_path(repo, filename)
     url = Hex.Repo.get_repo(repo).url <> "/tarballs/#{filename}"
-    safe_url = Regex.replace(~r/\/\/([^:]*):[^@]+@/, url, "//\\1:******@")
 
     case Hex.Parallel.await(:hex_fetcher, {:tarball, repo, name, lock.version}, @fetch_timeout) do
       {:ok, :cached} ->
@@ -122,12 +121,14 @@ defmodule Hex.SCM do
           Registry.persist()
         end
 
+        safe_url = prune_uri_userinfo(url)
         Hex.Shell.debug("  Fetched package (#{safe_url})")
 
       {:error, reason} ->
         Hex.Shell.error(reason)
 
         unless File.exists?(path) do
+          safe_url = prune_uri_userinfo(url)
           Mix.raise("Package fetch failed and no cached copy available (#{safe_url})")
         end
 
@@ -158,6 +159,13 @@ defmodule Hex.SCM do
       |> Enum.sort()
 
     {:hex, String.to_atom(lock.name), lock.version, lock.checksum, managers, deps, lock.repo}
+  end
+
+  defp prune_uri_userinfo(url) do
+    case URI.parse(url) do
+      %URI{userinfo: nil} -> url
+      uri -> URI.to_string(%{uri | userinfo: "******"})
+    end
   end
 
   def checkout(opts) do
