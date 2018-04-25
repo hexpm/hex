@@ -10,17 +10,19 @@ This document simply outlines the release process:
 
 4. Push master and the new tag
 
-5. Update the local `release.sh` with the Elixir and OTP versions Hex should be built against
+5. Create GitHub release
 
-6. Run the `release.sh` script and set the path to the private key for Elixir `ELIXIR_PEM=path/to/elixir.pem release.sh`
+6. Update the local `release.sh` with the Elixir and OTP versions Hex should be built against
 
-7. Purge the `installs` key on Fastly
+7. Run the `release.sh` script and set the path to the private key for Elixir `ELIXIR_PEM=path/to/elixir.pem release.sh`
 
-8. Increment version and add `-dev` extension to versions (see below for all files)
+8. Purge the `installs` key on Fastly
 
-9. Commit changes above with title "Bump to vVERSION-dev"
+9. Increment version and add `-dev` extension to versions (see below for all files)
 
-10. Push master
+10. Commit changes above with title "Bump to vVERSION-dev"
+
+11. Push master
 
 ## All builds
 
