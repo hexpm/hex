@@ -37,7 +37,8 @@ defmodule Mix.Tasks.Hex.Publish do
 
     * `--revert VERSION` - Revert given version
     * `--organization ORGANIZATION` - The organization the package belongs to
-
+    * `--no-confirm` - Disables confirmation message before publishing
+    
   ## Configuration
 
     * `:app` - Package name (required).
