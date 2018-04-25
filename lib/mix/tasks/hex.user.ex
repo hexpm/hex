@@ -150,7 +150,7 @@ defmodule Mix.Tasks.Hex.User do
         list_keys()
 
       opts[:generate] ->
-        generate_unencrypted_key()
+        generate_unencrypted_key(opts)
 
       true ->
         invalid_args()
@@ -316,9 +316,10 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp generate_unencrypted_key() do
+  defp generate_unencrypted_key(opts) do
+    key_name = opts[:key_name]
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
     password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.string_trim()
-    Mix.Tasks.Hex.generate_api_key(username, password, key_name: nil, encrypt: false)
+    Mix.Tasks.Hex.generate_api_key(username, password, key_name: key_name, encrypt: false)
   end
 end
