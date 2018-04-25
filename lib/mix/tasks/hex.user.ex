@@ -43,6 +43,11 @@ defmodule Mix.Tasks.Hex.User do
 
       mix hex.user key --generate
 
+  ## Command line options
+
+    * `--key-name KEY_NAME` - By default Hex will base the key name on your machine's
+      hostname, use this option to give your own name.
+
   ## Revoke key
 
   Removes given API key from account.
@@ -241,7 +246,7 @@ defmodule Mix.Tasks.Hex.User do
   defp create_user(username, email, password) do
     case Hex.API.User.new(username, email, password) do
       {:ok, {code, _, _}} when code in 200..299 ->
-        Mix.Tasks.Hex.generate_api_key(username, password, nil)
+        Mix.Tasks.Hex.generate_api_key(username, password, key_name: nil)
 
         Hex.Shell.info(
           "You are required to confirm your email to access your account, " <>
@@ -312,9 +317,8 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp generate_unencrypted_key() do
-    # get key from API
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
     password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.string_trim()
-    Mix.Tasks.Hex.generate_api_key(username, password, nil, false)
+    Mix.Tasks.Hex.generate_api_key(username, password, key_name: nil, encrypt: false)
   end
 end

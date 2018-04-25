@@ -76,10 +76,11 @@ defmodule Mix.Tasks.Hex do
                            "Hex requires you to have a local password that applies only to this machine for security " <>
                            "purposes. Please enter it."
 
-  def generate_api_key(username, password, key_name, encrypt? \\ true) do
+  def generate_api_key(username, password, opts) do
     Hex.Shell.info("Generating API key...")
     {:ok, name} = :inet.gethostname()
-    key_name = key_name || List.to_string(name)
+    key_name = opts[:key_name] || List.to_string(name)
+    encrypt? = is_nil(opts[:encrypt]) || opts[:encrypt]
 
     case Hex.API.Key.new(key_name, user: username, pass: password) do
       {:ok, {201, body, _}} ->
@@ -124,7 +125,7 @@ defmodule Mix.Tasks.Hex do
     password = password_get("Account password:") |> Hex.string_trim()
 
     unless opts[:skip_organizations] do
-      case generate_api_key(username, password, opts[:key_name]) do
+      case generate_api_key(username, password, key_name: opts[:key_name]) do
         {:ok, key, password} ->
           Hex.Shell.info("Generating organization keys...")
           auth = [key: key]
