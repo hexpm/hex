@@ -81,6 +81,9 @@ defmodule Mix.Tasks.Hex.User do
       mix hex.user reset_password local
   """
 
+  # TODO: when you revoke the key that is used to set the config api_key_unencrypted, anytime you try to auth after that will fail.
+  # need to remove that config too.
+
   @switches [
     revoke_all: :boolean,
     revoke: :string,

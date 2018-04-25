@@ -161,7 +161,7 @@ defmodule Mix.Tasks.Hex do
 
   def auth_info() do
     key = Hex.State.fetch!(:api_key)
-    hex_api_key = Hex.State.fetch!(:hex_api_key)
+    hex_api_key = Hex.State.fetch!(:api_key_unencrypted)
 
     cond do
       hex_api_key -> [key: hex_api_key]

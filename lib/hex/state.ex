@@ -17,6 +17,7 @@ defmodule Hex.State do
   def init(config) do
     %{
       api_key: load_config(config, [], [:"$encrypted_key", :encrypted_key]),
+      api_key_unencrypted: load_config(config, ["HEX_API_KEY"], [:api_key_unencrypted]),
       api_url:
         load_config(config, ["HEX_API_URL", "HEX_API"], [:api_url])
         |> trim_slash()
@@ -32,7 +33,6 @@ defmodule Hex.State do
         |> default(false)
         |> Kernel.not(),
       clean_pass: true,
-      hex_api_key: load_config(config, ["HEX_API_KEY"], [:hex_api_key]),
       http_concurrency:
         load_config(config, ["HEX_HTTP_CONCURRENCY"], [:http_concurrency])
         |> to_integer()

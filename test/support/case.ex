@@ -230,7 +230,7 @@ defmodule HexTest.Case do
   Hex.State.put(:hexpm_pk, File.read!(Path.join(__DIR__, "../fixtures/test_pub.pem")))
   Hex.State.put(:api_url, "http://localhost:4043/api")
   Hex.State.put(:api_key, nil)
-  Hex.State.put(:hex_api_key, nil)
+  Hex.State.put(:api_key_unencrypted, nil)
   Hex.State.update!(:repos, &put_in(&1["hexpm"].url, "http://localhost:4043/repo"))
   Hex.State.update!(:repos, &put_in(&1["hexpm"].public_key, public_key))
   Hex.State.update!(:repos, &put_in(&1["hexpm"].auth_key, nil))
