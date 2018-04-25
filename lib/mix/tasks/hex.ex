@@ -80,7 +80,7 @@ defmodule Mix.Tasks.Hex do
     Hex.Shell.info("Generating API key...")
     {:ok, name} = :inet.gethostname()
     key_name = opts[:key_name] || List.to_string(name)
-    encrypt? = is_nil(opts[:encrypt]) || opts[:encrypt]
+    encrypt? = Keyword.get(opts, :encrypt, true)
 
     case Hex.API.Key.new(key_name, user: username, pass: password) do
       {:ok, {201, body, _}} ->
