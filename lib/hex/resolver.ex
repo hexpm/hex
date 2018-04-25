@@ -149,6 +149,8 @@ defmodule Hex.Resolver do
       state(activated: activated, requests: pending, optional: optional, deps: info(info, :deps))
 
     if seen_state?(name, version, state, info) do
+      throw(:duplicate_state)
+    else
       repo = info(info, :repos)[name] || repo
 
       new_active =
@@ -166,8 +168,6 @@ defmodule Hex.Resolver do
       info = info(info, deps: new_deps)
 
       run(new_pending, new_optional, info, activated)
-    else
-      throw(:duplicate_state)
     end
   end
 
@@ -197,7 +197,7 @@ defmodule Hex.Resolver do
   defp seen_state?(name, version, state(activated: activated) = state, info(ets: ets)) do
     activated = Enum.into(activated, %{}, fn {k, v} -> {k, active(v, state: nil)} end)
     state = state(state, activated: activated, deps: nil)
-    :ets.insert_new(ets, [{{name, version, state}}])
+    not :ets.insert_new(ets, [{{name, version, state}}])
   end
 
   defp get_versions(repo, package, requests, info(registry: registry)) do
