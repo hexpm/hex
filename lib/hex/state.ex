@@ -56,7 +56,8 @@ defmodule Hex.State do
         |> default(false),
       pbkdf2_iters: @pbkdf2_iters,
       repos: Hex.Config.read_repos(config),
-      ssl_version: ssl_version()
+      ssl_version: ssl_version(),
+      custom_cafile: load_config(config, ["HEX_CAFILE"], [:cafile])
     }
   end
 
