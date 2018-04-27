@@ -3,7 +3,7 @@ defmodule Hex.Mix do
   Utility functions around Mix dependencies.
   """
 
-  @type dep :: {String.t(), String.t(), boolean, [String.t()]}
+  @type deps :: %{String.t() => {String.t(), boolean, deps}}
 
   @doc """
   Returns `true` if the version and requirement match.
@@ -45,25 +45,25 @@ defmodule Hex.Mix do
   Returns a map with the overridden upper breadths dependencies of
   the given parent (including the parent level itself).
   """
-  @spec overridden_parents([String.t()], [dep], String.t()) :: [dep]
+  @spec overridden_parents([String.t()], deps, String.t()) :: %{String.t => true}
   def overridden_parents(top_level, deps, parent) do
     deps
-    |> Enum.filter(fn {_repo, app, _override, _children} -> app in top_level end)
+    |> Map.take(top_level)
     |> do_overridden_parents(deps, parent, %{})
     |> elem(0)
   end
 
   def do_overridden_parents(level, deps, parent, visited) do
     {children_map, found?, visited} =
-      Enum.reduce(level, {%{}, false, visited}, fn {_repo, app, _override, children},
+      Enum.reduce(level, {%{}, false, visited}, fn {app, {_repo, _override, children}},
                                                    {acc_map, acc_found?, visited} ->
         case Map.fetch(visited, app) do
           {:ok, {children_map, found?}} ->
             {Map.merge(acc_map, children_map), found? or acc_found?, visited}
 
           :error ->
-            children_apps = Enum.map(children, &elem(&1, 1))
-            children_deps = Enum.filter(deps, fn {_, app, _, _} -> app in children_apps end)
+            children_apps = Map.keys(children)
+            children_deps = Map.take(deps, children_apps)
 
             {children_map, found?, visited} =
               do_overridden_parents(children_deps, deps, parent, visited)
@@ -78,7 +78,7 @@ defmodule Hex.Mix do
         overridden_map = Map.merge(level_to_overridden_map(level), children_map)
         {overridden_map, true, visited}
 
-      parent in Enum.map(level, &elem(&1, 1)) ->
+      Map.has_key?(level, parent) ->
         {level_to_overridden_map(level), true, visited}
 
       true ->
@@ -87,7 +87,7 @@ defmodule Hex.Mix do
   end
 
   defp level_to_overridden_map(level) do
-    for {_repo, app, override, _children} <- level,
+    for {app, {_repo, override, _children}} <- level,
         override,
         do: {app, true},
         into: %{}
@@ -99,22 +99,14 @@ defmodule Hex.Mix do
   we use in overridden_parents to check overridden status.
   """
   def attach_dep_and_children(deps, app, children) do
-    {repo, app, override, _} = Enum.find(deps, &(elem(&1, 1) == app))
+    {repo, override, _} = Map.fetch!(deps, app)
 
     children =
-      Enum.map(children, fn {repo, _name, app, _req, _optional} ->
-        {repo, app, false, []}
+      Enum.into(children, %{}, fn {repo, _name, app, _req, _optional} ->
+        {app, {repo, false, %{}}}
       end)
 
-    new_dep = {repo, app, override, children}
-    put_dep(deps, new_dep) ++ children
-  end
-
-  # Replace a dependency in the tree
-  defp put_dep(deps, {_, new_app, _, _} = new_dep) do
-    Enum.map(deps, fn {_, app, _, _} = dep ->
-      if app == new_app, do: new_dep, else: dep
-    end)
+    Map.merge(children, Map.put(deps, app, {repo, override, children}))
   end
 
   @doc """
@@ -140,15 +132,15 @@ defmodule Hex.Mix do
   @doc """
   Prepare Mix dependencies for the format the resolver expects.
   """
-  @spec prepare_deps([Mix.Dep.t()]) :: [dep]
+  @spec prepare_deps([Mix.Dep.t()]) :: deps
   def prepare_deps(deps) do
-    Enum.map(deps, fn %Mix.Dep{app: app, deps: deps, opts: opts} ->
+    Enum.into(deps, %{}, fn %Mix.Dep{app: app, deps: deps, opts: opts} ->
       deps =
-        Enum.map(deps, fn %Mix.Dep{app: app, opts: opts} ->
-          {opts[:repo] || "hexpm", Atom.to_string(app), !!opts[:override], []}
+        Enum.into(deps, %{}, fn %Mix.Dep{app: app, opts: opts} ->
+          {Atom.to_string(app), {opts[:repo] || "hexpm", !!opts[:override], []}}
         end)
 
-      {opts[:repo] || "hexpm", Atom.to_string(app), !!opts[:override], deps}
+      {Atom.to_string(app), {opts[:repo] || "hexpm", !!opts[:override], deps}}
     end)
   end
 
