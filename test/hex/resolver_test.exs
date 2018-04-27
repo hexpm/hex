@@ -24,9 +24,9 @@ defmodule Hex.ResolverTest do
   defp config({repo, app, req}), do: {Atom.to_string(repo), Atom.to_string(app), req}
 
   defp deps(reqs) do
-    Enum.map(reqs, fn dep ->
+    Enum.into(reqs, %{}, fn dep ->
       {repo, name, _req} = config(dep)
-      {repo, name, false, []}
+      {name, {repo, false, %{}}}
     end)
   end
 
