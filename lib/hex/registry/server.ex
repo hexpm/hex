@@ -97,16 +97,13 @@ defmodule Hex.Registry.Server do
   end
 
   defp state() do
-    offline? = Hex.State.fetch!(:offline?)
-
     %{
       ets: nil,
       path: nil,
       pending: Hex.Set.new(),
       fetched: Hex.Set.new(),
       waiting: %{},
-      closing_fun: nil,
-      offline?: offline?
+      closing_fun: nil
     }
   end
 
