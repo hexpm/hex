@@ -81,9 +81,6 @@ defmodule Mix.Tasks.Hex.User do
       mix hex.user reset_password local
   """
 
-  # TODO: when you revoke the key that is used to set the config api_key_unencrypted, anytime you try to auth after that will fail.
-  # need to remove that config too.
-
   @switches [
     revoke_all: :boolean,
     revoke: :string,
@@ -208,6 +205,8 @@ defmodule Mix.Tasks.Hex.User do
       deauth_organizations()
     end
 
+    remove_unencrypted_key()
+
     Hex.Shell.info(
       "Authentication credentials removed from the local machine. " <>
         "To authenticate again, run `mix hex.user auth` " <>
@@ -324,5 +323,10 @@ defmodule Mix.Tasks.Hex.User do
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
     password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.string_trim()
     Mix.Tasks.Hex.generate_api_key(username, password, key_name: key_name, encrypt: false)
+  end
+
+  defp remove_unencrypted_key() do
+    Mix.Tasks.Hex.Config.run(["api_key_unencrypted", "--delete"])
+    Hex.State.put(:api_key_uncrypted, nil)
   end
 end
