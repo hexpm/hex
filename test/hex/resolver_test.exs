@@ -25,8 +25,8 @@ defmodule Hex.ResolverTest do
 
   defp deps(reqs) do
     Enum.into(reqs, %{}, fn dep ->
-      {repo, name, _req} = config(dep)
-      {name, {repo, false, %{}}}
+      {_repo, name, _req} = config(dep)
+      {name, {false, %{}}}
     end)
   end
 

@@ -3,7 +3,7 @@ defmodule Hex.Mix do
   Utility functions around Mix dependencies.
   """
 
-  @type deps :: %{String.t() => {String.t(), boolean, deps}}
+  @type deps :: %{String.t() => {boolean, deps}}
 
   @doc """
   Returns `true` if the version and requirement match.
@@ -55,7 +55,7 @@ defmodule Hex.Mix do
 
   def do_overridden_parents(level, deps, parent, visited) do
     {children_map, found?, visited} =
-      Enum.reduce(level, {%{}, false, visited}, fn {app, {_repo, _override, children}},
+      Enum.reduce(level, {%{}, false, visited}, fn {app, {_override, children}},
                                                    {acc_map, acc_found?, visited} ->
         case Map.fetch(visited, app) do
           {:ok, {children_map, found?}} ->
@@ -87,7 +87,7 @@ defmodule Hex.Mix do
   end
 
   defp level_to_overridden_map(level) do
-    for {app, {_repo, override, _children}} <- level,
+    for {app, {override, _children}} <- level,
         override,
         do: {app, true},
         into: %{}
@@ -99,14 +99,14 @@ defmodule Hex.Mix do
   we use in overridden_parents to check overridden status.
   """
   def attach_dep_and_children(deps, app, children) do
-    {repo, override, _} = Map.fetch!(deps, app)
+    {override, _} = Map.fetch!(deps, app)
 
     children =
-      Enum.into(children, %{}, fn {repo, _name, app, _req, _optional} ->
-        {app, {repo, false, %{}}}
+      Enum.into(children, %{}, fn {_repo, _name, app, _req, _optional} ->
+        {app, {false, %{}}}
       end)
 
-    Map.merge(children, Map.put(deps, app, {repo, override, children}))
+    Map.merge(children, Map.put(deps, app, {override, children}))
   end
 
   @doc """
@@ -137,10 +137,10 @@ defmodule Hex.Mix do
     Enum.into(deps, %{}, fn %Mix.Dep{app: app, deps: deps, opts: opts} ->
       deps =
         Enum.into(deps, %{}, fn %Mix.Dep{app: app, opts: opts} ->
-          {Atom.to_string(app), {opts[:repo] || "hexpm", !!opts[:override], []}}
+          {Atom.to_string(app), {!!opts[:override], %{}}}
         end)
 
-      {Atom.to_string(app), {opts[:repo] || "hexpm", !!opts[:override], deps}}
+      {Atom.to_string(app), {!!opts[:override], deps}}
     end)
   end
 
