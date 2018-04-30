@@ -76,15 +76,20 @@ defmodule Mix.Tasks.Hex do
                            "Hex requires you to have a local password that applies only to this machine for security " <>
                            "purposes. Please enter it."
 
-  def generate_api_key(username, password, key_name) do
+  def generate_api_key(username, password, opts) do
     Hex.Shell.info("Generating API key...")
     {:ok, name} = :inet.gethostname()
-    key_name = key_name || List.to_string(name)
+    key_name = opts[:key_name] || List.to_string(name)
+    encrypt? = Keyword.get(opts, :encrypt, true)
 
     case Hex.API.Key.new(key_name, user: username, pass: password) do
       {:ok, {201, body, _}} ->
-        Hex.Shell.info(@local_password_prompt)
-        prompt_encrypt_key(body["secret"])
+        if encrypt? do
+          Hex.Shell.info(@local_password_prompt)
+          prompt_encrypt_key(body["secret"])
+        else
+          Hex.Shell.info(body["secret"])
+        end
 
       other ->
         Mix.shell().error("Generation of API key failed")
@@ -120,7 +125,7 @@ defmodule Mix.Tasks.Hex do
     password = password_get("Account password:") |> Hex.string_trim()
 
     unless opts[:skip_organizations] do
-      case generate_api_key(username, password, opts[:key_name]) do
+      case generate_api_key(username, password, key_name: opts[:key_name]) do
         {:ok, key, password} ->
           Hex.Shell.info("Generating organization keys...")
           auth = [key: key]
@@ -156,11 +161,12 @@ defmodule Mix.Tasks.Hex do
 
   def auth_info() do
     key = Hex.State.fetch!(:api_key)
+    hex_api_key = Hex.State.fetch!(:api_key_unencrypted)
 
-    if key do
-      [key: prompt_decrypt_key(key)]
-    else
-      authenticate_inline()
+    cond do
+      hex_api_key -> [key: hex_api_key]
+      key -> [key: prompt_decrypt_key(key)]
+      true -> authenticate_inline()
     end
   end
 

@@ -32,6 +32,8 @@ defmodule Mix.Tasks.Hex.Config do
       `HEX_HTTP_CONCURRENCY` (Default: `8`)
     * `http_timeout` - Sets the timeout for HTTP requests in seconds. Can be
       overridden by setting the environment variable `HEX_HTTP_TIMEOUT`
+    * `api_key_unencrypted` - Your unencrypted api key. Can be overridden by setting the
+      environment variable `HEX_API_KEY` (Default: nil)
 
   `HEX_HOME` environment variable can be set to point to the directory where Hex
   stores the cache and configuration (Default: `~/.hex`)
