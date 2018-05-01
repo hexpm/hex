@@ -85,6 +85,7 @@ hex_csv "${hex_version}" 1.0.0 1.1.0 1.2.0 1.3.0 1.4.0 1.5.0 1.6.0
 upload  "${hex_version}" 1.0.0 1.1.0 1.2.0 1.3.0 1.4.0 1.5.0 1.6.0
 
 heroku run -a hexpm mix run scripts/add_install.exs ${hex_version} 1.6.0 1.5.0 1.4.0 1.3.0 1.2.0 1.1.0 1.0.0
+heroku run -a hexpm mix run scripts/task_docs.exs
 
 # CDN also needs to be purged
 
