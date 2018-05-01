@@ -1,6 +1,6 @@
 %% Vendored from hex_erl v0.1.0, do not edit manually
 
--module(vendored_hex_tarball).
+-module(mix_hex_tarball).
 -export([create/2, unpack/2, format_checksum/1, format_error/1]).
 -ifdef(TEST).
 -export([do_decode_metadata/1, gzip/1, normalize_requirements/1]).
@@ -35,7 +35,7 @@
 %% ```
 %%     Metadata = #{<<"app">> => <<"foo">>, <<"version">> => <<"1.0.0">>},
 %%     Files = [{"src/foo.erl", <<"-module(foo).">>}],
-%%     {ok, {Tarball, Checksum}} = vendored_hex_tarball:create(Metadata, Files).
+%%     {ok, {Tarball, Checksum}} = mix_hex_tarball:create(Metadata, Files).
 %%     Tarball.
 %%     %%=> <<86,69,...>>
 %%     Checksum.
@@ -72,12 +72,12 @@ create(Metadata, Files) ->
 %% Examples:
 %%
 %% ```
-%%     vendored_hex_tarball:unpack(Tarball, memory).
+%%     mix_hex_tarball:unpack(Tarball, memory).
 %%     %%=> {ok,#{checksum => <<...>>,
 %%     %%=>       contents => [{"src/foo.erl",<<"-module(foo).">>}],
 %%     %%=>       metadata => #{<<"app">> => <<"foo">>, ...}}}
 %%
-%%     vendored_hex_tarball:unpack(Tarball, "path/to/unpack").
+%%     mix_hex_tarball:unpack(Tarball, "path/to/unpack").
 %%     %%=> {ok,#{checksum => <<...>>,
 %%     %%=>       metadata => #{<<"app">> => <<"foo">>, ...}}}
 %% '''
@@ -91,7 +91,7 @@ unpack(Tarball, _) when byte_size(Tarball) > ?TARBALL_MAX_SIZE ->
     {error, {tarball, too_big}};
 
 unpack(Tarball, Output) ->
-    case vendored_hex_erl_tar:extract({binary, Tarball}, [memory]) of
+    case mix_hex_erl_tar:extract({binary, Tarball}, [memory]) of
         {ok, []} ->
             {error, {tarball, empty}};
 
@@ -117,11 +117,11 @@ format_error({tarball, {missing_files, Files}}) -> io_lib:format("missing files:
 format_error({tarball, {invalid_files, Files}}) -> io_lib:format("invalid files: ~p", [Files]);
 format_error({tarball, {bad_version, Vsn}}) -> io_lib:format("unsupported version: ~p", [Vsn]);
 format_error({tarball, invalid_checksum}) -> "invalid tarball checksum";
-format_error({tarball, Reason}) -> "tarball error, " ++ vendored_hex_erl_tar:format_error(Reason);
-format_error({inner_tarball, Reason}) -> "inner tarball error, " ++ vendored_hex_erl_tar:format_error(Reason);
+format_error({tarball, Reason}) -> "tarball error, " ++ mix_hex_erl_tar:format_error(Reason);
+format_error({inner_tarball, Reason}) -> "inner tarball error, " ++ mix_hex_erl_tar:format_error(Reason);
 format_error({metadata, invalid_terms}) -> "error reading package metadata: invalid terms";
 format_error({metadata, not_key_value}) -> "error reading package metadata: not in key-value format";
-format_error({metadata, Reason}) -> "error reading package metadata" ++ vendored_safe_erl_term:format_error(Reason);
+format_error({metadata, Reason}) -> "error reading package metadata" ++ mix_safe_erl_term:format_error(Reason);
 
 format_error({checksum_mismatch, ExpectedChecksum, ActualChecksum}) ->
     io_lib:format(
@@ -238,10 +238,10 @@ decode_metadata(#{files := #{"metadata.config" := Binary}} = State) when is_bina
 do_decode_metadata(Binary) when is_binary(Binary) ->
     {ok, String} = characters_to_list(Binary),
 
-    case vendored_safe_erl_term:string(String) of
+    case mix_safe_erl_term:string(String) of
         {ok, Tokens, _Line} ->
             try
-                Terms = vendored_safe_erl_term:terms(Tokens),
+                Terms = mix_safe_erl_term:terms(Tokens),
                 maps:from_list(Terms)
             catch
                 error:function_clause ->
@@ -251,7 +251,7 @@ do_decode_metadata(Binary) when is_binary(Binary) ->
                     {error, {metadata, not_key_value}}
             end;
 
-        {error, {_Line, vendored_safe_erl_term, Reason}, _Line2} ->
+        {error, {_Line, mix_safe_erl_term, Reason}, _Line2} ->
             {error, {metadata, Reason}}
     end.
 
@@ -303,9 +303,9 @@ guess_build_tools(Metadata) ->
 %%====================================================================
 
 unpack_tarball(ContentsBinary, memory) ->
-    vendored_hex_erl_tar:extract({binary, ContentsBinary}, [memory, compressed]);
+    mix_hex_erl_tar:extract({binary, ContentsBinary}, [memory, compressed]);
 unpack_tarball(ContentsBinary, Output) ->
-    case vendored_hex_erl_tar:extract({binary, ContentsBinary}, [{cwd, Output}, compressed]) of
+    case mix_hex_erl_tar:extract({binary, ContentsBinary}, [{cwd, Output}, compressed]) of
         ok ->
             [try_updating_mtime(filename:join(Output, Path)) || Path <- filelib:wildcard("**", Output)],
             ok;
@@ -328,13 +328,13 @@ create_tarball(Files, Options) ->
 
 create_memory_tarball(Files) ->
     {ok, Fd} = file:open([], [ram, read, write, binary]),
-    {ok, Tar} = vendored_hex_erl_tar:init(Fd, write, fun file_op/2),
+    {ok, Tar} = mix_hex_erl_tar:init(Fd, write, fun file_op/2),
 
     try
         try
             add_files(Tar, Files)
         after
-            ok = vendored_hex_erl_tar:close(Tar)
+            ok = mix_hex_erl_tar:close(Tar)
         end,
 
         {ok, Size} = file:position(Fd, cur),
@@ -353,19 +353,19 @@ add_files(Tar, Files) when is_list(Files) ->
     lists:map(fun(File) -> add_file(Tar, File) end, Files).
 
 add_file(Tar, {Filename, Contents}) when is_list(Filename) and is_binary(Contents) ->
-    ok = vendored_hex_erl_tar:add(Tar, Contents, Filename, tar_opts());
+    ok = mix_hex_erl_tar:add(Tar, Contents, Filename, tar_opts());
 add_file(Tar, Filename) when is_list(Filename) ->
     {ok, FileInfo} = file:read_link_info(Filename, []),
 
     case FileInfo#file_info.type of
         symlink ->
-            ok = vendored_hex_erl_tar:add(Tar, Filename, tar_opts());
+            ok = mix_hex_erl_tar:add(Tar, Filename, tar_opts());
         directory ->
-            ok = vendored_hex_erl_tar:add(Tar, Filename, tar_opts());
+            ok = mix_hex_erl_tar:add(Tar, Filename, tar_opts());
         _ ->
             Mode = FileInfo#file_info.mode,
             {ok, Contents} = file:read_file(Filename),
-            ok = vendored_hex_erl_tar:add(Tar, Contents, Filename, Mode, tar_opts())
+            ok = mix_hex_erl_tar:add(Tar, Contents, Filename, Mode, tar_opts())
     end.
 
 tar_opts() ->

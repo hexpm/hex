@@ -127,13 +127,13 @@ defmodule Hex do
         filename -> string_to_charlist(filename)
       end)
 
-    case :vendored_hex_tarball.create(metadata, files) do
+    case :mix_hex_tarball.create(metadata, files) do
       {:ok, {tarball, _checksum} = result} ->
         if output != :memory, do: File.write!(output, tarball)
         result
 
       {:error, reason} ->
-        Mix.raise("Creating tarball failed: #{:vendored_hex_tarball.format_error(reason)}")
+        Mix.raise("Creating tarball failed: #{:mix_hex_tarball.format_error(reason)}")
     end
   end
 
@@ -146,12 +146,12 @@ defmodule Hex do
 
     dest = if dest == :memory, do: dest, else: string_to_charlist(dest)
 
-    case :vendored_hex_tarball.unpack(tarball, dest) do
+    case :mix_hex_tarball.unpack(tarball, dest) do
       {:ok, result} ->
         result
 
       {:error, reason} ->
-        Mix.raise("Unpacking tarball failed: #{:vendored_hex_tarball.format_error(reason)}")
+        Mix.raise("Unpacking tarball failed: #{:mix_hex_tarball.format_error(reason)}")
     end
   end
 end
