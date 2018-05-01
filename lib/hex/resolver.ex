@@ -30,6 +30,11 @@ defmodule Hex.Resolver do
 
     try do
       if activated = run(pending, optional, info, %{}) do
+        if Hex.State.fetch!(:resolve_verbose) do
+          message = error_message(backtracks, registry)
+          if message != "", do: Hex.Shell.info("\n" <> message)
+        end
+
         {:ok, activated}
       else
         {:error, {:version, error_message(backtracks, registry)}}
@@ -75,8 +80,8 @@ defmodule Hex.Resolver do
          info,
          activated
        ) do
-    case activated[name] do
-      active(repo: active_repo, version: version, parents: parents) = active ->
+    case Map.fetch(activated, name) do
+      {:ok, active(repo: active_repo, version: version, parents: parents) = active} ->
         repo = info(info, :repos)[name] || repo
         parents = [parent | parents]
         active = active(active, parents: parents)
@@ -94,7 +99,7 @@ defmodule Hex.Resolver do
             run(pending, optional, info, activated)
         end
 
-      nil ->
+      :error ->
         {opts, optional} = Map.pop(optional, name, [])
         requests = [request | opts]
         parents = Enum.map(requests, &request(&1, :parent))
@@ -200,15 +205,15 @@ defmodule Hex.Resolver do
     not :ets.insert_new(ets, [{{name, version, state}}])
   end
 
-  defp get_versions(repo, package, requests, info(registry: registry)) do
-    if versions = registry.versions(repo, package) do
+  defp get_versions(repo, name, requests, info(registry: registry)) do
+    if versions = registry.versions(repo, name) do
       Enum.reduce(requests, versions, fn request, versions ->
         req = request(request, :req)
         Enum.filter(versions, &version_match?(&1, req))
       end)
       |> Enum.reverse()
     else
-      Mix.raise("Unable to find package #{package} in registry")
+      Mix.raise("Unable to find package #{name} in registry")
     end
   end
 

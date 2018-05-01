@@ -59,6 +59,7 @@ defmodule Hex.State do
         |> default(false),
       pbkdf2_iters: @pbkdf2_iters,
       repos: Hex.Config.read_repos(config),
+      resolve_verbose: System.get_env("HEX_RESOLVE_VERBOSE") |> to_boolean() |> default(false),
       ssl_version: ssl_version()
     }
   end
