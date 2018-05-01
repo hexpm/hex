@@ -188,7 +188,7 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp reset_local_password() do
-    encrypted_key = Hex.State.fetch!(:api_key)
+    encrypted_key = Hex.State.fetch!(:api_key_encrypted)
 
     unless encrypted_key do
       Mix.raise("No authorized user found. Run `mix hex.user auth`")
@@ -326,7 +326,7 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp remove_unencrypted_key() do
-    Mix.Tasks.Hex.Config.run(["api_key_unencrypted", "--delete"])
-    Hex.State.put(:api_key_uncrypted, nil)
+    Mix.Tasks.Hex.Config.run(["api_key", "--delete"])
+    Hex.State.put(:api_key_unencrypted, nil)
   end
 end

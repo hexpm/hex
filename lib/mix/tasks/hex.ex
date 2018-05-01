@@ -117,7 +117,7 @@ defmodule Mix.Tasks.Hex do
 
   def update_key(key) do
     Hex.Config.update("$encrypted_key": key, encrypted_key: nil)
-    Hex.State.put(:api_key, key)
+    Hex.State.put(:api_key_encrypted, key)
   end
 
   def auth(opts \\ []) do
@@ -160,12 +160,12 @@ defmodule Mix.Tasks.Hex do
   end
 
   def auth_info() do
-    key = Hex.State.fetch!(:api_key)
-    hex_api_key = Hex.State.fetch!(:api_key_unencrypted)
+    api_key_encrypted = Hex.State.fetch!(:api_key_encrypted)
+    api_key_unencrypted = Hex.State.fetch!(:api_key_unencrypted)
 
     cond do
-      hex_api_key -> [key: hex_api_key]
-      key -> [key: prompt_decrypt_key(key)]
+      api_key_unencrypted -> [key: api_key_unencrypted]
+      api_key_encrypted -> [key: prompt_decrypt_key(api_key_encrypted)]
       true -> authenticate_inline()
     end
   end
