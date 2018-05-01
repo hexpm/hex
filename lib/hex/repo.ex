@@ -2,6 +2,18 @@ defmodule Hex.Repo do
   alias Hex.HTTP
 
   @public_keys_html "https://hex.pm/docs/public_keys"
+  @hexpm_url "https://repo.hex.pm"
+  @hexpm_public_key """
+  -----BEGIN PUBLIC KEY-----
+  MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApqREcFDt5vV21JVe2QNB
+  Edvzk6w36aNFhVGWN5toNJRjRJ6m4hIuG4KaXtDWVLjnvct6MYMfqhC79HAGwyF+
+  IqR6Q6a5bbFSsImgBJwz1oadoVKD6ZNetAuCIK84cjMrEFRkELtEIPNHblCzUkkM
+  3rS9+DPlnfG8hBvGi6tvQIuZmXGCxF/73hU0/MyGhbmEjIKRtG6b0sJYKelRLTPW
+  XgK7s5pESgiwf2YC/2MGDXjAJfpfCd0RpLdvd4eRiXtVlE9qO9bND94E7PgQ/xqZ
+  J1i2xWFndWa6nfFnRxZmCStCOZWYYPlaxr+FZceFbpMwzTNs4g3d4tLNUcbKAIH4
+  0wIDAQAB
+  -----END PUBLIC KEY-----
+  """
 
   def fetch_repo(repo) do
     repo = repo || "hexpm"
@@ -18,7 +30,7 @@ defmodule Hex.Repo do
         end
 
       :error ->
-        :error
+        fetch_organization_fallback(repo, repos)
     end
   end
 
@@ -29,6 +41,36 @@ defmodule Hex.Repo do
 
       :error ->
         unknown_repo_error(repo)
+    end
+  end
+
+  def default_organization(source, repo, name) do
+    url = merge_values(Map.get(repo, :url), source.url <> "/repos/#{name}")
+    public_key = merge_values(Map.get(repo, :public_key), source.public_key)
+    auth_key = merge_values(Map.get(repo, :auth_key), source.auth_key)
+
+    repo
+    |> Map.put(:url, url)
+    |> Map.put(:public_key, public_key)
+    |> Map.put(:auth_key, auth_key)
+  end
+
+  def default_hexpm_repo(auth_key \\ Hex.State.fetch!(:repos_key)) do
+    %{
+      url: @hexpm_url,
+      public_key: @hexpm_public_key,
+      auth_key: auth_key
+    }
+  end
+
+  defp fetch_organization_fallback(repo, repos) do
+    case String.split(repo, ":", parts: 2) do
+      [source, organization] ->
+        source = Map.fetch!(repos, source)
+        {:ok, default_organization(source, %{}, organization)}
+
+      _ ->
+        :error
     end
   end
 
@@ -45,6 +87,65 @@ defmodule Hex.Repo do
         "with the `mix hex.repo add` task"
     )
   end
+
+  def merge_hexpm(repos, hexpm \\ default_hexpm_repo()) do
+    Map.update(repos, "hexpm", hexpm, &Map.merge(hexpm, &1))
+  end
+
+  def update_organizations(repos) do
+    Enum.into(repos, %{}, fn {name, repo} ->
+      case String.split(name, ":", parts: 2) do
+        [source, organization] ->
+          source = Map.fetch!(repos, source)
+          repo = default_organization(source, repo, organization)
+          {name, repo}
+
+        _ ->
+          {name, repo}
+      end
+    end)
+  end
+
+  def clean_organizations(repos) do
+    Enum.into(repos, %{}, fn {name, repo} ->
+      case String.split(name, ":", parts: 2) do
+        [source, _organization] ->
+          source_repo = Map.fetch!(repos, source)
+          url = Hex.string_trim_leading(repo.url, source_repo.url)
+          repo = Map.put(repo, :url, url)
+          repo = clean_repo(repo, source_repo)
+          {name, repo}
+
+        _ ->
+          {name, repo}
+      end
+    end)
+  end
+
+  def clean_hexpm(repos) do
+    hexpm = default_hexpm_repo()
+    repo = Map.get(repos, "hexpm", hexpm)
+    repo = clean_repo(repo, hexpm)
+
+    if repo == %{} do
+      Map.delete(repos, "hexpm")
+    else
+      Map.put(repos, "hexpm", repo)
+    end
+  end
+
+  defp clean_repo(repo, default) do
+    Enum.reduce(default, repo, fn {key, value}, repo ->
+      if value == Map.get(repo, key) do
+        Map.delete(repo, key)
+      else
+        repo
+      end
+    end)
+  end
+
+  defp merge_values(nil, right), do: right
+  defp merge_values(left, _right), do: left
 
   def get_package(repo, package, etag) do
     headers = Map.merge(etag_headers(etag), auth_headers(repo))

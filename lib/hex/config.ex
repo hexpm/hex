@@ -1,17 +1,4 @@
 defmodule Hex.Config do
-  @hexpm_url "https://repo.hex.pm"
-  @hexpm_public_key """
-  -----BEGIN PUBLIC KEY-----
-  MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApqREcFDt5vV21JVe2QNB
-  Edvzk6w36aNFhVGWN5toNJRjRJ6m4hIuG4KaXtDWVLjnvct6MYMfqhC79HAGwyF+
-  IqR6Q6a5bbFSsImgBJwz1oadoVKD6ZNetAuCIK84cjMrEFRkELtEIPNHblCzUkkM
-  3rS9+DPlnfG8hBvGi6tvQIuZmXGCxF/73hU0/MyGhbmEjIKRtG6b0sJYKelRLTPW
-  XgK7s5pESgiwf2YC/2MGDXjAJfpfCd0RpLdvd4eRiXtVlE9qO9bND94E7PgQ/xqZ
-  J1i2xWFndWa6nfFnRxZmCStCOZWYYPlaxr+FZceFbpMwzTNs4g3d4tLNUcbKAIH4
-  0wIDAQAB
-  -----END PUBLIC KEY-----
-  """
-
   def read() do
     case File.read(config_path()) do
       {:ok, binary} ->
@@ -95,74 +82,26 @@ defmodule Hex.Config do
     term
   end
 
-  def read_repos(config) do
+  def read_repos(config, repos_key \\ Hex.State.fetch!(:repos_key)) do
+    hexpm = Hex.Repo.default_hexpm_repo(repos_key)
+
     (config[:"$repos"] || %{})
-    |> merge_hexpm()
-    |> update_organizations()
+    |> Hex.Repo.merge_hexpm(hexpm)
+    |> Hex.Repo.update_organizations()
   end
 
   def update_repos(repos) do
-    Hex.Config.update([{:"$repos", clean_hexpm(repos)}])
-
-    repos =
+    config_repos =
       repos
-      |> merge_hexpm()
-      |> update_organizations()
+      |> Hex.Repo.clean_organizations()
+      |> Hex.Repo.clean_hexpm()
 
-    Hex.State.put(:repos, repos)
+    state_repos =
+      repos
+      |> Hex.Repo.merge_hexpm()
+      |> Hex.Repo.update_organizations()
+
+    Hex.Config.update([{:"$repos", config_repos}])
+    Hex.State.put(:repos, state_repos)
   end
-
-  defp default_hexpm() do
-    %{
-      url: @hexpm_url,
-      public_key: @hexpm_public_key,
-      auth_key: nil
-    }
-  end
-
-  defp merge_hexpm(repos) do
-    hexpm = default_hexpm()
-    Map.update(repos, "hexpm", hexpm, &Map.merge(hexpm, &1))
-  end
-
-  defp update_organizations(repos) do
-    Enum.into(repos, %{}, fn {name, repo} ->
-      case String.split(name, ":", parts: 2) do
-        [source, organization] ->
-          source = Map.fetch!(repos, source)
-
-          repo =
-            repo
-            |> Map.put(:url, merge_values(repo.url, source.url <> "/repos/#{organization}"))
-            |> Map.put(:public_key, merge_values(repo.public_key, source.public_key))
-
-          {name, repo}
-
-        _ ->
-          {name, repo}
-      end
-    end)
-  end
-
-  defp clean_hexpm(repos) do
-    repo = Map.get(repos, "hexpm", default_hexpm())
-
-    repo =
-      Enum.reduce(default_hexpm(), repo, fn {key, value}, repo ->
-        if value == Map.get(repo, key) do
-          Map.delete(repo, key)
-        else
-          repo
-        end
-      end)
-
-    if repo == %{} do
-      Map.delete(repos, "hexpm")
-    else
-      Map.put(repos, "hexpm", repo)
-    end
-  end
-
-  defp merge_values(nil, right), do: right
-  defp merge_values(left, _right), do: left
 end

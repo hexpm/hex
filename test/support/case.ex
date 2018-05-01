@@ -225,9 +225,8 @@ defmodule HexTest.Case do
   public_key = File.read!(Path.join(__DIR__, "../fixtures/test_pub.pem"))
 
   {:ok, _} = Hex.State.start_link()
-
   Hex.State.put(:home, Path.expand("../../tmp/hex_home", __DIR__))
-  Hex.State.put(:hexpm_pk, File.read!(Path.join(__DIR__, "../fixtures/test_pub.pem")))
+  Hex.State.put(:hexpm_pk, public_key)
   Hex.State.put(:api_url, "http://localhost:4043/api")
   Hex.State.put(:api_key_encrypted, nil)
   Hex.State.put(:api_key_unencrypted, nil)

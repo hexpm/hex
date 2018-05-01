@@ -215,15 +215,10 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp deauth_organizations() do
-    read_repo_config()
+    Hex.State.fetch!(:repos)
     |> Enum.reject(fn {name, _config} -> String.starts_with?(name, "hexpm:") end)
     |> Enum.into(%{})
     |> Hex.Config.update_repos()
-  end
-
-  defp read_repo_config() do
-    Hex.Config.read()
-    |> Hex.Config.read_repos()
   end
 
   defp register() do
