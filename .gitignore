@@ -1,7 +1,7 @@
 /_build
 /deps
 /tmp
-/src/vendored_safe_erl_term.erl
+/src/mix_safe_erl_term.erl
 erl_crash.dump
 hex-1.x.csv
 hex-1.x.csv.signed

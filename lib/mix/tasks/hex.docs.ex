@@ -318,7 +318,7 @@ defmodule Mix.Tasks.Hex.Docs do
   defp extract_docs(target, target_dir) do
     File.mkdir_p!(target_dir)
     fd = File.open!(target, [:read, :compressed])
-    :ok = :vendored_hex_erl_tar.extract({:file, fd}, [:compressed, cwd: Path.dirname(target)])
+    :ok = :mix_hex_erl_tar.extract({:file, fd}, [:compressed, cwd: Path.dirname(target)])
     Hex.Shell.info("Docs fetched: #{target_dir}")
   end
 

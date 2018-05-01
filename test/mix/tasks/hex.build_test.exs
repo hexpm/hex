@@ -7,11 +7,11 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   defp extract(name, path) do
-    {:ok, files} = :vendored_hex_erl_tar.extract(name, [:memory])
+    {:ok, files} = :mix_hex_erl_tar.extract(name, [:memory])
     files = Enum.into(files, %{})
 
     :ok =
-      :vendored_hex_erl_tar.extract({:binary, files['contents.tar.gz']}, [:compressed, cwd: path])
+      :mix_hex_erl_tar.extract({:binary, files['contents.tar.gz']}, [:compressed, cwd: path])
   end
 
   test "create" do

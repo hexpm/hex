@@ -1,6 +1,6 @@
 %% Vendored from hex_erl v0.1.0, do not edit manually
 
--module(vendored_hex_registry).
+-module(mix_hex_registry).
 -export([
     encode_names/1,
     decode_names/1,
@@ -46,23 +46,23 @@ decode_versions(Payload) ->
 %% @doc
 %% Encode Package message.
 encode_package(Package) ->
-    vendored_hex_pb_package:encode_msg(Package, 'Package').
+    mix_hex_pb_package:encode_msg(Package, 'Package').
 
 %% @doc
 %% Decode message created with encode_package/1.
 decode_package(Payload) ->
-    vendored_hex_pb_package:decode_msg(Payload, 'Package').
+    mix_hex_pb_package:decode_msg(Payload, 'Package').
 
 %% @doc
 %% Encode Signed message.
 sign_protobuf(Payload, PrivateKey) ->
     Signature = sign(Payload, PrivateKey),
-    vendored_hex_pb_signed:encode_msg(#{payload => Payload, signature => Signature}, 'Signed').
+    mix_hex_pb_signed:encode_msg(#{payload => Payload, signature => Signature}, 'Signed').
 
 %% @doc
 %% Decode message created with sign_protobuf/2 without verification.
 decode_signed(Signed) ->
-    vendored_hex_pb_signed:decode_msg(Signed, 'Signed').
+    mix_hex_pb_signed:decode_msg(Signed, 'Signed').
 
 %% @doc
 %% Decode message created with sign_protobuf/2 and verify it against public key.

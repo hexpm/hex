@@ -27,7 +27,7 @@
 %% %CopyrightEnd%
 %%
 
--module(vendored_hex_filename).
+-module(mix_hex_filename).
 -export([safe_relative_path/1]).
 
 safe_relative_path(Path) ->
