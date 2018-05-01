@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       assert is_binary(myorg.auth_key)
 
       {:ok, hostname} = :inet.gethostname()
-      name = "#{hostname}-myorgauth-organization"
+      name = "#{hostname}-organization-myorgauth"
       assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
       assert name in Enum.map(body, & &1["name"])
     end)
@@ -53,7 +53,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       assert is_binary(myorg.auth_key)
 
       assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
-      assert "orgauthkeyname" in Enum.map(body, & &1["name"])
+      assert "orgauthkeyname-organization-myorgauthwithkeyname" in Enum.map(body, & &1["name"])
     end)
   end
 
@@ -117,7 +117,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       assert is_binary(key)
 
       {:ok, hostname} = :inet.gethostname()
-      name = "#{hostname}-myorgkey-organization"
+      name = "#{hostname}-organization-myorgkey"
       assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
       assert name in Enum.map(body, & &1["name"])
     end)

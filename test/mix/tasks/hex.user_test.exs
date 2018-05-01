@@ -43,7 +43,8 @@ defmodule Mix.Tasks.Hex.UserTest do
       send(self(), {:mix_shell_input, :prompt, "hunter43"})
       auth = Mix.Tasks.Hex.auth_info()
       assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
-      assert name in Enum.map(body, & &1["name"])
+      assert "#{name}-api" in Enum.map(body, & &1["name"])
+      assert "#{name}-organizations" in Enum.map(body, & &1["name"])
     end)
   end
 
@@ -60,7 +61,8 @@ defmodule Mix.Tasks.Hex.UserTest do
       send(self(), {:mix_shell_input, :prompt, "hunter43"})
       auth = Mix.Tasks.Hex.auth_info()
       assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
-      assert "userauthkeyname" in Enum.map(body, & &1["name"])
+      assert "userauthkeyname-api" in Enum.map(body, & &1["name"])
+      assert "userauthkeyname-organizations" in Enum.map(body, & &1["name"])
     end)
   end
 
@@ -77,7 +79,10 @@ defmodule Mix.Tasks.Hex.UserTest do
       send(self(), {:mix_shell_input, :prompt, "password"})
       Mix.Tasks.Hex.User.run(["auth"])
 
-      assert {:ok, _} = Hex.Repo.fetch_repo("hexpm:myuserauthorg")
+      assert {:ok, hexpm_repo} = Hex.Repo.fetch_repo("hexpm")
+      assert {:ok, neworg_repo} = Hex.Repo.fetch_repo("hexpm:myuserauthorg")
+      assert is_binary(hexpm_repo.auth_key)
+      assert hexpm_repo.auth_key == neworg_repo.auth_key
     end)
   end
 

@@ -15,6 +15,8 @@ defmodule Hex.State do
   end
 
   def init(config) do
+    repos_key = load_config(config, ["HEX_REPOS_KEY"], [:repos_key])
+
     %{
       # NOTE: We need to furher clarify the distinction between this when we
       #       introduce separte read and write keys
@@ -58,7 +60,8 @@ defmodule Hex.State do
         |> to_boolean()
         |> default(false),
       pbkdf2_iters: @pbkdf2_iters,
-      repos: Hex.Config.read_repos(config),
+      repos: Hex.Config.read_repos(config, repos_key),
+      repos_key: repos_key,
       resolve_verbose: System.get_env("HEX_RESOLVE_VERBOSE") |> to_boolean() |> default(false),
       ssl_version: ssl_version()
     }

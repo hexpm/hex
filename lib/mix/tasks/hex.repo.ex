@@ -108,7 +108,7 @@ defmodule Mix.Tasks.Hex.Repo do
       |> Map.merge(Enum.into(opts, %{}))
       |> Map.put(:public_key, public_key)
 
-    read_config()
+    Hex.State.fetch!(:repos)
     |> Map.put(name, repo)
     |> Hex.Config.update_repos()
   end
@@ -121,13 +121,13 @@ defmodule Mix.Tasks.Hex.Repo do
         opts
       end
 
-    read_config()
+    Hex.State.fetch!(:repos)
     |> Map.update!(name, &Map.merge(&1, Enum.into(opts, %{})))
     |> Hex.Config.update_repos()
   end
 
   defp remove(name) do
-    read_config()
+    Hex.State.fetch!(:repos)
     |> Map.delete(name)
     |> Hex.Config.update_repos()
   end
@@ -136,7 +136,7 @@ defmodule Mix.Tasks.Hex.Repo do
     header = ["Name", "URL", "Public key", "Auth key"]
 
     values =
-      Enum.map(read_config(), fn {name, config} ->
+      Enum.map(Hex.State.fetch!(:repos), fn {name, config} ->
         [
           name,
           config[:url],
@@ -176,11 +176,6 @@ defmodule Mix.Tasks.Hex.Repo do
       """)
   end
 
-  defp read_config() do
-    Hex.Config.read()
-    |> Hex.Config.read_repos()
-  end
-
   defp show_public_key(nil), do: nil
 
   defp show_public_key(public_key) do
@@ -200,18 +195,14 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp show(name) do
-    repo =
-      read_config()
-      |> Map.get(name)
-
-    case repo do
-      nil ->
-        Mix.raise("Config does not contain repo #{name}")
-
-      _ ->
+    case Map.fetch(Hex.State.fetch!(:repos), name) do
+      {:ok, repo} ->
         header = ["URL", "Public key", "Auth key"]
         rows = [[repo.url, show_public_key(repo.public_key), repo.auth_key]]
         Mix.Tasks.Hex.print_table(header, rows)
+
+      :error ->
+        Mix.raise("Config does not contain repo #{name}")
     end
   end
 end

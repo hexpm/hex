@@ -78,8 +78,8 @@ defmodule Mix.Tasks.Hex do
 
   def generate_api_key(username, password, opts) do
     Hex.Shell.info("Generating API key...")
-    {:ok, name} = :inet.gethostname()
-    key_name = opts[:key_name] || List.to_string(name)
+    {:ok, host} = :inet.gethostname()
+    key_name = "#{opts[:key_name] || host}-api"
     encrypt? = Keyword.get(opts, :encrypt, true)
 
     case Hex.API.Key.new(key_name, user: username, pass: password) do
@@ -103,7 +103,24 @@ defmodule Mix.Tasks.Hex do
     permissions = [%{"domain" => "repository", "resource" => organization_name}]
 
     {:ok, host} = :inet.gethostname()
-    key_name = key_name || "#{host}-#{organization_name}-organization"
+    key_name = "#{key_name || host}-organization-#{organization_name}"
+
+    case Hex.API.Key.new(key_name, permissions, auth) do
+      {:ok, {201, body, _}} ->
+        body["secret"]
+
+      other ->
+        Hex.Utils.print_error_result(other)
+        Mix.raise("Generation of organization key failed")
+    end
+  end
+
+  def generate_organizations_key(key_name, auth \\ nil) do
+    auth = auth || auth_info()
+    permissions = [%{"domain" => "repositories"}]
+
+    {:ok, host} = :inet.gethostname()
+    key_name = "#{key_name || host}-organizations"
 
     case Hex.API.Key.new(key_name, permissions, auth) do
       {:ok, {201, body, _}} ->
@@ -122,40 +139,27 @@ defmodule Mix.Tasks.Hex do
 
   def auth(opts \\ []) do
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
-    password = password_get("Account password:") |> Hex.string_trim()
+    account_password = password_get("Account password:") |> Hex.string_trim()
 
-    unless opts[:skip_organizations] do
-      case generate_api_key(username, password, key_name: opts[:key_name]) do
-        {:ok, key, password} ->
+    case generate_api_key(username, account_password, opts) do
+      {:ok, key, _local_password} ->
+        unless opts[:skip_organizations] do
           Hex.Shell.info("Generating organization keys...")
-          auth = [key: key]
-          {:ok, {200, user, _headers}} = Hex.API.User.me(auth)
+          key = generate_organizations_key(opts[:key_name], [key: key])
+          auth_organization("hexpm", key)
+        end
 
-          Enum.each(user["organizations"] || [], fn %{"name" => name} ->
-            key = generate_organization_key(name, nil, auth)
-            auth_organization(name, key)
-          end)
-
-          {:ok, key, password}
-
-        :error ->
-          :ok
-      end
+      :error ->
+        :ok
     end
   end
 
   def auth_organization(name, key) do
-    hexpm = Hex.Repo.get_repo("hexpm")
+    repo = Hex.Repo.get_repo(name) || Hex.Repo.default_hexpm_repo()
+    repo = Map.put(repo, :auth_key, key)
 
-    repo = %{
-      url: hexpm.url <> "/repos/#{name}",
-      public_key: nil,
-      auth_key: key
-    }
-
-    Hex.Config.read()
-    |> Hex.Config.read_repos()
-    |> Map.put("hexpm:#{name}", repo)
+    Hex.State.fetch!(:repos)
+    |> Map.put(name, repo)
     |> Hex.Config.update_repos()
   end
 

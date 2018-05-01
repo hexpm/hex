@@ -45,8 +45,18 @@ defmodule Hex do
     def string_trim(string), do: String.strip(string)
     def to_charlist(term), do: Kernel.to_char_list(term)
     def string_to_charlist(string), do: String.to_char_list(string)
+
+    def string_trim_leading(string, trim) do
+      trim_size = byte_size(trim)
+
+      case string do
+        <<^trim::binary-size(trim_size), rest::binary>> -> rest
+        _other -> string
+      end
+    end
   else
     def string_trim(string), do: String.trim(string)
+    def string_trim_leading(string, trim), do: String.trim_leading(string, trim)
     def to_charlist(term), do: Kernel.to_charlist(term)
     def string_to_charlist(string), do: String.to_charlist(string)
   end
