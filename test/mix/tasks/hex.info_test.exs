@@ -23,10 +23,9 @@ defmodule Mix.Tasks.Hex.InfoTest do
       Hex.State.put(:home, tmp_path())
       auth = Hexpm.new_user("infoorg", "infoorg@mail.com", "password", "infoorg")
       Hexpm.new_repo("infoorg", auth)
-      Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
+      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
       bypass_repo("infoorg")
-      send(self(), {:mix_shell_input, :prompt, "password"})
       Mix.Tasks.Hex.Info.run(["ecto", "--organization", "infoorg"])
       assert_received {:mix_shell, :info, ["ecto description\n"]}
     end)

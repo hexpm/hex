@@ -6,12 +6,13 @@ defmodule Mix.Tasks.Hex.Search do
   @moduledoc """
   Displays packages matching the given search query.
 
+  If you are authenticated it will additionally search all organizations you are member of.
+
       mix hex.search PACKAGE
 
   ## Command line options
 
-    * `--organization ORGANIZATION` - The organization the package belongs to
-    * `--all-organizations` - Search all organizations you have access to
+    * `--organization ORGANIZATION` - Search packages in specific organization
 
   """
 
@@ -23,7 +24,7 @@ defmodule Mix.Tasks.Hex.Search do
 
     case args do
       [package] ->
-        search_package(package, opts[:organization], opts[:all_organizations] || false)
+        search_package(package, opts[:organization])
 
       _ ->
         Mix.raise("""
@@ -34,20 +35,11 @@ defmodule Mix.Tasks.Hex.Search do
     end
   end
 
-  defp search_package(package, organization, all_organizations?) do
-    auth = if organization || all_organizations?, do: Mix.Tasks.Hex.auth_info()
-    organization = select_organization(organization, all_organizations?)
+  defp search_package(package, organization) do
+    auth = Mix.Tasks.Hex.auth_info(:read, auth_inline: false)
 
     Hex.API.Package.search(organization, package, auth)
     |> lookup_packages()
-  end
-
-  defp select_organization(_organization, true), do: nil
-  defp select_organization(nil, false), do: "hexpm"
-  defp select_organization(organization, false), do: organization
-
-  defp lookup_packages({:ok, {403, _body, _headers}}) do
-    Hex.Shell.error("Organization not found or not authorized for it")
   end
 
   defp lookup_packages({:ok, {200, [], _headers}}) do
@@ -55,11 +47,39 @@ defmodule Mix.Tasks.Hex.Search do
   end
 
   defp lookup_packages({:ok, {200, packages, _headers}}) do
+    include_organizations? = Enum.any?(packages, & &1["repository"] != "hexpm")
+
+    if include_organizations? do
+      print_with_organizations(packages)
+    else
+      print_without_organizations(packages)
+    end
+  end
+
+  defp print_with_organizations(packages) do
+    values =
+      Enum.map(packages, fn package ->
+        [
+          if(package["repository"] != "hexpm", do: package["repository"]),
+          package["name"],
+          package["meta"]["description"] |> trim_heredoc() |> Hex.Utils.truncate(),
+          latest_stable(package["releases"]),
+          package["html_url"] || package["url"]
+        ]
+      end)
+
+    Mix.Tasks.Hex.print_table(
+      ["Organization", "Package", "Description", "Version", "URL"],
+      values
+    )
+  end
+
+  defp print_without_organizations(packages) do
     values =
       Enum.map(packages, fn package ->
         [
           package["name"],
-          Hex.Utils.truncate(package["meta"]["description"] |> trim_heredoc),
+          package["meta"]["description"] |> trim_heredoc() |> Hex.Utils.truncate(),
           latest_stable(package["releases"]),
           package["html_url"] || package["url"]
         ]
@@ -85,6 +105,8 @@ defmodule Mix.Tasks.Hex.Search do
   defp trim_heredoc(nil), do: ""
 
   defp trim_heredoc(string) do
-    string |> String.split("\n", trim: true) |> Enum.map_join(" ", &(&1 |> Hex.string_trim()))
+    string
+    |> String.split("\n", trim: true)
+    |> Enum.map_join(" ", &Hex.string_trim/1)
   end
 end

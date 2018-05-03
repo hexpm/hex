@@ -131,7 +131,7 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp retrieve_package_info(organization, name) do
-    auth = if organization, do: Mix.Tasks.Hex.auth_info()
+    auth = if organization, do: Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.Package.get(organization, name, auth) do
       {:ok, {code, body, _}} when code in 200..299 ->

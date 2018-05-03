@@ -8,7 +8,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("owner_package1", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
-    Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
+    Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
     Mix.Tasks.Hex.Owner.run(["add", "owner_package1", "owner_user2@mail.com"])
@@ -25,7 +25,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("owner_package2", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
-    Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
+    Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
     send(self(), {:mix_shell_input, :prompt, "passpass"})
@@ -44,9 +44,8 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("owner_package3", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
-    Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
+    Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
-    send(self(), {:mix_shell_input, :prompt, "passpass"})
     Mix.Tasks.Hex.Owner.run(["list", "owner_package3"])
     assert_received {:mix_shell, :info, ["owner_user5@mail.com"]}
   end
@@ -60,9 +59,8 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package(package2, "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
-    Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
+    Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
-    send(self(), {:mix_shell_input, :prompt, "passpass"})
     Mix.Tasks.Hex.Owner.run(["packages"])
     owner_package4_msg = "#{package1} - http://localhost:4043/packages/#{package1}"
     owner_package5_msg = "#{package2} - http://localhost:4043/packages/#{package2}"

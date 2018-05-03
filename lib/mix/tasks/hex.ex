@@ -72,24 +72,20 @@ defmodule Mix.Tasks.Hex do
     end)
   end
 
+  def auth(opts \\ []) do
+    username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
+    account_password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.string_trim()
+    Mix.Tasks.Hex.generate_all_api_keys(username, account_password, opts)
+  end
+
   @local_password_prompt "You have authenticated on Hex using your account password. However, " <>
                            "Hex requires you to have a local password that applies only to this machine for security " <>
                            "purposes. Please enter it."
 
-  def generate_api_key(username, password, opts) do
-    Hex.Shell.info("Generating API key...")
-    {:ok, host} = :inet.gethostname()
-    key_name = "#{opts[:key_name] || host}-api"
-    encrypt? = Keyword.get(opts, :encrypt, true)
-
-    case Hex.API.Key.new(key_name, user: username, pass: password) do
+  def generate_api_key(key_name, permissions, opts) do
+    case Hex.API.Key.new(key_name, permissions, opts) do
       {:ok, {201, body, _}} ->
-        if encrypt? do
-          Hex.Shell.info(@local_password_prompt)
-          prompt_encrypt_key(body["secret"])
-        else
-          Hex.Shell.info(body["secret"])
-        end
+        {:ok, body["secret"]}
 
       other ->
         Mix.shell().error("Generation of API key failed")
@@ -98,60 +94,71 @@ defmodule Mix.Tasks.Hex do
     end
   end
 
+  def generate_all_api_keys(username, password, opts \\ []) do
+    Hex.Shell.info("Generating API keys...")
+    auth = [user: username, pass: password]
+    {:ok, hostname} = :inet.gethostname()
+    key_name_base = opts[:key_name] || hostname
+    key_name = "#{key_name_base}-api"
+    permissions = [%{"domain" => "api"}]
+
+    case generate_api_key(key_name, permissions, auth) do
+      {:ok, write_key} ->
+        permissions = [%{"domain" => "api", "resource" => "read"}]
+        key_name = "#{key_name_base}-api-read"
+
+        case generate_api_key(key_name, permissions, auth) do
+          {:ok, read_key} ->
+            organization_key = generate_organizations_key(opts[:key_name], auth)
+            auth_organization("hexpm", organization_key)
+
+            Hex.Shell.info(@local_password_prompt)
+            prompt_encrypt_key(write_key, read_key)
+            {:ok, write_key, read_key, organization_key}
+
+          :error ->
+            :error
+        end
+
+      :error ->
+        :error
+    end
+  end
+
   def generate_organization_key(organization_name, key_name, auth \\ nil) do
-    auth = auth || auth_info()
+    auth = auth || auth_info(:write)
     permissions = [%{"domain" => "repository", "resource" => organization_name}]
+    {:ok, hostname} = :inet.gethostname()
+    key_name = "#{key_name || hostname}-organization-#{organization_name}"
 
-    {:ok, host} = :inet.gethostname()
-    key_name = "#{key_name || host}-organization-#{organization_name}"
-
-    case Hex.API.Key.new(key_name, permissions, auth) do
-      {:ok, {201, body, _}} ->
-        body["secret"]
-
-      other ->
-        Hex.Utils.print_error_result(other)
-        Mix.raise("Generation of organization key failed")
+    case generate_api_key(key_name, permissions, auth) do
+      {:ok, key} -> key
+      :error -> :ok
     end
   end
 
   def generate_organizations_key(key_name, auth \\ nil) do
-    auth = auth || auth_info()
+    auth = auth || auth_info(:write)
     permissions = [%{"domain" => "repositories"}]
+    {:ok, hostname} = :inet.gethostname()
+    key_name = "#{key_name || hostname}-organizations"
 
-    {:ok, host} = :inet.gethostname()
-    key_name = "#{key_name || host}-organizations"
-
-    case Hex.API.Key.new(key_name, permissions, auth) do
-      {:ok, {201, body, _}} ->
-        body["secret"]
-
-      other ->
-        Hex.Utils.print_error_result(other)
-        Mix.raise("Generation of organization key failed")
+    case generate_api_key(key_name, permissions, auth) do
+      {:ok, key} -> key
+      :error -> :ok
     end
   end
 
-  def update_key(key) do
-    Hex.Config.update("$encrypted_key": key, encrypted_key: nil)
-    Hex.State.put(:api_key_encrypted, key)
-  end
+  def update_keys(write_key, read_key \\ nil) do
+    Hex.Config.update(
+      "$write_key": write_key,
+      "$read_key": read_key,
+      "$encrypted_key": nil,
+      encrypted_key: nil
+    )
 
-  def auth(opts \\ []) do
-    username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
-    account_password = password_get("Account password:") |> Hex.string_trim()
-
-    case generate_api_key(username, account_password, opts) do
-      {:ok, key, _local_password} ->
-        unless opts[:skip_organizations] do
-          Hex.Shell.info("Generating organization keys...")
-          key = generate_organizations_key(opts[:key_name], [key: key])
-          auth_organization("hexpm", key)
-        end
-
-      :error ->
-        :ok
-    end
+    Hex.State.put(:api_key_write, write_key)
+    Hex.State.put(:api_key_read, read_key)
   end
 
   def auth_organization(name, key) do
@@ -163,14 +170,29 @@ defmodule Mix.Tasks.Hex do
     |> Hex.Config.update_repos()
   end
 
-  def auth_info() do
-    api_key_encrypted = Hex.State.fetch!(:api_key_encrypted)
-    api_key_unencrypted = Hex.State.fetch!(:api_key_unencrypted)
+  def auth_info(permission, opts \\ [])
+
+  def auth_info(:write, opts) do
+    api_key_write_unencrypted = Hex.State.fetch!(:api_key_write_unencrypted)
+    api_key_write = Hex.State.fetch!(:api_key_write)
 
     cond do
-      api_key_unencrypted -> [key: api_key_unencrypted]
-      api_key_encrypted -> [key: prompt_decrypt_key(api_key_encrypted)]
-      true -> authenticate_inline()
+      api_key_write_unencrypted -> [key: api_key_write_unencrypted]
+      api_key_write -> [key: prompt_decrypt_key(api_key_write)]
+      Keyword.get(opts, :auth_inline, true) -> authenticate_inline()
+      true -> []
+    end
+  end
+
+  def auth_info(:read, opts) do
+    api_key_write_unencrypted = Hex.State.fetch!(:api_key_write_unencrypted)
+    api_key_read = Hex.State.fetch!(:api_key_read)
+
+    cond do
+      api_key_write_unencrypted -> [key: api_key_write_unencrypted]
+      api_key_read -> [key: api_key_read]
+      Keyword.get(opts, :auth_inline, true) -> authenticate_inline()
+      true -> []
     end
   end
 
@@ -179,9 +201,10 @@ defmodule Mix.Tasks.Hex do
       Hex.Shell.yes?("No authenticated user found. Do you want to authenticate now?")
 
     if authenticate? do
-      {:ok, key, _password} = auth()
-      unless key, do: no_auth_error()
-      [key: key]
+      case auth() do
+        {:ok, write_key, _read_key, _org_key} -> [key: write_key]
+        :error -> no_auth_error()
+      end
     else
       no_auth_error()
     end
@@ -191,18 +214,17 @@ defmodule Mix.Tasks.Hex do
     Mix.raise("No authenticated user found. Run `mix hex.user auth`")
   end
 
-  def prompt_encrypt_key(key, challenge \\ "Local password") do
+  def prompt_encrypt_key(write_key, read_key, challenge \\ "Local password") do
     password = password_get("#{challenge}:") |> Hex.string_trim()
     confirm = password_get("#{challenge} (confirm):") |> Hex.string_trim()
 
     if password != confirm do
       Hex.Shell.error("Entered passwords do not match. Try again")
-      prompt_encrypt_key(key, challenge)
+      prompt_encrypt_key(write_key, read_key, challenge)
     end
 
-    encrypted_key = Hex.Crypto.encrypt(key, password, @apikey_tag)
-    update_key(encrypted_key)
-    {:ok, key, password}
+    encrypted_write_key = Hex.Crypto.encrypt(write_key, password, @apikey_tag)
+    update_keys(encrypted_write_key, read_key)
   end
 
   def prompt_decrypt_key(encrypted_key, challenge \\ "Local password") do

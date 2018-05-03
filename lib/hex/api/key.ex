@@ -1,8 +1,7 @@
 defmodule Hex.API.Key do
   alias Hex.API
 
-  def new(name, permissions \\ nil, auth) do
-    permissions = permissions || [%{"domain" => "api"}]
+  def new(name, permissions, auth) do
     API.erlang_post_request(nil, "keys", %{name: name, permissions: permissions}, auth)
   end
 

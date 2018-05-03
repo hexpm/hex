@@ -76,8 +76,8 @@ defmodule Hex.Repo do
 
   defp unknown_repo_error("hexpm:" <> organization) do
     Mix.raise(
-      "Unknown organization #{inspect(organization)}, add new organizations " <>
-        "with the `mix hex.organization auth` task"
+      "Unknown organization #{inspect(organization)}, authorize with `mix hex.user auth` " <>
+        "or add new organizations with the `mix hex.organization auth` task"
     )
   end
 

@@ -45,7 +45,7 @@ defmodule Hex.Mix do
   Returns a map with the overridden upper breadths dependencies of
   the given parent (including the parent level itself).
   """
-  @spec overridden_parents([String.t()], deps, String.t()) :: %{String.t => true}
+  @spec overridden_parents([String.t()], deps, String.t()) :: %{String.t() => true}
   def overridden_parents(top_level, deps, parent) do
     deps
     |> Map.take(top_level)

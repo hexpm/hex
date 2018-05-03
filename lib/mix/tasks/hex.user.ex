@@ -19,23 +19,18 @@ defmodule Mix.Tasks.Hex.User do
   Authorizes a new user on the local machine by generating a new API key and
   storing it in the Hex config.
 
-      mix hex.user auth [--key-name KEY_NAME] [--skip-organizations]
+      mix hex.user auth [--key-name KEY_NAME]
 
   ## Command line options
 
     * `--key-name KEY_NAME` - By default Hex will base the key name on your machine's
       hostname, use this option to give your own name.
-    * `--skip-organizations` - Skip authorizing all organizations your account has access to.
 
   ## Deauthorize the user
 
   Deauthorizes the user from the local machine by removing the API key from the Hex config.
 
-      mix hex.user deauth [--skip-organizations]
-
-  ## Command line options
-
-    * `--skip-organizations` - Skip deauthorizing all organizations.
+      mix hex.user deauth
 
   ## Generate API key
 
@@ -85,7 +80,6 @@ defmodule Mix.Tasks.Hex.User do
     revoke_all: :boolean,
     revoke: :string,
     list: :boolean,
-    skip_organizations: :boolean,
     key_name: :string,
     generate: :boolean
   ]
@@ -105,7 +99,7 @@ defmodule Mix.Tasks.Hex.User do
         auth(opts)
 
       ["deauth"] ->
-        deauth(opts)
+        deauth()
 
       ["key"] ->
         process_key_task(opts)
@@ -158,7 +152,7 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp whoami() do
-    auth = Mix.Tasks.Hex.auth_info()
+    auth = Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.User.me(auth) do
       {:ok, {code, body, _}} when code in 200..299 ->
@@ -188,7 +182,7 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp reset_local_password() do
-    encrypted_key = Hex.State.fetch!(:api_key_encrypted)
+    encrypted_key = Hex.State.fetch!(:api_key_write)
 
     unless encrypted_key do
       Mix.raise("No authorized user found. Run `mix hex.user auth`")
@@ -198,14 +192,9 @@ defmodule Mix.Tasks.Hex.User do
     Mix.Tasks.Hex.prompt_encrypt_key(decrypted_key, "New local password")
   end
 
-  defp deauth(opts) do
-    Mix.Tasks.Hex.update_key(nil)
-
-    unless opts[:skip_organizations] do
-      deauth_organizations()
-    end
-
-    remove_unencrypted_key()
+  defp deauth() do
+    Mix.Tasks.Hex.update_keys(nil, nil)
+    deauth_organizations()
 
     Hex.Shell.info(
       "Authentication credentials removed from the local machine. " <>
@@ -243,7 +232,7 @@ defmodule Mix.Tasks.Hex.User do
   defp create_user(username, email, password) do
     case Hex.API.User.new(username, email, password) do
       {:ok, {code, _, _}} when code in 200..299 ->
-        Mix.Tasks.Hex.generate_api_key(username, password, key_name: nil)
+        Mix.Tasks.Hex.generate_all_api_keys(username, password)
 
         Hex.Shell.info(
           "You are required to confirm your email to access your account, " <>
@@ -261,7 +250,7 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp revoke_all_keys() do
-    auth = Mix.Tasks.Hex.auth_info()
+    auth = Mix.Tasks.Hex.auth_info(:write)
 
     Hex.Shell.info("Revoking all keys...")
 
@@ -276,7 +265,7 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp revoke_key(key) do
-    auth = Mix.Tasks.Hex.auth_info()
+    auth = Mix.Tasks.Hex.auth_info(:write)
 
     Hex.Shell.info("Revoking key #{key}...")
 
@@ -296,7 +285,7 @@ defmodule Mix.Tasks.Hex.User do
 
   # TODO: print permissions
   defp list_keys() do
-    auth = Mix.Tasks.Hex.auth_info()
+    auth = Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.Key.get(auth) do
       {:ok, {code, body, _headers}} when code in 200..299 ->
@@ -314,14 +303,23 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp generate_unencrypted_key(opts) do
-    key_name = opts[:key_name]
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
     password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.string_trim()
-    Mix.Tasks.Hex.generate_api_key(username, password, key_name: key_name, encrypt: false)
-  end
+    {:ok, hostname} = :inet.gethostname()
+    key_name = "#{opts[:key_name] || hostname}-api"
+    Hex.Shell.info("Generating API keys...")
 
-  defp remove_unencrypted_key() do
-    Mix.Tasks.Hex.Config.run(["api_key", "--delete"])
-    Hex.State.put(:api_key_unencrypted, nil)
+    result =
+      Mix.Tasks.Hex.generate_api_key(
+        key_name,
+        [%{"domain" => "api"}],
+        user: username,
+        pass: password
+      )
+
+    case result do
+      {:ok, secret} -> Hex.Shell.info(secret)
+      :error -> :ok
+    end
   end
 end

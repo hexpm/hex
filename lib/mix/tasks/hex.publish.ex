@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Hex.Publish do
     * `--revert VERSION` - Revert given version
     * `--organization ORGANIZATION` - The organization the package belongs to
     * `--no-confirm` - Disables confirmation message before publishing
-    
+
   ## Configuration
 
     * `:app` - Package name (required).
@@ -108,11 +108,11 @@ defmodule Mix.Tasks.Hex.Publish do
 
     case args do
       ["package"] when revert ->
-        auth = Mix.Tasks.Hex.auth_info()
+        auth = Mix.Tasks.Hex.auth_info(:write)
         revert_package(build, organization, revert_version, auth)
 
       ["docs"] when revert ->
-        auth = Mix.Tasks.Hex.auth_info()
+        auth = Mix.Tasks.Hex.auth_info(:write)
         revert_docs(build, organization, revert_version, auth)
 
       [] when revert ->
@@ -120,13 +120,13 @@ defmodule Mix.Tasks.Hex.Publish do
 
       ["package"] ->
         if proceed?(build, organization, opts) do
-          auth = Mix.Tasks.Hex.auth_info()
+          auth = Mix.Tasks.Hex.auth_info(:write)
           create_release(build, organization, auth, opts)
         end
 
       ["docs"] ->
         docs_task(build, opts)
-        auth = Mix.Tasks.Hex.auth_info()
+        auth = Mix.Tasks.Hex.auth_info(:write)
         create_docs(build, organization, auth, opts)
 
       [] ->
@@ -147,7 +147,7 @@ defmodule Mix.Tasks.Hex.Publish do
     if proceed?(build, organization, opts) do
       Hex.Shell.info("Building docs...")
       docs_task(build, opts)
-      auth = Mix.Tasks.Hex.auth_info()
+      auth = Mix.Tasks.Hex.auth_info(:write)
       Hex.Shell.info("Publishing package...")
 
       if :ok == create_release(build, organization, auth, opts) do
@@ -241,7 +241,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp revert(build, organization, version) do
-    auth = Mix.Tasks.Hex.auth_info()
+    auth = Mix.Tasks.Hex.auth_info(:write)
     Hex.Shell.info("Reverting package...")
     revert_package(build, organization, version, auth)
     Hex.Shell.info("Reverting docs...")

@@ -83,10 +83,11 @@ defmodule Hex.APITest do
   end
 
   test "keys" do
+    permissions = [%{"domain" => "api"}]
     auth = [user: "user", pass: "hunter42"]
 
-    assert {:ok, {201, %{"secret" => key_a}, _}} = Hex.API.Key.new("key_a", auth)
-    assert {:ok, {201, %{"secret" => key_b}, _}} = Hex.API.Key.new("key_b", auth)
+    assert {:ok, {201, %{"secret" => key_a}, _}} = Hex.API.Key.new("key_a", permissions, auth)
+    assert {:ok, {201, %{"secret" => key_b}, _}} = Hex.API.Key.new("key_b", permissions, auth)
     assert byte_size(key_a) == 32
     assert byte_size(key_b) == 32
     auth = [key: key_a]
@@ -103,8 +104,8 @@ defmodule Hex.APITest do
 
     # Delete all keys
     auth = [user: "user", pass: "hunter42"]
-    assert {:ok, {201, %{"secret" => key_c}, _}} = Hex.API.Key.new("key_c", auth)
-    assert {:ok, {201, %{"secret" => key_d}, _}} = Hex.API.Key.new("key_d", auth)
+    assert {:ok, {201, %{"secret" => key_c}, _}} = Hex.API.Key.new("key_c", permissions, auth)
+    assert {:ok, {201, %{"secret" => key_d}, _}} = Hex.API.Key.new("key_d", permissions, auth)
     assert byte_size(key_c) == 32
     assert byte_size(key_d) == 32
     auth_c = [key: key_c]
