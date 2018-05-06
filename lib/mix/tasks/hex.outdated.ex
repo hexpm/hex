@@ -101,6 +101,8 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     message = "A green requirement means that it matches the latest version."
     Hex.Shell.info(["\n", message])
+
+    if outdated?, do: Mix.Tasks.Hex.set_exit_code(1)
   end
 
   defp get_requirements(deps, app) do
@@ -122,11 +124,12 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp all(deps, lock, opts) do
     deps = if opts[:all], do: deps, else: top_level_deps(deps)
 
-    values =
+    versions =
       deps
       |> sort()
       |> get_versions(lock, opts[:pre])
-      |> Enum.map(&format_all_row/1)
+
+    values = Enum.map(versions, &format_all_row/1)
 
     if Enum.empty?(values) do
       Hex.Shell.info("No hex dependencies")
@@ -141,6 +144,7 @@ defmodule Mix.Tasks.Hex.Outdated do
           "Run `mix hex.outdated APP` to see requirements for a specific dependency."
 
       Hex.Shell.info(["\n" | message])
+      if any_outdated?(versions), do: Mix.Tasks.Hex.set_exit_code(1)
     end
   end
 
@@ -231,4 +235,10 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   defp version_match?(_version, nil), do: true
   defp version_match?(version, req), do: Hex.Version.match?(version, req)
+
+  defp any_outdated?(versions) do
+    Enum.any?(versions, fn [_package, lock, latest, _requirements] ->
+      Hex.Version.compare(lock, latest) == :lt
+    end)
+  end
 end

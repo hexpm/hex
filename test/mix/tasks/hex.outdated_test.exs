@@ -88,7 +88,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Mix.Task.run("deps.get")
       flush()
 
-      Mix.Task.run("hex.outdated")
+      assert catch_throw(Mix.Task.run("hex.outdated")) == {:exit_code, 1}
 
       bar =
         [
@@ -116,7 +116,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Mix.Task.run("deps.get")
       flush()
 
-      Mix.Task.run("hex.outdated", ["--all"])
+      assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
 
       bar =
         [
@@ -172,7 +172,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Mix.Task.run("deps.get")
       flush()
 
-      Mix.Task.run("hex.outdated", ["--all"])
+      assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
 
       foo =
         [
@@ -215,7 +215,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       assert_received {:mix_shell, :info, [^beta]}
 
       Mix.Task.reenable("hex.outdated")
-      Mix.Task.run("hex.outdated", ["--pre"])
+      assert catch_throw(Mix.Task.run("hex.outdated", ["--pre"])) == {:exit_code, 1}
 
       beta =
         [
@@ -242,7 +242,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Mix.Task.run("deps.get")
       flush()
 
-      Mix.Task.run("hex.outdated", ["ex_doc"])
+      assert catch_throw(Mix.Task.run("hex.outdated", ["ex_doc"])) == {:exit_code, 1}
 
       msg =
         [
@@ -385,12 +385,12 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           |> IO.ANSI.format()
           |> List.to_string()
 
-        Mix.Task.run("hex.outdated")
+        assert catch_throw(Mix.Task.run("hex.outdated")) == {:exit_code, 1}
         assert_received {:mix_shell, :info, [^ex_doc]}
         assert_received {:mix_shell, :info, [^bar]}
         refute_received {:mix_shell, :info, [^foo]}
 
-        Mix.Tasks.Hex.Outdated.run(["--all"])
+        assert catch_throw(Mix.Tasks.Hex.Outdated.run(["--all"])) == {:exit_code, 1}
         assert_received {:mix_shell, :info, [^ex_doc]}
         assert_received {:mix_shell, :info, [^bar]}
         assert_received {:mix_shell, :info, [^foo]}
