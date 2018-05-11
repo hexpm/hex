@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       Hex.State.put(:home, System.cwd!())
       auth = Hexpm.new_user("orgauth", "orgauth@mail.com", "password", "orgauth")
       Hexpm.new_repo("myorgauth", auth)
-      Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
+      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
       send(self(), {:mix_shell_input, :prompt, "password"})
       Mix.Tasks.Hex.Organization.run(["auth", "myorgauth"])
@@ -34,7 +34,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
         Hexpm.new_user("orgauthwithkeyname", "orgauthwithkeyname@mail.com", "password", "orgauth")
 
       Hexpm.new_repo("myorgauthwithkeyname", auth)
-      Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
+      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
       send(self(), {:mix_shell_input, :prompt, "password"})
 
@@ -93,7 +93,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       Hex.State.put(:home, System.cwd!())
       auth = Hexpm.new_user("orgdeauth", "orgdeauth@mail.com", "password", "orgdeauth")
       Hexpm.new_repo("myorgdeauth", auth)
-      Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
+      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
       send(self(), {:mix_shell_input, :prompt, "password"})
       Mix.Tasks.Hex.Organization.run(["auth", "myorgdeauth"])
@@ -108,7 +108,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       Hex.State.put(:home, System.cwd!())
       auth = Hexpm.new_user("orgkey", "orgkey@mail.com", "password", "orgkey")
       Hexpm.new_repo("myorgkey", auth)
-      Mix.Tasks.Hex.update_key(auth[:"$encrypted_key"])
+      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
       send(self(), {:mix_shell_input, :prompt, "password"})
       Mix.Tasks.Hex.Organization.run(["key", "myorgkey"])

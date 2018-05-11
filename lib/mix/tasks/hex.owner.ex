@@ -73,7 +73,7 @@ defmodule Mix.Tasks.Hex.Owner do
   end
 
   defp add_owner(organization, package, owner) do
-    auth = Mix.Tasks.Hex.auth_info()
+    auth = Mix.Tasks.Hex.auth_info(:write)
     Hex.Shell.info("Adding owner #{owner} to #{package}")
 
     case Hex.API.Package.Owner.add(organization, package, owner, auth) do
@@ -87,7 +87,7 @@ defmodule Mix.Tasks.Hex.Owner do
   end
 
   defp remove_owner(organization, package, owner) do
-    auth = Mix.Tasks.Hex.auth_info()
+    auth = Mix.Tasks.Hex.auth_info(:write)
     Hex.Shell.info("Removing owner #{owner} from #{package}")
 
     case Hex.API.Package.Owner.delete(organization, package, owner, auth) do
@@ -101,7 +101,7 @@ defmodule Mix.Tasks.Hex.Owner do
   end
 
   defp list_owners(organization, package) do
-    auth = Mix.Tasks.Hex.auth_info()
+    auth = Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.Package.Owner.get(organization, package, auth) do
       {:ok, {code, body, _headers}} when code in 200..299 ->
@@ -114,7 +114,7 @@ defmodule Mix.Tasks.Hex.Owner do
   end
 
   def list_owned_packages() do
-    auth = Mix.Tasks.Hex.auth_info()
+    auth = Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.User.me(auth) do
       {:ok, {code, body, _headers}} when code in 200..299 ->

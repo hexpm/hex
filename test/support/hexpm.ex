@@ -194,19 +194,28 @@ defmodule HexTest.Hexpm do
   end
 
   def new_user(username, email, password, key) do
+    permissions = [%{"domain" => "api"}]
     {:ok, {201, _, _}} = Hex.API.User.new(username, email, password)
-    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new(key, user: username, pass: password)
-    [key: secret, "$encrypted_key": Mix.Tasks.Hex.encrypt_key(password, secret)]
+
+    {:ok, {201, %{"secret" => secret}, _}} =
+      Hex.API.Key.new(key, permissions, user: username, pass: password)
+
+    [key: secret, "$write_key": Mix.Tasks.Hex.encrypt_key(password, secret), "$read_key": secret]
   end
 
   def new_key(auth) do
-    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new("key", auth)
+    permissions = [%{"domain" => "api"}]
+    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new("key", permissions, auth)
     [key: secret]
   end
 
   def new_key(username, password, key) do
-    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new(key, user: username, pass: password)
-    [key: secret, "$encrypted_key": Mix.Tasks.Hex.encrypt_key(password, secret)]
+    permissions = [%{"domain" => "api"}]
+
+    {:ok, {201, %{"secret" => secret}, _}} =
+      Hex.API.Key.new(key, permissions, user: username, pass: password)
+
+    [key: secret, "$write_key": Mix.Tasks.Hex.encrypt_key(password, secret), "$read_key": secret]
   end
 
   def new_package(name, version, deps, meta, auth) do

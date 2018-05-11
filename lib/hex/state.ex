@@ -18,10 +18,9 @@ defmodule Hex.State do
     repos_key = load_config(config, ["HEX_REPOS_KEY"], [:repos_key])
 
     %{
-      # NOTE: We need to furher clarify the distinction between this when we
-      #       introduce separte read and write keys
-      api_key_encrypted: load_config(config, [], [:"$encrypted_key", :encrypted_key]),
-      api_key_unencrypted: load_config(config, ["HEX_API_KEY"], [:api_key]),
+      api_key_read: load_config(config, [], [:"$read_key"]),
+      api_key_write: load_config(config, [], [:"$write_key", :"$encrypted_key"]),
+      api_key_write_unencrypted: load_config(config, ["HEX_API_KEY"], [:api_key]),
       api_url:
         load_config(config, ["HEX_API_URL", "HEX_API"], [:api_url])
         |> trim_slash()

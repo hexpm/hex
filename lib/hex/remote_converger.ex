@@ -265,6 +265,7 @@ defmodule Hex.RemoteConverger do
       case Hex.Utils.lock(info) do
         %{name: name, repo: repo, version: version} ->
           [{name, {repo, version}}]
+
         nil ->
           []
       end

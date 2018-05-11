@@ -364,7 +364,11 @@ defmodule Hex.MixTaskTest do
     in_tmp(fn ->
       Hex.State.put(:home, System.cwd!())
 
-      File.write!("mix.lock", ~s(%{"ecto": {:hex, :ecto, "0.2.0", "CHECKSUM", [:mix], [], "hexpm"}}))
+      File.write!(
+        "mix.lock",
+        ~s(%{"ecto": {:hex, :ecto, "0.2.0", "CHECKSUM", [:mix], [], "hexpm"}})
+      )
+
       Mix.Task.run("deps.update", ["ecto"])
 
       assert_received {:mix_shell, :info, ["  ecto 0.2.0 => 0.2.1"]}
@@ -384,7 +388,11 @@ defmodule Hex.MixTaskTest do
     in_tmp(fn ->
       Hex.State.put(:home, System.cwd!())
 
-      File.write!("mix.lock", ~s(%{"ecto": {:git, "https://github.com/elixi-ecto/ecto", "CHECKSUM", []}}))
+      File.write!(
+        "mix.lock",
+        ~s(%{"ecto": {:git, "https://github.com/elixi-ecto/ecto", "CHECKSUM", []}})
+      )
+
       Mix.Task.run("deps.update", ["ecto"])
 
       assert_received {:mix_shell, :info, ["  ecto 0.2.1"]}

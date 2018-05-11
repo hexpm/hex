@@ -59,7 +59,7 @@ defmodule Mix.Tasks.Hex.Retire do
   end
 
   defp retire(organization, package, version, reason, opts) do
-    auth = Mix.Tasks.Hex.auth_info()
+    auth = Mix.Tasks.Hex.auth_info(:write)
     body = %{reason: reason, message: opts[:message]}
 
     case Hex.API.Release.retire(organization, package, version, body, auth) do
@@ -73,7 +73,7 @@ defmodule Mix.Tasks.Hex.Retire do
   end
 
   defp unretire(organization, package, version) do
-    auth = Mix.Tasks.Hex.auth_info()
+    auth = Mix.Tasks.Hex.auth_info(:write)
 
     case Hex.API.Release.unretire(organization, package, version, auth) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
