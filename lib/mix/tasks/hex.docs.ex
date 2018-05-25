@@ -12,7 +12,7 @@ defmodule Mix.Tasks.Hex.Docs do
 
   ## Fetch documentation for all dependencies in the current mix project
 
-    mix hex.docs fetch
+      mix hex.docs fetch
 
   ## Fetch documentation for offline use
 
