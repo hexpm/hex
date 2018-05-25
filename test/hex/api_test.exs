@@ -47,7 +47,8 @@ defmodule Hex.APITest do
              "pear" => %{"app" => "pear", "requirement" => "~> 0.0.1", "optional" => false}
            }
 
-    assert {:ok, {204, _, _}} = Hex.API.Release.delete("hexpm", "grape", "0.0.2", auth)
+    assert {:ok, {status, _, _}} = Hex.API.Release.delete("hexpm", "grape", "0.0.2", auth)
+    assert status in 200..299
     assert {:ok, {404, _, _}} = Hex.API.Release.get("hexpm", "grape", "0.0.2")
   end
 
@@ -76,7 +77,8 @@ defmodule Hex.APITest do
     assert {:ok, {200, %{"has_docs" => true}, _}} =
              Hex.API.Release.get("hexpm", "tangerine", "0.0.1")
 
-    assert {:ok, {204, _, _}} = Hex.API.ReleaseDocs.delete("hexpm", "tangerine", "0.0.1", auth)
+    assert {:ok, {status, _, _}} = Hex.API.ReleaseDocs.delete("hexpm", "tangerine", "0.0.1", auth)
+    assert status in 200..299
 
     assert {:ok, {200, %{"has_docs" => false}, _}} =
              Hex.API.Release.get("hexpm", "tangerine", "0.0.1")
@@ -131,16 +133,18 @@ defmodule Hex.APITest do
     assert {:ok, {200, [%{"username" => "user"}], _}} =
              Hex.API.Package.Owner.get("hexpm", "orange", auth)
 
-    assert {:ok, {204, _, _}} =
+    assert {:ok, {status, _, _}} =
              Hex.API.Package.Owner.add("hexpm", "orange", "orange_user@mail.com", auth)
+    assert status in 200..299
 
     assert {:ok, {200, owners, _}} = Hex.API.Package.Owner.get("hexpm", "orange", auth)
     assert length(owners) == 2
     assert Enum.any?(owners, &match?(%{"username" => "user"}, &1))
     assert Enum.any?(owners, &match?(%{"username" => "orange_user"}, &1))
 
-    assert {:ok, {204, _, _}} =
+    assert {:ok, {status, _, _}} =
              Hex.API.Package.Owner.delete("hexpm", "orange", "orange_user@mail.com", auth)
+    assert status in 200..299
 
     assert {:ok, {200, [%{"username" => "user"}], _}} =
              Hex.API.Package.Owner.get("hexpm", "orange", auth)
