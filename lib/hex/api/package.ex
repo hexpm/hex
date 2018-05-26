@@ -12,10 +12,10 @@ defmodule Hex.API.Package do
   end
 
   defmodule Owner do
-    def add(repo, package, owner, auth) do
+    def add(repo, package, owner, level, auth) do
       owner = URI.encode_www_form(owner)
       path = "packages/#{URI.encode(package)}/owners/#{URI.encode(owner)}"
-      API.erlang_put_request(repo, path, %{}, auth)
+      API.erlang_put_request(repo, path, %{level: level}, auth)
     end
 
     def delete(repo, package, owner, auth) do
