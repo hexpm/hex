@@ -59,7 +59,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
 
-    assert_raise Mix.Error, "Invalid ownership level, expected one of:\nfull\nmaintainer\n", fn ->
+    assert_raise Mix.Error, "Invalid ownership level, expected one of: full, maintainer", fn ->
       Mix.Tasks.Hex.Owner.run([
         "add",
         "owner_package1b",

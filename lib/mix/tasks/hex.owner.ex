@@ -88,11 +88,7 @@ defmodule Mix.Tasks.Hex.Owner do
   end
 
   defp add_owner(_organization, _package, _owner, _level) do
-    Mix.raise("""
-    Invalid ownership level, expected one of:
-    full
-    maintainer
-    """)
+    Mix.raise("Invalid ownership level, expected one of: full, maintainer")
   end
 
   defp remove_owner(organization, package, owner) do
