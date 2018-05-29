@@ -50,7 +50,6 @@ defmodule Mix.Tasks.Hex.Build do
       "changelog*", "src"]`.
     * `:exclude_patterns` - List of patterns matching files and directories to
       exclude from the package.
-    * `:maintainers` - List of names and/or emails of maintainers.
     * `:licenses` - List of licenses used by the package.
     * `:links` - Map of links relevant to the package.
     * `:build_tools` - List of build tools that can build the package. Hex will
@@ -74,7 +73,7 @@ defmodule Mix.Tasks.Hex.Build do
   @default_files ~w(lib priv .formatter.exs mix.exs README* readme* LICENSE*
                     license* CHANGELOG* changelog* src)
   @error_fields ~w(app name files version build_tools)a
-  @warn_fields ~w(description licenses maintainers links)a
+  @warn_fields ~w(description licenses links)a
   @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir extra)a
   @root_fields ~w(app version elixir description)a
   @max_description_length 300

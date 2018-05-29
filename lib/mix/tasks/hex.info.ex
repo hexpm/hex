@@ -132,8 +132,6 @@ defmodule Mix.Tasks.Hex.Info do
   defp add_ellipsis(output, _rest), do: output ++ [", ..."]
 
   defp print_meta(meta) do
-    print_list(meta, "contributors")
-    print_list(meta, "maintainers")
     print_list(meta, "licenses")
     print_dict(meta, "links")
   end

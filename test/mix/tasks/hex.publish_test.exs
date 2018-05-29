@@ -50,7 +50,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
       message =
         "Package published to http://localhost:4043/packages/release_a/0.0.1 " <>
-          "(003480ccb7e23538f486689bda4f8a5ee50ff495e04a0bfd31e95640b7a6a02a)"
+          "(888f573ee2d5cd45e3edfad2862e24e5f205afa0cf493796015c3001ff8dbce5)"
 
       assert_received {:mix_shell, :info, [^message]}
 
@@ -218,7 +218,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Deps.Get.run([])
 
       error_msg =
-        "Stopping package build due to errors.\nMissing metadata fields: maintainers, links"
+        "Stopping package build due to errors.\nMissing metadata fields: links"
 
       assert_raise Mix.Error, error_msg, fn ->
         send(self(), {:mix_shell_input, :yes?, true})

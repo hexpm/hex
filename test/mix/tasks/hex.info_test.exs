@@ -6,7 +6,6 @@ defmodule Mix.Tasks.Hex.InfoTest do
     Mix.Tasks.Hex.Info.run(["ex_doc"])
     assert_received {:mix_shell, :info, ["Some description\n"]}
     assert_received {:mix_shell, :info, ["Config: {:ex_doc, \"~> 0.1.0\"}"]}
-    assert_received {:mix_shell, :info, ["Maintainers: John Doe, Jane Doe"]}
     assert_received {:mix_shell, :info, ["Releases: 0.1.0, 0.1.0-rc1, 0.0.1\n"]}
 
     Mix.Tasks.Hex.Info.run(["no_package"])
