@@ -134,7 +134,8 @@ defmodule Hex.APITest do
              Hex.API.Package.Owner.get("hexpm", "orange", auth)
 
     assert {:ok, {status, _, _}} =
-             Hex.API.Package.Owner.add("hexpm", "orange", "orange_user@mail.com", auth)
+             Hex.API.Package.Owner.add("hexpm", "orange", "orange_user@mail.com", "full", auth)
+
     assert status in 200..299
 
     assert {:ok, {200, owners, _}} = Hex.API.Package.Owner.get("hexpm", "orange", auth)
@@ -144,6 +145,7 @@ defmodule Hex.APITest do
 
     assert {:ok, {status, _, _}} =
              Hex.API.Package.Owner.delete("hexpm", "orange", "orange_user@mail.com", auth)
+
     assert status in 200..299
 
     assert {:ok, {200, [%{"username" => "user"}], _}} =

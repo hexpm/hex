@@ -40,16 +40,17 @@ defmodule Mix.Tasks.Hex.Owner do
     * `--organization ORGANIZATION` - The organization the package belongs to
   """
 
-  @switches [organization: :string]
+  @switches [organization: :string, level: :string]
 
   def run(args) do
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
     organization = opts[:organization]
+    level = opts[:level] || "full"
 
     case args do
       ["add", package, owner] ->
-        add_owner(organization, package, owner)
+        add_owner(organization, package, owner, level)
 
       ["remove", package, owner] ->
         remove_owner(organization, package, owner)
@@ -72,11 +73,11 @@ defmodule Mix.Tasks.Hex.Owner do
     end
   end
 
-  defp add_owner(organization, package, owner) do
+  defp add_owner(organization, package, owner, level) when level in ~w[full maintainer] do
     auth = Mix.Tasks.Hex.auth_info(:write)
-    Hex.Shell.info("Adding owner #{owner} to #{package}")
+    Hex.Shell.info("Adding owner #{owner} with ownership level #{level} to #{package}")
 
-    case Hex.API.Package.Owner.add(organization, package, owner, auth) do
+    case Hex.API.Package.Owner.add(organization, package, owner, level, auth) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
 
@@ -84,6 +85,10 @@ defmodule Mix.Tasks.Hex.Owner do
         Hex.Shell.error("Adding owner failed")
         Hex.Utils.print_error_result(other)
     end
+  end
+
+  defp add_owner(_organization, _package, _owner, _level) do
+    Mix.raise("Invalid ownership level, expected one of: full, maintainer")
   end
 
   defp remove_owner(organization, package, owner) do
@@ -105,7 +110,9 @@ defmodule Mix.Tasks.Hex.Owner do
 
     case Hex.API.Package.Owner.get(organization, package, auth) do
       {:ok, {code, body, _headers}} when code in 200..299 ->
-        Enum.each(body, &Hex.Shell.info(&1["email"]))
+        header = ["Email", "Level"]
+        owners = Enum.map(body, &[&1["email"], &1["level"]])
+        Mix.Tasks.Hex.print_table(header, owners)
 
       other ->
         Hex.Shell.error("Package owner fetching failed")
