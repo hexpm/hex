@@ -21,7 +21,7 @@ defmodule HexTest.Case do
     end
   end
 
-  def tmp_path do
+  def tmp_path() do
     Path.expand("../../tmp", __DIR__)
   end
 
@@ -29,7 +29,7 @@ defmodule HexTest.Case do
     Path.join(tmp_path(), extension)
   end
 
-  def fixture_path do
+  def fixture_path() do
     Path.expand("../fixtures", __DIR__)
   end
 
@@ -44,7 +44,14 @@ defmodule HexTest.Case do
     end
   end
 
-  defmacro test_name do
+  defmacro test_tmp() do
+    module = escape_path("#{__CALLER__.module}")
+    function = escape_path("#{elem(__CALLER__.function, 0)}")
+
+    Path.join([HexTest.Case.tmp_path(), module, function])
+  end
+
+  defmacro test_name() do
     module = escape_path("#{__CALLER__.module}")
     function = escape_path("#{elem(__CALLER__.function, 0)}")
 
@@ -112,16 +119,18 @@ defmodule HexTest.Case do
 
   @ets_table :hex_index
 
-  def create_test_registry(path) do
+  def create_test_registry(path, registry) do
+    registry = Enum.sort(registry)
+
     versions =
-      Enum.reduce(test_registry(), %{}, fn {repo, name, vsn, _deps}, map ->
+      Enum.reduce(registry, %{}, fn {repo, name, vsn, _deps}, map ->
         key = {Atom.to_string(repo), Atom.to_string(name)}
         Map.update(map, key, [vsn], &(&1 ++ [vsn]))
       end)
       |> Enum.to_list()
 
     deps =
-      Enum.map(test_registry(), fn {outer_repo, name, vsn, deps} ->
+      Enum.map(registry, fn {outer_repo, name, vsn, deps} ->
         deps =
           Enum.map(deps, fn config ->
             destructure [name, req, optional, app, repo], Tuple.to_list(config)
@@ -151,12 +160,12 @@ defmodule HexTest.Case do
       end)
 
     :ets.insert(tid, versions ++ deps ++ [{:version, 1}])
+    File.mkdir_p!(Path.dirname(path))
     :ok = :ets.tab2file(tid, Hex.string_to_charlist(path))
     :ets.delete(tid)
   end
 
-  # Needs to be sorted on names and versions
-  defp test_registry do
+  defp test_registry() do
     [
       {:hexpm, :bar, "0.0.1", []},
       {:hexpm, :bar, "0.1.0", [foo: "~> 0.1.0"]},
@@ -267,7 +276,7 @@ defmodule HexTest.Case do
     unless context[:async] do
       ets_path = tmp_path("cache.ets")
       File.rm(ets_path)
-      create_test_registry(ets_path)
+      create_test_registry(ets_path, test_registry())
       reset_state()
     end
 

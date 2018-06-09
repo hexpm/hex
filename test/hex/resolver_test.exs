@@ -3,9 +3,8 @@ defmodule Hex.ResolverTest do
   alias Hex.Registry.Server, as: Registry
 
   defp resolve(reqs, locked \\ [], repos \\ %{}) do
-    reqs = Enum.reverse(reqs)
     deps = deps(reqs)
-    top_level = Enum.map(deps, &elem(&1, 1))
+    top_level = Enum.map(deps, &elem(&1, 0))
     reqs = reqs(reqs)
     locked = locked(locked)
 
@@ -46,6 +45,34 @@ defmodule Hex.ResolverTest do
 
   defp equal?(locked, resolved) do
     Enum.sort(locked) == Enum.sort(resolved)
+  end
+
+  defp add_repo(repo) do
+    config = %{
+      url: repo,
+      public_key: nil,
+      auth_key: nil,
+      api_url: nil,
+      api_key: nil
+    }
+
+    Hex.State.update!(:repos, &Map.put(&1, repo, config))
+  end
+
+  defp expand_versions(registry) do
+    Enum.flat_map(registry, fn {repo, package, versions, deps} ->
+      Enum.map(versions, fn version ->
+        {repo, package, version, deps}
+      end)
+    end)
+  end
+
+  defp setup_registry(path, registry) do
+    registry = expand_versions(registry)
+    HexTest.Case.create_test_registry(path, registry)
+    Registry.close()
+    Registry.open(registry_path: path)
+    :ok
   end
 
   setup do
@@ -103,6 +130,9 @@ defmodule Hex.ResolverTest do
     deps = [decimal: nil, ex_plex: "< 0.1.0"]
     assert equal?(locked(decimal: "0.2.1", ex_plex: "0.0.1"), resolve(deps))
 
+    deps = [ex_plex: "< 0.1.0", decimal: nil]
+    assert equal?(locked(decimal: "0.2.1", ex_plex: "0.0.1"), resolve(deps))
+
     deps = [decimal: "0.1.0", ex_plex: "< 0.1.0"]
     assert equal?(locked(decimal: "0.1.0", ex_plex: "0.0.1"), resolve(deps))
 
@@ -141,6 +171,9 @@ defmodule Hex.ResolverTest do
 
   test "complete backtrack" do
     deps = [jose: nil, eric: nil]
+    assert equal?(locked(jose: "0.2.1", eric: "0.0.2"), resolve(deps))
+
+    deps = [eric: nil, jose: nil]
     assert equal?(locked(jose: "0.2.1", eric: "0.0.2"), resolve(deps))
   end
 
@@ -306,15 +339,34 @@ defmodule Hex.ResolverTest do
            )
   end
 
-  defp add_repo(repo) do
-    config = %{
-      url: repo,
-      public_key: nil,
-      auth_key: nil,
-      api_url: nil,
-      api_key: nil
-    }
+  test "issue #571" do
+    # earmark and ex_doc at 2018-06-09
+    setup_registry(Path.join(test_tmp(), "cache.ets"), [
+      {:hexpm, :earmark,
+       ~w(0.1.0 0.1.1 0.1.2 0.1.3 0.1.4 0.1.5 0.1.6 0.1.7 0.1.8 0.1.9 0.1.10 0.1.11 0.1.12 0.1.13 0.1.14 0.1.15 0.1.16 0.1.17 0.1.18 0.1.19 0.2.0 0.2.1 1.0.0 1.0.1 1.0.2 1.0.3 1.1.0 1.1.1 1.2.0 1.2.1 1.2.2 1.2.3 1.2.4 1.2.5),
+       []},
+      {:hexpm, :ex_doc, ~w(0.5.1 0.5.2 0.6.0 0.6.1 0.6.2 0.7.0 0.7.1 0.7.2), []},
+      {:hexpm, :ex_doc,
+       ~w(0.7.3 0.8.0 0.8.1 0.8.2 0.8.3 0.8.4 0.9.0 0.10.0 0.11.0 0.11.1 0.11.2 0.11.3 0.11.4 0.11.5),
+       [{:earmark, "~> 0.1.17 or ~> 0.2", true}]},
+      {:hexpm, :ex_doc, ~w(0.12.0), [earmark: "~> 0.2"]},
+      {:hexpm, :ex_doc, ~w(0.13.0 0.13.1 0.13.2 0.14.0 0.14.1 0.14.2 0.14.3 0.14.4 0.14.5),
+       [earmark: "~> 1.0"]},
+      {:hexpm, :ex_doc,
+       ~w(0.15.0 0.15.1 0.16.0 0.16.1 0.16.2 0.16.3 0.16.4 0.17.0 0.17.1 0.17.2 0.18.0 0.18.1 0.18.2 0.18.3),
+       [earmark: "~> 1.1"]}
+    ])
 
-    Hex.State.update!(:repos, &Map.put(&1, repo, config))
+    deps = [earmark: "~> 0.1", ex_doc: "~> 0.11"]
+    locked = []
+    assert equal?(locked(earmark: "0.2.1", ex_doc: "0.12.0"), resolve(deps, locked))
+
+    deps = [earmark: "~> 0.1", ex_doc: "~> 0.11"]
+    locked = [earmark: "0.2.1"]
+    assert equal?(locked(earmark: "0.2.1", ex_doc: "0.12.0"), resolve(deps, locked))
+
+    deps = [earmark: "~> 0.1", ex_doc: "~> 0.11"]
+    locked = [ex_doc: "0.12.0"]
+    assert equal?(locked(earmark: "0.2.1", ex_doc: "0.12.0"), resolve(deps, locked))
   end
 end
