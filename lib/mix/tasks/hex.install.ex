@@ -31,6 +31,8 @@ defmodule Mix.Tasks.Hex.Install do
   end
 
   defp install(hex_version) do
+    raise_if_invalid_version(hex_version)
+
     hex_url = Hex.Repo.get_repo("hexpm").url
     csv_url = hex_url <> @hex_list_path
 
@@ -109,5 +111,12 @@ defmodule Mix.Tasks.Hex.Install do
 
   defp find_version(_versions, _elixir_version, _hex_version) do
     nil
+  end
+
+  defp raise_if_invalid_version(hex_version) do
+    case Version.parse(hex_version) do
+      {:ok, _version} -> :ok
+      :error -> Mix.raise("#{hex_version} is not a valid Hex version")
+    end
   end
 end
