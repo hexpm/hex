@@ -140,7 +140,7 @@ defmodule Hex.MixProject do
     end
   end
 
-  defp archives_path do
+  defp archives_path() do
     if function_exported?(Mix.Local, :path_for, 1) do
       Mix.Local.path_for(:archive)
     else

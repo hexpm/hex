@@ -47,7 +47,7 @@ defmodule Mix.Tasks.Hex.Search do
   end
 
   defp lookup_packages({:ok, {200, packages, _headers}}) do
-    include_organizations? = Enum.any?(packages, & &1["repository"] != "hexpm")
+    include_organizations? = Enum.any?(packages, &(&1["repository"] != "hexpm"))
 
     if include_organizations? do
       print_with_organizations(packages)
