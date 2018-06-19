@@ -15,7 +15,6 @@ defmodule Mix.Tasks.Hex.Install do
 
   def run(args) do
     Hex.start()
-    {_, args} = Hex.OptionParser.parse!(args)
 
     case args do
       [version] ->
