@@ -459,13 +459,13 @@ defmodule Hex.RemoteConverger do
     # 2. If the requirement or repo in mix.exs does not match the locked version
     # 3. If it's a child of another Hex package being unlocked/updated
 
+    unlock_without_children =
+      for {app, _} <- old_lock,
+          not Map.has_key?(lock, app),
+          do: Atom.to_string(app)
+
     unlock =
-      for(
-        {app, _} <- old_lock,
-        not Map.has_key?(lock, app),
-        into: unlock_deps(deps, old_lock),
-        do: Atom.to_string(app)
-      )
+      (unlock_deps(deps, old_lock) ++ unlock_without_children)
       |> Enum.uniq()
       |> with_children(old_lock)
       |> Enum.uniq()
