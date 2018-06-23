@@ -181,8 +181,22 @@ defmodule Hex.Utils do
         pretty_errors(map, depth + 1)
 
       {key, value} ->
-        Hex.Shell.info(indent(depth) <> key <> ": " <> value)
+        message = pretty_error_message(value, depth)
+        Hex.Shell.info(indent(depth) <> key <> ": " <> message)
     end)
+  end
+
+  defp pretty_error_message(message, depth) do
+    if message =~ "\n" do
+      message =
+        message
+        |> Hex.string_trim()
+        |> String.replace("\n", "\n" <> indent(depth + 1))
+
+      "\n" <> indent(depth + 1) <> message
+    else
+      message
+    end
   end
 
   defp print_http_code(code), do: Hex.Shell.info(pretty_http_code(code))
