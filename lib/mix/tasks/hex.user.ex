@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Hex.User do
 
       mix hex.user auth [--key-name KEY_NAME]
 
-  ## Command line options
+  ### Command line options
 
     * `--key-name KEY_NAME` - By default Hex will base the key name on your machine's
       hostname, use this option to give your own name.
@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Hex.User do
 
       mix hex.user key --generate
 
-  ## Command line options
+  ### Command line options
 
     * `--key-name KEY_NAME` - By default Hex will base the key name on your machine's
       hostname, use this option to give your own name.
