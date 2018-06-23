@@ -35,7 +35,8 @@ defmodule Mix.Tasks.Hex.Publish do
 
   ## Command line options
 
-    * `--revert VERSION` - Revert given version
+    * `--revert VERSION` - Revert given version, if the last version is reverted
+      the package is removed
     * `--organization ORGANIZATION` - The organization the package belongs to
     * `--no-confirm` - Disables confirmation message before publishing
 
