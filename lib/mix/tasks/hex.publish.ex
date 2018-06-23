@@ -271,6 +271,9 @@ defmodule Mix.Tasks.Hex.Publish do
       {:ok, {code, _, _}} when code in 200..299 ->
         Hex.Shell.info("Reverted docs for #{name} #{version}")
 
+      {:ok, {404, _, _}} ->
+        Hex.Shell.info("Docs do not exist")
+
       other ->
         Hex.Shell.error("Reverting docs for #{name} #{version} failed")
         Hex.Utils.print_error_result(other)
