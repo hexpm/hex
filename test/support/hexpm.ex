@@ -218,6 +218,15 @@ defmodule HexTest.Hexpm do
     [key: secret, "$write_key": Mix.Tasks.Hex.encrypt_key(password, secret), "$read_key": secret]
   end
 
+  def new_organization_key(organization, key, auth) do
+    permissions = [%{"domain" => "api"}]
+
+    {:ok, {201, %{"secret" => secret}, _}} =
+      Hex.API.Key.Organization.new(organization, key, permissions, auth)
+
+    [key: secret]
+  end
+
   def new_package(name, version, deps, meta, auth) do
     reqs =
       Enum.filter(deps, fn

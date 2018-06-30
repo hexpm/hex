@@ -75,46 +75,52 @@ defmodule Mix.Tasks.Hex do
   def auth(opts \\ []) do
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
     account_password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.string_trim()
-    Mix.Tasks.Hex.generate_all_api_keys(username, account_password, opts)
+    Mix.Tasks.Hex.generate_all_user_keys(username, account_password, opts)
   end
 
   @local_password_prompt "You have authenticated on Hex using your account password. However, " <>
                            "Hex requires you to have a local password that applies only to this machine for security " <>
                            "purposes. Please enter it."
 
-  def generate_api_key(key_name, permissions, opts) do
+  def generate_user_key(key_name, permissions, opts) do
     case Hex.API.Key.new(key_name, permissions, opts) do
       {:ok, {201, body, _}} ->
         {:ok, body["secret"]}
 
       other ->
-        Mix.shell().error("Generation of API key failed")
+        Mix.shell().error("Generation of key failed")
         Hex.Utils.print_error_result(other)
         :error
     end
   end
 
-  def generate_all_api_keys(username, password, opts \\ []) do
-    Hex.Shell.info("Generating API keys...")
+  def generate_all_user_keys(username, password, opts \\ []) do
+    Hex.Shell.info("Generating keys...")
     auth = [user: username, pass: password]
-    {:ok, hostname} = :inet.gethostname()
-    key_name_base = opts[:key_name] || hostname
-    key_name = "#{key_name_base}-api"
+    key_name = api_key_name(opts[:key_name])
     permissions = [%{"domain" => "api"}]
 
-    case generate_api_key(key_name, permissions, auth) do
+    case generate_user_key(key_name, permissions, auth) do
       {:ok, write_key} ->
+        key_name = api_key_name(opts[:key_name], "read")
         permissions = [%{"domain" => "api", "resource" => "read"}]
-        key_name = "#{key_name_base}-api-read"
 
-        case generate_api_key(key_name, permissions, auth) do
+        case generate_user_key(key_name, permissions, key: write_key) do
           {:ok, read_key} ->
-            organization_key = generate_organizations_key(opts[:key_name], auth)
-            auth_organization("hexpm", organization_key)
+            key_name = repositories_key_name(opts[:key_name])
+            permissions = [%{"domain" => "repositories"}]
 
-            Hex.Shell.info(@local_password_prompt)
-            prompt_encrypt_key(write_key, read_key)
-            {:ok, write_key, read_key, organization_key}
+            case generate_user_key(key_name, permissions, key: write_key) do
+              {:ok, organization_key} ->
+                auth_organization("hexpm", organization_key)
+
+                Hex.Shell.info(@local_password_prompt)
+                prompt_encrypt_key(write_key, read_key)
+                {:ok, write_key, read_key, organization_key}
+
+              :error ->
+                :ok
+            end
 
           :error ->
             :error
@@ -125,28 +131,43 @@ defmodule Mix.Tasks.Hex do
     end
   end
 
-  def generate_organization_key(organization_name, key_name, auth \\ nil) do
+  def generate_organization_key(organization_name, key_name, permissions, auth \\ nil) do
     auth = auth || auth_info(:write)
-    permissions = [%{"domain" => "repository", "resource" => organization_name}]
-    {:ok, hostname} = :inet.gethostname()
-    key_name = "#{key_name || hostname}-organization-#{organization_name}"
 
-    case generate_api_key(key_name, permissions, auth) do
-      {:ok, key} -> key
-      :error -> :ok
+    case Hex.API.Key.Organization.new(organization_name, key_name, permissions, auth) do
+      {:ok, {201, body, _}} ->
+        {:ok, body["secret"]}
+
+      other ->
+        Mix.shell().error("Generation of key failed")
+        Hex.Utils.print_error_result(other)
+        :error
     end
   end
 
-  def generate_organizations_key(key_name, auth \\ nil) do
-    auth = auth || auth_info(:write)
-    permissions = [%{"domain" => "repositories"}]
+  def general_key_name(nil) do
     {:ok, hostname} = :inet.gethostname()
-    key_name = "#{key_name || hostname}-organizations"
+    List.to_string(hostname)
+  end
 
-    case generate_api_key(key_name, permissions, auth) do
-      {:ok, key} -> key
-      :error -> :ok
-    end
+  def general_key_name(key) do
+    key
+  end
+
+  def api_key_name(key, extra \\ nil) do
+    {:ok, hostname} = :inet.gethostname()
+    name = "#{key || hostname}-api"
+    if extra, do: "#{name}-#{extra}", else: name
+  end
+
+  def repository_key_name(organization, key) do
+    {:ok, hostname} = :inet.gethostname()
+    "#{key || hostname}-repository-#{organization}"
+  end
+
+  def repositories_key_name(key) do
+    {:ok, hostname} = :inet.gethostname()
+    "#{key || hostname}-repositories"
   end
 
   def update_keys(write_key, read_key \\ nil) do
@@ -253,6 +274,18 @@ defmodule Mix.Tasks.Hex do
       unless Keyword.has_key?(opts, req) do
         Mix.raise("Missing command line option: #{req}")
       end
+    end)
+  end
+
+  def convert_permissions([]) do
+    nil
+  end
+
+  def convert_permissions(permissions) do
+    Enum.map(permissions, fn permission ->
+      permission = String.downcase(permission)
+      destructure [domain, resource], String.split(permission, ":", parts: 2)
+      %{"domain" => domain, "resource" => resource}
     end)
   end
 
