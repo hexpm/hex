@@ -194,7 +194,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send(self(), {:mix_shell_input, :prompt, "user"})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.User.run(["key", "--generate"])
-      assert_received {:mix_shell, :info, ["Generating API keys..."]}
+      assert_received {:mix_shell, :info, ["Generating key..."]}
       assert_received {:mix_shell, :info, [key]}
 
       Hex.State.put(:api_key_write_unencrypted, key)

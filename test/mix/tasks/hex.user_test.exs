@@ -43,7 +43,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       auth = Mix.Tasks.Hex.auth_info(:read)
       assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
       assert "#{name}-api" in Enum.map(body, & &1["name"])
-      assert "#{name}-organizations" in Enum.map(body, & &1["name"])
+      assert "#{name}-repositories" in Enum.map(body, & &1["name"])
     end)
   end
 
@@ -60,7 +60,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       auth = Mix.Tasks.Hex.auth_info(:read)
       assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
       assert "userauthkeyname-api" in Enum.map(body, & &1["name"])
-      assert "userauthkeyname-organizations" in Enum.map(body, & &1["name"])
+      assert "userauthkeyname-repositories" in Enum.map(body, & &1["name"])
     end)
   end
 
@@ -233,7 +233,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       send(self(), {:mix_shell_input, :prompt, "userkeygenerate"})
       send(self(), {:mix_shell_input, :prompt, "password"})
       Mix.Tasks.Hex.User.run(["key", "--generate"])
-      assert_received {:mix_shell, :info, ["Generating API keys..."]}
+      assert_received {:mix_shell, :info, ["Generating key..."]}
       assert_received {:mix_shell, :info, [key]}
       assert is_binary(key)
     end)
