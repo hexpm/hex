@@ -9,9 +9,9 @@ function join { local IFS="$1"; shift; echo "$*"; }
 # $3 = elixir version
 # $4 = saved elixir version
 function build {
-  rm .tool-versions || true
-  rm -rf _build || true
-  rm src/vendored_safe_erl_term.erl || true
+  rm -f .tool-versions
+  rm -rf _build
+  rm -f src/vendored_safe_erl_term.erl
 
   printf "erlang ${2}\nelixir ${3}-otp-${2:0:2}" > .tool-versions
 
@@ -73,7 +73,7 @@ function upload {
 # UPDATE THIS FOR EVERY RELEASE
 hex_version=$1
 
-build ${hex_version} 19.3 1.6.4 1.6.0
+build ${hex_version} 19.3 1.6.6 1.6.0
 build ${hex_version} 18.3 1.5.3 1.5.0
 build ${hex_version} 18.3 1.4.5 1.4.0
 build ${hex_version} 18.3 1.3.4 1.3.0

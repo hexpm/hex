@@ -6,15 +6,15 @@ This document simply outlines the release process:
 
 2. Ensure CHANGELOG is updated and add current date
 
-3. Commit changes above with title "Release vVERSION" and generate new tag
+3. Update the local `release.sh` with the Elixir and OTP versions Hex should be built against. Make sure you have installed all the Elixir and OTP versions listed with asdf
 
-4. Push master and the new tag
+4. Commit changes above with title "Release vVERSION" and generate new tag
 
-5. Create GitHub release
+5. Push master and the new tag
 
-6. Update the local `release.sh` with the Elixir and OTP versions Hex should be built against
+6. Create GitHub release
 
-7. Run the `release.sh` script and set the path to the private key for Elixir `ELIXIR_PEM=path/to/elixir.pem release.sh`
+7. Run the `release.sh` script and set the path to the private key for Elixir `ELIXIR_PEM=path/to/elixir.pem release.sh VERSION` where `VERSION` is the Hex version being released without a `v` prefix
 
 8. Purge the `installs` key on Fastly
 
