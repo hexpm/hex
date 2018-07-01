@@ -257,6 +257,13 @@ defmodule Hex.Utils do
     end
   end
 
+  def windows_repo_path_fix(path) do
+    case :os.type() do
+      {:win32, _name} -> String.replace(path, ":", "-")
+      {_family, _name} -> path
+    end
+  end
+
   def lock(tuple) when elem(tuple, 0) == :hex do
     if tuple_size(tuple) > 7 and Hex.Server.should_warn_lock_version?() do
       Hex.Shell.warn(

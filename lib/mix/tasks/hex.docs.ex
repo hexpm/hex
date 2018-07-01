@@ -89,7 +89,7 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp fetch_docs([name, version], opts) do
-    target_dir = Path.join([docs_dir(), org_to_repo(opts[:organization]), name, version])
+    target_dir = Path.join([docs_dir(), org_to_path(opts[:organization]), name, version])
     fallback_dir = Path.join([docs_dir(), name, version])
 
     cond do
@@ -219,7 +219,7 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp docs_location(organization, name, version, opts) do
     page = Keyword.get(opts, :module, "index") <> ".html"
-    default_path = Path.join([docs_dir(), org_to_repo(organization), name, version, page])
+    default_path = Path.join([docs_dir(), org_to_path(organization), name, version, page])
     fallback_path = Path.join([docs_dir(), name, version, page])
 
     cond do
@@ -230,7 +230,7 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp find_package_version(organization, name) do
-    default_path = Path.join([docs_dir(), org_to_repo(organization), name])
+    default_path = Path.join([docs_dir(), org_to_path(organization), name])
     fallback_path = Path.join([docs_dir(), name])
 
     cond do
@@ -338,4 +338,10 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp org_to_repo(organization) when organization in [nil, "hexpm"], do: "hexpm"
   defp org_to_repo(organization), do: "hexpm:#{organization}"
+
+  defp org_to_path(organization) do
+    organization
+    |> org_to_repo()
+    |> Hex.Utils.windows_repo_path_fix()
+  end
 end
