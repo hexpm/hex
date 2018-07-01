@@ -262,6 +262,7 @@ defmodule Hex.SCM do
   end
 
   defp cache_path(repo, name) do
+    repo = String.replace(repo, ":", "-")
     Path.join([Hex.State.fetch!(:home), @packages_dir, repo, name])
   end
 
