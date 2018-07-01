@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## v0.17.8-dev
+## v0.17.8 (2018-07-01)
+
+### Bug fixes
+
+* Fix private packages on Windows
 
 ## v0.17.7 (2018-04-20)
 
