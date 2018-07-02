@@ -7,7 +7,6 @@ defmodule Sample.MixProject do
       deps: [],
       package: [
         licenses: ["MIT"],
-        maintainers: ["maintainers"],
         links: %{"a" => "http://a"}
       ]
     ]
@@ -22,7 +21,6 @@ defmodule ReleaseSimple.MixProject do
       version: "0.0.1",
       package: [
         licenses: ["MIT"],
-        maintainers: ["maintainers"],
         links: %{"a" => "http://a"}
       ]
     ]
@@ -72,7 +70,6 @@ defmodule ReleaseMeta.MixProject do
         files: ["myfile.txt", "missing.txt", "missing/*"],
         licenses: ["Apache"],
         links: %{"a" => "http://a"},
-        maintainers: ["maintainers"],
         extra: %{"c" => "d"}
       ]
     ]
@@ -88,7 +85,6 @@ defmodule ReleaseName.MixProject do
       package: [
         name: :released_name,
         licenses: ["MIT"],
-        maintainers: ["maintainers"],
         links: %{"a" => "http://a"}
       ]
     ]
@@ -126,8 +122,7 @@ defmodule ReleasePreDeps.MixProject do
       package: [
         files: ["myfile.txt"],
         licenses: ["MIT"],
-        links: %{"a" => "http://a"},
-        maintainers: ["maintainers"]
+        links: %{"a" => "http://a"}
       ]
     ]
   end
@@ -142,8 +137,7 @@ defmodule ReleaseFiles.MixProject do
       package: [
         files: ["myfile.txt", "executable.sh", "dir", "empty_dir", "link_dir"],
         licenses: ["MIT"],
-        links: %{"a" => "http://a"},
-        maintainers: ["maintainers"]
+        links: %{"a" => "http://a"}
       ]
     ]
   end
@@ -159,8 +153,7 @@ defmodule ReleaseExcludePatterns.MixProject do
         files: ["myfile.txt"],
         exclude_patterns: ["exclude.*"],
         licenses: ["MIT"],
-        links: %{"a" => "http://a"},
-        maintainers: ["maintainers"]
+        links: %{"a" => "http://a"}
       ]
     ]
   end
@@ -175,7 +168,6 @@ defmodule ReleaseRepo.MixProject do
       package: [
         organization: "myorg",
         licenses: ["MIT"],
-        maintainers: ["maintainers"],
         links: %{"a" => "http://a"}
       ]
     ]
@@ -191,7 +183,6 @@ defmodule ReleaseMisspelledOrganization.MixProject do
       package: [
         organisation: "myorg",
         licenses: ["MIT"],
-        maintainers: ["maintainers"],
         links: %{"a" => "http://a"}
       ]
     ]
@@ -207,7 +198,6 @@ defmodule ReleaseOrganizationWrongLocation.MixProject do
       organization: "myorg",
       package: [
         licenses: ["MIT"],
-        maintainers: ["maintainers"],
         links: %{"a" => "http://a"}
       ]
     ]
@@ -222,7 +212,6 @@ defmodule ReleaseIncludeReservedFile.MixProject do
       version: "0.0.1",
       package: [
         licenses: ["MIT"],
-        maintainers: ["maintainers"],
         links: %{"a" => "http://a"},
         files: ["hex_meta*"]
       ]
@@ -241,7 +230,6 @@ defmodule ReleaseIncludeRepoDeps.MixProject do
       ],
       package: [
         licenses: ["MIT"],
-        maintainers: ["maintainers"],
         links: %{"a" => "http://repo"}
       ]
     ]

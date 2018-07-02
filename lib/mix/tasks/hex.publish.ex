@@ -78,7 +78,6 @@ defmodule Mix.Tasks.Hex.Publish do
     * `:files` - List of files and directories to include in the package,
       can include wildcards. Defaults to `["lib", "priv", "mix.exs", "README*",
       "readme*", "LICENSE*", "license*", "CHANGELOG*", "changelog*", "src"]`.
-    * `:maintainers` - List of names and/or emails of maintainers.
     * `:licenses` - List of licenses used by the package.
     * `:links` - Map of links relevant to the package.
     * `:build_tools` - List of build tools that can build the package. Hex will

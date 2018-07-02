@@ -125,7 +125,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       Mix.Tasks.Deps.Get.run([])
 
       error_msg =
-        "Stopping package build due to errors.\nMissing metadata fields: maintainers, links"
+        "Stopping package build due to errors.\nMissing metadata fields: links"
 
       assert_raise Mix.Error, error_msg, fn ->
         Mix.Tasks.Hex.Build.run([])
@@ -186,7 +186,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
       error_msg =
         "Stopping package build due to errors.\n" <>
-          "Missing metadata fields: description, licenses, maintainers, links"
+          "Missing metadata fields: description, licenses, links"
 
       assert_raise Mix.Error, error_msg, fn ->
         Mix.Tasks.Hex.Build.run([])
@@ -208,7 +208,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
       error_msg =
         "Stopping package build due to errors.\n" <>
-          "Missing metadata fields: licenses, maintainers, links\n" <>
+          "Missing metadata fields: licenses, links\n" <>
           "Package description is too long (exceeds 300 characters)"
 
       assert_raise Mix.Error, error_msg, fn ->

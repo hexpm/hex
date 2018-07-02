@@ -17,7 +17,6 @@ unless :integration in ExUnit.configuration()[:exclude] do
   Hexpm.start()
 
   pkg_meta = %{
-    "maintainers" => ["John Doe", "Jane Doe"],
     "licenses" => ["GPL2", "MIT", "Apache"],
     "links" => %{"docs" => "http://docs", "repo" => "http://repo"},
     "description" => "Some description"
