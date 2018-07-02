@@ -193,7 +193,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       setup_auth("user", "hunter42")
       send(self(), {:mix_shell_input, :prompt, "user"})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
-      Mix.Tasks.Hex.User.run(["key", "--generate"])
+      Mix.Tasks.Hex.User.run(["key", "generate"])
       assert_received {:mix_shell, :info, ["Generating key..."]}
       assert_received {:mix_shell, :info, [key]}
 
