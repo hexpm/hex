@@ -34,6 +34,13 @@ defmodule Mix.Tasks.Hex.Organization do
 
       mix hex.organization deauth NAME
 
+  ## List all authorized organizations
+
+  This command will only list organizations you have authorized with this task, it will not
+  list organizations you have access to by having authorized with `mix hex.user auth`.
+
+      mix hex.organization list
+
   ## Generate organization key
 
   This command is useful to pre-generate keys for use with `mix hex.organization auth ORGANIZATION --key KEY`
@@ -45,7 +52,7 @@ defmodule Mix.Tasks.Hex.Organization do
   sets the `repository` permission which allows read-only access to the repository, it can be
   overriden with the `--permission` flag.
 
-      mix hex.organization key ORGANIZATION --generate [--key-name KEY_NAME] [--permission PERMISSION]
+      mix hex.organization key ORGANIZATION generate [--key-name KEY_NAME] [--permission PERMISSION]
 
   ## Revoke key
 
@@ -53,26 +60,19 @@ defmodule Mix.Tasks.Hex.Organization do
 
   The key can no longer be used to authenticate API requests.
 
-      mix hex.organization key --revoke KEY_NAME
+      mix hex.organization key ORGANIZATION revoke KEY_NAME
 
   ## Revoke all keys
 
   Revoke all keys from the organization.
 
-      mix hex.organization key --revoke-all
+      mix hex.organization key ORGANIZATION revoke --all
 
   ## List keys
 
-  Lists all keys associated the organization.
+  Lists all keys associated with the organization.
 
-      mix hex.organization key --list
-
-  ## List all authorized organizations
-
-  This command will only list organizations you have authorized with this task, it will not
-  list organizations you have access to by having authorized with `mix hex.user auth`.
-
-      mix hex.organization list
+      mix hex.organization key ORGANIZATION list
 
   ## Command line options
 
@@ -92,11 +92,8 @@ defmodule Mix.Tasks.Hex.Organization do
   """
 
   @switches [
-    revoke_all: :boolean,
-    revoke: :string,
-    list: :boolean,
+    all: :boolean,
     key_name: :string,
-    generate: :boolean,
     key: :string,
     permission: [:string, :keep]
   ]
@@ -112,8 +109,17 @@ defmodule Mix.Tasks.Hex.Organization do
       ["deauth", name] ->
         deauth(name)
 
-      ["key", name] ->
-        key(name, opts)
+      ["key", name, "generate"] ->
+        key_generate(name, opts)
+
+      ["key", name, "revoke", key_name] ->
+        key_revoke(name, key_name)
+
+      ["key", name, "revoke"] ->
+        if opts[:all], do: key_revoke_all(name), else: invalid_args()
+
+      ["key", name, "list"] ->
+        key_list(name)
 
       ["list"] ->
         list()
@@ -130,10 +136,10 @@ defmodule Mix.Tasks.Hex.Organization do
     mix hex.organization auth ORGANIZATION
     mix hex.organization deauth ORGANIZATION
     mix hex.organization list
-    mix hex.organization key ORGANIZATION --generate
-    mix hex.organization key ORGANIZATION --revoke-all
-    mix hex.organization key ORGANIZATION --revoke KEY_NAME
-    mix hex.organization key ORGANIZATION --list
+    mix hex.organization key ORGANIZATION generate
+    mix hex.organization key ORGANIZATION revoke KEY_NAME
+    mix hex.organization key ORGANIZATION revoke --all
+    mix hex.organization key ORGANIZATION list
     """)
   end
 
@@ -166,26 +172,7 @@ defmodule Mix.Tasks.Hex.Organization do
     |> Hex.Config.update_repos()
   end
 
-  defp key(name, opts) do
-    cond do
-      opts[:revoke_all] ->
-        revoke_all_keys(name)
-
-      key = opts[:revoke] ->
-        revoke_key(name, key)
-
-      opts[:list] ->
-        list_keys(name)
-
-      opts[:generate] ->
-        generate_unencrypted_key(name, opts)
-
-      true ->
-        invalid_args()
-    end
-  end
-
-  defp revoke_all_keys(organization) do
+  defp key_revoke_all(organization) do
     auth = Mix.Tasks.Hex.auth_info(:write)
 
     Hex.Shell.info("Revoking all keys...")
@@ -200,7 +187,7 @@ defmodule Mix.Tasks.Hex.Organization do
     end
   end
 
-  defp revoke_key(organization, key) do
+  defp key_revoke(organization, key) do
     auth = Mix.Tasks.Hex.auth_info(:write)
 
     Hex.Shell.info("Revoking key #{key}...")
@@ -216,7 +203,7 @@ defmodule Mix.Tasks.Hex.Organization do
   end
 
   # TODO: print permissions
-  defp list_keys(organization) do
+  defp key_list(organization) do
     auth = Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.Key.Organization.get(organization, auth) do
@@ -234,7 +221,7 @@ defmodule Mix.Tasks.Hex.Organization do
     end
   end
 
-  defp generate_unencrypted_key(organization, opts) do
+  defp key_generate(organization, opts) do
     key_name = Mix.Tasks.Hex.general_key_name(opts[:key_name])
     default_permission = [%{"domain" => "repository", "resource" => organization}]
     permissions = Keyword.get_values(opts, :permission)

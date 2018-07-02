@@ -40,7 +40,7 @@ defmodule Mix.Tasks.Hex.User do
   default this command sets the `api:write` permission which allows write access to the API,
   it can be overriden with the `--permission` flag.
 
-      mix hex.user key --generate
+      mix hex.user key generate
 
   ### Command line options
 
@@ -60,19 +60,19 @@ defmodule Mix.Tasks.Hex.User do
 
   The key can no longer be used to authenticate API requests.
 
-      mix hex.user key --revoke KEY_NAME
+      mix hex.user key revoke KEY_NAME
 
   ## Revoke all keys
 
   Revoke all keys from your account.
 
-      mix hex.user key --revoke-all
+      mix hex.user key revoke --all
 
   ## List keys
 
   Lists all keys associated with your account.
 
-      mix hex.user key --list
+      mix hex.user key list
 
   ## Reset user account password
 
@@ -88,11 +88,8 @@ defmodule Mix.Tasks.Hex.User do
   """
 
   @switches [
-    revoke_all: :boolean,
-    revoke: :string,
-    list: :boolean,
+    all: :boolean,
     key_name: :string,
-    generate: :boolean,
     permission: [:string, :keep]
   ]
 
@@ -113,8 +110,17 @@ defmodule Mix.Tasks.Hex.User do
       ["deauth"] ->
         deauth()
 
-      ["key"] ->
-        key(opts)
+      ["key", "generate"] ->
+        key_generate(opts)
+
+      ["key", "revoke", key_name] ->
+        key_revoke(key_name)
+
+      ["key", "revoke"] ->
+        if opts[:all], do: key_revoke_all(), else: invalid_args()
+
+      ["key", "list"] ->
+        key_list()
 
       ["reset_password", "account"] ->
         reset_account_password()
@@ -135,32 +141,13 @@ defmodule Mix.Tasks.Hex.User do
     mix hex.user whoami
     mix hex.user auth
     mix hex.user deauth
-    mix hex.user key --generate
-    mix hex.user key --revoke-all
-    mix hex.user key --revoke KEY_NAME
-    mix hex.user key --list
+    mix hex.user key generate
+    mix hex.user key revoke KEY_NAME
+    mix hex.user key revoke --all
+    mix hex.user key list
     mix hex.user reset_password account
     mix hex.user reset_password local
     """)
-  end
-
-  defp key(opts) do
-    cond do
-      opts[:revoke_all] ->
-        revoke_all_keys()
-
-      key = opts[:revoke] ->
-        revoke_key(key)
-
-      opts[:list] ->
-        list_keys()
-
-      opts[:generate] ->
-        generate_unencrypted_key(opts)
-
-      true ->
-        invalid_args()
-    end
   end
 
   defp whoami() do
@@ -261,7 +248,7 @@ defmodule Mix.Tasks.Hex.User do
     Mix.Tasks.Hex.auth(opts)
   end
 
-  defp revoke_all_keys() do
+  defp key_revoke_all() do
     auth = Mix.Tasks.Hex.auth_info(:write)
 
     Hex.Shell.info("Revoking all keys...")
@@ -276,7 +263,7 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp revoke_key(key) do
+  defp key_revoke(key) do
     auth = Mix.Tasks.Hex.auth_info(:write)
 
     Hex.Shell.info("Revoking key #{key}...")
@@ -296,7 +283,7 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   # TODO: print permissions
-  defp list_keys() do
+  defp key_list() do
     auth = Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.Key.get(auth) do
@@ -314,7 +301,7 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp generate_unencrypted_key(opts) do
+  defp key_generate(opts) do
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
     password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.string_trim()
     key_name = Mix.Tasks.Hex.general_key_name(opts[:key_name])

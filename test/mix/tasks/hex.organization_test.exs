@@ -112,7 +112,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
       send(self(), {:mix_shell_input, :prompt, "password"})
-      args = ["key", "orgkeygen", "--generate", "--permission", "api:read"]
+      args = ["key", "orgkeygen", "generate", "--permission", "api:read"]
       Mix.Tasks.Hex.Organization.run(args)
 
       assert_received {:mix_shell, :info, [key]}
@@ -139,13 +139,13 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
       send(self(), {:mix_shell_input, :prompt, "password"})
-      args = ["key", "orgkeylist", "--generate", "--key-name", "orgkeylist"]
+      args = ["key", "orgkeylist", "generate", "--key-name", "orgkeylist"]
       Mix.Tasks.Hex.Organization.run(args)
 
       assert {:ok, {200, [%{"name" => "orgkeylist"}], _}} =
                Hex.API.Key.Organization.get("orgkeylist", auth)
 
-      Mix.Tasks.Hex.Organization.run(["key", "orgkeylist", "--list"])
+      Mix.Tasks.Hex.Organization.run(["key", "orgkeylist", "list"])
       assert_received {:mix_shell, :info, ["orgkeylist" <> _]}
     end)
   end
@@ -163,7 +163,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
                Hex.API.Key.Organization.get("orgkeyrevoke", auth)
 
       send(self(), {:mix_shell_input, :prompt, "password"})
-      Mix.Tasks.Hex.Organization.run(["key", "orgkeyrevoke", "--revoke", "orgkeyrevoke2"])
+      Mix.Tasks.Hex.Organization.run(["key", "orgkeyrevoke", "revoke", "orgkeyrevoke2"])
       assert_received {:mix_shell, :info, ["Revoking key orgkeyrevoke2..."]}
 
       assert {:ok, {200, [], _}} = Hex.API.Key.Organization.get("orgkeyrevoke", auth)
@@ -184,7 +184,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
                  Hex.API.Key.Organization.get("orgkeyrevokeall", auth)
 
         send(self(), {:mix_shell_input, :prompt, "password"})
-        Mix.Tasks.Hex.Organization.run(["key", "orgkeyrevokeall", "--revoke-all"])
+        Mix.Tasks.Hex.Organization.run(["key", "orgkeyrevokeall", "revoke", "--all"])
         assert_received {:mix_shell, :info, ["Revoking all keys..."]}
 
         assert {:ok, {200, [], _}} = Hex.API.Key.Organization.get("orgkeyrevokeall", auth)
