@@ -8,7 +8,7 @@ When authenticating with `mix hex.user auth` two API keys are generated instead 
 
 Additionally, we generate a single key that gives access to all your organization repositories, instead of one key for each repository. It also has the added benefit that you don't have to reauthenticate if you are added to a new organization.
 
-We have also added support for keys owned directly by an organization instead of a specific user. This is useful when generating keys for a CI environment because you don't wan't to share personal keys and the person, that generated the key, organization membership status should not affect your CI workflow.
+We have also added support for keys owned directly by an organization instead of a specific user. This is useful when generating keys for a CI environment because you don't want to share personal keys and the person, that generated the key, organization membership status should not affect your CI workflow.
 
 ### Improvements to continuous integration workflows
 
