@@ -8,7 +8,7 @@ When authenticating with `mix hex.user auth` two API keys are generated instead 
 
 Additionally, we generate a single key that gives access to all your organization repositories, instead of one key for each repository. It also has the added benefit that you don't have to reauthenticate if you are added to a new organization.
 
-We have also added support for keys owned directly by an organization instead of a specific user. This is useful when generating keys for a CI environment because you don't want to share personal keys and the person, that generated the key, organization membership status should not affect your CI workflow.
+We have also added support for keys owned directly by an organization instead of a specific user. This is useful when generating keys for a CI environment. Previously, when personal keys were used, person leaving an organization and revoking the key could negatively affect CI workflow.
 
 ### Improvements to continuous integration workflows
 
@@ -18,16 +18,11 @@ By passing the `--yes` flag to `mix hex.publish` you can publish your package (t
 
 ### Ignoring `:maintainers` field
 
-In previous Hex versions we required `:maintainers` key to be present when publishing package.
-At the same time, on hex.pm we are already showing package owners. (controller by `mix hex.owner` tasks.)
-It was confusing to show both maintainers and owners and figure out which really control the package,
-so we've dropped showing maintainers on hex.pm and the field will no longer be added to package's
-metadata.
+In previous Hex versions we required `:maintainers` key to be present when publishing package. At the same time, on hex.pm we are also showing package owners (controlled by the `mix hex.owner` task). It was confusing to show both maintainers and owners and figure out which really control the package, so we've dropped showing maintainers on hex.pm and the field will no longer be added to package's metadata.
 
-If maintainers field was used to give credit to current and/or past contributors we encourage to mention that in
-package's README instead.
+If maintainers field was used to give credit to current and/or past contributors we encourage to mention that in project's README instead.
 
-### Enchancements
+### Enhancements
 
 * Add `--yes` flag to `hex.publish` for publishing without any confirmation prompts
 * Add `HEX_API_KEY` environment variable for setting and overriding the key used when authenticating against the API
