@@ -16,6 +16,17 @@ The `HEX_API_KEY` environment variable has been introduced to be able run comman
 
 By passing the `--yes` flag to `mix hex.publish` you can publish your package (together with `HEX_API_KEY`) without any confirmation prompts. This allows you to publish your package as part of your CI build process. Keep in mind that this will publish the package even if there are warnings from Hex and that you cannot inspect the compiled package contents before publishing so you should use this option with care.
 
+### Ignoring `:maintainers` field
+
+In previous Hex versions we required `:maintainers` key to be present when publishing package.
+At the same time, on hex.pm we are already showing package owners. (controller by `mix hex.owner` tasks.)
+It was confusing to show both maintainers and owners and figure out which really control the package,
+so we've dropped showing maintainers on hex.pm and the field will no longer be added to package's
+metadata.
+
+If maintainers field was used to give credit to current and/or past contributors we encourage to mention that in
+package's README instead.
+
 ### Enchancements
 
 * Add `--yes` flag to `hex.publish` for publishing without any confirmation prompts
