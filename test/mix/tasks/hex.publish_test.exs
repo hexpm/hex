@@ -78,7 +78,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       setup_auth("user", "hunter42")
       # note that we don't need the yes? input here
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
-      Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--no-confirm"])
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--yes"])
       assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
     end)
   after
@@ -158,7 +158,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       setup_auth("user", "hunter42")
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
-      Mix.Tasks.Hex.Publish.run(["--no-progress", "--no-confirm"])
+      Mix.Tasks.Hex.Publish.run(["--no-progress", "--yes"])
       message = "Building released_name 0.0.1"
       assert_received {:mix_shell, :info, [^message]}
 
@@ -198,7 +198,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert_received {:mix_shell, :info, [key]}
 
       Hex.State.put(:api_key_write_unencrypted, key)
-      Mix.Tasks.Hex.Publish.run(["package", "--no-confirm", "--no-progress"])
+      Mix.Tasks.Hex.Publish.run(["package", "--yes", "--no-progress"])
 
       message = "Building release_a 0.0.1"
       assert_received {:mix_shell, :info, [^message]}

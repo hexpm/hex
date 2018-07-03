@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Hex.Publish do
     * `--revert VERSION` - Revert given version, if the last version is reverted
       the package is removed
     * `--organization ORGANIZATION` - The organization the package belongs to
-    * `--no-confirm` - Disables confirmation message before publishing
+    * `--yes` - Publishes the package without any confirmation prompts
 
   ## Configuration
 
@@ -93,7 +93,7 @@ defmodule Mix.Tasks.Hex.Publish do
     canonical: :string,
     organization: :string,
     organisation: :string,
-    confirm: :boolean
+    yes: :boolean
   ]
 
   def run(args) do
@@ -194,7 +194,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp proceed?(build, organization, opts) do
-    confirm? = Keyword.get(opts, :confirm, true)
+    yes? = Keyword.get(opts, :yes, false)
     meta = build.meta
     exclude_deps = build.exclude_deps
     package = build.package
@@ -204,25 +204,19 @@ defmodule Mix.Tasks.Hex.Publish do
 
     print_link_to_coc()
 
-    cond do
-      not confirm? ->
-        true
-
-      organization in [nil, "hexpm"] ->
-        Hex.Shell.info(["Publishing package to ", emphasis("public"), " repository hexpm."])
-        Hex.Shell.yes?("Proceed?")
-
-      true ->
-        Hex.Shell.info([
-          [
-            "Publishing package to ",
-            emphasis("private"),
-            " repository #{organization}."
-          ]
-        ])
-
-        Hex.Shell.yes?("Proceed?")
+    if organization in [nil, "hexpm"] do
+      Hex.Shell.info(["Publishing package to ", emphasis("public"), " repository hexpm."])
+    else
+      Hex.Shell.info([
+        [
+          "Publishing package to ",
+          emphasis("private"),
+          " repository #{organization}."
+        ]
+      ])
     end
+
+    yes? or Hex.Shell.yes?("Proceed?")
   end
 
   defp emphasis(text) do
