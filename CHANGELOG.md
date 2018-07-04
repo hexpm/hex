@@ -4,17 +4,17 @@
 
 ### API keys
 
-When authenticating with `mix hex.user auth` two API keys are generated instead of single one. One key is unencrypted with read access and the other is encrypted with your local password and has full read/write access to the API. Hex encrypts the API key for security reasons, for example you cannot run `mix hex.publish` without providing a password, but it meant that commands such `mix hex.search` required password which felt unnecessary. Now commands that don't make any changes will not require a password.
+When authenticating with `mix hex.user auth` two API keys are generated instead of single one. One key is unencrypted with read access and the other is encrypted with your local password and has full read/write access to the API. Now commands that don't make any changes will not require a password.
 
 Additionally, we generate a single key that gives access to all your organization repositories, instead of one key for each repository. It also has the added benefit that you don't have to reauthenticate if you are added to a new organization.
 
-We have also added support for keys owned directly by an organization instead of a specific user. This is useful when generating keys for a CI environment. Previously, when personal keys were used, person leaving an organization and revoking the key could negatively affect CI workflow.
+We have also added support for keys owned directly by an organization instead of a specific user, these keys can be accessed through `mix hex.organization`. This is useful when generating keys for a CI environment, previously when personal keys were used, a person leaving an organization or revoking the key could negatively affect CI workflow.
 
 ### Improvements to continuous integration workflows
 
 The `HEX_API_KEY` environment variable has been introduced to be able run commands that require an authentication without having to authenticate manually with `mix hex.user auth` which has user input prompts. The key set with `HEX_API_KEY` can be generated with `mix hex.user key generate` or `mix hex.organization key ORGANIZATION generate`. It also makes it possible to run commands such as `mix hex.publish` without being prompted for a password.
 
-By passing the `--yes` flag to `mix hex.publish` you can publish your package (together with `HEX_API_KEY`) without any confirmation prompts. This allows you to publish your package as part of your CI build process. Keep in mind that this will publish the package even if there are warnings from Hex and that you cannot inspect the compiled package contents before publishing so you should use this option with care.
+By passing the `--yes` flag to `mix hex.publish` you can publish your package (together with `HEX_API_KEY`) without any confirmation prompts. This allows you to publish your package as part of your CI build process.
 
 ### Ignoring `:maintainers` field
 
