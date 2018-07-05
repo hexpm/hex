@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v0.18.0-dev
+## v0.18.0 (2018-07-05)
 
 ### API keys
 
