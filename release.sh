@@ -11,8 +11,9 @@ function join { local IFS="$1"; shift; echo "$*"; }
 function build {
   rm -f .tool-versions
   rm -rf _build
-  rm -f src/vendored_safe_erl_term.erl
+  rm -f src/mix_safe_erl_term.erl
 
+  echo "Building erlang ${2} elixir ${3}-otp-${2:0:2}"
   printf "erlang ${2}\nelixir ${3}-otp-${2:0:2}" > .tool-versions
 
   MIX_ENV=prod mix compile
@@ -85,7 +86,6 @@ hex_csv "${hex_version}" 1.0.0 1.1.0 1.2.0 1.3.0 1.4.0 1.5.0 1.6.0
 upload  "${hex_version}" 1.0.0 1.1.0 1.2.0 1.3.0 1.4.0 1.5.0 1.6.0
 
 heroku run -a hexpm mix run scripts/add_install.exs ${hex_version} 1.6.0 1.5.0 1.4.0 1.3.0 1.2.0 1.1.0 1.0.0
-heroku run -a hexpm mix run scripts/task_docs.exs
 
 # CDN also needs to be purged
 
