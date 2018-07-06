@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## v0.18.2-dev
+
 ## v0.18.1 (2018-07-06)
 
 ### Bug fixes
