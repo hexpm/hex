@@ -74,6 +74,13 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       assert myorg.public_key == hexpm.public_key
       assert myorg.url == "http://localhost:4043/repo/repos/myorgauthkey"
       assert myorg.auth_key == body["secret"]
+
+      config = Enum.into(Hex.Config.read(), %{})
+      repo = config[:"$repos"]["hexpm:myorgauthkey"]
+      assert repo
+      assert repo[:auth_key]
+      refute repo[:public_key]
+      refute repo[:url]
     end)
   end
 
