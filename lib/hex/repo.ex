@@ -109,10 +109,9 @@ defmodule Hex.Repo do
   def clean_organizations(repos) do
     Enum.into(repos, %{}, fn {name, repo} ->
       case String.split(name, ":", parts: 2) do
-        [source, _organization] ->
+        [source, organization] ->
           source_repo = Map.fetch!(repos, source)
-          url = Hex.string_trim_leading(repo.url, source_repo.url)
-          repo = Map.put(repo, :url, url)
+          repo = put_organization_url(organization, repo, source_repo)
           repo = clean_repo(repo, source_repo)
           {name, repo}
 
@@ -120,6 +119,14 @@ defmodule Hex.Repo do
           {name, repo}
       end
     end)
+  end
+
+  defp put_organization_url(organization, repo, source_repo) do
+    if repo.url == source_repo.url <> "/repos/#{organization}" do
+      Map.delete(repo, :url)
+    else
+      repo
+    end
   end
 
   def clean_hexpm(repos) do
