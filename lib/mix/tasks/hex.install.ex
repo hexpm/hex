@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Hex.Install do
   use Mix.Task
-
+  @hex_mirror "https://repo.hex.pm"
   @hex_list_path "/installs/hex-1.x.csv"
   @hex_archive_path "/installs/[ELIXIR_VERSION]/hex-[HEX_VERSION].ez"
   @public_keys_html "https://repo.hex.pm/installs/public_keys.html"
@@ -14,8 +14,6 @@ defmodule Mix.Tasks.Hex.Install do
   """
 
   def run(args) do
-    Hex.start()
-
     case args do
       [version] ->
         install(version)
@@ -32,7 +30,7 @@ defmodule Mix.Tasks.Hex.Install do
   defp install(hex_version) do
     raise_if_invalid_version(hex_version)
 
-    hex_url = Hex.Repo.get_repo("hexpm").url
+    hex_url = mirror()
     csv_url = hex_url <> @hex_list_path
 
     case find_matching_versions_from_signed_csv!("Hex", csv_url, hex_version) do
@@ -95,7 +93,7 @@ defmodule Mix.Tasks.Hex.Install do
   end
 
   defp find_eligible_version(entries, hex_version) do
-    elixir_version = Hex.Version.parse!(System.version())
+    elixir_version = Version.parse!(System.version())
 
     entries
     |> Enum.reverse()
@@ -117,5 +115,9 @@ defmodule Mix.Tasks.Hex.Install do
       {:ok, _version} -> :ok
       :error -> Mix.raise("#{hex_version} is not a valid Hex version")
     end
+  end
+
+  defp mirror() do
+    System.get_env("HEX_MIRROR") || @hex_mirror
   end
 end
