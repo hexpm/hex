@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     * `--all` - shows all outdated packages, including children of packages defined in `mix.exs`
     * `--pre` - include pre-releases when checking for newer versions
-    * `--passive` - return a 0 code even if outdated packages are found
+    * `--passive` - exits task normally even when an outdated packages are found
   """
 
   @switches [all: :boolean, pre: :boolean, passive: :boolean]
