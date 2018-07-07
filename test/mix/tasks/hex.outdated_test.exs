@@ -189,6 +189,57 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end)
   end
 
+  test "outdated --all --passive" do
+    Mix.Project.push(OutdatedDeps.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+      Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      assert Mix.Task.run("hex.outdated", ["--all", "--passive"]) == :ok
+
+      bar =
+        [
+          [:bright, "bar", :reset],
+          ["         ", "0.1.0", :reset],
+          ["    ", :green, "0.1.0", :reset],
+          ["   ", :green, "", :reset],
+          "                 "
+        ]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      foo =
+        [
+          [:bright, "foo", :reset],
+          ["         ", "0.1.0", :reset],
+          ["    ", :red, "0.1.1", :reset],
+          ["   ", :green, "Yes", :reset],
+          "              "
+        ]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      ex_doc =
+        [
+          [:bright, "ex_doc", :reset],
+          ["      ", "0.0.1", :reset],
+          ["    ", :red, "0.1.0", :reset],
+          ["   ", :red, "No", :reset],
+          "               "
+        ]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      assert_received {:mix_shell, :info, [^bar]}
+      assert_received {:mix_shell, :info, [^foo]}
+      assert_received {:mix_shell, :info, [^ex_doc]}
+    end)
+  end
+
   test "outdated --pre" do
     Mix.Project.push(OutdatedBetaDeps.MixProject)
 
@@ -232,6 +283,49 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end)
   end
 
+  test "outdated --pre --passive" do
+    Mix.Project.push(OutdatedBetaDeps.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+      Mix.Dep.Lock.write(%{beta: {:hex, :beta, "1.0.0"}})
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      Mix.Task.run("hex.outdated", [])
+
+      beta =
+        [
+          [:bright, "beta", :reset],
+          ["        ", "1.0.0", :reset],
+          ["    ", :green, "1.0.0", :reset],
+          ["   ", :green, "", :reset],
+          "                 "
+        ]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      assert_received {:mix_shell, :info, [^beta]}
+
+      Mix.Task.reenable("hex.outdated")
+      assert Mix.Task.run("hex.outdated", ["--pre", "--passive"]) == :ok
+
+      beta =
+        [
+          [:bright, "beta", :reset],
+          ["        ", "1.0.0", :reset],
+          ["    ", :red, "1.1.0-beta", :reset],
+          ["  ", :red, "No", :reset],
+          "               "
+        ]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      assert_received {:mix_shell, :info, [^beta]}
+    end)
+  end
+
   test "outdated app" do
     Mix.Project.push(OutdatedApp.MixProject)
 
@@ -243,6 +337,51 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       flush()
 
       assert catch_throw(Mix.Task.run("hex.outdated", ["ex_doc"])) == {:exit_code, 1}
+
+      msg =
+        [
+          "There is newer version of the dependency available ",
+          [:bright, "0.1.0 > 0.0.1", :reset, "!"]
+        ]
+        |> IO.ANSI.format_fragment()
+        |> List.to_string()
+
+      assert_received {:mix_shell, :info, [^msg]}
+
+      mix =
+        [:bright, "mix.exs", :reset, "   ", :green, ">= 0.0.0", :reset, "     "]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      assert_received {:mix_shell, :info, [^mix]}
+
+      ecto =
+        [:bright, "ecto", :reset, "      ", :red, "~> 0.0.1", :reset, "     "]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      assert_received {:mix_shell, :info, [^ecto]}
+
+      postgrex =
+        [:bright, "postgrex", :reset, "  ", :red, "0.0.1", :reset, "        "]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      assert_received {:mix_shell, :info, [^postgrex]}
+    end)
+  end
+
+  test "outdated app --pre" do
+    Mix.Project.push(OutdatedApp.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+      Mix.Dep.Lock.write(%{ex_doc: {:hex, :ex_doc, "0.0.1"}})
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      assert Mix.Task.run("hex.outdated", ["ex_doc", "--passive"]) == :ok
 
       msg =
         [

@@ -21,9 +21,10 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     * `--all` - shows all outdated packages, including children of packages defined in `mix.exs`
     * `--pre` - include pre-releases when checking for newer versions
+    * `--passive` - exits task normally even when outdated packages are found
   """
 
-  @switches [all: :boolean, pre: :boolean]
+  @switches [all: :boolean, pre: :boolean, passive: :boolean]
 
   def run(args) do
     Hex.start()
@@ -102,7 +103,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     message = "A green requirement means that it matches the latest version."
     Hex.Shell.info(["\n", message])
 
-    if outdated?, do: Mix.Tasks.Hex.set_exit_code(1)
+    if outdated?, do: exit_task(opts[:passive])
   end
 
   defp get_requirements(deps, app) do
@@ -144,7 +145,8 @@ defmodule Mix.Tasks.Hex.Outdated do
           "Run `mix hex.outdated APP` to see requirements for a specific dependency."
 
       Hex.Shell.info(["\n" | message])
-      if any_outdated?(versions), do: Mix.Tasks.Hex.set_exit_code(1)
+
+      if any_outdated?(versions), do: exit_task(opts[:passive])
     end
   end
 
@@ -241,4 +243,7 @@ defmodule Mix.Tasks.Hex.Outdated do
       Hex.Version.compare(lock, latest) == :lt
     end)
   end
+
+  defp exit_task(_passive? = true), do: :ok
+  defp exit_task(_passive?), do: Mix.Tasks.Hex.set_exit_code(1)
 end
