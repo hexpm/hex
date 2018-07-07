@@ -11,11 +11,18 @@ defmodule Mix.Tasks.Hex.Audit do
   maintainers. The task will display a message describing
   the reason for retirement and exit with a non-zero code
   if any retired dependencies are found.
+
+  ## Command line options
+
+    * `--passive` - exits task normally even when retired packages are found
   """
 
-  def run(_) do
+  @switches [passive: :boolean]
+
+  def run(args) do
     Hex.check_deps()
     Hex.start()
+    {opts, _args} = Hex.OptionParser.parse!(args, strict: @switches)
 
     lock = Mix.Dep.Lock.read()
     deps = Mix.Dep.loaded([]) |> Enum.filter(&(&1.scm == Hex.SCM))
@@ -34,7 +41,7 @@ defmodule Mix.Tasks.Hex.Audit do
         header = ["Dependency", "Version", "Retirement reason"]
         Mix.Tasks.Hex.print_table(header, packages)
         Hex.Shell.error("Found retired packages")
-        Mix.Tasks.Hex.set_exit_code(1)
+        if opts[:passive], do: :ok, else: Mix.Tasks.Hex.set_exit_code(1)
     end
   end
 
