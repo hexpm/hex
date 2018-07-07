@@ -36,6 +36,26 @@ defmodule Mix.Tasks.Hex.AuditTest do
     end)
   end
 
+  test "audit (retired package without a message) --passive", context do
+    with_test_package("0.1.0", context, fn ->
+      retire_test_package("0.1.0", "security")
+
+      assert Mix.Task.run("hex.audit", ["--passive"]) == :ok
+      assert_output_row(@package_name, "0.1.0", "(security)")
+      assert_received {:mix_shell, :error, ["Found retired packages"]}
+    end)
+  end
+
+  test "audit (retired package with a custom message) --passive", context do
+    with_test_package("0.2.0", context, fn ->
+      retire_test_package("0.2.0", "invalid", "Superseded by v1.0.0")
+
+      assert Mix.Task.run("hex.audit", ["--passive"]) == :ok
+      assert_output_row(@package_name, "0.2.0", "(invalid) Superseded by v1.0.0")
+      assert_received {:mix_shell, :error, ["Found retired packages"]}
+    end)
+  end
+
   test "audit (no retired packages)", context do
     with_test_package("1.0.0", context, fn ->
       Mix.Task.run("hex.audit")
