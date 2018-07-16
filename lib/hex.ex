@@ -133,8 +133,13 @@ defmodule Hex do
   def create_tar!(metadata, files, output) do
     files =
       Enum.map(files, fn
-        {filename, contents} -> {string_to_charlist(filename), contents}
-        filename -> string_to_charlist(filename)
+        {filename, contents} ->
+          if filename_matches_semver?(filename), do: Mix.raise(semver_error_text)
+          {string_to_charlist(filename), contents}
+
+        filename ->
+          if filename_matches_semver?(filename), do: Mix.raise(semver_error_text)
+          string_to_charlist(filename)
       end)
 
     case :mix_hex_tarball.create(metadata, files) do
@@ -163,5 +168,16 @@ defmodule Hex do
       {:error, reason} ->
         Mix.raise("Unpacking tarball failed: #{:mix_hex_tarball.format_error(reason)}")
     end
+  end
+
+  defp filename_matches_semver?(filename) do
+    case Version.parse(to_string(filename)) do
+      {:ok, _struct} -> true
+      _ -> false
+    end
+  end
+
+  defp semver_error_text do
+    "Invalid filename: top-level filenames cannot match a semantic version pattern."
   end
 end
