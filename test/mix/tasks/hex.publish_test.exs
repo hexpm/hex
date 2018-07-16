@@ -1,4 +1,17 @@
 defmodule Mix.Tasks.Docs do
+  def run(["--canonical", "https://hexdocs.pm/invalid_filename"]) do
+    File.mkdir_p!("doc")
+    File.write!("doc/index.html", "the index")
+    File.write!("doc/1.5.5", "semver file")
+  end
+
+  def run(["--canonical", "https://hexdocs.pm/invalid_dirname"]) do
+    File.mkdir_p!("doc")
+    File.write!("doc/index.html", "the index")
+    File.mkdir_p!("doc/1.5.5")
+    File.write!("doc/1.5.5/index.html", "sub index")
+  end
+
   def run(_) do
     File.mkdir_p!("doc")
     File.write!("doc/index.html", "the index")
@@ -18,6 +31,18 @@ defmodule Mix.Tasks.Hex.PublishTest do
   defmodule DocsError.MixProject do
     def project do
       [app: :ex_doc, version: "0.1.1"]
+    end
+  end
+
+  defmodule DocsFilenameError.MixProject do
+    def project do
+      [app: :invalid_filename, version: "0.1.0"]
+    end
+  end
+
+  defmodule DocsDirnameError.MixProject do
+    def project do
+      [app: :invalid_dirname, version: "0.1.0"]
     end
   end
 
@@ -99,6 +124,44 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["docs", "--revert", "0.1.0"])
       assert_received {:mix_shell, :info, ["Reverted docs for ex_doc 0.1.0"]}
+    end)
+  end
+
+  test "publish docs with invalid filename" do
+    Mix.Project.push(DocsFilenameError.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user", "hunter42")
+
+      error_msg = "Invalid filename: top-level filenames cannot match a semantic version pattern."
+
+      assert_raise Mix.Error, error_msg, fn ->
+        send(self(), {:mix_shell_input, :prompt, "hunter42"})
+        Mix.Tasks.Hex.Publish.run(["docs", "--no-progress"])
+
+        refute_received {:mix_shell, :info,
+                         ["Docs published to https://hexdocs.pm/invalid_filename/0.1.0"]}
+      end
+    end)
+  end
+
+  test "publish docs with invalid dirname" do
+    Mix.Project.push(DocsDirnameError.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user", "hunter42")
+
+      error_msg = "Invalid filename: top-level filenames cannot match a semantic version pattern."
+
+      assert_raise Mix.Error, error_msg, fn ->
+        send(self(), {:mix_shell_input, :prompt, "hunter42"})
+        Mix.Tasks.Hex.Publish.run(["docs", "--no-progress"])
+
+        refute_received {:mix_shell, :info,
+                         ["Docs published to https://hexdocs.pm/invalid_dirname/0.1.0"]}
+      end
     end)
   end
 

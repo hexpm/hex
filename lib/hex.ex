@@ -170,14 +170,14 @@ defmodule Hex do
     end
   end
 
-  defp filename_matches_semver?(filename) do
+  def filename_matches_semver?(filename) do
     case Version.parse(to_string(filename)) do
       {:ok, _struct} -> true
       _ -> false
     end
   end
 
-  defp semver_error_text do
+  def semver_error_text do
     "Invalid filename: top-level filenames cannot match a semantic version pattern."
   end
 end

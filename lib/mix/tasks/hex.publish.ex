@@ -276,11 +276,26 @@ defmodule Mix.Tasks.Hex.Publish do
   defp build_tarball(name, version, directory) do
     tarball = "#{name}-#{version}-docs.tar.gz"
     files = files(directory)
+
+    raise_if_file_matches_semver(files)
+
     :ok = :mix_hex_erl_tar.create(tarball, files, [:compressed])
     data = File.read!(tarball)
 
     File.rm!(tarball)
     data
+  end
+
+  defp raise_if_file_matches_semver(files) do
+    Enum.map(files, fn
+      {filename, _contents} ->
+        top_level = filename |> Path.split() |> List.first()
+        if Hex.filename_matches_semver?(top_level), do: Mix.raise(Hex.semver_error_text())
+
+      filename ->
+        top_level = filename |> Path.split() |> List.first()
+        if Hex.filename_matches_semver?(top_level), do: Mix.raise(Hex.semver_error_text())
+    end)
   end
 
   defp send_tarball(organization, name, version, tarball, auth, progress?) do
