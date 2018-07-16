@@ -134,11 +134,11 @@ defmodule Hex do
     files =
       Enum.map(files, fn
         {filename, contents} ->
-          if filename_matches_semver?(filename), do: Mix.raise(semver_error_text)
+          if filename_matches_semver?(filename), do: Mix.raise(semver_error_text())
           {string_to_charlist(filename), contents}
 
         filename ->
-          if filename_matches_semver?(filename), do: Mix.raise(semver_error_text)
+          if filename_matches_semver?(filename), do: Mix.raise(semver_error_text())
           string_to_charlist(filename)
       end)
 

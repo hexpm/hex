@@ -217,8 +217,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
       Mix.Tasks.Deps.Get.run([])
 
-      error_msg =
-        "Stopping package build due to errors.\nMissing metadata fields: links"
+      error_msg = "Stopping package build due to errors.\nMissing metadata fields: links"
 
       assert_raise Mix.Error, error_msg, fn ->
         send(self(), {:mix_shell_input, :yes?, true})
@@ -231,6 +230,27 @@ defmodule Mix.Tasks.Hex.PublishTest do
     end)
   after
     purge([ReleaseDeps.MixProject])
+  end
+
+  test "raise for invalid filename" do
+    Mix.Project.push(ReleaseFilesSemVer.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user", "hunter42")
+
+      error_msg = "Invalid filename: top-level filenames cannot match a semantic version pattern."
+
+      assert_raise Mix.Error, error_msg, fn ->
+        File.write!("myfile.txt", "hello")
+        File.write!("1.0.0", "semver")
+        send(self(), {:mix_shell_input, :yes?, true})
+        send(self(), {:mix_shell_input, :prompt, "hunter42"})
+        Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
+      end
+    end)
+  after
+    purge([ReleaseFilesSemVer.MixProject])
   end
 
   test "raise for missing metadata" do
