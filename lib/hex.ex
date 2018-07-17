@@ -133,13 +133,8 @@ defmodule Hex do
   def create_tar!(metadata, files, output) do
     files =
       Enum.map(files, fn
-        {filename, contents} ->
-          if filename_matches_semver?(filename), do: Mix.raise(semver_error_text())
-          {string_to_charlist(filename), contents}
-
-        filename ->
-          if filename_matches_semver?(filename), do: Mix.raise(semver_error_text())
-          string_to_charlist(filename)
+        {filename, contents} -> {string_to_charlist(filename), contents}
+        filename -> string_to_charlist(filename)
       end)
 
     case :mix_hex_tarball.create(metadata, files) do
