@@ -164,4 +164,15 @@ defmodule Hex do
         Mix.raise("Unpacking tarball failed: #{:mix_hex_tarball.format_error(reason)}")
     end
   end
+
+  def filename_matches_semver?(filename) do
+    case Version.parse(to_string(filename)) do
+      {:ok, _struct} -> true
+      _ -> false
+    end
+  end
+
+  def semver_error_text do
+    "Invalid filename: top-level filenames cannot match a semantic version pattern."
+  end
 end
