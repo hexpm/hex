@@ -72,7 +72,6 @@ defmodule Hex.RemoteConverger do
     for dep <- deps,
         dep.top_level,
         into: %{},
-        # do: {dep.opts[:hex], dep.opts[:original_repo]}
         do: {dep.opts[:hex], dep.opts[:repo]}
   end
 
