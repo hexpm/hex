@@ -301,7 +301,7 @@ defmodule Mix.Tasks.Hex.Publish do
   defp send_tarball(organization, name, version, tarball, auth, progress?) do
     progress = progress_fun(progress?, byte_size(tarball))
 
-    case Hex.API.ReleaseDocs.new(organization, name, version, tarball, auth, progress) do
+    case Hex.API.ReleaseDocs.publish(organization, name, version, tarball, auth, progress) do
       {:ok, {code, _, _}} when code in 200..299 ->
         Hex.Shell.info("")
         Hex.Shell.info("Docs published to #{Hex.Utils.hexdocs_url(name, version)}")
@@ -354,7 +354,7 @@ defmodule Mix.Tasks.Hex.Publish do
     progress? = Keyword.get(opts, :progress, true)
     progress = progress_fun(progress?, byte_size(tarball))
 
-    case Hex.API.Release.new(organization, meta.name, tarball, auth, progress) do
+    case Hex.API.Release.publish(organization, tarball, auth, progress) do
       {:ok, {code, body, _}} when code in 200..299 ->
         location = body["html_url"] || body["url"]
         checksum = String.downcase(Base.encode16(checksum, case: :lower))

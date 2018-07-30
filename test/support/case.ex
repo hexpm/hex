@@ -341,7 +341,7 @@ defmodule HexTest.Case do
     Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
 
     package_path = "/api/repos/#{repo}/packages/ecto"
-    release_path = "/api/repos/#{repo}/packages/ecto/releases"
+    release_path = "/api/repos/#{repo}/publish"
 
     Bypass.expect(bypass, fn conn ->
       case conn do

@@ -260,7 +260,7 @@ defmodule HexTest.Hexpm do
     files = [{"mix.exs", List.to_string(mix_exs)}]
     {tar, _checksum} = Hex.create_tar!(meta, files, :memory)
 
-    {:ok, {result, %{"version" => ^version}, _}} = Hex.API.Release.new("hexpm", name, tar, auth)
+    {:ok, {result, %{"version" => ^version}, _}} = Hex.API.Release.publish("hexpm", tar, auth)
     assert result in [200, 201]
   end
 end

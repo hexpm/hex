@@ -6,7 +6,7 @@ defmodule Hex.API.ReleaseDocs do
     API.request(:get, repo, path)
   end
 
-  def new(repo, name, version, tar, auth, progress \\ fn _ -> nil end) do
+  def publish(repo, name, version, tar, auth, progress \\ fn _ -> nil end) do
     path = "packages/#{URI.encode(name)}/releases/#{URI.encode(version)}/docs"
     opts = [progress: progress] ++ auth
     API.tar_post_request(repo, path, tar, opts)
