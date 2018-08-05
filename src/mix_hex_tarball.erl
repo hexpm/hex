@@ -1,12 +1,13 @@
 %% Vendored from hex_erl v0.1.0, do not edit manually
 
 -module(mix_hex_tarball).
--export([create/2, unpack/2, format_checksum/1, format_error/1]).
+-export([create/2, create_docs/1, unpack/2, format_checksum/1, format_error/1]).
 -ifdef(TEST).
 -export([do_decode_metadata/1, gzip/1, normalize_requirements/1]).
 -endif.
 -define(VERSION, <<"3">>).
 -define(TARBALL_MAX_SIZE, 8 * 1024 * 1024).
+-define(TARBALL_MAX_UNCOMPRESSED_SIZE, 64 * 1024 * 1024).
 -define(BUILD_TOOL_FILES, [
     {<<"mix.exs">>, <<"mix">>},
     {<<"rebar.config">>, <<"rebar">>},
@@ -45,20 +46,53 @@
 -spec create(metadata(), files()) -> {ok, {tarball(), checksum()}}.
 create(Metadata, Files) ->
     MetadataBinary = encode_metadata(Metadata),
-    ContentsBinary = create_tarball(Files, [compressed]),
-    Checksum = checksum(?VERSION, MetadataBinary, ContentsBinary),
+    ContentsTarball = create_memory_tarball(Files),
+    ContentsTarballCompressed = gzip(ContentsTarball),
+    Checksum = checksum(?VERSION, MetadataBinary, ContentsTarballCompressed),
     ChecksumBase16 = encode_base16(Checksum),
 
     OuterFiles = [
        {"VERSION", ?VERSION},
        {"CHECKSUM", ChecksumBase16},
        {"metadata.config", MetadataBinary},
-       {"contents.tar.gz", ContentsBinary}
+       {"contents.tar.gz", ContentsTarballCompressed}
     ],
 
-    Tarball = create_tarball(OuterFiles, []),
+    Tarball = create_memory_tarball(OuterFiles),
 
-    case byte_size(Tarball) > ?TARBALL_MAX_SIZE of
+    UncompressedSize = byte_size(ContentsTarball),
+
+    case(byte_size(Tarball) > ?TARBALL_MAX_SIZE) or (UncompressedSize > ?TARBALL_MAX_UNCOMPRESSED_SIZE) of
+        true ->
+            {error, {tarball, too_big}};
+
+        false ->
+            {ok, {Tarball, Checksum}}
+    end.
+
+%% @doc
+%% Creates a documents tarball.
+%%
+%% Examples:
+%%
+%% ```
+%%     Files = [{"src/foo.erl", <<"-module(foo).">>}],
+%%     {ok, {Tarball, Checksum}} = mix_hex_tarball:create_docs(Files).
+%%     Tarball.
+%%     %%=> <<86,69,...>>
+%%     Checksum.
+%%     %%=> <<40,32,...>>
+%% '''
+%% @end
+-spec create_docs(files()) -> {ok, {tarball(), checksum()}}.
+create_docs(Files) ->
+    Tarball = create_memory_tarball(Files),
+    TarballCompressed = gzip(Tarball),
+    Checksum = checksum(TarballCompressed),
+
+    UncompressedSize = byte_size(Tarball),
+
+    case(byte_size(Tarball) > ?TARBALL_MAX_SIZE) or (UncompressedSize > ?TARBALL_MAX_UNCOMPRESSED_SIZE) of
         true ->
             {error, {tarball, too_big}};
 
@@ -136,6 +170,10 @@ format_error({checksum_mismatch, ExpectedChecksum, ActualChecksum}) ->
 
 checksum(Version, MetadataBinary, ContentsBinary) ->
     Blob = <<Version/binary, MetadataBinary/binary, ContentsBinary/binary>>,
+    crypto:hash(sha256, Blob).
+
+checksum(ContentsBinary) ->
+    Blob = <<ContentsBinary/binary>>,
     crypto:hash(sha256, Blob).
 
 encode_metadata(Meta) ->
@@ -319,13 +357,6 @@ try_updating_mtime(Path) ->
     _ = file:write_file_info(Path, #file_info{mtime=Time}, [{time, universal}]),
     ok.
 
-create_tarball(Files, Options) ->
-    Tarball = create_memory_tarball(Files),
-    case proplists:get_bool(compressed, Options) of
-        true -> gzip(Tarball);
-        false -> Tarball
-    end.
-
 create_memory_tarball(Files) ->
     {ok, Fd} = file:open([], [ram, read, write, binary]),
     {ok, Tar} = mix_hex_erl_tar:init(Fd, write, fun file_op/2),
@@ -361,7 +392,13 @@ add_file(Tar, Filename) when is_list(Filename) ->
         symlink ->
             ok = mix_hex_erl_tar:add(Tar, Filename, tar_opts());
         directory ->
-            ok = mix_hex_erl_tar:add(Tar, Filename, tar_opts());
+            case file:list_dir(Filename) of
+                {ok, []} ->
+                    mix_hex_erl_tar:add(Tar, Filename, tar_opts());
+
+                {ok, _} ->
+                    ok
+            end;
         _ ->
             Mode = FileInfo#file_info.mode,
             {ok, Contents} = file:read_file(Filename),
