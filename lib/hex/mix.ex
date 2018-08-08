@@ -264,6 +264,8 @@ defmodule Hex.Mix do
 
     (umbrella_deps ++ child_deps)
     |> Enum.map(&normalize_dep/1)
-    |> Enum.group_by(fn {app, _req, _opts} -> app end, fn {_app, req, opts} -> {req, opts} end)
+    |> Enum.reduce(%{}, fn {app, req, opts}, acc ->
+      Map.update(acc, app, [{req, opts}], &[{req, opts} | &1])
+    end)
   end
 end
