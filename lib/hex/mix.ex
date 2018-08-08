@@ -252,7 +252,7 @@ defmodule Hex.Mix do
   end
 
   def top_level_deps() do
-    apps_paths = Mix.Project.apps_paths(Mix.Project.config())
+    apps_paths = Hex.apps_paths(Mix.Project.config())
     umbrella_deps = Mix.Project.config()[:deps]
 
     child_deps =
