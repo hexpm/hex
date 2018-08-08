@@ -8,9 +8,9 @@ before_install:
 - mkdir -p ${HEXPM_OTP_PATH}
 - tar -xf erlang-${HEXPM_OTP}-nonroot.tar.bz2 -C ${HEXPM_OTP_PATH} --strip-components=1
 - "${HEXPM_OTP_PATH}/Install -minimal $(pwd)/${HEXPM_OTP_PATH}"
-- wget http://repo.hex.pm/builds/elixir/${HEXPM_ELIXIR}.zip
+- wget https://repo.hex.pm/builds/elixir/${HEXPM_ELIXIR}.zip
 - unzip -d ${HEXPM_ELIXIR_PATH} ${HEXPM_ELIXIR}.zip
-- wget http://repo.hex.pm/builds/elixir/${ELIXIR}.zip
+- wget https://repo.hex.pm/builds/elixir/${ELIXIR}.zip
 - unzip -d elixir ${ELIXIR}.zip
 - export PATH=$(pwd)/elixir/bin:${PATH}
 - mkdir -p ${HEXPM_MIX_HOME}
