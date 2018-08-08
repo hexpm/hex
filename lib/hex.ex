@@ -62,9 +62,9 @@ defmodule Hex do
   end
 
   if Version.compare(System.version(), "1.3.2") == :lt do
-    def check_deps, do: Mix.Tasks.Deps.Check.run(["--no-compile"])
+    def check_deps(), do: Mix.Tasks.Deps.Check.run(["--no-compile"])
   else
-    def check_deps, do: Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
+    def check_deps(), do: Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
   end
 
   if Version.compare(System.version(), "1.4.0") == :lt do
