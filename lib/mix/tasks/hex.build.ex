@@ -196,12 +196,12 @@ defmodule Mix.Tasks.Hex.Build do
 
   defp dependencies() do
     {include, exclude} =
-      Mix.Dep.loaded([])
-      |> Enum.filter(& &1.top_level)
+      Mix.Project.config()[:deps]
+      |> Enum.map(&Hex.Mix.normalize_dep/1)
       |> Enum.filter(&prod_dep?/1)
       |> Hex.enum_split_with(&package_dep?/1)
 
-    Enum.each(include, fn %Mix.Dep{app: app, opts: opts} = dep ->
+    Enum.each(include, fn {app, _req, opts} ->
       if opts[:override] do
         Mix.raise(
           "Can't build package with overridden dependency #{app}, remove `override: true`"
@@ -224,7 +224,7 @@ defmodule Mix.Tasks.Hex.Build do
         Mix.raise("Can't build package when :app is set for dependency #{app}, remove `app: ...`")
       end
 
-      if Map.get(dep, :system_env, []) != [] do
+      if List.wrap(opts[:system_env]) != [] do
         Mix.raise(
           "Can't build package when :system_env is set for dependency #{app}, remove `system_env: ...`"
         )
@@ -232,12 +232,12 @@ defmodule Mix.Tasks.Hex.Build do
     end)
 
     include =
-      Enum.map(include, fn %Mix.Dep{app: app, requirement: req, opts: opts} ->
+      Enum.map(include, fn {app, req, opts} ->
         name = opts[:hex] || app
         repo = deorg_repo(opts[:repo] || @default_repo)
 
         %{
-          name: name,
+          name: to_string(name),
           app: app,
           requirement: req,
           optional: opts[:optional] || false,
@@ -250,7 +250,7 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   defp deorg_repo(repo) do
-    case String.split(repo, ":", parts: 2) do
+    case String.split(to_string(repo), ":", parts: 2) do
       [_source, repo] -> repo
       [repo] -> repo
     end
@@ -326,11 +326,14 @@ defmodule Mix.Tasks.Hex.Build do
     |> Enum.any?(&pre_requirement?/1)
   end
 
-  defp package_dep?(%Mix.Dep{scm: scm}) do
-    scm == Hex.SCM
+  @scm_keys [:git, :github, :path]
+
+  defp package_dep?({_app, _req, opts}) do
+    keys = Keyword.keys(opts)
+    :hex in keys or not Enum.any?(@scm_keys, &(&1 in keys))
   end
 
-  defp prod_dep?(%Mix.Dep{opts: opts}) do
+  defp prod_dep?({_app, _req, opts}) do
     if only = opts[:only], do: :prod in List.wrap(only), else: true
   end
 

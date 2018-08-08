@@ -238,4 +238,32 @@ defmodule Hex.Mix do
       end
     end)
   end
+
+  def normalize_dep({app, opts}) when is_atom(app) and is_list(opts) do
+    {app, nil, opts}
+  end
+
+  def normalize_dep({app, req}) when is_atom(app) do
+    {app, req, []}
+  end
+
+  def normalize_dep({app, req, opts}) when is_atom(app) and is_list(opts) do
+    {app, req, opts}
+  end
+
+  def top_level_deps() do
+    apps_paths = Mix.Project.apps_paths(Mix.Project.config())
+    umbrella_deps = Mix.Project.config()[:deps]
+
+    child_deps =
+      Enum.flat_map(apps_paths || [], fn {app, path} ->
+        Mix.Project.in_project(app, path, fn _module ->
+          Mix.Project.config()[:deps]
+        end)
+      end)
+
+    (umbrella_deps ++ child_deps)
+    |> Enum.map(&normalize_dep/1)
+    |> Enum.group_by(fn {app, _req, _opts} -> app end, fn {_app, req, opts} -> {req, opts} end)
+  end
 end
