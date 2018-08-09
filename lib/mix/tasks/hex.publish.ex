@@ -173,7 +173,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp docs_task(build, opts) do
     name = build.meta.name
-    canonical = opts[:canonical] || Hex.Utils.hexdocs_url(name)
+    canonical = opts[:canonical] || Hex.Utils.hexdocs_url(opts[:organization], name)
 
     try do
       Mix.Task.run("docs", ["--canonical", canonical])
@@ -304,7 +304,7 @@ defmodule Mix.Tasks.Hex.Publish do
     case Hex.API.ReleaseDocs.publish(organization, name, version, tarball, auth, progress) do
       {:ok, {code, _, _}} when code in 200..299 ->
         Hex.Shell.info("")
-        Hex.Shell.info("Docs published to #{Hex.Utils.hexdocs_url(name, version)}")
+        Hex.Shell.info("Docs published to #{Hex.Utils.hexdocs_url(organization, name, version)}")
         :ok
 
       {:ok, {404, _, _}} ->

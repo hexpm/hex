@@ -79,7 +79,7 @@ defmodule Mix.Tasks.Hex.Info do
 
     case Hex.API.Release.get(organization, package, version, auth) do
       {:ok, {code, body, _}} when code in 200..299 ->
-        print_release(package, body)
+        print_release(organization, package, body)
 
       {:ok, {404, _, _}} ->
         Hex.Shell.error("No release with name #{package} #{version}")
@@ -136,7 +136,7 @@ defmodule Mix.Tasks.Hex.Info do
     print_dict(meta, "links")
   end
 
-  defp print_release(package, release) do
+  defp print_release(organization, package, release) do
     version = release["version"]
 
     print_retirement(release)
@@ -144,7 +144,7 @@ defmodule Mix.Tasks.Hex.Info do
     print_config(package, release)
 
     if release["has_docs"] do
-      Hex.Shell.info("Documentation at: #{Hex.Utils.hexdocs_url(package, version)}")
+      Hex.Shell.info("Documentation at: #{Hex.Utils.hexdocs_url(organization, package, version)}")
     end
 
     if requirements = release["requirements"] do
