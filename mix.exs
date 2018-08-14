@@ -32,31 +32,46 @@ defmodule Hex.MixProject do
 
   # We use different versions of plug because older plug version produces
   # warnings on elixir >=1.3.0 and newer plug versions do not work on elixir <1.2.3
+  defp lockfile(elixir_version) when elixir_version >= {1, 6, 6}, do: "mix-elixir-1_6_6.lock"
   defp lockfile(elixir_version) when elixir_version >= {1, 2, 3}, do: "mix-new.lock"
   defp lockfile(_), do: "mix-old.lock"
 
   # Can't use hex dependencies because the elixir compiler loads dependencies
   # and calls the dependency SCM. This would cause us to crash if the SCM was
   # Hex because we have to unload Hex before compiling it.
+  defp deps(elixir_version) when elixir_version >= {1, 6, 6} do
+    [
+      {:stream_data, [github: "whatyouhide/stream_data", tag: "v0.4.0"] ++ test_opts()},
+      {:plug, [github: "elixir-lang/plug", tag: "v1.6.1"] ++ test_opts()},
+      {:mime, [github: "elixir-plug/mime", tag: "v1.3.0"] ++ test_opts()},
+    ] ++ deps()
+  end
+
   defp deps(elixir_version) when elixir_version >= {1, 5, 0} do
     [
       {:stream_data, [github: "whatyouhide/stream_data", tag: "v0.4.0"] ++ test_opts()},
-      {:plug, [github: "elixir-lang/plug", tag: "v1.2.0"] ++ test_opts()}
+      {:plug, [github: "elixir-lang/plug", tag: "v1.2.0"] ++ test_opts()},
+      {:mime, [github: "elixir-lang/mime", tag: "v1.0.1"] ++ test_opts()},
     ] ++ deps()
   end
 
   defp deps(elixir_version) when elixir_version >= {1, 2, 3} do
-    [{:plug, [github: "elixir-lang/plug", tag: "v1.2.0"] ++ test_opts()}] ++ deps()
+    [
+      {:plug, [github: "elixir-lang/plug", tag: "v1.2.0"] ++ test_opts()},
+      {:mime, [github: "elixir-lang/mime", tag: "v1.0.1"] ++ test_opts()}
+    ] ++ deps()
   end
 
   defp deps(_) do
-    [{:plug, [github: "elixir-lang/plug", tag: "v1.1.6"] ++ test_opts()}] ++ deps()
+    [
+      {:plug, [github: "elixir-lang/plug", tag: "v1.1.6"] ++ test_opts()},
+      {:mime, [github: "elixir-lang/mime", tag: "v1.0.1"] ++ test_opts()}
+    ] ++ deps()
   end
 
   defp deps do
     [
       {:bypass, [github: "PSPDFKit-labs/bypass", only: :test]},
-      {:mime, [github: "elixir-lang/mime", tag: "v1.0.1"] ++ test_opts()},
       {:cowboy, [github: "ninenines/cowboy", tag: "1.0.4", manager: :rebar3] ++ test_opts()},
       {:cowlib, [github: "ninenines/cowlib", tag: "1.0.2", manager: :rebar3] ++ test_opts()},
       {:ranch, [github: "ninenines/ranch", tag: "1.2.1", manager: :rebar3] ++ test_opts()}
