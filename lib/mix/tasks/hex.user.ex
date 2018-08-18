@@ -211,7 +211,7 @@ defmodule Mix.Tasks.Hex.User do
 
   defp register() do
     Hex.Shell.info("""
-    By registering an account on Hex.pm you accept all our\
+    By registering an account on Hex.pm you accept all our \
     policies and terms of service found at:
     https://hex.pm/policies/codeofconduct
     https://hex.pm/policies/termsofservice
