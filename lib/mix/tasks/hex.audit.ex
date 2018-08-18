@@ -16,17 +16,15 @@ defmodule Mix.Tasks.Hex.Audit do
   def run(_) do
     Hex.check_deps()
     Hex.start()
+    Registry.open()
 
     lock = Mix.Dep.Lock.read()
-    deps = Mix.Dep.loaded([]) |> Enum.filter(&(&1.scm == Hex.SCM))
-
-    Registry.open()
 
     lock
     |> Hex.Mix.packages_from_lock()
     |> Registry.prefetch()
 
-    case retired_packages(deps, lock) do
+    case retired_packages(lock) do
       [] ->
         Hex.Shell.info("No retired packages found")
 
@@ -38,17 +36,20 @@ defmodule Mix.Tasks.Hex.Audit do
     end
   end
 
-  defp retired_packages(deps, lock) do
-    Enum.map(deps, &retirement_status(Hex.Utils.lock(lock[&1.app])))
-    |> Enum.reject(&Enum.empty?/1)
+  defp retired_packages(lock) do
+    Enum.flat_map(lock, fn {_app, lock} -> retirement_status(Hex.Utils.lock(lock)) end)
   end
 
   defp retirement_status(%{repo: repo, name: package, version: version}) do
     retired = Registry.retired(repo, package, version)
 
     case retired do
-      %{} -> [package, version, Hex.Utils.package_retirement_message(retired)]
+      %{} -> [[package, version, Hex.Utils.package_retirement_message(retired)]]
       nil -> []
     end
+  end
+
+  defp retirement_status(nil) do
+    []
   end
 end

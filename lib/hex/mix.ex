@@ -238,4 +238,67 @@ defmodule Hex.Mix do
       end
     end)
   end
+
+  def normalize_dep({app, opts}) when is_atom(app) and is_list(opts) do
+    {app, nil, opts}
+  end
+
+  def normalize_dep({app, req}) when is_atom(app) do
+    {app, req, []}
+  end
+
+  def normalize_dep({app, req, opts}) when is_atom(app) and is_list(opts) do
+    {app, req, opts}
+  end
+
+  def top_level_deps() do
+    config = Mix.Project.config()
+    apps_paths = apps_paths(config)
+    umbrella_deps = config[:deps]
+
+    child_deps =
+      Enum.flat_map(apps_paths || [], fn {app, path} ->
+        Mix.Project.in_project(app, path, fn _module ->
+          Mix.Project.config()[:deps]
+        end)
+      end)
+
+    (umbrella_deps ++ child_deps)
+    |> Enum.map(&normalize_dep/1)
+    |> Enum.reduce(%{}, fn {app, req, opts}, acc ->
+      Map.update(acc, app, [{req, opts}], &[{req, opts} | &1])
+    end)
+  end
+
+  def apps_paths(config) do
+    if apps_path = config[:apps_path] do
+      config[:apps] |> umbrella_apps(apps_path) |> to_apps_paths(apps_path)
+    end
+  end
+
+  defp umbrella_apps(nil, apps_path) do
+    case File.ls(apps_path) do
+      {:ok, apps} -> Enum.map(apps, &String.to_atom/1)
+      {:error, _} -> []
+    end
+  end
+
+  defp umbrella_apps(apps, _apps_path) when is_list(apps) do
+    apps
+  end
+
+  defp to_apps_paths(apps, apps_path) do
+    for app <- apps,
+        path = path_with_mix_exs(app, apps_path),
+        do: {app, path},
+        into: %{}
+  end
+
+  defp path_with_mix_exs(app, apps_path) do
+    path = Path.join(apps_path, Atom.to_string(app))
+
+    if File.regular?(Path.join(path, "mix.exs")) do
+      path
+    end
+  end
 end

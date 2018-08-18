@@ -58,9 +58,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       [
         app: :outdated_app,
         version: "0.0.1",
-        deps: [
-          {:beta, github: "owner/repo"}
-        ]
+        deps: []
       ]
     end
   end
@@ -303,7 +301,10 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
-      Mix.Dep.Lock.write(%{beta: {:git, "https://github.com/owner/repo.git", ""}})
+      Mix.Dep.Lock.write(%{})
+
+      Mix.Task.run("deps.get")
+      flush()
 
       Mix.Task.run("hex.outdated")
       msg = "No hex dependencies"

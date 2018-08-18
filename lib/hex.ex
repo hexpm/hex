@@ -62,9 +62,9 @@ defmodule Hex do
   end
 
   if Version.compare(System.version(), "1.3.2") == :lt do
-    def check_deps, do: Mix.Tasks.Deps.Check.run(["--no-compile"])
+    def check_deps(), do: Mix.Tasks.Deps.Check.run(["--no-compile"])
   else
-    def check_deps, do: Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
+    def check_deps(), do: Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
   end
 
   if Version.compare(System.version(), "1.4.0") == :lt do
@@ -163,5 +163,16 @@ defmodule Hex do
       {:error, reason} ->
         Mix.raise("Unpacking tarball failed: #{:mix_hex_tarball.format_error(reason)}")
     end
+  end
+
+  def filename_matches_semver?(filename) do
+    case Version.parse(to_string(filename)) do
+      {:ok, _struct} -> true
+      _ -> false
+    end
+  end
+
+  def semver_error_text do
+    "Invalid filename: top-level filenames cannot match a semantic version pattern."
   end
 end

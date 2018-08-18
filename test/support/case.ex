@@ -198,6 +198,8 @@ defmodule HexTest.Case do
       {:hexpm, :foo, "0.2.0", []},
       {:hexpm, :foo, "0.2.1", []},
       {:hexpm, :has_optional, "0.1.0", [{:ex_doc, "~> 0.0.1", true}]},
+      {:hexpm, :invalid_dirname, "0.1.0", []},
+      {:hexpm, :invalid_filename, "0.1.0", []},
       {:hexpm, :jose, "0.2.0", []},
       {:hexpm, :jose, "0.2.1", []},
       {:hexpm, :only_doc, "0.1.0", [{:ex_doc, ">= 0.0.0", true}]},
@@ -339,7 +341,7 @@ defmodule HexTest.Case do
     Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
 
     package_path = "/api/repos/#{repo}/packages/ecto"
-    release_path = "/api/repos/#{repo}/packages/ecto/releases"
+    release_path = "/api/repos/#{repo}/publish"
 
     Bypass.expect(bypass, fn conn ->
       case conn do

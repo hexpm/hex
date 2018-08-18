@@ -173,7 +173,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp docs_task(build, opts) do
     name = build.meta.name
-    canonical = opts[:canonical] || Hex.Utils.hexdocs_url(name)
+    canonical = opts[:canonical] || Hex.Utils.hexdocs_url(opts[:organization], name)
 
     try do
       Mix.Task.run("docs", ["--canonical", canonical])
@@ -276,6 +276,9 @@ defmodule Mix.Tasks.Hex.Publish do
   defp build_tarball(name, version, directory) do
     tarball = "#{name}-#{version}-docs.tar.gz"
     files = files(directory)
+
+    raise_if_file_matches_semver(files)
+
     :ok = :mix_hex_erl_tar.create(tarball, files, [:compressed])
     data = File.read!(tarball)
 
@@ -283,13 +286,25 @@ defmodule Mix.Tasks.Hex.Publish do
     data
   end
 
+  defp raise_if_file_matches_semver(files) do
+    Enum.map(files, fn
+      {filename, _contents} ->
+        top_level = filename |> Path.split() |> List.first()
+        if Hex.filename_matches_semver?(top_level), do: Mix.raise(Hex.semver_error_text())
+
+      filename ->
+        top_level = filename |> Path.split() |> List.first()
+        if Hex.filename_matches_semver?(top_level), do: Mix.raise(Hex.semver_error_text())
+    end)
+  end
+
   defp send_tarball(organization, name, version, tarball, auth, progress?) do
     progress = progress_fun(progress?, byte_size(tarball))
 
-    case Hex.API.ReleaseDocs.new(organization, name, version, tarball, auth, progress) do
+    case Hex.API.ReleaseDocs.publish(organization, name, version, tarball, auth, progress) do
       {:ok, {code, _, _}} when code in 200..299 ->
         Hex.Shell.info("")
-        Hex.Shell.info("Docs published to #{Hex.Utils.hexdocs_url(name, version)}")
+        Hex.Shell.info("Docs published to #{Hex.Utils.hexdocs_url(organization, name, version)}")
         :ok
 
       {:ok, {404, _, _}} ->
@@ -339,7 +354,7 @@ defmodule Mix.Tasks.Hex.Publish do
     progress? = Keyword.get(opts, :progress, true)
     progress = progress_fun(progress?, byte_size(tarball))
 
-    case Hex.API.Release.new(organization, meta.name, tarball, auth, progress) do
+    case Hex.API.Release.publish(organization, tarball, auth, progress) do
       {:ok, {code, body, _}} when code in 200..299 ->
         location = body["html_url"] || body["url"]
         checksum = String.downcase(Base.encode16(checksum, case: :lower))

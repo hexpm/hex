@@ -26,23 +26,23 @@ defmodule Mix.Tasks.Hex.Outdated do
   @switches [all: :boolean, pre: :boolean]
 
   def run(args) do
+    Hex.check_deps()
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
+    Registry.open()
 
     lock = Mix.Dep.Lock.read()
-    deps = Mix.Dep.loaded([]) |> Enum.filter(&(&1.scm == Hex.SCM))
 
-    Hex.Registry.Server.open()
-
-    Hex.Mix.packages_from_lock(lock)
+    lock
+    |> Hex.Mix.packages_from_lock()
     |> Hex.Registry.Server.prefetch()
 
     case args do
       [app] ->
-        single(deps, lock, app, opts)
+        single(lock, app, opts)
 
       [] ->
-        all(deps, lock, opts)
+        all(lock, opts)
 
       _ ->
         Mix.raise("""
@@ -53,13 +53,9 @@ defmodule Mix.Tasks.Hex.Outdated do
     end
   end
 
-  defp single(deps, lock, app, opts) do
+  defp single(lock, app, opts) do
     app = String.to_atom(app)
-    dep = Enum.find(deps, &(&1.app == app))
-
-    unless dep do
-      Mix.raise("No dependency with name #{app}")
-    end
+    deps = Hex.Mix.top_level_deps()
 
     {repo, package, current} =
       case Hex.Utils.lock(lock[app]) do
@@ -72,14 +68,9 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     latest = latest_version(repo, package, current, opts[:pre])
     outdated? = Hex.Version.compare(current, latest) == :lt
-    requirements = get_requirements(sort(deps), app)
-
-    requirements =
-      if dep.top_level do
-        [["mix.exs", dep.requirement] | requirements]
-      else
-        requirements
-      end
+    lock_requirements = get_requirements_from_lock(app, lock)
+    deps_requirements = get_requirements_from_deps(app, deps)
+    requirements = deps_requirements ++ lock_requirements
 
     if outdated? do
       [
@@ -105,14 +96,26 @@ defmodule Mix.Tasks.Hex.Outdated do
     if outdated?, do: Mix.Tasks.Hex.set_exit_code(1)
   end
 
-  defp get_requirements(deps, app) do
-    Enum.flat_map(deps, fn dep ->
-      Enum.find_value(dep.deps, fn child ->
-        if child.app == app do
-          [[Atom.to_string(dep.app), child.requirement]]
-        end
-      end) || []
+  defp get_requirements_from_lock(app, lock) do
+    Enum.flat_map(lock, fn {source, lock} ->
+      case Hex.Utils.lock(lock) do
+        %{deps: deps} ->
+          Enum.flat_map(deps, fn {dep_app, req, _opts} ->
+            if app == dep_app, do: [[Atom.to_string(source), req]], else: []
+          end)
+
+        nil ->
+          []
+      end
     end)
+  end
+
+  defp get_requirements_from_deps(app, deps) do
+    # TODO: Path to umbrella child's mix.exs
+    case Map.fetch(deps, app) do
+      {:ok, deps} -> Enum.map(deps, fn {req, _opts} -> ["mix.exs", req] end)
+      :error -> []
+    end
   end
 
   defp format_single_row([source, req], latest) do
@@ -121,13 +124,14 @@ defmodule Mix.Tasks.Hex.Outdated do
     [[:bright, source], [req_color, req || ""]]
   end
 
-  defp all(deps, lock, opts) do
-    deps = if opts[:all], do: deps, else: top_level_deps(deps)
+  defp all(lock, opts) do
+    deps = Hex.Mix.top_level_deps()
+    dep_names = if opts[:all], do: Map.keys(lock), else: Map.keys(deps)
 
     versions =
-      deps
-      |> sort()
-      |> get_versions(lock, opts[:pre])
+      dep_names
+      |> Enum.sort()
+      |> get_versions(deps, lock, opts[:pre])
 
     values = Enum.map(versions, &format_all_row/1)
 
@@ -148,38 +152,20 @@ defmodule Mix.Tasks.Hex.Outdated do
     end
   end
 
-  defp top_level_deps(deps) do
-    Enum.filter(deps, & &1.top_level) ++ umbrella_top_level_deps(deps)
-  end
-
-  def umbrella_top_level_deps(deps) do
-    if Mix.Project.umbrella?() do
-      apps_paths = Path.expand(Mix.Project.config()[:apps_path], File.cwd!())
-
-      Enum.filter(deps, &String.contains?(Path.dirname(Path.dirname(&1.from)), apps_paths))
-    else
-      []
-    end
-  end
-
-  defp sort(deps) do
-    Enum.sort(deps, &(&1.app <= &2.app))
-  end
-
-  defp get_versions(deps, lock, pre?) do
-    Enum.flat_map(deps, fn dep ->
-      case Hex.Utils.lock(lock[dep.app]) do
+  defp get_versions(dep_names, deps, lock, pre?) do
+    Enum.flat_map(dep_names, fn name ->
+      case Hex.Utils.lock(lock[name]) do
         %{repo: repo, name: package, version: lock_version} ->
           latest_version = latest_version(repo, package, lock_version, pre?)
 
+          lock_requirements = get_requirements_from_lock(name, lock)
+          deps_requirements = get_requirements_from_deps(name, deps)
+
           requirements =
-            deps
-            |> get_requirements(dep.app)
+            (deps_requirements ++ lock_requirements)
             |> Enum.map(fn [_, req_version] -> req_version end)
 
-          requirements = [dep.requirement | requirements]
-
-          [[Atom.to_string(dep.app), lock_version, latest_version, requirements]]
+          [[Atom.to_string(name), lock_version, latest_version, requirements]]
 
         _ ->
           []

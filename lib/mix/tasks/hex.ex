@@ -19,14 +19,8 @@ defmodule Mix.Tasks.Hex do
     Hex.Shell.info("Hex v" <> Hex.version())
     Hex.Shell.info("Hex is a package manager for the Erlang ecosystem.")
     line_break()
-
-    if Hex.Version.match?(System.version(), ">= 1.1.0-dev") do
-      Hex.Shell.info("Available tasks:")
-      line_break()
-      Mix.Task.run("help", ["--search", "hex."])
-      line_break()
-    end
-
+    Hex.Shell.info("To list Hex tasks run: mix help --search hex.")
+    line_break()
     Hex.Shell.info("Further information can be found here: https://hex.pm/docs/tasks")
   end
 

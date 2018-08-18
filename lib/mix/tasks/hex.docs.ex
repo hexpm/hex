@@ -242,17 +242,17 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp get_docs_url([name], opts) do
     if module = opts[:module] do
-      Hex.Utils.hexdocs_module_url(name, module)
+      Hex.Utils.hexdocs_module_url(opts[:organization], name, module)
     else
-      Hex.Utils.hexdocs_url(name)
+      Hex.Utils.hexdocs_url(opts[:organization], name)
     end
   end
 
   defp get_docs_url([name, version], opts) do
     if module = opts[:module] do
-      Hex.Utils.hexdocs_module_url(name, version, module)
+      Hex.Utils.hexdocs_module_url(opts[:organization], name, version, module)
     else
-      Hex.Utils.hexdocs_url(name, version)
+      Hex.Utils.hexdocs_url(opts[:organization], name, version)
     end
   end
 

@@ -30,7 +30,7 @@ defmodule Hex.Resolver do
 
     try do
       if solutions = run(pending, optional, info, %{}) do
-        solutions = List.wrap(solutions)
+        solutions = filter_and_sort_solutions(solutions)
         print_verbose_solutions(solutions)
 
         if activated = select_solution(solutions, top_level) do
@@ -281,13 +281,6 @@ defmodule Hex.Resolver do
   #  3. If that fails, use the solution with the least dependencies
   #  4. Finally pick the first solution we found
   defp select_solution(solutions, top_level) do
-    solutions =
-      solutions
-      |> List.flatten()
-      |> Enum.reject(&is_nil/1)
-      |> Enum.map(fn {:ok, solution} -> solution end)
-      |> Enum.map(&Enum.sort/1)
-
     case solutions do
       [best | solutions] -> select_solution(solutions, top_level, best)
       [] -> nil
@@ -394,6 +387,16 @@ defmodule Hex.Resolver do
     else
       message
     end
+  end
+
+  defp filter_and_sort_solutions(solutions) do
+    solutions
+    |> List.wrap()
+    |> List.flatten()
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(fn {:ok, solution} -> solution end)
+    |> Enum.uniq()
+    |> Enum.map(&Enum.sort/1)
   end
 
   defp print_verbose_solutions(solutions) do
