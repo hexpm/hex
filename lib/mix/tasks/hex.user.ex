@@ -210,10 +210,15 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp register() do
-    Hex.Shell.info(
-      "By registering an account on Hex.pm you accept all our " <>
-        "policies and terms of service found at https://hex.pm/policies\n"
-    )
+    Hex.Shell.info("""
+    By registering an account on Hex.pm you accept all our\
+    policies and terms of service found at:
+    https://hex.pm/policies/codeofconduct
+    https://hex.pm/policies/termsofservice
+    https://hex.pm/policies/privacy
+    https://hex.pm/policies/copyright
+    https://hex.pm/policies/dispute
+    """)
 
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
     email = Hex.Shell.prompt("Email:") |> Hex.string_trim()
