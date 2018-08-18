@@ -216,8 +216,6 @@ defmodule Mix.Tasks.Hex.User do
     https://hex.pm/policies/codeofconduct
     https://hex.pm/policies/termsofservice
     https://hex.pm/policies/privacy
-    https://hex.pm/policies/copyright
-    https://hex.pm/policies/dispute
     """)
 
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
