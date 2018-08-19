@@ -28,12 +28,12 @@ defmodule Hex.HTTP do
   end
 
   defp build_http_opts(url, timeout) do
-    [
+    proxy_config(url) ++ [
       relaxed: true,
       timeout: timeout,
       ssl: Hex.HTTP.SSL.ssl_opts(url),
       autoredirect: false
-    ] ++ proxy_config(url)
+    ]
   end
 
   defp build_request(url, headers, body) do
