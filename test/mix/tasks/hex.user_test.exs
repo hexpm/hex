@@ -222,6 +222,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       Mix.Tasks.Hex.update_keys(Mix.Tasks.Hex.encrypt_key("hunter42", "qwerty"))
       first_key = Hex.Config.read()[:"$write_key"]
+      read_key = Hex.Config.read()[:"$read_key"]
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       send(self(), {:mix_shell_input, :prompt, "hunter43"})
@@ -229,6 +230,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       Mix.Tasks.Hex.User.run(["reset_password", "local"])
 
       assert Hex.Config.read()[:"$write_key"] != first_key
+      assert Hex.Config.read()[:"$read_key"] == read_key
 
       send(self(), {:mix_shell_input, :prompt, "wrong"})
       send(self(), {:mix_shell_input, :prompt, "hunter43"})

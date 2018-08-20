@@ -182,13 +182,15 @@ defmodule Mix.Tasks.Hex.User do
 
   defp reset_local_password() do
     encrypted_key = Hex.State.fetch!(:api_key_write)
+    read_key = Hex.State.fetch!(:api_key_read)
 
     unless encrypted_key do
       Mix.raise("No authorized user found. Run `mix hex.user auth`")
     end
 
     decrypted_key = Mix.Tasks.Hex.prompt_decrypt_key(encrypted_key, "Current local password")
-    Mix.Tasks.Hex.prompt_encrypt_key(decrypted_key, "New local password")
+    Mix.Tasks.Hex.prompt_encrypt_key(decrypted_key, read_key, "New local password")
+    Hex.Shell.info("Password changed")
   end
 
   defp deauth() do
