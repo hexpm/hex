@@ -39,6 +39,7 @@ defmodule Mix.Tasks.Hex.Publish do
       the package is removed
     * `--organization ORGANIZATION` - The organization the package belongs to
     * `--yes` - Publishes the package without any confirmation prompts
+    * `--dry-run` - Performs local checks without publishing
 
   ## Configuration
 
@@ -93,7 +94,8 @@ defmodule Mix.Tasks.Hex.Publish do
     canonical: :string,
     organization: :string,
     organisation: :string,
-    yes: :boolean
+    yes: :boolean,
+    dry_run: :boolean
   ]
 
   def run(args) do
@@ -167,8 +169,14 @@ defmodule Mix.Tasks.Hex.Publish do
     end
 
     progress? = Keyword.get(opts, :progress, true)
+    dry_run? = Keyword.get(opts, :dry_run, false)
     tarball = build_tarball(name, version, directory)
-    send_tarball(organization, name, version, tarball, auth, progress?)
+
+    if dry_run? do
+      :ok
+    else
+      send_tarball(organization, name, version, tarball, auth, progress?)
+    end
   end
 
   defp docs_task(build, opts) do
@@ -351,22 +359,28 @@ defmodule Mix.Tasks.Hex.Publish do
   defp create_release(build, organization, auth, opts) do
     meta = build.meta
     {tarball, checksum} = Hex.create_tar!(meta, meta.files, :memory)
-    progress? = Keyword.get(opts, :progress, true)
-    progress = progress_fun(progress?, byte_size(tarball))
+    dry_run? = Keyword.get(opts, :dry_run, false)
 
-    case Hex.API.Release.publish(organization, tarball, auth, progress) do
-      {:ok, {code, body, _}} when code in 200..299 ->
-        location = body["html_url"] || body["url"]
-        checksum = String.downcase(Base.encode16(checksum, case: :lower))
-        Hex.Shell.info("")
-        Hex.Shell.info("Package published to #{location} (#{checksum})")
-        :ok
+    if dry_run? do
+      :ok
+    else
+      progress? = Keyword.get(opts, :progress, true)
+      progress = progress_fun(progress?, byte_size(tarball))
 
-      other ->
-        Hex.Shell.info("")
-        Hex.Shell.error("Publishing failed")
-        Hex.Utils.print_error_result(other)
-        :error
+      case Hex.API.Release.publish(organization, tarball, auth, progress) do
+        {:ok, {code, body, _}} when code in 200..299 ->
+          location = body["html_url"] || body["url"]
+          checksum = String.downcase(Base.encode16(checksum, case: :lower))
+          Hex.Shell.info("")
+          Hex.Shell.info("Package published to #{location} (#{checksum})")
+          :ok
+
+        other ->
+          Hex.Shell.info("")
+          Hex.Shell.error("Publishing failed")
+          Hex.Utils.print_error_result(other)
+          :error
+      end
     end
   end
 
