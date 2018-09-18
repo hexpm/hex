@@ -39,7 +39,8 @@ defmodule Mix.Tasks.Hex.Publish do
       the package is removed
     * `--organization ORGANIZATION` - The organization the package belongs to
     * `--yes` - Publishes the package without any confirmation prompts
-    * `--dry-run` - Performs local checks without publishing
+    * `--dry-run` - Builds package and performs local checks without publishing,
+      use `mix hex.build` to inspect package contents before publishing
 
   ## Configuration
 
