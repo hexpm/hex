@@ -39,6 +39,8 @@ defmodule Mix.Tasks.Hex.Publish do
       the package is removed
     * `--organization ORGANIZATION` - The organization the package belongs to
     * `--yes` - Publishes the package without any confirmation prompts
+    * `--dry-run` - Builds package and performs local checks without publishing,
+      use `mix hex.build` to inspect package contents before publishing
 
   ## Configuration
 
@@ -93,7 +95,8 @@ defmodule Mix.Tasks.Hex.Publish do
     canonical: :string,
     organization: :string,
     organisation: :string,
-    yes: :boolean
+    yes: :boolean,
+    dry_run: :boolean
   ]
 
   def run(args) do
@@ -167,8 +170,14 @@ defmodule Mix.Tasks.Hex.Publish do
     end
 
     progress? = Keyword.get(opts, :progress, true)
+    dry_run? = Keyword.get(opts, :dry_run, false)
     tarball = build_tarball(name, version, directory)
-    send_tarball(organization, name, version, tarball, auth, progress?)
+
+    if dry_run? do
+      :ok
+    else
+      send_tarball(organization, name, version, tarball, auth, progress?)
+    end
   end
 
   defp docs_task(build, opts) do
@@ -351,6 +360,16 @@ defmodule Mix.Tasks.Hex.Publish do
   defp create_release(build, organization, auth, opts) do
     meta = build.meta
     {tarball, checksum} = Hex.create_tar!(meta, meta.files, :memory)
+    dry_run? = Keyword.get(opts, :dry_run, false)
+
+    if dry_run? do
+      :ok
+    else
+      send_release(tarball, checksum, organization, auth, opts)
+    end
+  end
+
+  defp send_release(tarball, checksum, organization, auth, opts) do
     progress? = Keyword.get(opts, :progress, true)
     progress = progress_fun(progress?, byte_size(tarball))
 

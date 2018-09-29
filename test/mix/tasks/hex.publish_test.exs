@@ -232,6 +232,24 @@ defmodule Mix.Tasks.Hex.PublishTest do
     purge([ReleaseName.MixProject])
   end
 
+  test "publish package and docs with dry run" do
+    Mix.Project.push(ReleaseName.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user", "hunter42")
+
+      send(self(), {:mix_shell_input, :prompt, "hunter42"})
+      Mix.Tasks.Hex.Publish.run(["--dry-run", "--yes"])
+      message = "Building released_name 0.0.1"
+      assert_received {:mix_shell, :info, [^message]}
+      refute_received {:mix_shell, :info, ["Package published to" <> _]}
+      refute_received {:mix_shell, :info, ["Docs published to" <> _]}
+    end)
+  after
+    purge([ReleaseName.MixProject])
+  end
+
   test "create with key" do
     Mix.Project.push(ReleaseSimple.MixProject)
 
