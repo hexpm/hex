@@ -40,7 +40,7 @@ defmodule Mix.Tasks.Hex.Publish do
     * `--organization ORGANIZATION` - The organization the package belongs to
     * `--yes` - Publishes the package without any confirmation prompts
     * `--dry-run` - Builds package and performs local checks without publishing,
-      use `mix hex.build` to inspect package contents before publishing
+      use `mix hex.build --unpack` to inspect package contents before publishing
 
   ## Configuration
 
