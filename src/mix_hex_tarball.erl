@@ -1,4 +1,4 @@
-%% Vendored from hex_erl v0.1.0, do not edit manually
+%% Vendored from hex_core v0.2.0, do not edit manually
 
 -module(mix_hex_tarball).
 -export([create/2, create_docs/1, unpack/2, format_checksum/1, format_error/1]).
@@ -10,8 +10,8 @@
 -define(TARBALL_MAX_UNCOMPRESSED_SIZE, 64 * 1024 * 1024).
 -define(BUILD_TOOL_FILES, [
     {<<"mix.exs">>, <<"mix">>},
-    {<<"rebar.config">>, <<"rebar">>},
-    {<<"rebar">>, <<"rebar">>},
+    {<<"rebar.config">>, <<"rebar3">>},
+    {<<"rebar">>, <<"rebar3">>},
     {<<"Makefile">>, <<"make">>},
     {<<"Makefile.win">>, <<"make">>}
 ]).
@@ -20,7 +20,7 @@
 -type checksum() :: binary().
 -type contents() :: #{filename() => binary()}.
 -type filename() :: string().
--type files() :: [filename()] | contents().
+-type files() :: [filename() | {filename(), filename()}] | contents().
 -type metadata() :: map().
 -type tarball() :: binary().
 
@@ -34,7 +34,7 @@
 %% Examples:
 %%
 %% ```
-%%     Metadata = #{<<"app">> => <<"foo">>, <<"version">> => <<"1.0.0">>},
+%%     Metadata = #{<<"name">> => <<"foo">>, <<"version">> => <<"1.0.0">>},
 %%     Files = [{"src/foo.erl", <<"-module(foo).">>}],
 %%     {ok, {Tarball, Checksum}} = mix_hex_tarball:create(Metadata, Files).
 %%     Tarball.
@@ -109,11 +109,11 @@ create_docs(Files) ->
 %%     mix_hex_tarball:unpack(Tarball, memory).
 %%     %%=> {ok,#{checksum => <<...>>,
 %%     %%=>       contents => [{"src/foo.erl",<<"-module(foo).">>}],
-%%     %%=>       metadata => #{<<"app">> => <<"foo">>, ...}}}
+%%     %%=>       metadata => #{<<"name">> => <<"foo">>, ...}}}
 %%
 %%     mix_hex_tarball:unpack(Tarball, "path/to/unpack").
 %%     %%=> {ok,#{checksum => <<...>>,
-%%     %%=>       metadata => #{<<"app">> => <<"foo">>, ...}}}
+%%     %%=>       metadata => #{<<"name">> => <<"foo">>, ...}}}
 %% '''
 -spec unpack(tarball(), memory) ->
                 {ok, #{checksum => checksum(), metadata => metadata(), contents => contents()}} |
@@ -217,7 +217,7 @@ finish_unpack(#{metadata := Metadata, files := Files, output := Output}) ->
     end.
 
 copy_metadata_config(Output, MetadataBinary) ->
-    ok = file:write_file(Output ++ "/hex_metadata.config", MetadataBinary).
+    ok = file:write_file(filename:join(Output, "hex_metadata.config"), MetadataBinary).
 
 check_files(#{files := Files} = State) ->
     RequiredFiles = ["VERSION", "CHECKSUM", "metadata.config", "contents.tar.gz"],
@@ -358,27 +358,20 @@ try_updating_mtime(Path) ->
     ok.
 
 create_memory_tarball(Files) ->
-    {ok, Fd} = file:open([], [ram, read, write, binary]),
-    {ok, Tar} = mix_hex_erl_tar:init(Fd, write, fun file_op/2),
+    Path = tmp_path(),
+    {ok, Tar} = mix_hex_erl_tar:open(Path, [write]),
 
     try
-        try
-            add_files(Tar, Files)
-        after
-            ok = mix_hex_erl_tar:close(Tar)
-        end,
-
-        {ok, Size} = file:position(Fd, cur),
-        {ok, Binary} = file:pread(Fd, 0, Size),
-        Binary
+        add_files(Tar, Files)
     after
-        ok = file:close(Fd)
-    end.
+        ok = mix_hex_erl_tar:close(Tar)
+    end,
+    {ok, Tarball} = file:read_file(Path),
+    ok = file:delete(Path),
+    Tarball.
 
-file_op(write, {Fd, Data}) -> file:write(Fd, Data);
-file_op(position, {Fd, Pos}) -> file:position(Fd, Pos);
-file_op(read2, {Fd, Size}) -> file:read(Fd, Size);
-file_op(close, _Fd) -> ok.
+tmp_path() ->
+    "tmp_" ++ binary_to_list(encode_base16(crypto:strong_rand_bytes(32))).
 
 add_files(Tar, Files) when is_list(Files) ->
     lists:map(fun(File) -> add_file(Tar, File) end, Files).
@@ -386,22 +379,24 @@ add_files(Tar, Files) when is_list(Files) ->
 add_file(Tar, {Filename, Contents}) when is_list(Filename) and is_binary(Contents) ->
     ok = mix_hex_erl_tar:add(Tar, Contents, Filename, tar_opts());
 add_file(Tar, Filename) when is_list(Filename) ->
-    {ok, FileInfo} = file:read_link_info(Filename, []),
+    add_file(Tar, {Filename, Filename});
+add_file(Tar, {Filename, AbsFilename}) when is_list(Filename), is_list(AbsFilename) ->
+    {ok, FileInfo} = file:read_link_info(AbsFilename, []),
 
     case FileInfo#file_info.type of
         symlink ->
-            ok = mix_hex_erl_tar:add(Tar, Filename, tar_opts());
+            ok = mix_hex_erl_tar:add(Tar, {Filename, AbsFilename}, tar_opts());
         directory ->
-            case file:list_dir(Filename) of
+            case file:list_dir(AbsFilename) of
                 {ok, []} ->
-                    mix_hex_erl_tar:add(Tar, Filename, tar_opts());
+                    mix_hex_erl_tar:add(Tar, {Filename, AbsFilename}, tar_opts());
 
                 {ok, _} ->
                     ok
             end;
         _ ->
             Mode = FileInfo#file_info.mode,
-            {ok, Contents} = file:read_file(Filename),
+            {ok, Contents} = file:read_file(AbsFilename),
             ok = mix_hex_erl_tar:add(Tar, Contents, Filename, Mode, tar_opts())
     end.
 
