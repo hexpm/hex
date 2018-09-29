@@ -49,9 +49,9 @@ defmodule HexTest.Hexpm do
     check_hexpm()
     mix = hexpm_mix() |> List.to_string()
 
-    cmd(mix, ["ecto.drop", "-r", "Hexpm.Repo", "--quiet"])
-    cmd(mix, ["ecto.create", "-r", "Hexpm.Repo", "--quiet"])
-    cmd(mix, ["ecto.migrate", "-r", "Hexpm.Repo"])
+    cmd(mix, ["ecto.drop", "-r", "Hexpm.RepoBase", "--quiet"])
+    cmd(mix, ["ecto.create", "-r", "Hexpm.RepoBase", "--quiet"])
+    cmd(mix, ["ecto.migrate", "-r", "Hexpm.RepoBase"])
   end
 
   def start() do
