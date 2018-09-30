@@ -1,4 +1,4 @@
-%% Vendored from hex_erl v0.1.0, do not edit manually
+%% Vendored from hex_core v0.2.0, do not edit manually
 
 %% @private
 %% Copied from https://github.com/erlang/otp/blob/OTP-20.0.1/lib/stdlib/src/erl_tar.erl
@@ -1526,9 +1526,9 @@ do_parse_pax(Reader, Bin, Headers) ->
 parse_pax_record(Bin) when is_binary(Bin) ->
     case binary:split(Bin, [<<$\n>>]) of
         [Record, Residual] ->
-            case binary:split(Record, [<<$\s>>], [trim_all]) of
+            case [X || X <- binary:split(Record, [<<$\s>>], [global]), X =/= <<>>] of
                 [_Len, Record1] ->
-                    case binary:split(Record1, [<<$=>>], [trim_all]) of
+                    case  [X || X <- binary:split(Record1, [<<$=>>], [global]), X =/= <<>>] of
                         [AttrName, AttrValue] ->
                             {AttrName, AttrValue, Residual};
                         _Other ->
