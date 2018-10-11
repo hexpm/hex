@@ -70,6 +70,26 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     end
   end
 
+  test "add owner by username" do
+    auth = Hexpm.new_user("owner_user1c", "owner_user1c@mail.com", "passpass", "key")
+    Hexpm.new_user("owner_user2c", "owner_user2c@mail.com", "passpass", "key")
+    Hexpm.new_package("owner_package1c", "0.0.1", [], %{}, auth)
+
+    Hex.State.put(:home, tmp_path())
+    Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
+
+    send(self(), {:mix_shell_input, :prompt, "passpass"})
+    Mix.Tasks.Hex.Owner.run(["add", "owner_package1c", "owner_user2c"])
+
+    assert_received {:mix_shell, :info,
+                     [
+                       "Adding owner owner_user2c with ownership level full to owner_package1c"
+                     ]}
+
+    assert {:ok, {200, %{"owned_packages" => %{"owner_package1c" => _}}, _}} =
+             Hex.API.User.get("owner_user2c")
+  end
+
   test "remove owner" do
     auth = Hexpm.new_user("owner_user3", "owner_user3@mail.com", "passpass", "key")
     Hexpm.new_user("owner_user4", "owner_user4@mail.com", "passpass", "key")
