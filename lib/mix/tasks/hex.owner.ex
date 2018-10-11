@@ -14,14 +14,14 @@ defmodule Mix.Tasks.Hex.Owner do
   Adds an owner to package by specifying the package name and email or username
   of the new owner.
 
-      mix hex.owner add PACKAGE EMAIL or USERNAME
+      mix hex.owner add PACKAGE EMAIL_OR_USERNAME
 
   ## Remove owner
 
   Removes an owner to package by specifying the package name and email or username
   of the new owner.
 
-      mix hex.owner remove PACKAGE EMAIL or USERNAME
+      mix hex.owner remove PACKAGE EMAIL_OR_USERNAME
 
   ## List owners
 
@@ -65,8 +65,8 @@ defmodule Mix.Tasks.Hex.Owner do
         Mix.raise("""
         Invalid arguments, expected one of:
 
-        mix hex.owner add PACKAGE EMAIL|USERNAME
-        mix hex.owner remove PACKAGE EMAIL|USERNAME
+        mix hex.owner add PACKAGE EMAIL_OR_USERNAME
+        mix hex.owner remove PACKAGE EMAIL_OR_USERNAME
         mix hex.owner list PACKAGE
         mix hex.owner packages
         """)
