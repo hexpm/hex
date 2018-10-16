@@ -304,10 +304,16 @@ defmodule Hex.RemoteConverger do
 
   defp print_status(nil, mod, name, previous_version, version) do
     case mod do
-      mod when mod in [:eq, :new] ->
+      :new ->
         Hex.Shell.info(Hex.Shell.format([:green, "  #{name} #{version}"]))
 
-      _ ->
+      :eq ->
+        Hex.Shell.info("  #{name} #{version}")
+
+      lt ->
+        Hex.Shell.warn("  #{name} #{previous_version} => #{version}")
+
+      gt ->
         Hex.Shell.info(Hex.Shell.format([:green, "  #{name} #{previous_version} => #{version}"]))
     end
   end
