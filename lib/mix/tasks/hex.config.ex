@@ -45,6 +45,15 @@ defmodule Mix.Tasks.Hex.Config do
   """
 
   @switches [delete: :boolean]
+  @valid_keys [ "api_key",
+                "api_url",
+                "offline",
+                "unsafe_https",
+                "unsafe_registry",
+                "http_proxy",
+                "https_proxy",
+                "http_concurrency",
+                "http_timeout" ]
 
   def run(args) do
     Hex.start()
@@ -96,8 +105,12 @@ defmodule Mix.Tasks.Hex.Config do
     Hex.Config.remove([String.to_atom(key)])
   end
 
-  defp set(key, value) do
+  defp set(key, value) when key in @valid_keys do
     Hex.Config.update([{:"#{key}", value}])
+  end
+
+  defp set(key, _value) do
+    Mix.raise("Invalid key #{key}")
   end
 
   defp config() do
