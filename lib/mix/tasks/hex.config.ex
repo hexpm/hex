@@ -45,15 +45,17 @@ defmodule Mix.Tasks.Hex.Config do
   """
 
   @switches [delete: :boolean]
-  @valid_keys [ "api_key",
-                "api_url",
-                "offline",
-                "unsafe_https",
-                "unsafe_registry",
-                "http_proxy",
-                "https_proxy",
-                "http_concurrency",
-                "http_timeout" ]
+  @valid_keys [
+    "api_key",
+    "api_url",
+    "offline",
+    "unsafe_https",
+    "unsafe_registry",
+    "http_proxy",
+    "https_proxy",
+    "http_concurrency",
+    "http_timeout"
+  ]
 
   def run(args) do
     Hex.start()
