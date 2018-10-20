@@ -5,18 +5,22 @@ defmodule Mix.Tasks.Hex.ConfigTest do
     in_tmp(fn ->
       Hex.State.put(:home, System.cwd!())
 
-      assert_raise Mix.Error, "Config does not contain key foo", fn ->
-        Mix.Tasks.Hex.Config.run(["foo"])
+      assert_raise Mix.Error, "Config does not contain key offline", fn ->
+        Mix.Tasks.Hex.Config.run(["offline"])
       end
 
-      Mix.Tasks.Hex.Config.run(["foo", "bar"])
-      Mix.Tasks.Hex.Config.run(["foo"])
-      assert_received {:mix_shell, :info, ["\"bar\""]}
+      Mix.Tasks.Hex.Config.run(["offline", "true"])
+      Mix.Tasks.Hex.Config.run(["offline"])
+      assert_received {:mix_shell, :info, ["\"true\""]}
 
-      Mix.Tasks.Hex.Config.run(["foo", "--delete"])
+      Mix.Tasks.Hex.Config.run(["offline", "--delete"])
 
-      assert_raise Mix.Error, "Config does not contain key foo", fn ->
-        Mix.Tasks.Hex.Config.run(["foo"])
+      assert_raise Mix.Error, "Config does not contain key offline", fn ->
+        Mix.Tasks.Hex.Config.run(["offline"])
+      end
+
+      assert_raise Mix.Error, "Invalid key foo", fn ->
+        Mix.Tasks.Hex.Config.run(["foo", "bar"])
       end
     end)
   end
