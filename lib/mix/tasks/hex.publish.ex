@@ -171,7 +171,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
     progress? = Keyword.get(opts, :progress, true)
     dry_run? = Keyword.get(opts, :dry_run, false)
-    tarball = build_tarball(name, version, directory)
+    tarball = build_tarball(directory)
 
     if dry_run? do
       :ok
@@ -282,17 +282,13 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp build_tarball(name, version, directory) do
-    tarball = "#{name}-#{version}-docs.tar.gz"
+  defp build_tarball(directory) do
     files = files(directory)
 
     raise_if_file_matches_semver(files)
 
-    {:ok, _} = :mix_hex_tarball.create_docs(files)
+    {:ok, {data, _checksum}} = :mix_hex_tarball.create_docs(files)
 
-    data = File.read!(tarball)
-
-    File.rm!(tarball)
     data
   end
 
