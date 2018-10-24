@@ -288,7 +288,8 @@ defmodule Mix.Tasks.Hex.Publish do
 
     raise_if_file_matches_semver(files)
 
-    :ok = :mix_hex_erl_tar.create(tarball, files, [:compressed])
+    {:ok, _} = :mix_hex_tarball.create_docs(files)
+
     data = File.read!(tarball)
 
     File.rm!(tarball)
