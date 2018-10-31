@@ -15,7 +15,7 @@ defmodule Mix.Tasks.Hex.RepoTest do
 
   test "add" do
     in_tmp(fn ->
-      Hex.State.put(:home, System.cwd!())
+      Hex.State.put(:home, File.cwd!())
 
       File.write!("public_key.pem", @public_key)
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url", "--public-key", "public_key.pem"])
@@ -40,7 +40,7 @@ defmodule Mix.Tasks.Hex.RepoTest do
 
   test "remove" do
     in_tmp(fn ->
-      Hex.State.put(:home, System.cwd!())
+      Hex.State.put(:home, File.cwd!())
 
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
       Mix.Tasks.Hex.Repo.run(["remove", "reponame"])
@@ -50,7 +50,7 @@ defmodule Mix.Tasks.Hex.RepoTest do
 
   test "set url" do
     in_tmp(fn ->
-      Hex.State.put(:home, System.cwd!())
+      Hex.State.put(:home, File.cwd!())
 
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
       Mix.Tasks.Hex.Repo.run(["set", "reponame", "--url", "other_url"])
@@ -60,7 +60,7 @@ defmodule Mix.Tasks.Hex.RepoTest do
 
   test "show prints repo config" do
     in_tmp(fn ->
-      Hex.State.put(:home, System.cwd!())
+      Hex.State.put(:home, File.cwd!())
 
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
       Mix.Tasks.Hex.Repo.run(["show", "reponame"])
@@ -73,7 +73,7 @@ defmodule Mix.Tasks.Hex.RepoTest do
 
   test "show raises an error when called with non-existant repo name" do
     in_tmp(fn ->
-      Hex.State.put(:home, System.cwd!())
+      Hex.State.put(:home, File.cwd!())
 
       assert_raise Mix.Error, "Config does not contain repo reponame", fn ->
         Mix.Tasks.Hex.Repo.run(["show", "reponame"])

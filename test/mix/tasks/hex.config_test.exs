@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
 
   test "config" do
     in_tmp(fn ->
-      Hex.State.put(:home, System.cwd!())
+      Hex.State.put(:home, File.cwd!())
 
       assert_raise Mix.Error, "Config does not contain key offline", fn ->
         Mix.Tasks.Hex.Config.run(["offline"])
@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
 
   test "direct api" do
     in_tmp(fn ->
-      Hex.State.put(:home, System.cwd!())
+      Hex.State.put(:home, File.cwd!())
       assert Hex.Config.read() == []
 
       Hex.Config.update(key: "value")
