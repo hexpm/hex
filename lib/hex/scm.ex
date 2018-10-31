@@ -83,7 +83,7 @@ defmodule Hex.SCM do
   end
 
   def equal?(opts1, opts2) do
-    opts1[:hex] == opts2[:hex]
+    opts1[:hex] == opts2[:hex] and opts1[:repo] == opts2[:repo]
   end
 
   def managers(opts) do
