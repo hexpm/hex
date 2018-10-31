@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Hex.Retire do
 
   ## Command line options
 
-    * `--message "MESSAGE"` - Optional message (up to 140 characters) clarifying
+    * `--message "MESSAGE"` - Required message (up to 140 characters) clarifying
       the retirement reason
     * `--organization ORGANIZATION` - The organization the package belongs to
   """
@@ -67,9 +67,10 @@ defmodule Mix.Tasks.Hex.Retire do
         Hex.Shell.info("#{package} #{version} has been retired\n")
 
         Hex.Shell.warn(
-          "We recommend that you publish a new version of this package, unless there is " <>
-            "a more recent patch version of this package, because this package may still " <>
-            "be picked by dependency resolution"
+          "Retiring a version does not affect if the version will still be resolved. " <>
+            "We recommend that you publish a new version of this package, unless there is " <>
+            "already a more recent patch version of this package, because this version may " <>
+            "still be picked by dependency resolution."
         )
 
         :ok
@@ -92,5 +93,13 @@ defmodule Mix.Tasks.Hex.Retire do
         Hex.Shell.error("Unretiring package failed")
         Hex.Utils.print_error_result(other)
     end
+  end
+
+  defp message_option(nil) do
+    Mix.raise("Missing required flag --message")
+  end
+
+  defp message_option(message) do
+    message
   end
 end
