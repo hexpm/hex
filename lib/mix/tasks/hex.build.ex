@@ -71,7 +71,7 @@ defmodule Mix.Tasks.Hex.Build do
   """
 
   @default_files ~w(lib priv .formatter.exs mix.exs README* readme* LICENSE*
-                    license* CHANGELOG* changelog* src)
+                    license* CHANGELOG* changelog* src c_src Makefile*)
   @error_fields ~w(app name files version build_tools)a
   @warn_fields ~w(description licenses links)a
   @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir extra)a
