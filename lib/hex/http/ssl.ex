@@ -19,7 +19,7 @@ defmodule Hex.HTTP.SSL do
     'ECDHE-RSA-AES128-SHA',
     'ECDHE-RSA-AES256-GCM-SHA384',
     'ECDHE-RSA-AES256-SHA',
-    'ECDHE-RSA-CHACHA20-POLY1305-SHA256',
+    'ECDHE-RSA-CHACHA20-POLY1305-SHA256'
   ]
 
   @default_versions [:"tlsv1.2", :"tlsv1.1", :tlsv1]

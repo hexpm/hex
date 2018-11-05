@@ -72,7 +72,8 @@ defmodule Hex.APITest do
     :ok = :mix_hex_erl_tar.create(tarball, [{'index.html', "heya"}], [:compressed])
     tar = File.read!(tarball)
 
-    assert {:ok, {201, _, _}} = Hex.API.ReleaseDocs.publish("hexpm", "tangerine", "0.0.1", tar, auth)
+    assert {:ok, {201, _, _}} =
+             Hex.API.ReleaseDocs.publish("hexpm", "tangerine", "0.0.1", tar, auth)
 
     assert {:ok, {200, %{"has_docs" => true}, _}} =
              Hex.API.Release.get("hexpm", "tangerine", "0.0.1")

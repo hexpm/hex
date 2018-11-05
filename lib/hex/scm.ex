@@ -228,7 +228,8 @@ defmodule Hex.SCM do
     Mix.raise(
       "The lock is missing for package #{opts[:hex]}. This could be " <>
         "because another package has configured the application name " <>
-        "for the dependency incorrectly. Verify with the maintainer " <> "the parent application"
+        "for the dependency incorrectly. Verify with the maintainer of " <>
+        "the parent application"
     )
   end
 

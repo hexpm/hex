@@ -42,7 +42,7 @@ defmodule Hex.MixProject do
     [
       {:stream_data, [github: "whatyouhide/stream_data", tag: "v0.4.0"] ++ test_opts()},
       {:plug, [github: "elixir-lang/plug", tag: "v1.6.1"] ++ test_opts()},
-      {:mime, [github: "elixir-plug/mime", tag: "v1.3.0"] ++ test_opts()},
+      {:mime, [github: "elixir-plug/mime", tag: "v1.3.0"] ++ test_opts()}
     ] ++ deps()
   end
 

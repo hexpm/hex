@@ -124,8 +124,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
       Mix.Tasks.Deps.Get.run([])
 
-      error_msg =
-        "Stopping package build due to errors.\nMissing metadata fields: links"
+      error_msg = "Stopping package build due to errors.\nMissing metadata fields: links"
 
       assert_raise Mix.Error, error_msg, fn ->
         Mix.Tasks.Hex.Build.run([])
