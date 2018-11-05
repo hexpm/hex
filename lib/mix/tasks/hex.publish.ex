@@ -252,7 +252,6 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp revert_package(build, organization, version, auth) do
-    version = Mix.Tasks.Hex.clean_version(version)
     name = build.meta.name
 
     case Hex.API.Release.delete(organization, name, version, auth) do
@@ -266,7 +265,6 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp revert_docs(build, organization, version, auth) do
-    version = Mix.Tasks.Hex.clean_version(version)
     name = build.meta.name
 
     case Hex.API.ReleaseDocs.delete(organization, name, version, auth) do
