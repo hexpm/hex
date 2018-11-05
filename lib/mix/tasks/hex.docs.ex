@@ -39,6 +39,7 @@ defmodule Mix.Tasks.Hex.Docs do
   @elixir_apps ~w(eex elixir ex_unit iex logger mix)
   @switches [module: :string, organization: :string, latest: :boolean]
 
+  @impl true
   def run(args) do
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)

@@ -59,6 +59,7 @@ defmodule Mix.Tasks.Hex.Repo do
 
   @switches [url: :string, public_key: :string, auth_key: :string]
 
+  @impl true
   def run(args) do
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)

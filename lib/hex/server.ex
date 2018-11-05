@@ -1,4 +1,6 @@
 defmodule Hex.Server do
+  @moduledoc false
+
   use GenServer
 
   @name __MODULE__

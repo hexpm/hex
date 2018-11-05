@@ -1,4 +1,6 @@
 defmodule Hex.OptionParser do
+  @moduledoc false
+
   if Version.compare(System.version(), "1.3.0") == :lt do
     def parse!(argv, opts \\ []) when is_list(argv) and is_list(opts) do
       case OptionParser.parse(argv, opts) do

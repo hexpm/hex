@@ -1,4 +1,6 @@
 defmodule Hex.Repo do
+  @moduledoc false
+
   alias Hex.HTTP
 
   @public_keys_html "https://hex.pm/docs/public_keys"

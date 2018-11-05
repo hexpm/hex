@@ -1,4 +1,6 @@
 defmodule Hex.API.Release do
+  @moduledoc false
+
   alias Hex.API
 
   def get(repo, name, version, auth \\ []) do

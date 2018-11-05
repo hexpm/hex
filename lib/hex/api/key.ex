@@ -1,4 +1,6 @@
 defmodule Hex.API.Key do
+  @moduledoc false
+
   alias Hex.API
 
   def new(name, permissions, auth) do
@@ -18,6 +20,8 @@ defmodule Hex.API.Key do
   end
 
   defmodule Organization do
+    @moduledoc false
+
     def new(organization, name, permissions, auth) do
       API.erlang_post_request(
         nil,

@@ -1,14 +1,13 @@
 defmodule Hex.Crypto.AES_GCM do
+  @moduledoc false
+  # Content Encryption with AES GCM
+  #
+  # See: https://tools.ietf.org/html/rfc7518#section-5.3
+  # See: http://csrc.nist.gov/publications/nistpubs/800-38D/SP-800-38D.pdf
+
   alias Hex.Crypto.ContentEncryptor
 
   @behaviour ContentEncryptor
-
-  @moduledoc ~S"""
-  Content Encryption with AES GCM
-
-  See: https://tools.ietf.org/html/rfc7518#section-5.3
-  See: http://csrc.nist.gov/publications/nistpubs/800-38D/SP-800-38D.pdf
-  """
 
   @spec content_encrypt({binary, binary}, <<_::16>> | <<_::24>> | <<_::32>>, <<_::12>>) ::
           {binary, <<_::16>>}

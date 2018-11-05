@@ -83,6 +83,7 @@ defmodule Mix.Tasks.Hex.Build do
   @switches [unpack: :boolean, output: :string]
   @aliases [o: :output]
 
+  @impl true
   def run(args) do
     Hex.start()
     {opts, _args} = Hex.OptionParser.parse!(args, strict: @switches, aliases: @aliases)
@@ -116,6 +117,7 @@ defmodule Mix.Tasks.Hex.Build do
     %{checksum: ^checksum} = Hex.unpack_tar!({:binary, tar}, output)
   end
 
+  @doc false
   def prepare_package() do
     Mix.Project.get!()
     config = Mix.Project.config()
@@ -139,6 +141,7 @@ defmodule Mix.Tasks.Hex.Build do
     }
   end
 
+  @doc false
   def print_info(meta, organization, exclude_deps, package_files) do
     if meta[:requirements] != [] do
       Hex.Shell.info("  Dependencies:")
@@ -256,6 +259,7 @@ defmodule Mix.Tasks.Hex.Build do
     end
   end
 
+  @doc false
   def package(package, config) do
     files = package[:files] || @default_files
     exclude_patterns = package[:exclude_patterns] || []
@@ -283,6 +287,7 @@ defmodule Mix.Tasks.Hex.Build do
     end
   end
 
+  @doc false
   def check_umbrella_project!(config) do
     if Mix.Project.umbrella?(config) do
       Mix.raise("Hex does not support umbrella projects")

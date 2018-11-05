@@ -1,4 +1,6 @@
 defmodule Hex.Resolver do
+  @moduledoc false
+
   import Hex.Mix
   require Record
   alias Hex.Resolver.Backtracks

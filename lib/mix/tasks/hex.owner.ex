@@ -42,6 +42,7 @@ defmodule Mix.Tasks.Hex.Owner do
 
   @switches [organization: :string, level: :string]
 
+  @impl true
   def run(args) do
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
@@ -120,7 +121,7 @@ defmodule Mix.Tasks.Hex.Owner do
     end
   end
 
-  def list_owned_packages() do
+  defp list_owned_packages() do
     auth = Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.User.me(auth) do

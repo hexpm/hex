@@ -1,4 +1,6 @@
 defmodule Hex.UpdateChecker do
+  @moduledoc false
+
   use GenServer
 
   @name __MODULE__

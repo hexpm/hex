@@ -13,6 +13,7 @@ defmodule Mix.Tasks.Hex.Install do
       mix hex.install VERSION
   """
 
+  @impl true
   def run(args) do
     case args do
       [version] ->

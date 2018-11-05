@@ -1,4 +1,6 @@
 defmodule Hex.Crypto do
+  @moduledoc false
+
   alias Hex.Crypto.Encryption
 
   def encrypt(plain_text, password, tag \\ "") do

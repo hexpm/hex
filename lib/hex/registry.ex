@@ -1,4 +1,6 @@
 defmodule Hex.Registry do
+  @moduledoc false
+
   @type repo :: String.t()
   @type package :: String.t()
   @type version :: String.t()

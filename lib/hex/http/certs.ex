@@ -1,4 +1,6 @@
 defmodule Hex.HTTP.Certs do
+  @moduledoc false
+
   crt_file = Path.join(__DIR__, "ca-bundle.crt")
   crt = File.read!(crt_file)
 

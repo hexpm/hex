@@ -1,7 +1,6 @@
 defmodule Hex.Crypto.PublicKey do
-  @doc """
-  Decodes a public key and raises if the key is invalid.
-  """
+  @moduledoc false
+
   def decode!(id, key) do
     [rsa_public_key] = :public_key.pem_decode(key)
     :public_key.pem_entry_decode(rsa_public_key)
@@ -16,9 +15,6 @@ defmodule Hex.Crypto.PublicKey do
       """)
   end
 
-  @doc """
-  Verifies the given binary has the proper signature using the system public keys.
-  """
   def verify(binary, hash, signature, keys, id) do
     Enum.any?(keys, fn key ->
       :public_key.verify(binary, hash, signature, decode!(id, key))

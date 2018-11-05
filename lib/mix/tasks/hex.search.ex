@@ -18,6 +18,7 @@ defmodule Mix.Tasks.Hex.Search do
 
   @switches [organization: :string, all_organizations: :boolean]
 
+  @impl true
   def run(args) do
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)

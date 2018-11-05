@@ -99,6 +99,7 @@ defmodule Mix.Tasks.Hex.Publish do
     dry_run: :boolean
   ]
 
+  @impl true
   def run(args) do
     Hex.check_deps()
     Hex.start()

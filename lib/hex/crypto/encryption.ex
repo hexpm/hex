@@ -1,4 +1,5 @@
 defmodule Hex.Crypto.Encryption do
+  @moduledoc false
   alias Hex.Crypto
   alias Hex.Crypto.ContentEncryptor
   alias Hex.Crypto.KeyManager

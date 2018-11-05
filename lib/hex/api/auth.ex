@@ -1,4 +1,6 @@
 defmodule Hex.API.Auth do
+  @moduledoc false
+
   alias Hex.API
 
   def get(domain, resource, auth) do

@@ -1,4 +1,6 @@
 defmodule Hex.API.User do
+  @moduledoc false
+
   alias Hex.API
 
   def me(auth) do

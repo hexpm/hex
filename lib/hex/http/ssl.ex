@@ -1,4 +1,6 @@
 defmodule Hex.HTTP.SSL do
+  @moduledoc false
+
   require Record
   alias Hex.HTTP.Certs
   alias Hex.HTTP.VerifyHostname

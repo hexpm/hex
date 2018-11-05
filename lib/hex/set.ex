@@ -1,4 +1,6 @@
 defmodule Hex.Set do
+  @moduledoc false
+
   if Version.compare(System.version(), "1.1.0") == :lt do
     @module HashSet
   else

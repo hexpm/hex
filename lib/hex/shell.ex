@@ -1,4 +1,6 @@
 defmodule Hex.Shell do
+  @moduledoc false
+
   def info(output) do
     validate_output!(output)
     Mix.shell().info(output)
