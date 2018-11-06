@@ -13,6 +13,7 @@ defmodule Mix.Tasks.Hex do
   See `mix help hex.config` to see all available configuration options.
   """
 
+  @impl true
   def run(_args) do
     Hex.start()
 
@@ -24,8 +25,9 @@ defmodule Mix.Tasks.Hex do
     Hex.Shell.info("Further information can be found here: https://hex.pm/docs/tasks")
   end
 
-  def line_break(), do: Hex.Shell.info("")
+  defp line_break(), do: Hex.Shell.info("")
 
+  @doc false
   def print_table(header, values) do
     header = Enum.map(header, &[:underline, &1])
     widths = widths([header | values])
@@ -66,6 +68,7 @@ defmodule Mix.Tasks.Hex do
     end)
   end
 
+  @doc false
   def auth(opts \\ []) do
     username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
     account_password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.string_trim()
@@ -76,6 +79,7 @@ defmodule Mix.Tasks.Hex do
                            "Hex requires you to have a local password that applies only to this machine for security " <>
                            "purposes. Please enter it."
 
+  @doc false
   def generate_user_key(key_name, permissions, opts) do
     case Hex.API.Key.new(key_name, permissions, opts) do
       {:ok, {201, body, _}} ->
@@ -88,6 +92,7 @@ defmodule Mix.Tasks.Hex do
     end
   end
 
+  @doc false
   def generate_all_user_keys(username, password, opts \\ []) do
     Hex.Shell.info("Generating keys...")
     auth = [user: username, pass: password]
@@ -125,6 +130,7 @@ defmodule Mix.Tasks.Hex do
     end
   end
 
+  @doc false
   def generate_organization_key(organization_name, key_name, permissions, auth \\ nil) do
     auth = auth || auth_info(:write)
 
@@ -139,6 +145,7 @@ defmodule Mix.Tasks.Hex do
     end
   end
 
+  @doc false
   def general_key_name(nil) do
     {:ok, hostname} = :inet.gethostname()
     List.to_string(hostname)
@@ -148,22 +155,26 @@ defmodule Mix.Tasks.Hex do
     key
   end
 
+  @doc false
   def api_key_name(key, extra \\ nil) do
     {:ok, hostname} = :inet.gethostname()
     name = "#{key || hostname}-api"
     if extra, do: "#{name}-#{extra}", else: name
   end
 
+  @doc false
   def repository_key_name(organization, key) do
     {:ok, hostname} = :inet.gethostname()
     "#{key || hostname}-repository-#{organization}"
   end
 
+  @doc false
   def repositories_key_name(key) do
     {:ok, hostname} = :inet.gethostname()
     "#{key || hostname}-repositories"
   end
 
+  @doc false
   def update_keys(write_key, read_key \\ nil) do
     Hex.Config.update(
       "$write_key": write_key,
@@ -176,6 +187,7 @@ defmodule Mix.Tasks.Hex do
     Hex.State.put(:api_key_read, read_key)
   end
 
+  @doc false
   def auth_organization(name, key) do
     repo = Hex.Repo.get_repo(name) || Hex.Repo.default_hexpm_repo()
     repo = Map.put(repo, :auth_key, key)
@@ -185,6 +197,7 @@ defmodule Mix.Tasks.Hex do
     |> Hex.Config.update_repos()
   end
 
+  @doc false
   def auth_info(permission, opts \\ [])
 
   def auth_info(:write, opts) do
@@ -229,6 +242,7 @@ defmodule Mix.Tasks.Hex do
     Mix.raise("No authenticated user found. Run `mix hex.user auth`")
   end
 
+  @doc false
   def prompt_encrypt_key(write_key, read_key, challenge \\ "Local password") do
     password = password_get("#{challenge}:") |> Hex.string_trim()
     confirm = password_get("#{challenge} (confirm):") |> Hex.string_trim()
@@ -242,6 +256,7 @@ defmodule Mix.Tasks.Hex do
     update_keys(encrypted_write_key, read_key)
   end
 
+  @doc false
   def prompt_decrypt_key(encrypted_key, challenge \\ "Local password") do
     password = password_get("#{challenge}:") |> Hex.string_trim()
 
@@ -255,14 +270,17 @@ defmodule Mix.Tasks.Hex do
     end
   end
 
+  @doc false
   def encrypt_key(password, key) do
     Hex.Crypto.encrypt(key, password, @apikey_tag)
   end
 
+  @doc false
   def decrypt_key(password, key) do
     Hex.Crypto.decrypt(key, password, @apikey_tag)
   end
 
+  @doc false
   def required_opts(opts, required) do
     Enum.map(required, fn req ->
       unless Keyword.has_key?(opts, req) do
@@ -271,10 +289,12 @@ defmodule Mix.Tasks.Hex do
     end)
   end
 
+  @doc false
   def convert_permissions([]) do
     nil
   end
 
+  @doc false
   def convert_permissions(permissions) do
     Enum.map(permissions, fn permission ->
       permission = String.downcase(permission)
@@ -285,6 +305,7 @@ defmodule Mix.Tasks.Hex do
 
   # Password prompt that hides input by every 1ms
   # clearing the line with stderr
+  @doc false
   def password_get(prompt) do
     if Hex.State.fetch!(:clean_pass) do
       password_clean(prompt)
@@ -318,6 +339,7 @@ defmodule Mix.Tasks.Hex do
 
   @progress_steps 25
 
+  @doc false
   def progress(nil) do
     fn _ -> nil end
   end
@@ -340,8 +362,10 @@ defmodule Mix.Tasks.Hex do
   end
 
   if Mix.env() == :test do
+    @doc false
     def set_exit_code(code), do: throw({:exit_code, code})
   else
+    @doc false
     def set_exit_code(code), do: System.at_exit(fn _ -> System.halt(code) end)
   end
 end

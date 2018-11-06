@@ -57,6 +57,7 @@ defmodule Mix.Tasks.Hex.Config do
     "http_timeout"
   ]
 
+  @impl true
   def run(args) do
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)

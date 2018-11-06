@@ -34,6 +34,7 @@ defmodule Mix.Tasks.Hex.Retire do
 
   @switches [message: :string, unretire: :boolean, organization: :string]
 
+  @impl true
   def run(args) do
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)

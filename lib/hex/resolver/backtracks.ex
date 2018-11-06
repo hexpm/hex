@@ -1,4 +1,6 @@
 defmodule Hex.Resolver.Backtracks do
+  @moduledoc false
+
   require Record
 
   Record.defrecordp(:parent, [:name, :repo, :version, :requirement, :repo_requirement])

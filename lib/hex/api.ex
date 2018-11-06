@@ -1,4 +1,6 @@
 defmodule Hex.API do
+  @moduledoc false
+
   alias Hex.HTTP
 
   @erlang_content 'application/vnd.hex+erlang'

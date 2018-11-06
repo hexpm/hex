@@ -13,6 +13,7 @@ defmodule Mix.Tasks.Hex.Audit do
   if any retired dependencies are found.
   """
 
+  @impl true
   def run(_) do
     Hex.check_deps()
     Hex.start()

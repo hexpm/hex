@@ -1,16 +1,15 @@
 defmodule Hex.Crypto.PBES2_HMAC_SHA2 do
+  @moduledoc false
+  # Direct Key Derivation with PBES2 and HMAC-SHA-2.
+  #
+  # See: https://tools.ietf.org/html/rfc7518#section-4.8
+  # See: https://tools.ietf.org/html/rfc2898#section-6.2
+
   alias Hex.Crypto.ContentEncryptor
   alias Hex.Crypto.KeyManager
   alias Hex.Crypto.PKCS5
 
   @behaviour KeyManager
-
-  @moduledoc ~S"""
-  Direct Key Derivation with PBES2 and HMAC-SHA-2.
-
-  See: https://tools.ietf.org/html/rfc7518#section-4.8
-  See: https://tools.ietf.org/html/rfc2898#section-6.2
-  """
 
   @spec derive_key(String.t(), binary, pos_integer, non_neg_integer, :sha256 | :sha384 | :sha512) ::
           binary

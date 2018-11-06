@@ -1,4 +1,6 @@
 defmodule Hex.Config do
+  @moduledoc false
+
   def read() do
     case File.read(config_path()) do
       {:ok, binary} ->

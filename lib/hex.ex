@@ -1,4 +1,6 @@
 defmodule Hex do
+  @moduledoc false
+
   use Application
 
   def start() do

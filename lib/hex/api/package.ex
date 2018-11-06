@@ -1,4 +1,6 @@
 defmodule Hex.API.Package do
+  @moduledoc false
+
   alias Hex.API
 
   def get(repo, name, auth \\ []) do
@@ -12,6 +14,8 @@ defmodule Hex.API.Package do
   end
 
   defmodule Owner do
+    @moduledoc false
+
     def add(repo, package, owner, level, auth) do
       owner = URI.encode_www_form(owner)
       path = "packages/#{URI.encode(package)}/owners/#{URI.encode(owner)}"

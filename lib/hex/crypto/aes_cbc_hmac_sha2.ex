@@ -1,13 +1,11 @@
 defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
+  @moduledoc false
+  # Content Encryption with AES_CBC_HMAC_SHA2.
+  # See: https://tools.ietf.org/html/rfc7518#section-5.2.6
+
   alias Hex.Crypto.ContentEncryptor
 
   @behaviour ContentEncryptor
-
-  @moduledoc ~S"""
-  Content Encryption with AES_CBC_HMAC_SHA2.
-
-  See: https://tools.ietf.org/html/rfc7518#section-5.2.6
-  """
 
   @spec content_encrypt({binary, binary}, <<_::32>> | <<_::48>> | <<_::64>>, <<_::16>>) ::
           {binary, <<_::16>> | <<_::24>> | <<_::32>>}

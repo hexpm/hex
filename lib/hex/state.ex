@@ -1,4 +1,6 @@
 defmodule Hex.State do
+  @moduledoc false
+
   @name __MODULE__
   @api_url "https://hex.pm/api"
   @logged_keys ~w(http_proxy HTTP_PROXY https_proxy HTTPS_PROXY)

@@ -25,6 +25,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   @switches [all: :boolean, pre: :boolean]
 
+  @impl true
   def run(args) do
     Hex.check_deps()
     Hex.start()

@@ -23,6 +23,7 @@ defmodule Mix.Tasks.Hex.Info do
 
   @switches [organization: :string]
 
+  @impl true
   def run(args) do
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)

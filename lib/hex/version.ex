@@ -1,9 +1,13 @@
 defmodule Hex.Version do
+  @moduledoc false
+
   defmodule Requirement do
+    @moduledoc false
     defstruct [:source, :req]
   end
 
   defmodule InvalidRequirementError do
+    @moduledoc false
     defexception [:requirement]
 
     def exception(requirement) when is_binary(requirement) do
@@ -16,6 +20,7 @@ defmodule Hex.Version do
   end
 
   defmodule InvalidVersionError do
+    @moduledoc false
     defexception [:version]
 
     def exception(version) when is_binary(version) do

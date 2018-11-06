@@ -98,6 +98,7 @@ defmodule Mix.Tasks.Hex.Organization do
     permission: [:string, :keep]
   ]
 
+  @impl true
   def run(args) do
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, switches: @switches)

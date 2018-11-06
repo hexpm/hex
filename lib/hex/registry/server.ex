@@ -1,4 +1,6 @@
 defmodule Hex.Registry.Server do
+  @moduledoc false
+
   use GenServer
 
   @behaviour Hex.Registry

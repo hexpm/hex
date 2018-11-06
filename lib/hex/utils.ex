@@ -1,4 +1,6 @@
 defmodule Hex.Utils do
+  @moduledoc false
+
   def safe_deserialize_erlang("") do
     nil
   end

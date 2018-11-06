@@ -1,9 +1,7 @@
 defmodule Hex.Crypto.PKCS5 do
-  @moduledoc ~S"""
-  PKCS #5: Password-Based Cryptography Specification Version 2.0
-
-  See: https://tools.ietf.org/html/rfc2898
-  """
+  @moduledoc false
+  # PKCS #5: Password-Based Cryptography Specification Version 2.0
+  # See: https://tools.ietf.org/html/rfc2898
 
   def pbkdf2(password, salt, iterations, derived_key_length, hash)
       when is_binary(password) and is_binary(salt) and is_integer(iterations) and iterations >= 1 and
