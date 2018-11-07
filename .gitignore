@@ -6,3 +6,4 @@ erl_crash.dump
 hex-1.x.csv
 hex-1.x.csv.signed
 *.ez
+/doc
