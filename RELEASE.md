@@ -18,13 +18,11 @@ This document simply outlines the release process:
 
 8. Purge the `installs` key on Fastly
 
-9. Run `mix run scripts/task_docs.exs` in the hexpm repo and push the changes
+9. Increment version and add `-dev` extension to versions (see below for all files)
 
-10. Increment version and add `-dev` extension to versions (see below for all files)
+10. Commit changes above with title "Bump to vVERSION-dev"
 
-11. Commit changes above with title "Bump to vVERSION-dev"
-
-12. Push master
+11. Push master
 
 ## All builds
 
