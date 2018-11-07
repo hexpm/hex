@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Hex do
     line_break()
     Hex.Shell.info("To list Hex tasks run: mix help --search hex.")
     line_break()
-    Hex.Shell.info("Further information can be found here: https://hex.pm/docs/tasks")
+    Hex.Shell.info("Further information can be found here: https://hex.pm/docs")
   end
 
   defp line_break(), do: Hex.Shell.info("")
