@@ -1,6 +1,24 @@
 # CHANGELOG
 
-## v0.18.2-dev
+## v0.18.2 (2018-11-08)
+
+### Enhancements
+
+* Add checks before publishing docs
+* Update generated protobuf files for Registry with OTP 21 compatibility
+* No longer list tasks in `mix hex` task
+* Use hexdocs organization URLs
+* Adds `--dry-run` option to publish tasks
+* Do not print "Unchanged" dependencies on mix deps.get in green
+* Validate hex config keys
+* Add `c_src/` and `Makefile` to default package files
+* Publish Mix task docs on <https://hexdocs.pm/hex>
+* Add recommendation when retiring and require `--message` flag
+
+### Bug fixes
+
+* Use rebar3, not rebar, when guessing build tool
+* Fix issue saving write key when reseting local password
 
 ## v0.18.1 (2018-07-06)
 
