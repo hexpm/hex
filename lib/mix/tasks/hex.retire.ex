@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Hex.Retire do
 
   ## Command line options
 
-    * `--message "MESSAGE"` - Optional message (up to 140 characters) clarifying
+    * `--message "MESSAGE"` - Required message (up to 140 characters) clarifying
       the retirement reason
     * `--organization ORGANIZATION` - The organization the package belongs to
   """
@@ -61,10 +61,19 @@ defmodule Mix.Tasks.Hex.Retire do
 
   defp retire(organization, package, version, reason, opts) do
     auth = Mix.Tasks.Hex.auth_info(:write)
-    body = %{reason: reason, message: opts[:message]}
+    body = %{reason: reason, message: message_option(opts[:message])}
 
     case Hex.API.Release.retire(organization, package, version, body, auth) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
+        Hex.Shell.info("#{package} #{version} has been retired\n")
+
+        Hex.Shell.warn(
+          "Retiring a version does not affect if the version will still be resolved. " <>
+            "We recommend that you publish a new version of this package, unless there is " <>
+            "already a more recent patch version of this package, because this version may " <>
+            "still be picked by dependency resolution."
+        )
+
         :ok
 
       other ->
@@ -78,11 +87,20 @@ defmodule Mix.Tasks.Hex.Retire do
 
     case Hex.API.Release.unretire(organization, package, version, auth) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
+        Hex.Shell.info("#{package} #{version} has been unretired")
         :ok
 
       other ->
         Hex.Shell.error("Unretiring package failed")
         Hex.Utils.print_error_result(other)
     end
+  end
+
+  defp message_option(nil) do
+    Mix.raise("Missing required flag --message")
+  end
+
+  defp message_option(message) do
+    message
   end
 end
