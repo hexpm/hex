@@ -13,6 +13,7 @@
 * Validate hex config keys
 * Add `c_src/` and `Makefile` to default package files
 * Publish Mix task docs on <https://hexdocs.pm/hex>
+* Add recommendation when retiring and require `--message` flag
 
 ### Bug fixes
 
