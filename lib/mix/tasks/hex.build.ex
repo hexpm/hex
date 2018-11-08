@@ -237,7 +237,7 @@ defmodule Mix.Tasks.Hex.Build do
     include =
       Enum.map(include, fn {app, req, opts} ->
         name = opts[:hex] || app
-        repo = deorg_repo(opts[:repo] || @default_repo)
+        repo = deorg_repo(opts[:repo] || opts[:organization] || @default_repo)
 
         %{
           name: to_string(name),
