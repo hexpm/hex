@@ -135,7 +135,7 @@ defmodule ReleaseFiles.MixProject do
       version: "0.0.1",
       description: "foo",
       package: [
-        files: ["myfile.txt", "executable.sh", "dir", "empty_dir", "link_dir"],
+        files: ["myfile.txt", "executable.sh", "dir", "target_dir", "link_dir"],
         licenses: ["MIT"],
         links: %{"a" => "http://a"}
       ]

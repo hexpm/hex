@@ -75,6 +75,13 @@ defmodule Hex do
     def enum_split_with(enum, fun), do: Enum.split_with(enum, fun)
   end
 
+  def file_read_link(path) do
+    case path |> IO.chardata_to_string() |> :file.read_link() do
+      {:ok, target} -> {:ok, IO.chardata_to_string(target)}
+      error -> error
+    end
+  end
+
   def file_lstat(path, opts \\ []) do
     opts = Keyword.put_new(opts, :time, :universal)
 

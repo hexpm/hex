@@ -46,14 +46,15 @@ defmodule Mix.Tasks.Hex.BuildTest do
       Hex.State.put(:home, tmp_path())
 
       File.mkdir!("dir")
-      File.mkdir!("empty_dir")
+      File.mkdir!("target_dir")
       File.write!("dir/.dotfile", "")
-      File.ln_s("empty_dir", "link_dir")
+      File.ln_s("target_dir", "link_dir")
+      File.write!("target_dir/file", "")
 
       # mtime_dir = File.stat!("dir").mtime
-      mtime_empty_dir = File.stat!("empty_dir").mtime
+      # mtime_target_dir = File.stat!("target_dir").mtime
+      # mtime_link = File.stat!("link_dir").mtime
       mtime_file = File.stat!("dir/.dotfile").mtime
-      mtime_link = File.stat!("link_dir").mtime
 
       File.write!("myfile.txt", "hello")
       File.write!("executable.sh", "world")
@@ -67,14 +68,16 @@ defmodule Mix.Tasks.Hex.BuildTest do
       # Check that mtimes are not retained for files and directories and symlinks
       # erl_tar does not set mtime from tar if a directory contain files
       # assert File.stat!("unzip/dir").mtime != mtime_dir
-      assert File.stat!("unzip/empty_dir").mtime != mtime_empty_dir
+      # assert File.stat!("unzip/target_dir").mtime != mtime_target_dir
+      # assert File.stat!("unzip/link_dir").mtime != mtime_link
       assert File.stat!("unzip/dir/.dotfile").mtime != mtime_file
-      assert File.stat!("unzip/link_dir").mtime != mtime_link
 
       assert Hex.file_lstat!("unzip/link_dir").type == :symlink
-      assert Hex.file_lstat!("unzip/empty_dir").type == :directory
+      assert Hex.file_lstat!("unzip/target_dir").type == :directory
       assert File.read!("unzip/myfile.txt") == "hello"
       assert File.read!("unzip/dir/.dotfile") == ""
+      assert File.read!("unzip/link_dir/file") == ""
+      assert File.read!("unzip/target_dir/file") == ""
       assert File.stat!("unzip/myfile.txt").mode == 0o100644
       assert File.stat!("unzip/executable.sh").mode == 0o100755
     end)

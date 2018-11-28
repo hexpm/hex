@@ -352,6 +352,8 @@ defmodule Mix.Tasks.Hex.Build do
     |> Enum.map(&Path.expand/1)
     |> Enum.uniq()
     |> Enum.map(&Path.relative_to(&1, expand_dir))
+    |> Enum.map(&canonical_path/1)
+    |> Enum.sort_by(&file_sort/1)
   end
 
   defp dir_files(path) do
@@ -361,6 +363,28 @@ defmodule Mix.Tasks.Hex.Build do
 
       _ ->
         [path]
+    end
+  end
+
+  defp file_sort(path) do
+    case Hex.file_lstat(path) do
+      {:ok, %File.Stat{type: :directory}} -> 0
+      {:ok, %File.Stat{type: :regular}} -> 1
+      {:ok, %File.Stat{type: :symlink}} -> 2
+      {:ok, %File.Stat{type: _other}} -> 3
+    end
+  end
+
+  defp canonical_path(path) do
+    case Hex.file_lstat(path) do
+      {:ok, %File.Stat{type: :symlink}} ->
+        path
+
+      _other ->
+        case Hex.file_read_link(path) do
+          {:ok, path} -> path
+          {:error, _reason} -> path
+        end
     end
   end
 
