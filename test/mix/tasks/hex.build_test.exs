@@ -48,6 +48,8 @@ defmodule Mix.Tasks.Hex.BuildTest do
       File.mkdir!("dir")
       File.mkdir!("empty_dir")
       File.write!("dir/.dotfile", "")
+      File.ln_s("dir2", "dir/a_link_to_dir2")
+      File.mkdir!("dir/dir2")
       File.ln_s("empty_dir", "link_dir")
 
       # mtime_dir = File.stat!("dir").mtime
@@ -57,8 +59,10 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
       File.write!("myfile.txt", "hello")
       File.write!("executable.sh", "world")
+      File.write!("dir/dir2/test.txt", "and")
       File.chmod!("myfile.txt", 0o100644)
       File.chmod!("executable.sh", 0o100755)
+      File.chmod!("dir/dir2/test.txt", 0o100644)
 
       Mix.Tasks.Hex.Build.run([])
 
@@ -72,9 +76,11 @@ defmodule Mix.Tasks.Hex.BuildTest do
       assert File.stat!("unzip/link_dir").mtime != mtime_link
 
       assert Hex.file_lstat!("unzip/link_dir").type == :symlink
+      assert Hex.file_lstat!("unzip/dir/a_link_to_dir2").type == :symlink
       assert Hex.file_lstat!("unzip/empty_dir").type == :directory
       assert File.read!("unzip/myfile.txt") == "hello"
       assert File.read!("unzip/dir/.dotfile") == ""
+      assert File.read!("unzip/dir/dir2/test.txt") == "and"
       assert File.stat!("unzip/myfile.txt").mode == 0o100644
       assert File.stat!("unzip/executable.sh").mode == 0o100755
     end)
