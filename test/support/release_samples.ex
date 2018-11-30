@@ -235,3 +235,22 @@ defmodule ReleaseIncludeRepoDeps.MixProject do
     ]
   end
 end
+
+defmodule ReleaseGitDeps.MixProject do
+  def project do
+    [
+      app: :release_git_deps,
+      description: "Package with git dependencies",
+      version: "0.0.2",
+      deps: [
+        {:ex_doc, "0.0.1"},
+        {:ecto, github: "elixir-ecto/ecto", tag: "v0.2.5"},
+        {:gettext, git: "https://github.com/elixir-lang/gettext.git", branch: "master"}
+      ],
+      package: [
+        licenses: ["MIT"],
+        links: %{"example" => "http://example.com"}
+      ]
+    ]
+  end
+end
