@@ -248,7 +248,7 @@ defmodule Mix.Tasks.Hex.Build do
         }
       end)
 
-    exclude = Enum.map(exclude, & &1.app)
+    exclude = for {app, _req, _opts} <- exclude, do: app
     {include, exclude}
   end
 
@@ -362,6 +362,7 @@ defmodule Mix.Tasks.Hex.Build do
           |> File.ls!()
           |> Enum.map(&Path.join(path, &1))
           |> Enum.flat_map(&dir_files/1)
+
         [path | new_paths]
 
       _ ->

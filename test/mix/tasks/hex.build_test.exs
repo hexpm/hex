@@ -161,6 +161,24 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge([ReleaseCustomRepoDeps.MixProject])
   end
 
+  test "errors when there is a git dependency" do
+    Mix.Project.push(ReleaseGitDeps.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+
+      error_msg =
+        "Stopping package build due to errors.\n" <>
+          "Dependencies excluded from the package (only Hex packages can be dependencies): ecto, gettext"
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+      end
+    end)
+  after
+    purge([ReleaseGitDeps.MixProject])
+  end
+
   test "create with meta" do
     Mix.Project.push(ReleaseMeta.MixProject)
 
