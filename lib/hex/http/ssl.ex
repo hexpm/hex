@@ -41,7 +41,7 @@ defmodule Hex.HTTP.SSL do
   )
 
   def secure_ssl? do
-    check? = Hex.State.fetch!(:check_cert?)
+    check? = not Hex.State.fetch!(:unsafe_https)
 
     if check? and Hex.State.fetch!(:ssl_version) <= @secure_ssl_version do
       Mix.raise(

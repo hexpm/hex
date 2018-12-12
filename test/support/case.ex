@@ -241,26 +241,26 @@ defmodule HexTest.Case do
     [key: body["secret"]]
   end
 
-  public_key = File.read!(Path.join(__DIR__, "../fixtures/test_pub.pem"))
+  def init_reset_state() do
+    public_key = File.read!(Path.join(__DIR__, "../fixtures/test_pub.pem"))
 
-  {:ok, _} = Hex.State.start_link()
-  Hex.State.put(:home, Path.expand("../../tmp/hex_home", __DIR__))
-  Hex.State.put(:hexpm_pk, public_key)
-  Hex.State.put(:api_url, "http://localhost:4043/api")
-  Hex.State.put(:api_key_write, nil)
-  Hex.State.put(:api_key_read, nil)
-  Hex.State.put(:api_key_write_unencrypted, nil)
-  Hex.State.update!(:repos, &put_in(&1["hexpm"].url, "http://localhost:4043/repo"))
-  Hex.State.update!(:repos, &put_in(&1["hexpm"].public_key, public_key))
-  Hex.State.update!(:repos, &put_in(&1["hexpm"].auth_key, nil))
-  Hex.State.put(:repos_key, nil)
-  Hex.State.put(:pbkdf2_iters, 10)
-  Hex.State.put(:clean_pass, false)
-  @hex_state Hex.State.get_all()
-  Hex.State.stop()
+    Hex.State.put(:home, Path.expand("../../tmp/hex_home", __DIR__))
+    Hex.State.put(:hexpm_pk, public_key)
+    Hex.State.put(:api_url, "http://localhost:4043/api")
+    Hex.State.put(:api_key_write, nil)
+    Hex.State.put(:api_key_read, nil)
+    Hex.State.put(:api_key_write_unencrypted, nil)
+    Hex.State.update!(:repos, &put_in(&1["hexpm"].url, "http://localhost:4043/repo"))
+    Hex.State.update!(:repos, &put_in(&1["hexpm"].public_key, public_key))
+    Hex.State.update!(:repos, &put_in(&1["hexpm"].auth_key, nil))
+    Hex.State.put(:repos_key, nil)
+    Hex.State.put(:pbkdf2_iters, 10)
+    Hex.State.put(:clean_pass, false)
+    Application.put_env(:hex, :reset_state, Hex.State.get_all())
+  end
 
   def reset_state do
-    Hex.State.put_all(@hex_state)
+    Hex.State.put_all(Application.get_env(:hex, :reset_state))
   end
 
   def wait_on_exit({:ok, pid}) do

@@ -76,7 +76,7 @@ defmodule Hex.ResolverTest do
   end
 
   setup do
-    Hex.State.put(:offline?, true)
+    Hex.State.put(:offline, true)
     Registry.open(registry_path: tmp_path("cache.ets"))
     :ok
   end

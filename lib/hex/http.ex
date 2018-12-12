@@ -168,8 +168,8 @@ defmodule Hex.HTTP do
   end
 
   defp proxy_setup do
-    http_proxy = (proxy = Hex.State.get(:http_proxy)) && proxy(:http, proxy)
-    https_proxy = (proxy = Hex.State.get(:https_proxy)) && proxy(:https, proxy)
+    http_proxy = (proxy = Hex.State.fetch!(:http_proxy)) && proxy(:http, proxy)
+    https_proxy = (proxy = Hex.State.fetch!(:https_proxy)) && proxy(:https, proxy)
     {http_proxy, https_proxy}
   end
 

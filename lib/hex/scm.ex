@@ -302,7 +302,7 @@ defmodule Hex.SCM do
   end
 
   defp fetch(repo, package, version, path, etag) do
-    if Hex.State.fetch!(:offline?) do
+    if Hex.State.fetch!(:offline) do
       {:ok, :offline}
     else
       case Hex.Repo.get_tarball(repo, package, version, etag) do

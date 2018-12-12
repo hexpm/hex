@@ -9,7 +9,7 @@ alias HexTest.Hexpm
 File.rm_rf!(Case.tmp_path())
 File.mkdir_p!(Case.tmp_path())
 
-Case.reset_state()
+Case.init_reset_state()
 
 # Set up package fixtures
 unless :integration in ExUnit.configuration()[:exclude] do
