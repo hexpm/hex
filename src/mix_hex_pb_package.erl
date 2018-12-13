@@ -32,7 +32,9 @@
 
 %% message types
 -type 'Package'() ::
-      #{releases                => ['Release'()]    % = 1
+      #{releases                => ['Release'()],   % = 1
+        name                    => iodata(),        % = 2
+        repository              => iodata()         % = 3
        }.
 -type 'Release'() ::
       #{version                 => iodata(),        % = 1
@@ -76,14 +78,23 @@ e_msg_Package(Msg, TrUserData) ->
     e_msg_Package(Msg, <<>>, TrUserData).
 
 
-e_msg_Package(#{} = M, Bin, TrUserData) ->
-    case M of
-      #{releases := F1} ->
-	  TrF1 = id(F1, TrUserData),
-	  if TrF1 == [] -> Bin;
-	     true -> e_field_Package_releases(TrF1, Bin, TrUserData)
-	  end;
-      _ -> Bin
+e_msg_Package(#{name := F2, repository := F3} = M, Bin,
+	      TrUserData) ->
+    B1 = case M of
+	   #{releases := F1} ->
+	       TrF1 = id(F1, TrUserData),
+	       if TrF1 == [] -> Bin;
+		  true -> e_field_Package_releases(TrF1, Bin, TrUserData)
+	       end;
+	   _ -> Bin
+	 end,
+    B2 = begin
+	   TrF2 = id(F2, TrUserData),
+	   e_type_string(TrF2, <<B1/binary, 18>>)
+	 end,
+    begin
+      TrF3 = id(F3, TrUserData),
+      e_type_string(TrF3, <<B2/binary, 26>>)
     end.
 
 e_msg_Release(Msg, TrUserData) ->
@@ -290,54 +301,79 @@ decode_msg_2_doit('Dependency', Bin, TrUserData) ->
 
 d_msg_Package(Bin, TrUserData) ->
     dfp_read_field_def_Package(Bin, 0, 0,
-			       id([], TrUserData), TrUserData).
+			       id([], TrUserData), id('$undef', TrUserData),
+			       id('$undef', TrUserData), TrUserData).
 
 dfp_read_field_def_Package(<<10, Rest/binary>>, Z1, Z2,
-			   F@_1, TrUserData) ->
-    d_field_Package_releases(Rest, Z1, Z2, F@_1,
+			   F@_1, F@_2, F@_3, TrUserData) ->
+    d_field_Package_releases(Rest, Z1, Z2, F@_1, F@_2, F@_3,
 			     TrUserData);
-dfp_read_field_def_Package(<<>>, 0, 0, R1,
+dfp_read_field_def_Package(<<18, Rest/binary>>, Z1, Z2,
+			   F@_1, F@_2, F@_3, TrUserData) ->
+    d_field_Package_name(Rest, Z1, Z2, F@_1, F@_2, F@_3,
+			 TrUserData);
+dfp_read_field_def_Package(<<26, Rest/binary>>, Z1, Z2,
+			   F@_1, F@_2, F@_3, TrUserData) ->
+    d_field_Package_repository(Rest, Z1, Z2, F@_1, F@_2,
+			       F@_3, TrUserData);
+dfp_read_field_def_Package(<<>>, 0, 0, R1, F@_2, F@_3,
 			   TrUserData) ->
-    #{releases => lists_reverse(R1, TrUserData)};
-dfp_read_field_def_Package(Other, Z1, Z2, F@_1,
-			   TrUserData) ->
-    dg_read_field_def_Package(Other, Z1, Z2, F@_1,
-			      TrUserData).
+    #{releases => lists_reverse(R1, TrUserData),
+      name => F@_2, repository => F@_3};
+dfp_read_field_def_Package(Other, Z1, Z2, F@_1, F@_2,
+			   F@_3, TrUserData) ->
+    dg_read_field_def_Package(Other, Z1, Z2, F@_1, F@_2,
+			      F@_3, TrUserData).
 
 dg_read_field_def_Package(<<1:1, X:7, Rest/binary>>, N,
-			  Acc, F@_1, TrUserData)
+			  Acc, F@_1, F@_2, F@_3, TrUserData)
     when N < 32 - 7 ->
     dg_read_field_def_Package(Rest, N + 7, X bsl N + Acc,
-			      F@_1, TrUserData);
+			      F@_1, F@_2, F@_3, TrUserData);
 dg_read_field_def_Package(<<0:1, X:7, Rest/binary>>, N,
-			  Acc, F@_1, TrUserData) ->
+			  Acc, F@_1, F@_2, F@_3, TrUserData) ->
     Key = X bsl N + Acc,
     case Key of
       10 ->
-	  d_field_Package_releases(Rest, 0, 0, F@_1, TrUserData);
+	  d_field_Package_releases(Rest, 0, 0, F@_1, F@_2, F@_3,
+				   TrUserData);
+      18 ->
+	  d_field_Package_name(Rest, 0, 0, F@_1, F@_2, F@_3,
+			       TrUserData);
+      26 ->
+	  d_field_Package_repository(Rest, 0, 0, F@_1, F@_2, F@_3,
+				     TrUserData);
       _ ->
 	  case Key band 7 of
-	    0 -> skip_varint_Package(Rest, 0, 0, F@_1, TrUserData);
-	    1 -> skip_64_Package(Rest, 0, 0, F@_1, TrUserData);
+	    0 ->
+		skip_varint_Package(Rest, 0, 0, F@_1, F@_2, F@_3,
+				    TrUserData);
+	    1 ->
+		skip_64_Package(Rest, 0, 0, F@_1, F@_2, F@_3,
+				TrUserData);
 	    2 ->
-		skip_length_delimited_Package(Rest, 0, 0, F@_1,
-					      TrUserData);
+		skip_length_delimited_Package(Rest, 0, 0, F@_1, F@_2,
+					      F@_3, TrUserData);
 	    3 ->
-		skip_group_Package(Rest, Key bsr 3, 0, F@_1,
+		skip_group_Package(Rest, Key bsr 3, 0, F@_1, F@_2, F@_3,
 				   TrUserData);
-	    5 -> skip_32_Package(Rest, 0, 0, F@_1, TrUserData)
+	    5 ->
+		skip_32_Package(Rest, 0, 0, F@_1, F@_2, F@_3,
+				TrUserData)
 	  end
     end;
-dg_read_field_def_Package(<<>>, 0, 0, R1, TrUserData) ->
-    #{releases => lists_reverse(R1, TrUserData)}.
+dg_read_field_def_Package(<<>>, 0, 0, R1, F@_2, F@_3,
+			  TrUserData) ->
+    #{releases => lists_reverse(R1, TrUserData),
+      name => F@_2, repository => F@_3}.
 
 d_field_Package_releases(<<1:1, X:7, Rest/binary>>, N,
-			 Acc, F@_1, TrUserData)
+			 Acc, F@_1, F@_2, F@_3, TrUserData)
     when N < 57 ->
     d_field_Package_releases(Rest, N + 7, X bsl N + Acc,
-			     F@_1, TrUserData);
+			     F@_1, F@_2, F@_3, TrUserData);
 d_field_Package_releases(<<0:1, X:7, Rest/binary>>, N,
-			 Acc, Prev, TrUserData) ->
+			 Acc, Prev, F@_2, F@_3, TrUserData) ->
     {NewFValue, RestF} = begin
 			   Len = X bsl N + Acc,
 			   <<Bs:Len/binary, Rest2/binary>> = Rest,
@@ -345,42 +381,75 @@ d_field_Package_releases(<<0:1, X:7, Rest/binary>>, N,
 			    Rest2}
 			 end,
     dfp_read_field_def_Package(RestF, 0, 0,
-			       cons(NewFValue, Prev, TrUserData), TrUserData).
+			       cons(NewFValue, Prev, TrUserData), F@_2, F@_3,
+			       TrUserData).
+
+d_field_Package_name(<<1:1, X:7, Rest/binary>>, N, Acc,
+		     F@_1, F@_2, F@_3, TrUserData)
+    when N < 57 ->
+    d_field_Package_name(Rest, N + 7, X bsl N + Acc, F@_1,
+			 F@_2, F@_3, TrUserData);
+d_field_Package_name(<<0:1, X:7, Rest/binary>>, N, Acc,
+		     F@_1, _, F@_3, TrUserData) ->
+    {NewFValue, RestF} = begin
+			   Len = X bsl N + Acc,
+			   <<Bytes:Len/binary, Rest2/binary>> = Rest,
+			   {binary:copy(Bytes), Rest2}
+			 end,
+    dfp_read_field_def_Package(RestF, 0, 0, F@_1, NewFValue,
+			       F@_3, TrUserData).
+
+d_field_Package_repository(<<1:1, X:7, Rest/binary>>, N,
+			   Acc, F@_1, F@_2, F@_3, TrUserData)
+    when N < 57 ->
+    d_field_Package_repository(Rest, N + 7, X bsl N + Acc,
+			       F@_1, F@_2, F@_3, TrUserData);
+d_field_Package_repository(<<0:1, X:7, Rest/binary>>, N,
+			   Acc, F@_1, F@_2, _, TrUserData) ->
+    {NewFValue, RestF} = begin
+			   Len = X bsl N + Acc,
+			   <<Bytes:Len/binary, Rest2/binary>> = Rest,
+			   {binary:copy(Bytes), Rest2}
+			 end,
+    dfp_read_field_def_Package(RestF, 0, 0, F@_1, F@_2,
+			       NewFValue, TrUserData).
 
 skip_varint_Package(<<1:1, _:7, Rest/binary>>, Z1, Z2,
-		    F@_1, TrUserData) ->
-    skip_varint_Package(Rest, Z1, Z2, F@_1, TrUserData);
+		    F@_1, F@_2, F@_3, TrUserData) ->
+    skip_varint_Package(Rest, Z1, Z2, F@_1, F@_2, F@_3,
+			TrUserData);
 skip_varint_Package(<<0:1, _:7, Rest/binary>>, Z1, Z2,
-		    F@_1, TrUserData) ->
-    dfp_read_field_def_Package(Rest, Z1, Z2, F@_1,
-			       TrUserData).
+		    F@_1, F@_2, F@_3, TrUserData) ->
+    dfp_read_field_def_Package(Rest, Z1, Z2, F@_1, F@_2,
+			       F@_3, TrUserData).
 
 skip_length_delimited_Package(<<1:1, X:7, Rest/binary>>,
-			      N, Acc, F@_1, TrUserData)
+			      N, Acc, F@_1, F@_2, F@_3, TrUserData)
     when N < 57 ->
     skip_length_delimited_Package(Rest, N + 7,
-				  X bsl N + Acc, F@_1, TrUserData);
+				  X bsl N + Acc, F@_1, F@_2, F@_3, TrUserData);
 skip_length_delimited_Package(<<0:1, X:7, Rest/binary>>,
-			      N, Acc, F@_1, TrUserData) ->
+			      N, Acc, F@_1, F@_2, F@_3, TrUserData) ->
     Length = X bsl N + Acc,
     <<_:Length/binary, Rest2/binary>> = Rest,
-    dfp_read_field_def_Package(Rest2, 0, 0, F@_1,
-			       TrUserData).
+    dfp_read_field_def_Package(Rest2, 0, 0, F@_1, F@_2,
+			       F@_3, TrUserData).
 
-skip_group_Package(Bin, FNum, Z2, F@_1, TrUserData) ->
+skip_group_Package(Bin, FNum, Z2, F@_1, F@_2, F@_3,
+		   TrUserData) ->
     {_, Rest} = read_group(Bin, FNum),
-    dfp_read_field_def_Package(Rest, 0, Z2, F@_1,
-			       TrUserData).
+    dfp_read_field_def_Package(Rest, 0, Z2, F@_1, F@_2,
+			       F@_3, TrUserData).
 
 skip_32_Package(<<_:32, Rest/binary>>, Z1, Z2, F@_1,
-		TrUserData) ->
-    dfp_read_field_def_Package(Rest, Z1, Z2, F@_1,
-			       TrUserData).
+		F@_2, F@_3, TrUserData) ->
+    dfp_read_field_def_Package(Rest, Z1, Z2, F@_1, F@_2,
+			       F@_3, TrUserData).
 
 skip_64_Package(<<_:64, Rest/binary>>, Z1, Z2, F@_1,
-		TrUserData) ->
-    dfp_read_field_def_Package(Rest, Z1, Z2, F@_1,
-			       TrUserData).
+		F@_2, F@_3, TrUserData) ->
+    dfp_read_field_def_Package(Rest, Z1, Z2, F@_1, F@_2,
+			       F@_3, TrUserData).
 
 d_msg_Release(Bin, TrUserData) ->
     dfp_read_field_def_Release(Bin, 0, 0,
@@ -1014,8 +1083,10 @@ merge_msgs(Prev, New, MsgName, Opts) ->
 	  merge_msg_Dependency(Prev, New, TrUserData)
     end.
 
-merge_msg_Package(PMsg, NMsg, TrUserData) ->
-    S1 = #{},
+merge_msg_Package(#{} = PMsg,
+		  #{name := NFname, repository := NFrepository} = NMsg,
+		  TrUserData) ->
+    S1 = #{name => NFname, repository => NFrepository},
     case {PMsg, NMsg} of
       {#{releases := PFreleases},
        #{releases := NFreleases}} ->
@@ -1113,7 +1184,8 @@ verify_msg(Msg, MsgName, Opts) ->
     end.
 
 
-v_msg_Package(#{} = M, Path, TrUserData) ->
+v_msg_Package(#{name := F2, repository := F3} = M, Path,
+	      TrUserData) ->
     case M of
       #{releases := F1} ->
 	  if is_list(F1) ->
@@ -1126,15 +1198,19 @@ v_msg_Package(#{} = M, Path, TrUserData) ->
 	  end;
       _ -> ok
     end,
+    v_type_string(F2, [name | Path]),
+    v_type_string(F3, [repository | Path]),
     lists:foreach(fun (releases) -> ok;
+		      (name) -> ok;
+		      (repository) -> ok;
 		      (OtherKey) ->
 			  mk_type_error({extraneous_key, OtherKey}, M, Path)
 		  end,
 		  maps:keys(M)),
     ok;
 v_msg_Package(M, Path, _TrUserData) when is_map(M) ->
-    mk_type_error({missing_fields, [] -- maps:keys(M),
-		   'Package'},
+    mk_type_error({missing_fields,
+		   [name, repository] -- maps:keys(M), 'Package'},
 		  M, Path);
 v_msg_Package(X, Path, _TrUserData) ->
     mk_type_error({expected_msg, 'Package'}, X, Path).
@@ -1315,7 +1391,11 @@ get_msg_defs() ->
      {{msg, 'Package'},
       [#{name => releases, fnum => 1, rnum => 2,
 	 type => {msg, 'Release'}, occurrence => repeated,
-	 opts => []}]},
+	 opts => []},
+       #{name => name, fnum => 2, rnum => 3, type => string,
+	 occurrence => required, opts => []},
+       #{name => repository, fnum => 3, rnum => 4,
+	 type => string, occurrence => required, opts => []}]},
      {{msg, 'Release'},
       [#{name => version, fnum => 1, rnum => 2,
 	 type => string, occurrence => required, opts => []},
@@ -1379,7 +1459,11 @@ fetch_enum_def(EnumName) ->
 find_msg_def('Package') ->
     [#{name => releases, fnum => 1, rnum => 2,
        type => {msg, 'Release'}, occurrence => repeated,
-       opts => []}];
+       opts => []},
+     #{name => name, fnum => 2, rnum => 3, type => string,
+       occurrence => required, opts => []},
+     #{name => repository, fnum => 3, rnum => 4,
+       type => string, occurrence => required, opts => []}];
 find_msg_def('Release') ->
     [#{name => version, fnum => 1, rnum => 2,
        type => string, occurrence => required, opts => []},
