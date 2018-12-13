@@ -26,7 +26,7 @@ defmodule Hex.UpdateChecker do
   end
 
   def handle_cast(:start_check, state) do
-    if not state.started and not Hex.State.fetch!(:offline?) and check_update?() do
+    if not state.started and not Hex.State.fetch!(:offline) and check_update?() do
       Task.async(fn ->
         {:installs, Hex.Repo.get_installs()}
       end)

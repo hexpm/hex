@@ -174,11 +174,11 @@ defmodule Hex.Repo do
   def verify(body, repo) do
     public_key = get_repo(repo).public_key
 
-    if Hex.State.fetch!(:check_registry?) do
-      do_verify(body, public_key, repo)
-    else
+    if Hex.State.fetch!(:unsafe_registry) do
       %{payload: payload} = :mix_hex_registry.decode_signed(body)
       payload
+    else
+      do_verify(body, public_key, repo)
     end
   end
 

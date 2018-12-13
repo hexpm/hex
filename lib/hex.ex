@@ -52,13 +52,23 @@ defmodule Hex do
       trim_size = byte_size(trim)
 
       case string do
-        <<^trim::binary-size(trim_size), rest::binary>> -> rest
+        <<^trim::binary-size(trim_size), rest::binary>> -> string_trim_leading(rest, trim)
+        _other -> string
+      end
+    end
+
+    def string_trim_trailing(string, trim) do
+      rest_size = byte_size(string) - byte_size(trim)
+
+      case string do
+        <<rest::binary-size(rest_size), ^trim::binary>> -> string_trim_trailing(rest, trim)
         _other -> string
       end
     end
   else
     def string_trim(string), do: String.trim(string)
     def string_trim_leading(string, trim), do: String.trim_leading(string, trim)
+    def string_trim_trailing(string, trim), do: String.trim_trailing(string, trim)
     def to_charlist(term), do: Kernel.to_charlist(term)
     def string_to_charlist(string), do: String.to_charlist(string)
   end

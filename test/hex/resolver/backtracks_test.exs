@@ -4,7 +4,7 @@ defmodule Hex.Resolver.BacktracksTest do
   alias Hex.Registry.Server, as: Registry
 
   setup do
-    Hex.State.put(:offline?, true)
+    Hex.State.put(:offline, true)
     Registry.open(registry_path: tmp_path("cache.ets"))
     Registry.prefetch([{"hexpm", "foo"}])
   end

@@ -3,9 +3,83 @@ defmodule Hex.State do
 
   @name __MODULE__
   @api_url "https://hex.pm/api"
-  @logged_keys ~w(http_proxy HTTP_PROXY https_proxy HTTPS_PROXY)
-  @default_home "~/.hex"
+  @home "~/.hex"
   @pbkdf2_iters 32_768
+
+  @config %{
+    api_key_read: %{
+      config: [:"$read_key"]
+    },
+    api_key_write: %{
+      config: [:"$write_key", :"$encrypted_key"]
+    },
+    api_key_write_unencrypted: %{
+      env: ["HEX_API_KEY"],
+      config: [:api_key]
+    },
+    api_url: %{
+      env: ["HEX_API_URL", "HEX_API"],
+      config: [:api_url],
+      default: @api_url,
+      fun: {__MODULE__, :trim_slash}
+    },
+    unsafe_https: %{
+      env: ["HEX_UNSAFE_HTTPS"],
+      config: [:unsafe_https],
+      default: false,
+      fun: {__MODULE__, :to_boolean}
+    },
+    unsafe_registry: %{
+      env: ["HEX_UNSAFE_REGISTRY"],
+      config: [:unsafe_registry],
+      default: false,
+      fun: {__MODULE__, :to_boolean}
+    },
+    http_concurrency: %{
+      env: ["HEX_HTTP_CONCURRENCY"],
+      config: [:http_concurrency],
+      default: 8,
+      fun: {__MODULE__, :to_integer}
+    },
+    http_proxy: %{
+      env: ["http_proxy", "HTTP_PROXY"],
+      config: [:http_proxy]
+    },
+    https_proxy: %{
+      env: ["https_proxy", "HTTPS_PROXY"],
+      config: [:https_proxy]
+    },
+    http_timeout: %{
+      env: ["HEX_HTTP_TIMEOUT"],
+      config: [:http_timeout],
+      fun: {__MODULE__, :http_timeout}
+    },
+    home: %{
+      env: ["HEX_HOME"],
+      default: @home,
+      fun: {Path, :expand}
+    },
+    mirror_url: %{
+      env: ["HEX_MIRROR_URL", "HEX_MIRROR"],
+      config: [:mirror_url],
+      fun: {__MODULE__, :trim_slash}
+    },
+    offline: %{
+      env: ["HEX_OFFLINE"],
+      config: [:offline],
+      default: false,
+      fun: {__MODULE__, :to_boolean}
+    },
+    resolve_verbose: %{
+      env: ["HEX_RESOLVE_VERBOSE"],
+      default: false,
+      fun: {__MODULE__, :to_boolean}
+    },
+    repos_key: %{
+      env: ["HEX_REPOS_KEY"],
+      config: [:repos_key]
+    }
+  }
 
   def start_link() do
     config = Hex.Config.read()
@@ -17,55 +91,21 @@ defmodule Hex.State do
   end
 
   def init(config) do
-    repos_key = load_config(config, ["HEX_REPOS_KEY"], [:repos_key])
+    state =
+      Enum.into(@config, %{}, fn {key, spec} ->
+        {key, load_config_value(config, spec)}
+      end)
 
-    %{
-      api_key_read: load_config(config, [], [:"$read_key"]),
-      api_key_write: load_config(config, [], [:"$write_key", :"$encrypted_key"]),
-      api_key_write_unencrypted: load_config(config, ["HEX_API_KEY"], [:api_key]),
-      api_url:
-        load_config(config, ["HEX_API_URL", "HEX_API"], [:api_url])
-        |> trim_slash()
-        |> default(@api_url),
-      check_cert?:
-        load_config(config, ["HEX_UNSAFE_HTTPS"], [:unsafe_https])
-        |> to_boolean()
-        |> default(false)
-        |> Kernel.not(),
-      check_registry?:
-        load_config(config, ["HEX_UNSAFE_REGISTRY"], [:unsafe_registry])
-        |> to_boolean()
-        |> default(false)
-        |> Kernel.not(),
-      clean_pass: true,
-      http_concurrency:
-        load_config(config, ["HEX_HTTP_CONCURRENCY"], [:http_concurrency])
-        |> to_integer()
-        |> default(8),
-      http_proxy: load_config(config, ["http_proxy", "HTTP_PROXY"], [:http_proxy]),
-      httpc_profile: :hex,
-      https_proxy: load_config(config, ["https_proxy", "HTTPS_PROXY"], [:https_proxy]),
-      http_timeout:
-        load_config(config, ["HEX_HTTP_TIMEOUT"], [:http_timeout])
-        |> to_integer()
-        |> http_timeout(),
-      home:
-        System.get_env("HEX_HOME")
-        |> default(@default_home)
-        |> Path.expand(),
-      mirror_url:
-        load_config(config, ["HEX_MIRROR_URL", "HEX_MIRROR"], [:mirror_url])
-        |> trim_slash(),
-      offline?:
-        load_config(config, ["HEX_OFFLINE"], [:offline])
-        |> to_boolean()
-        |> default(false),
-      pbkdf2_iters: @pbkdf2_iters,
-      repos: Hex.Config.read_repos(config, repos_key),
-      repos_key: repos_key,
-      resolve_verbose: System.get_env("HEX_RESOLVE_VERBOSE") |> to_boolean() |> default(false),
-      ssl_version: ssl_version()
-    }
+    {_source, repos_key} = Map.fetch(state, :repos_key)
+
+    Map.merge(state, %{
+      clean_pass: {:computed, true},
+      httpc_profile: {:computed, :hex},
+      pbkdf2_iters: {:computed, @pbkdf2_iters},
+      repos: {:computed, Hex.Config.read_repos(config, repos_key)},
+      repos_key: {:computed, repos_key},
+      ssl_version: {:computed, ssl_version()}
+    })
   end
 
   def refresh() do
@@ -74,34 +114,39 @@ defmodule Hex.State do
     end)
   end
 
-  def fetch(key) do
-    Agent.get(@name, Map, :fetch, [key])
-  end
-
   def fetch!(key) do
-    case fetch(key) do
-      {:ok, value} ->
-        value
+    Agent.get(@name, fn state ->
+      case Map.fetch(state, key) do
+        {:ok, {_source, value}} ->
+          value
 
-      :error ->
-        raise KeyError, key: key, term: Hex.State
-    end
+        :error ->
+          raise KeyError, key: key, term: Hex.State
+      end
+    end)
   end
 
-  def get(key, default \\ nil) do
-    case fetch(key) do
-      {:ok, value} -> value
-      :error -> default
-    end
+  def fetch_source!(key) do
+    Agent.get(@name, fn state ->
+      case Map.fetch(state, key) do
+        {:ok, {source, _value}} ->
+          source
+
+        :error ->
+          raise KeyError, key: key, term: Hex.State
+      end
+    end)
   end
 
   def put(key, value) do
-    Agent.update(@name, Map, :put, [key, value])
+    Agent.update(@name, Map, :put, [key, {:computed, value}])
   end
 
   def update!(key, fun) do
     Agent.update(@name, fn state ->
-      Map.update!(state, key, fun)
+      Map.update!(state, key, fn {source, value} ->
+        {source, fun.(value)}
+      end)
     end)
   end
 
@@ -113,74 +158,62 @@ defmodule Hex.State do
     Agent.update(@name, fn _ -> map end)
   end
 
-  defp load_config(config, envs, config_keys) do
-    result = env_exists(envs) || config_exists(config, config_keys)
+  defp load_config_value(config, spec) do
+    result = load_env(spec[:env]) || load_config(config, spec[:config])
+    {module, func} = spec[:fun] || {__MODULE__, :id}
 
-    if result do
-      {key, value} = result
-      log_value(key, value)
-      value
+    case result do
+      nil -> {:default, apply(module, func, [spec[:default]])}
+      {source, value} -> {source, apply(module, func, [value])}
     end
   end
 
-  defp env_exists(keys) do
-    Enum.find_value(keys, fn key ->
+  defp load_env(keys) do
+    Enum.find_value(keys || [], fn key ->
       if value = System.get_env(key) do
-        {key, value}
+        {{:env, key}, value}
       else
         nil
       end
     end)
   end
 
-  defp config_exists(config, keys) do
-    Enum.find_value(keys, fn key ->
+  defp load_config(config, keys) do
+    Enum.find_value(keys || [], fn key ->
       if value = Keyword.get(config, key) do
-        {"config[:#{key}]", value}
+        {{:config, key}, value}
       else
         nil
       end
     end)
   end
 
-  defp log_value(key, value) do
-    if key in @logged_keys do
-      Hex.Shell.debug("Using #{key} = #{value}")
-    end
-  end
+  def to_boolean(nil), do: nil
+  def to_boolean(false), do: false
+  def to_boolean(true), do: true
+  def to_boolean("0"), do: false
+  def to_boolean("1"), do: true
+  def to_boolean("false"), do: false
+  def to_boolean("true"), do: true
+  def to_boolean("FALSE"), do: false
+  def to_boolean("TRUE"), do: true
 
-  defp to_boolean(nil), do: nil
-  defp to_boolean(false), do: false
-  defp to_boolean(true), do: true
-  defp to_boolean("0"), do: false
-  defp to_boolean("1"), do: true
-  defp to_boolean("false"), do: false
-  defp to_boolean("true"), do: true
+  def to_integer(nil), do: nil
+  def to_integer(""), do: nil
+  def to_integer(integer) when is_integer(integer), do: integer
 
-  defp to_integer(nil), do: nil
-  defp to_integer(""), do: nil
-
-  defp to_integer(string) do
+  def to_integer(string) when is_binary(string) do
     {int, _} = Integer.parse(string)
     int
   end
 
-  defp default(nil, value), do: value
-  defp default(value, _), do: value
+  def default(nil, value), do: value
+  def default(value, _), do: value
 
-  defp trim_slash(nil), do: nil
+  def trim_slash(nil), do: nil
+  def trim_slash(string), do: Hex.string_trim_leading(string, "/")
 
-  defp trim_slash(string) do
-    if String.ends_with?(string, "/") do
-      string
-      |> :binary.part(0, byte_size(string) - 1)
-      |> trim_slash()
-    else
-      string
-    end
-  end
-
-  defp ssl_version() do
+  def ssl_version() do
     {:ok, version} = :application.get_key(:ssl, :vsn)
     parse_ssl_version(version)
   end
@@ -200,6 +233,9 @@ defmodule Hex.State do
   defp version_pad([major, minor, patch]), do: [major, minor, patch]
   defp version_pad([major, minor, patch | _]), do: [major, minor, patch]
 
-  defp http_timeout(nil), do: nil
-  defp http_timeout(seconds), do: seconds * 1000
+  def http_timeout(nil), do: nil
+  def http_timeout(seconds) when is_integer(seconds), do: seconds * 1000
+  def http_timeout(seconds), do: http_timeout(to_integer(seconds))
+
+  def id(arg), do: arg
 end

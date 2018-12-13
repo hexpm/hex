@@ -164,7 +164,7 @@ defmodule Hex.Registry.Server do
 
     purge_repo_from_cache(packages, state)
 
-    if Hex.State.fetch!(:offline?) do
+    if Hex.State.fetch!(:offline) do
       prefetch_offline(packages, state)
     else
       prefetch_online(packages, state)
