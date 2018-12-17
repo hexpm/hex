@@ -7,7 +7,12 @@ defmodule Hex.HTTP do
 
   def request(method, url, headers, body, opts \\ []) do
     headers = build_headers(headers)
-    timeout = opts[:timeout] || Hex.State.fetch!(:http_timeout) || @request_timeout
+
+    timeout =
+      opts[:timeout] ||
+        Hex.State.fetch!(:http_timeout, fn val -> if is_integer(val), do: val * 1000 end) ||
+        @request_timeout
+
     http_opts = build_http_opts(url, timeout)
     opts = [body_format: :binary]
     request = build_request(url, headers, body)

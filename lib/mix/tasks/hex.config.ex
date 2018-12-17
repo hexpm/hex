@@ -27,14 +27,15 @@ defmodule Mix.Tasks.Hex.Config do
       setting the environment variable `HEX_UNSAFE_REGISTRY` (Default:
       `false`)
     * `http_proxy` - HTTP proxy server. Can be overridden by setting the
-      environment variable `HTTP_PROXY`
+      environment variable `HTTP_PROXY` (Default: `nil`)
     * `https_proxy` - HTTPS proxy server. Can be overridden by setting the
-      environment variable `HTTPS_PROXY`
+      environment variable `HTTPS_PROXY` (Default: `nil`)
     * `http_concurrency` - Limits the number of concurrent HTTP requests in
       flight. Can be overridden by setting the environment variable
       `HEX_HTTP_CONCURRENCY` (Default: `8`)
     * `http_timeout` - Sets the timeout for HTTP requests in seconds. Can be
       overridden by setting the environment variable `HEX_HTTP_TIMEOUT`
+      (Default: `nil`)
 
   `HEX_HOME` environment variable can be set to point to the directory where Hex
   stores the cache and configuration (Default: `~/.hex`)
@@ -45,9 +46,19 @@ defmodule Mix.Tasks.Hex.Config do
   """
 
   @switches [delete: :boolean]
-  @valid_keys [
-    "api_key",
+  @valid_write_keys [
     "api_url",
+    "offline",
+    "unsafe_https",
+    "unsafe_registry",
+    "http_proxy",
+    "https_proxy",
+    "http_concurrency",
+    "http_timeout"
+  ]
+
+  @valid_read_keys [
+    "api_key_write_unencrypted",
     "offline",
     "unsafe_https",
     "unsafe_registry",
@@ -89,26 +100,40 @@ defmodule Mix.Tasks.Hex.Config do
   end
 
   defp list() do
-    Enum.each(config(), fn {key, value} ->
-      Hex.Shell.info("#{key}: #{inspect(value, pretty: true)}")
+    Enum.each(@valid_read_keys, fn key ->
+      read(key)
     end)
   end
 
-  defp read(key) do
-    case Keyword.fetch(config(), :"#{key}") do
-      {:ok, value} ->
-        Hex.Shell.info(inspect(value, pretty: true))
+  defp read(key) when is_binary(key) and key in @valid_read_keys do
+    case Map.fetch(Hex.State.get_all(), :"#{key}") do
+      {:ok, {{:env, env_var}, value}} ->
+        Hex.Shell.info("#{label(key)}: #{inspect(value, pretty: true)} (using `#{env_var}`)")
+
+      {:ok, {{:config, _key}, value}} ->
+        Hex.Shell.info(
+          "#{label(key)}: #{inspect(value, pretty: true)} (using `#{config_path()}`)"
+        )
+
+      {:ok, {:default, value}} ->
+        Hex.Shell.info("#{label(key)}: #{inspect(value, pretty: true)} (default)")
+
+      {:ok, {:computed, value}} ->
+        Hex.Shell.info("#{label(key)}: #{inspect(value, pretty: true)} (computed)")
 
       :error ->
-        Mix.raise("Config does not contain key #{key}")
+        Mix.raise("The key #{key} is not valid")
     end
   end
+
+  defp read(key) when is_atom(key), do: read(to_string(key))
+  defp read(key), do: Mix.raise("The key #{key} is not valid")
 
   defp delete(key) do
     Hex.Config.remove([String.to_atom(key)])
   end
 
-  defp set(key, value) when key in @valid_keys do
+  defp set(key, value) when key in @valid_write_keys do
     Hex.Config.update([{:"#{key}", value}])
   end
 
@@ -116,9 +141,16 @@ defmodule Mix.Tasks.Hex.Config do
     Mix.raise("Invalid key #{key}")
   end
 
-  defp config() do
-    Hex.Config.read()
-    |> Enum.reject(fn {key, _value} -> String.starts_with?(Atom.to_string(key), "$") end)
-    |> Keyword.delete(:encrypted_key)
+  defp config_path() do
+    :home
+    |> Hex.State.fetch!()
+    |> Path.join("hex.config")
+  end
+
+  defp label(key) do
+    case key do
+      "api_key_write_unencrypted" -> "api_key"
+      _ -> key
+    end
   end
 end

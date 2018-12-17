@@ -30,7 +30,11 @@ defmodule Hex.API do
       %{'content-length' => Hex.to_charlist(byte_size(body))}
       |> Map.merge(headers(opts))
 
-    opts = [timeout: Hex.State.fetch!(:http_timeout) || @tar_timeout]
+    opts = [
+      timeout:
+        Hex.State.fetch!(:http_timeout, fn val -> if is_integer(val), do: val * 1000 end) ||
+          @tar_timeout
+    ]
 
     HTTP.request(:post, url(repo, path), headers, encode_tar(body, progress), opts)
     |> handle_response()
