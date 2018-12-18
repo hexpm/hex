@@ -106,23 +106,17 @@ defmodule Mix.Tasks.Hex.Config do
   end
 
   defp read(key) when is_binary(key) and key in @valid_read_keys do
-    case Map.fetch(Hex.State.get_all(), :"#{key}") do
-      {:ok, {{:env, env_var}, value}} ->
+    case Map.fetch!(Hex.State.get_all(), :"#{key}") do
+      {{:env, env_var}, value} ->
         Hex.Shell.info("#{label(key)}: #{inspect(value, pretty: true)} (using `#{env_var}`)")
 
-      {:ok, {{:config, _key}, value}} ->
+      {{:config, _key}, value} ->
         Hex.Shell.info(
           "#{label(key)}: #{inspect(value, pretty: true)} (using `#{config_path()}`)"
         )
 
-      {:ok, {:default, value}} ->
+      {:default, value} ->
         Hex.Shell.info("#{label(key)}: #{inspect(value, pretty: true)} (default)")
-
-      {:ok, {:computed, value}} ->
-        Hex.Shell.info("#{label(key)}: #{inspect(value, pretty: true)} (computed)")
-
-      :error ->
-        Mix.raise("The key #{key} is not valid")
     end
   end
 
