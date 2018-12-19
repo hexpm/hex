@@ -101,27 +101,32 @@ defmodule Mix.Tasks.Hex.Config do
 
   defp list() do
     Enum.each(@valid_read_keys, fn key ->
-      read(key)
+      read(key, true)
     end)
   end
 
-  defp read(key) when is_binary(key) and key in @valid_read_keys do
+  defp read(key, verbose \\ false)
+
+  defp read(key, verbose) when is_binary(key) and key in @valid_read_keys do
     case Map.fetch!(Hex.State.get_all(), :"#{key}") do
       {{:env, env_var}, value} ->
-        Hex.Shell.info("#{label(key)}: #{inspect(value, pretty: true)} (using `#{env_var}`)")
+        print_value(key, value, verbose, "(using `#{env_var}`)")
 
       {{:config, _key}, value} ->
-        Hex.Shell.info(
-          "#{label(key)}: #{inspect(value, pretty: true)} (using `#{config_path()}`)"
-        )
+        print_value(key, value, verbose, "(using `#{config_path()}`)")
 
       {:default, value} ->
-        Hex.Shell.info("#{label(key)}: #{inspect(value, pretty: true)} (default)")
+        print_value(key, value, verbose, "(default)")
     end
   end
 
-  defp read(key) when is_atom(key), do: read(to_string(key))
-  defp read(key), do: Mix.raise("The key #{key} is not valid")
+  defp read(key, verbose) when is_atom(key), do: read(to_string(key), verbose)
+  defp read(key, _verbose), do: Mix.raise("The key #{key} is not valid")
+
+  defp print_value(key, value, true, source),
+    do: Hex.Shell.info("#{label(key)}: #{inspect(value, pretty: true)} #{source}")
+
+  defp print_value(_key, value, false, _source), do: Hex.Shell.info(inspect(value, pretty: true))
 
   defp delete(key) do
     Hex.Config.remove([String.to_atom(key)])
