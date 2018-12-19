@@ -51,7 +51,6 @@ defmodule Mix.Tasks.Hex.Config do
   ## Command line options
 
     * `--delete` - Remove a specific config key
-
   """
 
   @switches [delete: :boolean]
