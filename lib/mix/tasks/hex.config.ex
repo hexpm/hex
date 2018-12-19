@@ -115,7 +115,7 @@ defmodule Mix.Tasks.Hex.Config do
       {{:config, _key}, value} ->
         print_value(key, value, verbose, "(using `#{config_path()}`)")
 
-      {:default, value} ->
+      {_, value} ->
         print_value(key, value, verbose, "(default)")
     end
   end

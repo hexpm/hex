@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
 
       Mix.Tasks.Hex.Config.run([])
 
-      assert_received {:mix_shell, :info, ["api_key: nil (computed)"]}
+      assert_received {:mix_shell, :info, ["api_key: nil (default)"]}
       assert_received {:mix_shell, :info, ["offline: false (default)"]}
       assert_received {:mix_shell, :info, ["unsafe_https: false (default)"]}
       assert_received {:mix_shell, :info, ["unsafe_registry: false (default)"]}
@@ -25,18 +25,18 @@ defmodule Mix.Tasks.Hex.ConfigTest do
       Mix.Tasks.Hex.Config.run(["offline", "--delete"])
 
       Mix.Tasks.Hex.Config.run(["offline"])
-      assert_received {:mix_shell, :info, ["offline: false (default)"]}
+      assert_received {:mix_shell, :info, ["false"]}
 
       System.put_env("HEX_OFFLINE", "true")
       Hex.State.refresh()
       Mix.Tasks.Hex.Config.run(["offline"])
-      assert_received {:mix_shell, :info, ["offline: true (using `HEX_OFFLINE`)"]}
+      assert_received {:mix_shell, :info, ["true"]}
 
       System.delete_env("HEX_OFFLINE")
       Hex.State.refresh()
 
       Mix.Tasks.Hex.Config.run(["offline"])
-      assert_received {:mix_shell, :info, ["offline: false (default)"]}
+      assert_received {:mix_shell, :info, ["false"]}
 
       assert_raise Mix.Error, "Invalid key foo", fn ->
         Mix.Tasks.Hex.Config.run(["foo", "bar"])
