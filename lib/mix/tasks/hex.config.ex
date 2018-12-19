@@ -8,7 +8,7 @@ defmodule Mix.Tasks.Hex.Config do
 
       mix hex.config
 
-  ## Get config value for KEY
+  ## Get or delete config value for KEY
 
       mix hex.config KEY [--delete]
 
