@@ -7,6 +7,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
 
       Mix.Tasks.Hex.Config.run([])
 
+      assert_received {:mix_shell, :info, ["api_url:" <> _]}
       assert_received {:mix_shell, :info, ["api_key: nil (default)"]}
       assert_received {:mix_shell, :info, ["offline: false (default)"]}
       assert_received {:mix_shell, :info, ["unsafe_https: false (default)"]}
@@ -15,6 +16,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
       assert_received {:mix_shell, :info, ["https_proxy: nil (default)"]}
       assert_received {:mix_shell, :info, ["http_concurrency: 8 (default)"]}
       assert_received {:mix_shell, :info, ["http_timeout: nil (default)"]}
+      assert_received {:mix_shell, :info, ["home:" <> _]}
     end)
   end
 

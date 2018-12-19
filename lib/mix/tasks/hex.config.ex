@@ -58,6 +58,7 @@ defmodule Mix.Tasks.Hex.Config do
   ]
 
   @valid_read_keys [
+    "api_url",
     "api_key_write_unencrypted",
     "offline",
     "unsafe_https",
@@ -65,7 +66,8 @@ defmodule Mix.Tasks.Hex.Config do
     "http_proxy",
     "https_proxy",
     "http_concurrency",
-    "http_timeout"
+    "http_timeout",
+    "home"
   ]
 
   @impl true
