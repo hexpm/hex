@@ -126,6 +126,12 @@ defmodule Hex.State do
     end)
   end
 
+  def fetch!(key, transform) do
+    key
+    |> fetch!()
+    |> transform.()
+  end
+
   def fetch_source!(key) do
     Agent.get(@name, fn state ->
       case Map.fetch(state, key) do
@@ -234,8 +240,8 @@ defmodule Hex.State do
   defp version_pad([major, minor, patch | _]), do: [major, minor, patch]
 
   def http_timeout(nil), do: nil
-  def http_timeout(seconds) when is_integer(seconds), do: seconds * 1000
-  def http_timeout(seconds), do: http_timeout(to_integer(seconds))
+  def http_timeout(seconds) when is_integer(seconds), do: seconds
+  def http_timeout(seconds), do: to_integer(seconds)
 
   def id(arg), do: arg
 end
