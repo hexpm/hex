@@ -4,9 +4,17 @@ defmodule Mix.Tasks.Hex.Config do
   @shortdoc "Reads, updates or deletes local Hex config"
 
   @moduledoc """
-  Reads, updates or deletes local Hex configuration.
+  ## List config keys and values
 
-      mix hex.config KEY [VALUE]
+      mix hex.config
+
+  ## Get or delete config value for KEY
+
+      mix hex.config KEY [--delete]
+
+  ## Set config KEY to VALUE
+
+      mix hex.config KEY VALUE
 
   ## Config keys
 
