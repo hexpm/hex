@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.2.0, do not edit manually
+%% Vendored from hex_core v0.2.1, do not edit manually
 
 %% -*- coding: utf-8 -*-
 %% Automatically generated, do not edit
