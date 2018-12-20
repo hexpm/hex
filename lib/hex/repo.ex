@@ -284,8 +284,19 @@ defmodule Hex.Repo do
   defp public_key_message("hexpm" <> _), do: "on our public keys page: #{@public_keys_html}"
   defp public_key_message(repo), do: "for repo #{repo}"
 
-  def decode(body) do
-    %{releases: releases} = :mix_hex_pb_package.decode_msg(body, :Package)
-    releases
+  def decode_package(body, repo, package) do
+    case :mix_hex_pb_package.decode_msg(body, :Package) do
+      %{releases: releases, repository: ^repo, name: ^package} ->
+        releases
+
+      _ ->
+        Mix.raise(
+          "Could not verify authenticity of fetched registry file. " <>
+            "This may happen because a proxy or some entity is " <>
+            "interfering with the download or the repository is misconfigured\n\n. " <>
+            "You may try again or contact the administrator for the repository, " <>
+            "for the public hex.pm repository please contact support@hex.pm"
+        )
+    end
   end
 end

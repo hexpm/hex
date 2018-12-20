@@ -354,7 +354,7 @@ defmodule Hex.Registry.Server do
       body
       |> :zlib.gunzip()
       |> Hex.Repo.verify(repo)
-      |> Hex.Repo.decode()
+      |> Hex.Repo.decode_package(repo, package)
 
     delete_package(repo, package, tid)
 
