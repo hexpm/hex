@@ -216,8 +216,11 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp print_publisher(release) do
     publisher_username = release["publisher"]["username"]
+
     publisher_email = release["publisher"]["email"]
-    Hex.Shell.info("Published by: #{publisher_username} (#{publisher_email})")
+    email_or_empty = if publisher_email, do: " (#{publisher_email})", else: ""
+
+    Hex.Shell.info("Published by: #{publisher_username}#{email_or_empty}")
   end
 
   defp format_pre([]) do
