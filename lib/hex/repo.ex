@@ -289,6 +289,17 @@ defmodule Hex.Repo do
       %{releases: releases, repository: ^repo, name: ^package} ->
         releases
 
+      # gpb (proto2) decodes missing required fields as $undef
+      # this will likely change when we update to proto3 and use optional fields
+      %{releases: releases, repository: :"$undef", name: :"$undef"} ->
+        Hex.Shell.warn(
+          "Fetched deprecatated registry record version, for security reasons this " <>
+            "registry version will not work on future Hex updates. The repository " <>
+            "you are using should update to ensure future compatability with Hex clients."
+        )
+
+        releases
+
       _ ->
         Mix.raise(
           "Could not verify authenticity of fetched registry file. " <>
