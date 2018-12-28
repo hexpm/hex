@@ -41,6 +41,11 @@ defmodule Mix.Tasks.Hex.InfoTest do
     assert_received {:mix_shell, :error, ["No release with name ex_doc 1.2.3"]}
   end
 
+  test "prints publisher info for releases" do
+    Mix.Tasks.Hex.Info.run(["ex_doc", "0.0.1"])
+    assert_received {:mix_shell, :info, ["Published by: user (user@mail.com)"]}
+  end
+
   test "latest_release/2" do
     import Mix.Tasks.Hex.Info, only: [latest_release: 2]
 

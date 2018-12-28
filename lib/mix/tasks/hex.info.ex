@@ -158,6 +158,8 @@ defmodule Mix.Tasks.Hex.Info do
         Hex.Shell.info("  #{name} #{req["requirement"]}#{app}#{optional}")
       end)
     end
+
+    print_publisher(release)
   end
 
   defp print_config(name, nil) do
@@ -210,6 +212,15 @@ defmodule Mix.Tasks.Hex.Info do
       [:normal, ": "],
       [:normal, Hex.Utils.package_retirement_message(retirement)]
     ])
+  end
+
+  defp print_publisher(release) do
+    publisher_username = release["publisher"]["username"]
+
+    publisher_email = release["publisher"]["email"]
+    email_or_empty = if publisher_email, do: " (#{publisher_email})", else: ""
+
+    Hex.Shell.info("Published by: #{publisher_username}#{email_or_empty}")
   end
 
   defp format_pre([]) do
