@@ -96,7 +96,7 @@ defmodule Hex.State do
         {key, load_config_value(config, spec)}
       end)
 
-    {_source, repos_key} = Map.fetch(state, :repos_key)
+    {_source, repos_key} = Map.fetch!(state, :repos_key)
 
     Map.merge(state, %{
       clean_pass: {:computed, true},
