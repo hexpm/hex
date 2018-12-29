@@ -35,6 +35,12 @@ defmodule Hex.State do
       default: false,
       fun: {__MODULE__, :to_boolean}
     },
+    no_verify_repo_origin: %{
+      env: ["HEX_NO_VERIFY_REPO_ORIGIN"],
+      config: [:no_verify_repo_origin],
+      default: false,
+      fun: {__MODULE__, :to_boolean}
+    },
     http_concurrency: %{
       env: ["HEX_HTTP_CONCURRENCY"],
       config: [:http_concurrency],

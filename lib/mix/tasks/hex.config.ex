@@ -34,6 +34,9 @@ defmodule Mix.Tasks.Hex.Config do
       signature against the repository's public key. Can be overridden by
       setting the environment variable `HEX_UNSAFE_REGISTRY` (Default:
       `false`)
+    * `no_verify_repo_origin` - If set to true Hex will not verify the registry
+      origin. Can be overridden by setting the environment variable
+      `HEX_NO_VERIFY_REPO_ORIGIN` (Default: `false`)
     * `http_proxy` - HTTP proxy server. Can be overridden by setting the
       environment variable `HTTP_PROXY` (Default: `nil`)
     * `https_proxy` - HTTPS proxy server. Can be overridden by setting the
@@ -59,6 +62,7 @@ defmodule Mix.Tasks.Hex.Config do
     "offline",
     "unsafe_https",
     "unsafe_registry",
+    "no_verify_repo_origin",
     "http_proxy",
     "https_proxy",
     "http_concurrency",
@@ -71,6 +75,7 @@ defmodule Mix.Tasks.Hex.Config do
     "offline",
     "unsafe_https",
     "unsafe_registry",
+    "no_verify_repo_origin",
     "http_proxy",
     "https_proxy",
     "http_concurrency",
