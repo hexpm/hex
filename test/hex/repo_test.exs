@@ -27,6 +27,11 @@ defmodule Hex.RepoTest do
     message = :mix_hex_pb_package.encode_msg(package, :Package)
 
     assert Hex.Repo.decode_package(message, "hexpm", "ecto") == []
+  end
+
+  test "decode package verify origin" do
+    package = %{releases: [], repository: "hexpm", name: "ecto"}
+    message = :mix_hex_pb_package.encode_msg(package, :Package)
 
     assert_raise(Mix.Error, fn ->
       Hex.Repo.decode_package(message, "other repo", "ecto")
@@ -35,5 +40,9 @@ defmodule Hex.RepoTest do
     assert_raise(Mix.Error, fn ->
       Hex.Repo.decode_package(message, "hexpm", "other package")
     end)
+
+    Hex.State.put(:no_verify_repo_origin, true)
+    assert Hex.Repo.decode_package(message, "other repo", "ecto") == []
+    assert Hex.Repo.decode_package(message, "hexpm", "other package") == []
   end
 end

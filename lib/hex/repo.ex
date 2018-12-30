@@ -285,29 +285,21 @@ defmodule Hex.Repo do
   defp public_key_message(repo), do: "for repo #{repo}"
 
   def decode_package(body, repo, package) do
-    case :mix_hex_pb_package.decode_msg(body, :Package) do
-      %{releases: releases, repository: ^repo, name: ^package} ->
-        releases
+    if Hex.State.fetch!(:no_verify_repo_origin) do
+      :mix_hex_pb_package.decode_msg(body, :Package).releases
+    else
+      case :mix_hex_pb_package.decode_msg(body, :Package) do
+        %{releases: releases, repository: ^repo, name: ^package} ->
+          releases
 
-      # gpb (proto2) decodes missing required fields as $undef
-      # this will likely change when we update to proto3 and use optional fields
-      %{releases: releases, repository: :"$undef", name: :"$undef"} ->
-        Hex.Shell.warn(
-          "Fetched deprecatated registry record version, for security reasons this " <>
-            "registry version will not work on future Hex updates. The repository " <>
-            "you are using should update to ensure future compatability with Hex clients."
-        )
-
-        releases
-
-      _ ->
-        Mix.raise(
-          "Could not verify authenticity of fetched registry file. " <>
-            "This may happen because a proxy or some entity is " <>
-            "interfering with the download or the repository is misconfigured\n\n. " <>
-            "You may try again or contact the administrator for the repository, " <>
-            "for the public hex.pm repository please contact support@hex.pm"
-        )
+        _ ->
+          Mix.raise(
+            "Fetched deprecatated registry record version from repo ~ts, for security " <>
+              "reasons this registry version is no longer supported. The repository " <>
+              "you are using should update to fix the security reason. Set " <>
+              "HEX_NO_VERIFY_REPO_ORIGIN=1 to disable this check."
+          )
+      end
     end
   end
 end
