@@ -294,7 +294,7 @@ defmodule Hex.Repo do
 
         _ ->
           Mix.raise(
-            "Fetched deprecatated registry record version from repo ~ts, for security " <>
+            "Fetched deprecated registry record version from repo #{repo}. For security " <>
               "reasons this registry version is no longer supported. The repository " <>
               "you are using should update to fix the security reason. Set " <>
               "HEX_NO_VERIFY_REPO_ORIGIN=1 to disable this check."
