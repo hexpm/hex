@@ -393,7 +393,7 @@ defmodule Hex.Registry.Server do
   end
 
   defp print_error(result, repo, package, cached?) do
-    cached_message = if cached?, do: " (using cache)"
+    cached_message = if cached?, do: " (using cache instead)"
     repo_message = if repo, do: "#{repo}/"
 
     Hex.Shell.error(
