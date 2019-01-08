@@ -71,7 +71,6 @@ defmodule Hex.HTTP.SSL do
         server_name_indication: hostname,
         secure_renegotiate: true,
         reuse_sessions: true,
-        honor_cipher_order: true,
         versions: @default_versions,
         ciphers: ciphers
       ]
@@ -81,7 +80,6 @@ defmodule Hex.HTTP.SSL do
         server_name_indication: hostname,
         secure_renegotiate: true,
         reuse_sessions: true,
-        honor_cipher_order: true,
         versions: @default_versions,
         ciphers: ciphers
       ]
