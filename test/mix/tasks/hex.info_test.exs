@@ -17,6 +17,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
     assert_received {:mix_shell, :info, ["Releases: 0.2.0, 0.1.0 (retired)\n"]}
   end
 
+  @tag :only
   test "package with --organization flag" do
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
@@ -26,6 +27,8 @@ defmodule Mix.Tasks.Hex.InfoTest do
 
       bypass_repo("infoorg")
       Mix.Tasks.Hex.Info.run(["ecto", "--organization", "infoorg"])
+
+      assert_received {:mix_shell, :info, ["Config: {nil, \">= 0.0.0\", organization: \"\"}"]}
       assert_received {:mix_shell, :info, ["ecto description\n"]}
     end)
   end

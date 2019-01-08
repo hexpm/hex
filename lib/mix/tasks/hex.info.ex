@@ -97,7 +97,7 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Shell.info(desc <> "\n")
     releases = package["releases"] || []
     retirements = package["retirements"] || %{}
-    print_config(package["name"], latest_release(releases, retirements))
+    print_config(package["name"], latest_release(releases, retirements), package["repository"])
     Hex.Shell.info(["Releases: "] ++ format_releases(releases, Map.keys(retirements)) ++ ["\n"])
     print_meta(meta)
   end
@@ -141,8 +141,7 @@ defmodule Mix.Tasks.Hex.Info do
     version = release["version"]
 
     print_retirement(release)
-
-    print_config(package, release)
+    print_config(package, release, organization)
 
     if release["has_docs"] do
       Hex.Shell.info("Documentation at: #{Hex.Utils.hexdocs_url(organization, package, version)}")
@@ -160,11 +159,11 @@ defmodule Mix.Tasks.Hex.Info do
     end
   end
 
-  defp print_config(name, nil) do
-    Hex.Shell.info("Config: " <> format_config_snippet(">= 0.0.0", name, name))
+  defp print_config(name, nil, organization) do
+    Hex.Shell.info("Config: " <> format_config_snippet(">= 0.0.0", name, name, organization))
   end
 
-  defp print_config(name, release) do
+  defp print_config(name, release, organization) do
     app_name = String.to_atom(release["meta"]["app"] || name)
     name = String.to_atom(name)
     {:ok, version} = Hex.Version.parse(release["version"])
@@ -172,17 +171,29 @@ defmodule Mix.Tasks.Hex.Info do
     snippet =
       version
       |> format_version()
-      |> format_config_snippet(name, app_name)
+      |> format_config_snippet(name, app_name, organization)
 
     Hex.Shell.info("Config: " <> snippet)
   end
 
-  defp format_config_snippet(version, name, name) do
+  defp format_config_snippet(version, name, name, organization)
+       when organization in ["hexpm", "", nil] do
     "{#{inspect(name)}, #{inspect(version)}}"
   end
 
-  defp format_config_snippet(version, name, app_name) do
+  defp format_config_snippet(version, name, name, organization) do
+    "{#{inspect(name)}, #{inspect(version)}, organization: \"#{organization}\"}"
+  end
+
+  defp format_config_snippet(version, name, app_name, organization)
+       when organization in ["hexpm", "", nil] do
     "{#{inspect(app_name)}, #{inspect(version)}, hex: #{inspect(name)}}"
+  end
+
+  defp format_config_snippet(version, name, app_name, organization) do
+    "{#{inspect(app_name)}, #{inspect(version)}, hex: #{inspect(name)}, organization: \"#{
+      organization
+    }\"}"
   end
 
   defp format_version(%Version{major: 0, minor: minor, patch: patch, pre: []}) do
