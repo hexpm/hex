@@ -23,7 +23,9 @@ defmodule Mix.Tasks.Hex.RetireTest do
   end
 
   test "retire --message flag is required" do
-    auth = Hexpm.new_user("retire_user_message", "retire_user_message@mail.com", "passpass", "key")
+    auth =
+      Hexpm.new_user("retire_user_message", "retire_user_message@mail.com", "passpass", "key")
+
     Hexpm.new_package("retire_package_message", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
