@@ -333,8 +333,15 @@ defmodule Hex.Resolver.Backtracks do
   end
 
   defp merge_versions?(registry, repo, package, versions) do
-    all_versions = registry.versions(repo, package)
+    # Filter pre-releases because they were likely not considered during resolution
+    # This can give false-positive merged version ranges, but it's likely fine
+    all_versions = filter_pre_releases(registry.versions(repo, package))
+    versions = filter_pre_releases(versions)
     sub_range?(all_versions, versions)
+  end
+
+  defp filter_pre_releases(versions) do
+    Enum.filter(versions, &String.contains?(&1, "-"))
   end
 
   # Assumes lists are sorted

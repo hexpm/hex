@@ -25,7 +25,7 @@ defmodule Hex.Resolver.BacktracksTest do
     expected =
       format([
         :underline,
-        ~s'Failed to use "foo" (versions 0.0.1, 0.1.0, 0.2.1) ',
+        ~s'Failed to use "foo" (versions 0.0.1 to 0.2.1) ',
         "because there are no packages that matches the requirement",
         :reset,
         "\n"
