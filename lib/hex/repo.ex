@@ -286,13 +286,14 @@ defmodule Hex.Repo do
 
   def decode_package(body, repo, package) do
     if Hex.State.fetch!(:no_verify_repo_origin) do
-      :mix_hex_pb_package.decode_msg(body, :Package).releases
+      {:ok, releases} = :mix_hex_registry.decode_package(body, :no_verify, :no_verify)
+      releases
     else
-      case :mix_hex_pb_package.decode_msg(body, :Package) do
-        %{releases: releases, repository: ^repo, name: ^package} ->
+      case :mix_hex_registry.decode_package(body, repo, package) do
+        {:ok, releases} ->
           releases
 
-        _ ->
+        {:error, :unverified} ->
           Mix.raise(
             "Fetched deprecated registry record version from repo #{repo}. For security " <>
               "reasons this registry version is no longer supported. The repository " <>
