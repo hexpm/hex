@@ -31,7 +31,9 @@ defmodule Mix.Tasks.Hex.InfoTest do
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
 
       Mix.Tasks.Hex.Info.run(["foo", "--organization", "testorg"])
-      assert_received {:mix_shell, :info, ["Config: {:foo, \"~> 0.1.0\", organization: \"testorg\"}"]}
+
+      assert_received {:mix_shell, :info,
+                       ["Config: {:foo, \"~> 0.1.0\", organization: \"testorg\"}"]}
     end)
   end
 
