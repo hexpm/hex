@@ -227,7 +227,7 @@ defmodule HexTest.Hexpm do
     [key: secret]
   end
 
-  def new_package(name, version, deps, meta, auth) do
+  def new_package(name, version, deps, meta, organization \\ "hexpm", auth) do
     reqs =
       Enum.filter(deps, fn
         {_app, _req, opts} -> !(opts[:path] || opts[:git] || opts[:github])
@@ -260,7 +260,7 @@ defmodule HexTest.Hexpm do
     files = [{"mix.exs", List.to_string(mix_exs)}]
     {tar, _checksum} = Hex.create_tar!(meta, files, :memory)
 
-    {:ok, {result, %{"version" => ^version}, _}} = Hex.API.Release.publish("hexpm", tar, auth)
+    {:ok, {result, %{"version" => ^version}, _}} = Hex.API.Release.publish(organization, tar, auth)
     assert result in [200, 201]
   end
 end
