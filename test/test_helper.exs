@@ -64,4 +64,8 @@ unless :integration in ExUnit.configuration()[:exclude] do
   )
 
   {:ok, _} = Hex.API.Release.retire("hexpm", "tired", "0.1.0", %{reason: "invalid"}, auth)
+
+  Hexpm.new_repo("testorg", auth)
+  Hexpm.new_package("foo", "0.1.0", [], pkg_meta, "testorg", auth)
+  Hexpm.new_package("bar", "0.1.0", [foo: "~> 0.1.0"], pkg_meta, "testorg", auth)
 end
