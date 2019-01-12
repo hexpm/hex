@@ -96,7 +96,7 @@ defmodule Hex.Repo do
 
   def update_organizations(repos) do
     Enum.into(repos, %{}, fn {name, repo} ->
-      case String.split(name, ":", parts: 2) do
+      case split_repo_name(name) do
         [source, organization] ->
           source = Map.fetch!(repos, source)
           repo = default_organization(source, repo, organization)
@@ -110,7 +110,7 @@ defmodule Hex.Repo do
 
   def clean_organizations(repos) do
     Enum.into(repos, %{}, fn {name, repo} ->
-      case String.split(name, ":", parts: 2) do
+      case split_repo_name(name) do
         [source, organization] ->
           source_repo = Map.fetch!(repos, source)
           repo = put_organization_url(organization, repo, source_repo)
@@ -281,10 +281,13 @@ defmodule Hex.Repo do
     end
   end
 
-  defp public_key_message("hexpm" <> _), do: "on our public keys page: #{@public_keys_html}"
+  defp public_key_message("hexpm:" <> _), do: "on our public keys page: #{@public_keys_html}"
+  defp public_key_message("hexpm"), do: "on our public keys page: #{@public_keys_html}"
   defp public_key_message(repo), do: "for repo #{repo}"
 
   def decode_package(body, repo, package) do
+    repo = repo_name(repo)
+
     if Hex.State.fetch!(:no_verify_repo_origin) do
       {:ok, releases} = :mix_hex_registry.decode_package(body, :no_verify, :no_verify)
       releases
@@ -302,5 +305,13 @@ defmodule Hex.Repo do
           )
       end
     end
+  end
+
+  defp split_repo_name(name) do
+    String.split(name, ":", parts: 2)
+  end
+
+  defp repo_name(name) do
+    name |> split_repo_name() |> List.last()
   end
 end
