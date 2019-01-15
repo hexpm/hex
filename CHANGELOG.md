@@ -2,6 +2,23 @@
 
 ## v0.18.3-dev
 
+### Enhancements
+
+* Improve output of `mix hex.config`
+* Print publisher in `mix hex.info PACKAGE VERSION`
+* Add organization flag to dependency config in `mix hex.info PACKAGE`
+
+### Bug fixes
+
+* Don't follow symlinks when adding files to tarballs
+* Error with a descriptive msg when building a package with git dependencies
+* Improve listing of incompatible package versions when displaying backtrack error message
+* Improve resolver performance when it needs to do a lot of backtracking
+
+### Security fixes
+
+* Verify authenticity of registry records. This fixes a vulnerability that would allow a malicious mirror to serve modified versions of Hex packages. A new check has been introduced that requires the latest registry record version, if you are using a repository or mirror that has not been updated yet you can disable this check by setting the environment variable `HEX_NO_VERIFY_REPO_ORIGIN=1`. Further clarification of this issue will come at a later stage.
+
 ## v0.18.2 (2018-11-08)
 
 ### Enhancements
