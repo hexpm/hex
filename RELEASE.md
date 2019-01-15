@@ -14,7 +14,7 @@ This document simply outlines the release process:
 
 6. Create GitHub release
 
-7. Run the `release.sh` script and set the path to the private key for Elixir `ELIXIR_PEM=path/to/elixir.pem release.sh VERSION` where `VERSION` is the Hex version being released without a `v` prefix
+7. Run the `release.sh` script and set the path to the private key for Elixir `ELIXIR_PEM=path/to/elixir.pem ./release.sh VERSION` where `VERSION` is the Hex version being released without a `v` prefix
 
 8. Purge the `installs` key on Fastly
 
