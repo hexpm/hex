@@ -47,6 +47,8 @@ defmodule Mix.Tasks.Hex.Config do
     * `http_timeout` - Sets the timeout for HTTP requests in seconds. Can be
       overridden by setting the environment variable `HEX_HTTP_TIMEOUT`
       (Default: `nil`)
+    * `mirror_url` - Hex mirror URL. Can be overridden by setting the
+      environment variable `HEX_MIRROR` (Default: `nil`)
 
   `HEX_HOME` environment variable can be set to point to the directory where Hex
   stores the cache and configuration (Default: `~/.hex`)
@@ -66,7 +68,8 @@ defmodule Mix.Tasks.Hex.Config do
     "http_proxy",
     "https_proxy",
     "http_concurrency",
-    "http_timeout"
+    "http_timeout",
+    "mirror_url"
   ]
 
   @valid_read_keys [
@@ -80,6 +83,7 @@ defmodule Mix.Tasks.Hex.Config do
     "https_proxy",
     "http_concurrency",
     "http_timeout",
+    "mirror_url",
     "home"
   ]
 
