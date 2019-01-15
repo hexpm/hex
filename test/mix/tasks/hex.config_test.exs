@@ -16,6 +16,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
       assert_received {:mix_shell, :info, ["https_proxy: nil (default)"]}
       assert_received {:mix_shell, :info, ["http_concurrency: 8 (default)"]}
       assert_received {:mix_shell, :info, ["http_timeout: nil (default)"]}
+      assert_received {:mix_shell, :info, ["mirror_url: nil (default)"]}
       assert_received {:mix_shell, :info, ["home:" <> _]}
     end)
   end
