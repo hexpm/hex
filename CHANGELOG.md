@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## v0.19.1-dev
+
 ## v0.19.0 (2019-01-15)
 
 ### Enhancements
