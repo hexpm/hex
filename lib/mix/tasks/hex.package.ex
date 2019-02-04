@@ -40,7 +40,7 @@ defmodule Mix.Tasks.Hex.Package do
                 unpack_tarball!(tar_path, abs_path)
                 "#{package} v#{version} extracted to #{abs_path}"
               else
-                "#{package} v#{version} downloaded in #{tar_path}"
+                "#{package} v#{version} downloaded to #{tar_path}"
               end
             Hex.Shell.info(message)
 
