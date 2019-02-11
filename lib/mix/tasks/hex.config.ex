@@ -113,7 +113,6 @@ defmodule Mix.Tasks.Hex.Config do
   ]
 
   @valid_read_keys [
-    "api_key",
     "api_key_read",
     "api_key_write",
     "api_url",
