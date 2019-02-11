@@ -99,6 +99,7 @@ defmodule Mix.Tasks.Hex.Config do
 
   @switches [delete: :boolean]
   @valid_write_keys [
+    "api_key",
     "api_url",
     "offline",
     "unsafe_https",
@@ -112,6 +113,9 @@ defmodule Mix.Tasks.Hex.Config do
   ]
 
   @valid_read_keys [
+    "api_key",
+    "api_key_read",
+    "api_key_write",
     "api_url",
     "api_key_write_unencrypted",
     "offline",
@@ -195,7 +199,7 @@ defmodule Mix.Tasks.Hex.Config do
   defp read(key, _verbose), do: Mix.raise("The key #{key} is not valid")
 
   defp print_value(key, value, true, source),
-    do: Hex.Shell.info("#{label(key)}: #{inspect(value, pretty: true)} #{source}")
+    do: Hex.Shell.info("#{key}: #{inspect(value, pretty: true)} #{source}")
 
   defp print_value(_key, value, false, _source), do: Hex.Shell.info(inspect(value, pretty: true))
 
@@ -215,12 +219,5 @@ defmodule Mix.Tasks.Hex.Config do
     :home
     |> Hex.State.fetch!()
     |> Path.join("hex.config")
-  end
-
-  defp label(key) do
-    case key do
-      "api_key_write_unencrypted" -> "api_key"
-      _ -> key
-    end
   end
 end
