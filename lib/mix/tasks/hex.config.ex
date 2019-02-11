@@ -180,7 +180,7 @@ defmodule Mix.Tasks.Hex.Config do
 
   defp read(key, verbose) when is_binary(key) and key in @valid_read_keys do
     case Map.fetch(Hex.State.get_all(), :"#{key}") do
-      {{:env, env_var}, value} ->
+      {:ok, {{:env, env_var}, value}} ->
         print_value(key, value, verbose, "(using `#{env_var}`)")
 
       {{:global_config, _key}, value} ->
