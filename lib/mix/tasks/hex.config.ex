@@ -180,7 +180,7 @@ defmodule Mix.Tasks.Hex.Config do
   defp read(key, verbose \\ false)
 
   defp read(key, verbose) when is_binary(key) and key in @valid_read_keys do
-    case Map.fetch!(Hex.State.get_all(), :"#{key}") do
+    case Map.fetch(Hex.State.get_all(), :"#{key}") do
       {{:env, env_var}, value} ->
         print_value(key, value, verbose, "(using `#{env_var}`)")
 
@@ -192,6 +192,9 @@ defmodule Mix.Tasks.Hex.Config do
 
       {kind, value} when kind in [:default, :computed] ->
         print_value(key, value, verbose, "(default)")
+
+      :error ->
+        Mix.raise("Config does not contain the key #{key}")
     end
   end
 
