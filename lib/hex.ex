@@ -65,10 +65,16 @@ defmodule Hex do
         _other -> string
       end
     end
+
+    def string_pad_trailing(string, count) do
+      filler_size = max(count - byte_size(string), 0)
+      string <> String.duplicate(" ", filler_size)
+    end
   else
     def string_trim(string), do: String.trim(string)
     def string_trim_leading(string, trim), do: String.trim_leading(string, trim)
     def string_trim_trailing(string, trim), do: String.trim_trailing(string, trim)
+    def string_pad_trailing(string, count), do: String.pad_trailing(string, count)
     def to_charlist(term), do: Kernel.to_charlist(term)
     def string_to_charlist(string), do: String.to_charlist(string)
   end

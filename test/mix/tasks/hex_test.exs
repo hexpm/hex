@@ -4,5 +4,6 @@ defmodule Mix.Tasks.HexTest do
   test "run without args shows help" do
     Mix.Tasks.Hex.run([])
     assert_received {:mix_shell, :info, ["Hex is a package manager for the Erlang ecosystem."]}
+    assert_received {:mix_shell, :info, ["mix hex.config" <> _]}
   end
 end
