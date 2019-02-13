@@ -127,7 +127,7 @@ defmodule Mix.Tasks.Hex.Config do
       {{:env, env_var}, value} ->
         print_value(key, value, verbose, "(using `#{env_var}`)")
 
-      {{:hex_config, _key}, value} ->
+      {{:global_config, _key}, value} ->
         print_value(key, value, verbose, "(using `#{config_path()}`)")
 
       {{:project_config, _key}, value} ->

@@ -88,20 +88,20 @@ defmodule Hex.State do
   }
 
   def start_link() do
-    hex_config = Hex.Config.read()
-    Agent.start_link(__MODULE__, :init, [hex_config], name: @name)
+    global_config = Hex.Config.read()
+    Agent.start_link(__MODULE__, :init, [global_config], name: @name)
   end
 
   def stop() do
     Agent.stop(@name)
   end
 
-  def init(hex_config) do
+  def init(global_config) do
     project_config = Keyword.get(Mix.Project.config(), :package, [])
 
     state =
       Enum.into(@config, %{}, fn {key, spec} ->
-        {key, load_config_value(hex_config, project_config, spec)}
+        {key, load_config_value(global_config, project_config, spec)}
       end)
 
     {_source, repos_key} = Map.fetch!(state, :repos_key)
@@ -110,7 +110,7 @@ defmodule Hex.State do
       clean_pass: {:computed, true},
       httpc_profile: {:computed, :hex},
       pbkdf2_iters: {:computed, @pbkdf2_iters},
-      repos: {:computed, Hex.Config.read_repos(hex_config, repos_key)},
+      repos: {:computed, Hex.Config.read_repos(global_config, repos_key)},
       repos_key: {:computed, repos_key},
       ssl_version: {:computed, ssl_version()}
     })
@@ -172,11 +172,11 @@ defmodule Hex.State do
     Agent.update(@name, fn _ -> map end)
   end
 
-  defp load_config_value(hex_config, project_config, spec) do
+  defp load_config_value(global_config, project_config, spec) do
     result =
       load_env(spec[:env]) ||
         load_project_config(project_config, spec[:config]) ||
-        load_hex_config(hex_config, spec[:config])
+        load_global_config(global_config, spec[:config])
 
     {module, func} = spec[:fun] || {__MODULE__, :id}
 
@@ -196,10 +196,10 @@ defmodule Hex.State do
     end)
   end
 
-  defp load_hex_config(config, keys) do
+  defp load_global_config(config, keys) do
     Enum.find_value(keys || [], fn key ->
       if value = Keyword.get(config, key) do
-        {{:hex_config, key}, value}
+        {{:global_config, key}, value}
       else
         nil
       end
