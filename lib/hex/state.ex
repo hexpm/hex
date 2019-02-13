@@ -97,7 +97,7 @@ defmodule Hex.State do
   end
 
   def init(global_config) do
-    project_config = Keyword.get(Mix.Project.config(), :package, [])
+    project_config = Keyword.get(Mix.Project.config(), :hex, [])
 
     state =
       Enum.into(@config, %{}, fn {key, spec} ->

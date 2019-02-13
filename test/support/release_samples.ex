@@ -263,9 +263,11 @@ defmodule ReleaseCustomApiUrl.MixProject do
       version: "0.0.1",
       deps: [],
       package: [
-        api_url: "https://custom",
         licenses: ["MIT"],
         links: %{"a" => "http://a"}
+      ],
+      hex: [
+        api_url: "https://custom"
       ]
     ]
   end
