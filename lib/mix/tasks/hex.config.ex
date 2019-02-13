@@ -51,6 +51,44 @@ defmodule Mix.Tasks.Hex.Config do
   `HEX_HOME` environment variable can be set to point to the directory where Hex
   stores the cache and configuration (Default: `~/.hex`)
 
+  ## Config overrides
+
+  All keys from the "Config keys" section above can be overriden.
+
+  Hex uses the following order of precedence when computing a value for a given key:
+
+    1. System environment
+
+       Setting for example `HEX_API_URL` environemnt variable has always the
+       highest precedence for the `api_url` config key.
+
+    2. Project configuration
+
+       Hex allows an optional, per-project configuration in the `mix.exs` file.
+
+       For example, to override `api_url` config key, add the following:
+
+           # mix.exs
+           defmodule MyApp.MixProject
+             def project() do
+               [
+                 # ...
+                 deps: deps(),
+                 hex: hex()
+               ]
+             end
+
+             defp hex() do
+               [
+                 api_url: "https://hex.myorg/api"
+               ]
+             end
+           end
+
+    3. Global configuration using `mix hex.config KEY VALUE`
+
+    4. Default value
+
   ## Command line options
 
     * `--delete` - Remove a specific config key
