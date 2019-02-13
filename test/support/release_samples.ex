@@ -254,3 +254,19 @@ defmodule ReleaseGitDeps.MixProject do
     ]
   end
 end
+
+defmodule ReleaseCustomApiUrl.MixProject do
+  def project do
+    [
+      app: :release_custom_api_url,
+      description: "Package with custom api_url",
+      version: "0.0.1",
+      deps: [],
+      package: [
+        api_url: "https://custom",
+        licenses: ["MIT"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
