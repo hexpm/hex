@@ -5,8 +5,8 @@ defmodule Mix.Tasks.Hex.ConfigTest do
     Mix.Project.push(ReleaseCustomApiUrl.MixProject)
 
     in_tmp(fn ->
+      Hex.State.refresh()
       Hex.State.put(:home, File.cwd!())
-      IO.inspect(Mix.Project.config())
 
       Mix.Tasks.Hex.Config.run([])
 
