@@ -20,15 +20,16 @@ defmodule Mix.Tasks.Hex do
     Hex.Shell.info("Hex v" <> Hex.version())
     Hex.Shell.info("Hex is a package manager for the Erlang ecosystem.")
 
-    Hex.Shell.info("Available tasks:")
-    line_break()
-
     print_available_tasks()
 
     Hex.Shell.info("Further information can be found here: https://hex.pm/docs")
   end
 
   defp print_available_tasks() do
+    line_break()
+    Hex.Shell.info("Available tasks:")
+    line_break()
+
     pattern = "hex."
     modules = Enum.filter(load_tasks(), &String.contains?(Mix.Task.task_name(&1), pattern))
     {docs, max} = build_task_doc_list(modules)
