@@ -179,7 +179,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert_received {:mix_shell, :error, [^message]}
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
-      Mix.Tasks.Hex.Publish.run(["--revert", "0.1.1"])
+      Mix.Tasks.Hex.Publish.run(["docs", "--revert", "0.1.1"])
       assert_received {:mix_shell, :info, ["Docs do not exist"]}
     end)
   end
