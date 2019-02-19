@@ -100,6 +100,9 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp get_requirements_from_lock(app, lock) do
     Enum.flat_map(lock, fn {source, lock} ->
       case Hex.Utils.lock(lock) do
+        %{deps: nil} ->
+          []
+
         %{deps: deps} ->
           Enum.flat_map(deps, fn {dep_app, req, _opts} ->
             if app == dep_app, do: [[Atom.to_string(source), req]], else: []
