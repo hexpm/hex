@@ -201,7 +201,7 @@ defmodule Mix.Tasks.Hex.Publish do
         Mix.shell().error("""
         Publication failed because the "docs" task is unavailable. You may resolve this by:
 
-          1. Adding {:ex_doc, ">= 0.0.0", only: :dev} to your dependencies in your mix.exs and trying again
+          1. Adding {:ex_doc, ">= 0.0.0", only: :dev, runtime: false} to your dependencies in your mix.exs and trying again
           2. If ex_doc was already added, make sure you run "mix hex.publish" in the same environment as the ex_doc package
           3. Publishing the package without docs by running "mix hex.publish package" (not recommended)
         """)
