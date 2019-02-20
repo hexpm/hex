@@ -149,25 +149,27 @@ defmodule Mix.Tasks.Hex.Config do
   defp read(key, verbose \\ false)
 
   defp read(key, verbose) when is_binary(key) do
-    with {:ok, config_key} <- Keyword.fetch(valid_read_keys(), String.to_existing_atom(key)) do
-      case Map.fetch(Hex.State.get_all(), :"#{config_key}") do
-        {:ok, {{:env, env_var}, value}} ->
-          print_value(key, value, verbose, "(using `#{env_var}`)")
+    case Keyword.fetch(valid_read_keys(), String.to_existing_atom(key)) do
+      {:ok, config_key} ->
+        case Map.fetch(Hex.State.get_all(), :"#{config_key}") do
+          {:ok, {{:env, env_var}, value}} ->
+            print_value(key, value, verbose, "(using `#{env_var}`)")
 
-        {:ok, {{:global_config, _key}, value}} ->
-          print_value(key, value, verbose, "(using `#{config_path()}`)")
+          {:ok, {{:global_config, _key}, value}} ->
+            print_value(key, value, verbose, "(using `#{config_path()}`)")
 
-        {:ok, {{:project_config, _key}, value}} ->
-          print_value(key, value, verbose, "(using `mix.exs`)")
+          {:ok, {{:project_config, _key}, value}} ->
+            print_value(key, value, verbose, "(using `mix.exs`)")
 
-        {:ok, {kind, value}} when kind in [:default, :computed] ->
-          print_value(key, value, verbose, "(default)")
+          {:ok, {kind, value}} when kind in [:default, :computed] ->
+            print_value(key, value, verbose, "(default)")
 
-        :error ->
-          Mix.raise("Config does not contain the key #{key}")
-      end
-    else
-      _error -> Mix.raise("The key #{key} is not valid")
+          :error ->
+            Mix.raise("Config does not contain the key #{key}")
+        end
+
+      _error ->
+        Mix.raise("The key #{key} is not valid")
     end
   end
 
