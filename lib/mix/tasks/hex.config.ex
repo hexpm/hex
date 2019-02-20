@@ -155,13 +155,13 @@ defmodule Mix.Tasks.Hex.Config do
           print_value(config, value, verbose, "(using `#{env_var}`)")
 
         {:ok, {:global_config, _key}, value} ->
-          print_value(key, value, verbose, "(using `#{config_path()}`)")
+          print_value(config, value, verbose, "(using `#{config_path()}`)")
 
         {:ok, {:project_config, _key}, value} ->
-          print_value(key, value, verbose, "(using `mix.exs`)")
+          print_value(config, value, verbose, "(using `mix.exs`)")
 
         {:ok, {kind, value}} when kind in [:default, :computed] ->
-          print_value(key, value, verbose, "(default)")
+          print_value(config, value, verbose, "(default)")
 
         :error ->
           Mix.raise("Config does not contain the key #{config}")
