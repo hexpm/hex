@@ -149,9 +149,8 @@ defmodule Mix.Tasks.Hex.Config do
   defp read(key, verbose \\ false)
 
   defp read(key, verbose) when is_binary(key) do
-    # key in the args is really the config value in State
-    with {:ok, config} <- Keyword.fetch(valid_read_keys(), String.to_existing_atom(key)) do
-      case Map.fetch(Hex.State.get_all(), :"#{config}") do
+    with {:ok, config_key} <- Keyword.fetch(valid_read_keys(), String.to_existing_atom(key)) do
+      case Map.fetch(Hex.State.get_all(), :"#{config_key}") do
         {:ok, {{:env, env_var}, value}} ->
           print_value(key, value, verbose, "(using `#{env_var}`)")
 
@@ -214,7 +213,7 @@ defmodule Mix.Tasks.Hex.Config do
   defp valid_read_keys() do
     valid_keys()
     |> Enum.map(fn {key, config, access} ->
-      if access != :not_accessible, do: key_and_config(config, key)
+      if access != :not_accessible, do: config_and_key(config, key)
     end)
     |> Enum.filter(&(&1 != nil))
   end
@@ -222,12 +221,12 @@ defmodule Mix.Tasks.Hex.Config do
   defp valid_write_keys() do
     valid_keys()
     |> Enum.map(fn {key, config, access} ->
-      if access == :read_and_write, do: key_and_config(config, key)
+      if access == :read_and_write, do: config_and_key(config, key)
     end)
     |> Enum.filter(&(&1 != nil))
   end
 
-  defp key_and_config(key, nil), do: {key, to_string(key)}
-  defp key_and_config(nil, config), do: {config, to_string(config)}
-  defp key_and_config(key, config), do: {key, to_string(config)}
+  defp config_and_key(key, nil), do: {key, to_string(key)}
+  defp config_and_key(nil, config), do: {config, to_string(config)}
+  defp config_and_key(key, config), do: {key, to_string(config)}
 end
