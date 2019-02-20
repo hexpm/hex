@@ -149,22 +149,23 @@ defmodule Mix.Tasks.Hex.Config do
   defp read(key, verbose \\ false)
 
   defp read(key, verbose) when is_binary(key) do
+    # key in the args is really the config value in State
     with {:ok, config} <- Keyword.fetch(valid_read_keys(), String.to_existing_atom(key)) do
-      case Map.fetch(Hex.State.get_all(), :"#{key}") do
+      case Map.fetch(Hex.State.get_all(), :"#{config}") do
         {:ok, {{:env, env_var}, value}} ->
-          print_value(config, value, verbose, "(using `#{env_var}`)")
+          print_value(key, value, verbose, "(using `#{env_var}`)")
 
         {:ok, {{:global_config, _key}, value}} ->
-          print_value(config, value, verbose, "(using `#{config_path()}`)")
+          print_value(key, value, verbose, "(using `#{config_path()}`)")
 
         {:ok, {{:project_config, _key}, value}} ->
-          print_value(config, value, verbose, "(using `mix.exs`)")
+          print_value(key, value, verbose, "(using `mix.exs`)")
 
         {:ok, {kind, value}} when kind in [:default, :computed] ->
-          print_value(config, value, verbose, "(default)")
+          print_value(key, value, verbose, "(default)")
 
         :error ->
-          Mix.raise("Config does not contain the key #{config}")
+          Mix.raise("Config does not contain the key #{key}")
       end
     else
       _ -> Mix.raise("The key #{key} is not valid")
@@ -213,7 +214,7 @@ defmodule Mix.Tasks.Hex.Config do
   defp valid_read_keys() do
     valid_keys()
     |> Enum.map(fn {key, config, access} ->
-      if access != :not_accessible, do: key_and_config(key, config)
+      if access != :not_accessible, do: key_and_config(config, key)
     end)
     |> Enum.filter(&(&1 != nil))
   end
@@ -221,11 +222,12 @@ defmodule Mix.Tasks.Hex.Config do
   defp valid_write_keys() do
     valid_keys()
     |> Enum.map(fn {key, config, access} ->
-      if access == :read_and_write, do: key_and_config(key, config)
+      if access == :read_and_write, do: key_and_config(config, key)
     end)
     |> Enum.filter(&(&1 != nil))
   end
 
   defp key_and_config(key, nil), do: {key, to_string(key)}
+  defp key_and_config(nil, config), do: {config, to_string(config)}
   defp key_and_config(key, config), do: {key, to_string(config)}
 end
