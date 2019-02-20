@@ -168,7 +168,7 @@ defmodule Mix.Tasks.Hex.Config do
           Mix.raise("Config does not contain the key #{key}")
       end
     else
-      _ -> Mix.raise("The key #{key} is not valid")
+      _error -> Mix.raise("The key #{key} is not valid")
     end
   end
 
