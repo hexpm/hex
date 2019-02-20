@@ -265,4 +265,6 @@ defmodule Hex.State do
   def http_timeout(seconds), do: to_integer(seconds)
 
   def id(arg), do: arg
+
+  def config, do: @config
 end
