@@ -154,10 +154,10 @@ defmodule Mix.Tasks.Hex.Config do
         {:ok, {{:env, env_var}, value}} ->
           print_value(config, value, verbose, "(using `#{env_var}`)")
 
-        {:ok, {:global_config, _key}, value} ->
+        {:ok, {{:global_config, _key}, value}} ->
           print_value(config, value, verbose, "(using `#{config_path()}`)")
 
-        {:ok, {:project_config, _key}, value} ->
+        {:ok, {{:project_config, _key}, value}} ->
           print_value(config, value, verbose, "(using `mix.exs`)")
 
         {:ok, {kind, value}} when kind in [:default, :computed] ->
@@ -183,7 +183,7 @@ defmodule Mix.Tasks.Hex.Config do
   end
 
   defp set(key, value) do
-    case Keyword.fetch(valid_write_keys(), key) do
+    case Keyword.fetch(valid_write_keys(), String.to_existing_atom(key)) do
       {:ok, config} -> Hex.Config.update([{:"#{config}", value}])
       :error -> Mix.raise("Invalid key #{key}")
     end
