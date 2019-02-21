@@ -110,11 +110,13 @@ defmodule Mix.Tasks.Hex.Build do
   defp build_package(meta, output) do
     {_tar, checksum} = Hex.create_tar!(meta, meta.files, output)
     Hex.Shell.info("Package checksum: #{Base.encode16(checksum, case: :lower)}")
+    Hex.Shell.info("Saved to #{output}")
   end
 
   defp build_and_unpack_package(meta, output) do
     {tar, checksum} = Hex.create_tar!(meta, meta.files, :memory)
     %{checksum: ^checksum} = Hex.unpack_tar!({:binary, tar}, output)
+    Hex.Shell.info("Saved to #{output}")
   end
 
   @doc false
