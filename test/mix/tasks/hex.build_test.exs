@@ -318,13 +318,13 @@ defmodule Mix.Tasks.Hex.BuildTest do
     in_fixture("sample", fn ->
       Hex.State.put(:home, tmp_path())
       Mix.Tasks.Hex.Build.run(["--unpack"])
-      assert_received({:mix_shell, :info, ["Saved to ./sample-0.0.1"]})
+      assert_received({:mix_shell, :info, ["Saved to sample-0.0.1"]})
 
       assert File.exists?("sample-0.0.1/mix.exs")
       assert File.exists?("sample-0.0.1/hex_metadata.config")
 
       Mix.Tasks.Hex.Build.run(["--unpack", "-o", "custom"])
-      assert_received({:mix_shell, :info, ["Saved to ./custom"]})
+      assert_received({:mix_shell, :info, ["Saved to custom"]})
 
       assert File.exists?("custom/mix.exs")
       assert File.exists?("custom/hex_metadata.config")
