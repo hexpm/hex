@@ -202,8 +202,7 @@ defmodule Mix.Tasks.Hex.Config do
   end
 
   defp valid_keys() do
-    Hex.State.config()
-    |> Enum.map(fn {key, v} ->
+    Enum.map(Hex.State.config(), fn {key, v} ->
       [config | _] = Map.get(v, :config, [nil])
       [env | _] = Map.get(v, :env, [nil])
 
