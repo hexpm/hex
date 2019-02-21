@@ -151,22 +151,7 @@ defmodule Mix.Tasks.Hex.Config do
   defp read(key, verbose) when is_binary(key) do
     case Keyword.fetch(valid_read_keys(), String.to_existing_atom(key)) do
       {:ok, config_key} ->
-        case Map.fetch(Hex.State.get_all(), :"#{config_key}") do
-          {:ok, {{:env, env_var}, value}} ->
-            print_value(key, value, verbose, "(using `#{env_var}`)")
-
-          {:ok, {{:global_config, _key}, value}} ->
-            print_value(key, value, verbose, "(using `#{config_path()}`)")
-
-          {:ok, {{:project_config, _key}, value}} ->
-            print_value(key, value, verbose, "(using `mix.exs`)")
-
-          {:ok, {kind, value}} when kind in [:default, :computed] ->
-            print_value(key, value, verbose, "(default)")
-
-          :error ->
-            Mix.raise("Config does not contain the key #{key}")
-        end
+        fetch_current_value_and_print(config_key, key, verbose)
 
       _error ->
         Mix.raise("The key #{key} is not valid")
@@ -174,6 +159,25 @@ defmodule Mix.Tasks.Hex.Config do
   end
 
   defp read(key, verbose) when is_atom(key), do: read(to_string(key), verbose)
+
+  defp fetch_current_value_and_print(config_key, key, verbose) do
+    case Map.fetch(Hex.State.get_all(), :"#{config_key}") do
+      {:ok, {{:env, env_var}, value}} ->
+        print_value(key, value, verbose, "(using `#{env_var}`)")
+
+      {:ok, {{:global_config, _key}, value}} ->
+        print_value(key, value, verbose, "(using `#{config_path()}`)")
+
+      {:ok, {{:project_config, _key}, value}} ->
+        print_value(key, value, verbose, "(using `mix.exs`)")
+
+      {:ok, {kind, value}} when kind in [:default, :computed] ->
+        print_value(key, value, verbose, "(default)")
+
+      :error ->
+        Mix.raise("Config does not contain the key #{key}")
+    end
+  end
 
   defp print_value(key, value, true, source),
     do: Hex.Shell.info("#{key}: #{inspect(value, pretty: true)} #{source}")
