@@ -255,7 +255,8 @@ defmodule Hex.RemoteConverger do
         |> version_string_or_nil()
 
       change = categorize_dependency_change(previous_version, version)
-      Map.put(acc, change, acc[change] ++ [{name, repo, previous_version, version}])
+      warning = warning_string(previous_version, version)
+      Map.put(acc, change, acc[change] ++ [{name, repo, previous_version, version, warning}])
     end)
   end
 
@@ -281,6 +282,28 @@ defmodule Hex.RemoteConverger do
     Version.compare(version, previous_version)
   end
 
+  defp warning_string(nil, _version), do: nil
+
+  defp warning_string(previous_version, version) do
+    prev_ver =
+      case Version.parse(previous_version) do
+        {:ok, version} -> version
+        :error -> nil
+      end
+
+    new_ver =
+      case Version.parse(version) do
+        {:ok, version} -> version
+        :error -> nil
+      end
+
+    cond do
+      Hex.Version.major_version_change?(prev_ver, new_ver) -> " (major)"
+      Hex.Version.breaking_minor_version_change?(prev_ver, new_ver) -> " (minor)"
+      true -> nil
+    end
+  end
+
   defp print_category(mod) do
     case mod do
       :new -> Hex.Shell.info("New:")
@@ -291,34 +314,49 @@ defmodule Hex.RemoteConverger do
   end
 
   defp print_dependency_group(deps, mod) do
-    Enum.each(deps, fn {name, repo, previous_version, version} ->
+    Enum.each(deps, fn {name, repo, previous_version, version, warning} ->
       print_status(
         Registry.retired(repo, name, version),
         mod,
         name,
         previous_version,
-        version
+        version,
+        warning
       )
     end)
   end
 
-  defp print_status(nil, mod, name, previous_version, version) do
+  defp print_status(nil, mod, name, previous_version, version, warning) do
     case mod do
       :new ->
-        Hex.Shell.info(Hex.Shell.format([:green, "  #{name} #{version}"]))
+        Hex.Shell.info(Hex.Shell.format([:green, "  #{name} #{version}", :red, "#{warning}"]))
 
       :eq ->
         Hex.Shell.info("  #{name} #{version}")
 
       :lt ->
-        Hex.Shell.warn("  #{name} #{previous_version} => #{version}")
+        Hex.Shell.info(
+          Hex.Shell.format([
+            :yellow,
+            "  #{name} #{previous_version} => #{version}",
+            :red,
+            "#{warning}"
+          ])
+        )
 
       :gt ->
-        Hex.Shell.info(Hex.Shell.format([:green, "  #{name} #{previous_version} => #{version}"]))
+        Hex.Shell.info(
+          Hex.Shell.format([
+            :green,
+            "  #{name} #{previous_version} => #{version}",
+            :red,
+            "#{warning}"
+          ])
+        )
     end
   end
 
-  defp print_status(retired, mod, name, previous_version, version) do
+  defp print_status(retired, mod, name, previous_version, version, _warning) do
     case mod do
       mod when mod in [:eq, :new] ->
         Hex.Shell.warn("  #{name} #{version} RETIRED!")
