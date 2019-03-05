@@ -255,7 +255,7 @@ defmodule Hex.RemoteConverger do
         |> version_string_or_nil()
 
       change = categorize_dependency_change(previous_version, version)
-      warning = warning_string(previous_version, version)
+      warning = warning_message(previous_version, version)
       Map.put(acc, change, acc[change] ++ [{name, repo, previous_version, version, warning}])
     end)
   end
@@ -282,9 +282,9 @@ defmodule Hex.RemoteConverger do
     Version.compare(version, previous_version)
   end
 
-  defp warning_string(nil, _version), do: nil
+  defp warning_message(nil, _version), do: nil
 
-  defp warning_string(previous_version, version) do
+  defp warning_message(previous_version, version) do
     prev_ver =
       case Version.parse(previous_version) do
         {:ok, version} -> version
