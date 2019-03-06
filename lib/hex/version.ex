@@ -241,18 +241,11 @@ defmodule Hex.Version do
     Code.ensure_loaded?(Version) and function_exported?(Version, :match?, 3)
   end
 
-  def major_version_change?(%Version{major: major1}, %Version{major: major2})
-      when major1 != major2,
-      do: true
+  def major_version_change?(%Version{} = version1, %Version{} = version2) do
+    version1.major != version2.major
+  end
 
-  def major_version_change?(_version1, _version2), do: false
-
-  def breaking_minor_version_change?(%Version{major: 0, minor: minor1}, %Version{
-        major: 0,
-        minor: minor2
-      })
-      when minor1 != minor2,
-      do: true
-
-  def breaking_minor_version_change?(_version1, _version2), do: false
+  def breaking_minor_version_change?(%Version{} = version1, %Version{} = version2) do
+    version1.major == 0 and version2.major == 0 and version1.minor != version2.minor
+  end
 end
