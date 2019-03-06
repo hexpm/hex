@@ -285,17 +285,8 @@ defmodule Hex.RemoteConverger do
   defp warning_message(nil, _version), do: nil
 
   defp warning_message(previous_version, version) do
-    prev_ver =
-      case Version.parse(previous_version) do
-        {:ok, version} -> version
-        :error -> nil
-      end
-
-    new_ver =
-      case Version.parse(version) do
-        {:ok, version} -> version
-        :error -> nil
-      end
+    prev_ver = Hex.Version.parse!(previous_version)
+    new_ver = Hex.Version.parse!(version)
 
     cond do
       Hex.Version.major_version_change?(prev_ver, new_ver) -> " (major)"
