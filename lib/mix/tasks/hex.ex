@@ -19,10 +19,47 @@ defmodule Mix.Tasks.Hex do
 
     Hex.Shell.info("Hex v" <> Hex.version())
     Hex.Shell.info("Hex is a package manager for the Erlang ecosystem.")
-    line_break()
-    Hex.Shell.info("To list Hex tasks run: mix help --search hex.")
-    line_break()
+
+    print_available_tasks()
+
     Hex.Shell.info("Further information can be found here: https://hex.pm/docs")
+  end
+
+  defp print_available_tasks() do
+    line_break()
+    Hex.Shell.info("Available tasks:")
+    line_break()
+
+    pattern = "hex."
+    modules = Enum.filter(load_tasks(), &String.contains?(Mix.Task.task_name(&1), pattern))
+    {docs, max} = build_task_doc_list(modules)
+    display_doc_list(docs, max)
+    line_break()
+  end
+
+  defp load_tasks() do
+    Enum.filter(Mix.Task.load_all(), &(Mix.Task.moduledoc(&1) != false))
+  end
+
+  defp build_task_doc_list(modules) do
+    Enum.reduce(modules, {[], 0}, fn module, {docs, max} ->
+      if doc = Mix.Task.shortdoc(module) do
+        task = "mix " <> Mix.Task.task_name(module)
+        {[{task, doc} | docs], max(byte_size(task), max)}
+      else
+        {docs, max}
+      end
+    end)
+  end
+
+  defp display_doc_list(docs, max) do
+    Enum.each(Enum.sort(docs), fn {task, doc} ->
+      Mix.shell().info(format_task(task, max, doc))
+    end)
+  end
+
+  defp format_task(task, max, doc) do
+    Hex.string_pad_trailing(task, max) <> " # " <> doc
   end
 
   defp line_break(), do: Hex.Shell.info("")
