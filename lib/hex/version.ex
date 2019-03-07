@@ -240,4 +240,12 @@ defmodule Hex.Version do
   defp allow_pre_available? do
     Code.ensure_loaded?(Version) and function_exported?(Version, :match?, 3)
   end
+
+  def major_version_change?(%Version{} = version1, %Version{} = version2) do
+    version1.major != version2.major
+  end
+
+  def breaking_minor_version_change?(%Version{} = version1, %Version{} = version2) do
+    version1.major == 0 and version2.major == 0 and version1.minor != version2.minor
+  end
 end
