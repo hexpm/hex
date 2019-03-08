@@ -15,6 +15,7 @@ defmodule Mix.Tasks.Hex.Search do
     * `--organization ORGANIZATION` - Search packages in specific organization
 
   """
+  @behaviour Mix.Subtasks
 
   @switches [organization: :string, all_organizations: :boolean]
 
@@ -34,6 +35,13 @@ defmodule Mix.Tasks.Hex.Search do
         mix hex.search PACKAGE
         """)
     end
+  end
+
+  @impl true
+  def subtasks() do
+    [
+      {"PACKAGE", "Searches for package names"}
+    ]
   end
 
   defp search_package(package, organization) do

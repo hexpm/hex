@@ -12,6 +12,7 @@ defmodule Mix.Tasks.Hex.Install do
 
       mix hex.install VERSION
   """
+  @behaviour Mix.Subtasks
 
   @impl true
   def run(args) do
@@ -26,6 +27,13 @@ defmodule Mix.Tasks.Hex.Install do
         mix hex.install VERSION
         """)
     end
+  end
+
+  @impl true
+  def subtasks() do
+    [
+      {"VERSION", "Manually install specific Hex version"}
+    ]
   end
 
   defp install(hex_version) do

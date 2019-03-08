@@ -31,6 +31,7 @@ defmodule Mix.Tasks.Hex.Retire do
       the retirement reason
     * `--organization ORGANIZATION` - The organization the package belongs to
   """
+  @behaviour Mix.Subtasks
 
   @switches [message: :string, unretire: :boolean, organization: :string]
 
@@ -57,6 +58,14 @@ defmodule Mix.Tasks.Hex.Retire do
         mix hex.retire PACKAGE VERSION --unretire
         """)
     end
+  end
+
+  @impl true
+  def subtasks() do
+    [
+      {"PACKAGE VERSION REASON [--organization ORGANIZATION]", "Retires a package version"},
+      {"PACKAGE VERSION --unretire [--organization ORGANIZATION]", "Unretires a package"}
+    ]
   end
 
   defp retire(organization, package, version, reason, opts) do

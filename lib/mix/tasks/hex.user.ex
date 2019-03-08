@@ -86,6 +86,7 @@ defmodule Mix.Tasks.Hex.User do
 
       mix hex.user reset_password local
   """
+  @behaviour Mix.Subtasks
 
   @switches [
     all: :boolean,
@@ -132,6 +133,22 @@ defmodule Mix.Tasks.Hex.User do
       _ ->
         invalid_args()
     end
+  end
+
+  @impl true
+  def subtasks() do
+    [
+      {"register", "Register a new user"},
+      {"whoami", "Prints the current user"},
+      {"auth", "Authorize a new user"},
+      {"deauth", "Deauthorize the user"},
+      {"key generate", "Generate user key"},
+      {"key revoke KEY_NAME", "Removes given key from account"},
+      {"key revoke --all", "Revoke all keys"},
+      {"key list", "Lists all keys associated with your account"},
+      {"reset_password account", "Reset user account password"},
+      {"reset_password local", "Reset local password"}
+    ]
   end
 
   defp invalid_args() do

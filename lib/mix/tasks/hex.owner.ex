@@ -39,6 +39,7 @@ defmodule Mix.Tasks.Hex.Owner do
 
     * `--organization ORGANIZATION` - The organization the package belongs to
   """
+  @behaviour Mix.Subtasks
 
   @switches [organization: :string, level: :string]
 
@@ -72,6 +73,16 @@ defmodule Mix.Tasks.Hex.Owner do
         mix hex.owner packages
         """)
     end
+  end
+
+  @impl true
+  def subtasks() do
+    [
+      {"add PACKAGE EMAIL_OR_USERNAME [--organization ORGANIZATION] [--level LEVEL]", "Adds an owner to package"},
+      {"remove PACKAGE EMAIL_OR_USERNAME [--organization ORGANIZATION]", "Removes an owner from package"},
+      {"list PACKAGE [--organization ORGANIZATION]", "List all owners of a given package"},
+      {"packages", "List all packages owned by the current user"}
+    ]
   end
 
   defp add_owner(organization, package, owner, level) when level in ~w[full maintainer] do
