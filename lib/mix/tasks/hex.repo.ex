@@ -56,7 +56,7 @@ defmodule Mix.Tasks.Hex.Repo do
 
       mix hex.repo list
   """
-  @behaviour Mix.Subtasks
+  @behaviour Hex.Mix.Subtasks
 
   @switches [url: :string, public_key: :string, auth_key: :string]
 

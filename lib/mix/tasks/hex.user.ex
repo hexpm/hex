@@ -86,7 +86,7 @@ defmodule Mix.Tasks.Hex.User do
 
       mix hex.user reset_password local
   """
-  @behaviour Mix.Subtasks
+  @behaviour Hex.Mix.Subtasks
 
   @switches [
     all: :boolean,

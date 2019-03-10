@@ -15,7 +15,7 @@ defmodule Mix.Tasks.Hex.Search do
     * `--organization ORGANIZATION` - Search packages in specific organization
 
   """
-  @behaviour Mix.Subtasks
+  @behaviour Hex.Mix.Subtasks
 
   @switches [organization: :string, all_organizations: :boolean]
 

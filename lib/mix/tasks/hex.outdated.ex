@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     * `--all` - shows all outdated packages, including children of packages defined in `mix.exs`
     * `--pre` - include pre-releases when checking for newer versions
   """
-  @behaviour Mix.Subtasks
+  @behaviour Hex.Mix.Subtasks
 
   @switches [all: :boolean, pre: :boolean]
 

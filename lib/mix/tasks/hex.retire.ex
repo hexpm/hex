@@ -31,7 +31,7 @@ defmodule Mix.Tasks.Hex.Retire do
       the retirement reason
     * `--organization ORGANIZATION` - The organization the package belongs to
   """
-  @behaviour Mix.Subtasks
+  @behaviour Hex.Mix.Subtasks
 
   @switches [message: :string, unretire: :boolean, organization: :string]
 

@@ -95,7 +95,7 @@ defmodule Mix.Tasks.Hex.Config do
 
     * `--delete` - Remove a specific config key
   """
-  @behaviour Mix.Subtasks
+  @behaviour Hex.Mix.Subtasks
 
   @switches [delete: :boolean]
   @valid_write_keys [

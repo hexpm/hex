@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Hex.Info do
 
     * `--organization ORGANIZATION` - The organization the package belongs to
   """
-  @behaviour Mix.Subtasks
+  @behaviour Hex.Mix.Subtasks
 
   @switches [organization: :string]
 

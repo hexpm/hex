@@ -90,7 +90,7 @@ defmodule Mix.Tasks.Hex.Organization do
       * `api:write` - API write access.
       * `repository` - Access to the organization's repository.
   """
-  @behaviour Mix.Subtasks
+  @behaviour Hex.Mix.Subtasks
 
   @switches [
     all: :boolean,

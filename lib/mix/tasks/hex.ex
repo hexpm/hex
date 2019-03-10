@@ -44,22 +44,32 @@ defmodule Mix.Tasks.Hex do
   defp build_task_doc_list(modules) do
     Enum.reduce(modules, {[], 0}, fn module, {docs, max} ->
       task = "mix " <> Mix.Task.task_name(module)
-      taskList = if doc = Mix.Task.shortdoc(module) do
-        [{task, doc}]
-      else
-        []
-      end ++ if Keyword.has_key?(module.__info__(:functions), :subtasks) do
-        module.subtasks() |> Enum.map(fn {subtask, docs} -> {"#{task} #{subtask}", docs} end)
-      else
-        []
-      end
-      max = Enum.reduce(taskList, max, fn {task, _}, max_now ->
-        max(byte_size(task), max_now)
-      end)
-      if Enum.empty? taskList do
+
+      task_list =
+        if doc = Mix.Task.shortdoc(module) do
+          [{task, doc}]
+        else
+          []
+        end
+
+      subtask_list =
+        if Keyword.has_key?(module.__info__(:functions), :subtasks) do
+          Enum.map(module.subtasks(), fn {subtask, docs} -> {"#{task} #{subtask}", docs} end)
+        else
+          []
+        end
+
+      all_tasks = task_list ++ subtask_list
+
+      max =
+        Enum.reduce(all_tasks, max, fn {task, _}, max_now ->
+          max(byte_size(task), max_now)
+        end)
+
+      if Enum.empty?(all_tasks) do
         {docs, max}
       else
-        {docs ++ [taskList], max}
+        {docs ++ [all_tasks], max}
       end
     end)
   end
@@ -69,6 +79,7 @@ defmodule Mix.Tasks.Hex do
       Enum.each(tasks, fn {task, doc} ->
         Mix.shell().info(format_task(task, max, doc))
       end)
+
       line_break()
     end)
   end

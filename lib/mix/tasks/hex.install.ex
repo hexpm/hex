@@ -12,7 +12,7 @@ defmodule Mix.Tasks.Hex.Install do
 
       mix hex.install VERSION
   """
-  @behaviour Mix.Subtasks
+  @behaviour Hex.Mix.Subtasks
 
   @impl true
   def run(args) do
