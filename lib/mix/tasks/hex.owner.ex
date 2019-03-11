@@ -39,7 +39,7 @@ defmodule Mix.Tasks.Hex.Owner do
 
     * `--organization ORGANIZATION` - The organization the package belongs to
   """
-  @behaviour Hex.Mix.Subtasks
+  @behaviour Hex.Mix.TaskDescription
 
   @switches [organization: :string, level: :string]
 
@@ -76,7 +76,7 @@ defmodule Mix.Tasks.Hex.Owner do
   end
 
   @impl true
-  def subtasks() do
+  def tasks() do
     [
       {"add PACKAGE EMAIL_OR_USERNAME", "Adds an owner to package"},
       {"remove PACKAGE EMAIL_OR_USERNAME", "Removes an owner from package"},

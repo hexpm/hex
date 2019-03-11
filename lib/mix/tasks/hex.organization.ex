@@ -90,7 +90,7 @@ defmodule Mix.Tasks.Hex.Organization do
       * `api:write` - API write access.
       * `repository` - Access to the organization's repository.
   """
-  @behaviour Hex.Mix.Subtasks
+  @behaviour Hex.Mix.TaskDescription
 
   @switches [
     all: :boolean,
@@ -132,7 +132,7 @@ defmodule Mix.Tasks.Hex.Organization do
   end
 
   @impl true
-  def subtasks() do
+  def tasks() do
     [
       {"auth ORGANIZATION", "Authorize an organization"},
       {"deauth ORGANIZATION", "Deauthorize and remove organization"},

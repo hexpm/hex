@@ -95,7 +95,7 @@ defmodule Mix.Tasks.Hex.Config do
 
     * `--delete` - Remove a specific config key
   """
-  @behaviour Hex.Mix.Subtasks
+  @behaviour Hex.Mix.TaskDescription
 
   @switches [delete: :boolean]
   @valid_write_keys [
@@ -158,8 +158,9 @@ defmodule Mix.Tasks.Hex.Config do
   end
 
   @impl true
-  def subtasks() do
+  def tasks() do
     [
+      {"", "Reads, updates or deletes local Hex config"},
       {"KEY VALUE", "Set config KEY to VALUE"},
       {"KEY", "Get config value for KEY"},
       {"KEY --delete", "Delete config value for KEY"}

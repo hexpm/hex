@@ -94,7 +94,7 @@ defmodule Mix.Tasks.Hex.Publish do
       will mark it as able to build with rebar. This detection can be overridden
       by setting this field.
   """
-  @behaviour Hex.Mix.Subtasks
+  @behaviour Hex.Mix.TaskDescription
 
   @switches [
     revert: :string,
@@ -156,8 +156,9 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   @impl true
-  def subtasks() do
+  def tasks() do
     [
+      {"", "Publishes a new package version"},
       {"package", "Publish current package"},
       {"docs", "Publish current docs"},
       {"package --revert VERSION", "Reverts package on given version"},

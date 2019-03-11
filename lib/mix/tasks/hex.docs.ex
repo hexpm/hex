@@ -35,7 +35,7 @@ defmodule Mix.Tasks.Hex.Docs do
     * `--organization ORGANIZATION` - The organization the package belongs to
     * `--latest` - Looks for the latest release of a package
   """
-  @behaviour Hex.Mix.Subtasks
+  @behaviour Hex.Mix.TaskDescription
 
   @elixir_apps ~w(eex elixir ex_unit iex logger mix)
   @switches [module: :string, organization: :string, latest: :boolean]
@@ -69,7 +69,7 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   @impl true
-  def subtasks() do
+  def tasks() do
     [
       {"fetch PACKAGE [VERSION]", "Fetch documentation for offline use"},
       {"offline PACKAGE [VERSION]", "Open a browser window with offline documentation"},

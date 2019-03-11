@@ -86,7 +86,7 @@ defmodule Mix.Tasks.Hex.User do
 
       mix hex.user reset_password local
   """
-  @behaviour Hex.Mix.Subtasks
+  @behaviour Hex.Mix.TaskDescription
 
   @switches [
     all: :boolean,
@@ -136,7 +136,7 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   @impl true
-  def subtasks() do
+  def tasks() do
     [
       {"register", "Register a new user"},
       {"whoami", "Prints the current user"},
