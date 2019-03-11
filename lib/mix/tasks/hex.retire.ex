@@ -63,8 +63,8 @@ defmodule Mix.Tasks.Hex.Retire do
   @impl true
   def subtasks() do
     [
-      {"PACKAGE VERSION REASON [--organization ORGANIZATION]", "Retires a package version"},
-      {"PACKAGE VERSION --unretire [--organization ORGANIZATION]", "Unretires a package"}
+      {"PACKAGE VERSION REASON", "Retires a package version"},
+      {"PACKAGE VERSION --unretire", "Unretires a package"}
     ]
   end
 

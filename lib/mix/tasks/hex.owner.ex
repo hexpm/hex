@@ -78,11 +78,9 @@ defmodule Mix.Tasks.Hex.Owner do
   @impl true
   def subtasks() do
     [
-      {"add PACKAGE EMAIL_OR_USERNAME [--organization ORGANIZATION] [--level LEVEL]",
-       "Adds an owner to package"},
-      {"remove PACKAGE EMAIL_OR_USERNAME [--organization ORGANIZATION]",
-       "Removes an owner from package"},
-      {"list PACKAGE [--organization ORGANIZATION]", "List all owners of a given package"},
+      {"add PACKAGE EMAIL_OR_USERNAME", "Adds an owner to package"},
+      {"remove PACKAGE EMAIL_OR_USERNAME", "Removes an owner from package"},
+      {"list PACKAGE", "List all owners of a given package"},
       {"packages", "List all packages owned by the current user"}
     ]
   end

@@ -158,12 +158,11 @@ defmodule Mix.Tasks.Hex.Publish do
   @impl true
   def subtasks() do
     [
-      {"package [--organization ORGANIZATION]", "Publish current package"},
-      {"docs [--organization ORGANIZATION]", "Publish current docs"},
-      {"package --revert VERSION [--organization ORGANIZATION]",
-       "Reverts package on given version"},
-      {"docs --revert VERSION [--organization ORGANIZATION]", "Reverts docs on given version"},
-      {"--revert VERSION [--organization ORGANIZATION]", "Reverts given version"}
+      {"package", "Publish current package"},
+      {"docs", "Publish current docs"},
+      {"package --revert VERSION", "Reverts package on given version"},
+      {"docs --revert VERSION", "Reverts docs on given version"},
+      {"--revert VERSION", "Reverts given version"}
     ]
   end
 
