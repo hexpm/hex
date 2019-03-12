@@ -8,21 +8,6 @@ defmodule Hex.Registry.Server do
   @filename "cache.ets"
   @timeout 60_000
 
-  defmacrop unwrap_mix_error(expr) do
-    quote do
-      trap_exit? = Process.flag(:trap_exit, true)
-
-      try do
-        unquote(expr)
-      catch
-        :exit, {{error, stacktrace}, _call} ->
-          reraise(error, stacktrace)
-      after
-        Process.flag(:trap_exit, trap_exit?)
-      end
-    end
-  end
-
   def start_link(opts \\ []) do
     opts = Keyword.put_new(opts, :name, @name)
     GenServer.start_link(__MODULE__, [], opts)
@@ -30,68 +15,50 @@ defmodule Hex.Registry.Server do
 
   def open(opts \\ []) do
     GenServer.call(@name, {:open, opts}, @timeout)
-    |> unwrap_mix_error()
   end
 
   def close do
     GenServer.call(@name, :close, @timeout)
-    |> unwrap_mix_error()
   end
 
   def persist do
     GenServer.call(@name, :persist, @timeout)
-    |> unwrap_mix_error()
   end
 
   def prefetch(packages) do
-    case GenServer.call(@name, {:prefetch, packages}, @timeout) do
-      :ok ->
-        :ok
-
-      {:error, message} ->
-        Mix.raise(message)
-    end
-    |> unwrap_mix_error()
+    :ok = GenServer.call(@name, {:prefetch, packages}, @timeout)
   end
 
   def versions(repo, package) do
     GenServer.call(@name, {:versions, repo, package}, @timeout)
-    |> unwrap_mix_error()
   end
 
   def deps(repo, package, version) do
     GenServer.call(@name, {:deps, repo, package, version}, @timeout)
-    |> unwrap_mix_error()
   end
 
   def checksum(repo, package, version) do
     GenServer.call(@name, {:checksum, repo, package, version}, @timeout)
-    |> unwrap_mix_error()
   end
 
   def retired(repo, package, version) do
     GenServer.call(@name, {:retired, repo, package, version}, @timeout)
-    |> unwrap_mix_error()
   end
 
   def tarball_etag(repo, package, version) do
     GenServer.call(@name, {:tarball_etag, repo, package, version}, @timeout)
-    |> unwrap_mix_error()
   end
 
   def tarball_etag(repo, package, version, etag) do
     GenServer.call(@name, {:tarball_etag, repo, package, version, etag}, @timeout)
-    |> unwrap_mix_error()
   end
 
   def last_update() do
     GenServer.call(@name, :last_update, @timeout)
-    |> unwrap_mix_error()
   end
 
   def last_update(time) do
     GenServer.call(@name, {:last_update, time}, @timeout)
-    |> unwrap_mix_error()
   end
 
   def init([]) do
