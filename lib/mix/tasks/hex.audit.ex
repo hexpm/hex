@@ -13,6 +13,8 @@ defmodule Mix.Tasks.Hex.Audit do
   if any retired dependencies are found.
   """
 
+  @behaviour Hex.Mix.TaskDescription
+
   @impl true
   def run(_) do
     Hex.check_deps()
@@ -35,6 +37,13 @@ defmodule Mix.Tasks.Hex.Audit do
         Hex.Shell.error("Found retired packages")
         Mix.Tasks.Hex.set_exit_code(1)
     end
+  end
+
+  @impl true
+  def tasks() do
+    [
+      {"", "Shows retired Hex deps for the current project"}
+    ]
   end
 
   defp retired_packages(lock) do

@@ -56,6 +56,7 @@ defmodule Mix.Tasks.Hex.Repo do
 
       mix hex.repo list
   """
+  @behaviour Hex.Mix.TaskDescription
 
   @switches [url: :string, public_key: :string, auth_key: :string]
 
@@ -95,6 +96,16 @@ defmodule Mix.Tasks.Hex.Repo do
     mix hex.repo show NAME
     mix hex.repo list
     """)
+  end
+
+  @impl true
+  def tasks() do
+    [
+      {"add NAME URL", "Add a repo"},
+      {"set NAME", "Set config for repo"},
+      {"remove NAME URL", "Remove repo"},
+      {"list", "List all repos"}
+    ]
   end
 
   defp add(name, url, opts) do

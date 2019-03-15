@@ -20,6 +20,7 @@ defmodule Mix.Tasks.Hex.Info do
 
     * `--organization ORGANIZATION` - The organization the package belongs to
   """
+  @behaviour Hex.Mix.TaskDescription
 
   @switches [organization: :string]
 
@@ -45,6 +46,14 @@ defmodule Mix.Tasks.Hex.Info do
         mix hex.info [PACKAGE [VERSION]]
         """)
     end
+  end
+
+  @impl true
+  def tasks() do
+    [
+      {"", "Prints Hex information"},
+      {"PACKAGE [VERSION]", "Prints package information"}
+    ]
   end
 
   defp general() do

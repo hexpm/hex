@@ -90,6 +90,7 @@ defmodule Mix.Tasks.Hex.Organization do
       * `api:write` - API write access.
       * `repository` - Access to the organization's repository.
   """
+  @behaviour Hex.Mix.TaskDescription
 
   @switches [
     all: :boolean,
@@ -128,6 +129,19 @@ defmodule Mix.Tasks.Hex.Organization do
       _ ->
         invalid_args()
     end
+  end
+
+  @impl true
+  def tasks() do
+    [
+      {"auth ORGANIZATION", "Authorize an organization"},
+      {"deauth ORGANIZATION", "Deauthorize and remove organization"},
+      {"list", "List all authorized organizations"},
+      {"key ORGANIZATION generate", "Generate organization key"},
+      {"key ORGANIZATION revoke KEY_NAME", "Revoke key"},
+      {"key ORGANIZATION revoke --all", "Revoke all keys"},
+      {"key ORGANIZATION list", "List keys"}
+    ]
   end
 
   defp invalid_args() do

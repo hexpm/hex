@@ -69,6 +69,7 @@ defmodule Mix.Tasks.Hex.Build do
       tarball path (Default: `<app>-<version>.tar`)
 
   """
+  @behaviour Hex.Mix.TaskDescription
 
   @default_files ~w(lib priv .formatter.exs mix.exs README* readme* LICENSE*
                     license* CHANGELOG* changelog* src c_src Makefile*)
@@ -105,6 +106,13 @@ defmodule Mix.Tasks.Hex.Build do
       output = Keyword.get(opts, :output, "#{meta.name}-#{meta.version}.tar")
       build_package(meta, output)
     end
+  end
+
+  @impl true
+  def tasks() do
+    [
+      {"", "Builds a new package version locally"}
+    ]
   end
 
   defp build_package(meta, output) do

@@ -22,6 +22,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     * `--all` - shows all outdated packages, including children of packages defined in `mix.exs`
     * `--pre` - include pre-releases when checking for newer versions
   """
+  @behaviour Hex.Mix.TaskDescription
 
   @switches [all: :boolean, pre: :boolean]
 
@@ -52,6 +53,14 @@ defmodule Mix.Tasks.Hex.Outdated do
         mix hex.outdated [APP]
         """)
     end
+  end
+
+  @impl true
+  def tasks() do
+    [
+      {"", "Shows outdated Hex deps for the current project"},
+      {"[APP]", "Shows outdated Hex deps for the given dependency"}
+    ]
   end
 
   defp single(lock, app, opts) do
