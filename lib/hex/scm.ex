@@ -142,13 +142,14 @@ defmodule Hex.SCM do
       try do
         Hex.unpack_tar!(path, dest)
       rescue
-        e ->
-          File.rm!(path)
-          e
+        exception ->
+          stacktrace = System.stacktrace()
+          File.rm(path)
+          reraise(exception, stacktrace)
       end
 
     if tar_checksum != registry_checksum do
-      File.rm!(path)
+      File.rm(path)
       raise("Checksum mismatch against registry")
     end
 
