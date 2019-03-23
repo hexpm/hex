@@ -19,6 +19,7 @@ defmodule Mix.Tasks.Hex.Package do
 
   * `--unpack` - Unpacks the tarball after downloading it
   """
+  @behaviour Hex.Mix.TaskDescription
 
   @switches [unpack: :boolean]
 
@@ -72,6 +73,14 @@ defmodule Mix.Tasks.Hex.Package do
         """)
     end
   end
+
+  @impl true
+  def tasks() do
+    [
+      {"fetch PACKAGE VERSION [--unpack]", "Fetch the package"}
+    ]
+  end
+
 
   defp unpack_tarball!(tar_path, dest_path) do
     Hex.unpack_tar!(tar_path, dest_path)
