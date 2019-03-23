@@ -35,6 +35,7 @@ defmodule Mix.Tasks.Hex.Package do
             abs_path = Path.absname("#{package}-#{version}")
             tar_path = "#{abs_path}.tar"
             File.write!(tar_path, tar_body)
+
             message =
               if unpack do
                 unpack_tarball!(tar_path, abs_path)
@@ -42,6 +43,7 @@ defmodule Mix.Tasks.Hex.Package do
               else
                 "#{package} v#{version} downloaded to #{tar_path}"
               end
+
             Hex.Shell.info(message)
 
           {:ok, {code, _body, _headers}} ->
@@ -51,20 +53,23 @@ defmodule Mix.Tasks.Hex.Package do
             reason = """
               Request failed (:timeout),
               If this happens consistently, adjust your concurrency and timeout settings:
-              HEX_HTTP_CONCURRENCY=1 HEX_HTTP_TIMEOUT=120 mix hex.package fetch #{package} #{version}
+              HEX_HTTP_CONCURRENCY=1 HEX_HTTP_TIMEOUT=120 mix hex.package fetch #{package} #{
+              version
+            }
             """
+
             Hex.Shell.error(reason)
 
           {:error, reason} ->
             Hex.Shell.error("Request failed (#{inspect(reason)})")
         end
 
-          _ ->
-            Mix.raise("""
-              Invalid arguments, expected one of:
+      _ ->
+        Mix.raise("""
+          Invalid arguments, expected one of:
 
-              mix hex.package fetch PACKAGE VERSION [--unpack]
-            """)
+          mix hex.package fetch PACKAGE VERSION [--unpack]
+        """)
     end
   end
 

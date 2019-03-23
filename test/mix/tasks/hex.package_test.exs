@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
   use HexTest.Case
   @moduletag :integration
 
-  test "success" do
+  test "download success" do
     bypass_package()
     package = "package"
     version = "1.0.0"
@@ -18,12 +18,14 @@ defmodule Mix.Tasks.Hex.PackageTest do
   end
 
   test "error when http error" do
-  end
+    bypass_package()
+    package = "package"
+    version = "1.0.1"
 
-  test "error when unknown error" do
-  end
-
-  test "error when request is timeouted" do
+    in_tmp("package", fn ->
+      Mix.Tasks.Hex.Package.run(["fetch", package, version])
+      assert_received {:mix_shell, :error, ["Request failed (404)"]}
+    end)
   end
 
   test "error when no argument" do
