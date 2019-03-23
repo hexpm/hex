@@ -370,4 +370,27 @@ defmodule HexTest.Case do
 
     bypass
   end
+
+  def bypass_package() do
+    bypass = Bypass.open()
+    repos = Hex.State.fetch!(:repos)
+    repos = put_in(repos["hexpm"].url, "http://localhost:#{bypass.port}")
+    Hex.State.put(:repos, repos)
+
+    Bypass.expect(bypass, fn conn ->
+      case conn do
+        %Plug.Conn{request_path: "/tarballs/package-1.0.0.tar"} ->
+          tar_file = tmp_path("package-1.0.0.tar")
+          index_file = Hex.string_to_charlist("index.html")
+          :mix_hex_erl_tar.create(tar_file, [{index_file, ""}], [:compressed])
+          package = File.read!(tar_file)
+          Plug.Conn.resp(conn, 200, package)
+
+        %Plug.Conn{request_path: "/tarballs/package-1.0.1.tar"} ->
+          Plug.Conn.resp(conn, 404, "")
+      end
+    end)
+
+    bypass
+  end
 end
