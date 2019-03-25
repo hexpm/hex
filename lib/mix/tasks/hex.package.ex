@@ -31,39 +31,7 @@ defmodule Mix.Tasks.Hex.Package do
 
     case args do
       ["fetch", package, version] ->
-        case Hex.Repo.get_tarball(@default_repo, package, version, nil) do
-          {:ok, {200, tar_body, _headers}} ->
-            abs_path = Path.absname("#{package}-#{version}")
-            tar_path = "#{abs_path}.tar"
-            File.write!(tar_path, tar_body)
-
-            message =
-              if unpack do
-                unpack_tarball!(tar_path, abs_path)
-                "#{package} v#{version} extracted to #{abs_path}"
-              else
-                "#{package} v#{version} downloaded to #{tar_path}"
-              end
-
-            Hex.Shell.info(message)
-
-          {:ok, {code, _body, _headers}} ->
-            Hex.Shell.error("Request failed (#{code})")
-
-          {:error, :timeout} ->
-            reason = """
-              Request failed (:timeout),
-              If this happens consistently, adjust your concurrency and timeout settings:
-              HEX_HTTP_CONCURRENCY=1 HEX_HTTP_TIMEOUT=120 mix hex.package fetch #{package} #{
-              version
-            }
-            """
-
-            Hex.Shell.error(reason)
-
-          {:error, reason} ->
-            Hex.Shell.error("Request failed (#{inspect(reason)})")
-        end
+        fetch_tarball(package, version, unpack)
 
       _ ->
         Mix.raise("""
@@ -81,6 +49,39 @@ defmodule Mix.Tasks.Hex.Package do
     ]
   end
 
+  defp fetch_tarball(package, version, unpack) do
+    case Hex.Repo.get_tarball(@default_repo, package, version, nil) do
+      {:ok, {200, tar_body, _headers}} ->
+        abs_path = Path.absname("#{package}-#{version}")
+        tar_path = "#{abs_path}.tar"
+        File.write!(tar_path, tar_body)
+
+        message =
+          if unpack do
+            unpack_tarball!(tar_path, abs_path)
+            "#{package} v#{version} extracted to #{abs_path}"
+          else
+            "#{package} v#{version} downloaded to #{tar_path}"
+          end
+
+        Hex.Shell.info(message)
+
+      {:ok, {code, _body, _headers}} ->
+        Hex.Shell.error("Request failed (#{code})")
+
+      {:error, :timeout} ->
+        reason = """
+          Request failed (:timeout),
+          If this happens consistently, adjust your concurrency and timeout settings:
+          HEX_HTTP_CONCURRENCY=1 HEX_HTTP_TIMEOUT=120 mix hex.package fetch #{package} #{version}
+        """
+
+        Hex.Shell.error(reason)
+
+      {:error, reason} ->
+        Hex.Shell.error("Request failed (#{inspect(reason)})")
+    end
+  end
 
   defp unpack_tarball!(tar_path, dest_path) do
     Hex.unpack_tar!(tar_path, dest_path)
