@@ -3,10 +3,10 @@ defmodule Mix.Tasks.Hex.Package do
 
   @default_repo "hexpm"
 
-  @shortdoc "Allows audit of Hex packages"
+  @shortdoc "Fetches Hex packages"
 
   @moduledoc """
-  Allows fetching (and unpacking) of package tarballs for easier auditing of
+  Fetches (and unpacks) package tarballs. This can be useful for auditing of
   packages.
 
   ## Fetch package
