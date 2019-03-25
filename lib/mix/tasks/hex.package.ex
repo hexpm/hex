@@ -69,15 +69,6 @@ defmodule Mix.Tasks.Hex.Package do
       {:ok, {code, _body, _headers}} ->
         Hex.Shell.error("Request failed (#{code})")
 
-      {:error, :timeout} ->
-        reason = """
-          Request failed (:timeout),
-          If this happens consistently, adjust your concurrency and timeout settings:
-          HEX_HTTP_CONCURRENCY=1 HEX_HTTP_TIMEOUT=120 mix hex.package fetch #{package} #{version}
-        """
-
-        Hex.Shell.error(reason)
-
       {:error, reason} ->
         Hex.Shell.error("Request failed (#{inspect(reason)})")
     end
