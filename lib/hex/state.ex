@@ -101,7 +101,7 @@ defmodule Hex.State do
 
     state =
       Enum.into(@config, %{}, fn {key, spec} ->
-        {key, load_config_value(global_config, project_config, spec)}
+        {key, load_config_value(global_config, project_config, spec, key)}
       end)
 
     {_source, repos_key} = Map.fetch!(state, :repos_key)
@@ -172,10 +172,15 @@ defmodule Hex.State do
     Agent.update(@name, fn _ -> map end)
   end
 
-  defp load_config_value(global_config, project_config, spec) do
+  defp load_config_value(global_config, project_config, spec, key) do
     result =
+<<<<<<< HEAD
       load_env(spec[:env]) || load_project_config(project_config, spec[:config]) ||
         load_global_config(global_config, spec[:config])
+=======
+      load_env(spec[:env]) || load_project_config(project_config, key) ||
+        load_global_config(global_config, key)
+>>>>>>> fixes issue in load_config_value/3
 
     {module, func} = spec[:fun] || {__MODULE__, :id}
 
@@ -195,24 +200,20 @@ defmodule Hex.State do
     end)
   end
 
-  defp load_global_config(config, keys) do
-    Enum.find_value(keys || [], fn key ->
-      if value = Keyword.get(config, key) do
-        {{:global_config, key}, value}
-      else
-        nil
-      end
-    end)
+  defp load_global_config(config, key) do
+    if value = Keyword.get(config, key) do
+      {{:global_config, key}, value}
+    else
+      nil
+    end
   end
 
-  defp load_project_config(config, keys) do
-    Enum.find_value(keys || [], fn key ->
-      if value = Keyword.get(config, key) do
-        {{:project_config, key}, value}
-      else
-        nil
-      end
-    end)
+  defp load_project_config(config, key) do
+    if value = Keyword.get(config, key) do
+      {{:project_config, key}, value}
+    else
+      nil
+    end
   end
 
   def to_boolean(nil), do: nil
