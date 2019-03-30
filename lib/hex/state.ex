@@ -174,13 +174,8 @@ defmodule Hex.State do
 
   defp load_config_value(global_config, project_config, spec, key) do
     result =
-<<<<<<< HEAD
-      load_env(spec[:env]) || load_project_config(project_config, spec[:config]) ||
-        load_global_config(global_config, spec[:config])
-=======
       load_env(spec[:env]) || load_project_config(project_config, key) ||
         load_global_config(global_config, key)
->>>>>>> fixes issue in load_config_value/3
 
     {module, func} = spec[:fun] || {__MODULE__, :id}
 
