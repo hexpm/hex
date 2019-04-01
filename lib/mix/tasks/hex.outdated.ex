@@ -125,9 +125,13 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   defp get_requirements_from_deps(app, deps) do
     # TODO: Path to umbrella child's mix.exs
+
     case Map.fetch(deps, app) do
-      {:ok, deps} -> Enum.map(deps, fn {req, _opts} -> ["mix.exs", req] end)
-      :error -> []
+      {:ok, deps} ->
+        Enum.map(deps, fn {src, req, _opts} -> [Path.join([src, "mix.exs"]), req] end)
+
+      :error ->
+        []
     end
   end
 
