@@ -253,7 +253,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       assert_received {:mix_shell, :info, [^msg]}
 
       mix =
-        [:bright, "mix.exs", :reset, "   ", :green, ">= 0.0.0", :reset, "     "]
+        [:bright, "/mix.exs", :reset, "  ", :green, ">= 0.0.0", :reset, "     "]
         |> IO.ANSI.format()
         |> List.to_string()
 
