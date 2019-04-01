@@ -262,8 +262,6 @@ defmodule Hex.Mix do
         end)
       end)
 
-    # [{"apps/bar", {:yeelight, "0.1.2"}}, {"apps/bar", {:decimal, "0.5.2"}}, {"apps/foo", {:yeelight, "0.1.2"}}]
-
     (umbrella_deps ++ child_deps)
     |> Enum.map(fn {src, dep} -> {src, normalize_dep(dep)} end)
     |> Enum.reduce(%{}, fn {src, {app, req, opts}}, acc ->
