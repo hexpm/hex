@@ -70,9 +70,8 @@ defmodule Mix.Tasks.Hex.ConfigTest do
       Mix.Tasks.Hex.Config.run(["api_key", "--delete"])
       Hex.State.refresh()
 
-      # TODO:
-      # Mix.Tasks.Hex.Config.run([])
-      # assert_received {:mix_shell, :info, ["api_key: nil (default)"]}
+      Mix.Tasks.Hex.Config.run([])
+      assert_received {:mix_shell, :info, ["api_key: nil (default)"]}
     end)
   end
 

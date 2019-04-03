@@ -185,7 +185,8 @@ defmodule Mix.Tasks.Hex.Config do
   defp print_value(_key, value, false, _source), do: Hex.Shell.info(inspect(value, pretty: true))
 
   defp delete(key) do
-    Hex.Config.remove([String.to_atom(key)])
+    {:ok, config_key} = Keyword.fetch(valid_write_keys(), String.to_existing_atom(key))
+    Hex.Config.remove([String.to_existing_atom(config_key)])
   end
 
   defp set(key, value) do
