@@ -98,33 +98,6 @@ defmodule Mix.Tasks.Hex.Config do
   @behaviour Hex.Mix.TaskDescription
 
   @switches [delete: :boolean]
-  @valid_write_keys [
-    "api_url",
-    "offline",
-    "unsafe_https",
-    "unsafe_registry",
-    "no_verify_repo_origin",
-    "http_proxy",
-    "https_proxy",
-    "http_concurrency",
-    "http_timeout",
-    "mirror_url"
-  ]
-
-  @valid_read_keys [
-    "api_url",
-    "api_key_write_unencrypted",
-    "offline",
-    "unsafe_https",
-    "unsafe_registry",
-    "no_verify_repo_origin",
-    "http_proxy",
-    "https_proxy",
-    "http_concurrency",
-    "http_timeout",
-    "mirror_url",
-    "home"
-  ]
 
   @impl true
   def run(args) do
@@ -168,47 +141,59 @@ defmodule Mix.Tasks.Hex.Config do
   end
 
   defp list() do
-    Enum.each(@valid_read_keys, fn key ->
+    Enum.each(valid_read_keys(), fn {key, _config} ->
       read(key, true)
     end)
   end
 
   defp read(key, verbose \\ false)
 
-  defp read(key, verbose) when is_binary(key) and key in @valid_read_keys do
-    case Map.fetch!(Hex.State.get_all(), :"#{key}") do
-      {{:env, env_var}, value} ->
-        print_value(key, value, verbose, "(using `#{env_var}`)")
+  defp read(key, verbose) when is_binary(key) do
+    case Keyword.fetch(valid_read_keys(), String.to_existing_atom(key)) do
+      {:ok, config_key} ->
+        fetch_current_value_and_print(config_key, key, verbose)
 
-      {{:global_config, _key}, value} ->
-        print_value(key, value, verbose, "(using `#{config_path()}`)")
-
-      {{:project_config, _key}, value} ->
-        print_value(key, value, verbose, "(using `mix.exs`)")
-
-      {kind, value} when kind in [:default, :computed] ->
-        print_value(key, value, verbose, "(default)")
+      _error ->
+        Mix.raise("The key #{key} is not valid")
     end
   end
 
   defp read(key, verbose) when is_atom(key), do: read(to_string(key), verbose)
-  defp read(key, _verbose), do: Mix.raise("The key #{key} is not valid")
+
+  defp fetch_current_value_and_print(config_key, key, verbose) do
+    case Map.fetch(Hex.State.get_all(), :"#{config_key}") do
+      {:ok, {{:env, env_var}, value}} ->
+        print_value(key, value, verbose, "(using `#{env_var}`)")
+
+      {:ok, {{:global_config, _key}, value}} ->
+        print_value(key, value, verbose, "(using `#{config_path()}`)")
+
+      {:ok, {{:project_config, _key}, value}} ->
+        print_value(key, value, verbose, "(using `mix.exs`)")
+
+      {:ok, {kind, value}} when kind in [:default, :computed] ->
+        print_value(key, value, verbose, "(default)")
+
+      :error ->
+        Mix.raise("Config does not contain the key #{key}")
+    end
+  end
 
   defp print_value(key, value, true, source),
-    do: Hex.Shell.info("#{label(key)}: #{inspect(value, pretty: true)} #{source}")
+    do: Hex.Shell.info("#{key}: #{inspect(value, pretty: true)} #{source}")
 
   defp print_value(_key, value, false, _source), do: Hex.Shell.info(inspect(value, pretty: true))
 
   defp delete(key) do
-    Hex.Config.remove([String.to_atom(key)])
+    {:ok, config_key} = Keyword.fetch(valid_write_keys(), String.to_existing_atom(key))
+    Hex.Config.remove([String.to_existing_atom(config_key)])
   end
 
-  defp set(key, value) when key in @valid_write_keys do
-    Hex.Config.update([{:"#{key}", value}])
-  end
-
-  defp set(key, _value) do
-    Mix.raise("Invalid key #{key}")
+  defp set(key, value) do
+    case Keyword.fetch(valid_write_keys(), String.to_existing_atom(key)) do
+      {:ok, config} -> Hex.Config.update([{:"#{config}", value}])
+      :error -> Mix.raise("Invalid key #{key}")
+    end
   end
 
   defp config_path() do
@@ -217,10 +202,37 @@ defmodule Mix.Tasks.Hex.Config do
     |> Path.join("hex.config")
   end
 
-  defp label(key) do
-    case key do
-      "api_key_write_unencrypted" -> "api_key"
-      _ -> key
-    end
+  defp valid_keys() do
+    Enum.map(Hex.State.config(), fn {key, v} ->
+      [config | _] = Map.get(v, :config, [nil])
+      [env | _] = Map.get(v, :env, [nil])
+
+      cond do
+        String.starts_with?(to_string(config), "$") -> {key, config, :not_accessible}
+        is_nil(config) and not is_nil(env) -> {key, config, :env_only}
+        is_nil(config) and is_nil(env) -> {key, config, :read_only}
+        true -> {key, config, :read_and_write}
+      end
+    end)
   end
+
+  defp valid_read_keys() do
+    valid_keys()
+    |> Enum.map(fn {key, config, access} ->
+      if access != :not_accessible, do: config_and_key(config, key)
+    end)
+    |> Enum.filter(&(&1 != nil))
+  end
+
+  defp valid_write_keys() do
+    valid_keys()
+    |> Enum.map(fn {key, config, access} ->
+      if access == :read_and_write, do: config_and_key(config, key)
+    end)
+    |> Enum.filter(&(&1 != nil))
+  end
+
+  defp config_and_key(key, nil), do: {key, to_string(key)}
+  defp config_and_key(nil, config), do: {config, to_string(config)}
+  defp config_and_key(key, config), do: {key, to_string(config)}
 end
