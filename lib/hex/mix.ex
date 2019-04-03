@@ -253,19 +253,19 @@ defmodule Hex.Mix do
   def top_level_deps() do
     config = Mix.Project.config()
     apps_paths = apps_paths(config)
-    umbrella_deps = config[:deps]
+    umbrella_deps = config[:deps] |> Enum.into([], fn deps -> {"", deps} end)
 
     child_deps =
       Enum.flat_map(apps_paths || [], fn {app, path} ->
         Mix.Project.in_project(app, path, fn _module ->
-          Mix.Project.config()[:deps]
+          Mix.Project.config()[:deps] |> Enum.into([], fn deps -> {path, deps} end)
         end)
       end)
 
     (umbrella_deps ++ child_deps)
-    |> Enum.map(&normalize_dep/1)
-    |> Enum.reduce(%{}, fn {app, req, opts}, acc ->
-      Map.update(acc, app, [{req, opts}], &[{req, opts} | &1])
+    |> Enum.map(fn {src, dep} -> {src, normalize_dep(dep)} end)
+    |> Enum.reduce(%{}, fn {src, {app, req, opts}}, acc ->
+      Map.update(acc, app, [{src, req, opts}], &[{src, req, opts} | &1])
     end)
   end
 
