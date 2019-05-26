@@ -51,7 +51,6 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Hex.State.put(:home, tmp_path("does_not_exist"))
 
     in_tmp(fn ->
-      send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :yes?, false})
 
       assert_raise Mix.Error, "No authenticated user found. Run `mix hex.user auth`", fn ->
@@ -67,7 +66,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
-      setup_auth("user", "hunter42")
+      setup_auth("user2", "hunter42")
 
       send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -189,7 +188,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
-      setup_auth("user", "hunter42")
+      setup_auth("user2", "hunter42")
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
 
@@ -255,7 +254,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
-      setup_auth("user", "hunter42")
+      setup_auth("user2", "hunter42")
 
       send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -345,7 +344,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
-      setup_auth("user", "hunter42")
+      setup_auth("user2", "hunter42")
 
       File.mkdir!("missing")
       File.write!("myfile.txt", "hello")

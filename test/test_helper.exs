@@ -23,6 +23,8 @@ unless :integration in ExUnit.configuration()[:exclude] do
   }
 
   auth = Hexpm.new_user("user", "user@mail.com", "hunter42", "my_key")
+  Hexpm.new_user("user2", "user2@mail.com", "hunter42", "my_key")
+
   package_name_meta = Map.put(pkg_meta, "app", "app_name")
 
   Hexpm.new_package("ex_doc", "0.0.1", [], pkg_meta, auth)

@@ -133,9 +133,16 @@ defmodule Mix.Tasks.Hex.Publish do
         revert_package(build, organization, revert_version, auth)
 
       ["package"] ->
-        if proceed?(build, organization, opts) do
-          auth = Mix.Tasks.Hex.auth_info(:write)
-          create_release(build, organization, auth, opts)
+        case proceed_with_owner(build, organization, opts) do
+          {:ok, owner} ->
+            auth = Mix.Tasks.Hex.auth_info(:write)
+            Hex.Shell.info("Publishing package...")
+            create_release(build, organization, auth, opts)
+            Hex.Shell.info("Transfering ownership to #{owner}...")
+            transfer_owner(build, owner, auth, opts)
+
+          :error ->
+            :ok
         end
 
       ["docs"] ->
@@ -170,16 +177,23 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp create(build, organization, opts) do
-    if proceed?(build, organization, opts) do
-      Hex.Shell.info("Building docs...")
-      docs_task(build, opts)
-      auth = Mix.Tasks.Hex.auth_info(:write)
-      Hex.Shell.info("Publishing package...")
+    case proceed_with_owner(build, organization, opts) do
+      {:ok, owner} ->
+        Hex.Shell.info("Building docs...")
+        docs_task(build, opts)
+        auth = Mix.Tasks.Hex.auth_info(:write)
+        Hex.Shell.info("Publishing package...")
 
-      if :ok == create_release(build, organization, auth, opts) do
-        Hex.Shell.info("Publishing docs...")
-        create_docs(build, organization, auth, opts)
-      end
+        if :ok == create_release(build, organization, auth, opts) do
+          Hex.Shell.info("Publishing docs...")
+          create_docs(build, organization, auth, opts)
+        end
+
+        Hex.Shell.info("Transfering ownership to #{owner}...")
+        transfer_owner(build, owner, auth, opts)
+
+      :error ->
+        :ok
     end
   end
 
@@ -225,8 +239,7 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp proceed?(build, organization, opts) do
-    yes? = Keyword.get(opts, :yes, false)
+  defp proceed_with_owner(build, organization, opts) do
     meta = build.meta
     exclude_deps = build.exclude_deps
     package = build.package
@@ -235,8 +248,12 @@ defmodule Mix.Tasks.Hex.Publish do
     Build.print_info(meta, organization, exclude_deps, package[:files])
 
     print_link_to_coc()
+    print_public_private(organization)
+    print_owner_prompt(build, organization, opts)
+  end
 
-    if organization in [nil, "hexpm"] do
+  defp print_public_private(organization) do
+    if public_organization?(organization) do
       Hex.Shell.info(["Publishing package to ", emphasis("public"), " repository hexpm."])
     else
       Hex.Shell.info([
@@ -247,8 +264,109 @@ defmodule Mix.Tasks.Hex.Publish do
         ]
       ])
     end
+  end
 
-    yes? or Hex.Shell.yes?("Proceed?")
+  defp print_owner_prompt(build, organization, opts) do
+    auth = Mix.Tasks.Hex.auth_info(:read)
+    organizations = user_organizations(auth)
+
+    owner_prompt? =
+      public_organization?(organization) and
+        not Keyword.get(opts, :yes, false) and
+        organizations != [] and
+        not package_exists?(build)
+
+    Hex.Shell.info("")
+
+    if owner_prompt? do
+      do_print_owner_prompt(organizations)
+    else
+      if Keyword.get(opts, :yes, false) or Hex.Shell.yes?("Proceed?") do
+        {:ok, nil}
+      else
+        :error
+      end
+    end
+  end
+
+  defp do_print_owner_prompt(organizations) do
+    Hex.Shell.info(
+      "You are a member of organizations, select if you wish to publish " <>
+        "the package with yourself as owner or an organization as owner. " <>
+        "If you publish with an organization as owner your package will " <>
+        "be public but managed by an organization."
+    )
+
+    Hex.Shell.info("")
+    Hex.Shell.info("  [1] Yourself")
+
+    numbers = Stream.map(Stream.iterate(2, & &1 + 1), &Integer.to_string/1)
+    organizations = Map.new(Stream.zip(numbers, organizations))
+
+    Enum.each(organizations, fn {ix, organization} ->
+      Hex.Shell.info("  [#{ix}] #{organization}")
+    end)
+
+    Hex.Shell.info("")
+    owner_prompt_selection(organizations)
+  end
+
+  defp owner_prompt_selection(organizations) do
+    selection = Hex.string_trim(Hex.Shell.prompt("Your selection:"))
+
+    if selection == "1" do
+      {:ok, nil}
+    else
+      case Map.fetch(organizations, selection) do
+        {:ok, organization} -> {:ok, organization}
+        :error -> owner_prompt_selection(organizations)
+      end
+    end
+  end
+
+  defp package_exists?(build) do
+    case Hex.API.Package.get("hexpm", build.meta.name) do
+      {:ok, {200, _body, _headers}} ->
+        true
+      {:ok, {404, _body, _headers}} ->
+        false
+      other ->
+        Hex.Utils.print_error_result(other)
+        true
+    end
+  end
+
+  defp user_organizations(auth) do
+    case Hex.API.User.me(auth) do
+      {:ok, {200, body, _header}} ->
+        Enum.map(body["organizations"], & &1["name"])
+      other ->
+        Hex.Utils.print_error_result(other)
+        []
+    end
+  end
+
+  defp public_organization?(organization), do: organization in [nil, "hexpm"]
+
+  defp transfer_owner(_build, nil, _auth, _opts) do
+    :ok
+  end
+
+  defp transfer_owner(build, owner, auth, opts) do
+    dry_run? = Keyword.get(opts, :dry_run, false)
+
+    if dry_run? do
+      :ok
+    else
+      case Hex.API.Package.Owner.add("hexpm", build.meta.name, owner, "full", true, auth) do
+        {:ok, {status, _body, _header}} when status in 200..299 ->
+          :ok
+
+        other ->
+          Hex.Shell.error("Failed to transfer ownership")
+          Hex.Utils.print_error_result(other)
+      end
+    end
   end
 
   defp emphasis(text) do

@@ -16,6 +16,14 @@ defmodule Mix.Tasks.Hex.Owner do
 
       mix hex.owner add PACKAGE EMAIL_OR_USERNAME
 
+  ## Transfer ownership
+
+  Like `mix hex.owner add` but also removes all existing owners of the package.
+  This task is required to use when transfering ownership of the package to an
+  organization.
+
+      mix hex.owner transfer PACKAGE EMAIL_OR_USERNAME
+
   ## Remove owner
 
   Removes an owner to package by specifying the package name and email or username
@@ -54,6 +62,9 @@ defmodule Mix.Tasks.Hex.Owner do
       ["add", package, owner] ->
         add_owner(organization, package, owner, level)
 
+      ["transfer", package, owner] ->
+        transfer_owner(organization, package, owner)
+
       ["remove", package, owner] ->
         remove_owner(organization, package, owner)
 
@@ -68,6 +79,7 @@ defmodule Mix.Tasks.Hex.Owner do
         Invalid arguments, expected one of:
 
         mix hex.owner add PACKAGE EMAIL_OR_USERNAME
+        mix hex.owner transfer PACKAGE EMAIL_OR_USERNAME
         mix hex.owner remove PACKAGE EMAIL_OR_USERNAME
         mix hex.owner list PACKAGE
         mix hex.owner packages
@@ -79,6 +91,7 @@ defmodule Mix.Tasks.Hex.Owner do
   def tasks() do
     [
       {"add PACKAGE EMAIL_OR_USERNAME", "Adds an owner to package"},
+      {"transfer PACKAGE EMAIL_OR_USERNAME", "Transfers ownership of a package to another user or organization"},
       {"remove PACKAGE EMAIL_OR_USERNAME", "Removes an owner from package"},
       {"list PACKAGE", "List all owners of a given package"},
       {"packages", "List all packages owned by the current user"}
@@ -89,7 +102,7 @@ defmodule Mix.Tasks.Hex.Owner do
     auth = Mix.Tasks.Hex.auth_info(:write)
     Hex.Shell.info("Adding owner #{owner} with ownership level #{level} to #{package}")
 
-    case Hex.API.Package.Owner.add(organization, package, owner, level, auth) do
+    case Hex.API.Package.Owner.add(organization, package, owner, level, false, auth) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
 
@@ -101,6 +114,20 @@ defmodule Mix.Tasks.Hex.Owner do
 
   defp add_owner(_organization, _package, _owner, _level) do
     Mix.raise("Invalid ownership level, expected one of: full, maintainer")
+  end
+
+  defp transfer_owner(organization, package, owner) do
+    auth = Mix.Tasks.Hex.auth_info(:write)
+    Hex.Shell.info("Transfering ownership to #{owner} for #{package}")
+
+    case Hex.API.Package.Owner.add(organization, package, owner, "full", true, auth) do
+      {:ok, {code, _body, _headers}} when code in 200..299 ->
+        :ok
+
+      other ->
+        Hex.Shell.error("Transfering ownership failed")
+        Hex.Utils.print_error_result(other)
+    end
   end
 
   defp remove_owner(organization, package, owner) do

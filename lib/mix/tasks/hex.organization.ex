@@ -88,7 +88,7 @@ defmodule Mix.Tasks.Hex.Organization do
       multiple times, possibly values are:
       * `api:read` - API read access.
       * `api:write` - API write access.
-      * `repository` - Access to the organization's repository.
+      * `repository` - Access to the organization's repository (this is the default permission).
   """
   @behaviour Hex.Mix.TaskDescription
 
