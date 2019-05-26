@@ -114,22 +114,22 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       Hex.State.put(:home, File.cwd!())
 
-      auth = Hexpm.new_user("orgkeygen", "orgkeygen@mail.com", "password", "orgkeygen")
-      Hexpm.new_repo("orgkeygen", auth)
+      auth = Hexpm.new_user("orgkeygenuser", "orgkeygenuser@mail.com", "password", "orgkeygenuser")
+      Hexpm.new_repo("orgkeygenrepo", auth)
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
       send(self(), {:mix_shell_input, :prompt, "password"})
-      args = ["key", "orgkeygen", "generate", "--permission", "api:read"]
+      args = ["key", "orgkeygenrepo", "generate", "--permission", "api:read"]
       Mix.Tasks.Hex.Organization.run(args)
 
       assert_received {:mix_shell, :info, [key]}
       assert is_binary(key)
 
       {:ok, hostname} = :inet.gethostname()
-      assert {:ok, {200, body, _}} = Hex.API.Key.Organization.get("orgkeygen", key: key)
+      assert {:ok, {200, body, _}} = Hex.API.Key.Organization.get("orgkeygenrepo", key: key)
       assert List.to_string(hostname) in Enum.map(body, & &1["name"])
 
-      assert {:ok, {200, body, _}} = Hex.API.Key.Organization.get("orgkeygen", auth)
+      assert {:ok, {200, body, _}} = Hex.API.Key.Organization.get("orgkeygenrepo", auth)
       assert List.to_string(hostname) in Enum.map(body, & &1["name"])
 
       assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
@@ -141,19 +141,19 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       Hex.State.put(:home, File.cwd!())
 
-      auth = Hexpm.new_user("orgkeylist", "orgkeylist@mail.com", "password", "orgkeylist")
-      Hexpm.new_repo("orgkeylist", auth)
+      auth = Hexpm.new_user("orgkeylistuser", "orgkeylistuser@mail.com", "password", "orgkeylistuser")
+      Hexpm.new_repo("orgkeylistrepo", auth)
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
       send(self(), {:mix_shell_input, :prompt, "password"})
-      args = ["key", "orgkeylist", "generate", "--key-name", "orgkeylist"]
+      args = ["key", "orgkeylistrepo", "generate", "--key-name", "orgkeylistrepo"]
       Mix.Tasks.Hex.Organization.run(args)
 
-      assert {:ok, {200, [%{"name" => "orgkeylist"}], _}} =
-               Hex.API.Key.Organization.get("orgkeylist", auth)
+      assert {:ok, {200, [%{"name" => "orgkeylistrepo"}], _}} =
+               Hex.API.Key.Organization.get("orgkeylistrepo", auth)
 
-      Mix.Tasks.Hex.Organization.run(["key", "orgkeylist", "list"])
-      assert_received {:mix_shell, :info, ["orgkeylist" <> _]}
+      Mix.Tasks.Hex.Organization.run(["key", "orgkeylistrepo", "list"])
+      assert_received {:mix_shell, :info, ["orgkeylistrepo" <> _]}
     end)
   end
 
@@ -161,19 +161,19 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       Hex.State.put(:home, File.cwd!())
 
-      auth = Hexpm.new_user("orgkeyrevoke", "orgkeyrevoke@mail.com", "password", "orgkeyrevoke1")
-      Hexpm.new_repo("orgkeyrevoke", auth)
-      Hexpm.new_organization_key("orgkeyrevoke", "orgkeyrevoke2", auth)
+      auth = Hexpm.new_user("orgkeyrevokeyuser", "orgkeyrevokeyuser@mail.com", "password", "orgkeyrevokeuser1")
+      Hexpm.new_repo("orgkeyrevokerepo", auth)
+      Hexpm.new_organization_key("orgkeyrevokerepo", "orgkeyrevokerepo2", auth)
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
-      assert {:ok, {200, [%{"name" => "orgkeyrevoke2"}], _}} =
-               Hex.API.Key.Organization.get("orgkeyrevoke", auth)
+      assert {:ok, {200, [%{"name" => "orgkeyrevokerepo2"}], _}} =
+               Hex.API.Key.Organization.get("orgkeyrevokerepo", auth)
 
       send(self(), {:mix_shell_input, :prompt, "password"})
-      Mix.Tasks.Hex.Organization.run(["key", "orgkeyrevoke", "revoke", "orgkeyrevoke2"])
-      assert_received {:mix_shell, :info, ["Revoking key orgkeyrevoke2..."]}
+      Mix.Tasks.Hex.Organization.run(["key", "orgkeyrevokerepo", "revoke", "orgkeyrevokerepo2"])
+      assert_received {:mix_shell, :info, ["Revoking key orgkeyrevokerepo2..."]}
 
-      assert {:ok, {200, [], _}} = Hex.API.Key.Organization.get("orgkeyrevoke", auth)
+      assert {:ok, {200, [], _}} = Hex.API.Key.Organization.get("orgkeyrevokerepo", auth)
     end)
   end
 
@@ -184,24 +184,24 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
 
       auth =
         Hexpm.new_user(
-          "orgkeyrevokeall",
-          "orgkeyrevokeall@mail.com",
+          "orgkeyrevokealluser",
+          "orgkeyrevokealluser@mail.com",
           "password",
-          "orgkeyrevokeall1"
+          "orgkeyrevokealluser1"
         )
 
-      Hexpm.new_repo("orgkeyrevokeall", auth)
-      Hexpm.new_organization_key("orgkeyrevokeall", "orgkeyrevokeall2", auth)
+      Hexpm.new_repo("orgkeyrevokeallrepo", auth)
+      Hexpm.new_organization_key("orgkeyrevokeallrepo", "orgkeyrevokeallrepo2", auth)
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
-      assert {:ok, {200, [%{"name" => "orgkeyrevokeall2"}], _}} =
-               Hex.API.Key.Organization.get("orgkeyrevokeall", auth)
+      assert {:ok, {200, [%{"name" => "orgkeyrevokeallrepo2"}], _}} =
+               Hex.API.Key.Organization.get("orgkeyrevokeallrepo", auth)
 
       send(self(), {:mix_shell_input, :prompt, "password"})
-      Mix.Tasks.Hex.Organization.run(["key", "orgkeyrevokeall", "revoke", "--all"])
+      Mix.Tasks.Hex.Organization.run(["key", "orgkeyrevokeallrepo", "revoke", "--all"])
       assert_received {:mix_shell, :info, ["Revoking all keys..."]}
 
-      assert {:ok, {200, [], _}} = Hex.API.Key.Organization.get("orgkeyrevokeall", auth)
+      assert {:ok, {200, [], _}} = Hex.API.Key.Organization.get("orgkeyrevokeallrepo", auth)
     end)
   end
 end

@@ -18,8 +18,8 @@ defmodule Mix.Tasks.Hex.SearchTest do
   test "search all private packages" do
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
-      auth = Hexpm.new_user("search1", "search1@mail.com", "password", "search1")
-      Hexpm.new_repo("search1", auth)
+      auth = Hexpm.new_user("searchuser1", "searchuser1@mail.com", "password", "searchuser1")
+      Hexpm.new_repo("searchrepo1", auth)
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
       Mix.Tasks.Hex.Search.run(["doc"])
@@ -34,11 +34,11 @@ defmodule Mix.Tasks.Hex.SearchTest do
   test "search private package" do
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
-      auth = Hexpm.new_user("search2", "search2@mail.com", "password", "search2")
-      Hexpm.new_repo("search2", auth)
+      auth = Hexpm.new_user("searchuser2", "searchuser2@mail.com", "password", "searchuser2")
+      Hexpm.new_repo("searchrepo2", auth)
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
-      Mix.Tasks.Hex.Search.run(["doc", "--organization", "search2"])
+      Mix.Tasks.Hex.Search.run(["doc", "--organization", "searchrepo2"])
 
       refute_received {:mix_shell, :info, ["ex_doc" <> _]}
       refute_received {:mix_shell, :info, ["only_doc" <> _]}
