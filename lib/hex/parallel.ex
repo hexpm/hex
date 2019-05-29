@@ -114,7 +114,7 @@ defmodule Hex.Parallel do
   end
 
   defp run_task(id, fun, state) do
-    if Map.size(state.running) >= state.max_jobs do
+    if map_size(state.running) >= state.max_jobs do
       %{state | waiting: :queue.in({id, fun}, state.waiting)}
     else
       task = Task.async(fun)

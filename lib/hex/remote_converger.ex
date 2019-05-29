@@ -223,7 +223,7 @@ defmodule Hex.RemoteConverger do
     previously_locked_versions = dep_info_from_lock(old_lock)
     resolved = resolve_dependencies(resolved, locked)
 
-    if Map.size(resolved) != 0 do
+    if map_size(resolved) != 0 do
       Hex.Shell.info("Dependency resolution completed:")
 
       dep_changes = group_dependency_changes(resolved, previously_locked_versions)
