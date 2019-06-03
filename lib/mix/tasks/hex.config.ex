@@ -134,24 +134,26 @@ defmodule Mix.Tasks.Hex.Config do
   def tasks() do
     [
       {"", "Reads, updates or deletes local Hex config"},
-      {"KEY VALUE", "Set config KEY to VALUE"},
       {"KEY", "Get config value for KEY"},
-      {"KEY --delete", "Delete config value for KEY"}
+      {"KEY --delete", "Delete config value for KEY"},
+      {"KEY VALUE", "Set config KEY to VALUE"}
     ]
   end
 
   defp list() do
-    Enum.each(valid_read_keys(), fn {key, _config} ->
-      read(key, true)
+    Enum.each(valid_read_keys(), fn {config, _internal} ->
+      read(config, true)
     end)
   end
 
   defp read(key, verbose \\ false)
 
   defp read(key, verbose) when is_binary(key) do
-    case Keyword.fetch(valid_read_keys(), String.to_existing_atom(key)) do
-      {:ok, config_key} ->
-        fetch_current_value_and_print(config_key, key, verbose)
+    key = String.to_atom(key)
+
+    case Keyword.fetch(valid_read_keys(), key) do
+      {:ok, internal} ->
+        fetch_current_value_and_print(internal, key, verbose)
 
       _error ->
         Mix.raise("The key #{key} is not valid")
@@ -160,8 +162,8 @@ defmodule Mix.Tasks.Hex.Config do
 
   defp read(key, verbose) when is_atom(key), do: read(to_string(key), verbose)
 
-  defp fetch_current_value_and_print(config_key, key, verbose) do
-    case Map.fetch(Hex.State.get_all(), :"#{config_key}") do
+  defp fetch_current_value_and_print(internal, key, verbose) do
+    case Map.fetch(Hex.State.get_all(), internal) do
       {:ok, {{:env, env_var}, value}} ->
         print_value(key, value, verbose, "(using `#{env_var}`)")
 
@@ -185,14 +187,20 @@ defmodule Mix.Tasks.Hex.Config do
   defp print_value(_key, value, false, _source), do: Hex.Shell.info(inspect(value, pretty: true))
 
   defp delete(key) do
-    {:ok, config_key} = Keyword.fetch(valid_write_keys(), String.to_existing_atom(key))
-    Hex.Config.remove([String.to_existing_atom(config_key)])
+    key = String.to_atom(key)
+
+    if Keyword.has_key?(valid_write_keys(), key) do
+      Hex.Config.remove([key])
+    end
   end
 
   defp set(key, value) do
-    case Keyword.fetch(valid_write_keys(), String.to_existing_atom(key)) do
-      {:ok, config} -> Hex.Config.update([{:"#{config}", value}])
-      :error -> Mix.raise("Invalid key #{key}")
+    key = String.to_atom(key)
+
+    if Keyword.has_key?(valid_write_keys(), key) do
+      Hex.Config.update([{key, value}])
+    else
+      Mix.raise("Invalid key #{key}")
     end
   end
 
@@ -203,36 +211,35 @@ defmodule Mix.Tasks.Hex.Config do
   end
 
   defp valid_keys() do
-    Enum.map(Hex.State.config(), fn {key, v} ->
-      [config | _] = Map.get(v, :config, [nil])
-      [env | _] = Map.get(v, :env, [nil])
+    Enum.map(Hex.State.config(), fn {internal, map} ->
+      [config | _] = Map.get(map, :config, [nil])
+      [env | _] = Map.get(map, :env, [nil])
 
       cond do
-        String.starts_with?(to_string(config), "$") -> {key, config, :not_accessible}
-        is_nil(config) and not is_nil(env) -> {key, config, :env_only}
-        is_nil(config) and is_nil(env) -> {key, config, :read_only}
-        true -> {key, config, :read_and_write}
+        String.starts_with?(to_string(config), "$") -> {internal, config, :not_accessible}
+        is_nil(config) and not is_nil(env) -> {internal, config, :env_only}
+        is_nil(config) and is_nil(env) -> {internal, config, :read_only}
+        true -> {internal, config, :read_and_write}
       end
     end)
   end
 
   defp valid_read_keys() do
     valid_keys()
-    |> Enum.map(fn {key, config, access} ->
-      if access != :not_accessible, do: config_and_key(config, key)
+    |> Enum.map(fn {internal, config, access} ->
+      if access != :not_accessible, do: key_representation(internal, config)
     end)
     |> Enum.filter(&(&1 != nil))
   end
 
   defp valid_write_keys() do
     valid_keys()
-    |> Enum.map(fn {key, config, access} ->
-      if access == :read_and_write, do: config_and_key(config, key)
+    |> Enum.map(fn {internal, config, access} ->
+      if access == :read_and_write, do: key_representation(internal, config)
     end)
     |> Enum.filter(&(&1 != nil))
   end
 
-  defp config_and_key(key, nil), do: {key, to_string(key)}
-  defp config_and_key(nil, config), do: {config, to_string(config)}
-  defp config_and_key(key, config), do: {key, to_string(config)}
+  defp key_representation(internal, nil), do: {internal, internal}
+  defp key_representation(internal, config), do: {config, internal}
 end
