@@ -63,7 +63,7 @@ defmodule Hex.State do
     home: %{
       env: ["HEX_HOME"],
       default: @home,
-      fun: {Path, :expand}
+      fun: {__MODULE__, :path_expand}
     },
     mirror_url: %{
       env: ["HEX_MIRROR_URL", "HEX_MIRROR"],
@@ -178,12 +178,40 @@ defmodule Hex.State do
         load_project_config(project_config, spec[:config]) ||
         load_global_config(global_config, spec[:config])
 
-    {module, func} = spec[:fun] || {__MODULE__, :id}
+    {module, func} = spec[:fun] || {__MODULE__, :ok_wrap}
 
     case result do
-      nil -> {:default, apply(module, func, [spec[:default]])}
-      {source, value} -> {source, apply(module, func, [value])}
+      nil ->
+        {:ok, value} = apply(module, func, [spec[:default]])
+        {:default, value}
+
+      {source, value} ->
+        case apply(module, func, [value]) do
+          {:ok, value} ->
+            {source, value}
+
+          :error ->
+            print_invalid_config_error(value, source)
+            {:ok, value} = apply(module, func, [spec[:default]])
+            {:default, value}
+        end
     end
+  end
+
+  defp print_invalid_config_error(value, source) do
+    value = inspect(value, pretty: true)
+    message = "Invalid Hex config, falling back to default. Source: #{source(source)} #{value}"
+    Hex.Shell.error(message)
+  end
+
+  defp source({:env, env_var}), do: "environment variable #{env_var}="
+  defp source({:project_config, key}), do: "mix.exs config #{key}: "
+  defp source({:global_config, key}), do: "Hex config (location: #{config_path()}) #{key}: "
+
+  defp config_path() do
+    :home
+    |> Hex.State.fetch!()
+    |> Path.join("hex.config")
   end
 
   defp load_env(keys) do
@@ -212,30 +240,34 @@ defmodule Hex.State do
     end)
   end
 
-  def to_boolean(nil), do: nil
-  def to_boolean(false), do: false
-  def to_boolean(true), do: true
-  def to_boolean("0"), do: false
-  def to_boolean("1"), do: true
-  def to_boolean("false"), do: false
-  def to_boolean("true"), do: true
-  def to_boolean("FALSE"), do: false
-  def to_boolean("TRUE"), do: true
+  def to_boolean(nil), do: {:ok, nil}
+  def to_boolean(false), do: {:ok, false}
+  def to_boolean(true), do: {:ok, true}
+  def to_boolean("0"), do: {:ok, false}
+  def to_boolean("1"), do: {:ok, true}
+  def to_boolean("false"), do: {:ok, false}
+  def to_boolean("true"), do: {:ok, true}
+  def to_boolean("FALSE"), do: {:ok, false}
+  def to_boolean("TRUE"), do: {:ok, true}
+  def to_boolean(_), do: :error
 
-  def to_integer(nil), do: nil
-  def to_integer(""), do: nil
-  def to_integer(integer) when is_integer(integer), do: integer
+  def to_integer(nil), do: {:ok, nil}
+  def to_integer(""), do: {:ok, nil}
+  def to_integer(integer) when is_integer(integer), do: {:ok, integer}
 
   def to_integer(string) when is_binary(string) do
     {int, _} = Integer.parse(string)
-    int
+    {:ok, int}
   end
+
+  def to_integer(_), do: :error
 
   def default(nil, value), do: value
   def default(value, _), do: value
 
-  def trim_slash(nil), do: nil
-  def trim_slash(string), do: Hex.string_trim_leading(string, "/")
+  def trim_slash(nil), do: {:ok, nil}
+  def trim_slash(string) when is_binary(string), do: {:ok, Hex.string_trim_leading(string, "/")}
+  def trim_slash(_), do: :error
 
   def ssl_version() do
     {:ok, version} = :application.get_key(:ssl, :vsn)
@@ -257,11 +289,17 @@ defmodule Hex.State do
   defp version_pad([major, minor, patch]), do: [major, minor, patch]
   defp version_pad([major, minor, patch | _]), do: [major, minor, patch]
 
-  def http_timeout(nil), do: nil
-  def http_timeout(seconds) when is_integer(seconds), do: seconds
-  def http_timeout(seconds), do: to_integer(seconds)
+  def http_timeout(nil), do: {:ok, nil}
+  def http_timeout(seconds) when is_integer(seconds), do: {:ok, seconds}
+  def http_timeout(seconds), do: {:ok, to_integer(seconds)}
 
-  def id(arg), do: arg
+  def path_expand(path) when is_binary(path) do
+    {:ok, Path.expand(path)}
+  end
+
+  def path_expand(_), do: :error
+
+  def ok_wrap(arg), do: {:ok, arg}
 
   def config, do: @config
 end
