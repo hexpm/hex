@@ -32,7 +32,7 @@ defmodule Mix.Tasks.Hex.Docs do
   ## Command line options
 
     * `--module Some.Module` - Open a specified module documentation page inside desired package
-    * `--organization ORGANIZATION` - The organization the package belongs to
+    * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
     * `--latest` - Looks for the latest release of a package
   """
   @behaviour Hex.Mix.TaskDescription

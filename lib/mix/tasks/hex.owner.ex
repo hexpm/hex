@@ -45,7 +45,8 @@ defmodule Mix.Tasks.Hex.Owner do
 
   ## Command line options
 
-    * `--organization ORGANIZATION` - The organization the package belongs to
+    * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
+
   """
   @behaviour Hex.Mix.TaskDescription
 
