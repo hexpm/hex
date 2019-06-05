@@ -76,6 +76,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
         "Package published to http://localhost:4043/packages/release_a/0.0.1 " <>
           "(888f573ee2d5cd45e3edfad2862e24e5f205afa0cf493796015c3001ff8dbce5)"
 
+      IO.inspect Process.info(self(), :messages)
       assert_received {:mix_shell, :info, [^message]}
 
       assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
