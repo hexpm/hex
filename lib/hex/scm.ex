@@ -313,7 +313,8 @@ defmodule Hex.SCM do
     end)
   end
 
-  defp fetch(repo, package, version, path, etag) do
+  @doc false
+  def fetch(repo, package, version, path, etag) do
     if Hex.State.fetch!(:offline) do
       {:ok, :offline}
     else
@@ -321,9 +322,16 @@ defmodule Hex.SCM do
         {:ok, {200, body, headers}} ->
           etag = headers['etag']
           etag = if etag, do: List.to_string(etag)
-          File.mkdir_p!(Path.dirname(path))
-          File.write!(path, body)
-          {:ok, :new, etag}
+
+          case path do
+            :memory ->
+              {:ok, :new, body, etag}
+
+            _ when is_binary(path) ->
+              File.mkdir_p!(Path.dirname(path))
+              File.write!(path, body)
+              {:ok, :new, etag}
+          end
 
         {:ok, {304, _body, _headers}} ->
           {:ok, :cached}

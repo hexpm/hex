@@ -84,6 +84,11 @@ defmodule Hex.State do
     repos_key: %{
       env: ["HEX_REPOS_KEY"],
       config: [:repos_key]
+    },
+    diff_command: %{
+      env: ["HEX_DIFF_COMMAND"],
+      config: [:diff_command],
+      default: Mix.Tasks.Hex.Package.default_diff_command()
     }
   }
 

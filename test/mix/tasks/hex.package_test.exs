@@ -1,42 +1,70 @@
 defmodule Mix.Tasks.Hex.PackageTest do
   use HexTest.Case
+  import ExUnit.CaptureIO
   @moduletag :integration
 
-  test "download success" do
-    bypass_package()
-    package = "package"
-    version = "1.0.0"
-    path = tmp_path()
-    Hex.State.put(:home, path)
+  describe "fetch" do
+    test "success" do
+      in_tmp(fn ->
+        cwd = File.cwd!()
+        Mix.Tasks.Hex.Package.run(["fetch", "ex_doc", "0.0.1"])
+        msg = "ex_doc v0.0.1 downloaded to #{cwd}/ex_doc-0.0.1.tar"
+        assert_received {:mix_shell, :info, [^msg]}
+        assert File.exists?("#{cwd}/ex_doc-0.0.1.tar")
+      end)
+    end
 
-    in_tmp("package", fn ->
-      Mix.Tasks.Hex.Package.run(["fetch", package, version])
-      msg = "#{package} v#{version} downloaded to #{path}/package/package-1.0.0.tar"
-      assert_received {:mix_shell, :info, [^msg]}
-      assert File.exists?("#{path}/package/package-1.0.0.tar")
-    end)
+    test "package not found" do
+      assert_raise Mix.Error, "Request failed (404)", fn ->
+        Mix.Tasks.Hex.Package.run(["fetch", "ex_doc", "2.0.0"])
+      end
+    end
   end
 
-  test "error when http error" do
-    bypass_package()
-    package = "package"
-    version = "1.0.1"
+  describe "diff" do
+    test "success" do
+      in_tmp(fn ->
+        out =
+          capture_io(fn ->
+            Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])
+          end)
 
-    in_tmp("package", fn ->
-      Mix.Tasks.Hex.Package.run(["fetch", package, version])
-      assert_received {:mix_shell, :error, ["Request failed (404)"]}
-    end)
-  end
+        assert out =~ ~s(-{<<"version">>,<<"0.0.1">>}.)
+        assert out =~ ~s(+{<<"version">>,<<"0.1.0">>}.)
+      end)
+    end
 
-  test "error when no argument" do
-    error_msg = """
-      Invalid arguments, expected one of:
+    test "custom diff command" do
+      in_tmp(fn ->
+        Hex.State.put(:diff_command, "ls __PATH1__ __PATH2__")
 
-      mix hex.package fetch PACKAGE VERSION [--unpack]
-    """
+        out =
+          capture_io(fn ->
+            Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])
+          end)
 
-    assert_raise Mix.Error, error_msg, fn ->
-      Mix.Tasks.Hex.Package.run([])
+        assert out =~ "hex_metadata.config\nmix.exs"
+      end)
+    end
+
+    test "bad version range" do
+      msg = "Expected version range to be in format `VERSION1..VERSION2`, got: `\"1.0.0..\"`"
+
+      assert_raise Mix.Error, msg, fn ->
+        Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "1.0.0.."])
+      end
+    end
+
+    test "package not found" do
+      assert_raise Mix.Error, "Request failed (404)", fn ->
+        Mix.Tasks.Hex.Package.run(["diff", "bad", "1.0.0..1.1.0"])
+      end
+
+      in_tmp(fn ->
+        assert_raise Mix.Error, "Request failed (404)", fn ->
+          Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..2.0.0"])
+        end
+      end)
     end
   end
 end

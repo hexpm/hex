@@ -114,7 +114,9 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       Hex.State.put(:home, File.cwd!())
 
-      auth = Hexpm.new_user("orgkeygenuser", "orgkeygenuser@mail.com", "password", "orgkeygenuser")
+      auth =
+        Hexpm.new_user("orgkeygenuser", "orgkeygenuser@mail.com", "password", "orgkeygenuser")
+
       Hexpm.new_repo("orgkeygenrepo", auth)
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
@@ -141,7 +143,9 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       Hex.State.put(:home, File.cwd!())
 
-      auth = Hexpm.new_user("orgkeylistuser", "orgkeylistuser@mail.com", "password", "orgkeylistuser")
+      auth =
+        Hexpm.new_user("orgkeylistuser", "orgkeylistuser@mail.com", "password", "orgkeylistuser")
+
       Hexpm.new_repo("orgkeylistrepo", auth)
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
@@ -161,7 +165,14 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       Hex.State.put(:home, File.cwd!())
 
-      auth = Hexpm.new_user("orgkeyrevokeyuser", "orgkeyrevokeyuser@mail.com", "password", "orgkeyrevokeuser1")
+      auth =
+        Hexpm.new_user(
+          "orgkeyrevokeyuser",
+          "orgkeyrevokeyuser@mail.com",
+          "password",
+          "orgkeyrevokeuser1"
+        )
+
       Hexpm.new_repo("orgkeyrevokerepo", auth)
       Hexpm.new_organization_key("orgkeyrevokerepo", "orgkeyrevokerepo2", auth)
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
