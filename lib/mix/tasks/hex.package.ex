@@ -33,6 +33,8 @@ defmodule Mix.Tasks.Hex.Package do
   This file contains package's metadata as Erlang terms and so
   we can additionally see the diff of that.
 
+  The exit code of the task is that of the underlying diff command.
+
   ### Diff command
 
   The diff command can be customized by setting `diff_command`
@@ -153,7 +155,8 @@ defmodule Mix.Tasks.Hex.Package do
 
       [cmd | argv] = OptionParser.split(cmd)
       tmp_path("#{package}-#{version1}-")
-      System.cmd(cmd, argv, into: IO.stream(:stdio, :line))
+      {_, code} = System.cmd(cmd, argv, into: IO.stream(:stdio, :line))
+      Mix.Tasks.Hex.set_exit_code(code)
     after
       File.rm_rf!(path1)
       File.rm_rf!(path2)

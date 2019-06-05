@@ -23,7 +23,8 @@ defmodule Mix.Tasks.Hex.PackageTest do
     in_tmp(fn ->
       out =
         capture_io(fn ->
-          Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])
+          assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])) ==
+                   {:exit_code, 1}
         end)
 
       assert out =~ ~s(-{<<"version">>,<<"0.0.1">>}.)
@@ -37,7 +38,8 @@ defmodule Mix.Tasks.Hex.PackageTest do
 
       out =
         capture_io(fn ->
-          Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])
+          assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])) ==
+                   {:exit_code, 0}
         end)
 
       assert out =~ "hex_metadata.config\nmix.exs"
