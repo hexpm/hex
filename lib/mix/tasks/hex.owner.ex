@@ -91,7 +91,8 @@ defmodule Mix.Tasks.Hex.Owner do
   def tasks() do
     [
       {"add PACKAGE EMAIL_OR_USERNAME", "Adds an owner to package"},
-      {"transfer PACKAGE EMAIL_OR_USERNAME", "Transfers ownership of a package to another user or organization"},
+      {"transfer PACKAGE EMAIL_OR_USERNAME",
+       "Transfers ownership of a package to another user or organization"},
       {"remove PACKAGE EMAIL_OR_USERNAME", "Removes an owner from package"},
       {"list PACKAGE", "List all owners of a given package"},
       {"packages", "List all packages owned by the current user"}

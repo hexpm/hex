@@ -135,7 +135,14 @@ defmodule Hex.APITest do
              Hex.API.Package.Owner.get("hexpm", "orange", auth)
 
     assert {:ok, {status, _, _}} =
-             Hex.API.Package.Owner.add("hexpm", "orange", "orange_user@mail.com", "full", false, auth)
+             Hex.API.Package.Owner.add(
+               "hexpm",
+               "orange",
+               "orange_user@mail.com",
+               "full",
+               false,
+               auth
+             )
 
     assert status in 200..299
 

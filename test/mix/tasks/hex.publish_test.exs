@@ -270,8 +270,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
-      setup_auth("user2", "hunter42")
-      send(self(), {:mix_shell_input, :prompt, "user"})
+      send(self(), {:mix_shell_input, :prompt, "user2"})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.User.run(["key", "generate"])
       assert_received {:mix_shell, :info, ["Generating key..."]}

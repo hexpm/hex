@@ -300,7 +300,7 @@ defmodule Mix.Tasks.Hex.Publish do
     Hex.Shell.info("")
     Hex.Shell.info("  [1] Yourself")
 
-    numbers = Stream.map(Stream.iterate(2, & &1 + 1), &Integer.to_string/1)
+    numbers = Stream.map(Stream.iterate(2, &(&1 + 1)), &Integer.to_string/1)
     organizations = Map.new(Stream.zip(numbers, organizations))
 
     Enum.each(organizations, fn {ix, organization} ->
@@ -328,8 +328,10 @@ defmodule Mix.Tasks.Hex.Publish do
     case Hex.API.Package.get("hexpm", build.meta.name) do
       {:ok, {200, _body, _headers}} ->
         true
+
       {:ok, {404, _body, _headers}} ->
         false
+
       other ->
         Hex.Utils.print_error_result(other)
         true
@@ -340,6 +342,7 @@ defmodule Mix.Tasks.Hex.Publish do
     case Hex.API.User.me(auth) do
       {:ok, {200, body, _header}} ->
         Enum.map(body["organizations"], & &1["name"])
+
       other ->
         Hex.Utils.print_error_result(other)
         []
