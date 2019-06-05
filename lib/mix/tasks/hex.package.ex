@@ -153,9 +153,7 @@ defmodule Mix.Tasks.Hex.Package do
         |> String.replace("__PATH1__", path1)
         |> String.replace("__PATH2__", path2)
 
-      [cmd | argv] = OptionParser.split(cmd)
-      tmp_path("#{package}-#{version1}-")
-      {_, code} = System.cmd(cmd, argv, into: IO.stream(:stdio, :line))
+      code = Mix.shell().cmd(cmd)
       Mix.Tasks.Hex.set_exit_code(code)
     after
       File.rm_rf!(path1)

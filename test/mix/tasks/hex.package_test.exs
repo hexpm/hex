@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.PackageTest do
   use HexTest.Case
-  import ExUnit.CaptureIO
   @moduletag :integration
 
   test "fetch: success" do
@@ -21,12 +20,10 @@ defmodule Mix.Tasks.Hex.PackageTest do
 
   test "diff: success" do
     in_tmp(fn ->
-      out =
-        capture_io(fn ->
-          assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])) ==
-                   {:exit_code, 1}
-        end)
+      assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])) ==
+               {:exit_code, 1}
 
+      assert_received {:mix_shell, :run, [out]}
       assert out =~ ~s(-{<<"version">>,<<"0.0.1">>}.)
       assert out =~ ~s(+{<<"version">>,<<"0.1.0">>}.)
     end)
@@ -36,12 +33,10 @@ defmodule Mix.Tasks.Hex.PackageTest do
     in_tmp(fn ->
       Hex.State.put(:diff_command, "ls __PATH1__ __PATH2__")
 
-      out =
-        capture_io(fn ->
           assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])) ==
                    {:exit_code, 0}
-        end)
 
+      assert_received {:mix_shell, :run, [out]}
       assert out =~ "hex_metadata.config\nmix.exs"
     end)
   end
