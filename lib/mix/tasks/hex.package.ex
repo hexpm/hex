@@ -33,11 +33,33 @@ defmodule Mix.Tasks.Hex.Package do
   This file contains package's metadata as Erlang terms and so
   we can additionally see the diff of that.
 
+  ### Diff command
+
   The diff command can be customized by setting `diff_command`
   configuration option, see `mix help config` for more information.
-  The default diff command is: `#{@default_diff_command}`.
+  The default diff command is:
+
+      #{@default_diff_command}
+
   The `__PATH1__` and `__PATH2__` placeholders will be interpolated with
   paths to directories of unpacked tarballs for each version.
+
+  Many diff commands supports coloured output but becase we execute
+  the command in non-interactive mode, they'd usually be disabled.
+
+  On Unix systems you can pipe the output to more commands, for example:
+
+      `mix hex.package diff decimal 1.0.0..1.1.0 | colordiff | less -R`
+
+  Here, the output of `mix hex.package diff` is piped to the `colordiff`
+  utility to adds colours, which in turn is piped to `less -R` which
+  "pages" it. (`-R` preserves escape codes which allows colours to work.)
+
+  Another option is to configure the diff command itself. For example, to
+  force Git to always colour the output we can set the `--color=always` option:
+
+      mix hex.config diff_command "git diff --color=always --no-index __PATH1__ __PATH2__"
+      mix hex.package diff decimal 1.0.0..1.1.0
 
   ## Command line options
 
