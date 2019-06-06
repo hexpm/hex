@@ -64,7 +64,7 @@ defmodule Mix.Tasks.Hex.Package do
   ## Command line options
 
   * `--unpack` - Unpacks the tarball after fetching it
-  * `--organization ORGANIZATION` - The organization the package belongs to
+  * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
 
   """
   @behaviour Hex.Mix.TaskDescription
