@@ -49,6 +49,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end
   end
 
+  @tag :capture_log
   test "diff: package not found" do
     assert_raise Mix.Error, ~r"Request failed \(404\)", fn ->
       Mix.Tasks.Hex.Package.run(["diff", "bad", "1.0.0..1.1.0"])

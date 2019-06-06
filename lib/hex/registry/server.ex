@@ -2,6 +2,7 @@ defmodule Hex.Registry.Server do
   @moduledoc false
 
   use GenServer
+  require Logger
 
   @behaviour Hex.Registry
   @name __MODULE__
@@ -212,7 +213,7 @@ defmodule Hex.Registry.Server do
         :ets.new(@name, [])
 
       {:error, reason} ->
-        Hex.Shell.error("Error opening ETS file #{path}: #{inspect(reason)}")
+        Logger.error("Error opening ETS file #{path}: #{inspect(reason)}")
         File.rm(path)
         :ets.new(@name, [])
     end
@@ -363,12 +364,12 @@ defmodule Hex.Registry.Server do
     cached_message = if cached?, do: " (using cache instead)"
     repo_message = if repo, do: "#{repo}/"
 
-    Hex.Shell.error(
+    Logger.error(
       "Failed to fetch record for '#{repo_message}#{package}' from registry#{cached_message}"
     )
 
     if missing_status?(result) do
-      Hex.Shell.error(
+      Logger.error(
         "This could be because the package does not exist, it was spelled " <>
           "incorrectly or you don't have permissions to it"
       )

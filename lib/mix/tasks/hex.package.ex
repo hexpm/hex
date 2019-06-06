@@ -65,7 +65,6 @@ defmodule Mix.Tasks.Hex.Package do
 
   * `--unpack` - Unpacks the tarball after fetching it
   * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
-
   """
   @behaviour Hex.Mix.TaskDescription
 
@@ -103,6 +102,9 @@ defmodule Mix.Tasks.Hex.Package do
   end
 
   defp fetch(repo, package, version, unpack?) do
+    Hex.Registry.Server.open()
+    Hex.Registry.Server.prefetch([{repo, package}])
+
     tarball = fetch_tarball!(repo, package, version)
     abs_path = Path.absname("#{package}-#{version}")
     tar_path = "#{abs_path}.tar"
@@ -110,13 +112,18 @@ defmodule Mix.Tasks.Hex.Package do
 
     message =
       if unpack? do
-        unpack_tarball!(tar_path, abs_path)
+        %{checksum: checksum} = Hex.unpack_tar!(tar_path, abs_path)
+        File.rm!(tar_path)
+        verify_tar_checksum!(repo, package, version, checksum)
         "#{package} v#{version} extracted to #{abs_path}"
       else
+        %{checksum: checksum} = Hex.unpack_tar!(tar_path, :memory)
+        verify_tar_checksum!(repo, package, version, checksum)
         "#{package} v#{version} downloaded to #{tar_path}"
       end
 
     Hex.Shell.info(message)
+    Hex.Registry.Server.close()
   end
 
   defp fetch_tarball!(repo, package, version) do
@@ -134,21 +141,33 @@ defmodule Mix.Tasks.Hex.Package do
     end
   end
 
-  defp unpack_tarball!(tar_path, dest_path) do
-    Hex.unpack_tar!(tar_path, dest_path)
-    File.rm!(tar_path)
+  defp verify_tar_checksum!(repo, package, version, tar_checksum) do
+    registry_checksum = Hex.Registry.Server.checksum(repo, package, version)
+
+    if tar_checksum != registry_checksum do
+      raise("Checksum mismatch against registry")
+    end
   end
 
   defp diff(repo, package, version_range) do
+    Hex.Registry.Server.open()
+    Hex.Registry.Server.prefetch([{repo, package}])
+
     {version1, version2} = parse_version_range!(version_range)
     path1 = tmp_path("#{package}-#{version1}-")
     path2 = tmp_path("#{package}-#{version2}-")
 
     try do
-      tarball1 = fetch_tarball!(repo, package, to_string(version1))
-      tarball2 = fetch_tarball!(repo, package, to_string(version2))
-      Hex.unpack_tar!({:binary, tarball1}, path1)
-      Hex.unpack_tar!({:binary, tarball2}, path2)
+      tarball1 = fetch_tarball!(repo, package, version1)
+      tarball2 = fetch_tarball!(repo, package, version2)
+
+      %{checksum: checksum1} = Hex.unpack_tar!({:binary, tarball1}, path1)
+      verify_tar_checksum!(repo, package, version1, checksum1)
+
+      %{checksum: checksum2} = Hex.unpack_tar!({:binary, tarball2}, path2)
+      verify_tar_checksum!(repo, package, version2, checksum2)
+
+      Hex.Registry.Server.close()
 
       cmd =
         Hex.State.fetch!(:diff_command)
@@ -171,7 +190,9 @@ defmodule Mix.Tasks.Hex.Package do
   defp parse_version_range!(string) do
     case String.split(string, "..", trim: true) do
       [version1, version2] ->
-        {Hex.Version.parse!(version1), Hex.Version.parse!(version2)}
+        version1 = Hex.Version.parse!(version1)
+        version2 = Hex.Version.parse!(version2)
+        {to_string(version1), to_string(version2)}
 
       _ ->
         Mix.raise(
@@ -183,6 +204,8 @@ defmodule Mix.Tasks.Hex.Package do
   defp repo(opts) do
     if organization = opts[:organization] do
       "hexpm:" <> organization
+    else
+      "hexpm"
     end
   end
 end
