@@ -12,6 +12,7 @@
 * Show umbrella children `mix.exs` location in `mix hex.outdated`
 * Add `mix hex.owner transfer` task
 * Show improved error message on invalid configs
+* Add `mix hex.package fetch` task
 * Add `mix hex.package diff` task
 
 ### Bug fixes
