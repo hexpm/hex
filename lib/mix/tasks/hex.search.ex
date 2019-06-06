@@ -12,7 +12,7 @@ defmodule Mix.Tasks.Hex.Search do
 
   ## Command line options
 
-    * `--organization ORGANIZATION` - Search packages in specific organization
+    * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
 
   """
   @behaviour Hex.Mix.TaskDescription

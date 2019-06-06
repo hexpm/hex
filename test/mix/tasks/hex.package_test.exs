@@ -13,7 +13,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
   end
 
   test "fetch: package not found" do
-    assert_raise Mix.Error, "Request failed (404)", fn ->
+    assert_raise Mix.Error, ~r"Request failed \(404\)", fn ->
       Mix.Tasks.Hex.Package.run(["fetch", "ex_doc", "2.0.0"])
     end
   end
@@ -33,8 +33,8 @@ defmodule Mix.Tasks.Hex.PackageTest do
     in_tmp(fn ->
       Hex.State.put(:diff_command, "ls __PATH1__ __PATH2__")
 
-          assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])) ==
-                   {:exit_code, 0}
+      assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])) ==
+               {:exit_code, 0}
 
       assert_received {:mix_shell, :run, [out]}
       assert out =~ "hex_metadata.config\nmix.exs"
@@ -50,12 +50,12 @@ defmodule Mix.Tasks.Hex.PackageTest do
   end
 
   test "diff: package not found" do
-    assert_raise Mix.Error, "Request failed (404)", fn ->
+    assert_raise Mix.Error, ~r"Request failed \(404\)", fn ->
       Mix.Tasks.Hex.Package.run(["diff", "bad", "1.0.0..1.1.0"])
     end
 
     in_tmp(fn ->
-      assert_raise Mix.Error, "Request failed (404)", fn ->
+      assert_raise Mix.Error, ~r"Request failed \(404\)", fn ->
         Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..2.0.0"])
       end
     end)

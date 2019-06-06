@@ -205,7 +205,7 @@ defmodule Hex.Repo do
     config.url <> "/docs/#{URI.encode(package)}-#{URI.encode(version)}.tar.gz"
   end
 
-  defp tarball_url(repo, package, version) do
+  def tarball_url(repo, package, version) do
     config = get_repo(repo)
     config.url <> "/tarballs/#{URI.encode(package)}-#{URI.encode(version)}.tar"
   end

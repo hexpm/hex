@@ -1,8 +1,6 @@
 defmodule Mix.Tasks.Hex.Package do
   use Mix.Task
 
-  @default_repo "hexpm"
-
   @shortdoc "Fetches or diffs packages"
 
   @default_diff_command "git diff --no-index __PATH1__ __PATH2__"
@@ -66,11 +64,12 @@ defmodule Mix.Tasks.Hex.Package do
   ## Command line options
 
   * `--unpack` - Unpacks the tarball after fetching it
+  * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
 
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [unpack: :boolean]
+  @switches [unpack: :boolean, organization: :string]
 
   @impl true
   def run(args) do
@@ -80,10 +79,10 @@ defmodule Mix.Tasks.Hex.Package do
 
     case args do
       ["fetch", package, version] ->
-        fetch(@default_repo, package, version, unpack)
+        fetch(repo(opts), package, version, unpack)
 
       ["diff", package, version_range] ->
-        diff(@default_repo, package, version_range)
+        diff(repo(opts), package, version_range)
 
       _ ->
         Mix.raise("""
@@ -128,7 +127,10 @@ defmodule Mix.Tasks.Hex.Package do
         tarball
 
       {:error, reason} ->
-        Mix.raise(reason)
+        Mix.raise(
+          "Downloading " <>
+            Hex.Repo.tarball_url(repo, package, version) <> " failed:\n\n" <> reason
+        )
     end
   end
 
@@ -175,6 +177,12 @@ defmodule Mix.Tasks.Hex.Package do
         Mix.raise(
           "Expected version range to be in format `VERSION1..VERSION2`, got: `#{inspect(string)}`"
         )
+    end
+  end
+
+  defp repo(opts) do
+    if organization = opts[:organization] do
+      "hexpm:" <> organization
     end
   end
 end

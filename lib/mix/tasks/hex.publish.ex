@@ -45,7 +45,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
     * `--revert VERSION` - Revert given version, if the last version is reverted
       the package is removed
-    * `--organization ORGANIZATION` - The organization the package belongs to
+    * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
     * `--yes` - Publishes the package without any confirmation prompts
     * `--dry-run` - Builds package and performs local checks without publishing,
       use `mix hex.build --unpack` to inspect package contents before publishing
