@@ -1,6 +1,24 @@
 # CHANGELOG
 
-## v0.19.1-dev
+## v0.20.0-dev
+
+### Enhancements
+
+* Add per-project Hex configuration. Configure Hex under the `:hex` key inside your project configuration in `mix.exs`
+* Show location of package after running `mix hex.build`
+* List all available Hex tasks when running `mix hex`
+* List subtasks when running `mix hex`
+* Remove tarball if it is invalid to avoid it being as cache in the future
+* Show umbrella children `mix.exs` location in `mix hex.outdated`
+* Add `mix hex.owner transfer` task
+* Show improved error message on invalid configs
+* Add `mix hex.package diff` task
+
+### Bug fixes
+
+* Fix `mirror_url` config
+* Fix `api_url` config
+* Do no try to remove docs after reverting package – docs are already automatically removed
 
 ## v0.19.0 (2019-01-15)
 
