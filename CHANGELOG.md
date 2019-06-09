@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v0.20.0-dev
+## v0.20.0 (2019-06-09)
 
 ### Enhancements
 

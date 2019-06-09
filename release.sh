@@ -74,7 +74,7 @@ function upload {
 # UPDATE THIS FOR EVERY RELEASE
 hex_version=$1
 
-build ${hex_version} 20.2 1.8.0 1.8.0
+build ${hex_version} 20.3 1.8.2 1.8.2
 build ${hex_version} 19.3 1.7.4 1.7.0
 build ${hex_version} 19.3 1.6.6 1.6.0
 build ${hex_version} 18.3 1.5.3 1.5.0
@@ -85,7 +85,7 @@ build ${hex_version} 17.5 1.1.1 1.1.0
 build ${hex_version} 17.5 1.0.5 1.0.0
 
 pushd ../hexpm-ops
-scripts/kubeexec hexpm -- bin/hexpm script add_install.exs ${hex_version} 1.7.0 1.6.0 1.5.0 1.4.0 1.3.0 1.2.0 1.1.0 1.0.0
+scripts/kubeexec hexpm -- bin/hexpm script add_install.exs ${hex_version} 1.8.0 1.7.0 1.6.0 1.5.0 1.4.0 1.3.0 1.2.0 1.1.0 1.0.0
 popd
 
 hex_csv "${hex_version}" 1.0.0 1.1.0 1.2.0 1.3.0 1.4.0 1.5.0 1.6.0 1.7.0 1.8.0
