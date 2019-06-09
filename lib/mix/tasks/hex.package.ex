@@ -22,9 +22,8 @@ defmodule Mix.Tasks.Hex.Package do
       mix hex.package diff PACKAGE VERSION1..VERSION2
 
   This command fetches package tarballs for both versions,
-  unpacks them into temporary directories and runs a diff
-  command. Afterwards, the temporary directories are automatically
-  deleted.
+  unpacks them into temporary directories and runs a diff command.
+  Afterwards, the temporary directories are automatically deleted.
 
   Note, similarly to when tarballs are fetched with `mix deps.get`,
   a `hex_metadata.config` is placed in each unpacked directory.
@@ -36,7 +35,7 @@ defmodule Mix.Tasks.Hex.Package do
   ### Diff command
 
   The diff command can be customized by setting `diff_command`
-  configuration option, see `mix help config` for more information.
+  configuration option, see `mix help hex.config` for more information.
   The default diff command is:
 
       #{@default_diff_command}
