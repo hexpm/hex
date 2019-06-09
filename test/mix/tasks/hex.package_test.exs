@@ -20,6 +20,8 @@ defmodule Mix.Tasks.Hex.PackageTest do
 
   test "diff: success" do
     in_tmp(fn ->
+      Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
+
       assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])) ==
                {:exit_code, 1}
 
@@ -49,8 +51,9 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end
   end
 
-  @tag :capture_log
   test "diff: package not found" do
+    Hex.State.put(:shell_process, self())
+
     assert_raise Mix.Error, ~r"Request failed \(404\)", fn ->
       Mix.Tasks.Hex.Package.run(["diff", "bad", "1.0.0..1.1.0"])
     end
