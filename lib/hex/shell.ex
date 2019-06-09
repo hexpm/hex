@@ -38,6 +38,75 @@ defmodule Hex.Shell do
     IO.ANSI.format(output, emit?)
   end
 
+  def cmd(command, options \\ [], callback) when is_function(callback, 1) do
+    callback =
+      if Keyword.get(options, :quiet, false) do
+        fn x -> x end
+      else
+        callback
+      end
+
+    env = validate_env(Keyword.get(options, :env, []))
+
+    args =
+      if Keyword.get(options, :stderr_to_stdout, true) do
+        [:stderr_to_stdout]
+      else
+        []
+      end
+
+    opts = [:stream, :binary, :exit_status, :hide, :use_stdio, {:env, env} | args]
+    port = Port.open({:spawn, shell_command(command)}, opts)
+    port_read(port, callback)
+  end
+
+  defp port_read(port, callback) do
+    receive do
+      {^port, {:data, data}} ->
+        _ = callback.(data)
+        port_read(port, callback)
+
+      {^port, {:exit_status, status}} ->
+        status
+    end
+  end
+
+  # Finding shell command logic from :os.cmd in OTP
+  # https://github.com/erlang/otp/blob/8deb96fb1d017307e22d2ab88968b9ef9f1b71d0/lib/kernel/src/os.erl#L184
+  defp shell_command(command) do
+    case :os.type() do
+      {:unix, _} ->
+        command =
+          command
+          |> String.replace("\"", "\\\"")
+          |> Hex.string_to_charlist()
+
+        'sh -c "' ++ command ++ '"'
+
+      {:win32, osname} ->
+        command = '"' ++ Hex.string_to_charlist(command) ++ '"'
+
+        case {System.get_env("COMSPEC"), osname} do
+          {nil, :windows} -> 'command.com /s /c ' ++ command
+          {nil, _} -> 'cmd /s /c ' ++ command
+          {cmd, _} -> '#{cmd} /s /c ' ++ command
+        end
+    end
+  end
+
+  defp validate_env(enum) do
+    Enum.map(enum, fn
+      {k, nil} ->
+        {Hex.string_to_charlist(k), false}
+
+      {k, v} ->
+        {Hex.string_to_charlist(k), Hex.string_to_charlist(v)}
+
+      other ->
+        raise ArgumentError, "invalid environment key-value #{inspect(other)}"
+    end)
+  end
+
   if Mix.env() == :test do
     defp validate_output!(output) do
       formatted_output = output |> IO.ANSI.format_fragment(true) |> IO.chardata_to_string()

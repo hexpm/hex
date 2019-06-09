@@ -64,7 +64,7 @@ defmodule Hex.Shell.Process do
   def cmd(command, opts \\ []) do
     print_app? = Keyword.get(opts, :print_app, true)
 
-    Mix.Shell.cmd(command, opts, fn data ->
+    Hex.Shell.cmd(command, opts, fn data ->
       if print_app?, do: print_app()
       send(process(), {:mix_shell, :run, [data]})
     end)
