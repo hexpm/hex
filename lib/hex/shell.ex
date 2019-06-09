@@ -19,7 +19,7 @@ defmodule Hex.Shell do
   def debug(output) do
     validate_output!(output)
 
-    if function_exported?(Mix, :debug?, 0) and Mix.debug?() do
+    if Hex.debug?() do
       info(output)
     end
   end

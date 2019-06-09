@@ -374,7 +374,7 @@ defmodule Hex.Registry.Server do
       )
     end
 
-    if not missing_status?(result) or Mix.debug?() do
+    if not missing_status?(result) or Hex.debug?() do
       Hex.Utils.print_error_result(result)
     end
   end
