@@ -297,9 +297,9 @@ defmodule HexTest.Case do
 
       reset_state()
       Hex.Parallel.clear(:hex_fetcher)
-      Mix.shell(Mix.Shell.Process)
+      Mix.shell(Hex.Shell.Process)
       Mix.Task.clear()
-      Mix.Shell.Process.flush()
+      Hex.Shell.Process.flush()
       Mix.ProjectStack.clear_cache()
       Mix.ProjectStack.clear_stack()
     end

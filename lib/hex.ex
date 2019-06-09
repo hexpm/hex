@@ -43,6 +43,12 @@ defmodule Hex do
     :httpc.set_options(opts, :hex)
   end
 
+  if Version.compare(System.version(), "1.2.0") == :lt do
+    def debug?(), do: Mix.State.get(:debug, false)
+  else
+    def debug?(), do: Mix.debug?()
+  end
+
   if Version.compare(System.version(), "1.3.0") == :lt do
     def string_trim(string), do: String.strip(string)
     def to_charlist(term), do: Kernel.to_char_list(term)

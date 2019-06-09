@@ -117,7 +117,8 @@ defmodule Hex.State do
       pbkdf2_iters: {:computed, @pbkdf2_iters},
       repos: {:computed, Hex.Config.read_repos(global_config, repos_key)},
       repos_key: {:computed, repos_key},
-      ssl_version: {:computed, ssl_version()}
+      ssl_version: {:computed, ssl_version()},
+      shell_process: {:computed, nil}
     })
   end
 
