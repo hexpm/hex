@@ -138,8 +138,11 @@ defmodule Mix.Tasks.Hex.Publish do
             auth = Mix.Tasks.Hex.auth_info(:write)
             Hex.Shell.info("Publishing package...")
             create_release(build, organization, auth, opts)
-            Hex.Shell.info("Transfering ownership to #{owner}...")
-            transfer_owner(build, owner, auth, opts)
+
+            if owner do
+              Hex.Shell.info("Transfering ownership to #{owner}...")
+              transfer_owner(build, owner, auth, opts)
+            end
 
           :error ->
             :ok
@@ -189,8 +192,10 @@ defmodule Mix.Tasks.Hex.Publish do
           create_docs(build, organization, auth, opts)
         end
 
-        Hex.Shell.info("Transfering ownership to #{owner}...")
-        transfer_owner(build, owner, auth, opts)
+        if owner do
+          Hex.Shell.info("Transfering ownership to #{owner}...")
+          transfer_owner(build, owner, auth, opts)
+        end
 
       :error ->
         :ok
@@ -350,10 +355,6 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp public_organization?(organization), do: organization in [nil, "hexpm"]
-
-  defp transfer_owner(_build, nil, _auth, _opts) do
-    :ok
-  end
 
   defp transfer_owner(build, owner, auth, opts) do
     dry_run? = Keyword.get(opts, :dry_run, false)
