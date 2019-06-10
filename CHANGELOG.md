@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## v0.20.1-dev
+## v0.20.1 (2019-06-10)
+
+### Bug fixes
+
+* Do not print transfer message when not transferring
 
 ## v0.20.0 (2019-06-09)
 
