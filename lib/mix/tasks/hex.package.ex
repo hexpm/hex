@@ -48,7 +48,7 @@ defmodule Mix.Tasks.Hex.Package do
 
   On Unix systems you can pipe the output to more commands, for example:
 
-      `mix hex.package diff decimal 1.0.0..1.1.0 | colordiff | less -R`
+      mix hex.package diff decimal 1.0.0..1.1.0 | colordiff | less -R
 
   Here, the output of `mix hex.package diff` is piped to the `colordiff`
   utility to adds colours, which in turn is piped to `less -R` which
