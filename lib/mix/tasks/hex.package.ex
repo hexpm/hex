@@ -67,17 +67,18 @@ defmodule Mix.Tasks.Hex.Package do
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [unpack: :boolean, organization: :string]
+  @switches [unpack: :boolean, organization: :string, output: :string]
 
   @impl true
   def run(args) do
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
     unpack = Keyword.get(opts, :unpack, false)
+    output = Keyword.get(opts, :output, nil)
 
     case args do
       ["fetch", package, version] ->
-        fetch(repo(opts), package, version, unpack)
+        fetch(repo(opts), package, version, unpack, output)
 
       ["diff", package, version_range] ->
         diff(repo(opts), package, version_range)
@@ -100,13 +101,20 @@ defmodule Mix.Tasks.Hex.Package do
     ]
   end
 
-  defp fetch(repo, package, version, unpack?) do
+  defp fetch(repo, package, version, unpack?, output) do
     Hex.Registry.Server.open()
     Hex.Registry.Server.prefetch([{repo, package}])
 
     tarball = fetch_tarball!(repo, package, version)
-    abs_path = Path.absname("#{package}-#{version}")
+    if !is_nil(output), do: File.mkdir_p!(output)
+
+    abs_path = if is_nil(output) do
+      Path.absname("#{package}-#{version}")
+    else
+      Path.join([output, "#{package}-#{version}"])
+    end
     tar_path = "#{abs_path}.tar"
+
     File.write!(tar_path, tarball)
 
     message =
