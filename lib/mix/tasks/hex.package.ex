@@ -15,7 +15,9 @@ defmodule Mix.Tasks.Hex.Package do
 
   Fetch a package tarball to the current directory.
 
-      mix hex.package fetch PACKAGE VERSION [--unpack]
+      mix hex.package fetch PACKAGE VERSION [--unpack] [--output PATH]
+
+  You can pipe the fetched tarball to stdout through setting output as `-`
 
   ## Fetch and diff package contents between versions
 
@@ -63,6 +65,7 @@ defmodule Mix.Tasks.Hex.Package do
   ## Command line options
 
   * `--unpack` - Unpacks the tarball after fetching it
+  * `--output PATH` - Set the tarball output destination
   * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
   """
   @behaviour Hex.Mix.TaskDescription
