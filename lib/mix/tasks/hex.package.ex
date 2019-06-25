@@ -101,6 +101,16 @@ defmodule Mix.Tasks.Hex.Package do
     ]
   end
 
+  defp fetch(repo, package, version, _unpack, "-") do
+    Hex.Registry.Server.open()
+    Hex.Registry.Server.prefetch([{repo, package}])
+
+    tarball = fetch_tarball!(repo, package, version)
+    IO.binwrite(tarball)
+
+    Hex.Registry.Server.close()
+  end
+
   defp fetch(repo, package, version, unpack?, output) do
     Hex.Registry.Server.open()
     Hex.Registry.Server.prefetch([{repo, package}])
