@@ -65,17 +65,20 @@ defmodule Mix.Tasks.Hex.Package do
   ## Command line options
 
   * `--unpack` - Unpacks the tarball after fetching it
-  * `--output PATH` - Set the tarball output destination
+  * `-o`, `--output` - Sets output path. When used with `--unpack` it means
+    the directory (Default: `<app>-<version>`). Otherwise, it specifies
+    tarball path (Default: `<app>-<version>.tar`)
   * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
   """
   @behaviour Hex.Mix.TaskDescription
 
   @switches [unpack: :boolean, organization: :string, output: :string]
+  @aliases [o: :output]
 
   @impl true
   def run(args) do
     Hex.start()
-    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
+    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches, aliases: @aliases)
     unpack = Keyword.get(opts, :unpack, false)
     output = Keyword.get(opts, :output, nil)
 

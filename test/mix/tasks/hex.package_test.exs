@@ -23,6 +23,16 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end)
   end
 
+  test "fetch: to folder with alias" do
+    in_tmp(fn ->
+      cwd = File.cwd!()
+      Mix.Tasks.Hex.Package.run(["fetch", "ex_doc", "-o", "#{cwd}/test", "0.0.1"])
+      msg = "ex_doc v0.0.1 downloaded to #{cwd}/test/ex_doc-0.0.1.tar"
+      assert_received {:mix_shell, :info, [^msg]}
+      assert File.exists?("#{cwd}/test/ex_doc-0.0.1.tar")
+    end)
+  end
+
   test "fetch: to folder unpack" do
     in_tmp(fn ->
       cwd = File.cwd!()
