@@ -56,7 +56,6 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end)
   end
 
-  @tag :skip
   test "fetch: to stdout with unpack flag" do
     assert_raise Mix.Error,
                  ~r"Cannot unpack the package while output destination is stdout",

@@ -104,7 +104,7 @@ defmodule Mix.Tasks.Hex.Package do
     ]
   end
 
-  defp fetch(repo, package, version, _unpack, "-") do
+  defp fetch(repo, package, version, false, "-") do
     Hex.Registry.Server.open()
     Hex.Registry.Server.prefetch([{repo, package}])
 
@@ -112,6 +112,10 @@ defmodule Mix.Tasks.Hex.Package do
     IO.binwrite(tarball)
 
     Hex.Registry.Server.close()
+  end
+
+  defp fetch(_repo, _package, _version, true, "-") do
+    Mix.raise("Cannot unpack the package while output destination is stdout")
   end
 
   defp fetch(repo, package, version, unpack?, output) do
