@@ -57,15 +57,15 @@ defmodule Mix.Tasks.Hex.PackageTest do
       output_tarball =
         capture_io(fn ->
           Mix.Tasks.Hex.Package.run(["fetch", "ex_doc", "--output", "-", "0.0.1"])
-      end)
+        end)
 
       # FIXME
       # Cannot assert the output from fetch_tarball!/3 directly
       # The results are different between capture_io/1 and IO.binwrite/1 directly
-      target_tarball = 
+      target_tarball =
         capture_io(fn ->
-        IO.binwrite(fetch_tarball!("hexpm", "ex_doc", "0.0.1"))
-      end)
+          IO.binwrite(fetch_tarball!("hexpm", "ex_doc", "0.0.1"))
+        end)
 
       assert target_tarball == output_tarball
     end)
