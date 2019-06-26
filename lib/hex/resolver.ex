@@ -97,7 +97,7 @@ defmodule Hex.Resolver do
 
           not version_match?(version, req) ->
             Backtracks.add(info(info, :backtracks), repo, name, version, parents)
-            backtrack_parents([parent], info, activated) || backtrack(name, info, activated)
+            backtrack(name, info, activated) || backtrack_parents([parent], info, activated)
 
           true ->
             activated = Map.put(activated, name, active)
