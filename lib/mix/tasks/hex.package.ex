@@ -128,14 +128,14 @@ defmodule Mix.Tasks.Hex.Package do
     tarball = fetch_tarball!(repo, package, version)
     if !is_nil(output), do: File.mkdir_p!(output)
 
-    abs_path =
-      if is_nil(output) do
-        Path.absname("#{package}-#{version}")
-      else
-        Path.join([output, "#{package}-#{version}"])
-      end
+    abs_name = Path.absname("#{package}-#{version}")
 
-    tar_path = "#{abs_path}.tar"
+    {abs_path, tar_path} =
+      if is_nil(output) do
+        {abs_name, "#{abs_name}.tar"}
+      else
+        {output, Path.join(output, "#{package}-#{version}.tar")}
+      end
 
     File.write!(tar_path, tarball)
 
