@@ -184,7 +184,7 @@ defmodule Hex.ResolverTest do
              locked(
                ecto: "1.1.0",
                phoenix: "1.1.3",
-               phoenix_ecto: "2.0.0",
+               phoenix_ecto: "2.0.1",
                phoenix_live_reload: "1.0.3",
                poison: "1.5.2"
              ),
@@ -197,7 +197,7 @@ defmodule Hex.ResolverTest do
              locked(
                ecto: "1.1.0",
                phoenix: "1.1.3",
-               phoenix_ecto: "2.0.0",
+               phoenix_ecto: "2.0.1",
                phoenix_live_reload: "1.0.3",
                poison: "1.5.2"
              ),

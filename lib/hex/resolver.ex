@@ -8,10 +8,20 @@ defmodule Hex.Resolver do
   @ets :hex_ets_states
 
   Record.defrecordp(:info, [:registry, :deps, :top_level, :ets, :repos, :backtracks])
-  Record.defrecordp(:request, [:app, :name, :req, :repo, :parent])
-  Record.defrecordp(:active, [:app, :repo, :name, :version, :versions, :parents, :state])
+  Record.defrecordp(:request, [:app, :name, :req, :repo, :parent, :top_level])
   Record.defrecordp(:parent, [:name, :repo, :version, :requirement, :repo_requirement])
   Record.defrecordp(:state, [:activated, :requests, :optional, :deps])
+
+  Record.defrecordp(:active, [
+    :app,
+    :repo,
+    :name,
+    :version,
+    :versions,
+    :parents,
+    :state,
+    :top_level
+  ])
 
   def resolve(registry, requests, deps, top_level, repos, locked) do
     tid = :ets.new(@ets, [])
@@ -56,15 +66,26 @@ defmodule Hex.Resolver do
   defp build_optional(locked) do
     Enum.into(locked, %{}, fn {repo, name, app, version} ->
       parent = parent(name: "mix.lock", requirement: version, repo_requirement: repo)
-      request = request(app: app, name: name, req: version, repo: repo, parent: parent)
+
+      request =
+        request(
+          app: app,
+          name: name,
+          req: version,
+          repo: repo,
+          parent: parent,
+          top_level: true
+        )
+
       {name, [request]}
     end)
   end
 
   defp build_pending(requests) do
     Enum.map(requests, fn {repo, name, app, req, from} ->
+      top_level? = from == "mix.exs"
       parent = parent(name: from, requirement: req, repo_requirement: repo)
-      request(name: name, app: app, req: req, repo: repo, parent: parent)
+      request(name: name, app: app, req: req, repo: repo, parent: parent, top_level: top_level?)
     end)
     |> Enum.uniq()
   end
@@ -79,14 +100,18 @@ defmodule Hex.Resolver do
     {:ok, solution}
   end
 
-  defp run(
-         [request(repo: repo, name: name, req: req, parent: parent) = request | pending],
-         optional,
-         info,
-         activated
-       ) do
+  defp run([request | pending], optional, info, activated) do
+    request(repo: repo, name: name, req: req, parent: parent) = request
+
     case Map.fetch(activated, name) do
-      {:ok, active(repo: active_repo, version: version, parents: parents) = active} ->
+      {:ok, active} ->
+        active(
+          repo: active_repo,
+          version: version,
+          parents: parents,
+          top_level: top_level?
+        ) = active
+
         repo = info(info, :repos)[name] || repo
         parents = [parent | parents]
         active = active(active, parents: parents)
@@ -97,7 +122,12 @@ defmodule Hex.Resolver do
 
           not version_match?(version, req) ->
             Backtracks.add(info(info, :backtracks), repo, name, version, parents)
-            backtrack(name, info, activated) || backtrack_parents([parent], info, activated)
+
+            if top_level? do
+              backtrack_parents([parent], info, activated) || backtrack(name, info, activated)
+            else
+              backtrack(name, info, activated) || backtrack_parents([parent], info, activated)
+            end
 
           true ->
             activated = Map.put(activated, name, active)
@@ -142,21 +172,19 @@ defmodule Hex.Resolver do
     end)
   end
 
-  defp activate(
-         request(app: app, name: name, repo: repo),
-         pending,
-         [version | versions],
-         optional,
-         info,
-         activated,
-         parents
-       ) do
+  defp activate(request, pending, [version | versions], optional, info, activated, parents) do
+    request(app: app, name: name, repo: repo, top_level: top_level?) = request
     {new_pending, new_optional, new_deps} = get_deps(app, repo, name, version, info, activated)
     new_pending = pending ++ new_pending
     new_optional = merge_optional(optional, new_optional)
 
     state =
-      state(activated: activated, requests: pending, optional: optional, deps: info(info, :deps))
+      state(
+        activated: activated,
+        requests: pending,
+        optional: optional,
+        deps: info(info, :deps)
+      )
 
     unless seen_state?(name, version, state, info) do
       repo = info(info, :repos)[name] || repo
@@ -168,6 +196,7 @@ defmodule Hex.Resolver do
           name: name,
           version: version,
           versions: versions,
+          top_level: top_level?,
           parents: parents,
           state: state
         )
@@ -185,10 +214,20 @@ defmodule Hex.Resolver do
 
   defp backtrack(name, info, activated) do
     case activated[name] do
-      active(state: state, app: app, repo: repo, name: name, versions: versions, parents: parents) ->
+      active() = active ->
+        active(
+          state: state,
+          app: app,
+          repo: repo,
+          name: name,
+          versions: versions,
+          top_level: top_level?,
+          parents: parents
+        ) = active
+
         state(activated: activated, requests: requests, optional: optional, deps: deps) = state
         info = info(info, deps: deps)
-        request = request(repo: repo, app: app, name: name)
+        request = request(repo: repo, app: app, name: name, top_level: top_level?)
         activate(request, requests, versions, optional, info, activated, parents)
 
       nil ->
@@ -245,7 +284,15 @@ defmodule Hex.Resolver do
               repo_requirement: dep_repo
             )
 
-          request = request(app: app, name: name, req: req, parent: parent, repo: dep_repo)
+          request =
+            request(
+              app: app,
+              name: name,
+              req: req,
+              parent: parent,
+              repo: dep_repo,
+              top_level: false
+            )
 
           cond do
             overridden_map[app] ->
