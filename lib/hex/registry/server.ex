@@ -7,6 +7,7 @@ defmodule Hex.Registry.Server do
   @name __MODULE__
   @filename "cache.ets"
   @timeout 60_000
+  @ets_version 2
 
   def start_link(opts \\ []) do
     opts = Keyword.put_new(opts, :name, @name)
@@ -37,8 +38,12 @@ defmodule Hex.Registry.Server do
     GenServer.call(@name, {:deps, repo, package, version}, @timeout)
   end
 
-  def checksum(repo, package, version) do
-    GenServer.call(@name, {:checksum, repo, package, version}, @timeout)
+  def inner_checksum(repo, package, version) do
+    GenServer.call(@name, {:inner_checksum, repo, package, version}, @timeout)
+  end
+
+  def outer_checksum(repo, package, version) do
+    GenServer.call(@name, {:outer_checksum, repo, package, version}, @timeout)
   end
 
   def retired(repo, package, version) do
@@ -150,9 +155,15 @@ defmodule Hex.Registry.Server do
     end)
   end
 
-  def handle_call({:checksum, repo, package, version}, from, state) do
+  def handle_call({:inner_checksum, repo, package, version}, from, state) do
     maybe_wait({repo, package}, from, state, fn ->
-      lookup(state.ets, {:checksum, repo, package, version})
+      lookup(state.ets, {:inner_checksum, repo, package, version})
+    end)
+  end
+
+  def handle_call({:outer_checksum, repo, package, version}, from, state) do
+    maybe_wait({repo, package}, from, state, fn ->
+      lookup(state.ets, {:outer_checksum, repo, package, version})
     end)
   end
 
@@ -220,7 +231,7 @@ defmodule Hex.Registry.Server do
 
   defp check_version(ets) do
     case :ets.lookup(ets, :version) do
-      [{:version, 1}] ->
+      [{:version, @ets_version}] ->
         ets
 
       _ ->
@@ -230,7 +241,7 @@ defmodule Hex.Registry.Server do
   end
 
   defp set_version(ets) do
-    :ets.insert(ets, {:version, 1})
+    :ets.insert(ets, {:version, @ets_version})
     ets
   end
 
@@ -258,7 +269,8 @@ defmodule Hex.Registry.Server do
   # :ets.fun2ms(fn
   #   {{:versions, ^repo, _package}, _} -> true
   #   {{:deps, ^repo, _package, _version}, _} -> true
-  #   {{:checksum, ^repo, _package, _version}, _} -> true
+  #   {{:inner_checksum, ^repo, _package, _version}, _} -> true
+  #   {{:outer_checksum, ^repo, _package, _version}, _} -> true
   #   {{:retired, ^repo, _package, _version}, _} -> true
   #   {{:tarball_etag, ^repo, _package, _version}, _} -> true
   #   {{:registry_etag, ^repo, _package}, _} -> true
@@ -269,7 +281,8 @@ defmodule Hex.Registry.Server do
     [
       {{{:versions, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:deps, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
-      {{{:checksum, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:inner_checksum, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:outer_checksum, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:retired, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:tarball_etag, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:registry_etag, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
@@ -325,12 +338,13 @@ defmodule Hex.Registry.Server do
 
     delete_package(repo, package, tid)
 
-    Enum.each(releases, fn %{version: version, checksum: checksum, dependencies: deps} = release ->
-      :ets.insert(tid, {{:checksum, repo, package, version}, checksum})
+    Enum.each(releases, fn %{version: version} = release ->
+      :ets.insert(tid, {{:inner_checksum, repo, package, version}, release[:inner_checksum]})
+      :ets.insert(tid, {{:outer_checksum, repo, package, version}, release[:outer_checksum]})
       :ets.insert(tid, {{:retired, repo, package, version}, release[:retired]})
 
       deps =
-        Enum.map(deps, fn dep ->
+        Enum.map(release[:dependencies], fn dep ->
           {dep[:repository] || repo, dep[:package], dep[:app] || dep[:package], dep[:requirement],
            !!dep[:optional]}
         end)

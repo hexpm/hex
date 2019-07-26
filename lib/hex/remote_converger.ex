@@ -95,8 +95,12 @@ defmodule Hex.RemoteConverger do
     old_info = Hex.Utils.lock(old_tuple)
     new_info = Hex.Utils.lock(new_tuple)
 
-    not (old_info != nil and new_info != nil and old_info.name == new_info.name and
-           old_info.version == new_info.version and old_info.checksum == new_info.checksum and
+    not (old_info != nil and
+           new_info != nil and
+           old_info.name == new_info.name and
+           old_info.version == new_info.version and
+           old_info.inner_checksum == new_info.inner_checksum and
+           old_info.outer_checksum == new_info.outer_checksum and
            old_info.repo == new_info.repo)
   end
 
@@ -398,9 +402,10 @@ defmodule Hex.RemoteConverger do
       atom_name = String.to_atom(name)
 
       case Hex.Utils.lock(lock[String.to_atom(app)]) do
-        %{name: ^atom_name, version: ^version, repo: ^repo, checksum: checksum, deps: deps} ->
-          verify_checksum(repo, name, version, checksum)
-          verify_deps(repo, name, version, deps)
+        %{name: ^atom_name, version: ^version, repo: ^repo} = lock ->
+          verify_inner_checksum(repo, name, version, lock.inner_checksum)
+          verify_outer_checksum(repo, name, version, lock.outer_checksum)
+          verify_deps(repo, name, version, lock.deps)
 
         _ ->
           :ok
@@ -408,8 +413,16 @@ defmodule Hex.RemoteConverger do
     end)
   end
 
-  defp verify_checksum(repo, name, version, checksum) do
-    registry_checksum = Registry.checksum(repo, name, version)
+  defp verify_inner_checksum(repo, name, version, checksum) do
+    registry_checksum = Registry.inner_checksum(repo, name, version)
+
+    if checksum && Base.decode16!(checksum, case: :lower) != registry_checksum do
+      Mix.raise("Registry checksum mismatch against lock (#{name} #{version})")
+    end
+  end
+
+  defp verify_outer_checksum(repo, name, version, checksum) do
+    registry_checksum = Registry.outer_checksum(repo, name, version)
 
     if checksum && Base.decode16!(checksum, case: :lower) != registry_checksum do
       Mix.raise("Registry checksum mismatch against lock (#{name} #{version})")

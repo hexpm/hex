@@ -116,14 +116,18 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   defp build_package(meta, output) do
-    {_tar, checksum} = Hex.create_tar!(meta, meta.files, output)
-    Hex.Shell.info("Package checksum: #{Base.encode16(checksum, case: :lower)}")
+    %{outer_checksum: outer_checksum} = Hex.create_tar!(meta, meta.files, output)
+    Hex.Shell.info("Package checksum: #{Base.encode16(outer_checksum, case: :lower)}")
     Hex.Shell.info("Saved to #{output}")
   end
 
   defp build_and_unpack_package(meta, output) do
-    {tar, checksum} = Hex.create_tar!(meta, meta.files, :memory)
-    %{checksum: ^checksum} = Hex.unpack_tar!({:binary, tar}, output)
+    %{tarball: tarball, inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
+      Hex.create_tar!(meta, meta.files, :memory)
+
+    %{inner_checksum: ^inner_checksum, outer_checksum: ^outer_checksum} =
+      Hex.unpack_tar!({:binary, tarball}, output)
+
     Hex.Shell.info("Saved to #{output}")
   end
 

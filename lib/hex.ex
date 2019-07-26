@@ -162,7 +162,7 @@ defmodule Hex do
       end)
 
     case :mix_hex_tarball.create(metadata, files) do
-      {:ok, {tarball, _checksum} = result} ->
+      {:ok, %{tarball: tarball} = result} ->
         if output != :memory, do: File.write!(output, tarball)
         result
 

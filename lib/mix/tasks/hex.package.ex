@@ -141,15 +141,17 @@ defmodule Mix.Tasks.Hex.Package do
 
     File.write!(tar_path, tarball)
 
+    %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
+      Hex.unpack_tar!(tar_path, abs_path)
+
+    verify_inner_checksum!(repo, package, version, inner_checksum)
+    verify_outer_checksum!(repo, package, version, outer_checksum)
+
     message =
       if unpack? do
-        %{checksum: checksum} = Hex.unpack_tar!(tar_path, abs_path)
         File.rm!(tar_path)
-        verify_tar_checksum!(repo, package, version, checksum)
         "#{package} v#{version} extracted to #{abs_path}"
       else
-        %{checksum: checksum} = Hex.unpack_tar!(tar_path, :memory)
-        verify_tar_checksum!(repo, package, version, checksum)
         "#{package} v#{version} downloaded to #{tar_path}"
       end
 
@@ -172,11 +174,19 @@ defmodule Mix.Tasks.Hex.Package do
     end
   end
 
-  defp verify_tar_checksum!(repo, package, version, tar_checksum) do
-    registry_checksum = Hex.Registry.Server.checksum(repo, package, version)
+  defp verify_inner_checksum!(repo, package, version, checksum) do
+    registry_checksum = Registry.inner_checksum(repo, name, version)
 
-    if tar_checksum != registry_checksum do
-      raise("Checksum mismatch against registry")
+    if checksum != registry_checksum do
+      Mix.raise("Checksum mismatch against registry (inner)")
+    end
+  end
+
+  defp verify_outer_checksum!(repo, package, version, checksum) do
+    registry_checksum = Registry.outer_checksum(repo, name, version)
+
+    if checksum != registry_checksum do
+      Mix.raise("Checksum mismatch against registry (outer)")
     end
   end
 
@@ -192,11 +202,17 @@ defmodule Mix.Tasks.Hex.Package do
       tarball1 = fetch_tarball!(repo, package, version1)
       tarball2 = fetch_tarball!(repo, package, version2)
 
-      %{checksum: checksum1} = Hex.unpack_tar!({:binary, tarball1}, path1)
-      verify_tar_checksum!(repo, package, version1, checksum1)
+      %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
+        Hex.unpack_tar!({:binary, tarball1}, path1)
 
-      %{checksum: checksum2} = Hex.unpack_tar!({:binary, tarball2}, path2)
-      verify_tar_checksum!(repo, package, version2, checksum2)
+      verify_inner_checksum!(repo, package, version1, inner_checksum)
+      verify_outer_checksum!(repo, package, version1, outer_checksum)
+
+      %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
+        Hex.unpack_tar!({:binary, tarball2}, path2)
+
+      verify_inner_checksum!(repo, package, version2, inner_checksum)
+      verify_outer_checksum!(repo, package, version2, outer_checksum)
 
       Hex.Registry.Server.close()
 
