@@ -1,5 +1,6 @@
 defmodule Mix.Tasks.Hex.Package do
   use Mix.Task
+  alias Hex.Registry.Server, as: Registry
 
   @shortdoc "Fetches or diffs packages"
 
@@ -175,7 +176,7 @@ defmodule Mix.Tasks.Hex.Package do
   end
 
   defp verify_inner_checksum!(repo, package, version, checksum) do
-    registry_checksum = Registry.inner_checksum(repo, name, version)
+    registry_checksum = Registry.inner_checksum(repo, package, version)
 
     if checksum != registry_checksum do
       Mix.raise("Checksum mismatch against registry (inner)")
@@ -183,7 +184,7 @@ defmodule Mix.Tasks.Hex.Package do
   end
 
   defp verify_outer_checksum!(repo, package, version, checksum) do
-    registry_checksum = Registry.outer_checksum(repo, name, version)
+    registry_checksum = Registry.outer_checksum(repo, package, version)
 
     if checksum != registry_checksum do
       Mix.raise("Checksum mismatch against registry (outer)")
