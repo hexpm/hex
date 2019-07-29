@@ -42,6 +42,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end)
   end
 
+  @tag :skip
   test "fetch: to stdout" do
     in_tmp(fn ->
       output_tarball =
