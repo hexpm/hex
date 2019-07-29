@@ -42,25 +42,17 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end)
   end
 
-  @tag :skip
-  test "fetch: to stdout" do
-    in_tmp(fn ->
-      output_tarball =
-        capture_io(fn ->
-          Mix.Tasks.Hex.Package.run(["fetch", "ex_doc", "--output", "-", "0.0.1"])
-        end)
+  # TODO: add `capture_bin_io/2`.
+  # test "fetch: to stdout" do
+  #   in_tmp(fn ->
+  #     tarball =
+  #       capture_io(fn ->
+  #         Mix.Tasks.Hex.Package.run(["fetch", "ex_doc", "--output", "-", "0.0.1"])
+  #       end)
 
-      # FIXME
-      # Cannot assert the output from fetch_tarball!/3 directly
-      # The results are different between capture_io/1 and IO.binwrite/1 directly
-      target_tarball =
-        capture_io(fn ->
-          IO.binwrite(fetch_tarball!("hexpm", "ex_doc", "0.0.1"))
-        end)
-
-      assert target_tarball == output_tarball
-    end)
-  end
+  #     Hex.unpack_tar!({:binary, tarball}, :memory)
+  #   end)
+  # end
 
   test "fetch: to stdout with unpack flag" do
     assert_raise Mix.Error,
@@ -128,25 +120,5 @@ defmodule Mix.Tasks.Hex.PackageTest do
         Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..2.0.0"])
       end
     end)
-  end
-
-  defp fetch_tarball!(repo, package, version) do
-    Hex.Registry.Server.open()
-    Hex.Registry.Server.prefetch([{repo, package}])
-
-    try do
-      case Hex.SCM.fetch(repo, package, version, :memory, nil) do
-        {:ok, :new, tarball, _etag} ->
-          tarball
-
-        {:error, reason} ->
-          Mix.raise(
-            "Downloading " <>
-              Hex.Repo.tarball_url(repo, package, version) <> " failed:\n\n" <> reason
-          )
-      end
-    after
-      Hex.Registry.Server.close()
-    end
   end
 end
