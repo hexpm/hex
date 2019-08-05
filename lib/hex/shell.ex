@@ -122,6 +122,6 @@ defmodule Hex.Shell do
   if Mix.env() == :test do
     def ansi_enabled?(), do: false
   else
-    def ansi_enabled?(), do: true
+    def ansi_enabled?(), do: IO.ANSI.enabled?()
   end
 end
