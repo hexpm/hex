@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Hex.Package do
 
       mix hex.package fetch PACKAGE VERSION [--unpack] [--output PATH]
 
-  You can pipe the fetched tarball to stdout through setting output as `-`
+  You can pipe the fetched tarball to stdout by setting `--output -`.
 
   ## Fetch and diff package contents between versions
 
@@ -64,11 +64,13 @@ defmodule Mix.Tasks.Hex.Package do
 
   ## Command line options
 
-  * `--unpack` - Unpacks the tarball after fetching it
-  * `-o`, `--output` - Sets output path. When used with `--unpack` it means
-    the directory (Default: `<app>-<version>`). Otherwise, it specifies
-    tarball path (Default: `<app>-<version>.tar`)
-  * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
+    * `--unpack` - Unpacks the tarball after fetching it
+
+    * `-o`, `--output` - Sets output path. When used with `--unpack` it means
+      the directory (Default: `<app>-<version>`). Otherwise, it specifies
+      tarball path (Default: `<app>-<version>.tar`)
+
+    * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
   """
   @behaviour Hex.Mix.TaskDescription
 
