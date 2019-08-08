@@ -1,6 +1,7 @@
 defmodule Mix.Tasks.Hex.PackageTest do
   use HexTest.Case
   @moduletag :integration
+  import ExUnit.CaptureIO
 
   test "fetch: success" do
     in_tmp(fn ->
@@ -10,6 +11,62 @@ defmodule Mix.Tasks.Hex.PackageTest do
       assert_received {:mix_shell, :info, [^msg]}
       assert File.exists?("#{cwd}/ex_doc-0.0.1.tar")
     end)
+  end
+
+  test "fetch: to folder" do
+    in_tmp(fn ->
+      cwd = File.cwd!()
+      Mix.Tasks.Hex.Package.run(["fetch", "ex_doc", "--output", "#{cwd}/test", "0.0.1"])
+      msg = "ex_doc v0.0.1 downloaded to #{cwd}/test/ex_doc-0.0.1.tar"
+      assert_received {:mix_shell, :info, [^msg]}
+      assert File.exists?("#{cwd}/test/ex_doc-0.0.1.tar")
+    end)
+  end
+
+  test "fetch: to folder unpack" do
+    in_tmp(fn ->
+      cwd = File.cwd!()
+
+      Mix.Tasks.Hex.Package.run([
+        "fetch",
+        "ex_doc",
+        "--output",
+        "#{cwd}/test",
+        "--unpack",
+        "0.0.1"
+      ])
+
+      msg = "ex_doc v0.0.1 extracted to #{cwd}/test"
+      assert_received {:mix_shell, :info, [^msg]}
+      assert File.exists?("#{cwd}/test") && File.dir?("#{cwd}/test")
+    end)
+  end
+
+  # TODO: add `capture_bin_io/2`.
+  # test "fetch: to stdout" do
+  #   in_tmp(fn ->
+  #     tarball =
+  #       capture_io(fn ->
+  #         Mix.Tasks.Hex.Package.run(["fetch", "ex_doc", "--output", "-", "0.0.1"])
+  #       end)
+
+  #     Hex.unpack_tar!({:binary, tarball}, :memory)
+  #   end)
+  # end
+
+  test "fetch: to stdout with unpack flag" do
+    assert_raise Mix.Error,
+                 ~r"Cannot unpack the package while output destination is stdout",
+                 fn ->
+                   Mix.Tasks.Hex.Package.run([
+                     "fetch",
+                     "ex_doc",
+                     "--output",
+                     "-",
+                     "--unpack",
+                     "0.0.1"
+                   ])
+                 end
   end
 
   test "fetch: package not found" do

@@ -15,7 +15,9 @@ defmodule Mix.Tasks.Hex.Package do
 
   Fetch a package tarball to the current directory.
 
-      mix hex.package fetch PACKAGE VERSION [--unpack]
+      mix hex.package fetch PACKAGE VERSION [--unpack] [--output PATH]
+
+  You can pipe the fetched tarball to stdout by setting `--output -`.
 
   ## Fetch and diff package contents between versions
 
@@ -62,22 +64,29 @@ defmodule Mix.Tasks.Hex.Package do
 
   ## Command line options
 
-  * `--unpack` - Unpacks the tarball after fetching it
-  * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
+    * `--unpack` - Unpacks the tarball after fetching it
+
+    * `-o`, `--output` - Sets output path. When used with `--unpack` it means
+      the directory (Default: `<app>-<version>`). Otherwise, it specifies
+      tarball path (Default: `<app>-<version>.tar`)
+
+    * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [unpack: :boolean, organization: :string]
+  @switches [unpack: :boolean, organization: :string, output: :string]
+  @aliases [o: :output]
 
   @impl true
   def run(args) do
     Hex.start()
-    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
+    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches, aliases: @aliases)
     unpack = Keyword.get(opts, :unpack, false)
+    output = Keyword.get(opts, :output, nil)
 
     case args do
       ["fetch", package, version] ->
-        fetch(repo(opts), package, version, unpack)
+        fetch(repo(opts), package, version, unpack, output)
 
       ["diff", package, version_range] ->
         diff(repo(opts), package, version_range)
@@ -100,13 +109,36 @@ defmodule Mix.Tasks.Hex.Package do
     ]
   end
 
-  defp fetch(repo, package, version, unpack?) do
+  defp fetch(repo, package, version, false, "-") do
     Hex.Registry.Server.open()
     Hex.Registry.Server.prefetch([{repo, package}])
 
     tarball = fetch_tarball!(repo, package, version)
-    abs_path = Path.absname("#{package}-#{version}")
-    tar_path = "#{abs_path}.tar"
+    IO.binwrite(tarball)
+
+    Hex.Registry.Server.close()
+  end
+
+  defp fetch(_repo, _package, _version, true, "-") do
+    Mix.raise("Cannot unpack the package while output destination is stdout")
+  end
+
+  defp fetch(repo, package, version, unpack?, output) do
+    Hex.Registry.Server.open()
+    Hex.Registry.Server.prefetch([{repo, package}])
+
+    tarball = fetch_tarball!(repo, package, version)
+    if !is_nil(output), do: File.mkdir_p!(output)
+
+    abs_name = Path.absname("#{package}-#{version}")
+
+    {abs_path, tar_path} =
+      if is_nil(output) do
+        {abs_name, "#{abs_name}.tar"}
+      else
+        {output, Path.join(output, "#{package}-#{version}.tar")}
+      end
+
     File.write!(tar_path, tarball)
 
     message =
