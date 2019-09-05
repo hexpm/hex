@@ -1,5 +1,6 @@
 defmodule Hex.Crypto.AES_GCM do
   @moduledoc false
+
   # Content Encryption with AES GCM
   #
   # See: https://tools.ietf.org/html/rfc7518#section-5.3
