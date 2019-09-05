@@ -58,7 +58,7 @@ defmodule Hex.State do
     http_timeout: %{
       env: ["HEX_HTTP_TIMEOUT"],
       config: [:http_timeout],
-      fun: {__MODULE__, :http_timeout}
+      fun: {__MODULE__, :to_integer}
     },
     home: %{
       env: ["HEX_HOME"],
@@ -294,10 +294,6 @@ defmodule Hex.State do
   defp version_pad([major, minor]), do: [major, minor, 0]
   defp version_pad([major, minor, patch]), do: [major, minor, patch]
   defp version_pad([major, minor, patch | _]), do: [major, minor, patch]
-
-  def http_timeout(nil), do: {:ok, nil}
-  def http_timeout(seconds) when is_integer(seconds), do: {:ok, seconds}
-  def http_timeout(seconds), do: {:ok, to_integer(seconds)}
 
   def path_expand(path) when is_binary(path) do
     {:ok, Path.expand(path)}
