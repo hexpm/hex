@@ -74,7 +74,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
       message =
         "Package published to http://localhost:4043/packages/release_a/0.0.1 " <>
-          "(888f573ee2d5cd45e3edfad2862e24e5f205afa0cf493796015c3001ff8dbce5)"
+          "(a7ba7cb9e060d43b32ec48df731522c3ae8bd4bbf0b00db0b8eca106da273b63)"
 
       assert_received {:mix_shell, :info, [^message]}
 

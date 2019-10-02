@@ -18,7 +18,8 @@ defmodule Hex.MixTest do
 
     lock = [
       ex_doc:
-        {:hex, :ex_doc, "0.1.0", "checksum", [:mix], [{:dep, ">= 0.0.0", [hex: :dep]}], "hexpm"}
+        {:hex, :ex_doc, "0.1.0", "checksum", [:mix], [{:dep, ">= 0.0.0", [hex: :dep]}], "hexpm",
+         "checksum"}
     ]
 
     Hex.Server.reset()
@@ -28,7 +29,7 @@ defmodule Hex.MixTest do
     lock = [
       ex_doc:
         {:hex, :ex_doc, "0.1.0", "checksum", [:mix], [{:dep, ">= 0.0.0", [hex: :dep]}], "hexpm",
-         "entry from newer version"}
+         "checksum", "entry from newer version"}
     ]
 
     Hex.Server.reset()

@@ -17,14 +17,11 @@ defmodule Hex.SCM do
 
   def format_lock(opts) do
     case Hex.Utils.lock(opts[:lock]) do
-      %{name: name, version: version, checksum: nil} ->
-        "#{version} (#{name})"
+      %{outer_checksum: <<checksum::binary-8, _::binary>>, repo: "hexpm"} = lock ->
+        "#{lock.version} (#{lock.name}) #{checksum}"
 
-      %{name: name, version: version, checksum: <<checksum::binary-8, _::binary>>, repo: "hexpm"} ->
-        "#{version} (#{name}) #{checksum}"
-
-      %{name: name, version: version, checksum: <<checksum::binary-8, _::binary>>, repo: repo} ->
-        "#{version} (#{repo}/#{name}) #{checksum}"
+      %{outer_checksum: <<checksum::binary-8, _::binary>>} = lock ->
+        "#{lock.version} (#{lock.repo}/#{lock.name}) #{checksum}"
 
       nil ->
         nil
@@ -58,23 +55,29 @@ defmodule Hex.SCM do
 
   def lock_status(opts) do
     case Hex.Utils.lock(opts[:lock]) do
-      %{name: name, version: version, checksum: checksum, repo: repo} ->
-        lock_status(opts[:dest], name, version, checksum, repo)
+      %{} = lock ->
+        lock_status(opts[:dest], lock.name, lock.version, lock.inner_checksum, lock.outer_checksum, lock.repo)
 
       nil ->
         :mismatch
     end
   end
 
-  defp lock_status(dest, name, version, checksum, repo) do
+  defp lock_status(dest, name, version, inner_checksum, outer_checksum, repo) do
     case File.read(Path.join(dest, ".hex")) do
       {:ok, file} ->
         case parse_manifest(file) do
-          [^name, ^version, ^checksum, _managers, ^repo] -> :ok
-          [^name, ^version, ^checksum | _] -> :ok
-          [^name, ^version, _] when is_nil(checksum) -> :ok
-          [^name, ^version] -> :ok
-          _ -> :mismatch
+          {:ok, lock} ->
+            match? =
+               lock.name == name and
+               lock.version == version and
+               lock.inner_checksum == inner_checksum and
+               lock.outer_checksum == outer_checksum and
+               lock.repo == repo
+            if match?, do: :ok, else: :mismatch
+
+          _ ->
+            :mismatch
         end
 
       {:error, _} ->
@@ -136,9 +139,18 @@ defmodule Hex.SCM do
     end
 
     File.rm_rf!(dest)
-    registry_checksum = Hex.Registry.Server.checksum(repo, to_string(name), lock.version)
 
-    %{checksum: tar_checksum, metadata: meta} =
+    registry_inner_checksum =
+      Hex.Registry.Server.inner_checksum(repo, to_string(name), lock.version)
+
+    registry_outer_checksum =
+      Hex.Registry.Server.outer_checksum(repo, to_string(name), lock.version)
+
+    %{
+      inner_checksum: tarball_inner_checksum,
+      outer_checksum: tarball_outer_checksum,
+      metadata: meta
+    } =
       try do
         Hex.unpack_tar!(path, dest)
       rescue
@@ -148,9 +160,14 @@ defmodule Hex.SCM do
           reraise(exception, stacktrace)
       end
 
-    if tar_checksum != registry_checksum do
+    if tarball_inner_checksum != registry_inner_checksum do
       File.rm(path)
-      raise("Checksum mismatch against registry")
+      raise("Checksum mismatch against registry (inner)")
+    end
+
+    if tarball_outer_checksum != registry_outer_checksum do
+      File.rm(path)
+      raise("Checksum mismatch against registry (outer)")
     end
 
     build_tools = guess_build_tools(meta)
@@ -160,7 +177,16 @@ defmodule Hex.SCM do
       |> Enum.map(&String.to_atom/1)
       |> Enum.sort()
 
-    manifest = encode_manifest(name, lock.version, lock.checksum, repo, managers)
+    manifest =
+      encode_manifest(
+        name,
+        lock.version,
+        lock.inner_checksum,
+        lock.outer_checksum,
+        repo,
+        managers
+      )
+
     File.write!(Path.join(dest, ".hex"), manifest)
 
     deps =
@@ -170,7 +196,8 @@ defmodule Hex.SCM do
       end)
       |> Enum.sort()
 
-    {:hex, String.to_atom(lock.name), lock.version, lock.checksum, managers, deps, lock.repo}
+    {:hex, String.to_atom(lock.name), lock.version, lock.inner_checksum, managers, deps,
+     lock.repo, lock.outer_checksum}
   end
 
   defp prune_uri_userinfo(url) do
@@ -248,6 +275,15 @@ defmodule Hex.SCM do
   defp ensure_lock(lock, _opts), do: lock
 
   def parse_manifest(file) do
+    case :erlang.binary_to_term(file) do
+      {{:hex, 1, _}, map} -> {:ok, map}
+      _other -> :error
+    end
+  rescue
+    ArgumentError -> {:ok, parse_old_manifest(file)}
+  end
+
+  defp parse_old_manifest(file) do
     lines =
       file
       |> Hex.string_trim()
@@ -255,7 +291,8 @@ defmodule Hex.SCM do
 
     case lines do
       [first] ->
-        String.split(first, ",") ++ [[]]
+        destructure [name, version, inner_checksum, repo], String.split(first, ",")
+        %{name: name, version: version, inner_checksum: inner_checksum, repo: repo}
 
       [first, managers] ->
         managers =
@@ -263,15 +300,29 @@ defmodule Hex.SCM do
           |> String.split(",")
           |> Enum.map(&String.to_atom/1)
 
-        first
-        |> String.split(",")
-        |> List.insert_at(3, managers)
+        destructure [name, version, inner_checksum, repo], String.split(first, ",")
+
+        %{
+          name: name,
+          version: version,
+          inner_checksum: inner_checksum,
+          repo: repo,
+          managers: managers
+        }
     end
   end
 
-  defp encode_manifest(name, version, checksum, repo, managers) do
-    managers = managers || []
-    "#{name},#{version},#{checksum},#{repo}\n#{Enum.join(managers, ",")}"
+  defp encode_manifest(name, version, inner_checksum, outer_checksum, repo, managers) do
+    map = %{
+      name: name,
+      version: version,
+      inner_checksum: inner_checksum,
+      outer_checksum: outer_checksum,
+      repo: repo,
+      managers: managers || []
+    }
+
+    :erlang.term_to_binary({{:hex, 1, 0}, map})
   end
 
   defp cache_path(repo, name) do

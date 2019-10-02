@@ -420,7 +420,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
     raise_if_file_matches_semver(files)
 
-    {:ok, {data, _checksum}} = :mix_hex_tarball.create_docs(files)
+    {:ok, %{tarball: data}} = :mix_hex_tarball.create_docs(files)
 
     data
   end
@@ -489,7 +489,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp create_release(build, organization, auth, opts) do
     meta = build.meta
-    {tarball, checksum} = Hex.create_tar!(meta, meta.files, :memory)
+    %{tarball: tarball, outer_checksum: checksum} = Hex.create_tar!(meta, meta.files, :memory)
     dry_run? = Keyword.get(opts, :dry_run, false)
 
     if dry_run? do

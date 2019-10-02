@@ -465,7 +465,7 @@ defmodule Hex.MixTaskTest do
 
       assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
 
-      assert %{postgrex: {:hex, :postgrex, "0.2.0", _, _, _, "hexpm"}} = Mix.Dep.Lock.read()
+      assert %{postgrex: {:hex, :postgrex, "0.2.0", _, _, _, "hexpm", _}} = Mix.Dep.Lock.read()
     end)
   after
     purge([Ecto.Fixture.MixProject, Postgrex.NoConflict.MixProject, Ex_doc.NoConflict.MixProject])
@@ -506,7 +506,7 @@ defmodule Hex.MixTaskTest do
       refute_received {:mix_shell, :info, ["* ex_doc (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
 
-      assert %{postgrex: {:hex, :postgrex, "0.2.1", _, _, _, "hexpm"}} = Mix.Dep.Lock.read()
+      assert %{postgrex: {:hex, :postgrex, "0.2.1", _, _, _, "hexpm", _}} = Mix.Dep.Lock.read()
     end)
   after
     purge([Postgrex.NoConflict.MixProject, ExDoc.Fixture.MixProject])
@@ -527,8 +527,8 @@ defmodule Hex.MixTaskTest do
       assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
 
       assert %{
-               phoenix: {:hex, :phoenix, "0.0.1", _, _, _, "hexpm"},
-               postgrex: {:hex, :postgrex, "0.2.1", _, _, _, "hexpm"}
+               phoenix: {:hex, :phoenix, "0.0.1", _, _, _, "hexpm", _},
+               postgrex: {:hex, :postgrex, "0.2.1", _, _, _, "hexpm", _}
              } = Mix.Dep.Lock.read()
     end)
   after
@@ -554,7 +554,7 @@ defmodule Hex.MixTaskTest do
       refute_received {:mix_shell, :info, ["* ex_doc (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["* ex_doc" <> _]}
 
-      assert %{postgrex: {:hex, :postgrex, "0.2.1", _, _, _, "hexpm"}} = Mix.Dep.Lock.read()
+      assert %{postgrex: {:hex, :postgrex, "0.2.1", _, _, _, "hexpm", _}} = Mix.Dep.Lock.read()
     end)
   after
     purge([
@@ -725,7 +725,7 @@ defmodule Hex.MixTaskTest do
     in_tmp(fn ->
       Hex.State.put(:home, File.cwd!())
       Mix.Task.run("deps.get")
-      assert %{ecto: {:hex, _, _, _, [:mix], _, _}} = Mix.Dep.Lock.read()
+      assert %{ecto: {:hex, _, _, _, [:mix], _, _, _}} = Mix.Dep.Lock.read()
     end)
   end
 
@@ -770,6 +770,8 @@ defmodule Hex.MixTaskTest do
     ])
   end
 
+  # The introduction of outer_checksum forces all locks to rewrite
+  @tag :skip
   test "deps.update only rewrites given dependencies" do
     Mix.Project.push(Simple)
 
@@ -783,7 +785,7 @@ defmodule Hex.MixTaskTest do
 
       assert %{
                ecto: {:hex, :ecto, "0.2.0", _},
-               ex_doc: {:hex, :ex_doc, "0.0.1", _, [:mix], _, _},
+               ex_doc: {:hex, :ex_doc, "0.0.1", _, [:mix], _, _, _},
                postgrex: {:hex, :postgrex, "0.2.0", _}
              } = Mix.Dep.Lock.read()
     end)

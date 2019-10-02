@@ -21,9 +21,9 @@ defmodule Hex.APITest do
       description: "pear"
     }
 
-    {tar, _checksum} = Hex.create_tar!(meta, [], :memory)
+    %{tarball: tarball} = Hex.create_tar!(meta, [], :memory)
     assert {:ok, {404, _, _}} = Hex.API.Release.get("hexpm", "pear", "0.0.1")
-    assert {:ok, {201, _, _}} = Hex.API.Release.publish("hexpm", tar, auth)
+    assert {:ok, {201, _, _}} = Hex.API.Release.publish("hexpm", tarball, auth)
     assert {:ok, {200, body, _}} = Hex.API.Release.get("hexpm", "pear", "0.0.1")
     assert body["requirements"] == %{}
 
@@ -39,8 +39,8 @@ defmodule Hex.APITest do
       description: "grape"
     }
 
-    {tar, _checksum} = Hex.create_tar!(meta, [], :memory)
-    assert {:ok, {201, _, _}} = Hex.API.Release.publish("hexpm", tar, auth)
+    %{tarball: tarball} = Hex.create_tar!(meta, [], :memory)
+    assert {:ok, {201, _, _}} = Hex.API.Release.publish("hexpm", tarball, auth)
     assert {:ok, {200, body, _}} = Hex.API.Release.get("hexpm", "grape", "0.0.2")
 
     assert body["requirements"] == %{
@@ -65,15 +65,15 @@ defmodule Hex.APITest do
       description: "tangerine"
     }
 
-    {tar, _checksum} = Hex.create_tar!(meta, [], :memory)
-    assert {:ok, {201, _, _}} = Hex.API.Release.publish("hexpm", tar, auth)
+    %{tarball: tarball} = Hex.create_tar!(meta, [], :memory)
+    assert {:ok, {201, _, _}} = Hex.API.Release.publish("hexpm", tarball, auth)
 
     tarball = Path.join(tmp_path(), "docs.tar.gz")
     :ok = :mix_hex_erl_tar.create(tarball, [{'index.html', "heya"}], [:compressed])
-    tar = File.read!(tarball)
+    tarball = File.read!(tarball)
 
     assert {:ok, {201, _, _}} =
-             Hex.API.ReleaseDocs.publish("hexpm", "tangerine", "0.0.1", tar, auth)
+             Hex.API.ReleaseDocs.publish("hexpm", "tangerine", "0.0.1", tarball, auth)
 
     assert {:ok, {200, %{"has_docs" => true}, _}} =
              Hex.API.Release.get("hexpm", "tangerine", "0.0.1")

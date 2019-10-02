@@ -279,19 +279,23 @@ defmodule Hex.Utils do
   end
 
   def lock(tuple) when elem(tuple, 0) == :hex do
-    if tuple_size(tuple) > 7 and Hex.Server.should_warn_lock_version?() do
+    if tuple_size(tuple) > 8 and Hex.Server.should_warn_lock_version?() do
       Hex.Shell.warn(
         "The mix.lock file was generated with a newer version of Hex. Update " <>
           "your client by running `mix local.hex` to avoid losing data."
       )
     end
 
-    destructure [:hex, name, version, checksum, managers, deps, repo], Tuple.to_list(tuple)
+    destructure(
+      [:hex, name, version, inner_checksum, managers, deps, repo, outer_checksum],
+      Tuple.to_list(tuple)
+    )
 
     %{
       name: to_string(name),
       version: version,
-      checksum: checksum,
+      inner_checksum: inner_checksum,
+      outer_checksum: outer_checksum,
       managers: managers,
       deps: lock_deps(deps),
       repo: repo || "hexpm"

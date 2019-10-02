@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.4.0, do not edit manually
+%% Vendored from hex_core v0.5.0, do not edit manually
 
 -module(mix_hex_registry).
 -export([
@@ -26,16 +26,16 @@
 %% @doc
 %% Encode Names message.
 encode_names(Names) ->
-    hex_pb_names:encode_msg(Names, 'Names').
+    mix_hex_pb_names:encode_msg(Names, 'Names').
 
 %% @doc
 %% Decode message created with encode_names/1.
 decode_names(Payload, no_verify) ->
-    #{packages := Packages} = hex_pb_names:decode_msg(Payload, 'Names'),
+    #{packages := Packages} = mix_hex_pb_names:decode_msg(Payload, 'Names'),
     {ok, Packages};
 
 decode_names(Payload, Repository) ->
-    case hex_pb_names:decode_msg(Payload, 'Names') of
+    case mix_hex_pb_names:decode_msg(Payload, 'Names') of
         #{repository := Repository, packages := Packages} ->
             {ok, Packages};
         _ ->
@@ -45,16 +45,16 @@ decode_names(Payload, Repository) ->
 %% @doc
 %% Encode Versions message.
 encode_versions(Versions) ->
-    hex_pb_versions:encode_msg(Versions, 'Versions').
+    mix_hex_pb_versions:encode_msg(Versions, 'Versions').
 
 %% @doc
 %% Decode message created with encode_versions/1.
 decode_versions(Payload, no_verify) ->
-    #{packages := Packages} = hex_pb_versions:decode_msg(Payload, 'Versions'),
+    #{packages := Packages} = mix_hex_pb_versions:decode_msg(Payload, 'Versions'),
     {ok, Packages};
 
 decode_versions(Payload, Repository) ->
-    case hex_pb_versions:decode_msg(Payload, 'Versions') of
+    case mix_hex_pb_versions:decode_msg(Payload, 'Versions') of
         #{repository := Repository, packages := Packages} ->
             {ok, Packages};
         _ ->

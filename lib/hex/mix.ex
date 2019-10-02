@@ -185,8 +185,12 @@ defmodule Hex.Mix do
   """
   def to_lock(result) do
     Enum.into(result, %{}, fn {repo, name, app, version} ->
-      checksum =
-        Hex.Registry.Server.checksum(repo, name, version)
+      inner_checksum =
+        Hex.Registry.Server.inner_checksum(repo, name, version)
+        |> Base.encode16(case: :lower)
+
+      outer_checksum =
+        Hex.Registry.Server.outer_checksum(repo, name, version)
         |> Base.encode16(case: :lower)
 
       deps =
@@ -199,7 +203,8 @@ defmodule Hex.Mix do
         |> Enum.sort()
         |> Enum.uniq()
 
-      {String.to_atom(app), {:hex, String.to_atom(name), version, checksum, managers, deps, repo}}
+      {String.to_atom(app),
+       {:hex, String.to_atom(name), version, inner_checksum, managers, deps, repo, outer_checksum}}
     end)
   end
 
@@ -214,8 +219,8 @@ defmodule Hex.Mix do
     case File.read(path) do
       {:ok, file} ->
         case Hex.SCM.parse_manifest(file) do
-          [_name, _version, _checksum, managers | _] -> managers
-          _ -> []
+          {:ok, %{managers: managers}} -> managers
+          :error -> []
         end
 
       _ ->
