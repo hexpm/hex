@@ -17,9 +17,11 @@ defmodule Mix.Tasks.Hex.Outdated do
 
       mix hex.outdated [APP]
 
-  If you have overridden a version of a dependency, it may appear in this output.
-  You need to change the version in your override, otherwise `mix deps.update`
-  will not update that dependency.
+  If you have defined the version of an optional dependency, packages that use that
+  dependency may appear in this output as updatable. If they bumped the minimal
+  version of that optional dependency above what can be automatically updated, then
+  you need to change the version of the optional in your `mix.exs`. Otherwise
+  `mix deps.update` will not update the dependency that use your optionally defined one.
 
   ## Command line options
 
