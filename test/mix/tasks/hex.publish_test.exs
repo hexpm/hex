@@ -67,6 +67,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
       File.write!("mix.exs", "mix.exs")
+      File.write_stat!("mix.exs", %{File.stat!("mix.exs") | mode: 0o100644})
       setup_auth("user2", "hunter42")
 
       send(self(), {:mix_shell_input, :yes?, true})
