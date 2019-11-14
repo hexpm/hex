@@ -292,7 +292,7 @@ defmodule Mix.Tasks.Hex.Publish do
       "You are a member of organizations, select if you wish to publish " <>
         "the package with yourself as owner or an organization as owner. " <>
         "If you publish with an organization as owner your package will " <>
-        "be public but managed by an organization."
+        "be public but managed by selected the organization."
     )
 
     Hex.Shell.info("")
