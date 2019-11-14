@@ -234,6 +234,7 @@ defmodule HexTest.Hexpm do
       |> Map.put_new(:licenses, ["MIT"])
       |> Map.put_new(:app, name)
       |> Map.put_new(:build_tools, ["mix"])
+      |> Map.put_new(:files, ["mix.exs"])
 
     deps = inspect(deps, pretty: true)
     module = String.capitalize(name)
