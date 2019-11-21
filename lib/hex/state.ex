@@ -89,6 +89,11 @@ defmodule Hex.State do
       env: ["HEX_DIFF_COMMAND"],
       config: [:diff_command],
       default: Mix.Tasks.Hex.Package.default_diff_command()
+    },
+    alt_crt_path: %{
+      env: ["HEX_ALT_CRT_PATH"],
+      default: nil,
+      config: [:alt_crt_path]
     }
   }
 

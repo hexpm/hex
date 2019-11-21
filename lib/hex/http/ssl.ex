@@ -54,6 +54,13 @@ defmodule Hex.HTTP.SSL do
     check?
   end
 
+  def get_ca_certs do
+    case Hex.State.fetch!(:alt_crt_path) do
+      nil -> Certs.cacerts()
+      path -> Certs.decode_runtime(path)
+    end
+  end
+
   def ssl_opts(url) do
     hostname = Hex.string_to_charlist(URI.parse(url).host)
     ciphers = filter_ciphers(@default_ciphers)
@@ -66,7 +73,7 @@ defmodule Hex.HTTP.SSL do
         verify: :verify_peer,
         depth: 4,
         partial_chain: partial_chain,
-        cacerts: Certs.cacerts(),
+        cacerts: get_ca_certs(),
         verify_fun: verify_fun,
         server_name_indication: hostname,
         secure_renegotiate: true,

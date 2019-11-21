@@ -13,4 +13,10 @@ defmodule Hex.HTTP.Certs do
   def cacerts do
     @der_encoded
   end
+
+  def decode_runtime(path) do
+    crt = File.read!(path)
+    pems = :public_key.pem_decode(crt)
+    Enum.map(pems, fn {:Certificate, der, _} -> der end)
+  end
 end
