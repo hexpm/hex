@@ -154,6 +154,12 @@ defmodule Hex do
     defp dev_setup, do: :ok
   end
 
+  def create_tar!(_metadata, [], _output),
+    do:
+      Mix.raise(
+        "Stopping package build due to errors.\nCreating tarball failed: File list was empty."
+      )
+
   def create_tar!(metadata, files, output) do
     files =
       Enum.map(files, fn

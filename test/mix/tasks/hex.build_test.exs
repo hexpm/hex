@@ -19,6 +19,9 @@ defmodule Mix.Tasks.Hex.BuildTest do
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
 
+      File.write!("myfile.txt", "hello")
+      File.chmod!("myfile.txt", 0o100644)
+
       Mix.Tasks.Hex.Build.run([])
       assert package_created?("release_a-0.0.1")
     end)
@@ -31,6 +34,9 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
+
+      File.write!("myfile.txt", "hello")
+      File.chmod!("myfile.txt", 0o100644)
 
       Mix.Tasks.Hex.Build.run([])
       assert package_created?("released_name-0.0.1")
@@ -116,10 +122,19 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
+
+      File.write!("mix.exs", "mix.exs")
+      File.chmod!("mix.exs", 0o100644)
+
+      File.write!("myfile.txt", "hello")
+      File.chmod!("myfile.txt", 0o100644)
+
       Mix.Tasks.Hex.Build.run(["-o", "custom.tar"])
 
       assert File.exists?("custom.tar")
     end)
+  after
+    purge([Sample.MixProject])
   end
 
   test "create with deps" do
@@ -280,6 +295,9 @@ defmodule Mix.Tasks.Hex.BuildTest do
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
 
+      File.write!("myfile.txt", "hello")
+      File.chmod!("myfile.txt", 0o100644)
+
       Mix.Tasks.Hex.Build.run([])
       assert_received {:mix_shell, :info, ["Building ecto 0.0.1"]}
 
@@ -317,6 +335,10 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
     in_fixture("sample", fn ->
       Hex.State.put(:home, tmp_path())
+
+      File.write!("myfile.txt", "hello")
+      File.chmod!("myfile.txt", 0o100644)
+
       Mix.Tasks.Hex.Build.run(["--unpack"])
       assert_received({:mix_shell, :info, ["Saved to sample-0.0.1"]})
 
