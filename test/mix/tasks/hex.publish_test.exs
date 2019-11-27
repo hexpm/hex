@@ -51,6 +51,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Hex.State.put(:home, tmp_path("does_not_exist"))
 
     in_tmp(fn ->
+      File.write!("myfile.txt", "hello")
       send(self(), {:mix_shell_input, :yes?, false})
 
       assert_raise Mix.Error, "No authenticated user found. Run `mix hex.user auth`", fn ->
@@ -67,7 +68,9 @@ defmodule Mix.Tasks.Hex.PublishTest do
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
       File.write!("mix.exs", "mix.exs")
+      File.write!("myfile.txt", "hello")
       File.write_stat!("mix.exs", %{File.stat!("mix.exs") | mode: 0o100644})
+      File.write_stat!("myfile.txt", %{File.stat!("myfile.txt") | mode: 0o100644})
       setup_auth("user2", "hunter42")
 
       send(self(), {:mix_shell_input, :yes?, true})
@@ -76,7 +79,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
       message =
         "Package published to http://localhost:4043/packages/release_a/0.0.1 " <>
-          "(47008d78c3cc99ba7007179ff9c158186b576f46e19b6348fcd2f33cdce4818d)"
+          "(9e8195c5ffcfc6ee06f5f84caa100d72535d8786005097138a661946ae0841a3)"
 
       assert_received {:mix_shell, :info, [^message]}
 
@@ -102,6 +105,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
       File.write!("mix.exs", "mix.exs")
+      File.write!("myfile.txt", "hello")
       setup_auth("user2", "hunter42")
       # note that we don't need the yes? input here
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -192,6 +196,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
       File.write!("mix.exs", "mix.exs")
+      File.write!("myfile.txt", "hello")
       setup_auth("user2", "hunter42")
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -222,6 +227,8 @@ defmodule Mix.Tasks.Hex.PublishTest do
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
       File.write!("mix.exs", "mix.exs")
+      File.write!("myfile.txt", "hello")
+
       setup_auth("user", "hunter42")
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -242,6 +249,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
       File.write!("mix.exs", "mix.exs")
+      File.write!("myfile.txt", "hello")
       setup_auth("user", "hunter42")
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -261,6 +269,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
       File.write!("mix.exs", "mix.exs")
+      File.write!("myfile.txt", "hello")
       setup_auth("user2", "hunter42")
 
       send(self(), {:mix_shell_input, :yes?, true})
@@ -278,6 +287,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
       File.write!("mix.exs", "mix.exs")
+      File.write!("myfile.txt", "hello")
 
       send(self(), {:mix_shell_input, :prompt, "user2"})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -435,5 +445,27 @@ defmodule Mix.Tasks.Hex.PublishTest do
     end)
   after
     purge([ReleaseRepo.MixProject])
+  end
+
+  test "create with empty file list" do
+    Mix.Project.push(ReleaseMetaNoFiles.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+      setup_auth("user2", "hunter42")
+
+      error_msg =
+        "Stopping package build due to errors.\n" <>
+          "Creating tarball failed: File list was empty."
+
+      send(self(), {:mix_shell_input, :yes?, true})
+      send(self(), {:mix_shell_input, :prompt, "hunter42"})
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
+      end
+    end)
+  after
+    purge([ReleaseMetaNoFiles.MixProject])
   end
 end

@@ -7,6 +7,7 @@ defmodule Sample.MixProject do
       deps: [],
       package: [
         licenses: ["MIT"],
+        files: ["myfile.txt", "mix.exs"],
         links: %{"a" => "http://a"}
       ]
     ]
@@ -21,6 +22,7 @@ defmodule ReleaseSimple.MixProject do
       version: "0.0.1",
       package: [
         licenses: ["MIT"],
+        files: ["myfile.txt"],
         links: %{"a" => "http://a"}
       ]
     ]
@@ -76,6 +78,22 @@ defmodule ReleaseMeta.MixProject do
   end
 end
 
+defmodule ReleaseMetaNoFiles.MixProject do
+  def project do
+    [
+      app: :release_nf,
+      version: "0.0.3",
+      description: "foo",
+      package: [
+        files: [],
+        licenses: ["Apache"],
+        links: %{"a" => "http://a"},
+        extra: %{"c" => "d"}
+      ]
+    ]
+  end
+end
+
 defmodule ReleaseName.MixProject do
   def project do
     [
@@ -85,6 +103,7 @@ defmodule ReleaseName.MixProject do
       package: [
         name: :released_name,
         licenses: ["MIT"],
+        files: ["myfile.txt"],
         links: %{"a" => "http://a"}
       ]
     ]
@@ -198,6 +217,7 @@ defmodule ReleaseOrganizationWrongLocation.MixProject do
       organization: "myorg",
       package: [
         licenses: ["MIT"],
+        files: ["myfile.txt"],
         links: %{"a" => "http://a"}
       ]
     ]

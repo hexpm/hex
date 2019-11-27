@@ -1,7 +1,6 @@
 defmodule Mix.Tasks.Hex.PackageTest do
   use HexTest.Case
   @moduletag :integration
-  import ExUnit.CaptureIO
 
   test "fetch: success" do
     in_tmp(fn ->
