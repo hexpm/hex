@@ -55,7 +55,7 @@ defmodule Hex.HTTP.SSL do
   end
 
   def get_ca_certs do
-    case Hex.State.fetch!(:alt_crt_path) do
+    case Hex.State.fetch!(:cacerts_path) do
       nil -> Certs.cacerts()
       path -> Certs.decode_runtime(path)
     end
