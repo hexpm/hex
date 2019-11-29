@@ -49,6 +49,8 @@ defmodule Mix.Tasks.Hex.Config do
       (Default: `nil`)
     * `mirror_url` - Hex mirror URL. Can be overridden by setting the
       environment variable `HEX_MIRROR` (Default: `nil`)
+    * `cacerts_path` - Path of ca certs for SSL requests. This is useful in an
+       Enterprise environment where self-signed certs are being injected.
 
   `HEX_HOME` environment variable can be set to point to the directory where Hex
   stores the cache and configuration (Default: `~/.hex`)
