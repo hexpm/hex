@@ -93,7 +93,7 @@ defmodule Hex.State do
     cacerts_path: %{
       env: ["HEX_CACERTS_PATH"],
       default: nil,
-      config: [:alt_crt_path]
+      config: [:cacerts_path]
     }
   }
 
