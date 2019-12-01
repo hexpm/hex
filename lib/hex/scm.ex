@@ -56,7 +56,14 @@ defmodule Hex.SCM do
   def lock_status(opts) do
     case Hex.Utils.lock(opts[:lock]) do
       %{} = lock ->
-        lock_status(opts[:dest], lock.name, lock.version, lock.inner_checksum, lock.outer_checksum, lock.repo)
+        lock_status(
+          opts[:dest],
+          lock.name,
+          lock.version,
+          lock.inner_checksum,
+          lock.outer_checksum,
+          lock.repo
+        )
 
       nil ->
         :mismatch
@@ -69,11 +76,12 @@ defmodule Hex.SCM do
         case parse_manifest(file) do
           {:ok, lock} ->
             match? =
-               lock.name == name and
-               lock.version == version and
-               lock.inner_checksum == inner_checksum and
-               lock.outer_checksum == outer_checksum and
-               lock.repo == repo
+              lock.name == name and
+                lock.version == version and
+                lock.inner_checksum == inner_checksum and
+                lock.outer_checksum == outer_checksum and
+                lock.repo == repo
+
             if match?, do: :ok, else: :mismatch
 
           _ ->

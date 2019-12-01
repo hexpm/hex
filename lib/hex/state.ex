@@ -6,6 +6,8 @@ defmodule Hex.State do
   @home "~/.hex"
   @pbkdf2_iters 32_768
 
+  def default_api_url(), do: @api_url
+
   @config %{
     api_key_read: %{
       config: [:"$read_key"]

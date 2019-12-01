@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Hex.Config do
       the API key used for your authenticated user. Can be also be overridden by
       setting the environment variable `HEX_API_KEY`
     * `api_url` - Hex API URL. Can be overridden by setting the environment
-      variable `HEX_API_URL` (Default: `"https://hex.pm/api"`)
+      variable `HEX_API_URL` (Default: `#{inspect(Hex.State.default_api_url())}`)
     * `offline` - If set to true Hex will not fetch the registry or packages and
       will instead use locally cached files if they are available. Can be
       overridden by setting the environment variable `HEX_OFFLINE` (Default:
