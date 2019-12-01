@@ -206,7 +206,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
     progress? = Keyword.get(opts, :progress, true)
     dry_run? = Keyword.get(opts, :dry_run, false)
-    tarball = build_tarball(directory)
+    tarball = build_docs_tarball(directory)
 
     if dry_run? do
       :ok
@@ -432,13 +432,10 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp build_tarball(directory) do
+  defp build_docs_tarball(directory) do
     files = files(directory)
-
     raise_if_file_matches_semver(files)
-
     {:ok, %{tarball: data}} = :mix_hex_tarball.create_docs(files)
-
     data
   end
 
@@ -458,9 +455,19 @@ defmodule Mix.Tasks.Hex.Publish do
     progress = progress_fun(progress?, byte_size(tarball))
 
     case Hex.API.ReleaseDocs.publish(organization, name, version, tarball, auth, progress) do
-      {:ok, {code, _, _}} when code in 200..299 ->
+      {:ok, {code, _body, headers}} when code in 200..299 ->
+        api_url = Hex.State.fetch!(:api_url)
+        non_default_api_url? = api_url != Hex.State.default_api_url()
+
+        location =
+          if non_default_api_url? && headers['location'] do
+            headers['location']
+          else
+            Hex.Utils.hexdocs_url(organization, name, version)
+          end
+
         Hex.Shell.info("")
-        Hex.Shell.info("Docs published to #{Hex.Utils.hexdocs_url(organization, name, version)}")
+        Hex.Shell.info(["Docs published to ", location])
         :ok
 
       {:ok, {404, _, _}} ->
