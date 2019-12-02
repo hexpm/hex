@@ -89,6 +89,11 @@ defmodule Hex.State do
       env: ["HEX_DIFF_COMMAND"],
       config: [:diff_command],
       default: Mix.Tasks.Hex.Package.default_diff_command()
+    },
+    cacerts_path: %{
+      env: ["HEX_CACERTS_PATH"],
+      default: nil,
+      config: [:cacerts_path]
     }
   }
 
