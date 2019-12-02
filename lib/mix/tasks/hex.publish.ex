@@ -251,17 +251,34 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp print_public_private(organization) do
-    if public_organization?(organization) do
-      Hex.Shell.info(["Publishing package to ", emphasis("public"), " repository hexpm."])
-    else
-      Hex.Shell.info([
-        [
-          "Publishing package to ",
-          emphasis("private"),
-          " repository #{organization}."
-        ]
-      ])
-    end
+    api_url = Hex.State.fetch!(:api_url)
+    default_api_url? = api_url == Hex.State.default_api_url()
+
+    using_api =
+      if default_api_url? do
+        ""
+      else
+        " using #{api_url}"
+      end
+
+    to_repository =
+      cond do
+        !organization and !default_api_url? ->
+          ""
+
+        public_organization?(organization) ->
+          [" to ", emphasis("public"), " repository hexpm"]
+
+        true ->
+          [" to ", emphasis("private"), " repository #{organization}"]
+      end
+
+    Hex.Shell.info([
+      "Publishing package",
+      to_repository,
+      using_api,
+      "."
+    ])
   end
 
   defp print_owner_prompt(build, organization, opts) do
