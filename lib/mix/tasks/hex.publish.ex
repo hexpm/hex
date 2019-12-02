@@ -252,18 +252,18 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp print_public_private(organization) do
     api_url = Hex.State.fetch!(:api_url)
-    non_default_api_url? = api_url != Hex.State.default_api_url()
+    default_api_url? = api_url == Hex.State.default_api_url()
 
     using_api =
-      if non_default_api_url? do
-        " using #{api_url}"
-      else
+      if default_api_url? do
         ""
+      else
+        " using #{api_url}"
       end
 
     to_repository =
       cond do
-        !organization and non_default_api_url? ->
+        !organization and !default_api_url? ->
           ""
 
         public_organization?(organization) ->
