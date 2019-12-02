@@ -457,10 +457,10 @@ defmodule Mix.Tasks.Hex.Publish do
     case Hex.API.ReleaseDocs.publish(organization, name, version, tarball, auth, progress) do
       {:ok, {code, _body, headers}} when code in 200..299 ->
         api_url = Hex.State.fetch!(:api_url)
-        non_default_api_url? = api_url != Hex.State.default_api_url()
+        default_api_url? = api_url == Hex.State.default_api_url()
 
         location =
-          if non_default_api_url? && headers['location'] do
+          if !default_api_url? && headers['location'] do
             headers['location']
           else
             Hex.Utils.hexdocs_url(organization, name, version)
