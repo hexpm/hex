@@ -125,7 +125,9 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["docs", "--no-progress"])
-      assert_received {:mix_shell, :info, ["Docs published to https://hexdocs.pm/ex_doc/0.1.0"]}
+
+      assert_received {:mix_shell, :info,
+                       ["Docs published to http://localhost:4043/docs/ex_doc-0.1.0.tar.gz"]}
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["docs", "--revert", "0.1.0"])
