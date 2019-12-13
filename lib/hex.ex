@@ -44,7 +44,7 @@ defmodule Hex do
   end
 
   if Version.compare(System.version(), "1.2.0") == :lt do
-    def debug?(), do: Mix.State.get(:debug, false)
+    def debug?(), do: false
   else
     def debug?(), do: Mix.debug?()
   end
