@@ -49,7 +49,7 @@ defmodule Mix.Tasks.Hex.Publish do
     * `--yes` - Publishes the package without any confirmation prompts
     * `--dry-run` - Builds package and performs local checks without publishing,
       use `mix hex.build --unpack` to inspect package contents before publishing
-    * `--replace` - Allows publishing of a pacakge using a version that has
+    * `--replace` - Allows publishing of a private package using a version that has
       previously been published.
 
   ## Configuration
