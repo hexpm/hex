@@ -49,6 +49,8 @@ defmodule Mix.Tasks.Hex.Publish do
     * `--yes` - Publishes the package without any confirmation prompts
     * `--dry-run` - Builds package and performs local checks without publishing,
       use `mix hex.build --unpack` to inspect package contents before publishing
+    * `--replace` - Allows publishing of a pacakge using a version that has
+      previously been published.
 
   ## Configuration
 
@@ -105,7 +107,8 @@ defmodule Mix.Tasks.Hex.Publish do
     organization: :string,
     organisation: :string,
     yes: :boolean,
-    dry_run: :boolean
+    dry_run: :boolean,
+    replace: :boolean
   ]
 
   @impl true
@@ -521,7 +524,9 @@ defmodule Mix.Tasks.Hex.Publish do
     progress? = Keyword.get(opts, :progress, true)
     progress = progress_fun(progress?, byte_size(tarball))
 
-    case Hex.API.Release.publish(organization, tarball, auth, progress) do
+    replace? = Keyword.get(opts, :replace, false)
+
+    case Hex.API.Release.publish(organization, tarball, auth, progress, replace?) do
       {:ok, {code, body, _}} when code in 200..299 ->
         location = body["html_url"] || body["url"]
         checksum = String.downcase(Base.encode16(checksum, case: :lower))
