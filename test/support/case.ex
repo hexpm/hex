@@ -13,6 +13,12 @@ defmodule HexTest.Case do
     flush([])
   end
 
+  if Version.compare(System.version(), "1.10.0-rc.0") == :lt do
+    def clear_cache(), do: Mix.ProjectStack.clear_cache()
+  else
+    def clear_cache(), do: Mix.State.clear_cache()
+  end
+
   defp flush(acc) do
     receive do
       any -> flush([any | acc])
@@ -300,7 +306,7 @@ defmodule HexTest.Case do
       Mix.shell(Hex.Shell.Process)
       Mix.Task.clear()
       Hex.Shell.Process.flush()
-      Mix.ProjectStack.clear_cache()
+      clear_cache()
       Mix.ProjectStack.clear_stack()
     end
 
