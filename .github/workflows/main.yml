@@ -1,0 +1,108 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install OTP and Elixir
+        uses: actions/setup-elixir@v1
+        with:
+          otp-version: 22.2
+          elixir-version: 1.9.4
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Check mix format
+        run: mix format --check-formatted
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:9.6
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    strategy:
+      fail-fast: false
+      matrix:
+        pair:
+          - erlang: 22.2
+            elixir: 1.9.4
+          - erlang: 21.3
+            elixir: 1.8.1
+          - erlang: 21.3
+            elixir: 1.7.2
+          - erlang: 21.3
+            elixir: 1.6.6
+          - erlang: 20.3
+            elixir: 1.5.3
+          - erlang: 20.2
+            elixir: 1.4.5
+          - erlang: 19.3
+            elixir: 1.3.4
+          - erlang: 19.3
+            elixir: 1.2.6
+          - erlang: 18.3
+            elixir: 1.1.1
+          - erlang: 17.5
+            elixir: 1.0.5
+
+    env:
+      HEXPM_OTP: OTP-22.2
+      HEXPM_ELIXIR: v1.9.4
+      HEXPM_PATH: hexpm
+      HEXPM_ELIXIR_PATH: hexpm_elixir
+      HEXPM_OTP_PATH: hexpm_otp
+      HEXPM_MIX_HOME: hexpm_mix
+      HEXPM_MIX_ARCHIVES: hexpm_mix
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install OTP and Elixir
+        uses: ericmj/setup-elixir@3f15364
+        with:
+          otp-version: ${{matrix.pair.erlang}}
+          elixir-version: ${{matrix.pair.elixir}}
+
+      - name: Install OTP and Elixir for hexpm
+        run: |
+          wget https://repo.hex.pm/builds/otp/ubuntu-14.04/${HEXPM_OTP}.tar.gz
+          mkdir -p ${HEXPM_OTP_PATH}
+          tar -xf ${HEXPM_OTP}.tar.gz -C ${HEXPM_OTP_PATH} --strip-components=1
+          ${HEXPM_OTP_PATH}/Install -minimal $(pwd)/${HEXPM_OTP_PATH}
+          wget https://repo.hex.pm/builds/elixir/${HEXPM_ELIXIR}.zip
+          unzip -d ${HEXPM_ELIXIR_PATH} ${HEXPM_ELIXIR}.zip
+          mkdir -p ${HEXPM_MIX_HOME}
+          PATH=$(pwd)/${HEXPM_ELIXIR_PATH}/bin:$(pwd)/${HEXPM_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/${HEXPM_MIX_HOME} MIX_ARCHIVES=$(pwd)/${HEXPM_MIX_HOME} mix local.hex --force
+          PATH=$(pwd)/${HEXPM_ELIXIR_PATH}/bin:$(pwd)/${HEXPM_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/${HEXPM_MIX_HOME} MIX_ARCHIVES=$(pwd)/${HEXPM_MIX_HOME} mix local.rebar --force
+          mix local.hex --force
+          mix local.rebar --force
+
+      - name: Set up hexpm
+        run: |
+          git clone https://github.com/hexpm/hexpm.git hexpm
+          cd hexpm; PATH=$(pwd)/../${HEXPM_ELIXIR_PATH}/bin:$(pwd)/../${HEXPM_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/../${HEXPM_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXPM_MIX_HOME} MIX_ENV=hex ../${HEXPM_ELIXIR_PATH}/bin/mix deps.get; cd ..
+          cd hexpm; PATH=$(pwd)/../${HEXPM_ELIXIR_PATH}/bin:$(pwd)/../${HEXPM_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/../${HEXPM_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXPM_MIX_HOME} MIX_ENV=hex ../${HEXPM_ELIXIR_PATH}/bin/mix compile; cd ..
+
+      - name: Install dependencies
+        run: |
+          mix deps.get
+          mix deps.compile
+
+      - name: Run tests
+        run: mix test
