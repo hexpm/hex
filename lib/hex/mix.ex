@@ -1,5 +1,6 @@
 defmodule Hex.Mix do
   @moduledoc false
+
   # Utility functions around Mix dependencies.
 
   @type deps :: %{String.t() => {boolean, deps}}

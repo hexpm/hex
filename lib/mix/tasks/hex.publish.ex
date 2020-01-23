@@ -215,26 +215,30 @@ defmodule Mix.Tasks.Hex.Publish do
     print_link_to_coc()
 
     if organization in [nil, "hexpm"] do
-      Hex.Shell.info(["Publishing package to ", emphasis("public"), " repository hexpm."])
-    else
-      Hex.Shell.info([
-        [
+      Hex.Shell.info(
+        Hex.Shell.format([
           "Publishing package to ",
-          emphasis("private"),
-          " repository #{organization}."
-        ]
-      ])
+          :bright,
+          "public",
+          :reset,
+          " repository hexpm."
+        ])
+      )
+    else
+      Hex.Shell.info(
+        Hex.Shell.format([
+          [
+            "Publishing package to ",
+            :bright,
+            "private",
+            :reset,
+            " repository #{organization}."
+          ]
+        ])
+      )
     end
 
     yes? or Hex.Shell.yes?("Proceed?")
-  end
-
-  defp emphasis(text) do
-    if IO.ANSI.enabled?() do
-      Hex.Shell.format([:bright, text, :reset])
-    else
-      ["**", text, "**"]
-    end
   end
 
   defp print_link_to_coc() do

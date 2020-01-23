@@ -1,5 +1,6 @@
 defmodule Hex.Parallel do
   @moduledoc false
+
   # Runs a number of jobs (with an upper bound) in parallel and
   # awaits them to finish.
 
