@@ -284,7 +284,7 @@ defmodule Hex.MixTaskTest do
         Ex_doc.NoConflict.MixProject
       ])
 
-      Mix.ProjectStack.clear_cache()
+      HexTest.Case.clear_cache()
       Mix.Project.pop()
       Mix.Project.push(SimpleOld)
 
