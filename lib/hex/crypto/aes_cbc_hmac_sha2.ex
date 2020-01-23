@@ -1,5 +1,6 @@
 defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
   @moduledoc false
+
   # Content Encryption with AES_CBC_HMAC_SHA2.
   # See: https://tools.ietf.org/html/rfc7518#section-5.2.6
 
