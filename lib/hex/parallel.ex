@@ -5,6 +5,7 @@ defmodule Hex.Parallel do
   # awaits them to finish.
 
   use GenServer
+  require Logger
 
   def start_link(name) do
     GenServer.start_link(__MODULE__, [], name: name)
@@ -54,7 +55,8 @@ defmodule Hex.Parallel do
 
   def handle_call(:clear, _from, state) do
     Enum.each(state.running, fn {%Task{pid: pid}, _} ->
-      Process.exit(pid, :stop)
+      Process.unlink(pid)
+      Process.exit(pid, :kill)
     end)
 
     state = %{state | running: %{}, finished: %{}, waiting: :queue.new(), waiting_reply: %{}}
@@ -74,6 +76,7 @@ defmodule Hex.Parallel do
 
       {:noreply, state}
     else
+      Logger.error("[Hex] Hex.Parallel received unknown reply: #{inspect({ref, message})}")
       {:noreply, state}
     end
   end
@@ -82,7 +85,11 @@ defmodule Hex.Parallel do
     tasks = Map.keys(state.running)
 
     if Enum.find(tasks, &(&1.ref == ref)) do
-      {:stop, {proc, reason}, state}
+      Logger.error(
+        "[Hex] Hex.Parallel task #{inspect(proc)} died with reason: #{inspect(reason)}"
+      )
+
+      {:noreply, %{state | running: Map.delete(state.running, ref)}}
     else
       {:noreply, state}
     end
