@@ -100,7 +100,10 @@ defmodule Mix.Tasks.Hex.Outdated do
     Hex.Shell.info("")
     Mix.Tasks.Hex.print_table(header, values)
 
-    message = "A green requirement means that it matches the latest version."
+    message =
+      "A green requirement means that it matches the latest version, " <>
+        "a red requirement means that that it does not match the latest version."
+
     Hex.Shell.info(["\n", message])
 
     if outdated?, do: Mix.Tasks.Hex.set_exit_code(1)
@@ -159,8 +162,8 @@ defmodule Mix.Tasks.Hex.Outdated do
       Mix.Tasks.Hex.print_table(header, values)
 
       message =
-        "A green version in latest means you have the latest " <>
-          "version of a given package. Update possible indicates " <>
+        "A green version in latest means you have the latest version of a given package, " <>
+          "a red version means there is a newer version available. Update possible indicates " <>
           "if your current requirement matches the latest version.\n" <>
           "Run `mix hex.outdated APP` to see requirements for a specific dependency."
 
