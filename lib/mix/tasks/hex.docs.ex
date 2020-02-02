@@ -136,6 +136,7 @@ defmodule Mix.Tasks.Hex.Docs do
     latest_release =
       releases
       |> Enum.sort(&(Hex.Version.compare(&1["version"], &2["version"]) == :gt))
+      |> Enum.reject(&pre_release?/1)
       |> List.first()
 
     latest_release["version"]
@@ -307,6 +308,7 @@ defmodule Mix.Tasks.Hex.Docs do
     path
     |> File.ls!()
     |> Enum.sort(&(Hex.Version.compare(&1, &2) == :gt))
+    |> Enum.reject(&pre_release?/1)
     |> List.first()
   end
 
@@ -354,5 +356,16 @@ defmodule Mix.Tasks.Hex.Docs do
     organization
     |> org_to_repo()
     |> Hex.Utils.windows_repo_path_fix()
+  end
+
+  defp pre_release?(%{"version" => version} = release), do: do_pre_release?(version)
+  defp pre_release?(version), do: do_pre_release?(version)
+
+  defp do_pre_release?(version) do
+    case Hex.Version.parse(version) do
+      {:ok, %Version{pre: []}} -> false
+      {:ok, %Version{}} -> true
+      _ -> false
+    end
   end
 end
