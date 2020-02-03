@@ -1,6 +1,23 @@
 # CHANGELOG
 
-## v0.20.2-dev
+## v0.20.2 (2020-02-03)
+
+### Enhancements
+
+* Add `--output` option to `mix hex.package fetch` task
+* Add `cacerts_path` configuration for custom CA certificate files
+* Improve output in `mix hex.publish` to make it more clear to what repository you are publishing
+* Explain red colors in hex.outdated
+
+### Bug fixes
+
+* Fix HTTP timeout config
+* Do not allow creating empty packages
+
+### Security fixes
+
+* Fix for directory traversal vulnerability for symlinks in tarballs
+* Update package checksum to include the entire tarball instead of specific files inside it
 
 ## v0.20.1 (2019-06-10)
 
