@@ -15,8 +15,7 @@ defmodule Hex.MixProject do
       lockfile: lockfile(@elixir_version),
       deps: deps(@elixir_version),
       elixirc_options: elixirc_options(Mix.env()),
-      elixirc_paths: elixirc_paths(Mix.env()),
-      xref: xref()
+      elixirc_paths: elixirc_paths(Mix.env())
     ]
   end
 
@@ -69,15 +68,6 @@ defmodule Hex.MixProject do
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
-
-  defp xref do
-    [
-      exclude: [
-        {Mix.Local, :archives_path, 0},
-        {Mix.Local, :path_for, 1}
-      ]
-    ]
-  end
 
   defp aliases do
     [
@@ -139,19 +129,18 @@ defmodule Hex.MixProject do
     end
   end
 
-  defp archives_path() do
-    if function_exported?(Mix.Local, :path_for, 1) do
-      Mix.Local.path_for(:archive)
-    else
-      Mix.Local.archives_path()
-    end
+  cond do
+    function_exported?(Mix, :path_for, 1) ->
+      defp archives_path(), do: Mix.path_for(:archives)
+    function_exported?(Mix.Local, :path_for, 1) ->
+      defp archives_path(), do: Mix.Local.path_for(:archive)
+    true ->
+      defp archives_path(), do: Mix.Local.archives_path()
   end
 
-  defp archive_ebin(archive) do
-    if function_exported?(Mix.Local, :archive_ebin, 1) do
-      Mix.Local.archive_ebin(archive)
-    else
-      Mix.Archive.ebin(archive)
-    end
+  if function_exported?(Mix.Local, :archive_ebin, 1) do
+    defp archive_ebin(archive), do: Mix.Local.archive_ebin(archive)
+  else
+    defp archive_ebin(archive), do: Mix.Archive.ebin(archive)
   end
 end
