@@ -152,12 +152,20 @@ defmodule HexTest.Hexpm do
 
   defp hexpm_mix_archives do
     archives_path =
-      if function_exported?(Mix.Local, :path_for, 1),
-        do: Mix.Local.path_for(:archive),
-        else: Mix.Local.archives_path()
 
-    (System.get_env("HEXPM_MIX_ARCHIVES") || archives_path)
+    (System.get_env("HEXPM_MIX_ARCHIVES") || archives_path())
     |> Path.expand()
+  end
+
+  cond do
+    function_exported?(Mix, :path_for, 1) ->
+      defp archives_path(), do: Mix.path_for(:archives)
+
+    function_exported?(Mix.Local, :path_for, 1) ->
+      defp archives_path(), do: Mix.Local.path_for(:archive)
+
+    true ->
+      defp archives_path(), do: Mix.Local.archives_path()
   end
 
   defp cmd(command, args) do
