@@ -132,8 +132,10 @@ defmodule Hex.MixProject do
   cond do
     function_exported?(Mix, :path_for, 1) ->
       defp archives_path(), do: Mix.path_for(:archives)
+
     function_exported?(Mix.Local, :path_for, 1) ->
       defp archives_path(), do: Mix.Local.path_for(:archive)
+
     true ->
       defp archives_path(), do: Mix.Local.archives_path()
   end
