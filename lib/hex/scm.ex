@@ -74,13 +74,13 @@ defmodule Hex.SCM do
     case File.read(Path.join(dest, ".hex")) do
       {:ok, file} ->
         case parse_manifest(file) do
-          {:ok, lock} ->
+          {:ok, manifest} ->
             match? =
-              lock.name == name and
-                lock.version == version and
-                lock.inner_checksum == inner_checksum and
-                lock.outer_checksum == outer_checksum and
-                lock.repo == repo
+              manifest.name == name and
+                manifest.version == version and
+                manifest.inner_checksum == inner_checksum and
+                manifest.outer_checksum == outer_checksum and
+                manifest.repo == repo
 
             if match?, do: :ok, else: :mismatch
 
@@ -284,12 +284,16 @@ defmodule Hex.SCM do
 
   def parse_manifest(file) do
     case :erlang.binary_to_term(file) do
-      {{:hex, 1, _}, map} -> {:ok, map}
+      {{:hex, 1, _}, map} -> {:ok, add_outer_checksum(map)}
+      {{:hex, 2, _}, map} -> {:ok, map}
       _other -> :error
     end
   rescue
     ArgumentError -> {:ok, parse_old_manifest(file)}
   end
+
+  defp add_outer_checksum(%{outer_checksum: _} = map), do: map
+  defp add_outer_checksum(map), do: Map.put(map, :outer_checksum, nil)
 
   defp parse_old_manifest(file) do
     lines =
@@ -300,7 +304,15 @@ defmodule Hex.SCM do
     case lines do
       [first] ->
         destructure [name, version, inner_checksum, repo], String.split(first, ",")
-        %{name: name, version: version, inner_checksum: inner_checksum, repo: repo}
+
+        %{
+          name: name,
+          version: version,
+          inner_checksum: inner_checksum,
+          outer_checksum: nil,
+          repo: repo,
+          managers: []
+        }
 
       [first, managers] ->
         managers =
@@ -314,6 +326,7 @@ defmodule Hex.SCM do
           name: name,
           version: version,
           inner_checksum: inner_checksum,
+          outer_checksum: nil,
           repo: repo,
           managers: managers
         }
@@ -330,7 +343,7 @@ defmodule Hex.SCM do
       managers: managers || []
     }
 
-    :erlang.term_to_binary({{:hex, 1, 0}, map})
+    :erlang.term_to_binary({{:hex, 2, 0}, map})
   end
 
   defp cache_path(repo, name) do

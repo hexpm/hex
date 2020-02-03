@@ -318,6 +318,88 @@ defmodule Hex.MixTaskTest do
     ])
   end
 
+  test "deps.get with old format, string, single line manifest file" do
+    Mix.Project.push(EctoDep)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, File.cwd!())
+
+      manifest =
+        "ecto,0.2.0,0b6d6e0d9ef90f55dad224c59cff751a445f9b3e5fcfe5d31aa0e964e1d7e3de,hexpm"
+
+      File.write!("mix.lock", ~s(%{"ecto": {:hex, :ecto, "0.2.0"}}))
+      File.mkdir_p!("deps/ecto")
+      File.write!("deps/ecto/.hex", manifest)
+      Mix.Task.run("deps.get", [])
+
+      assert_received {:mix_shell, :info, ["  ecto 0.2.0"]}
+    end)
+  after
+    purge([
+      Ecto.NoConflict.MixProject,
+      Postgrex.NoConflict.MixProject,
+      Ex_doc.NoConflict.MixProject,
+      Sample.Fixture.MixProject
+    ])
+  end
+
+  test "deps.get with old format, string, multi line manifest file" do
+    Mix.Project.push(EctoDep)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, File.cwd!())
+
+      manifest =
+        "ecto,0.2.0,0b6d6e0d9ef90f55dad224c59cff751a445f9b3e5fcfe5d31aa0e964e1d7e3de,hexpm\n"
+
+      File.write!("mix.lock", ~s(%{"ecto": {:hex, :ecto, "0.2.0"}}))
+      File.mkdir_p!("deps/ecto")
+      File.write!("deps/ecto/.hex", manifest)
+      Mix.Task.run("deps.get", [])
+
+      assert_received {:mix_shell, :info, ["  ecto 0.2.0"]}
+    end)
+  after
+    purge([
+      Ecto.NoConflict.MixProject,
+      Postgrex.NoConflict.MixProject,
+      Ex_doc.NoConflict.MixProject,
+      Sample.Fixture.MixProject
+    ])
+  end
+
+  test "deps.get with 1.0 manifest file" do
+    Mix.Project.push(EctoDep)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, File.cwd!())
+
+      manifest_map = %{
+        name: "ecto",
+        version: "0.2.0",
+        inner_checksum: "0b6d6e0d9ef90f55dad224c59cff751a445f9b3e5fcfe5d31aa0e964e1d7e3de",
+        repo: "hexpm",
+        managers: []
+      }
+
+      manifest = :erlang.term_to_binary({{:hex, 1, 0}, manifest_map})
+
+      File.write!("mix.lock", ~s(%{"ecto": {:hex, :ecto, "0.2.0"}}))
+      File.mkdir_p!("deps/ecto")
+      File.write!("deps/ecto/.hex", manifest)
+      Mix.Task.run("deps.get", [])
+
+      assert_received {:mix_shell, :info, ["  ecto 0.2.0"]}
+    end)
+  after
+    purge([
+      Ecto.NoConflict.MixProject,
+      Postgrex.NoConflict.MixProject,
+      Ex_doc.NoConflict.MixProject,
+      Sample.Fixture.MixProject
+    ])
+  end
+
   test "deps.update locked dependency with minimal lock file" do
     Mix.Project.push(EctoDep)
 
