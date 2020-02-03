@@ -1,6 +1,14 @@
 # CHANGELOG
 
-## v0.20.3-dev
+## v0.20.3 (2020-02-03)
+
+### Enhancements
+
+* Fetch the latest non-prerelease version of a package in `mix hex.docs `
+
+### Bug fixes
+
+* Correctly handle old manifest files without crashing
 
 ## v0.20.2 (2020-02-03)
 
