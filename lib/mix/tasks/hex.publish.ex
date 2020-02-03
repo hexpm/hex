@@ -429,7 +429,7 @@ defmodule Mix.Tasks.Hex.Publish do
   defp build_docs_tarball(directory) do
     files = files(directory)
     raise_if_file_matches_semver(files)
-    {:ok, %{tarball: data}} = :mix_hex_tarball.create_docs(files)
+    {:ok, data} = :mix_hex_tarball.create_docs(files)
     data
   end
 

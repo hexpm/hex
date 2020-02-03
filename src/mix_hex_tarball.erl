@@ -1,7 +1,7 @@
-%% Vendored from hex_core v0.5.0, do not edit manually
+%% Vendored from hex_core v0.6.6, do not edit manually
 
 -module(mix_hex_tarball).
--export([create/2, create_docs/1, unpack/2, format_checksum/1, format_error/1]).
+-export([create/2, create_docs/1, unpack/2, unpack_docs/2, format_checksum/1, format_error/1]).
 -ifdef(TEST).
 -export([do_decode_metadata/1, gzip/1, normalize_requirements/1]).
 -endif.
@@ -20,7 +20,7 @@
 -type checksum() :: binary().
 -type contents() :: #{filename() => binary()}.
 -type filename() :: string().
--type files() :: [filename() | {filename(), filename()}] | contents().
+-type files() :: [{filename(), filename() | binary()}].
 -type metadata() :: map().
 -type tarball() :: binary().
 
@@ -45,7 +45,7 @@
 %%        inner_checksum => <<178,12,...>>}}
 %% '''
 %% @end
--spec create(metadata(), files()) -> {ok, {tarball(), checksum()}}.
+-spec create(metadata(), files()) -> {ok, {tarball(), checksum()}} | {error, term()}.
 create(Metadata, Files) ->
     MetadataBinary = encode_metadata(Metadata),
     ContentsTarball = create_memory_tarball(Files),
@@ -81,11 +81,10 @@ create(Metadata, Files) ->
 %% ```
 %% > Files = [{"doc/index.html", <<"Docs">>}],
 %% > mix_hex_tarball:create_docs(Files).
-%% {ok, #{tarball => <<86,69,...>>,
-%%        checksum => <<40,32,...>>}
+%% {ok, <<86,69,...>>}
 %% '''
 %% @end
--spec create_docs(files()) -> {ok, {tarball(), checksum()}}.
+-spec create_docs(files()) -> {ok, tarball()}.
 create_docs(Files) ->
     UncompressedTarball = create_memory_tarball(Files),
     UncompressedSize = byte_size(UncompressedTarball),
@@ -97,7 +96,7 @@ create_docs(Files) ->
             {error, {tarball, too_big}};
 
         false ->
-            {ok, #{tarball => Tarball, checksum => checksum(Tarball)}}
+            {ok, Tarball}
     end.
 
 %% @doc
@@ -139,6 +138,26 @@ unpack(Tarball, Output) ->
         {error, Reason} ->
             {error, {tarball, Reason}}
     end.
+
+%% @doc
+%% Unpacks a documentation tarball.
+%%
+%% Examples:
+%%
+%% ```
+%% > mix_hex_tarball:unpack_docs(Tarball, memory).
+%% {ok, [{"index.html", <<"<!doctype>">>}, ...]}
+%%
+%% > mix_hex_tarball:unpack_docs(Tarball, "path/to/unpack").
+%% ok
+%% '''
+-spec unpack_docs(tarball(), memory) -> {ok, contents()} | {error, term()};
+                 (tarball(), filename()) -> ok | {error, term()}.
+unpack_docs(Tarball, _) when byte_size(Tarball) > ?TARBALL_MAX_SIZE ->
+    {error, {tarball, too_big}};
+
+unpack_docs(Tarball, Output) ->
+    unpack_tarball(Tarball, Output).
 
 %% @doc
 %% Returns base16-encoded representation of checksum.
@@ -206,6 +225,7 @@ finish_unpack({error, _} = Error) ->
 finish_unpack(#{metadata := Metadata, files := Files, inner_checksum := InnerChecksum, outer_checksum := OuterChecksum, output := Output}) ->
     _Version = maps:get("VERSION", Files),
     ContentsBinary = maps:get("contents.tar.gz", Files),
+    filelib:ensure_dir(filename:join(Output, "*")),
     case unpack_tarball(ContentsBinary, Output) of
         ok ->
             copy_metadata_config(Output, maps:get("metadata.config", Files)),
@@ -343,6 +363,7 @@ guess_build_tools(Metadata) ->
 unpack_tarball(ContentsBinary, memory) ->
     mix_hex_erl_tar:extract({binary, ContentsBinary}, [memory, compressed]);
 unpack_tarball(ContentsBinary, Output) ->
+    filelib:ensure_dir(filename:join(Output, "*")),
     case mix_hex_erl_tar:extract({binary, ContentsBinary}, [{cwd, Output}, compressed]) of
         ok ->
             [try_updating_mtime(filename:join(Output, Path)) || Path <- filelib:wildcard("**", Output)],
