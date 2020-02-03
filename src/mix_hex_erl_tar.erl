@@ -1651,7 +1651,7 @@ write_extracted_element(#tar_header{name=Name0}=Header, Bin, Opts) ->
 make_safe_path([$/|Path], Opts) ->
     make_safe_path(Path, Opts);
 make_safe_path(Path, #read_opts{cwd=Cwd}) ->
-    case filename:safe_relative_path(Path) of
+    case mix_hex_filename:safe_relative_path(Path) of
         unsafe ->
             throw({error,{Path,unsafe_path}});
         SafePath ->
@@ -1689,7 +1689,7 @@ safe_relative_path_links([Segment|Segments], Cwd, PrevSegments, Acc) ->
                     end;
 
                 {error, _} ->
-                    case filename:safe_relative_path(join(Acc, Segment)) of
+                    case mix_hex_filename:safe_relative_path(join(Acc, Segment)) of
                         unsafe ->
                             unsafe;
                         NewAcc ->
