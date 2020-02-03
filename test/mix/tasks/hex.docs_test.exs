@@ -16,7 +16,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
     auth = Hexpm.new_key(user: "user", pass: "hunter42")
     Hexpm.new_package("docs_package", "1.1.1", %{}, %{}, auth)
     Hexpm.new_package("docs_package", "1.1.2", %{}, %{}, auth)
-
+    Hexpm.new_package("docs_package", "2.0.0-rc1", %{}, %{}, auth)
+    Hexpm.new_package("pre_only_package", "0.0.1-rc1", %{}, %{}, auth)
     :ok
   end
 
@@ -53,6 +54,28 @@ defmodule Mix.Tasks.Hex.DocsTest do
   test "fetch the latest version of a package" do
     package = "docs_package"
     latest_version = "1.1.2"
+    bypass_mirror()
+    Hex.State.put(:home, tmp_path())
+    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    org_dir = "hexpm"
+
+    in_tmp("docs", fn ->
+      Mix.Tasks.Hex.Docs.run(["fetch", package])
+      fetched_msg = "Docs fetched: #{docs_home}/#{org_dir}/#{package}/#{latest_version}"
+      assert_received {:mix_shell, :info, [^fetched_msg]}
+
+      Mix.Tasks.Hex.Docs.run(["fetch", package])
+
+      already_fetched_msg =
+        "Docs already fetched: #{docs_home}/#{org_dir}/#{package}/#{latest_version}"
+
+      assert_received {:mix_shell, :info, [^already_fetched_msg]}
+    end)
+  end
+
+  test "when the only release is a pre-release, return that version" do
+    package = "pre_only_package"
+    latest_version = "0.0.1-rc1"
     bypass_mirror()
     Hex.State.put(:home, tmp_path())
     docs_home = Path.join(Hex.State.fetch!(:home), "docs")

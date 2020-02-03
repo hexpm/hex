@@ -133,12 +133,19 @@ defmodule Mix.Tasks.Hex.Docs do
   defp find_package_latest_version(organization, name) do
     %{"releases" => releases} = retrieve_package_info(organization, name)
 
-    latest_release =
-      releases
-      |> Enum.sort(&(Hex.Version.compare(&1["version"], &2["version"]) == :gt))
-      |> List.first()
+    sorted_versions =
+      Enum.sort(releases, &(Hex.Version.compare(&1["version"], &2["version"]) == :gt))
 
-    latest_release["version"]
+    if Enum.all?(sorted_versions, &pre_release?/1) do
+      sorted_versions
+      |> List.first()
+      |> Map.get("version")
+    else
+      sorted_versions
+      |> Enum.reject(&pre_release?/1)
+      |> List.first()
+      |> Map.get("version")
+    end
   end
 
   defp retrieve_package_info(organization, name) do
@@ -304,10 +311,18 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp find_latest_version(path) do
-    path
-    |> File.ls!()
-    |> Enum.sort(&(Hex.Version.compare(&1, &2) == :gt))
-    |> List.first()
+    sorted_versions =
+      path
+      |> File.ls!()
+      |> Enum.sort(&(Hex.Version.compare(&1, &2) == :gt))
+
+    if Enum.all?(sorted_versions, &pre_release?/1) do
+      List.first(sorted_versions)
+    else
+      sorted_versions
+      |> Enum.reject(&pre_release?/1)
+      |> List.first()
+    end
   end
 
   defp download_docs(organization, package, version, target) do
@@ -354,5 +369,16 @@ defmodule Mix.Tasks.Hex.Docs do
     organization
     |> org_to_repo()
     |> Hex.Utils.windows_repo_path_fix()
+  end
+
+  defp pre_release?(%{"version" => version}), do: do_pre_release?(version)
+  defp pre_release?(version), do: do_pre_release?(version)
+
+  defp do_pre_release?(version) do
+    case Hex.Version.parse(version) do
+      {:ok, %Version{pre: []}} -> false
+      {:ok, %Version{}} -> true
+      _ -> false
+    end
   end
 end

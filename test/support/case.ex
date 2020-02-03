@@ -330,6 +330,13 @@ defmodule HexTest.Case do
 
         %Plug.Conn{request_path: "/docs/docs_package"} ->
           Plug.Conn.resp(conn, 404, "")
+
+        %Plug.Conn{request_path: "/docs/pre_only_package-0.0.1-rc1.tar.gz"} ->
+          tar_file = tmp_path("pre_only_package-0.0.1-rc1.tar.gz")
+          index_file = Hex.string_to_charlist("index.html")
+          :mix_hex_erl_tar.create(tar_file, [{index_file, ""}], [:compressed])
+          package = File.read!(tar_file)
+          Plug.Conn.resp(conn, 200, package)
       end
     end)
 
