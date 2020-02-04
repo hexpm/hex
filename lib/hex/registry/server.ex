@@ -274,6 +274,8 @@ defmodule Hex.Registry.Server do
   #   {{:retired, ^repo, _package, _version}, _} -> true
   #   {{:tarball_etag, ^repo, _package, _version}, _} -> true
   #   {{:registry_etag, ^repo, _package}, _} -> true
+  #   {{:timestamp, ^repo, _package}, _} -> true
+  #   {{:timestamp, ^repo, _package, _version}, _} -> true
   #   _ -> false
   # end)
 
@@ -286,6 +288,8 @@ defmodule Hex.Registry.Server do
       {{{:retired, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:tarball_etag, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:registry_etag, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:timetamp, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:timetamp, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {:_, [], [false]}
     ]
   end
@@ -337,8 +341,10 @@ defmodule Hex.Registry.Server do
       |> Hex.Repo.decode_package(repo, package)
 
     delete_package(repo, package, tid)
+    now = :calendar.universal_time()
 
     Enum.each(releases, fn %{version: version} = release ->
+      :ets.insert(tid, {{:timestamp, repo, package, version}, now})
       :ets.insert(tid, {{:inner_checksum, repo, package, version}, release[:inner_checksum]})
       :ets.insert(tid, {{:outer_checksum, repo, package, version}, release[:outer_checksum]})
       :ets.insert(tid, {{:retired, repo, package, version}, release[:retired]})
@@ -351,6 +357,8 @@ defmodule Hex.Registry.Server do
 
       :ets.insert(tid, {{:deps, repo, package, version}, deps})
     end)
+
+    :ets.insert(tid, {{:timestamp, repo, package}, now})
 
     versions = Enum.map(releases, & &1[:version])
     :ets.insert(tid, {{:versions, repo, package}, versions})
