@@ -23,6 +23,14 @@ defmodule Hex.SCM do
       %{outer_checksum: <<checksum::binary-8, _::binary>>} = lock ->
         "#{lock.version} (#{lock.repo}/#{lock.name}) #{checksum}"
 
+      %{outer_checksum: nil, repo: "hexpm"} = lock ->
+        "#{lock.version} (#{lock.name}) " <>
+          ~s("Checksum missing in old lock, run mix deps.get to update")
+
+      %{outer_checksum: nil} = lock ->
+        "#{lock.version} (#{lock.repo}/#{lock.name}) " <>
+          ~s("Checksum missing in old lock, run mix deps.get to update")
+
       nil ->
         nil
     end
