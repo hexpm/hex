@@ -87,7 +87,8 @@ defmodule Hex.SCM do
               manifest.name == name and
                 manifest.version == version and
                 manifest.inner_checksum == inner_checksum and
-                manifest.outer_checksum == outer_checksum and
+                (is_nil(manifest.outer_checksum) or is_nil(outer_checksum) or
+                   manifest.outer_checksum == outer_checksum) and
                 manifest.repo == repo
 
             if match?, do: :ok, else: :mismatch
