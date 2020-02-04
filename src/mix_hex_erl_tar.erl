@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.6.6, do not edit manually
+%% Vendored from hex_core v0.6.8, do not edit manually
 
 %% @private
 %% Copied from https://github.com/erlang/otp/blob/OTP-20.0.1/lib/stdlib/src/erl_tar.erl
@@ -8,7 +8,9 @@
 %% - Preserve modes when building tarball
 %% - Do not crash if failing to write tar
 %% - Allow setting file_info opts on :mix_hex_erl_tar.add
-%% - Add safe_link_name from https://github.com/erlang/otp/commit/860556ac106bcd4deb4b6280ff0b3e6bcda4158a
+%% - Add safe_relative_path_links/2 to check directory traversal vulnerability when extracting files,
+%%   it differs from OTP's current fix (2020-02-04) in that it checks regular files instead of
+%%   symlink targets. This allows creating symlinks with relative path targets such as `../tmp/log`
 
 %%
 %% %CopyrightBegin%
@@ -1629,8 +1631,7 @@ write_extracted_element(#tar_header{name=Name0}=Header, Bin, Opts) ->
                 create_extracted_dir(Name1, Opts);
             symlink ->
                 read_verbose(Opts, "x ~ts~n", [Name0]),
-                LinkName = safe_link_name(Header, Opts),
-                create_symlink(Name1, LinkName, Opts);
+                create_symlink(Name1, Header#tar_header.linkname, Opts);
             Device when Device =:= char orelse Device =:= block ->
                 %% char/block devices will be created as empty files
                 %% and then have their major/minor device set later
@@ -1651,19 +1652,11 @@ write_extracted_element(#tar_header{name=Name0}=Header, Bin, Opts) ->
 make_safe_path([$/|Path], Opts) ->
     make_safe_path(Path, Opts);
 make_safe_path(Path, #read_opts{cwd=Cwd}) ->
-    case mix_hex_filename:safe_relative_path(Path) of
+    case safe_relative_path_links(Path, Cwd) of
         unsafe ->
             throw({error,{Path,unsafe_path}});
         SafePath ->
             filename:absname(SafePath, Cwd)
-    end.
-
-safe_link_name(#tar_header{linkname=Path}, #read_opts{cwd=Cwd}) ->
-    case safe_relative_path_links(Path, Cwd) of
-        unsafe ->
-            throw({error,{Path,unsafe_symlink}});
-        SafePath ->
-            SafePath
     end.
 
 safe_relative_path_links(Path, Cwd) ->
@@ -1672,34 +1665,33 @@ safe_relative_path_links(Path, Cwd) ->
         _ -> unsafe
     end.
 
-safe_relative_path_links([Segment|Segments], Cwd, PrevSegments, Acc) ->
+safe_relative_path_links([], _Cwd, _PrevLinks, Acc) ->
+    Acc;
+
+safe_relative_path_links([Segment | Segments], Cwd, PrevLinks, Acc) ->
     AccSegment = join(Acc, Segment),
-    case lists:member(AccSegment, PrevSegments) of
-        true ->
+
+    case mix_hex_filename:safe_relative_path(AccSegment) of
+        unsafe ->
             unsafe;
-        false ->
-            case file:read_link(join(Cwd, AccSegment)) of
+
+        SafeAccSegment ->
+            case file:read_link(join(Cwd, SafeAccSegment)) of
                 {ok, LinkPath} ->
-                    case filename:pathtype(LinkPath) of
-                        relative ->
-                            safe_relative_path_links(filename:split(LinkPath) ++ Segments,
-                                                     Cwd, [AccSegment|PrevSegments], Acc);
-                        _ ->
-                            unsafe
+                    case lists:member(LinkPath, PrevLinks) of
+                        true ->
+                            unsafe;
+                        false ->
+                            case safe_relative_path_links(filename:split(LinkPath), Cwd, [LinkPath | PrevLinks], Acc) of
+                                unsafe -> unsafe;
+                                NewAcc -> safe_relative_path_links(Segments, Cwd, [], NewAcc)
+                            end
                     end;
 
                 {error, _} ->
-                    case mix_hex_filename:safe_relative_path(join(Acc, Segment)) of
-                        unsafe ->
-                            unsafe;
-                        NewAcc ->
-                            safe_relative_path_links(Segments, Cwd,
-                                                     [AccSegment|PrevSegments], NewAcc)
-                    end
+                    safe_relative_path_links(Segments, Cwd, PrevLinks, SafeAccSegment)
             end
-    end;
-safe_relative_path_links([], _Cwd, _PrevSegments, Acc) ->
-    Acc.
+  end.
 
 join([], Path) -> Path;
 join(Left, Right) -> filename:join(Left, Right).
