@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## v0.20.4-dev
+## v0.20.4 (2020-02-04)
+
+### Bug fixes
+
+* Fix tarball file extraction through symlinks
 
 ## v0.20.3 (2020-02-03)
 
