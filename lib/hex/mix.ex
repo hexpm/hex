@@ -191,7 +191,7 @@ defmodule Hex.Mix do
 
       outer_checksum =
         Hex.Registry.Server.outer_checksum(repo, name, version)
-        |> Base.encode16(case: :lower)
+        |> encode_outer_checksum()
 
       deps =
         Hex.Registry.Server.deps(repo, name, version)
@@ -206,6 +206,14 @@ defmodule Hex.Mix do
       {String.to_atom(app),
        {:hex, String.to_atom(name), version, inner_checksum, managers, deps, repo, outer_checksum}}
     end)
+  end
+
+  defp encode_outer_checksum(nil) do
+    nil
+  end
+
+  defp encode_outer_checksum(binary) do
+    Base.encode16(binary, case: :lower)
   end
 
   # We need to get managers from manifest if a dependency is not in the lock
