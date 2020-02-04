@@ -7,7 +7,7 @@ defmodule Hex.Registry.Server do
   @name __MODULE__
   @filename "cache.ets"
   @timeout 60_000
-  @ets_version 2
+  @ets_version 3
 
   def start_link(opts \\ []) do
     opts = Keyword.put_new(opts, :name, @name)
