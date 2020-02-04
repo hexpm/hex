@@ -165,7 +165,7 @@ defmodule HexTest.Case do
         {{:deps, repo, pkg, vsn}, deps}
       end)
 
-    :ets.insert(tid, versions ++ deps ++ [{:version, 2}])
+    :ets.insert(tid, versions ++ deps ++ [{:version, 3}])
     File.mkdir_p!(Path.dirname(path))
     :ok = :ets.tab2file(tid, Hex.string_to_charlist(path))
     :ets.delete(tid)
