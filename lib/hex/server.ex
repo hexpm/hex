@@ -18,6 +18,10 @@ defmodule Hex.Server do
     GenServer.call(@name, :should_warn_lock_version?)
   end
 
+  def should_warn_registry_version?() do
+    GenServer.call(@name, :should_warn_registry_version?)
+  end
+
   def init([]) do
     {:ok, state()}
   end
@@ -26,15 +30,26 @@ defmodule Hex.Server do
     {:reply, :ok, state()}
   end
 
-  def handle_call(:should_warn_lock_version?, _from, %{warned_tuple_size: false} = state) do
-    {:reply, true, %{state | warned_tuple_size: true}}
+  def handle_call(:should_warn_lock_version?, _from, %{warned_lock_version: false} = state) do
+    {:reply, true, %{state | warned_lock_version: true}}
   end
 
-  def handle_call(:should_warn_lock_version?, _from, %{warned_tuple_size: true} = state) do
+  def handle_call(:should_warn_lock_version?, _from, %{warned_lock_version: true} = state) do
+    {:reply, false, state}
+  end
+
+  def handle_call(:should_warn_registry_version?, _from, %{warned_registry_size: false} = state) do
+    {:reply, true, %{state | warned_registry_size: true}}
+  end
+
+  def handle_call(:should_warn_registry_version?, _from, %{warned_registry_size: true} = state) do
     {:reply, false, state}
   end
 
   defp state() do
-    %{warned_tuple_size: false}
+    %{
+      warned_lock_version: false,
+      warned_registry_version: false
+    }
   end
 end
