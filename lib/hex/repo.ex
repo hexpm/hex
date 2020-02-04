@@ -294,6 +294,15 @@ defmodule Hex.Repo do
     else
       case :mix_hex_registry.decode_package(body, repo, package) do
         {:ok, releases} ->
+          outer_checksum? = Enum.all?(releases, &Map.has_key?(&1, :outer_checksum))
+
+          if not outer_checksum? and Hex.Server.should_warn_registry_version?() do
+            Hex.Shell.warn(
+              "Fetched old registry record version from repo #{repo}. The" <>
+                "repository you are using should update to include the new :outer_checksum field"
+            )
+          end
+
           releases
 
         {:error, :unverified} ->
