@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.6.6, do not edit manually
+%% Vendored from hex_core v0.6.8, do not edit manually
 
 -module(mix_hex_tarball).
 -export([create/2, create_docs/1, unpack/2, unpack_docs/2, format_checksum/1, format_error/1]).
