@@ -1,6 +1,17 @@
 # CHANGELOG
 
-## v0.20.5-dev
+## v0.20.5 (2020-02-05)
+
+### Enhancements
+
+* Add timestamps to entries in registry cache for easier debugging
+* Bump registry cache version to invalidate old caches
+* Warn if fetching registry without outer checksum
+
+### Bug fixes
+
+* Do not require that the registry supports outer checksums
+* Missing outer checksum is not a mismatch, this will fix "out of date" errors when the manifest is newer than the lockfile
 
 ## v0.20.4 (2020-02-04)
 
