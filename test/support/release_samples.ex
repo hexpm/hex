@@ -27,6 +27,21 @@ defmodule ReleaseSimple.MixProject do
   end
 end
 
+defmodule ReleaseNewSimple.MixProject do
+  def project do
+    [
+      app: :release_a_new,
+      description: "baz",
+      version: "0.0.1",
+      package: [
+        licenses: ["MIT"],
+        files: ["myfile.txt"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
 defmodule ReleaseDeps.MixProject do
   def project do
     [
