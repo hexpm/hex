@@ -63,7 +63,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
   end
 
   test "create and revert a package" do
-    Mix.Project.push(ReleaseSimple.MixProject)
+    Mix.Project.push(ReleaseNewSimple.MixProject)
 
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
@@ -78,12 +78,12 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
 
       message =
-        "Package published to http://localhost:4043/packages/release_a/0.0.1 " <>
-          "(9e8195c5ffcfc6ee06f5f84caa100d72535d8786005097138a661946ae0841a3)"
+        "Package published to http://localhost:4043/packages/release_a_new/0.0.1 " <>
+          "(7d4dfea50056c79a0404182e24a428e66c13623f416ee239419937dc2f8cebce)"
 
       assert_received {:mix_shell, :info, [^message]}
 
-      assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
+      assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a_new", "0.0.1")
 
       message =
         "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct\n"
@@ -93,7 +93,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["package", "--revert", "0.0.1"])
-      assert {:ok, {404, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
+      assert {:ok, {404, _, _}} = Hex.API.Release.get("hexpm", "release_a_new", "0.0.1")
     end)
   after
     purge([ReleaseSimple.MixProject])
