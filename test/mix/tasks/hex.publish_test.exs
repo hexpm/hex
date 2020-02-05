@@ -63,11 +63,12 @@ defmodule Mix.Tasks.Hex.PublishTest do
   end
 
   test "create and revert a package" do
-    Mix.Project.push(ReleaseSimple.MixProject)
+    Mix.Project.push(ReleaseNewSimple.MixProject)
 
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())
       File.write!("mix.exs", "mix.exs")
+      File.write!("myfile.txt", "myfile.txt")
       File.write_stat!("mix.exs", %{File.stat!("mix.exs") | mode: 0o100644})
       setup_auth("user", "hunter42")
 
@@ -76,12 +77,12 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
 
       message =
-        "Package published to http://localhost:4043/packages/release_a/0.0.1 " <>
-          "(d6ca0a3342bb4d13c0ea19efcd684e8f7ced440aab931298824748434d409944)"
+        "Package published to http://localhost:4043/packages/release_a_new/0.0.1 " <>
+          "(621a7a90f5f5a665860a8f94e40b5a8f94a7f168c2559d75949dd7ca527b031d)"
 
       assert_received {:mix_shell, :info, [^message]}
 
-      assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
+      assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "release_a_new", "0.0.1")
 
       message =
         "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct\n"
@@ -91,7 +92,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["package", "--revert", "0.0.1"])
-      assert {:ok, {404, _, _}} = Hex.API.Release.get("hexpm", "release_a", "0.0.1")
+      assert {:ok, {404, _, _}} = Hex.API.Release.get("hexpm", "release_a_new", "0.0.1")
     end)
   after
     purge([ReleaseSimple.MixProject])
