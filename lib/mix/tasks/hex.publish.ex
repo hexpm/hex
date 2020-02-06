@@ -49,8 +49,9 @@ defmodule Mix.Tasks.Hex.Publish do
     * `--yes` - Publishes the package without any confirmation prompts
     * `--dry-run` - Builds package and performs local checks without publishing,
       use `mix hex.build --unpack` to inspect package contents before publishing
-    * `--replace` - Allows publishing of a private package using a version that has
-      previously been published.
+    * `--replace` - Allows overwriting an existing package version if it exists.
+      Private packages can always be overwritten, public packages can only be
+      overwritten within one hour after they were initially published.
 
   ## Configuration
 
