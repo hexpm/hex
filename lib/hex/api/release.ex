@@ -8,8 +8,10 @@ defmodule Hex.API.Release do
     API.request(:get, repo, path, auth)
   end
 
-  def publish(repo, tar, auth, progress \\ fn _ -> nil end) do
-    path = "publish"
+  def publish(repo, tar, auth, progress \\ fn _ -> nil end, replace \\ false)
+
+  def publish(repo, tar, auth, progress, replace?) do
+    path = "publish?replace=#{replace?}"
     opts = [progress: progress] ++ auth
     API.tar_post_request(repo, path, tar, opts)
   end
