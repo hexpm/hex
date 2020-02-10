@@ -38,7 +38,11 @@ defmodule Hex.Server do
     {:reply, false, state}
   end
 
-  def handle_call(:should_warn_registry_version?, _from, %{warned_registry_version: false} = state) do
+  def handle_call(
+        :should_warn_registry_version?,
+        _from,
+        %{warned_registry_version: false} = state
+      ) do
     {:reply, true, %{state | warned_registry_version: true}}
   end
 
