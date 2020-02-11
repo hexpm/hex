@@ -209,7 +209,6 @@ defmodule Mix.Tasks.Hex.DocsTest do
     end)
   end
 
-  @tag :focus
   test "open latest version in epub offline using offline task" do
     package = "docs_package"
     latest_version = "1.1.2"

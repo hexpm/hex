@@ -216,8 +216,6 @@ defmodule Mix.Tasks.Hex.Docs do
 
       if docs_location do
         open_file(docs_location)
-      else
-        Mix.raise("The requested file/format could not be found.")
       end
     end
   end
