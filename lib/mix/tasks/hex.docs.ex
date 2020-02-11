@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Hex.Docs do
   @behaviour Hex.Mix.TaskDescription
 
   @elixir_apps ~w(eex elixir ex_unit iex logger mix)
-  @switches [module: :string, organization: :string, latest: :boolean]
+  @switches [module: :string, organization: :string, latest: :boolean, epub: :boolean]
 
   @impl true
   def run(args) do
@@ -216,6 +216,8 @@ defmodule Mix.Tasks.Hex.Docs do
 
       if docs_location do
         open_file(docs_location)
+      else
+        Mix.raise("The requested file/format could not be found.")
       end
     end
   end
@@ -236,7 +238,7 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp docs_location(organization, name, version, opts) do
-    page = Keyword.get(opts, :module, "index") <> ".html"
+    page = html_or_epub_file(name, opts)
     default_path = Path.join([docs_dir(), org_to_path(organization), name, version, page])
     fallback_path = Path.join([docs_dir(), name, version, page])
 
@@ -244,6 +246,17 @@ defmodule Mix.Tasks.Hex.Docs do
       File.exists?(default_path) -> default_path
       !organization && File.exists?(fallback_path) -> fallback_path
       true -> nil
+    end
+  end
+
+  defp html_or_epub_file(name, opts) do
+    epub? = Keyword.get(opts, :epub, false)
+    module = Keyword.get(opts, :module, "index")
+
+    if epub? do
+      name <> ".epub"
+    else
+      module <> ".html"
     end
   end
 
