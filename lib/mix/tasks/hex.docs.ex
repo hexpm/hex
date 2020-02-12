@@ -236,9 +236,22 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp docs_location(organization, name, version, opts) do
-    page = html_or_epub_file(name, opts)
-    default_path = Path.join([docs_dir(), org_to_path(organization), name, version, page])
-    fallback_path = Path.join([docs_dir(), name, version, page])
+    epub? = Keyword.get(opts, :epub, false)
+    module = Keyword.get(opts, :module, "index")
+
+    default_path = Path.join([docs_dir(), org_to_path(organization), name, version])
+    fallback_path = Path.join([docs_dir(), name, version])
+
+    if epub? do
+      epub_file_location(default_path, fallback_path, organization)
+    else
+      html_file_location(default_path, fallback_path, module, organization)
+    end
+  end
+
+  defp html_file_location(default_path, fallback_path, module, organization) do
+    default_path = Path.join([default_path, module <> ".html"])
+    fallback_path = Path.join([fallback_path, module <> ".html"])
 
     cond do
       File.exists?(default_path) -> default_path
@@ -247,14 +260,14 @@ defmodule Mix.Tasks.Hex.Docs do
     end
   end
 
-  defp html_or_epub_file(name, opts) do
-    epub? = Keyword.get(opts, :epub, false)
-    module = Keyword.get(opts, :module, "index")
+  defp epub_file_location(default_path, fallback_path, organization) do
+    default_path = Path.wildcard(Path.join([default_path, "*.epub"]))
+    fallback_path = Path.wildcard(Path.join([fallback_path, "*.epub"]))
 
-    if epub? do
-      name <> ".epub"
-    else
-      module <> ".html"
+    cond do
+      length(default_path) == 1 -> Enum.at(default_path, 0)
+      !organization && length(fallback_path) == 1 -> Enum.at(fallback_path, 0)
+      true -> Mix.raise("No documentation found in epub format.")
     end
   end
 
