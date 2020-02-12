@@ -34,6 +34,7 @@ defmodule Mix.Tasks.Hex.Docs do
     * `--module Some.Module` - Open a specified module documentation page inside desired package
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
     * `--latest` - Looks for the latest release of a package
+    * `--epub` - When opening documentation offline, use this flag to open the epub formatted version
   """
   @behaviour Hex.Mix.TaskDescription
 
