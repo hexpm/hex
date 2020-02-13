@@ -234,7 +234,7 @@ defmodule HexTest.Hexpm do
     [key: secret]
   end
 
-  def new_package(name, version, deps, meta, organization \\ "hexpm", auth) do
+  def new_package(organization, name, version, deps, meta, auth, files \\ nil) do
     reqs =
       Enum.filter(deps, fn
         {_app, _req, opts} -> !(opts[:path] || opts[:git] || opts[:github])
@@ -265,7 +265,7 @@ defmodule HexTest.Hexpm do
     module = String.capitalize(name)
     mix_exs = :io_lib.format(@mix_exs_template, [module, name, version, deps])
 
-    files = [{"mix.exs", List.to_string(mix_exs)}]
+    files = files || [{"mix.exs", List.to_string(mix_exs)}]
     %{tarball: tarball} = Hex.create_tar!(meta, files, :memory)
 
     {:ok, {result, %{"version" => ^version}, _}} =

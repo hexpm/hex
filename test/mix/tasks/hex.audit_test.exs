@@ -46,7 +46,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
   def with_test_package(version, %{auth: auth}, fun) do
     Mix.Project.push(RetiredDeps.MixProject)
 
-    Hexpm.new_package(@package_name, version, [], %{}, auth)
+    Hexpm.new_package("hexpm", @package_name, version, [], %{}, auth)
 
     in_tmp(fn ->
       Hex.State.put(:home, tmp_path())

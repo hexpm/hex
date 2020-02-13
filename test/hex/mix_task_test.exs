@@ -211,6 +211,19 @@ defmodule Hex.MixTaskTest do
     end
   end
 
+  defmodule DependsOnEctoSQL do
+    def project do
+      [
+        app: :depends_on_ecto_sql,
+        version: "0.1.0",
+        deps: [
+          {:ecto_sql, "~> 3.3"},
+          {:ecto_enum, "1.4.0"}
+        ]
+      ]
+    end
+  end
+
   test "deps.get" do
     Mix.Project.push(Simple)
 
@@ -876,6 +889,35 @@ defmodule Hex.MixTaskTest do
       Ecto.NoConflict.MixProject,
       Postgrex.NoConflict.MixProject,
       Ex_doc.NoConflict.MixProject
+    ])
+  end
+
+  if Version.match?(System.version(), "< 1.11.0-dev") do
+    @tag :skip
+  end
+
+  test "do not raise :divergedreq when parent changes requirement and child changes version" do
+    Mix.Project.push(DependsOnEctoSQL)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, File.cwd!())
+
+      Mix.Dep.Lock.write(%{
+        ecto_sql: {:hex, :ecto_sql, "3.3.2"},
+        ecto: {:hex, :ecto, "3.3.1"}
+      })
+
+      Mix.Task.run("deps.get")
+      Mix.Task.run("compile")
+      Mix.Task.run("deps.update", ["ecto_sql"])
+    end)
+  after
+    purge([
+      Ecto.SQL_3_3_2.Fixture.MixProject,
+      Ecto.SQL_3_3_3.Fixture.MixProject,
+      Ecto.Enum_1_4_0.Fixture.MixProject,
+      Ecto_3_3_1.Fixture.MixProject,
+      Ecto_3_3_2.Fixture.MixProject
     ])
   end
 end

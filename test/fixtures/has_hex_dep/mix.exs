@@ -6,6 +6,6 @@ defmodule HasHexDep.Fixture.MixProject do
   end
 
   defp deps do
-    [{:ecto, []}]
+    [{:ecto, "~> 0.1"}]
   end
 end

@@ -14,10 +14,10 @@ defmodule Mix.Tasks.Hex.DocsTest do
 
   setup_all do
     auth = Hexpm.new_key(user: "user", pass: "hunter42")
-    Hexpm.new_package("docs_package", "1.1.1", %{}, %{}, auth)
-    Hexpm.new_package("docs_package", "1.1.2", %{}, %{}, auth)
-    Hexpm.new_package("docs_package", "2.0.0-rc1", %{}, %{}, auth)
-    Hexpm.new_package("pre_only_package", "0.0.1-rc1", %{}, %{}, auth)
+    Hexpm.new_package("hexpm", "docs_package", "1.1.1", %{}, %{}, auth)
+    Hexpm.new_package("hexpm", "docs_package", "1.1.2", %{}, %{}, auth)
+    Hexpm.new_package("hexpm", "docs_package", "2.0.0-rc1", %{}, %{}, auth)
+    Hexpm.new_package("hexpm", "pre_only_package", "0.0.1-rc1", %{}, %{}, auth)
     :ok
   end
 

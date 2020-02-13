@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
   test "add owner" do
     auth = Hexpm.new_user("owner_user1", "owner_user1@mail.com", "passpass", "key")
     Hexpm.new_user("owner_user2", "owner_user2@mail.com", "passpass", "key")
-    Hexpm.new_package("owner_package1", "0.0.1", [], %{}, auth)
+    Hexpm.new_package("hexpm", "owner_package1", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
@@ -25,7 +25,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
   test "add owner with maintainer level" do
     auth = Hexpm.new_user("owner_user1a", "owner_user1a@mail.com", "passpass", "key")
     Hexpm.new_user("owner_user2a", "owner_user2a@mail.com", "passpass", "key")
-    Hexpm.new_package("owner_package1a", "0.0.1", [], %{}, auth)
+    Hexpm.new_package("hexpm", "owner_package1a", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
@@ -52,7 +52,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
   test "add owner with invalid level" do
     auth = Hexpm.new_user("owner_user1b", "owner_user1b@mail.com", "passpass", "key")
     Hexpm.new_user("owner_user2b", "owner_user2b@mail.com", "passpass", "key")
-    Hexpm.new_package("owner_package1b", "0.0.1", [], %{}, auth)
+    Hexpm.new_package("hexpm", "owner_package1b", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
@@ -73,7 +73,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
   test "add owner by username" do
     auth = Hexpm.new_user("owner_user1c", "owner_user1c@mail.com", "passpass", "key")
     Hexpm.new_user("owner_user2c", "owner_user2c@mail.com", "passpass", "key")
-    Hexpm.new_package("owner_package1c", "0.0.1", [], %{}, auth)
+    Hexpm.new_package("hexpm", "owner_package1c", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
@@ -93,7 +93,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
   test "remove owner" do
     auth = Hexpm.new_user("owner_user3", "owner_user3@mail.com", "passpass", "key")
     Hexpm.new_user("owner_user4", "owner_user4@mail.com", "passpass", "key")
-    Hexpm.new_package("owner_package2", "0.0.1", [], %{}, auth)
+    Hexpm.new_package("hexpm", "owner_package2", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
@@ -112,7 +112,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
 
   test "list owners" do
     auth = Hexpm.new_user("owner_user5", "owner_user5@mail.com", "passpass", "key")
-    Hexpm.new_package("owner_package3", "0.0.1", [], %{}, auth)
+    Hexpm.new_package("hexpm", "owner_package3", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
@@ -135,8 +135,8 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     package2 = "owner_package5"
     owner_email = "owner_user6@mail.com"
     auth = Hexpm.new_user("owner_user6", owner_email, "passpass", "key")
-    Hexpm.new_package(package1, "0.0.1", [], %{}, auth)
-    Hexpm.new_package(package2, "0.0.1", [], %{}, auth)
+    Hexpm.new_package("hexpm", package1, "0.0.1", [], %{}, auth)
+    Hexpm.new_package("hexpm", package2, "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
@@ -151,7 +151,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
   test "transfer owner by username" do
     auth = Hexpm.new_user("owner_user7a", "owner_user7a@mail.com", "passpass", "key")
     Hexpm.new_user("owner_user7b", "owner_user7b@mail.com", "passpass", "key")
-    Hexpm.new_package("owner_package6", "0.0.1", [], %{}, auth)
+    Hexpm.new_package("hexpm", "owner_package6", "0.0.1", [], %{}, auth)
 
     Hex.State.put(:home, tmp_path())
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
