@@ -34,12 +34,12 @@ defmodule Mix.Tasks.Hex.Docs do
     * `--module Some.Module` - Open a specified module documentation page inside desired package
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
     * `--latest` - Looks for the latest release of a package
-    * `--epub` - When opening documentation offline, use this flag to open the epub formatted version
+    * `--format epub` - When opening documentation offline, use this flag to open the epub formatted version
   """
   @behaviour Hex.Mix.TaskDescription
 
   @elixir_apps ~w(eex elixir ex_unit iex logger mix)
-  @switches [module: :string, organization: :string, latest: :boolean, epub: :boolean]
+  @switches [module: :string, organization: :string, latest: :boolean, format: :string]
 
   @impl true
   def run(args) do
@@ -237,16 +237,15 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp docs_location(organization, name, version, opts) do
-    epub? = Keyword.get(opts, :epub, false)
+    format = Keyword.get(opts, :format, "html")
     module = Keyword.get(opts, :module, "index")
 
     default_path = Path.join([docs_dir(), org_to_path(organization), name, version])
     fallback_path = Path.join([docs_dir(), name, version])
 
-    if epub? do
-      epub_file_location(default_path, fallback_path, organization)
-    else
-      html_file_location(default_path, fallback_path, module, organization)
+    case format do
+      "epub" -> epub_file_location(default_path, fallback_path, organization)
+      "html" -> html_file_location(default_path, fallback_path, module, organization)
     end
   end
 

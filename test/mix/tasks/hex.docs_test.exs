@@ -218,7 +218,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
     org_dir = "hexpm"
 
     in_tmp("docs", fn ->
-      Mix.Tasks.Hex.Docs.run(["offline", package, "--epub"])
+      Mix.Tasks.Hex.Docs.run(["offline", package, "--format", "epub"])
       fetched_msg = "Docs fetched: #{docs_home}/#{org_dir}/#{package}/#{latest_version}"
       browser_open_msg = "#{docs_home}/#{org_dir}/#{package}/#{latest_version}/docs_package.epub"
       assert_received {:mix_shell, :info, [^fetched_msg]}
