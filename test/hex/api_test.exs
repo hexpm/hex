@@ -78,7 +78,7 @@ defmodule Hex.APITest do
     assert byte_size(key_b) == 32
     auth = [key: key_a]
 
-    Hexpm.new_package("melon", "0.0.1", %{}, %{}, auth)
+    Hexpm.new_package("hexpm", "melon", "0.0.1", %{}, %{}, auth)
 
     assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
     assert Enum.find(body, &(&1["name"] == "key_a"))
@@ -111,7 +111,7 @@ defmodule Hex.APITest do
   test "owners" do
     auth = Hexpm.new_key(user: "user", pass: "hunter42")
 
-    Hexpm.new_package("orange", "0.0.1", %{}, %{}, auth)
+    Hexpm.new_package("hexpm", "orange", "0.0.1", %{}, %{}, auth)
     Hex.API.User.new("orange_user", "orange_user@mail.com", "hunter42")
 
     assert {:ok, {200, [%{"username" => "user"}], _}} =
