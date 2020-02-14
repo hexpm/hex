@@ -151,9 +151,8 @@ defmodule HexTest.Hexpm do
   end
 
   defp hexpm_mix_archives do
-    archives_path =
-      (System.get_env("HEXPM_MIX_ARCHIVES") || archives_path())
-      |> Path.expand()
+    (System.get_env("HEXPM_MIX_ARCHIVES") || archives_path())
+    |> Path.expand()
   end
 
   cond do
