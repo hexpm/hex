@@ -184,6 +184,13 @@ defmodule Mix.Tasks.Hex.DocsTest do
     assert_received {:mix_shell, :error, [^message]}
   end
 
+  test "offline task fails when index file in docs not found" do
+    Mix.Tasks.Hex.Docs.run(["offline", "decimal", "1.1.2"])
+
+    message = "Couldn't find docs for package with name decimal or version 1.1.2"
+    assert_received {:mix_shell, :error, [^message]}
+  end
+
   test "open latest version offline using offline task" do
     package = "docs_package"
     latest_version = "1.1.2"
@@ -196,6 +203,24 @@ defmodule Mix.Tasks.Hex.DocsTest do
       Mix.Tasks.Hex.Docs.run(["offline", package])
       fetched_msg = "Docs fetched: #{docs_home}/#{org_dir}/#{package}/#{latest_version}"
       browser_open_msg = "#{docs_home}/#{org_dir}/#{package}/#{latest_version}/index.html"
+      assert_received {:mix_shell, :info, [^fetched_msg]}
+      assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
+      assert Enum.fetch!(browser_open_cmd, -1) == browser_open_msg
+    end)
+  end
+
+  test "open latest version in epub offline using offline task" do
+    package = "docs_package"
+    latest_version = "1.1.2"
+    bypass_mirror()
+    Hex.State.put(:home, tmp_path())
+    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    org_dir = "hexpm"
+
+    in_tmp("docs", fn ->
+      Mix.Tasks.Hex.Docs.run(["offline", package, "--format", "epub"])
+      fetched_msg = "Docs fetched: #{docs_home}/#{org_dir}/#{package}/#{latest_version}"
+      browser_open_msg = "#{docs_home}/#{org_dir}/#{package}/#{latest_version}/docs_package.epub"
       assert_received {:mix_shell, :info, [^fetched_msg]}
       assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
       assert Enum.fetch!(browser_open_cmd, -1) == browser_open_msg

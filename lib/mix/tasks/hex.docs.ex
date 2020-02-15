@@ -34,11 +34,12 @@ defmodule Mix.Tasks.Hex.Docs do
     * `--module Some.Module` - Open a specified module documentation page inside desired package
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
     * `--latest` - Looks for the latest release of a package
+    * `--format epub` - When opening documentation offline, use this flag to open the epub formatted version
   """
   @behaviour Hex.Mix.TaskDescription
 
   @elixir_apps ~w(eex elixir ex_unit iex logger mix)
-  @switches [module: :string, organization: :string, latest: :boolean]
+  @switches [module: :string, organization: :string, latest: :boolean, format: :string]
 
   @impl true
   def run(args) do
@@ -236,14 +237,37 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp docs_location(organization, name, version, opts) do
-    page = Keyword.get(opts, :module, "index") <> ".html"
-    default_path = Path.join([docs_dir(), org_to_path(organization), name, version, page])
-    fallback_path = Path.join([docs_dir(), name, version, page])
+    format = Keyword.get(opts, :format, "html")
+    module = Keyword.get(opts, :module, "index")
+
+    default_path = Path.join([docs_dir(), org_to_path(organization), name, version])
+    fallback_path = Path.join([docs_dir(), name, version])
+
+    case format do
+      "epub" -> epub_file_location(default_path, fallback_path, organization)
+      "html" -> html_file_location(default_path, fallback_path, module, organization)
+    end
+  end
+
+  defp html_file_location(default_path, fallback_path, module, organization) do
+    default_path = Path.join([default_path, module <> ".html"])
+    fallback_path = Path.join([fallback_path, module <> ".html"])
 
     cond do
       File.exists?(default_path) -> default_path
       !organization && File.exists?(fallback_path) -> fallback_path
       true -> nil
+    end
+  end
+
+  defp epub_file_location(default_path, fallback_path, organization) do
+    default_path = Path.wildcard(Path.join([default_path, "*.epub"]))
+    fallback_path = Path.wildcard(Path.join([fallback_path, "*.epub"]))
+
+    cond do
+      length(default_path) == 1 -> Enum.at(default_path, 0)
+      !organization && length(fallback_path) == 1 -> Enum.at(fallback_path, 0)
+      true -> Mix.raise("No documentation found in epub format.")
     end
   end
 
