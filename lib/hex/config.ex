@@ -51,15 +51,15 @@ defmodule Hex.Config do
     if state_pid && state_pid != self() do
       Hex.State.fetch!(:config_home)
     else
-      Path.expand(System.get_env("HEX_HOME") || "~/.hex")
+      find_config_home()
     end
   end
 
-  def config_home_lookup() do
+  def find_config_home() do
     case {System.get_env("HEX_HOME"), System.get_env("XDG_CONFIG_HOME")} do
-        {directory, _} when is_binary(directory) -> directory
-        {nil, directory} when is_binary(directory) -> :filename.basedir(:user_data, "mix")
-        {nil, nil} -> Path.expand("~/.mix")
+        {directory, _} when is_binary(directory) -> Path.expand(directory)
+        {nil, directory} when is_binary(directory) -> Path.join(Path.expand(directory), "hex")
+        {nil, nil} -> "~/.hex"
       end
   end
 
