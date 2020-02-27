@@ -445,7 +445,7 @@ defmodule Hex.Registry.Server do
   end
 
   defp path do
-    Path.join(Hex.State.fetch!(:home), @filename)
+    Path.join(Hex.State.fetch!(:cache_home), @filename)
   end
 
   defp delete_package(repo, package, tid) do
