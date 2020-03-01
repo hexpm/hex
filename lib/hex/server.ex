@@ -5,7 +5,7 @@ defmodule Hex.Server do
 
   @name __MODULE__
 
-  def start_link(opts \\ []) do
+  def start_link(opts) do
     opts = Keyword.put_new(opts, :name, @name)
     GenServer.start_link(__MODULE__, [], opts)
   end

@@ -99,9 +99,16 @@ defmodule Hex.State do
     }
   }
 
-  def start_link() do
+  def start_link([]) do
     global_config = Hex.Config.read()
     Agent.start_link(__MODULE__, :init, [global_config], name: @name)
+  end
+
+  def child_spec(arg) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [arg]}
+    }
   end
 
   def stop() do

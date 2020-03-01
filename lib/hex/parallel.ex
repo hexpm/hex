@@ -7,7 +7,7 @@ defmodule Hex.Parallel do
   use GenServer
   require Logger
 
-  def start_link(name) do
+  def start_link([name]) do
     GenServer.start_link(__MODULE__, [], name: name)
   end
 
