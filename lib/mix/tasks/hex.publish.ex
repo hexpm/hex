@@ -227,7 +227,8 @@ defmodule Mix.Tasks.Hex.Publish do
       Mix.Task.run("docs", ["--canonical", canonical])
     rescue
       ex in [Mix.NoTaskError] ->
-        stacktrace = System.stacktrace()
+        require Hex
+        stacktrace = Hex.stacktrace()
 
         Mix.shell().error("""
         Publication failed because the "docs" task is unavailable. You may resolve this by:
