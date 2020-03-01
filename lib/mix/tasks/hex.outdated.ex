@@ -11,6 +11,18 @@ defmodule Mix.Tasks.Hex.Outdated do
   `mix.exs` file. All outdated packages can be displayed by using the `--all`
   command line option.
 
+  By default, `hex.outdated` will exit with a non-zero exit code (1) if there are any
+  outdated dependencies. You can override this to respect the requirements
+  as specified in your `mix.exs` file, with the `--within-requirements` command line option,
+  so it only exits with non-zero exit code if the update is possible.
+
+  For example, if your version requirement is "~> 2.0" but the latest version is `3.0`,
+  then `--within-requirements`, nothing will happen, but if the latest version
+  is `2.8`, then `--within-requirements` will exit with non-zero exit code(1).
+
+  One scenario this could be useful is to ensure you always have the latest
+  version of your dependencies, except for major version bumps.
+
   If a dependency name is given all requirements on that dependency, from
   the entire dependency tree, are listed. This is useful if you are trying
   to figure why a package isn't updating when you run `mix deps.update`.
@@ -21,10 +33,11 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     * `--all` - shows all outdated packages, including children of packages defined in `mix.exs`
     * `--pre` - include pre-releases when checking for newer versions
+    * `--within-requirements` - exit with non-zero code only if requirements specified in `mix.exs` is met.
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [all: :boolean, pre: :boolean]
+  @switches [all: :boolean, pre: :boolean, within_requirements: :boolean]
 
   @impl true
   def run(args) do
@@ -162,11 +175,25 @@ defmodule Mix.Tasks.Hex.Outdated do
       Mix.Tasks.Hex.print_table(header, values)
 
       base_message = "Run `mix hex.outdated APP` to see requirements for a specific dependency."
-
       diff_message = maybe_diff_message(diff_links)
-
       Hex.Shell.info(["\n", base_message, diff_message])
-      if any_outdated?(versions), do: Mix.Tasks.Hex.set_exit_code(1)
+
+      any_outdated? = any_outdated?(versions)
+      req_met? = any_req_matches?(versions)
+
+      cond do
+        any_outdated? && opts[:within_requirements] && req_met? ->
+          Mix.Tasks.Hex.set_exit_code(1)
+
+        any_outdated? && opts[:within_requirements] && not req_met? ->
+          nil
+
+        any_outdated? ->
+          Mix.Tasks.Hex.set_exit_code(1)
+
+        true ->
+          nil
+      end
     end
   end
 
@@ -219,7 +246,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp format_all_row([package, lock, latest, requirements]) do
     outdated? = Hex.Version.compare(lock, latest) == :lt
     latest_color = if outdated?, do: :red, else: :green
-    req_matches? = Enum.all?(requirements, &version_match?(latest, &1))
+    req_matches? = req_matches?(requirements, latest)
 
     status =
       case {outdated?, req_matches?} do
@@ -269,5 +296,15 @@ defmodule Mix.Tasks.Hex.Outdated do
       :error -> long_url
       {:ok, short_url} -> short_url
     end
+  end
+
+  defp any_req_matches?(versions) do
+    Enum.any?(versions, fn [_package, _lock, latest, requirements] ->
+      req_matches?(requirements, latest)
+    end)
+  end
+
+  defp req_matches?(requirements, latest) do
+    Enum.all?(requirements, &version_match?(latest, &1))
   end
 end
