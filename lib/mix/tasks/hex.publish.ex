@@ -322,14 +322,14 @@ defmodule Mix.Tasks.Hex.Publish do
     Hex.Shell.info("  [1] Yourself")
 
     numbers = Stream.map(Stream.iterate(2, &(&1 + 1)), &Integer.to_string/1)
-    organizations = Map.new(Stream.zip(numbers, organizations))
+    organizations = Stream.zip(numbers, organizations)
 
     Enum.each(organizations, fn {ix, organization} ->
       Hex.Shell.info("  [#{ix}] #{organization}")
     end)
 
     Hex.Shell.info("")
-    owner_prompt_selection(organizations)
+    owner_prompt_selection(Map.new(organizations))
   end
 
   defp owner_prompt_selection(organizations) do
