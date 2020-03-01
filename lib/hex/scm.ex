@@ -172,7 +172,8 @@ defmodule Hex.SCM do
         Hex.unpack_tar!(path, dest)
       rescue
         exception ->
-          stacktrace = System.stacktrace()
+          require Hex
+          stacktrace = Hex.stacktrace()
           File.rm(path)
           reraise(exception, stacktrace)
       end

@@ -97,6 +97,14 @@ defmodule Hex do
     def enum_split_with(enum, fun), do: Enum.split_with(enum, fun)
   end
 
+  defmacro stacktrace() do
+    if Version.compare(System.version(), "1.7.0") == :lt do
+      quote do: System.stacktrace()
+    else
+      quote do: __STACKTRACE__
+    end
+  end
+
   def file_lstat(path, opts \\ []) do
     opts = Keyword.put_new(opts, :time, :universal)
 
