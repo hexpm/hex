@@ -1,8 +1,6 @@
 defmodule Hex do
   @moduledoc false
 
-  use Application
-
   def start() do
     {:ok, _} = Application.ensure_all_started(:hex)
   end
@@ -14,34 +12,14 @@ defmodule Hex do
     end
   end
 
-  def start(_, _) do
-    dev_setup()
-
-    Mix.SCM.append(Hex.SCM)
-    Mix.RemoteConverger.register(Hex.RemoteConverger)
-
-    Hex.Version.start()
-    start_httpc()
-
-    opts = [strategy: :one_for_one, name: Hex.Supervisor]
-    Supervisor.start_link(children(), opts)
+  # For compatability during development
+  def start(start_type, start_args) do
+    Hex.Application.start(start_type, start_args)
   end
 
   def version(), do: unquote(Mix.Project.config()[:version])
   def elixir_version(), do: unquote(System.version())
   def otp_version(), do: unquote(Hex.Utils.otp_version())
-
-  defp start_httpc do
-    :inets.start(:httpc, profile: :hex)
-
-    opts = [
-      max_sessions: 8,
-      max_keep_alive_length: 4,
-      keep_alive_timeout: 120_000
-    ]
-
-    :httpc.set_options(opts, :hex)
-  end
 
   if Version.compare(System.version(), "1.2.0") == :lt do
     def debug?(), do: false
@@ -120,38 +98,6 @@ defmodule Hex do
           action: "read file stats",
           path: IO.chardata_to_string(path)
     end
-  end
-
-  if Mix.env() == :test do
-    defp children do
-      import Supervisor.Spec
-
-      [
-        worker(Hex.State, []),
-        worker(Hex.Server, []),
-        worker(Hex.Parallel, [:hex_fetcher])
-      ]
-    end
-  else
-    defp children do
-      import Supervisor.Spec
-
-      [
-        worker(Hex.State, []),
-        worker(Hex.Server, []),
-        worker(Hex.Parallel, [:hex_fetcher]),
-        worker(Hex.Registry.Server, []),
-        worker(Hex.UpdateChecker, [])
-      ]
-    end
-  end
-
-  if Mix.env() in [:dev, :test] do
-    defp dev_setup do
-      :erlang.system_flag(:backtrace_depth, 20)
-    end
-  else
-    defp dev_setup, do: :ok
   end
 
   def create_tar!(_metadata, [], _output),

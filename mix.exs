@@ -22,7 +22,7 @@ defmodule Hex.MixProject do
   def application do
     [
       applications: applications(Mix.env()),
-      mod: {Hex, []}
+      mod: {Hex.Application, []}
     ]
   end
 
