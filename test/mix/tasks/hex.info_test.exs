@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
 
   test "package with --organization flag" do
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "user"})

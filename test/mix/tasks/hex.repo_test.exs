@@ -15,7 +15,7 @@ defmodule Mix.Tasks.Hex.RepoTest do
 
   test "add" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:config_home, File.cwd!())
 
       File.write!("public_key.pem", @public_key)
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url", "--public-key", "public_key.pem"])
@@ -40,7 +40,7 @@ defmodule Mix.Tasks.Hex.RepoTest do
 
   test "remove" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:config_home, File.cwd!())
 
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
       Mix.Tasks.Hex.Repo.run(["remove", "reponame"])
@@ -50,7 +50,7 @@ defmodule Mix.Tasks.Hex.RepoTest do
 
   test "set url" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:config_home, File.cwd!())
 
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
       Mix.Tasks.Hex.Repo.run(["set", "reponame", "--url", "other_url"])

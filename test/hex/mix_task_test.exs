@@ -228,7 +228,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(Simple)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
       Mix.Task.run("deps.get")
 
       assert_received {:mix_shell, :info, ["* Getting ecto (Hex package)"]}
@@ -262,7 +262,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(Simple)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
       Mix.Task.run("deps.get")
       Mix.Task.clear()
 
@@ -286,7 +286,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(Simple)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       # `deps.get` to set up lock
       Mix.Task.run("deps.get")
@@ -335,7 +335,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(EctoDep)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       manifest =
         "ecto,0.2.0,0b6d6e0d9ef90f55dad224c59cff751a445f9b3e5fcfe5d31aa0e964e1d7e3de,hexpm"
@@ -360,7 +360,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(EctoDep)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       manifest =
         "ecto,0.2.0,0b6d6e0d9ef90f55dad224c59cff751a445f9b3e5fcfe5d31aa0e964e1d7e3de,hexpm\n"
@@ -385,7 +385,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(EctoDep)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       manifest_map = %{
         name: "ecto",
@@ -417,7 +417,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(EctoDep)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       File.write!("mix.lock", ~s(%{"ecto": {:hex, :ecto, "0.2.0"}}))
       Mix.Task.run("deps.update", ["ecto"])
@@ -437,7 +437,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(EctoDep)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       File.write!("mix.lock", ~s(%{"ecto": {:hex, :ecto, "0.2.0", "CHECKSUM", [:mix]}}))
       Mix.Task.run("deps.update", ["ecto"])
@@ -457,7 +457,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(EctoDep)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       File.write!(
         "mix.lock",
@@ -481,7 +481,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(EctoDep)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       File.write!(
         "mix.lock",
@@ -505,7 +505,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(Override)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       Mix.Task.run("deps.get")
       Mix.Task.run("deps.compile")
@@ -535,7 +535,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(NonHexDep)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
       Mix.Task.run("deps.get")
 
       assert_received {:mix_shell, :info, ["* Getting ecto (Hex package)"]}
@@ -555,7 +555,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(EctoPathDep)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
       Mix.Task.run("deps.get")
 
       assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
@@ -570,7 +570,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(SimpleOld)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
       Mix.Task.run("deps.get")
 
       assert_received {:mix_shell, :info, ["* Getting ecto (Hex package)"]}
@@ -592,7 +592,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(OverrideWithPath)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
       Mix.Task.run("deps.get")
 
       Mix.Task.run("deps")
@@ -611,7 +611,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(OverrideTwoLevelsWithPath)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
       Mix.Task.run("deps.get")
 
       Mix.Task.run("deps")
@@ -638,7 +638,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(OverrideWithPathParent)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
       Mix.Task.run("deps.get")
 
       assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
@@ -663,7 +663,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(Optional)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       Mix.Task.run("deps.get")
 
@@ -683,7 +683,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(WithOptional)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       Mix.Task.run("deps.get")
 
@@ -704,7 +704,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(WithPackageName)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       Mix.Task.run("deps.get")
 
@@ -723,7 +723,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(WithDependName)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       Mix.Task.run("deps.get")
 
@@ -745,7 +745,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(WithIncorrectDepVersion)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       message =
         ~s[Required version "> hello" for package ex_doc is incorrectly specified (from: mix.exs)]
@@ -760,7 +760,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(WithMissingDepVersion)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       Mix.Task.run("deps.get")
 
@@ -773,7 +773,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(WithNonMatchingRequirement)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       message = ~r{No matching version for ex_doc ~> 100.0.0.*\n\nThe latest version is: 0.1.0}
 
@@ -787,7 +787,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(WithOnlyMatchingPreRequirement)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       message =
         ~r{No matching version for beta ~> 1.1.0.*\n\n.*pre-releases available.*\n\n  \* 1.1.0-beta}
@@ -818,7 +818,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(Simple)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
       Mix.Task.run("deps.get")
       assert %{ecto: {:hex, _, _, _, [:mix], _, _, _}} = Mix.Dep.Lock.read()
     end)
@@ -828,7 +828,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(Simple)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       Mix.Task.run("deps.get")
       old_lock = rewrite_lock_in_old_format()
@@ -848,7 +848,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(Simple)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       Mix.Task.run("deps.get")
       old_lock = rewrite_lock_in_old_format()
@@ -871,7 +871,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(Simple)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       Mix.Task.run("deps.get")
       rewrite_lock_in_old_format()
@@ -900,7 +900,7 @@ defmodule Hex.MixTaskTest do
     Mix.Project.push(DependsOnEctoSQL)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:cache_home, File.cwd!())
 
       Mix.Dep.Lock.write(%{
         ecto_sql: {:hex, :ecto_sql, "3.3.2"},

@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(ReleaseSimple.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       File.write!("myfile.txt", "hello")
       File.chmod!("myfile.txt", 0o100644)
@@ -33,7 +33,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(ReleaseName.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       File.write!("myfile.txt", "hello")
       File.chmod!("myfile.txt", 0o100644)
@@ -49,7 +49,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(ReleaseFiles.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       File.mkdir!("dir")
       File.mkdir!("empty_dir")
@@ -98,7 +98,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(ReleaseExcludePatterns.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       File.write!("myfile.txt", "hello")
       File.write!("exclude.txt", "world")
@@ -121,7 +121,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(Sample.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       File.write!("mix.exs", "mix.exs")
       File.chmod!("mix.exs", 0o100644)
@@ -141,7 +141,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(ReleaseDeps.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       Mix.Tasks.Deps.Get.run([])
 
@@ -163,7 +163,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(ReleaseCustomRepoDeps.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       build = Mix.Tasks.Hex.Build.prepare_package()
 
@@ -180,7 +180,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(ReleaseGitDeps.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       error_msg =
         "Stopping package build due to errors.\n" <>
@@ -198,7 +198,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(ReleaseMeta.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       error_msg =
         "Stopping package build due to errors.\n" <> "Missing files: missing.txt, missing/*"
@@ -220,7 +220,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(ReleaseNoDescription.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       error_msg =
         "Stopping package build due to errors.\n" <>
@@ -242,7 +242,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(ReleaseTooLongDescription.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       error_msg =
         "Stopping package build due to errors.\n" <>
@@ -261,7 +261,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(ReleasePreDeps.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       error_msg = "A stable package release cannot have a pre-release dependency"
 
@@ -277,7 +277,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(ReleaseMisspelledOrganization.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       error_msg = "Invalid Hex package config :organisation, use spelling :organization"
 
@@ -293,7 +293,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(ReleaseOrganizationWrongLocation.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       File.write!("myfile.txt", "hello")
       File.chmod!("myfile.txt", 0o100644)
@@ -315,7 +315,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(ReleaseIncludeReservedFile.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       error_msg =
         "Stopping package build due to errors.\n" <>
@@ -334,7 +334,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
     Mix.Project.push(Sample.MixProject)
 
     in_fixture("sample", fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
 
       File.write!("myfile.txt", "hello")
       File.chmod!("myfile.txt", 0o100644)
