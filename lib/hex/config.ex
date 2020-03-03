@@ -57,10 +57,10 @@ defmodule Hex.Config do
 
   def find_config_home() do
     case {System.get_env("HEX_HOME"), System.get_env("XDG_CONFIG_HOME")} do
-        {directory, _} when is_binary(directory) -> Path.expand(directory)
-        {nil, directory} when is_binary(directory) -> Path.join(Path.expand(directory), "hex")
-        {nil, nil} -> Path.expand("~/.hex")
-      end
+      {directory, _} when is_binary(directory) -> Path.expand(directory)
+      {nil, directory} when is_binary(directory) -> Path.join(Path.expand(directory), "hex")
+      {nil, nil} -> Path.expand("~/.hex")
+    end
   end
 
   defp encode_term(list) do
