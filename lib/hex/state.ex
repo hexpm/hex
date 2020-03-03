@@ -73,7 +73,7 @@ defmodule Hex.State do
       fun: {__MODULE__, :to_integer}
     },
     data_home: %{
-      env_path_join: [{"HEX_HOME", ""},{"XDG_DATA_HOME", "hex"}],
+      env_path_join: [{"HEX_HOME", ""}, {"XDG_DATA_HOME", "hex"}],
       default: @home,
       fun: {__MODULE__, :path_expand}
     },
