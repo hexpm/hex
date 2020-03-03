@@ -59,7 +59,7 @@ defmodule Hex.Config do
     case {System.get_env("HEX_HOME"), System.get_env("XDG_CONFIG_HOME")} do
         {directory, _} when is_binary(directory) -> Path.expand(directory)
         {nil, directory} when is_binary(directory) -> Path.join(Path.expand(directory), "hex")
-        {nil, nil} -> "~/.hex"
+        {nil, nil} -> Path.expand("~/.hex")
       end
   end
 
