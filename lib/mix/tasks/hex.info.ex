@@ -73,7 +73,7 @@ defmodule Mix.Tasks.Hex.Info do
 
     case Hex.API.Package.get(organization, package, auth) do
       {:ok, {code, body, _}} when code in 200..299 ->
-        print_package(body)
+        print_package(body, locked_dep(package))
 
       {:ok, {404, _, _}} ->
         Hex.Shell.error("No package with name #{package}")
@@ -100,13 +100,14 @@ defmodule Mix.Tasks.Hex.Info do
     end
   end
 
-  defp print_package(package) do
+  defp print_package(package, locked_package) do
     meta = package["meta"]
     desc = meta["description"] || "No description provided"
     Hex.Shell.info(desc <> "\n")
     releases = package["releases"] || []
     retirements = package["retirements"] || %{}
     print_config(package["name"], latest_release(releases, retirements), package["repository"])
+    print_locked_package(locked_package)
     Hex.Shell.info(["Releases: "] ++ format_releases(releases, Map.keys(retirements)) ++ ["\n"])
     print_meta(meta)
   end
@@ -185,6 +186,12 @@ defmodule Mix.Tasks.Hex.Info do
       |> format_config_snippet(name, app_name, organization)
 
     Hex.Shell.info("Config: " <> snippet)
+  end
+
+  defp print_locked_package(nil), do: nil
+
+  defp print_locked_package(locked_package) do
+    Hex.Shell.info(["Locked version: #{locked_package.version}"])
   end
 
   defp format_config_snippet(version, name, name, organization)
@@ -274,5 +281,12 @@ defmodule Mix.Tasks.Hex.Info do
         Hex.Shell.info("  #{key}: #{val}")
       end)
     end
+  end
+
+  # Pull out the locked depenendency version, if it exists
+  defp locked_dep(package_name) do
+    Mix.Dep.Lock.read()
+    |> Enum.map(fn {_app, info} -> Hex.Utils.lock(info) end)
+    |> Enum.find(fn locked -> locked.name == package_name end)
   end
 end

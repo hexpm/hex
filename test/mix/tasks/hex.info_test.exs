@@ -2,6 +2,18 @@ defmodule Mix.Tasks.Hex.InfoTest do
   use HexTest.Case
   @moduletag :integration
 
+  defmodule Simple do
+    def project do
+      [
+        app: :simple,
+        version: "0.1.0",
+        deps: [
+          {:ecto, "0.2.0"}
+        ]
+      ]
+    end
+  end
+
   test "package" do
     Mix.Tasks.Hex.Info.run(["ex_doc"])
     assert_received {:mix_shell, :info, ["Some description\n"]}
@@ -10,6 +22,28 @@ defmodule Mix.Tasks.Hex.InfoTest do
 
     Mix.Tasks.Hex.Info.run(["no_package"])
     assert_received {:mix_shell, :error, ["No package with name no_package"]}
+  end
+
+  test "locked package" do
+    Mix.Project.push(Simple)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, File.cwd!())
+      Mix.Task.run("deps.get")
+      Mix.Task.clear()
+
+      Mix.Tasks.Hex.Info.run(["ecto"])
+      assert_received {:mix_shell, :info, ["Some description\n"]}
+      assert_received {:mix_shell, :info, ["Locked version: 0.2.0"]}
+      assert_received {:mix_shell, :info, ["Config: {:ecto, \"~> 3.3\"}"]}
+      assert_received {:mix_shell, :info, ["Releases: 3.3.2, 3.3.1, 0.2.1, 0.2.0\n"]}
+    end)
+  after
+    purge([
+      Ecto.NoConflict.MixProject,
+      Postgrex.NoConflict.MixProject,
+      Ex_doc.NoConflict.MixProject
+    ])
   end
 
   test "package with retired release" do
