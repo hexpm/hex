@@ -215,7 +215,9 @@ defmodule Mix.Tasks.Hex.Outdated do
         end)
       end
 
-    List.last(versions)
+    versions
+    |> Enum.sort_by(&Hex.Version.parse!/1)
+    |> List.last()
   end
 
   defp format_all_row([package, lock, latest, requirements]) do
