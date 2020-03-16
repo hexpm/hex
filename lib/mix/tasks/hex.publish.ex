@@ -313,7 +313,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp do_print_owner_prompt(organizations) do
     Hex.Shell.info(
-      "You are a member of organizations. Would you like to publish " <>
+      "You are a member of one or multiple organizations. Would you like to publish " <>
         "the package with yourself as owner or an organization as owner? " <>
         "If you publish with an organization as owner your package will " <>
         "be public but managed by the selected organization."
