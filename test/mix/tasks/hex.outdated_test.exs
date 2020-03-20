@@ -93,7 +93,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           [:bright, "bar", :reset],
           ["         ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
-          ["   ", :green, "", :reset],
+          ["   ", :green, "Yes", :reset],
+          ["         ", :green, "", :reset],
           "                 "
         ]
         |> IO.ANSI.format()
@@ -121,7 +122,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           [:bright, "bar", :reset],
           ["         ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
-          ["   ", :green, "", :reset],
+          ["   ", :green, "Yes", :reset],
+          ["         ", :green, "", :reset],
           "                 "
         ]
         |> IO.ANSI.format()
@@ -132,7 +134,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           [:bright, "foo", :reset],
           ["         ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
-          ["   ", :green, "Yes", :reset],
+          ["   ", :red, "No", :reset],
+          ["          ", :green, "Yes", :reset],
           "              "
         ]
         |> IO.ANSI.format()
@@ -144,6 +147,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           ["      ", "0.0.1", :reset],
           ["    ", :red, "0.1.0", :reset],
           ["   ", :red, "No", :reset],
+          ["          ", :red, "No", :reset],
           "               "
         ]
         |> IO.ANSI.format()
@@ -178,6 +182,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           ["         ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
           ["   ", :red, "No", :reset],
+          ["          ", :red, "No", :reset],
           "               "
         ]
         |> IO.ANSI.format()
@@ -204,8 +209,9 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           [:bright, "beta", :reset],
           ["        ", "1.0.0", :reset],
           ["    ", :green, "1.0.0", :reset],
-          ["   ", :green, "", :reset],
-          "                 "
+          ["   ", :green, "Yes", :reset],
+          ["         ", :green, :reset],
+          ["                 "]
         ]
         |> IO.ANSI.format()
         |> List.to_string()
@@ -221,6 +227,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           ["        ", "1.0.0", :reset],
           ["    ", :red, "1.1.0-beta", :reset],
           ["  ", :red, "No", :reset],
+          ["          ", :red, "No", :reset],
           "               "
         ]
         |> IO.ANSI.format()
@@ -253,21 +260,60 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       assert_received {:mix_shell, :info, [^msg]}
 
       mix =
-        [:bright, "mix.exs", :reset, "   ", :green, ">= 0.0.0", :reset, "     "]
+        [
+          :bright,
+          "mix.exs",
+          :reset,
+          "   ",
+          :green,
+          ">= 0.0.0",
+          :reset,
+          "     ",
+          :green,
+          "Yes",
+          :reset,
+          "         "
+        ]
         |> IO.ANSI.format()
         |> List.to_string()
 
       assert_received {:mix_shell, :info, [^mix]}
 
       ecto =
-        [:bright, "ecto", :reset, "      ", :red, "~> 0.0.1", :reset, "     "]
+        [
+          :bright,
+          "ecto",
+          :reset,
+          "      ",
+          :red,
+          "~> 0.0.1",
+          :reset,
+          "     ",
+          :red,
+          "No",
+          :reset,
+          "          "
+        ]
         |> IO.ANSI.format()
         |> List.to_string()
 
       assert_received {:mix_shell, :info, [^ecto]}
 
       postgrex =
-        [:bright, "postgrex", :reset, "  ", :red, "0.0.1", :reset, "        "]
+        [
+          :bright,
+          "postgrex",
+          :reset,
+          "  ",
+          :red,
+          "0.0.1",
+          :reset,
+          "        ",
+          :red,
+          "No",
+          :reset,
+          "          "
+        ]
         |> IO.ANSI.format()
         |> List.to_string()
 
@@ -359,6 +405,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
             ["      ", "0.0.1", :reset],
             ["    ", :red, "0.1.0", :reset],
             ["   ", :red, "No", :reset],
+            ["          ", :red, "No", :reset],
             "               "
           ]
           |> IO.ANSI.format()
@@ -369,7 +416,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
             [:bright, "bar", :reset],
             ["         ", "0.1.0", :reset],
             ["    ", :green, "0.1.0", :reset],
-            ["   ", :green, "", :reset],
+            ["   ", :green, "Yes", :reset],
+            ["         ", :green, "", :reset],
             "                 "
           ]
           |> IO.ANSI.format()
@@ -380,7 +428,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
             [:bright, "foo", :reset],
             ["         ", "0.1.1", :reset],
             ["    ", :green, "0.1.1", :reset],
-            ["   ", :green, "", :reset],
+            ["   ", :green, "Yes", :reset],
+            ["         ", :green, "", :reset],
             "                 "
           ]
           |> IO.ANSI.format()
