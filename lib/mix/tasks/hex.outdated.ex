@@ -141,7 +141,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     req_matches? = version_match?(latest, req)
     req_color = if req_matches?, do: :green, else: :red
     up_to_date? = if req_matches?, do: "Yes", else: "No"
-    [[:bright, source], [req_color, req || ""], up_to_date?]
+    [[:bright, source], [req_color, req || ""], [reg_color, up_to_date?]]
   end
 
   defp all(lock, opts) do
