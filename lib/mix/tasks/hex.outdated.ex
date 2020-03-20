@@ -100,8 +100,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     Hex.Shell.info("")
     Mix.Tasks.Hex.print_table(header, values)
 
-    message =
-      "Up-to-date indicates if the requirement matches the latest version."
+    message = "Up-to-date indicates if the requirement matches the latest version."
 
     Hex.Shell.info(["\n", message])
 
