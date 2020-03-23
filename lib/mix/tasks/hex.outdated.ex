@@ -95,14 +95,12 @@ defmodule Mix.Tasks.Hex.Outdated do
       |> Hex.Shell.info()
     end
 
-    header = ["Source", "Requirement"]
+    header = ["Source", "Requirement", "Up-to-date"]
     values = Enum.map(requirements, &format_single_row(&1, latest))
     Hex.Shell.info("")
     Mix.Tasks.Hex.print_table(header, values)
 
-    message =
-      "A green requirement means that it matches the latest version, " <>
-        "a red requirement means that that it does not match the latest version."
+    message = "Up-to-date indicates if the requirement matches the latest version."
 
     Hex.Shell.info(["\n", message])
 
@@ -141,7 +139,8 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp format_single_row([source, req], latest) do
     req_matches? = version_match?(latest, req)
     req_color = if req_matches?, do: :green, else: :red
-    [[:bright, source], [req_color, req || ""]]
+    up_to_date? = if req_matches?, do: "Yes", else: "No"
+    [[:bright, source], [req_color, req || ""], [req_color, up_to_date?]]
   end
 
   defp all(lock, opts) do
@@ -158,13 +157,12 @@ defmodule Mix.Tasks.Hex.Outdated do
     if Enum.empty?(values) do
       Hex.Shell.info("No hex dependencies")
     else
-      header = ["Dependency", "Current", "Latest", "Update possible"]
+      header = ["Dependency", "Current", "Latest", "Up-to-date", "Update possible"]
       Mix.Tasks.Hex.print_table(header, values)
 
       message =
-        "A green version in latest means you have the latest version of a given package, " <>
-          "a red version means there is a newer version available. Update possible indicates " <>
-          "if your current requirement matches the latest version.\n" <>
+        "Up-to-date indicates if you have the latest version of a given package.\n" <>
+          "Update possible indicates if your current requirement matches the latest version.\n" <>
           "Run `mix hex.outdated APP` to see requirements for a specific dependency."
 
       Hex.Shell.info(["\n" | message])
@@ -221,6 +219,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp format_all_row([package, lock, latest, requirements]) do
     outdated? = Hex.Version.compare(lock, latest) == :lt
     latest_color = if outdated?, do: :red, else: :green
+    up_to_date? = if outdated?, do: [:red, "No"], else: [:green, "Yes"]
 
     req_matches? = Enum.all?(requirements, &version_match?(latest, &1))
 
@@ -235,6 +234,7 @@ defmodule Mix.Tasks.Hex.Outdated do
       [:bright, package],
       lock,
       [latest_color, latest],
+      up_to_date?,
       [update_possible_color, update_possible]
     ]
   end
