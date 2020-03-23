@@ -358,7 +358,7 @@ defmodule Hex.SCM do
 
   defp cache_path(repo, name) do
     repo = Hex.Utils.windows_repo_path_fix(repo)
-    Path.join([Hex.State.fetch!(:home), @packages_dir, repo, name])
+    Path.join([Hex.State.fetch!(:cache_home), @packages_dir, repo, name])
   end
 
   def prefetch(lock) do

@@ -24,8 +24,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
   test "fetch and open all packages in this applications deps" do
     Mix.Project.push(ExampleDeps.MixProject)
     bypass_mirror()
-    Hex.State.put(:home, tmp_path())
-    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    Hex.State.put(:data_home, tmp_path())
+    docs_home = Path.join(Hex.State.fetch!(:data_home), "docs")
 
     in_tmp("docs", fn ->
       Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.2"}})
@@ -39,8 +39,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
   test "fetch the version of a dependency from this apps lock file" do
     Mix.Project.push(ExampleDeps.MixProject)
     bypass_mirror()
-    Hex.State.put(:home, tmp_path())
-    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    Hex.State.put(:data_home, tmp_path())
+    docs_home = Path.join(Hex.State.fetch!(:data_home), "docs")
 
     in_tmp("docs", fn ->
       Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.2"}})
@@ -55,8 +55,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
     package = "docs_package"
     latest_version = "1.1.2"
     bypass_mirror()
-    Hex.State.put(:home, tmp_path())
-    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    Hex.State.put(:data_home, tmp_path())
+    docs_home = Path.join(Hex.State.fetch!(:data_home), "docs")
     org_dir = "hexpm"
 
     in_tmp("docs", fn ->
@@ -77,8 +77,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
     package = "pre_only_package"
     latest_version = "0.0.1-rc1"
     bypass_mirror()
-    Hex.State.put(:home, tmp_path())
-    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    Hex.State.put(:data_home, tmp_path())
+    docs_home = Path.join(Hex.State.fetch!(:data_home), "docs")
     org_dir = "hexpm"
 
     in_tmp("docs", fn ->
@@ -98,8 +98,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
   test "fetch the latest version of a package using the latest flag" do
     Mix.Project.push(ExampleDeps.MixProject)
     bypass_mirror()
-    Hex.State.put(:home, tmp_path())
-    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    Hex.State.put(:data_home, tmp_path())
+    docs_home = Path.join(Hex.State.fetch!(:data_home), "docs")
 
     in_tmp("docs", fn ->
       Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.1"}})
@@ -114,8 +114,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
     package = "docs_package"
     version = "1.1.2"
     bypass_mirror()
-    Hex.State.put(:home, tmp_path())
-    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    Hex.State.put(:data_home, tmp_path())
+    docs_home = Path.join(Hex.State.fetch!(:data_home), "docs")
     org_dir = "hexpm"
 
     in_tmp("docs", fn ->
@@ -133,9 +133,9 @@ defmodule Mix.Tasks.Hex.DocsTest do
     package = "docs_package"
     version = "1.1.2"
     bypass_mirror()
-    Hex.State.put(:home, tmp_path())
+    Hex.State.put(:data_home, tmp_path())
 
-    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    docs_home = Path.join(Hex.State.fetch!(:data_home), "docs")
     org_dir = "hexpm"
 
     in_tmp("docs", fn ->
@@ -195,8 +195,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
     package = "docs_package"
     latest_version = "1.1.2"
     bypass_mirror()
-    Hex.State.put(:home, tmp_path())
-    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    Hex.State.put(:data_home, tmp_path())
+    docs_home = Path.join(Hex.State.fetch!(:data_home), "docs")
     org_dir = "hexpm"
 
     in_tmp("docs", fn ->
@@ -213,8 +213,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
     package = "docs_package"
     latest_version = "1.1.2"
     bypass_mirror()
-    Hex.State.put(:home, tmp_path())
-    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    Hex.State.put(:data_home, tmp_path())
+    docs_home = Path.join(Hex.State.fetch!(:data_home), "docs")
     org_dir = "hexpm"
 
     in_tmp("docs", fn ->
@@ -231,9 +231,9 @@ defmodule Mix.Tasks.Hex.DocsTest do
     package = "docs_package"
     version = "1.1.2"
     bypass_mirror()
-    Hex.State.put(:home, tmp_path())
+    Hex.State.put(:data_home, tmp_path())
 
-    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    docs_home = Path.join(Hex.State.fetch!(:data_home), "docs")
     org_dir = "hexpm"
 
     in_tmp("docs", fn ->
@@ -254,9 +254,9 @@ defmodule Mix.Tasks.Hex.DocsTest do
     package = "docs_package"
     version = "1.1.2"
     bypass_mirror()
-    Hex.State.put(:home, tmp_path())
+    Hex.State.put(:data_home, tmp_path())
 
-    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    docs_home = Path.join(Hex.State.fetch!(:data_home), "docs")
     org_dir = "hexpm"
 
     in_tmp("docs", fn ->
@@ -279,7 +279,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
 
   test "open the version of a package this app uses online" do
     Mix.Project.push(ExampleDeps.MixProject)
-    Hex.State.put(:home, tmp_path())
+    Hex.State.put(:data_home, tmp_path())
 
     in_tmp("docs", fn ->
       Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.1"}})
@@ -291,7 +291,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
 
   test "open latest version of a package this app uses online" do
     Mix.Project.push(ExampleDeps.MixProject)
-    Hex.State.put(:home, tmp_path())
+    Hex.State.put(:data_home, tmp_path())
 
     in_tmp("docs", fn ->
       Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.1"}})
@@ -306,8 +306,8 @@ defmodule Mix.Tasks.Hex.DocsTest do
     package = "docs_package"
     version = "1.1.2"
     bypass_mirror()
-    Hex.State.put(:home, tmp_path())
-    docs_home = Path.join(Hex.State.fetch!(:home), "docs")
+    Hex.State.put(:data_home, tmp_path())
+    docs_home = Path.join(Hex.State.fetch!(:data_home), "docs")
 
     in_tmp("docs", fn ->
       Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, version}})

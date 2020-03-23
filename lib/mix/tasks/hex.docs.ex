@@ -373,7 +373,7 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp docs_dir() do
-    Path.join(Hex.State.fetch!(:home), "docs")
+    Path.join(Hex.State.fetch!(:data_home), "docs")
   end
 
   defp package_in_lock(name) do

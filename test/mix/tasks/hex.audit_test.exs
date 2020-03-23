@@ -49,7 +49,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
     Hexpm.new_package("hexpm", @package_name, version, [], %{}, auth)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:cache_home, tmp_path())
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
       Mix.Dep.Lock.write(%{@package => {:hex, @package, version}})
 

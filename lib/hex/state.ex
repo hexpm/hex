@@ -25,6 +25,16 @@ defmodule Hex.State do
       default: @api_url,
       fun: {__MODULE__, :trim_slash}
     },
+    cache_home: %{
+      env_path_join: [{"HEX_HOME", ""}, {"XDG_CACHE_HOME", "hex"}],
+      default: @home,
+      fun: {__MODULE__, :path_expand}
+    },
+    config_home: %{
+      env_path_join: [{"HEX_HOME", ""}, {"XDG_CONFIG_HOME", "hex"}],
+      default: @home,
+      fun: {__MODULE__, :path_expand}
+    },
     unsafe_https: %{
       env: ["HEX_UNSAFE_HTTPS"],
       config: [:unsafe_https],
@@ -62,8 +72,8 @@ defmodule Hex.State do
       config: [:http_timeout],
       fun: {__MODULE__, :to_integer}
     },
-    home: %{
-      env: ["HEX_HOME"],
+    data_home: %{
+      env_path_join: [{"HEX_HOME", ""}, {"XDG_DATA_HOME", "hex"}],
       default: @home,
       fun: {__MODULE__, :path_expand}
     },
@@ -195,6 +205,7 @@ defmodule Hex.State do
   defp load_config_value(global_config, project_config, spec) do
     result =
       load_env(spec[:env]) ||
+        load_env_path_join(spec[:env_path_join]) ||
         load_project_config(project_config, spec[:config]) ||
         load_global_config(global_config, spec[:config])
 
@@ -229,7 +240,7 @@ defmodule Hex.State do
   defp source({:global_config, key}), do: "Hex config (location: #{config_path()}) #{key}: "
 
   defp config_path() do
-    :home
+    :config_home
     |> Hex.State.fetch!()
     |> Path.join("hex.config")
   end
@@ -238,6 +249,16 @@ defmodule Hex.State do
     Enum.find_value(keys || [], fn key ->
       if value = System.get_env(key) do
         {{:env, key}, value}
+      else
+        nil
+      end
+    end)
+  end
+
+  defp load_env_path_join(keys) do
+    Enum.find_value(keys || [], fn {key, prefix} ->
+      if value = System.get_env(key) do
+        {{:env_path_join, {key, prefix}}, Path.join(value, prefix)}
       else
         nil
       end

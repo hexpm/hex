@@ -176,6 +176,9 @@ defmodule Mix.Tasks.Hex.Config do
       {:ok, {{:project_config, _key}, value}} ->
         print_value(key, value, verbose, "(using `mix.exs`)")
 
+      {:ok, {{:env_path_join, {env_var, _prefix}}, value}} ->
+        print_value(key, value, verbose, "(using `#{env_var}`)")
+
       {:ok, {kind, value}} when kind in [:default, :computed] ->
         print_value(key, value, verbose, "(default)")
 
@@ -208,7 +211,7 @@ defmodule Mix.Tasks.Hex.Config do
   end
 
   defp config_path() do
-    :home
+    :config_home
     |> Hex.State.fetch!()
     |> Path.join("hex.config")
   end

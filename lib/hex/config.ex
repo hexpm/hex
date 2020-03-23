@@ -49,9 +49,17 @@ defmodule Hex.Config do
     state_pid = Process.whereis(Hex.State)
 
     if state_pid && state_pid != self() do
-      Hex.State.fetch!(:home)
+      Hex.State.fetch!(:config_home)
     else
-      Path.expand(System.get_env("HEX_HOME") || "~/.hex")
+      find_config_home()
+    end
+  end
+
+  def find_config_home() do
+    case {System.get_env("HEX_HOME"), System.get_env("XDG_CONFIG_HOME")} do
+      {directory, _} when is_binary(directory) -> Path.expand(directory)
+      {nil, directory} when is_binary(directory) -> Path.join(Path.expand(directory), "hex")
+      {nil, nil} -> Path.expand("~/.hex")
     end
   end
 

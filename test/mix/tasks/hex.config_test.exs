@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
       assert_received {:mix_shell, :info, ["http_concurrency: 8 (default)"]}
       assert_received {:mix_shell, :info, ["http_timeout: nil (default)"]}
       assert_received {:mix_shell, :info, ["mirror_url: nil (default)"]}
-      assert_received {:mix_shell, :info, ["home:" <> _]}
+      assert_received {:mix_shell, :info, ["config_home:" <> _]}
     end)
   after
     purge([ReleaseCustomApiUrl.MixProject])
@@ -77,7 +77,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
 
   test "direct api" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:config_home, File.cwd!())
       assert Hex.Config.read() == []
 
       Hex.Config.update(key: "value")
