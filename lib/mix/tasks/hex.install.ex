@@ -7,11 +7,7 @@ defmodule Mix.Tasks.Hex.Install do
 
   @shortdoc false
 
-  @moduledoc """
-  Manually installs specific Hex version.
-
-      mix hex.install VERSION
-  """
+  @moduledoc false
   @behaviour Hex.Mix.TaskDescription
 
   @impl true
