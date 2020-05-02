@@ -153,6 +153,7 @@ defmodule Mix.Tasks.Hex.Outdated do
       |> get_versions(deps, lock, opts[:pre])
 
     values = Enum.map(versions, &format_all_row/1)
+    diff_links = Enum.map(versions, &build_diff_link/1) |> Enum.reject(&is_nil/1)
 
     if Enum.empty?(values) do
       Hex.Shell.info("No hex dependencies")
@@ -160,12 +161,14 @@ defmodule Mix.Tasks.Hex.Outdated do
       header = ["Dependency", "Current", "Latest", "Up-to-date", "Update possible"]
       Mix.Tasks.Hex.print_table(header, values)
 
-      message =
+      base_message =
         "Up-to-date indicates if you have the latest version of a given package.\n" <>
           "Update possible indicates if your current requirement matches the latest version.\n" <>
           "Run `mix hex.outdated APP` to see requirements for a specific dependency."
 
-      Hex.Shell.info(["\n" | message])
+      diff_message = maybe_diff_message(diff_links)
+
+      Hex.Shell.info(["\n" | base_message <> diff_message])
       if any_outdated?(versions), do: Mix.Tasks.Hex.set_exit_code(1)
     end
   end
@@ -239,6 +242,16 @@ defmodule Mix.Tasks.Hex.Outdated do
     ]
   end
 
+  defp build_diff_link([package, lock, latest, requirements]) do
+    outdated? = Hex.Version.compare(lock, latest) == :lt
+    req_matches? = Enum.all?(requirements, &version_match?(latest, &1))
+
+    case {outdated?, req_matches?} do
+      {true, true} -> "diffs[]=#{package}:#{lock}:#{latest}"
+      {_, _} -> nil
+    end
+  end
+
   defp version_match?(_version, nil), do: true
   defp version_match?(version, req), do: Hex.Version.match?(version, req)
 
@@ -246,5 +259,21 @@ defmodule Mix.Tasks.Hex.Outdated do
     Enum.any?(versions, fn [_package, lock, latest, _requirements] ->
       Hex.Version.compare(lock, latest) == :lt
     end)
+  end
+
+  defp maybe_diff_message([]), do: ""
+
+  defp maybe_diff_message(diff_links) do
+    "\nTo view the diffs in each available update, visit:\n" <>
+      diff_link(diff_links)
+  end
+
+  defp diff_link(diff_links) do
+    long_url = "https://diff.hex.pm/diffs?" <> Enum.join(diff_links, "&")
+
+    case Hex.API.ShortURL.create(long_url) do
+      :error -> long_url
+      short_url -> short_url
+    end
   end
 end
