@@ -5,7 +5,7 @@ defmodule Hex.API.ShortURL do
 
   def create(url) do
     case API.erlang_post_request(nil, "short_url", %{url: url}) do
-      {:ok, {201, %{"short_url" => short_url}, _resp_headers}} -> short_url
+      {:ok, {201, %{"url" => short_url}, _resp_headers}} -> short_url
       _error -> :error
     end
   end
