@@ -168,7 +168,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
       diff_message = maybe_diff_message(diff_links)
 
-      Hex.Shell.info(["\n" | base_message <> diff_message])
+      Hex.Shell.info(["\n", base_message, diff_message])
       if any_outdated?(versions), do: Mix.Tasks.Hex.set_exit_code(1)
     end
   end
