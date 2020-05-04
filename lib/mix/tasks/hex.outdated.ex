@@ -273,7 +273,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     case Hex.API.ShortURL.create(long_url) do
       :error -> long_url
-      short_url -> short_url
+      {:ok, short_url} -> short_url
     end
   end
 end
