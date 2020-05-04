@@ -264,7 +264,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp maybe_diff_message([]), do: ""
 
   defp maybe_diff_message(diff_links) do
-    "\nTo view the diffs in each available update, visit:\n" <>
+    "\n\nTo view the diffs in each available update, visit:\n" <>
       diff_link(diff_links)
   end
 
