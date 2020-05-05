@@ -156,6 +156,12 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       assert_received {:mix_shell, :info, [^bar]}
       assert_received {:mix_shell, :info, [^foo]}
       assert_received {:mix_shell, :info, [^ex_doc]}
+
+      assert_received {:mix_shell, :info,
+                       [
+                         "\nUp-to-date indicates if you have the latest version of a given package.\nUpdate possible indicates if your current requirement matches the latest version.\nRun `mix hex.outdated APP` to see requirements for a specific dependency.\n\nTo view the diffs in each available update, visit:\n" <>
+                           _
+                       ]}
     end)
   end
 
