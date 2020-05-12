@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Hex.Publish do
   Documentation have limitations on when it can be updated
 
   To update the package simply run the `mix hex.publish` task again. To revert run
-  `mix hex.publish --revert VERSION` or to only revert the documentaiton run
+  `mix hex.publish --revert VERSION` or to only revert the documentation run
   `mix hex.publish docs --revert VERSION`.
 
   ## Command line options
