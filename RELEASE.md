@@ -10,17 +10,19 @@ This document simply outlines the release process:
 
 4. Commit changes above with title "Release vVERSION" and generate new tag
 
-5. Push master and the new tag
+5. Set branch latest to the new tag
 
-6. Create GitHub release
+6. Push master branch, latest branch and the new tag
 
-7. Run the `release.sh` script and set the path to the private key for Elixir `ELIXIR_PEM=path/to/elixir.pem ./release.sh VERSION` where `VERSION` is the Hex version being released without a `v` prefix
+7. Create GitHub release
 
-8. Increment version and add `-dev` extension to versions (see below for all files)
+8. Run the `release.sh` script and set the path to the private key for Elixir `ELIXIR_PEM=path/to/elixir.pem ./release.sh VERSION` where `VERSION` is the Hex version being released without a `v` prefix
 
-9. Commit changes above with title "Bump to vVERSION-dev"
+9. Increment version and add `-dev` extension to versions (see below for all files)
 
-10. Push master
+10. Commit changes above with title "Bump to vVERSION-dev"
+
+11. Push master
 
 ## All builds
 
