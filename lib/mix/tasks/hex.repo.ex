@@ -103,7 +103,7 @@ defmodule Mix.Tasks.Hex.Repo do
     [
       {"add NAME URL", "Add a repo"},
       {"set NAME", "Set config for repo"},
-      {"remove NAME URL", "Remove repo"},
+      {"remove NAME", "Remove repo"},
       {"list", "List all repos"}
     ]
   end
