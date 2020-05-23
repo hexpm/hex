@@ -93,9 +93,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           [:bright, "bar", :reset],
           ["         ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
-          ["   ", :green, "Yes", :reset],
-          ["         ", :green, "", :reset],
-          "                 "
+          ["   ", :green, "Up-to-date", :reset],
+          "           "
         ]
         |> IO.ANSI.format()
         |> List.to_string()
@@ -122,9 +121,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           [:bright, "bar", :reset],
           ["         ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
-          ["   ", :green, "Yes", :reset],
-          ["         ", :green, "", :reset],
-          "                 "
+          ["   ", :green, "Up-to-date", :reset],
+          "           "
         ]
         |> IO.ANSI.format()
         |> List.to_string()
@@ -134,9 +132,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           [:bright, "foo", :reset],
           ["         ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
-          ["   ", :red, "No", :reset],
-          ["          ", :green, "Yes", :reset],
-          "              "
+          ["   ", :yellow, "Update possible", :reset],
+          "      "
         ]
         |> IO.ANSI.format()
         |> List.to_string()
@@ -146,9 +143,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           [:bright, "ex_doc", :reset],
           ["      ", "0.0.1", :reset],
           ["    ", :red, "0.1.0", :reset],
-          ["   ", :red, "No", :reset],
-          ["          ", :red, "No", :reset],
-          "               "
+          ["   ", :red, "Update not possible", :reset],
+          "  "
         ]
         |> IO.ANSI.format()
         |> List.to_string()
@@ -156,12 +152,6 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       assert_received {:mix_shell, :info, [^bar]}
       assert_received {:mix_shell, :info, [^foo]}
       assert_received {:mix_shell, :info, [^ex_doc]}
-
-      assert_received {:mix_shell, :info,
-                       [
-                         "\nUp-to-date indicates if you have the latest version of a given package.\nUpdate possible indicates if your current requirement matches the latest version.\nRun `mix hex.outdated APP` to see requirements for a specific dependency.\n\nTo view the diffs in each available update, visit:\n" <>
-                           _
-                       ]}
     end)
   end
 
@@ -187,9 +177,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           [:bright, "foo", :reset],
           ["         ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
-          ["   ", :red, "No", :reset],
-          ["          ", :red, "No", :reset],
-          "               "
+          ["   ", :red, "Update not possible", :reset],
+          "  "
         ]
         |> IO.ANSI.format()
         |> List.to_string()
@@ -215,9 +204,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           [:bright, "beta", :reset],
           ["        ", "1.0.0", :reset],
           ["    ", :green, "1.0.0", :reset],
-          ["   ", :green, "Yes", :reset],
-          ["         ", :green, :reset],
-          ["                 "]
+          ["   ", :green, "Up-to-date", :reset],
+          ["  "]
         ]
         |> IO.ANSI.format()
         |> List.to_string()
@@ -232,9 +220,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           [:bright, "beta", :reset],
           ["        ", "1.0.0", :reset],
           ["    ", :red, "1.1.0-beta", :reset],
-          ["  ", :red, "No", :reset],
-          ["          ", :red, "No", :reset],
-          "               "
+          ["  ", :red, "Update not possible", :reset],
+          "  "
         ]
         |> IO.ANSI.format()
         |> List.to_string()
@@ -410,9 +397,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
             [:bright, "ex_doc", :reset],
             ["      ", "0.0.1", :reset],
             ["    ", :red, "0.1.0", :reset],
-            ["   ", :red, "No", :reset],
-            ["          ", :red, "No", :reset],
-            "               "
+            ["   ", :red, "Update not possible", :reset],
+            "  "
           ]
           |> IO.ANSI.format()
           |> List.to_string()
@@ -422,9 +408,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
             [:bright, "bar", :reset],
             ["         ", "0.1.0", :reset],
             ["    ", :green, "0.1.0", :reset],
-            ["   ", :green, "Yes", :reset],
-            ["         ", :green, "", :reset],
-            "                 "
+            ["   ", :green, "Up-to-date", :reset],
+            "           "
           ]
           |> IO.ANSI.format()
           |> List.to_string()
@@ -434,9 +419,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
             [:bright, "foo", :reset],
             ["         ", "0.1.1", :reset],
             ["    ", :green, "0.1.1", :reset],
-            ["   ", :green, "Yes", :reset],
-            ["         ", :green, "", :reset],
-            "                 "
+            ["   ", :green, "Up-to-date", :reset],
+            "           "
           ]
           |> IO.ANSI.format()
           |> List.to_string()
