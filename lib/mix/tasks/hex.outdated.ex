@@ -161,10 +161,7 @@ defmodule Mix.Tasks.Hex.Outdated do
       header = ["Dependency", "Current", "Latest", "Status"]
       Mix.Tasks.Hex.print_table(header, values)
 
-      base_message =
-        "Status indicates if a package is up-to-date, or, based on your requirements,\n" <>
-          "if the package can be updated or not.\n" <>
-          "Run `mix hex.outdated APP` to see requirements for a specific dependency."
+      base_message = "Run `mix hex.outdated APP` to see requirements for a specific dependency."
 
       diff_message = maybe_diff_message(diff_links)
 
