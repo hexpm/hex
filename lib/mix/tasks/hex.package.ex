@@ -72,10 +72,12 @@ defmodule Mix.Tasks.Hex.Package do
       tarball path (Default: `<app>-<version>.tar`)
 
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
+
+    * `--repo REPO` - Set this for self-hosted Hex instances, default: `hexpm`
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [unpack: :boolean, organization: :string, output: :string]
+  @switches [unpack: :boolean, organization: :string, output: :string, repo: :string]
   @aliases [o: :output]
 
   @impl true
@@ -250,10 +252,12 @@ defmodule Mix.Tasks.Hex.Package do
   end
 
   defp repo(opts) do
+    repo = Keyword.get(opts, :repo, "hexpm")
+
     if organization = opts[:organization] do
-      "hexpm:" <> organization
+      Enum.join([repo, organization], ":")
     else
-      "hexpm"
+      repo
     end
   end
 end

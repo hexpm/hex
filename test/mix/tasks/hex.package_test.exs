@@ -12,6 +12,16 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end)
   end
 
+  test "fetch: custom repo" do
+    in_tmp(fn ->
+      cwd = File.cwd!()
+      Mix.Tasks.Hex.Package.run(["fetch", "ex_doc", "0.0.1", "--repo", "hexpm"])
+      msg = "ex_doc v0.0.1 downloaded to #{cwd}/ex_doc-0.0.1.tar"
+      assert_received {:mix_shell, :info, [^msg]}
+      assert File.exists?("#{cwd}/ex_doc-0.0.1.tar")
+    end)
+  end
+
   test "fetch: to folder" do
     in_tmp(fn ->
       cwd = File.cwd!()
