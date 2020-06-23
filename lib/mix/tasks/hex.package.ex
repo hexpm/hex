@@ -72,6 +72,7 @@ defmodule Mix.Tasks.Hex.Package do
       tarball path (Default: `<app>-<version>.tar`)
 
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
+
     * `--repo REPO` - Set this for self-hosted Hex instances, default: `hexpm`
   """
   @behaviour Hex.Mix.TaskDescription
