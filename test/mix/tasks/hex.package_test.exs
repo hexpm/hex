@@ -97,6 +97,19 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end)
   end
 
+  test "diff: success (variant args)" do
+    in_tmp(fn ->
+      Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
+
+      assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1", "0.1.0"])) ==
+               {:exit_code, 1}
+
+      assert_received {:mix_shell, :run, [out]}
+      assert out =~ ~s(-{<<"version">>,<<"0.0.1">>}.)
+      assert out =~ ~s(+{<<"version">>,<<"0.1.0">>}.)
+    end)
+  end
+
   test "diff: custom diff command" do
     in_tmp(fn ->
       Hex.State.put(:diff_command, "ls __PATH1__ __PATH2__")

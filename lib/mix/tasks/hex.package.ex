@@ -22,6 +22,7 @@ defmodule Mix.Tasks.Hex.Package do
 
   ## Fetch and diff package contents between versions
 
+      mix hex.package diff PACKAGE VERSION1 VERSION2
       mix hex.package diff PACKAGE VERSION1..VERSION2
 
   This command fetches package tarballs for both versions,
@@ -91,6 +92,9 @@ defmodule Mix.Tasks.Hex.Package do
       ["fetch", package, version] ->
         fetch(repo(opts), package, version, unpack, output)
 
+      ["diff", package, version1, version2] ->
+        diff(repo(opts), package, "#{version1}..#{version2}")
+
       ["diff", package, version_range] ->
         diff(repo(opts), package, version_range)
 
@@ -99,6 +103,7 @@ defmodule Mix.Tasks.Hex.Package do
           Invalid arguments, expected one of:
 
           mix hex.package fetch PACKAGE VERSION [--unpack]
+          mix hex.package diff PACKAGE VERSION1 VERSION2
           mix hex.package diff PACKAGE VERSION1..VERSION2
         """)
     end
@@ -108,6 +113,7 @@ defmodule Mix.Tasks.Hex.Package do
   def tasks() do
     [
       {"fetch PACKAGE VERSION [--unpack]", "Fetch the package"},
+      {"diff PACKAGE VERSION1 VERSION2", "Fetch and diff package contents between versions"},
       {"diff PACKAGE VERSION1..VERSION2", "Fetch and diff package contents between versions"}
     ]
   end
