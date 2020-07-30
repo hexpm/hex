@@ -66,7 +66,6 @@ defmodule Hex.HTTP.SSL do
     ciphers = filter_ciphers(@default_ciphers)
 
     if secure_ssl?() do
-      verify_fun = {&VerifyHostname.verify_fun/3, check_hostname: hostname}
       partial_chain = &partial_chain(Certs.cacerts(), &1)
 
       [
@@ -74,14 +73,13 @@ defmodule Hex.HTTP.SSL do
         depth: 4,
         partial_chain: partial_chain,
         cacerts: get_ca_certs(),
-        verify_fun: verify_fun,
         server_name_indication: hostname,
-        customize_hostname_check: customize_hostname_check_fun(),
         secure_renegotiate: true,
         reuse_sessions: true,
         versions: @default_versions,
         ciphers: ciphers
       ]
+      |> customize_hostname_check(hostname)
     else
       [
         verify: :verify_none,
@@ -126,11 +124,62 @@ defmodule Hex.HTTP.SSL do
     Enum.filter(allowed, &(&1 in available))
   end
 
-  def customize_hostname_check_fun do
-    if function_exported?(:public_key, :pkix_verify_hostname_match_fun, 1) do
-      [match_fun: :public_key.pkix_verify_hostname_match_fun(:https)]
+  defp customize_hostname_check(opts, hostname) do
+    if ssl_major_version() >= 9 do
+      # From OTP 20.0 use built-in support for custom hostname checks
+      add_customize_hostname_check(opts)
     else
-      []
+      # Before OTP 20.0 use mint_shims for hostname check, from a custom
+      # verify_fun
+      add_verify_fun(opts, hostname)
     end
+  end
+
+  defp add_customize_hostname_check(opts) do
+    customize_hostname_check_present? = Keyword.has_key?(opts, :customize_hostname_check)
+
+    if not customize_hostname_check_present? do
+      Keyword.put(opts, :customize_hostname_check, match_fun: &match_fun/2)
+    else
+      opts
+    end
+  end
+
+  defp add_verify_fun(opts, hostname) do
+    verify_fun_present? = Keyword.has_key?(opts, :verify_fun)
+
+    if not verify_fun_present? do
+      Keyword.put(opts, :verify_fun, {&VerifyHostname.verify_fun/3, check_hostname: hostname})
+    else
+      opts
+    end
+  end
+
+  # Wildcard domain handling for DNS ID entries in the subjectAltName X.509
+  # extension. Note that this is a subset of the wildcard patterns implemented
+  # by OTP when matching against the subject CN attribute, but this is the only
+  # wildcard usage defined by the CA/Browser Forum's Baseline Requirements, and
+  # therefore the only pattern used in commercially issued certificates.
+  defp match_fun({:dns_id, reference}, {:dNSName, [?*, ?. | presented]}) do
+    case domain_without_host(reference) do
+      '' ->
+        :default
+
+      domain ->
+        # TODO: replace with `:string.casefold/1` eventually
+        :string.to_lower(domain) == :string.to_lower(presented)
+    end
+  end
+
+  defp match_fun(_reference, _presented), do: :default
+
+  defp domain_without_host([]), do: []
+  defp domain_without_host([?. | domain]), do: domain
+  defp domain_without_host([_ | more]), do: domain_without_host(more)
+
+  defp ssl_major_version do
+    Application.spec(:ssl, :vsn)
+    |> :string.to_integer()
+    |> elem(0)
   end
 end
