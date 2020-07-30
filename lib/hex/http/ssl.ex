@@ -178,7 +178,11 @@ defmodule Hex.HTTP.SSL do
   defp domain_without_host([_ | more]), do: domain_without_host(more)
 
   defp ssl_major_version do
-    Application.spec(:ssl, :vsn)
+    # Elixir 1.0.5 - 1.1.1 have no Application.spec/2
+    case :application.get_key(:ssl, :vsna) do
+      {:ok, value} -> value
+      :undefined -> nil
+    end
     |> :string.to_integer()
     |> elem(0)
   end
