@@ -76,7 +76,7 @@ defmodule Hex.HTTP.SSL do
         cacerts: get_ca_certs(),
         verify_fun: verify_fun,
         server_name_indication: hostname,
-        customize_hostname_check: [match_fun: :public_key.pkix_verify_hostname_match_fun(:https)],
+        customize_hostname_check: customize_hostname_check_fun(),
         secure_renegotiate: true,
         reuse_sessions: true,
         versions: @default_versions,
@@ -124,5 +124,13 @@ defmodule Hex.HTTP.SSL do
   defp filter_ciphers(allowed) do
     available = Hex.Set.new(:ssl.cipher_suites(:openssl))
     Enum.filter(allowed, &(&1 in available))
+  end
+
+  def customize_hostname_check_fun do
+    if function_exported?(:public_key, :pkix_verify_hostname_match_fun, 1) do
+      [match_fun: :public_key.pkix_verify_hostname_match_fun(:https)]
+    else
+      []
+    end
   end
 end
