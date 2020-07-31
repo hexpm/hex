@@ -129,8 +129,7 @@ defmodule Hex.HTTP.SSL do
       # From OTP 20.0 use built-in support for custom hostname checks
       add_customize_hostname_check(opts)
     else
-      # Before OTP 20.0 use mint_shims for hostname check, from a custom
-      # verify_fun
+      # Before OTP 20.0 use mint_shims for hostname check, from a custom verify_fun
       add_verify_fun(opts, hostname)
     end
   end
@@ -179,7 +178,7 @@ defmodule Hex.HTTP.SSL do
 
   defp ssl_major_version do
     # Elixir 1.0.5 - 1.1.1 have no Application.spec/2
-    case :application.get_key(:ssl, :vsna) do
+    case :application.get_key(:ssl, :vsn) do
       {:ok, value} -> value
       :undefined -> nil
     end
