@@ -114,7 +114,7 @@
 ### Bug fixes
 
 * Use rebar3, not rebar, when guessing build tool
-* Fix issue saving write key when reseting local password
+* Fix issue saving write key when resetting local password
 
 ## v0.18.1 (2018-07-06)
 

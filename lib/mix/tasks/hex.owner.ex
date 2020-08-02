@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Hex.Owner do
   ## Transfer ownership
 
   Like `mix hex.owner add` but also removes all existing owners of the package.
-  This task is required to use when transfering ownership of the package to an
+  This task is required to use when transferring ownership of the package to an
   organization.
 
       mix hex.owner transfer PACKAGE EMAIL_OR_USERNAME
@@ -119,14 +119,14 @@ defmodule Mix.Tasks.Hex.Owner do
 
   defp transfer_owner(organization, package, owner) do
     auth = Mix.Tasks.Hex.auth_info(:write)
-    Hex.Shell.info("Transfering ownership to #{owner} for #{package}")
+    Hex.Shell.info("Transferring ownership to #{owner} for #{package}")
 
     case Hex.API.Package.Owner.add(organization, package, owner, "full", true, auth) do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         :ok
 
       other ->
-        Hex.Shell.error("Transfering ownership failed")
+        Hex.Shell.error("Transferring ownership failed")
         Hex.Utils.print_error_result(other)
     end
   end

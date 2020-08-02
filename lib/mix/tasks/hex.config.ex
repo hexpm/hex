@@ -50,7 +50,7 @@ defmodule Mix.Tasks.Hex.Config do
     * `mirror_url` - Hex mirror URL. Can be overridden by setting the
       environment variable `HEX_MIRROR` (Default: `nil`)
     * `cacerts_path` - Path to the CA certificate store PEM file. If not set,
-      a CA bundle that ships with Hex is used. Can be overriden by setting the
+      a CA bundle that ships with Hex is used. Can be overridden by setting the
       environment variable `HEX_CACERTS_PATH`. (Default: `nil`)
 
   `HEX_HOME` environment variable can be set to point to the directory where Hex
@@ -58,13 +58,13 @@ defmodule Mix.Tasks.Hex.Config do
 
   ## Config overrides
 
-  All keys from the "Config keys" section above can be overriden.
+  All keys from the "Config keys" section above can be overridden.
 
   Hex uses the following order of precedence when computing a value for a given key:
 
     1. System environment
 
-       Setting for example `HEX_API_URL` environemnt variable has always the
+       Setting for example `HEX_API_URL` environment variable has always the
        highest precedence for the `api_url` config key.
 
     2. Project configuration

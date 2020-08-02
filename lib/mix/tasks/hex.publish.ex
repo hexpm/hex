@@ -378,7 +378,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp transfer_owner(build, owner, auth, opts) do
-    Hex.Shell.info("Transfering ownership to #{owner}...")
+    Hex.Shell.info("Transferring ownership to #{owner}...")
     dry_run? = Keyword.get(opts, :dry_run, false)
 
     if dry_run? do

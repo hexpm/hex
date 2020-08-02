@@ -47,7 +47,7 @@ defmodule Mix.Tasks.Hex.Package do
   The `__PATH1__` and `__PATH2__` placeholders will be interpolated with
   paths to directories of unpacked tarballs for each version.
 
-  Many diff commands supports coloured output but becase we execute
+  Many diff commands supports coloured output but because we execute
   the command in non-interactive mode, they'd usually be disabled.
 
   On Unix systems you can pipe the output to more commands, for example:
