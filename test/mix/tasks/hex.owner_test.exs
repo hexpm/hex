@@ -161,7 +161,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
 
     assert_received {:mix_shell, :info,
                      [
-                       "Transfering ownership to owner_user7b for owner_package6"
+                       "Transferring ownership to owner_user7b for owner_package6"
                      ]}
 
     assert {:ok, {200, %{"owned_packages" => packages_a}, _}} = Hex.API.User.get("owner_user7a")

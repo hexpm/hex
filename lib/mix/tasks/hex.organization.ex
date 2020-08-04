@@ -50,7 +50,7 @@ defmodule Mix.Tasks.Hex.Organization do
   ideal for shared environments such as CI where you don't want to give access to user-specific
   resources and the user's organization membership status won't affect key. By default this command
   sets the `repository` permission which allows read-only access to the repository, it can be
-  overriden with the `--permission` flag.
+  overridden with the `--permission` flag.
 
       mix hex.organization key ORGANIZATION generate [--key-name KEY_NAME] [--permission PERMISSION]
 

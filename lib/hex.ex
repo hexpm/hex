@@ -12,7 +12,7 @@ defmodule Hex do
     end
   end
 
-  # For compatability during development
+  # For compatibility during development
   def start(start_type, start_args) do
     Hex.Application.start(start_type, start_args)
   end

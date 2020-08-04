@@ -283,7 +283,7 @@ defmodule Mix.Tasks.Hex.Info do
     end
   end
 
-  # Pull out the locked depenendency version, if it exists
+  # Pull out the locked dependency version, if it exists
   defp locked_dep(package_name) do
     Mix.Dep.Lock.read()
     |> Enum.map(fn {_app, info} -> Hex.Utils.lock(info) end)
