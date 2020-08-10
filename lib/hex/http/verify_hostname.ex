@@ -63,6 +63,12 @@ defmodule Hex.HTTP.VerifyHostname do
     end
   end
 
+  def match_fun({:dns_id, reference_id}, {:dNSName, presented_id}) do
+    try_match_hostname(presented_id, reference_id)
+  end
+
+  def match_fun(_reference, _presented), do: :default
+
   def validate_and_parse_wildcard_identifier(identifier, hostname) do
     wildcard_pos = :string.chr(identifier, ?*)
 
