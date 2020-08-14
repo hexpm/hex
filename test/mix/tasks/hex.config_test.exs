@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
       assert_received {:mix_shell, :info, ["unsafe_registry: false (default)"]}
       assert_received {:mix_shell, :info, ["http_proxy: nil (default)"]}
       assert_received {:mix_shell, :info, ["https_proxy: nil (default)"]}
-      assert_received {:mix_shell, :info, ["http_concurrency: 8 (default)"]}
+      assert_received {:mix_shell, :info, ["http_concurrency:" <> _]}
       assert_received {:mix_shell, :info, ["http_timeout: nil (default)"]}
       assert_received {:mix_shell, :info, ["mirror_url: nil (default)"]}
       assert_received {:mix_shell, :info, ["config_home:" <> _]}
