@@ -56,7 +56,7 @@ defmodule Hex.State do
     http_concurrency: %{
       env: ["HEX_HTTP_CONCURRENCY"],
       config: [:http_concurrency],
-      default: 8,
+      default: min(2 * System.schedulers_online(), 8),
       fun: {__MODULE__, :to_integer}
     },
     http_proxy: %{
