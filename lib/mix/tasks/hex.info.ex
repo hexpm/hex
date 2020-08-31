@@ -106,21 +106,10 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Shell.info(desc <> "\n")
     releases = package["releases"] || []
     retirements = package["retirements"] || %{}
-    print_config(package["name"], latest_release(releases, retirements), package["repository"])
+    Hex.Shell.info("Config: " <> package["configs"]["mix.exs"])
     print_locked_package(locked_package)
     Hex.Shell.info(["Releases: "] ++ format_releases(releases, Map.keys(retirements)) ++ ["\n"])
     print_meta(meta)
-  end
-
-  @doc false
-  def latest_release(releases, retirements) do
-    stable_active_releases =
-      Enum.filter(
-        releases,
-        &(Hex.Version.stable?(&1["version"]) and not (&1["version"] in retirements))
-      )
-
-    List.first(stable_active_releases) || List.first(releases)
   end
 
   defp format_releases(releases, retirements) do
@@ -151,7 +140,7 @@ defmodule Mix.Tasks.Hex.Info do
     version = release["version"]
 
     print_retirement(release)
-    print_config(package, release, organization)
+    Hex.Shell.info("Config: " <> release["configs"]["mix.exs"])
 
     if release["has_docs"] do
       Hex.Shell.info("Documentation at: #{Hex.Utils.hexdocs_url(organization, package, version)}")
@@ -171,59 +160,10 @@ defmodule Mix.Tasks.Hex.Info do
     print_publisher(release)
   end
 
-  defp print_config(name, nil, organization) do
-    Hex.Shell.info("Config: " <> format_config_snippet(">= 0.0.0", name, name, organization))
-  end
-
-  defp print_config(name, release, organization) do
-    app_name = String.to_atom(release["meta"]["app"] || name)
-    name = String.to_atom(name)
-    {:ok, version} = Hex.Version.parse(release["version"])
-
-    snippet =
-      version
-      |> format_version()
-      |> format_config_snippet(name, app_name, organization)
-
-    Hex.Shell.info("Config: " <> snippet)
-  end
-
   defp print_locked_package(nil), do: nil
 
   defp print_locked_package(locked_package) do
     Hex.Shell.info(["Locked version: #{locked_package.version}"])
-  end
-
-  defp format_config_snippet(version, name, name, organization)
-       when organization in ["hexpm", "", nil] do
-    "{#{inspect(name)}, #{inspect(version)}}"
-  end
-
-  defp format_config_snippet(version, name, name, organization) do
-    "{#{inspect(name)}, #{inspect(version)}, organization: \"#{organization}\"}"
-  end
-
-  defp format_config_snippet(version, name, app_name, organization)
-       when organization in ["hexpm", "", nil] do
-    "{#{inspect(app_name)}, #{inspect(version)}, hex: #{inspect(name)}}"
-  end
-
-  defp format_config_snippet(version, name, app_name, organization) do
-    "{#{inspect(app_name)}, #{inspect(version)}, hex: #{inspect(name)}, organization: \"#{
-      organization
-    }\"}"
-  end
-
-  defp format_version(%Version{major: 0, minor: minor, patch: patch, pre: []}) do
-    "~> 0.#{minor}.#{patch}"
-  end
-
-  defp format_version(%Version{major: major, minor: minor, pre: []}) do
-    "~> #{major}.#{minor}"
-  end
-
-  defp format_version(%Version{major: major, minor: minor, patch: patch, pre: pre}) do
-    "~> #{major}.#{minor}.#{patch}#{format_pre(pre)}"
   end
 
   defp print_retirement(%{"retirement" => nil}), do: ""
@@ -248,18 +188,6 @@ defmodule Mix.Tasks.Hex.Info do
     email_or_empty = if publisher_email, do: " (#{publisher_email})", else: ""
 
     Hex.Shell.info("Published by: #{publisher_username}#{email_or_empty}")
-  end
-
-  defp format_pre([]) do
-    ""
-  end
-
-  defp format_pre(pre) do
-    "-" <>
-      Enum.map_join(pre, ".", fn
-        int when is_integer(int) -> Integer.to_string(int)
-        string when is_binary(string) -> string
-      end)
   end
 
   defp print_list(meta, name) do
@@ -287,6 +215,6 @@ defmodule Mix.Tasks.Hex.Info do
   defp locked_dep(package_name) do
     Mix.Dep.Lock.read()
     |> Enum.map(fn {_app, info} -> Hex.Utils.lock(info) end)
-    |> Enum.find(fn locked -> locked.name == package_name end)
+    |> Enum.find(fn locked -> locked && locked.name == package_name end)
   end
 end
