@@ -1,17 +1,4 @@
 defmodule Mix.Tasks.Docs do
-  def run(["--canonical", "https://hexdocs.pm/invalid_filename"]) do
-    File.mkdir_p!("doc")
-    File.write!("doc/index.html", "the index")
-    File.write!("doc/1.5.5", "semver file")
-  end
-
-  def run(["--canonical", "https://hexdocs.pm/invalid_dirname"]) do
-    File.mkdir_p!("doc")
-    File.write!("doc/index.html", "the index")
-    File.mkdir_p!("doc/1.5.5")
-    File.write!("doc/1.5.5/index.html", "sub index")
-  end
-
   def run(_) do
     File.mkdir_p!("doc")
     File.write!("doc/index.html", "the index")
@@ -24,25 +11,47 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
   defmodule DocsSimple.MixProject do
     def project do
-      [app: :ex_doc, version: "0.1.0"]
+      [app: :ex_doc, version: "0.1.0", aliases: [docs: [&docs/1]]]
+    end
+
+    defp docs(_) do
+      File.mkdir_p!("doc")
+      File.write!("doc/index.html", "the index")
     end
   end
 
   defmodule DocsError.MixProject do
     def project do
-      [app: :ex_doc, version: "0.1.1"]
+      [app: :ex_doc, version: "0.1.1", aliases: [docs: [&docs/1]]]
+    end
+
+    defp docs(_) do
+      File.mkdir_p!("doc")
+      File.write!("doc/index.html", "the index")
     end
   end
 
   defmodule DocsFilenameError.MixProject do
     def project do
-      [app: :invalid_filename, version: "0.1.0"]
+      [app: :invalid_filename, version: "0.1.0", aliases: [docs: [&docs/1]]]
+    end
+
+    defp docs(_) do
+      File.mkdir_p!("doc")
+      File.write!("doc/index.html", "the index")
+      File.write!("doc/1.5.5", "")
     end
   end
 
   defmodule DocsDirnameError.MixProject do
     def project do
-      [app: :invalid_dirname, version: "0.1.0"]
+      [app: :invalid_dirname, version: "0.1.0", aliases: [docs: [&docs/1]]]
+    end
+
+    defp docs(_) do
+      File.mkdir_p!("doc/1.5.5")
+      File.write!("doc/index.html", "the index")
+      File.write!("doc/1.5.5/index.html", "")
     end
   end
 

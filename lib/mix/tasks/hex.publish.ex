@@ -104,7 +104,6 @@ defmodule Mix.Tasks.Hex.Publish do
   @switches [
     revert: :string,
     progress: :boolean,
-    canonical: :string,
     organization: :string,
     organisation: :string,
     yes: :boolean,
@@ -221,10 +220,9 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp docs_task(build, opts) do
     name = build.meta.name
-    canonical = opts[:canonical] || Hex.Utils.hexdocs_url(opts[:organization], name)
 
     try do
-      Mix.Task.run("docs", ["--canonical", canonical])
+      Mix.Task.run("docs", [])
     rescue
       ex in [Mix.NoTaskError] ->
         require Hex
