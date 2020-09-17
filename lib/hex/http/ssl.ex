@@ -62,7 +62,7 @@ defmodule Hex.HTTP.SSL do
   end
 
   def ssl_opts(url) do
-    hostname = Hex.string_to_charlist(URI.parse(url).host)
+    hostname = Hex.Stdlib.string_to_charlist(URI.parse(url).host)
     ciphers = filter_ciphers(@default_ciphers)
 
     if secure_ssl?() do

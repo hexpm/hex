@@ -143,7 +143,7 @@ defmodule Mix.Tasks.Hex.Package do
     File.write!(tar_path, tarball)
 
     %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
-      Hex.unpack_tar!(tar_path, abs_path)
+      Hex.Tar.unpack!(tar_path, abs_path)
 
     verify_inner_checksum!(repo, package, version, inner_checksum)
     verify_outer_checksum!(repo, package, version, outer_checksum)
@@ -204,13 +204,13 @@ defmodule Mix.Tasks.Hex.Package do
       tarball2 = fetch_tarball!(repo, package, version2)
 
       %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
-        Hex.unpack_tar!({:binary, tarball1}, path1)
+        Hex.Tar.unpack!({:binary, tarball1}, path1)
 
       verify_inner_checksum!(repo, package, version1, inner_checksum)
       verify_outer_checksum!(repo, package, version1, outer_checksum)
 
       %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
-        Hex.unpack_tar!({:binary, tarball2}, path2)
+        Hex.Tar.unpack!({:binary, tarball2}, path2)
 
       verify_inner_checksum!(repo, package, version2, inner_checksum)
       verify_outer_checksum!(repo, package, version2, outer_checksum)

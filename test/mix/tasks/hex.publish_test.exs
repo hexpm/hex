@@ -142,7 +142,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Hex.State.put(:home, tmp_path())
       setup_auth("user", "hunter42")
 
-      error_msg = "Invalid filename: top-level filenames cannot match a semantic version pattern."
+      error_msg = "Invalid filename: top-level filenames cannot match a semantic version pattern"
 
       assert_raise Mix.Error, error_msg, fn ->
         send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -161,7 +161,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Hex.State.put(:home, tmp_path())
       setup_auth("user", "hunter42")
 
-      error_msg = "Invalid filename: top-level filenames cannot match a semantic version pattern."
+      error_msg = "Invalid filename: top-level filenames cannot match a semantic version pattern"
 
       assert_raise Mix.Error, error_msg, fn ->
         send(self(), {:mix_shell_input, :prompt, "hunter42"})

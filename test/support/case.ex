@@ -95,7 +95,7 @@ defmodule HexTest.Case do
   def in_fixture(which, tmp, function) do
     src = fixture_path(which)
     dest = tmp_path(String.replace(tmp, ":", "_"))
-    flag = Hex.string_to_charlist(tmp_path())
+    flag = Hex.Stdlib.string_to_charlist(tmp_path())
 
     File.rm_rf!(dest)
     File.mkdir_p!(dest)
@@ -167,7 +167,7 @@ defmodule HexTest.Case do
 
     :ets.insert(tid, versions ++ deps ++ [{:version, 3}])
     File.mkdir_p!(Path.dirname(path))
-    :ok = :ets.tab2file(tid, Hex.string_to_charlist(path))
+    :ok = :ets.tab2file(tid, Hex.Stdlib.string_to_charlist(path))
     :ets.delete(tid)
   end
 
@@ -323,8 +323,8 @@ defmodule HexTest.Case do
       case conn do
         %Plug.Conn{request_path: "/docs/docs_package-1.1.2.tar.gz"} ->
           tar_file = tmp_path("docs_package-1.1.2.tar.gz")
-          index_file = Hex.string_to_charlist("index.html")
-          epub_file = Hex.string_to_charlist("docs_package.epub")
+          index_file = Hex.Stdlib.string_to_charlist("index.html")
+          epub_file = Hex.Stdlib.string_to_charlist("docs_package.epub")
           :mix_hex_erl_tar.create(tar_file, [{index_file, ""}, {epub_file, ""}], [:compressed])
           package = File.read!(tar_file)
           Plug.Conn.resp(conn, 200, package)
@@ -334,7 +334,7 @@ defmodule HexTest.Case do
 
         %Plug.Conn{request_path: "/docs/pre_only_package-0.0.1-rc1.tar.gz"} ->
           tar_file = tmp_path("pre_only_package-0.0.1-rc1.tar.gz")
-          index_file = Hex.string_to_charlist("index.html")
+          index_file = Hex.Stdlib.string_to_charlist("index.html")
           :mix_hex_erl_tar.create(tar_file, [{index_file, ""}], [:compressed])
           package = File.read!(tar_file)
           Plug.Conn.resp(conn, 200, package)
@@ -407,7 +407,7 @@ defmodule HexTest.Case do
       case conn do
         %Plug.Conn{request_path: "/tarballs/package-1.0.0.tar"} ->
           tar_file = tmp_path("package-1.0.0.tar")
-          index_file = Hex.string_to_charlist("index.html")
+          index_file = Hex.Stdlib.string_to_charlist("index.html")
           :mix_hex_erl_tar.create(tar_file, [{index_file, ""}], [:compressed])
           package = File.read!(tar_file)
           Plug.Conn.resp(conn, 200, package)

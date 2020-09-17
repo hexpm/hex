@@ -28,7 +28,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   @impl true
   def run(args) do
-    Hex.check_deps()
+    Hex.Mix.check_deps()
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
     Registry.open()

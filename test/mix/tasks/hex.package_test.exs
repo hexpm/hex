@@ -49,7 +49,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
   #         Mix.Tasks.Hex.Package.run(["fetch", "ex_doc", "--output", "-", "0.0.1"])
   #       end)
 
-  #     Hex.unpack_tar!({:binary, tarball}, :memory)
+  #     Hex.Tar.unpack!({:binary, tarball}, :memory)
   #   end)
   # end
 
