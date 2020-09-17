@@ -116,17 +116,17 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   defp build_package(meta, output) do
-    %{outer_checksum: outer_checksum} = Hex.create_tar!(meta, meta.files, output)
+    %{outer_checksum: outer_checksum} = Hex.Tar.create!(meta, meta.files, output)
     Hex.Shell.info("Package checksum: #{Base.encode16(outer_checksum, case: :lower)}")
     Hex.Shell.info("Saved to #{output}")
   end
 
   defp build_and_unpack_package(meta, output) do
     %{tarball: tarball, inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
-      Hex.create_tar!(meta, meta.files, :memory)
+      Hex.Tar.create!(meta, meta.files, :memory)
 
     %{inner_checksum: ^inner_checksum, outer_checksum: ^outer_checksum} =
-      Hex.unpack_tar!({:binary, tarball}, output)
+      Hex.Tar.unpack!({:binary, tarball}, output)
 
     Hex.Shell.info("Saved to #{output}")
   end
@@ -216,7 +216,7 @@ defmodule Mix.Tasks.Hex.Build do
       Mix.Project.config()[:deps]
       |> Enum.map(&Hex.Mix.normalize_dep/1)
       |> Enum.filter(&prod_dep?/1)
-      |> Hex.enum_split_with(&package_dep?/1)
+      |> Hex.Stdlib.enum_split_with(&package_dep?/1)
 
     Enum.each(include, fn {app, _req, opts} ->
       if opts[:override] do
@@ -287,7 +287,7 @@ defmodule Mix.Tasks.Hex.Build do
 
     package
     |> Map.put(:files, files)
-    |> maybe_put(:description, package[:description], &Hex.string_trim/1)
+    |> maybe_put(:description, package[:description], &Hex.Stdlib.string_trim/1)
     |> maybe_put(:name, package[:name] || config[:app], &to_string(&1))
     |> maybe_put(:build_tools, !package[:build_tools] && guess_build_tools(files), & &1)
     |> Map.take(@meta_fields)
@@ -369,7 +369,7 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   defp dir_files(path) do
-    case Hex.file_lstat(path) do
+    case Hex.Stdlib.file_lstat(path) do
       {:ok, %File.Stat{type: :directory}} ->
         new_paths =
           path

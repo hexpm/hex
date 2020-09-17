@@ -307,7 +307,10 @@ defmodule Hex.State do
   def default(value, _), do: value
 
   def trim_slash(nil), do: {:ok, nil}
-  def trim_slash(string) when is_binary(string), do: {:ok, Hex.string_trim_leading(string, "/")}
+
+  def trim_slash(string) when is_binary(string),
+    do: {:ok, Hex.Stdlib.string_trim_leading(string, "/")}
+
   def trim_slash(_), do: :error
 
   def ssl_version() do

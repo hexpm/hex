@@ -192,7 +192,7 @@ defmodule Hex.Utils do
     if message =~ "\n" do
       message =
         message
-        |> Hex.string_trim()
+        |> Hex.Stdlib.string_trim()
         |> String.replace("\n", "\n" <> indent(depth + 1))
 
       "\n" <> indent(depth + 1) <> message

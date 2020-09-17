@@ -89,7 +89,7 @@ defmodule Hex.Registry.Server do
     path = opts[:registry_path] || path()
 
     ets =
-      Hex.string_to_charlist(path)
+      Hex.Stdlib.string_to_charlist(path)
       |> open_ets()
       |> check_version()
       |> set_version()
@@ -248,7 +248,7 @@ defmodule Hex.Registry.Server do
   defp persist(tid, path) do
     dir = Path.dirname(path)
     File.mkdir_p!(dir)
-    :ok = :ets.tab2file(tid, Hex.to_charlist(path))
+    :ok = :ets.tab2file(tid, Hex.Stdlib.to_charlist(path))
   end
 
   defp purge_repo_from_cache(packages, %{ets: ets}) do
@@ -396,7 +396,7 @@ defmodule Hex.Registry.Server do
       )
     end
 
-    if not missing_status?(result) or Hex.debug?() do
+    if not missing_status?(result) or Hex.Mix.debug?() do
       Hex.Utils.print_error_result(result)
     end
   end

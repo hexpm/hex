@@ -5,6 +5,18 @@ defmodule Hex.Mix do
 
   @type deps :: %{String.t() => {boolean, deps}}
 
+  if Version.compare(System.version(), "1.2.0") == :lt do
+    def debug?(), do: false
+  else
+    def debug?(), do: Mix.debug?()
+  end
+
+  if Version.compare(System.version(), "1.3.2") == :lt do
+    def check_deps(), do: Mix.Tasks.Deps.Check.run(["--no-compile"])
+  else
+    def check_deps(), do: Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
+  end
+
   @doc """
   Returns `true` if the version and requirement match.
 

@@ -19,7 +19,7 @@ defmodule Hex.Shell do
   def debug(output) do
     validate_output!(output)
 
-    if Hex.debug?() do
+    if Hex.Mix.debug?() do
       info(output)
     end
   end
@@ -79,12 +79,12 @@ defmodule Hex.Shell do
         command =
           command
           |> String.replace("\"", "\\\"")
-          |> Hex.string_to_charlist()
+          |> Hex.Stdlib.string_to_charlist()
 
         'sh -c "' ++ command ++ '"'
 
       {:win32, osname} ->
-        command = '"' ++ Hex.string_to_charlist(command) ++ '"'
+        command = '"' ++ Hex.Stdlib.string_to_charlist(command) ++ '"'
 
         case {System.get_env("COMSPEC"), osname} do
           {nil, :windows} -> 'command.com /s /c ' ++ command
@@ -97,10 +97,10 @@ defmodule Hex.Shell do
   defp validate_env(enum) do
     Enum.map(enum, fn
       {k, nil} ->
-        {Hex.string_to_charlist(k), false}
+        {Hex.Stdlib.string_to_charlist(k), false}
 
       {k, v} ->
-        {Hex.string_to_charlist(k), Hex.string_to_charlist(v)}
+        {Hex.Stdlib.string_to_charlist(k), Hex.Stdlib.string_to_charlist(v)}
 
       other ->
         raise ArgumentError, "invalid environment key-value #{inspect(other)}"

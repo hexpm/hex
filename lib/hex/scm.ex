@@ -169,11 +169,11 @@ defmodule Hex.SCM do
       metadata: meta
     } =
       try do
-        Hex.unpack_tar!(path, dest)
+        Hex.Tar.unpack!(path, dest)
       rescue
         exception ->
-          require Hex
-          stacktrace = Hex.stacktrace()
+          require Hex.Stdlib
+          stacktrace = Hex.Stdlib.stacktrace()
           File.rm(path)
           reraise(exception, stacktrace)
       end
@@ -308,7 +308,7 @@ defmodule Hex.SCM do
   defp parse_old_manifest(file) do
     lines =
       file
-      |> Hex.string_trim()
+      |> Hex.Stdlib.string_trim()
       |> String.split("\n")
 
     case lines do
