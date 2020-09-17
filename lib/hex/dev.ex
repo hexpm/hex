@@ -1,4 +1,4 @@
-if Mix.env == :dev do
+if Mix.env() == :dev do
   defmodule Hex.Dev do
     @moduledoc false
 
@@ -34,7 +34,7 @@ if Mix.env == :dev do
 
         case :ets.lookup(original_ets, {:versions, @repo, package}) do
           [{_, versions}] ->
-            IO.puts "COPYING #{package}"
+            IO.puts("COPYING #{package}")
 
             Enum.each(versions, fn version ->
               copy(original_ets, new_ets, {:deps, @repo, package, version})
@@ -45,6 +45,7 @@ if Mix.env == :dev do
               copy(original_ets, new_ets, {:timestamp, @repo, package, version})
 
               [{_, dep_tuples}] = :ets.lookup(original_ets, {:deps, @repo, package, version})
+
               Enum.each(dep_tuples, fn {@repo, dependency, _app, _requirement, _optional} ->
                 copy_package(original_ets, new_ets, dependency)
               end)
