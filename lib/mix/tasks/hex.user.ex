@@ -241,7 +241,9 @@ defmodule Mix.Tasks.Hex.User do
     username = Hex.Shell.prompt("Username:") |> Hex.Stdlib.string_trim()
     email = Hex.Shell.prompt("Email:") |> Hex.Stdlib.string_trim()
     password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.Stdlib.string_trim()
-    confirm = Mix.Tasks.Hex.password_get("Account password (confirm):") |> Hex.Stdlib.string_trim()
+
+    confirm =
+      Mix.Tasks.Hex.password_get("Account password (confirm):") |> Hex.Stdlib.string_trim()
 
     if password != confirm do
       Mix.raise("Entered passwords do not match")
