@@ -7,6 +7,13 @@ defmodule Hex.Resolver.RegressionTest do
     Hex.State.put(:offline, true)
   end
 
+  defp open_registry(filename) do
+    Registry.open(registry_path: HexTest.Case.fixture_path(Path.join("registries", filename)))
+  end
+
+  # How to create snapshot of registry:
+  # Hex.Dev.extract_registry(top_level_packages, "test/fixtures/registries/CURRENT_DATE.ets")
+
   # https://elixirforum.com/t/mix-deps-update-working-as-mix-deps-downgrade/27099/10
   test "20200917" do
     open_registry("20200917.ets")
@@ -29,9 +36,5 @@ defmodule Hex.Resolver.RegressionTest do
     ])
 
     assert equal?(result, resolve(deps))
-  end
-
-  defp open_registry(filename) do
-    Registry.open(registry_path: HexTest.Case.fixture_path(Path.join("registries", filename)))
   end
 end
