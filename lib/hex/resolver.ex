@@ -124,9 +124,9 @@ defmodule Hex.Resolver do
             Backtracks.add(info(info, :backtracks), repo, name, version, parents)
 
             if top_level? do
-              backtrack_parents([parent], info, activated) || backtrack(name, info, activated)
+              backtrack_parents(parents, info, activated) || backtrack(name, info, activated)
             else
-              backtrack(name, info, activated) || backtrack_parents([parent], info, activated)
+              backtrack(name, info, activated) || backtrack_parents(parents, info, activated)
             end
 
           true ->
