@@ -148,7 +148,7 @@ defmodule Mix.Tasks.Hex.Publish do
         end
 
       ["docs"] ->
-        docs_task(build, opts)
+        docs_task()
         auth = Mix.Tasks.Hex.auth_info(:write)
         create_docs(build, organization, auth, opts)
 
@@ -182,7 +182,7 @@ defmodule Mix.Tasks.Hex.Publish do
     case proceed_with_owner(build, organization, opts) do
       {:ok, owner} ->
         Hex.Shell.info("Building docs...")
-        docs_task(build, opts)
+        docs_task()
         auth = Mix.Tasks.Hex.auth_info(:write)
         Hex.Shell.info("Publishing package...")
 
@@ -218,9 +218,7 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp docs_task(build, opts) do
-    name = build.meta.name
-
+  defp docs_task() do
     try do
       Mix.Task.run("docs", [])
     rescue
