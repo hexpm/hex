@@ -17,8 +17,8 @@ defmodule Mix.Tasks.Hex.Outdated do
   so it only exits with non-zero exit code if the update is possible.
 
   For example, if your version requirement is "~> 2.0" but the latest version is `3.0`,
-  then `--within-requirements`, nothing will happen, but if the latest version
-  is `2.8`, then `--within-requirements` will exit with non-zero exit code(1).
+  with `--within-requirements` it will exit successfully, but if the latest version
+  is `2.8`, then `--within-requirements` will exit with non-zero exit code (1).
 
   One scenario this could be useful is to ensure you always have the latest
   version of your dependencies, except for major version bumps.
