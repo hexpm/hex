@@ -276,7 +276,7 @@ defmodule Mix.Tasks.Hex.Build do
   @doc false
   def package(package, config) do
     files = package[:files] || @default_files
-    exclude_patterns = package[:exclude_patterns] || []
+    exclude_patterns = (package[:exclude_patterns] || []) ++ [~r/\W\.DS_Store$/]
 
     files =
       files
