@@ -166,8 +166,8 @@ defmodule Hex.Repo do
     HTTP.request(:get, docs_url(repo, package, version), headers, nil)
   end
 
-  def get_tarball(repo, package, version, etag) do
-    headers = Map.merge(etag_headers(etag), auth_headers(repo))
+  def get_tarball(repo, package, version) do
+    headers = auth_headers(repo)
     HTTP.request(:get, tarball_url(repo, package, version), headers, nil)
   end
 

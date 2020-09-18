@@ -123,9 +123,7 @@ defmodule Hex.SCM do
     name = opts[:hex]
     dest = opts[:dest]
     repo = opts[:repo]
-    filename = "#{name}-#{lock.version}.tar"
-    path = cache_path(repo, filename)
-    url = Hex.Repo.get_repo(repo).url <> "/tarballs/#{filename}"
+    path = cache_path(repo, name, lock.version)
 
     case Hex.Parallel.await(:hex_fetcher, {:tarball, repo, name, lock.version}, @fetch_timeout) do
       {:ok, :cached} ->
@@ -134,22 +132,20 @@ defmodule Hex.SCM do
       {:ok, :offline} ->
         Hex.Shell.debug("  [OFFLINE] Using locally cached package (#{path})")
 
-      {:ok, :new, etag} ->
-        Registry.tarball_etag(repo, name, lock.version, etag)
-
+      {:ok, :new} ->
         if Version.compare(System.version(), "1.4.0") == :lt do
           Registry.persist()
         end
 
-        safe_url = prune_uri_userinfo(url)
-        Hex.Shell.debug("  Fetched package (#{safe_url})")
+        tarball_url = tarball_url(repo, name, lock.version)
+        Hex.Shell.debug("  Fetched package (#{tarball_url})")
 
       {:error, reason} ->
         Hex.Shell.error(reason)
 
         unless File.exists?(path) do
-          safe_url = prune_uri_userinfo(url)
-          Mix.raise("Package fetch failed and no cached copy available (#{safe_url})")
+          tarball_url = tarball_url(repo, name, lock.version)
+          Mix.raise("Package fetch failed and no cached copy available (#{tarball_url})")
         end
 
         Hex.Shell.info("  Fetch failed. Using locally cached package (#{path})")
@@ -157,11 +153,8 @@ defmodule Hex.SCM do
 
     File.rm_rf!(dest)
 
-    registry_inner_checksum =
-      Hex.Registry.Server.inner_checksum(repo, to_string(name), lock.version)
-
-    registry_outer_checksum =
-      Hex.Registry.Server.outer_checksum(repo, to_string(name), lock.version)
+    registry_inner_checksum = Registry.inner_checksum(repo, to_string(name), lock.version)
+    registry_outer_checksum = Registry.outer_checksum(repo, to_string(name), lock.version)
 
     %{
       inner_checksum: tarball_inner_checksum,
@@ -216,13 +209,6 @@ defmodule Hex.SCM do
 
     {:hex, String.to_atom(lock.name), lock.version, lock.inner_checksum, managers, deps,
      lock.repo, lock.outer_checksum}
-  end
-
-  defp prune_uri_userinfo(url) do
-    case URI.parse(url) do
-      %URI{userinfo: nil} -> url
-      uri -> URI.to_string(%{uri | userinfo: "******"})
-    end
   end
 
   def checkout(opts) do
@@ -356,21 +342,12 @@ defmodule Hex.SCM do
     :erlang.term_to_binary({{:hex, 2, 0}, map})
   end
 
-  defp cache_path(repo, name) do
-    repo = Hex.Utils.windows_repo_path_fix(repo)
-    Path.join([Hex.State.fetch!(:cache_home), @packages_dir, repo, name])
-  end
-
   def prefetch(lock) do
     fetch = fetch_from_lock(lock)
 
     Enum.each(fetch, fn {repo, package, version} ->
-      filename = "#{package}-#{version}.tar"
-      path = cache_path(repo, filename)
-      etag = if File.exists?(path), do: Registry.tarball_etag(repo, package, version), else: nil
-
       Hex.Parallel.run(:hex_fetcher, {:tarball, repo, package, version}, fn ->
-        fetch(repo, package, version, path, etag)
+        fetch(repo, package, version)
       end)
     end)
   end
@@ -395,44 +372,61 @@ defmodule Hex.SCM do
     end)
   end
 
-  @doc false
-  def fetch(repo, package, version, path, etag) do
+  defp tarball_url(repo, package, version) do
+    filename = "#{package}-#{version}.tar"
+    prune_uri_userinfo(Hex.Repo.get_repo(repo).url <> "/tarballs/#{filename}")
+  end
+
+  defp prune_uri_userinfo(url) do
+    case URI.parse(url) do
+      %URI{userinfo: nil} -> url
+      uri -> URI.to_string(%{uri | userinfo: "******"})
+    end
+  end
+
+  def cache_path(repo, package, version) do
+    repo = Hex.Utils.windows_repo_path_fix(repo)
+    filename = "#{package}-#{version}.tar"
+    Path.join([Hex.State.fetch!(:cache_home), @packages_dir, repo, filename])
+  end
+
+  def fetch(repo, package, version) do
     if Hex.State.fetch!(:offline) do
       {:ok, :offline}
     else
-      case Hex.Repo.get_tarball(repo, package, version, etag) do
-        {:ok, {200, body, headers}} ->
-          etag = headers['etag']
-          etag = if etag, do: List.to_string(etag)
+      outer_checksum = Registry.outer_checksum(repo, package, version)
+      path = cache_path(repo, package, version)
 
-          case path do
-            :memory ->
-              {:ok, :new, body, etag}
-
-            _ when is_binary(path) ->
-              File.mkdir_p!(Path.dirname(path))
-              File.write!(path, body)
-              {:ok, :new, etag}
-          end
-
-        {:ok, {304, _body, _headers}} ->
+      case Hex.Tar.outer_checksum(path) do
+        {:ok, ^outer_checksum} ->
           {:ok, :cached}
 
-        {:ok, {code, _body, _headers}} ->
-          {:error, "Request failed (#{code})"}
+        {:error, _reason} ->
+          case Hex.Repo.get_tarball(repo, package, version) do
+            {:ok, {200, body, _headers}} ->
+              File.mkdir_p!(Path.dirname(path))
+              File.write!(path, body)
+              {:ok, :new}
 
-        {:error, :timeout} ->
-          reason = [
-            "Request failed (:timeout)",
-            :reset,
-            "\nIf this happens consistently, adjust your concurrency and timeout settings:",
-            "\n\n    HEX_HTTP_CONCURRENCY=1 HEX_HTTP_TIMEOUT=120 mix deps.get"
-          ]
+            {:ok, {304, _body, _headers}} ->
+              {:ok, :cached}
 
-          {:error, reason}
+            {:ok, {code, _body, _headers}} ->
+              {:error, "Request failed (#{code})"}
 
-        {:error, reason} ->
-          {:error, "Request failed (#{inspect(reason)})"}
+            {:error, :timeout} ->
+              reason = [
+                "Request failed (:timeout)",
+                :reset,
+                "\nIf this happens consistently, adjust your concurrency and timeout settings:",
+                "\n\n    HEX_HTTP_CONCURRENCY=1 HEX_HTTP_TIMEOUT=120 mix deps.get"
+              ]
+
+              {:error, reason}
+
+            {:error, reason} ->
+              {:error, "Request failed (#{inspect(reason)})"}
+          end
       end
     end
   end
