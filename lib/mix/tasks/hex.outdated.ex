@@ -7,6 +7,8 @@ defmodule Mix.Tasks.Hex.Outdated do
   @moduledoc """
   Shows all Hex dependencies that have newer versions in the registry.
 
+      mix hex.outdated [APP]
+
   By default, it only shows top-level packages explicitly listed in the
   `mix.exs` file. All outdated packages can be displayed by using the `--all`
   command line option.
@@ -15,7 +17,11 @@ defmodule Mix.Tasks.Hex.Outdated do
   the entire dependency tree, are listed. This is useful if you are trying
   to figure why a package isn't updating when you run `mix deps.update`.
 
-      mix hex.outdated [APP]
+  Note that when this task determines if a package is updatable it only looks
+  at the project's current set of dependency requirements and what version
+  they are locked to. When `mix deps.update` is called multiple packages may
+  be updated that in turn update their own dependencies, which may cause the
+  package you want to update to not be able to update.
 
   ## Command line options
 
