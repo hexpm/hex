@@ -22,6 +22,12 @@ defmodule Mix.Tasks.Hex.Package do
 
   ## Fetch and diff package contents between versions
 
+      mix hex.package diff PACKAGE VERSION
+
+  This command compares the package inside deps folder against
+  with the target version, unpacking the target version into
+  temparary directory and running a diff command.
+
       mix hex.package diff PACKAGE VERSION1..VERSION2
 
   This command fetches package tarballs for both versions,
