@@ -74,7 +74,36 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end
   end
 
-  test "diff: success" do
+  @tag :skip
+  test "diff: success with version number" do
+    Mix.Project.push(ReleaseDeps.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
+      Hex.State.put(:home, tmp_path())
+      Mix.Tasks.Deps.Get.run([])
+
+      assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.1.0"])) ==
+               {:exit_code, 1}
+
+      assert_received {:mix_shell, :run, [out]}
+      assert out =~ ~s(-{<<"version">>,<<"0.0.1">>}.)
+      assert out =~ ~s(+{<<"version">>,<<"0.1.0">>}.)
+    end)
+  after
+    purge([ReleaseDeps.MixProject])
+  end
+
+  @tag :skip
+  test "diff: not existed package in lockfile" do
+    msg = "Expected packages defined in lockfile, got: `\"ex_doc\"`"
+
+    assert_raise Mix.Error, msg, fn ->
+      Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "1.0.0"])
+    end
+  end
+
+  test "diff: success with version range" do
     in_tmp(fn ->
       Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
 
@@ -99,14 +128,6 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end)
   end
 
-  test "diff: bad version range" do
-    msg = "Expected version range to be in format `VERSION1..VERSION2`, got: `\"1.0.0..\"`"
-
-    assert_raise Mix.Error, msg, fn ->
-      Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "1.0.0.."])
-    end
-  end
-
   test "diff: package not found" do
     Hex.State.put(:shell_process, self())
 
@@ -119,5 +140,19 @@ defmodule Mix.Tasks.Hex.PackageTest do
         Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..2.0.0"])
       end
     end)
+
+    Mix.Project.push(ReleaseDeps.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+
+      Mix.Tasks.Deps.Get.run([])
+
+      assert_raise Mix.Error, ~r"Request failed \(404\)", fn ->
+        Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "2.0.0"])
+      end
+    end)
+  after
+    purge([ReleaseDeps.MixProject])
   end
 end
