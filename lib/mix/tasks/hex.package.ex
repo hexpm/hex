@@ -198,12 +198,15 @@ defmodule Mix.Tasks.Hex.Package do
   end
 
   defp diff(repo, package, version) when is_binary(version) do
-    locked_deps = Mix.Dep.Lock.read()
+    check_valid_mix_project!(package, version)
 
     path_lock =
-      case Map.get(locked_deps, String.to_atom(package)) do
+      case Map.get(Mix.Dep.Lock.read(), String.to_atom(package)) do
         nil ->
-          Mix.raise("Expected packages defined in lockfile, got: `\"#{package}\"`")
+          Mix.raise(
+            "Cannot find the package \"#{package}\" in \"mix.lock\" file. " <>
+              "Please ensure it has been specified in \"mix.exs\" and run \"mix deps.get\""
+          )
 
         _ ->
           unescaped_path = Path.join(Mix.Project.deps_path(), package)
@@ -304,5 +307,27 @@ defmodule Mix.Tasks.Hex.Package do
     else
       "hexpm"
     end
+  end
+
+  defp check_valid_mix_project!(package, version) do
+    if is_nil(Mix.Project.get()) do
+        Mix.raise(
+          "Cannot execute \"mix diff #{package} #{version}\" without a Mix.Project, " <>
+            "please ensure you are running Mix in a directory with a \"mix.exs\" file"
+        )
+    end
+
+    Enum.each(Mix.Dep.load_on_environment([]), fn %Mix.Dep{scm: scm, opts: opts} ->
+      case scm.lock_status(opts) do
+        n when n in [:mismatch, :outdated] ->
+          Mix.raise(
+            "The dependency is out of date. " <>
+              "Please run \"deps.get\" to update \"mix.lock\" file"
+          )
+
+        _ ->
+          nil
+      end
+    end)
   end
 end
