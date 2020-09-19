@@ -93,12 +93,68 @@ defmodule Mix.Tasks.Hex.PackageTest do
     purge([ReleaseDeps.MixProject])
   end
 
-  test "diff: not existed package in lockfile" do
-    msg = "Expected packages defined in lockfile, got: `\"ex_doc\"`"
+  @tag :skip
+  test "diff: not Mix.Project with single version number" do
+    msg =
+      "Cannot execute \"mix diff ex_doc 1.0.0\" without a Mix.Project, " <>
+        "please ensure you are running Mix in a directory with a mix.exs file"
 
     assert_raise Mix.Error, msg, fn ->
       Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "1.0.0"])
     end
+  end
+
+  @tag :skip
+  test "diff: no lockfile with single version number" do
+    msg =
+      "Cannot execute \"mix diff ex_doc 1.0.0\" without \"mix.lock\" file, " <>
+        "please run \"deps.get\" to generate \"mix.lock\" file"
+
+    Mix.Project.push(ReleaseDeps.MixProject)
+
+    assert_raise Mix.Error, msg, fn ->
+      Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "1.0.0"])
+    end
+  after
+    purge([ReleaseDeps.MixProject])
+  end
+
+  @tag :skip
+  test "diff: outdated lockfile with single version number" do
+    msg =
+      "The dependency is out of date. " <>
+        "Please run \"deps.get\" to update \"mix.lock\" file"
+
+    Mix.Project.push(ReleaseDeps.MixProject)
+
+    assert_raise Mix.Error, msg, fn ->
+      Mix.Tasks.Deps.Get.run([])
+
+      Mix.Dep.Lock.write(%{
+        ok: {:ex_doc, "https://github.com/elixir-lang/ex_doc.git", "abcdefghi", []}
+      })
+
+      Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "1.0.0"])
+    end
+  after
+    purge([ReleaseDeps.MixProject])
+  end
+
+  @tag :skip
+  test "diff: not having target package with single version number" do
+    msg =
+      "Cannot find the package \"tesla\" in \"mix.lock\" file. " <>
+        "Please ensure it has been specified in \"mix.exs\" and run \"mix deps.get\""
+
+    Mix.Project.push(ReleaseDeps.MixProject)
+
+    assert_raise Mix.Error, msg, fn ->
+      Mix.Tasks.Deps.Get.run([])
+
+      Mix.Tasks.Hex.Package.run(["diff", "tesla", "1.0.0"])
+    end
+  after
+    purge([ReleaseDeps.MixProject])
   end
 
   test "diff: success with version range" do
