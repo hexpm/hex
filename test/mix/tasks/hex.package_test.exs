@@ -76,10 +76,13 @@ defmodule Mix.Tasks.Hex.PackageTest do
 
   test "diff: success with version number" do
     Mix.Project.push(ReleaseDeps.MixProject)
+    {:ok, cwd} = File.cwd()
 
     in_tmp(fn ->
+      path = tmp_path()
+      File.cp(Path.join(cwd, "mix-test.lock"), Path.join(path, "mix.lock"))
       Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
-      Hex.State.put(:home, tmp_path())
+      Hex.State.put(:home, path)
       Mix.Tasks.Deps.Get.run([])
 
       assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.1.0"])) ==
@@ -109,16 +112,21 @@ defmodule Mix.Tasks.Hex.PackageTest do
         "Please run \"deps.get\" to update \"mix.lock\" file"
 
     Mix.Project.push(ReleaseDeps.MixProject)
+    {:ok, cwd} = File.cwd()
 
-    assert_raise Mix.Error, msg, fn ->
-      Mix.Tasks.Deps.Get.run([])
+    in_tmp(fn ->
+      assert_raise Mix.Error, msg, fn ->
+        path = tmp_path()
+        File.cp(Path.join(cwd, "mix-test.lock"), Path.join(path, "mix.lock"))
+        Mix.Tasks.Deps.Get.run([])
 
-      Mix.Dep.Lock.write(%{
-        ok: {:ex_doc, "https://github.com/elixir-lang/ex_doc.git", "abcdefghi", []}
-      })
+        Mix.Dep.Lock.write(%{
+          ok: {:ex_doc, "https://github.com/elixir-lang/ex_doc.git", "abcdefghi", []}
+        })
 
-      Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "1.0.0"])
-    end
+        Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "1.0.0"])
+      end
+    end)
   after
     purge([ReleaseDeps.MixProject])
   end
@@ -129,12 +137,17 @@ defmodule Mix.Tasks.Hex.PackageTest do
         "Please ensure it has been specified in \"mix.exs\" and run \"mix deps.get\""
 
     Mix.Project.push(ReleaseDeps.MixProject)
+    {:ok, cwd} = File.cwd()
 
-    assert_raise Mix.Error, msg, fn ->
-      Mix.Tasks.Deps.Get.run([])
+    in_tmp(fn ->
+      assert_raise Mix.Error, msg, fn ->
+        path = tmp_path()
+        File.cp(Path.join(cwd, "mix-test.lock"), Path.join(path, "mix.lock"))
+        Mix.Tasks.Deps.Get.run([])
 
-      Mix.Tasks.Hex.Package.run(["diff", "tesla", "1.0.0"])
-    end
+        Mix.Tasks.Hex.Package.run(["diff", "tesla", "1.0.0"])
+      end
+    end)
   after
     purge([ReleaseDeps.MixProject])
   end
@@ -178,9 +191,12 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end)
 
     Mix.Project.push(ReleaseDeps.MixProject)
+    {:ok, cwd} = File.cwd()
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      path = tmp_path()
+      File.cp(Path.join(cwd, "mix-test.lock"), Path.join(path, "mix.lock"))
+      Hex.State.put(:home, path)
 
       Mix.Tasks.Deps.Get.run([])
 
