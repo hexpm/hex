@@ -229,22 +229,7 @@ defmodule Mix.Tasks.Hex.Package do
     path2 = tmp_path("#{package}-#{version2}-")
 
     try do
-      tarball1 = fetch_tarball!(repo, package, version1)
-      tarball2 = fetch_tarball!(repo, package, version2)
-
-      %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
-        Hex.unpack_tar!({:binary, tarball1}, path1)
-
-      verify_inner_checksum!(repo, package, version1, inner_checksum)
-      verify_outer_checksum!(repo, package, version1, outer_checksum)
-
-      %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
-        Hex.unpack_tar!({:binary, tarball2}, path2)
-
-      verify_inner_checksum!(repo, package, version2, inner_checksum)
-      verify_outer_checksum!(repo, package, version2, outer_checksum)
-
-      Hex.Registry.Server.close()
+      fetch_and_unpack!(repo, package, [{path1, version1}, {path2, version2}])
 
       cmd =
         Hex.State.fetch!(:diff_command)
@@ -266,8 +251,10 @@ defmodule Mix.Tasks.Hex.Package do
     try do
       Enum.each(versions, fn {path, version} ->
         tarball = fetch_tarball!(repo, package, version)
-        %{checksum: checksum} = Hex.unpack_tar!({:binary, tarball}, path)
-        verify_tar_checksum!(repo, package, version, checksum)
+        %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} = 
+          Hex.unpack_tar!({:binary, tarball}, path)
+        verify_inner_checksum!(repo, package, version, inner_checksum)
+        verify_outer_checksum!(repo, package, version, outer_checksum)
       end)
     after
       Hex.Registry.Server.close()
