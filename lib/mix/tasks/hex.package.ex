@@ -251,8 +251,10 @@ defmodule Mix.Tasks.Hex.Package do
     try do
       Enum.each(versions, fn {path, version} ->
         tarball = fetch_tarball!(repo, package, version)
-        %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} = 
+
+        %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
           Hex.unpack_tar!({:binary, tarball}, path)
+
         verify_inner_checksum!(repo, package, version, inner_checksum)
         verify_outer_checksum!(repo, package, version, outer_checksum)
       end)
