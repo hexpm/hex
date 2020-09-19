@@ -197,10 +197,7 @@ defmodule Mix.Tasks.Hex.Package do
     end
   end
 
-  defp diff(repo, package, {version}) do
-    Hex.Registry.Server.open()
-    Hex.Registry.Server.prefetch([{repo, package}])
-
+  defp diff(repo, package, version) when is_binary(version) do
     locked_deps = Mix.Dep.Lock.read()
 
     path_lock =
@@ -216,19 +213,8 @@ defmodule Mix.Tasks.Hex.Package do
     path = tmp_path("#{package}-#{version}-")
 
     try do
-      tarball = fetch_tarball!(repo, package, version)
-
-      %{checksum: checksum} = Hex.unpack_tar!({:binary, tarball}, path)
-      verify_tar_checksum!(repo, package, version, checksum)
-
-      Hex.Registry.Server.close()
-
-      cmd =
-        Hex.State.fetch!(:diff_command)
-        |> String.replace("__PATH1__", "\"#{path_lock}\"")
-        |> String.replace("__PATH2__", path)
-
-      code = Mix.shell().cmd(cmd)
+      fetch_and_unpack!(repo, package, [{path, version}])
+      code = run_diff_path!("\"#{path_lock}\"", path)
       Mix.Tasks.Hex.set_exit_code(code)
     after
       File.rm_rf!(path)
@@ -236,9 +222,6 @@ defmodule Mix.Tasks.Hex.Package do
   end
 
   defp diff(repo, package, {version1, version2}) do
-    Hex.Registry.Server.open()
-    Hex.Registry.Server.prefetch([{repo, package}])
-
     path1 = tmp_path("#{package}-#{version1}-")
     path2 = tmp_path("#{package}-#{version2}-")
 
@@ -273,6 +256,30 @@ defmodule Mix.Tasks.Hex.Package do
     end
   end
 
+  defp fetch_and_unpack!(repo, package, versions) do
+    Hex.Registry.Server.open()
+    Hex.Registry.Server.prefetch([{repo, package}])
+
+    try do
+      Enum.each(versions, fn {path, version} ->
+        tarball = fetch_tarball!(repo, package, version)
+        %{checksum: checksum} = Hex.unpack_tar!({:binary, tarball}, path)
+        verify_tar_checksum!(repo, package, version, checksum)
+      end)
+    after
+      Hex.Registry.Server.close()
+    end
+  end
+
+  defp run_diff_path!(path1, path2) do
+    cmd =
+      Hex.State.fetch!(:diff_command)
+      |> String.replace("__PATH1__", path1)
+      |> String.replace("__PATH2__", path2)
+
+    Mix.shell().cmd(cmd)
+  end
+
   defp tmp_path(prefix) do
     random_string = Base.encode16(:crypto.strong_rand_bytes(4))
     Path.join(System.tmp_dir!(), prefix <> random_string)
@@ -287,7 +294,7 @@ defmodule Mix.Tasks.Hex.Package do
 
       [version] ->
         version = Hex.Version.parse!(version)
-        {to_string(version)}
+        to_string(version)
     end
   end
 
