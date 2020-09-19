@@ -311,13 +311,15 @@ defmodule Mix.Tasks.Hex.Package do
 
   defp check_valid_mix_project!(package, version) do
     if is_nil(Mix.Project.get()) do
-        Mix.raise(
-          "Cannot execute \"mix diff #{package} #{version}\" without a Mix.Project, " <>
-            "please ensure you are running Mix in a directory with a \"mix.exs\" file"
-        )
+      Mix.raise(
+        "Cannot execute \"mix diff #{package} #{version}\" without a Mix.Project, " <>
+          "please ensure you are running Mix in a directory with a \"mix.exs\" file"
+      )
     end
 
-    Enum.each(Mix.Dep.load_on_environment([]), fn %Mix.Dep{scm: scm, opts: opts} ->
+    loaded = Mix.Dep.Converger.converge(nil, nil, %{}, &{&1, &2, &3}) |> elem(0)
+
+    Enum.each(loaded, fn %Mix.Dep{scm: scm, opts: opts} ->
       case scm.lock_status(opts) do
         n when n in [:mismatch, :outdated] ->
           Mix.raise(
