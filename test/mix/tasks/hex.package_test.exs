@@ -74,7 +74,6 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end
   end
 
-  @tag :skip
   test "diff: success with version number" do
     Mix.Project.push(ReleaseDeps.MixProject)
 
@@ -94,7 +93,6 @@ defmodule Mix.Tasks.Hex.PackageTest do
     purge([ReleaseDeps.MixProject])
   end
 
-  @tag :skip
   test "diff: not existed package in lockfile" do
     msg = "Expected packages defined in lockfile, got: `\"ex_doc\"`"
 

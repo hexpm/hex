@@ -89,8 +89,8 @@ defmodule Mix.Tasks.Hex.Package do
       ["fetch", package, version] ->
         fetch(repo(opts), package, version, unpack, output)
 
-      ["diff", package, version_range] ->
-        diff(repo(opts), package, version_range)
+      ["diff", package, version] ->
+        diff(repo(opts), package, parse_version!(version))
 
       _ ->
         Mix.raise("""
@@ -191,11 +191,48 @@ defmodule Mix.Tasks.Hex.Package do
     end
   end
 
-  defp diff(repo, package, version_range) do
+  defp diff(repo, package, {version}) do
     Hex.Registry.Server.open()
     Hex.Registry.Server.prefetch([{repo, package}])
 
-    {version1, version2} = parse_version_range!(version_range)
+    locked_deps = Mix.Dep.Lock.read()
+
+    path_lock =
+      case Map.get(locked_deps, String.to_atom(package)) do
+        nil ->
+          Mix.raise("Expected packages defined in lockfile, got: `\"#{package}\"`")
+
+        _ ->
+          unescaped_path = Path.join(Mix.Project.deps_path(), package)
+          String.replace(unescaped_path, "\"", "\\\"")
+      end
+
+    path = tmp_path("#{package}-#{version}-")
+
+    try do
+      tarball = fetch_tarball!(repo, package, version)
+
+      %{checksum: checksum} = Hex.unpack_tar!({:binary, tarball}, path)
+      verify_tar_checksum!(repo, package, version, checksum)
+
+      Hex.Registry.Server.close()
+
+      cmd =
+        Hex.State.fetch!(:diff_command)
+        |> String.replace("__PATH1__", "\"#{path_lock}\"")
+        |> String.replace("__PATH2__", path)
+
+      code = Mix.shell().cmd(cmd)
+      Mix.Tasks.Hex.set_exit_code(code)
+    after
+      File.rm_rf!(path)
+    end
+  end
+
+  defp diff(repo, package, {version1, version2}) do
+    Hex.Registry.Server.open()
+    Hex.Registry.Server.prefetch([{repo, package}])
+
     path1 = tmp_path("#{package}-#{version1}-")
     path2 = tmp_path("#{package}-#{version2}-")
 
@@ -235,17 +272,16 @@ defmodule Mix.Tasks.Hex.Package do
     Path.join(System.tmp_dir!(), prefix <> random_string)
   end
 
-  defp parse_version_range!(string) do
+  defp parse_version!(string) do
     case String.split(string, "..", trim: true) do
       [version1, version2] ->
         version1 = Hex.Version.parse!(version1)
         version2 = Hex.Version.parse!(version2)
         {to_string(version1), to_string(version2)}
 
-      _ ->
-        Mix.raise(
-          "Expected version range to be in format `VERSION1..VERSION2`, got: `#{inspect(string)}`"
-        )
+      [version] ->
+        version = Hex.Version.parse!(version)
+        {to_string(version)}
     end
   end
 
