@@ -41,7 +41,6 @@ if Mix.env() == :dev do
               copy(original_ets, new_ets, {:inner_checksum, @repo, package, version})
               copy(original_ets, new_ets, {:outer_checksum, @repo, package, version})
               copy(original_ets, new_ets, {:retired, @repo, package, version})
-              copy(original_ets, new_ets, {:tarball_etag, @repo, package, version})
               copy(original_ets, new_ets, {:timestamp, @repo, package, version})
 
               [{_, dep_tuples}] = :ets.lookup(original_ets, {:deps, @repo, package, version})

@@ -41,4 +41,12 @@ defmodule Hex.Tar do
         Mix.raise("Unpacking tarball failed: #{:mix_hex_tarball.format_error(reason)}")
     end
   end
+
+  # TODO: Add this function to
+  def outer_checksum(path) do
+    case File.read(path) do
+      {:ok, tarball} -> {:ok, :crypto.hash(:sha256, tarball)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 end

@@ -169,17 +169,21 @@ defmodule Mix.Tasks.Hex.Package do
   end
 
   defp fetch_tarball!(repo, package, version) do
-    etag = nil
+    path = Hex.SCM.cache_path(repo, package, version)
 
-    case Hex.SCM.fetch(repo, package, version, :memory, etag) do
-      {:ok, :new, tarball, _etag} ->
-        tarball
+    case Hex.SCM.fetch(repo, package, version) do
+      {:ok, _} ->
+        File.read!(path)
 
       {:error, reason} ->
-        Mix.raise(
-          "Downloading " <>
-            Hex.Repo.tarball_url(repo, package, version) <> " failed:\n\n" <> reason
-        )
+        if File.exists?(path) do
+          File.read!(path)
+        else
+          Mix.raise(
+            "Downloading " <>
+              Hex.Repo.tarball_url(repo, package, version) <> " failed:\n\n" <> reason
+          )
+        end
     end
   end
 
