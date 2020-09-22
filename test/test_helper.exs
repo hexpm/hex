@@ -1,9 +1,4 @@
 ExUnit.configure(exclude: [:skip | ExUnit.configuration()[:exclude]])
-
-if Version.compare(System.version(), "1.2.0") == :lt do
-  ExUnit.configure(exclude: [:skip_in_legacy | ExUnit.configuration()[:exclude]])
-end
-
 ExUnit.start()
 Application.ensure_all_started(:bypass)
 
