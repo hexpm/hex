@@ -22,10 +22,10 @@ defmodule Mix.Tasks.Hex.Package do
 
   ## Diff package versions
 
-      mix hex.package diff PACKAGE VERSION
+      mix hex.package diff APP VERSION
 
-  This command compares the package inside deps folder against
-  with the target version, unpacking the target version into
+  This command compares the project's dependency `APP` against
+  the target package version, unpacking the target version into
   temparary directory and running a diff command.
 
       mix hex.package diff PACKAGE VERSION1..VERSION2
@@ -103,7 +103,7 @@ defmodule Mix.Tasks.Hex.Package do
           Invalid arguments, expected one of:
 
           mix hex.package fetch PACKAGE VERSION [--unpack]
-          mix hex.package diff PACKAGE VERSION
+          mix hex.package diff APP VERSION
           mix hex.package diff PACKAGE VERSION1..VERSION2
         """)
     end
@@ -113,7 +113,7 @@ defmodule Mix.Tasks.Hex.Package do
   def tasks() do
     [
       {"fetch PACKAGE VERSION [--unpack]", "Fetch the package"},
-      {"diff PACKAGE VERSION", "Diff package version against locked version"},
+      {"diff APP VERSION", "Diff dependency against version"},
       {"diff PACKAGE VERSION1..VERSION2", "Diff package versions"}
     ]
   end
@@ -199,27 +199,28 @@ defmodule Mix.Tasks.Hex.Package do
     end
   end
 
-  defp diff(repo, package, version) when is_binary(version) do
+  defp diff(repo, app, version) when is_binary(version) do
     Hex.check_deps()
 
-    path_lock =
-      case Map.get(Mix.Dep.Lock.read(), String.to_atom(package)) do
+    {path_lock, package} =
+      case Map.get(Mix.Dep.Lock.read(), String.to_atom(app)) do
         nil ->
           Mix.raise(
-            "Cannot find the package \"#{package}\" in \"mix.lock\" file, " <>
+            "Cannot find the app \"#{app}\" in \"mix.lock\" file, " <>
               "please ensure it has been specified in \"mix.exs\" and run \"mix deps.get\""
           )
 
-        _ ->
-          unescaped_path = Path.join(Mix.Project.deps_path(), package)
-          String.replace(unescaped_path, "\"", "\\\"")
+        lock ->
+          path = Path.join(Mix.Project.deps_path(), app)
+          package = Hex.Utils.lock(lock).name
+          {path, package}
       end
 
     path = tmp_path("#{package}-#{version}-")
 
     try do
       fetch_and_unpack!(repo, package, [{path, version}])
-      code = run_diff_path!("\"#{path_lock}\"", path)
+      code = run_diff_path!(path_lock, path)
       Mix.Tasks.Hex.set_exit_code(code)
     after
       File.rm_rf!(path)
@@ -232,13 +233,7 @@ defmodule Mix.Tasks.Hex.Package do
 
     try do
       fetch_and_unpack!(repo, package, [{path1, version1}, {path2, version2}])
-
-      cmd =
-        Hex.State.fetch!(:diff_command)
-        |> String.replace("__PATH1__", path1)
-        |> String.replace("__PATH2__", path2)
-
-      code = Mix.shell().cmd(cmd)
+      code = run_diff_path!(path1, path2)
       Mix.Tasks.Hex.set_exit_code(code)
     after
       File.rm_rf!(path1)
@@ -268,10 +263,15 @@ defmodule Mix.Tasks.Hex.Package do
   defp run_diff_path!(path1, path2) do
     cmd =
       Hex.State.fetch!(:diff_command)
-      |> String.replace("__PATH1__", path1)
-      |> String.replace("__PATH2__", path2)
+      |> String.replace("__PATH1__", escape_and_quote_path(path1))
+      |> String.replace("__PATH2__", escape_and_quote_path(path2))
 
     Mix.shell().cmd(cmd)
+  end
+
+  defp escape_and_quote_path(path) do
+    escaped = String.replace(path, "\"", "\\\"")
+    ~s("#{escaped}")
   end
 
   defp tmp_path(prefix) do

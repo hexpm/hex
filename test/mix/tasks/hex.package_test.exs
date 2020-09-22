@@ -117,7 +117,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
 
   test "diff: not having target package with single version number" do
     msg =
-      "Cannot find the package \"tesla\" in \"mix.lock\" file, " <>
+      "Cannot find the app \"tesla\" in \"mix.lock\" file, " <>
         "please ensure it has been specified in \"mix.exs\" and run \"mix deps.get\""
 
     in_diff_fixture(fn ->
