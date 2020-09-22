@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Hex.Package do
 
   You can pipe the fetched tarball to stdout by setting `--output -`.
 
-  ## Fetch and diff package contents between versions
+  ## Diff package versions
 
       mix hex.package diff PACKAGE VERSION
 
@@ -103,6 +103,7 @@ defmodule Mix.Tasks.Hex.Package do
           Invalid arguments, expected one of:
 
           mix hex.package fetch PACKAGE VERSION [--unpack]
+          mix hex.package diff PACKAGE VERSION
           mix hex.package diff PACKAGE VERSION1..VERSION2
         """)
     end
@@ -112,7 +113,8 @@ defmodule Mix.Tasks.Hex.Package do
   def tasks() do
     [
       {"fetch PACKAGE VERSION [--unpack]", "Fetch the package"},
-      {"diff PACKAGE VERSION1..VERSION2", "Fetch and diff package contents between versions"}
+      {"diff PACKAGE VERSION", "Diff package version against locked version"},
+      {"diff PACKAGE VERSION1..VERSION2", "Diff package versions"}
     ]
   end
 
@@ -135,15 +137,15 @@ defmodule Mix.Tasks.Hex.Package do
     Hex.Registry.Server.prefetch([{repo, package}])
 
     tarball = fetch_tarball!(repo, package, version)
-    if !is_nil(output), do: File.mkdir_p!(output)
+    if output, do: File.mkdir_p!(output)
 
     abs_name = Path.absname("#{package}-#{version}")
 
     {abs_path, tar_path} =
-      if is_nil(output) do
-        {abs_name, "#{abs_name}.tar"}
-      else
+      if output do
         {output, Path.join(output, "#{package}-#{version}.tar")}
+      else
+        {abs_name, "#{abs_name}.tar"}
       end
 
     File.write!(tar_path, tarball)
@@ -299,7 +301,7 @@ defmodule Mix.Tasks.Hex.Package do
   end
 
   defp check_valid_mix_project!(package, version) do
-    if is_nil(Mix.Project.get()) do
+    unless Mix.Project.get() do
       Mix.raise(
         "Cannot execute \"mix diff #{package} #{version}\" without a Mix.Project, " <>
           "please ensure you are running Mix in a directory with a \"mix.exs\" file"
@@ -312,8 +314,8 @@ defmodule Mix.Tasks.Hex.Package do
       case scm.lock_status(opts) do
         n when n in [:mismatch, :outdated] ->
           Mix.raise(
-            "The dependency is out of date. " <>
-              "Please run \"deps.get\" to update \"mix.lock\" file"
+            "The dependency is out of date, " <>
+              "please run \"deps.get\" to update \"mix.lock\" file"
           )
 
         _ ->
