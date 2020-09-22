@@ -5,7 +5,14 @@ defmodule Mix.Tasks.Hex.PackageTest do
   defp in_diff_fixture(fun) do
     in_fixture("diff", fn ->
       Mix.Project.push(ReleaseDeps.MixProject)
-      Mix.Dep.Lock.write(%{ex_doc: {:hex, :ex_doc, "0.0.1", "1da66c8e05504081e6dab043bd62b6b51bb2d1922d883018b4540786db8c378c", [:mix], [], "hexpm", "6477a6dec9449f018387e411dcbce4c60d704cea140884b5dc6e6de5db79d294"}})
+
+      Mix.Dep.Lock.write(%{
+        ex_doc:
+          {:hex, :ex_doc, "0.0.1",
+           "1da66c8e05504081e6dab043bd62b6b51bb2d1922d883018b4540786db8c378c", [:mix], [],
+           "hexpm", "6477a6dec9449f018387e411dcbce4c60d704cea140884b5dc6e6de5db79d294"}
+      })
+
       Hex.State.put(:home, File.cwd!())
       Mix.Tasks.Deps.Get.run([])
       fun.()
@@ -174,6 +181,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
 
   test "diff: package not found" do
     Hex.State.put(:shell_process, self())
+
     in_diff_fixture(fn ->
       assert_raise Mix.Error, ~r"Request failed \(404\)", fn ->
         Mix.Tasks.Hex.Package.run(["diff", "bad", "1.0.0..1.1.0"])
