@@ -5,16 +5,9 @@ defmodule Mix.Tasks.Hex.PackageTest do
   defp in_diff_fixture(fun) do
     in_fixture("diff", fn ->
       Mix.Project.push(ReleaseDeps.MixProject)
-
-      Mix.Dep.Lock.write(%{
-        ex_doc:
-          {:hex, :ex_doc, "0.0.1",
-           "1da66c8e05504081e6dab043bd62b6b51bb2d1922d883018b4540786db8c378c", [:mix], [],
-           "hexpm", "6477a6dec9449f018387e411dcbce4c60d704cea140884b5dc6e6de5db79d294"}
-      })
-
+      Mix.Dep.Lock.write(%{ex_doc: {:hex, :ex_doc, "0.0.1"}})
       Hex.State.put(:home, File.cwd!())
-      Mix.Tasks.Deps.Get.run([])
+      Mix.Task.run("deps.get")
       fun.()
     end)
   end
@@ -106,22 +99,8 @@ defmodule Mix.Tasks.Hex.PackageTest do
     purge([ReleaseDeps.MixProject])
   end
 
-  test "diff: not Mix.Project with single version number" do
-    msg =
-      "Cannot execute \"mix diff ex_doc 1.0.0\" without a Mix.Project, " <>
-        "please ensure you are running Mix in a directory with a \"mix.exs\" file"
-
-    in_tmp(fn ->
-      assert_raise Mix.Error, msg, fn ->
-        Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "1.0.0"])
-      end
-    end)
-  end
-
   test "diff: outdated lockfile with single version number" do
-    msg =
-      "The dependency is out of date, " <>
-        "please run \"deps.get\" to update \"mix.lock\" file"
+    msg = "Can't continue due to errors on dependencies"
 
     in_diff_fixture(fn ->
       assert_raise Mix.Error, msg, fn ->
@@ -138,8 +117,8 @@ defmodule Mix.Tasks.Hex.PackageTest do
 
   test "diff: not having target package with single version number" do
     msg =
-      "Cannot find the package \"tesla\" in \"mix.lock\" file. " <>
-        "Please ensure it has been specified in \"mix.exs\" and run \"mix deps.get\""
+      "Cannot find the package \"tesla\" in \"mix.lock\" file, " <>
+        "please ensure it has been specified in \"mix.exs\" and run \"mix deps.get\""
 
     in_diff_fixture(fn ->
       assert_raise Mix.Error, msg, fn ->
