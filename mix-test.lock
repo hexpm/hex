@@ -1,3 +1,0 @@
-%{
-  "ex_doc": {:hex, :ex_doc, "0.0.1", "1da66c8e05504081e6dab043bd62b6b51bb2d1922d883018b4540786db8c378c", [:mix], [], "hexpm", "6477a6dec9449f018387e411dcbce4c60d704cea140884b5dc6e6de5db79d294"},
-}
