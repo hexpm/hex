@@ -26,7 +26,7 @@ defmodule Mix.Tasks.Hex.Package do
 
   This command compares the project's dependency `APP` against
   the target package version, unpacking the target version into
-  temparary directory and running a diff command.
+  temporary directory and running a diff command.
 
       mix hex.package diff PACKAGE VERSION1..VERSION2
 
