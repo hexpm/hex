@@ -187,6 +187,79 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end)
   end
 
+  test "outdated --all --within-requirements" do
+    Mix.Project.push(OutdatedDeps.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+      Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      assert catch_throw(Mix.Task.run("hex.outdated", ["--all", "--within-requirements"])) ==
+               {:exit_code, 1}
+
+      bar =
+        [
+          [:bright, "bar", :reset],
+          ["         ", "0.1.0", :reset],
+          ["    ", :green, "0.1.0", :reset],
+          ["   ", :green, "Up-to-date", :reset],
+          "           "
+        ]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      foo =
+        [
+          [:bright, "foo", :reset],
+          ["         ", "0.1.0", :reset],
+          ["    ", :red, "0.1.1", :reset],
+          ["   ", :yellow, "Update possible", :reset],
+          "      "
+        ]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      ex_doc =
+        [
+          [:bright, "ex_doc", :reset],
+          ["      ", "0.0.1", :reset],
+          ["    ", :red, "0.1.0", :reset],
+          ["   ", :red, "Update not possible", :reset],
+          "  "
+        ]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      assert_received {:mix_shell, :info, [^bar]}
+      assert_received {:mix_shell, :info, [^foo]}
+      assert_received {:mix_shell, :info, [^ex_doc]}
+    end)
+  end
+
+  test "outdated --all --within-requirements (not outdated)" do
+    Mix.Project.push(NotOutdatedApp.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:home, tmp_path())
+      Mix.Dep.Lock.write(%{ex_doc: {:hex, :ex_doc, "0.1.0"}})
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      assert Mix.Task.run("hex.outdated", ["ex_doc"]) == nil
+
+      msg =
+        ["Current version ", :bright, "0.1.0", :reset, " of dependency is up to date!"]
+        |> IO.ANSI.format_fragment()
+        |> List.to_string()
+
+      assert_received {:mix_shell, :info, [^msg]}
+    end)
+  end
+
   test "outdated --pre" do
     Mix.Project.push(OutdatedBetaDeps.MixProject)
 
