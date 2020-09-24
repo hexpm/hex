@@ -1,6 +1,6 @@
 # Hex
 
-[![Build Status](https://travis-ci.org/hexpm/hex.svg?branch=master "Build Status")](http://travis-ci.org/hexpm/hex)
+[![Build Status](https://travis-ci.org/hexpm/hex.svg?branch=main "Build Status")](http://travis-ci.org/hexpm/hex)
 
 Hex is package manager for the Erlang VM.
 

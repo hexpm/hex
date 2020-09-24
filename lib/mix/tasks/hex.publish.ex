@@ -104,7 +104,6 @@ defmodule Mix.Tasks.Hex.Publish do
   @switches [
     revert: :string,
     progress: :boolean,
-    canonical: :string,
     organization: :string,
     organisation: :string,
     yes: :boolean,
@@ -114,7 +113,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   @impl true
   def run(args) do
-    Hex.check_deps()
+    Hex.Mix.check_deps()
     Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
 
@@ -149,7 +148,7 @@ defmodule Mix.Tasks.Hex.Publish do
         end
 
       ["docs"] ->
-        docs_task(build, opts)
+        docs_task()
         auth = Mix.Tasks.Hex.auth_info(:write)
         create_docs(build, organization, auth, opts)
 
@@ -183,7 +182,7 @@ defmodule Mix.Tasks.Hex.Publish do
     case proceed_with_owner(build, organization, opts) do
       {:ok, owner} ->
         Hex.Shell.info("Building docs...")
-        docs_task(build, opts)
+        docs_task()
         auth = Mix.Tasks.Hex.auth_info(:write)
         Hex.Shell.info("Publishing package...")
 
@@ -219,16 +218,13 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp docs_task(build, opts) do
-    name = build.meta.name
-    canonical = opts[:canonical] || Hex.Utils.hexdocs_url(opts[:organization], name)
-
+  defp docs_task() do
     try do
-      Mix.Task.run("docs", ["--canonical", canonical])
+      Mix.Task.run("docs", [])
     rescue
       ex in [Mix.NoTaskError] ->
-        require Hex
-        stacktrace = Hex.stacktrace()
+        require Hex.Stdlib
+        stacktrace = Hex.Stdlib.stacktrace()
 
         Mix.shell().error("""
         Publication failed because the "docs" task is unavailable. You may resolve this by:
@@ -334,7 +330,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp owner_prompt_selection(organizations) do
-    selection = Hex.string_trim(Hex.Shell.prompt("Your selection:"))
+    selection = Hex.Stdlib.string_trim(Hex.Shell.prompt("Your selection:"))
 
     if selection == "1" do
       {:ok, nil}
@@ -378,7 +374,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp transfer_owner(build, owner, auth, opts) do
-    Hex.Shell.info("Transfering ownership to #{owner}...")
+    Hex.Shell.info("Transferring ownership to #{owner}...")
     dry_run? = Keyword.get(opts, :dry_run, false)
 
     if dry_run? do
@@ -440,14 +436,25 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp raise_if_file_matches_semver(files) do
     Enum.map(files, fn
-      {filename, _contents} ->
-        top_level = filename |> Path.split() |> List.first()
-        if Hex.filename_matches_semver?(top_level), do: Mix.raise(Hex.semver_error_text())
-
-      filename ->
-        top_level = filename |> Path.split() |> List.first()
-        if Hex.filename_matches_semver?(top_level), do: Mix.raise(Hex.semver_error_text())
+      {filename, _contents} -> filename_matches_semver!(filename)
+      filename -> filename_matches_semver!(filename)
     end)
+  end
+
+  def filename_matches_semver!(filename) do
+    top_level = filename |> Path.split() |> List.first()
+
+    case Version.parse(to_string(top_level)) do
+      {:ok, _struct} ->
+        Mix.raise("Invalid filename: top-level filenames cannot match a semantic version pattern")
+
+      _ ->
+        :ok
+    end
+  end
+
+  def semver_error_text do
+    "Invalid filename: top-level filenames cannot match a semantic version pattern."
   end
 
   defp send_tarball(organization, name, version, tarball, auth, progress?) do
@@ -491,7 +498,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp relative_path(file, dir) do
     Path.relative_to(file, dir)
-    |> Hex.string_to_charlist()
+    |> Hex.Stdlib.string_to_charlist()
   end
 
   defp docs_dir do
@@ -512,7 +519,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp create_release(build, organization, auth, opts) do
     meta = build.meta
-    %{tarball: tarball, outer_checksum: checksum} = Hex.create_tar!(meta, meta.files, :memory)
+    %{tarball: tarball, outer_checksum: checksum} = Hex.Tar.create!(meta, meta.files, :memory)
     dry_run? = Keyword.get(opts, :dry_run, false)
 
     if dry_run? do

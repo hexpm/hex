@@ -22,6 +22,16 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end)
   end
 
+  test "fetch: custom repo" do
+    in_tmp(fn ->
+      cwd = File.cwd!()
+      Mix.Tasks.Hex.Package.run(["fetch", "ex_doc", "0.0.1", "--repo", "hexpm"])
+      msg = "ex_doc v0.0.1 downloaded to #{cwd}/ex_doc-0.0.1.tar"
+      assert_received {:mix_shell, :info, [^msg]}
+      assert File.exists?("#{cwd}/ex_doc-0.0.1.tar")
+    end)
+  end
+
   test "fetch: to folder" do
     in_tmp(fn ->
       cwd = File.cwd!()
@@ -59,7 +69,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
   #         Mix.Tasks.Hex.Package.run(["fetch", "ex_doc", "--output", "-", "0.0.1"])
   #       end)
 
-  #     Hex.unpack_tar!({:binary, tarball}, :memory)
+  #     Hex.Tar.unpack!({:binary, tarball}, :memory)
   #   end)
   # end
 
@@ -142,6 +152,19 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end)
   after
     purge([ReleaseDeps.MixProject])
+  end
+
+  test "diff: success (variant args)" do
+    in_tmp(fn ->
+      Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
+
+      assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1", "0.1.0"])) ==
+               {:exit_code, 1}
+
+      assert_received {:mix_shell, :run, [out]}
+      assert out =~ ~s(-{<<"version">>,<<"0.0.1">>}.)
+      assert out =~ ~s(+{<<"version">>,<<"0.1.0">>}.)
+    end)
   end
 
   test "diff: custom diff command" do

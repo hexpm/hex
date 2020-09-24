@@ -116,6 +116,6 @@ defmodule Mix.Tasks.Hex.Search do
   defp trim_heredoc(string) do
     string
     |> String.split("\n", trim: true)
-    |> Enum.map_join(" ", &Hex.string_trim/1)
+    |> Enum.map_join(" ", &Hex.Stdlib.string_trim/1)
   end
 end

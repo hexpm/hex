@@ -50,14 +50,6 @@ defmodule Hex.Registry.Server do
     GenServer.call(@name, {:retired, repo, package, version}, @timeout)
   end
 
-  def tarball_etag(repo, package, version) do
-    GenServer.call(@name, {:tarball_etag, repo, package, version}, @timeout)
-  end
-
-  def tarball_etag(repo, package, version, etag) do
-    GenServer.call(@name, {:tarball_etag, repo, package, version, etag}, @timeout)
-  end
-
   def last_update() do
     GenServer.call(@name, :last_update, @timeout)
   end
@@ -89,7 +81,7 @@ defmodule Hex.Registry.Server do
     path = opts[:registry_path] || path()
 
     ets =
-      Hex.string_to_charlist(path)
+      Hex.Stdlib.string_to_charlist(path)
       |> open_ets()
       |> check_version()
       |> set_version()
@@ -173,16 +165,6 @@ defmodule Hex.Registry.Server do
     end)
   end
 
-  def handle_call({:tarball_etag, repo, package, version}, _from, state) do
-    etag = lookup(state.ets, {:tarball_etag, repo, package, version})
-    {:reply, etag, state}
-  end
-
-  def handle_call({:tarball_etag, repo, package, version, etag}, _from, state) do
-    :ets.insert(state.ets, {{:tarball_etag, repo, package, version}, etag})
-    {:reply, :ok, state}
-  end
-
   def handle_call(:last_update, _from, state) do
     time = lookup(state.ets, :last_update)
     {:reply, time, state}
@@ -248,7 +230,7 @@ defmodule Hex.Registry.Server do
   defp persist(tid, path) do
     dir = Path.dirname(path)
     File.mkdir_p!(dir)
-    :ok = :ets.tab2file(tid, Hex.to_charlist(path))
+    :ok = :ets.tab2file(tid, Hex.Stdlib.to_charlist(path))
   end
 
   defp purge_repo_from_cache(packages, %{ets: ets}) do
@@ -272,7 +254,6 @@ defmodule Hex.Registry.Server do
   #   {{:inner_checksum, ^repo, _package, _version}, _} -> true
   #   {{:outer_checksum, ^repo, _package, _version}, _} -> true
   #   {{:retired, ^repo, _package, _version}, _} -> true
-  #   {{:tarball_etag, ^repo, _package, _version}, _} -> true
   #   {{:registry_etag, ^repo, _package}, _} -> true
   #   {{:timestamp, ^repo, _package}, _} -> true
   #   {{:timestamp, ^repo, _package, _version}, _} -> true
@@ -286,7 +267,6 @@ defmodule Hex.Registry.Server do
       {{{:inner_checksum, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:outer_checksum, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:retired, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
-      {{{:tarball_etag, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:registry_etag, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:timetamp, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:timetamp, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
@@ -396,7 +376,7 @@ defmodule Hex.Registry.Server do
       )
     end
 
-    if not missing_status?(result) or Hex.debug?() do
+    if not missing_status?(result) or Hex.Mix.debug?() do
       Hex.Utils.print_error_result(result)
     end
   end

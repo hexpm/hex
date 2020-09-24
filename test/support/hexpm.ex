@@ -55,14 +55,14 @@ defmodule HexTest.Hexpm do
   end
 
   def start() do
-    path = Hex.string_to_charlist(path())
-    hexpm_mix_home = Hex.string_to_charlist(hexpm_mix_home())
-    hexpm_mix_archives = Hex.string_to_charlist(hexpm_mix_archives())
+    path = Hex.Stdlib.string_to_charlist(path())
+    hexpm_mix_home = Hex.Stdlib.string_to_charlist(hexpm_mix_home())
+    hexpm_mix_archives = Hex.Stdlib.string_to_charlist(hexpm_mix_archives())
 
     key =
       Path.join(__DIR__, "../fixtures/test_priv.pem")
       |> File.read!()
-      |> Hex.string_to_charlist()
+      |> Hex.Stdlib.string_to_charlist()
 
     env = [
       {'MIX_ENV', 'hex'},
@@ -122,7 +122,7 @@ defmodule HexTest.Hexpm do
 
   defp hexpm_mix do
     if path = hexpm_elixir() do
-      path = Hex.string_to_charlist(path)
+      path = Hex.Stdlib.string_to_charlist(path)
       :os.find_executable('mix', path)
     else
       :os.find_executable('mix')
@@ -265,7 +265,7 @@ defmodule HexTest.Hexpm do
     mix_exs = :io_lib.format(@mix_exs_template, [module, name, version, deps])
 
     files = files || [{"mix.exs", List.to_string(mix_exs)}]
-    %{tarball: tarball} = Hex.create_tar!(meta, files, :memory)
+    %{tarball: tarball} = Hex.Tar.create!(meta, files, :memory)
 
     {:ok, {result, %{"version" => ^version}, _}} =
       Hex.API.Release.publish(organization, tarball, auth)

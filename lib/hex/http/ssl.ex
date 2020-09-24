@@ -62,11 +62,10 @@ defmodule Hex.HTTP.SSL do
   end
 
   def ssl_opts(url) do
-    hostname = Hex.string_to_charlist(URI.parse(url).host)
+    hostname = Hex.Stdlib.string_to_charlist(URI.parse(url).host)
     ciphers = filter_ciphers(@default_ciphers)
 
     if secure_ssl?() do
-      verify_fun = {&VerifyHostname.verify_fun/3, check_hostname: hostname}
       partial_chain = &partial_chain(Certs.cacerts(), &1)
 
       [
@@ -74,13 +73,13 @@ defmodule Hex.HTTP.SSL do
         depth: 4,
         partial_chain: partial_chain,
         cacerts: get_ca_certs(),
-        verify_fun: verify_fun,
         server_name_indication: hostname,
         secure_renegotiate: true,
         reuse_sessions: true,
         versions: @default_versions,
         ciphers: ciphers
       ]
+      |> customize_hostname_check(hostname)
     else
       [
         verify: :verify_none,
@@ -123,5 +122,25 @@ defmodule Hex.HTTP.SSL do
   defp filter_ciphers(allowed) do
     available = Hex.Set.new(:ssl.cipher_suites(:openssl))
     Enum.filter(allowed, &(&1 in available))
+  end
+
+  defp customize_hostname_check(opts, hostname) do
+    if ssl_major_version() >= 9 do
+      # From OTP 20.0 use built-in support for custom hostname checks
+      Keyword.put(opts, :customize_hostname_check, match_fun: &VerifyHostname.match_fun/2)
+    else
+      # Before OTP 20.0 use mint_shims for hostname check, from a custom verify_fun
+      Keyword.put(opts, :verify_fun, {&VerifyHostname.verify_fun/3, check_hostname: hostname})
+    end
+  end
+
+  defp ssl_major_version do
+    # Elixir 1.0.5 - 1.1.1 have no Application.spec/2
+    case :application.get_key(:ssl, :vsn) do
+      {:ok, value} -> value
+      :undefined -> nil
+    end
+    |> :string.to_integer()
+    |> elem(0)
   end
 end

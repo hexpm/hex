@@ -12,8 +12,8 @@ jobs:
       - name: Install OTP and Elixir
         uses: actions/setup-elixir@v1
         with:
-          otp-version: 22.2
-          elixir-version: 1.10.0
+          otp-version: 23.0
+          elixir-version: 1.10.4
 
       - name: Install dependencies
         run: mix deps.get
@@ -40,9 +40,9 @@ jobs:
       fail-fast: false
       matrix:
         pair:
-          - erlang: 22.2
-            elixir: 1.10.0
-          - erlang: 22.2
+          - erlang: 23.0
+            elixir: 1.10.4
+          - erlang: 22.3
             elixir: 1.9.4
           - erlang: 21.3
             elixir: 1.8.1
@@ -64,8 +64,8 @@ jobs:
             elixir: 1.0.5
 
     env:
-      HEXPM_OTP: OTP-22.2
-      HEXPM_ELIXIR: v1.10.0
+      HEXPM_OTP: OTP-23.0
+      HEXPM_ELIXIR: v1.10.4
       HEXPM_PATH: hexpm
       HEXPM_ELIXIR_PATH: hexpm_elixir
       HEXPM_OTP_PATH: hexpm_otp

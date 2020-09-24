@@ -81,9 +81,9 @@ defmodule Mix.Tasks.Hex.BuildTest do
       assert File.stat!("unzip/dir/.dotfile").mtime != mtime_file
       assert File.stat!("unzip/link_dir").mtime != mtime_link
 
-      assert Hex.file_lstat!("unzip/link_dir").type == :symlink
-      assert Hex.file_lstat!("unzip/dir/a_link_to_dir2").type == :symlink
-      assert Hex.file_lstat!("unzip/empty_dir").type == :directory
+      assert Hex.Stdlib.file_lstat!("unzip/link_dir").type == :symlink
+      assert Hex.Stdlib.file_lstat!("unzip/dir/a_link_to_dir2").type == :symlink
+      assert Hex.Stdlib.file_lstat!("unzip/empty_dir").type == :directory
       assert File.read!("unzip/myfile.txt") == "hello"
       assert File.read!("unzip/dir/.dotfile") == ""
       assert File.read!("unzip/dir/dir2/test.txt") == "and"

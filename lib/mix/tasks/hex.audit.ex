@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Hex.Audit do
 
   @impl true
   def run(_) do
-    Hex.check_deps()
+    Hex.Mix.check_deps()
     Hex.start()
     Registry.open()
 

@@ -28,6 +28,7 @@ defmodule Mix.Tasks.Hex.Package do
   the target package version, unpacking the target version into
   temporary directory and running a diff command.
 
+      mix hex.package diff PACKAGE VERSION1 VERSION2
       mix hex.package diff PACKAGE VERSION1..VERSION2
 
   This command fetches package tarballs for both versions,
@@ -52,7 +53,7 @@ defmodule Mix.Tasks.Hex.Package do
   The `__PATH1__` and `__PATH2__` placeholders will be interpolated with
   paths to directories of unpacked tarballs for each version.
 
-  Many diff commands supports coloured output but becase we execute
+  Many diff commands supports coloured output but because we execute
   the command in non-interactive mode, they'd usually be disabled.
 
   On Unix systems you can pipe the output to more commands, for example:
@@ -78,10 +79,12 @@ defmodule Mix.Tasks.Hex.Package do
       tarball path (Default: `<app>-<version>.tar`)
 
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
+
+    * `--repo REPO` - Set this for self-hosted Hex instances, default: `hexpm`
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [unpack: :boolean, organization: :string, output: :string]
+  @switches [unpack: :boolean, organization: :string, output: :string, repo: :string]
   @aliases [o: :output]
 
   @impl true
@@ -103,7 +106,7 @@ defmodule Mix.Tasks.Hex.Package do
           Invalid arguments, expected one of:
 
           mix hex.package fetch PACKAGE VERSION [--unpack]
-          mix hex.package diff APP VERSION
+          mix hex.package diff PACKAGE VERSION
           mix hex.package diff PACKAGE VERSION1..VERSION2
         """)
     end
@@ -113,7 +116,7 @@ defmodule Mix.Tasks.Hex.Package do
   def tasks() do
     [
       {"fetch PACKAGE VERSION [--unpack]", "Fetch the package"},
-      {"diff APP VERSION", "Diff dependency against version"},
+      {"diff PACKAGE VERSION", "Diff dependency against version"},
       {"diff PACKAGE VERSION1..VERSION2", "Diff package versions"}
     ]
   end
@@ -151,7 +154,7 @@ defmodule Mix.Tasks.Hex.Package do
     File.write!(tar_path, tarball)
 
     %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
-      Hex.unpack_tar!(tar_path, abs_path)
+      Hex.Tar.unpack!(tar_path, abs_path)
 
     verify_inner_checksum!(repo, package, version, inner_checksum)
     verify_outer_checksum!(repo, package, version, outer_checksum)
@@ -169,17 +172,21 @@ defmodule Mix.Tasks.Hex.Package do
   end
 
   defp fetch_tarball!(repo, package, version) do
-    etag = nil
+    path = Hex.SCM.cache_path(repo, package, version)
 
-    case Hex.SCM.fetch(repo, package, version, :memory, etag) do
-      {:ok, :new, tarball, _etag} ->
-        tarball
+    case Hex.SCM.fetch(repo, package, version) do
+      {:ok, _} ->
+        File.read!(path)
 
       {:error, reason} ->
-        Mix.raise(
-          "Downloading " <>
-            Hex.Repo.tarball_url(repo, package, version) <> " failed:\n\n" <> reason
-        )
+        if File.exists?(path) do
+          File.read!(path)
+        else
+          Mix.raise(
+            "Downloading " <>
+              Hex.Repo.tarball_url(repo, package, version) <> " failed:\n\n" <> reason
+          )
+        end
     end
   end
 
@@ -293,10 +300,12 @@ defmodule Mix.Tasks.Hex.Package do
   end
 
   defp repo(opts) do
+    repo = Keyword.get(opts, :repo, "hexpm")
+
     if organization = opts[:organization] do
-      "hexpm:" <> organization
+      Enum.join([repo, organization], ":")
     else
-      "hexpm"
+      repo
     end
   end
 end

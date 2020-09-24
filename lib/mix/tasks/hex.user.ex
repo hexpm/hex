@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Hex.User do
   by you and will give access to your private resources, do not share this key with anyone. For
   keys that will be shared by organization members use `mix hex.organization key` instead. By
   default this command sets the `api:write` permission which allows write access to the API,
-  it can be overriden with the `--permission` flag.
+  it can be overridden with the `--permission` flag.
 
       mix hex.user key generate
 
@@ -76,7 +76,7 @@ defmodule Mix.Tasks.Hex.User do
 
   ## Reset user account password
 
-  Starts the process for reseting account password.
+  Starts the process for resetting account password.
 
       mix hex.user reset_password account
 
@@ -182,7 +182,7 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp reset_account_password() do
-    name = Hex.Shell.prompt("Username or Email:") |> Hex.string_trim()
+    name = Hex.Shell.prompt("Username or Email:") |> Hex.Stdlib.string_trim()
 
     case Hex.API.User.password_reset(name) do
       {:ok, {code, _, _}} when code in 200..299 ->
@@ -238,10 +238,12 @@ defmodule Mix.Tasks.Hex.User do
     https://hex.pm/policies/privacy
     """)
 
-    username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
-    email = Hex.Shell.prompt("Email:") |> Hex.string_trim()
-    password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.string_trim()
-    confirm = Mix.Tasks.Hex.password_get("Account password (confirm):") |> Hex.string_trim()
+    username = Hex.Shell.prompt("Username:") |> Hex.Stdlib.string_trim()
+    email = Hex.Shell.prompt("Email:") |> Hex.Stdlib.string_trim()
+    password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.Stdlib.string_trim()
+
+    confirm =
+      Mix.Tasks.Hex.password_get("Account password (confirm):") |> Hex.Stdlib.string_trim()
 
     if password != confirm do
       Mix.raise("Entered passwords do not match")
@@ -325,8 +327,8 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp key_generate(opts) do
-    username = Hex.Shell.prompt("Username:") |> Hex.string_trim()
-    password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.string_trim()
+    username = Hex.Shell.prompt("Username:") |> Hex.Stdlib.string_trim()
+    password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.Stdlib.string_trim()
     key_name = Mix.Tasks.Hex.general_key_name(opts[:key_name])
     permissions = Keyword.get_values(opts, :permission)
     permissions = Mix.Tasks.Hex.convert_permissions(permissions) || [%{"domain" => "api"}]

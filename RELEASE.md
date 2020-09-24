@@ -12,7 +12,7 @@ This document simply outlines the release process:
 
 5. Set branch latest to the new tag
 
-6. Push master branch, latest branch and the new tag
+6. Push main branch, latest branch and the new tag
 
 7. Create GitHub release
 
@@ -22,7 +22,7 @@ This document simply outlines the release process:
 
 10. Commit changes above with title "Bump to vVERSION-dev"
 
-11. Push master
+11. Push main
 
 ## All builds
 
