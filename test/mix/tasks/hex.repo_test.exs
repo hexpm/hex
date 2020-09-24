@@ -13,6 +13,25 @@ defmodule Mix.Tasks.Hex.RepoTest do
   -----END PUBLIC KEY-----
   """
 
+  @public_key_fingerprint "O1LOYhHFW4kcrblKAxROaDEzLD8bn1seWbe5tq8TRsk"
+
+  defp bypass_public_key() do
+    bypass = Bypass.open()
+    repos = Hex.State.fetch!(:repos)
+    repos = put_in(repos["hexpm"].url, "http://localhost:#{bypass.port}")
+    Hex.State.put(:repos, repos)
+
+    Bypass.expect(bypass, fn %Plug.Conn{request_path: "/public_key"} = conn ->
+      Plug.Conn.resp(conn, 200, @public_key)
+    end)
+
+    bypass
+  end
+
+  defp bypass_endpoint_url(bypass) do
+    "http://localhost:#{bypass.port}"
+  end
+
   test "add" do
     in_tmp(fn ->
       Hex.State.put(:config_home, File.cwd!())
@@ -35,6 +54,53 @@ defmodule Mix.Tasks.Hex.RepoTest do
       assert_raise Mix.Error, fn ->
         Mix.Tasks.Hex.Repo.run(["add", "reponame", "url", "--public-key", "foo.pem"])
       end
+
+      bypass = bypass_public_key()
+      bypass_endpoint = bypass_endpoint_url(bypass)
+
+      Mix.Tasks.Hex.Repo.run([
+        "add",
+        "another-reponame",
+        bypass_endpoint,
+        "--fetch-public-key",
+        @public_key_fingerprint,
+        "--auth-key",
+        "AAAA"
+      ])
+
+      assert [
+               "$repos": %{
+                 "another-reponame" => %{
+                   auth_key: "AAAA",
+                   public_key: "-----BEGIN PUBLIC KEY" <> _,
+                   url: ^bypass_endpoint
+                 }
+               }
+             ] = Hex.Config.read()
+
+      assert_raise Mix.Error, ~r/public key fingerprint does not match/, fn ->
+        Mix.Tasks.Hex.Repo.run([
+          "add",
+          "reponame-wrong-fingerprint",
+          bypass_endpoint,
+          "--fetch-public-key",
+          "WRONG-FINGERPRINT"
+        ])
+      end
+
+      Bypass.down(bypass)
+
+      assert_raise Mix.Error, ~r/could not download public key/, fn ->
+        Mix.Tasks.Hex.Repo.run([
+          "add",
+          "reponame-connection-error",
+          bypass_endpoint,
+          "--fetch-public-key",
+          @public_key_fingerprint
+        ])
+      end
+
+      Mix.Tasks.Hex.Repo.run(["remove", "reponame"])
     end)
   end
 
@@ -55,6 +121,8 @@ defmodule Mix.Tasks.Hex.RepoTest do
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
       Mix.Tasks.Hex.Repo.run(["set", "reponame", "--url", "other_url"])
       assert ["$repos": %{"reponame" => %{url: "other_url"}}] = Hex.Config.read()
+
+      Mix.Tasks.Hex.Repo.run(["remove", "reponame"])
     end)
   end
 
@@ -68,6 +136,8 @@ defmodule Mix.Tasks.Hex.RepoTest do
       assert_received {:mix_shell, :info, [config]}
       assert headers =~ ~r{URL.*Public key.*Auth key}
       assert config =~ "url"
+
+      Mix.Tasks.Hex.Repo.run(["remove", "reponame"])
     end)
   end
 

@@ -37,11 +37,13 @@ defmodule Mix.Tasks.Hex.Repo do
 
     * `--public-key PATH` - Path to public key used to verify the registry (optional).
     * `--auth-key KEY` - Key used to authenticate HTTP requests to repository (optional).
+    * `--fetch-public-key FINGERPRINT` - It will automatically download the public key (optional).
 
   ## Set config for repo
 
       mix hex.repo set NAME --url URL
       mix hex.repo set NAME --public-key PATH
+      mix hex.repo set NAME --fetch-public-key FINGERPRINT
       mix hex.repo set NAME --auth-key KEY
 
   ## Remove repo
@@ -58,7 +60,7 @@ defmodule Mix.Tasks.Hex.Repo do
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [url: :string, public_key: :string, auth_key: :string]
+  @switches [url: :string, public_key: :string, auth_key: :string, fetch_public_key: :string]
 
   @impl true
   def run(args) do
@@ -109,12 +111,15 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp add(name, url, opts) do
-    public_key = read_public_key(opts[:public_key])
+    public_key =
+      read_public_key(opts[:public_key]) ||
+        fetch_public_key(opts[:fetch_public_key], url, opts[:auth_key])
 
     repo =
       %{
         url: url,
         public_key: nil,
+        fetch_public_key: nil,
         auth_key: nil
       }
       |> Map.merge(Enum.into(opts, %{}))
@@ -194,6 +199,21 @@ defmodule Mix.Tasks.Hex.Repo do
     [pem_entry] = :public_key.pem_decode(public_key)
     public_key = :public_key.pem_entry_decode(pem_entry)
     ssh_hostkey_fingerprint(public_key)
+  end
+
+  defp fetch_public_key(nil, _, _), do: nil
+
+  defp fetch_public_key(fingerprint, repo_url, auth_key) do
+    with {:ok, {200, key, _}} <- Hex.Repo.get_public_key(repo_url, auth_key),
+         {:verify, true} <- {:verify, show_public_key(key) == "SHA256:" <> fingerprint} do
+      key
+    else
+      {:error, _} ->
+        Mix.raise("could not download public key. check your auth key and the server")
+
+      {:verify, false} ->
+        Mix.raise("public key fingerprint does not match with provided")
+    end
   end
 
   # Adapted from https://github.com/erlang/otp/blob/3eddb0f762de248d3230b38bc9d478bfbc8e7331/lib/public_key/src/public_key.erl#L824

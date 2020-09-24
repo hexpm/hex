@@ -323,4 +323,17 @@ defmodule Hex.Repo do
   defp repo_name(name) do
     name |> split_repo_name() |> List.last()
   end
+
+  def get_public_key(repo_url, auth_key) do
+    auth_headers =
+      if auth_key do
+        %{'authorization' => Hex.Stdlib.string_to_charlist(auth_key)}
+      else
+        %{}
+      end
+
+    HTTP.request(:get, public_key_url(repo_url), auth_headers, nil)
+  end
+
+  defp public_key_url(repo_url), do: repo_url <> "/public_key"
 end
