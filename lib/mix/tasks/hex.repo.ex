@@ -223,8 +223,11 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp sshfp_string(key) do
+    # The padding: false on Base.encode64 requires Elixir v1.3+,
+    # so we do a String.replace/3 instead.
     :crypto.hash(:sha256, :public_key.ssh_encode(key, :ssh2_pubkey))
-    |> Base.encode64(padding: false)
+    |> Base.encode64()
+    |> String.replace("=", "")
   end
 
   defp show(name) do
