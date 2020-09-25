@@ -21,8 +21,14 @@ defmodule Mix.Tasks.Hex.RepoTest do
     repos = put_in(repos["hexpm"].url, "http://localhost:#{bypass.port}")
     Hex.State.put(:repos, repos)
 
-    Bypass.expect(bypass, fn %Plug.Conn{request_path: "/public_key"} = conn ->
-      Plug.Conn.resp(conn, 200, @public_key)
+    Bypass.expect(bypass, fn %Plug.Conn{request_path: path} = conn ->
+      case path do
+        "/public_key" ->
+          Plug.Conn.resp(conn, 200, @public_key)
+
+        "/not_found/public_key" ->
+          Plug.Conn.resp(conn, 404, "not found")
+      end
     end)
 
     bypass
@@ -78,7 +84,7 @@ defmodule Mix.Tasks.Hex.RepoTest do
                }
              ] = Hex.Config.read()
 
-      assert_raise Mix.Error, ~r/public key fingerprint does not match/, fn ->
+      assert_raise Mix.Error, ~r/Public key fingerprint mismatch/, fn ->
         Mix.Tasks.Hex.Repo.run([
           "add",
           "reponame-wrong-fingerprint",
@@ -88,19 +94,33 @@ defmodule Mix.Tasks.Hex.RepoTest do
         ])
       end
 
+      refute Keyword.get(Hex.Config.read(), :"$repos")["reponame-wrong-fingerprint"]
+
+      assert catch_throw(
+               Mix.Tasks.Hex.Repo.run([
+                 "add",
+                 "not-found-reponame",
+                 "#{bypass_endpoint}/not_found",
+                 "--fetch-public-key",
+                 @public_key_fingerprint
+               ])
+             ) == {:exit_code, 1}
+
+      assert_received {:mix_shell, :error, ["Downloading public key failed with code \"404\""]}
+
       Bypass.down(bypass)
 
-      assert_raise Mix.Error, ~r/could not download public key/, fn ->
-        Mix.Tasks.Hex.Repo.run([
-          "add",
-          "reponame-connection-error",
-          bypass_endpoint,
-          "--fetch-public-key",
-          @public_key_fingerprint
-        ])
-      end
+      assert catch_throw(
+               Mix.Tasks.Hex.Repo.run([
+                 "add",
+                 "reponame-connection-error",
+                 bypass_endpoint,
+                 "--fetch-public-key",
+                 @public_key_fingerprint
+               ])
+             ) == {:exit_code, 1}
 
-      Mix.Tasks.Hex.Repo.run(["remove", "reponame"])
+      assert_received {:mix_shell, :error, ["Downloading public key failed"]}
     end)
   end
 
@@ -121,14 +141,12 @@ defmodule Mix.Tasks.Hex.RepoTest do
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
       Mix.Tasks.Hex.Repo.run(["set", "reponame", "--url", "other_url"])
       assert ["$repos": %{"reponame" => %{url: "other_url"}}] = Hex.Config.read()
-
-      Mix.Tasks.Hex.Repo.run(["remove", "reponame"])
     end)
   end
 
   test "show prints repo config" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:config_home, File.cwd!())
 
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
       Mix.Tasks.Hex.Repo.run(["show", "reponame"])
@@ -136,14 +154,12 @@ defmodule Mix.Tasks.Hex.RepoTest do
       assert_received {:mix_shell, :info, [config]}
       assert headers =~ ~r{URL.*Public key.*Auth key}
       assert config =~ "url"
-
-      Mix.Tasks.Hex.Repo.run(["remove", "reponame"])
     end)
   end
 
   test "show raises an error when called with non-existant repo name" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      Hex.State.put(:config_home, File.cwd!())
 
       assert_raise Mix.Error, "Config does not contain repo reponame", fn ->
         Mix.Tasks.Hex.Repo.run(["show", "reponame"])

@@ -212,6 +212,10 @@ defmodule Mix.Tasks.Hex.Repo do
           Mix.raise("Public key fingerprint mismatch")
         end
 
+      {:ok, {code, _, _}} ->
+        Hex.Shell.error("Downloading public key failed with code \"#{inspect(code)}\"")
+        Mix.Tasks.Hex.set_exit_code(1)
+
       other ->
         Hex.Shell.error("Downloading public key failed")
         Hex.Utils.print_error_result(other)

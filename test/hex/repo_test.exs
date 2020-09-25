@@ -3,6 +3,7 @@ defmodule Hex.RepoTest do
   @moduletag :integration
 
   @private_key File.read!(Path.join(__DIR__, "../fixtures/test_priv.pem"))
+  @hexpm_repo_url "https://repo.hex.pm"
 
   test "get_package" do
     assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
@@ -49,7 +50,7 @@ defmodule Hex.RepoTest do
   test "get public key" do
     hexpm = Hex.Repo.default_hexpm_repo()
 
-    assert {:ok, {200, public_key, _}} = Hex.Repo.get_public_key(hexpm.url, hexpm.auth_key)
+    assert {:ok, {200, public_key, _}} = Hex.Repo.get_public_key(@hexpm_repo_url, nil)
     assert public_key == hexpm.public_key
 
     assert {:error, _} = Hex.Repo.get_public_key("http://localhost:4000/acme", nil)
