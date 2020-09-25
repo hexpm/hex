@@ -13,7 +13,7 @@ defmodule Mix.Tasks.Hex.RepoTest do
   -----END PUBLIC KEY-----
   """
 
-  @public_key_fingerprint "O1LOYhHFW4kcrblKAxROaDEzLD8bn1seWbe5tq8TRsk"
+  @public_key_fingerprint "SHA256:O1LOYhHFW4kcrblKAxROaDEzLD8bn1seWbe5tq8TRsk"
 
   defp bypass_public_key() do
     bypass = Bypass.open()

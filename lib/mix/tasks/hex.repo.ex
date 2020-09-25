@@ -204,15 +204,16 @@ defmodule Mix.Tasks.Hex.Repo do
   defp fetch_public_key(nil, _, _), do: nil
 
   defp fetch_public_key(fingerprint, repo_url, auth_key) do
-    with {:ok, {200, key, _}} <- Hex.Repo.get_public_key(repo_url, auth_key),
-         {:verify, true} <- {:verify, show_public_key(key) == "SHA256:" <> fingerprint} do
-      key
-    else
+    case Hex.Repo.get_public_key(repo_url, auth_key) do
+      {:ok, {200, key, _}} ->
+        if show_public_key(key) == fingerprint do
+          key
+        else
+          Mix.raise("public key fingerprint does not match with provided")
+        end
+
       {:error, _} ->
         Mix.raise("could not download public key. check your auth key and the server")
-
-      {:verify, false} ->
-        Mix.raise("public key fingerprint does not match with provided")
     end
   end
 
