@@ -45,4 +45,13 @@ defmodule Hex.RepoTest do
     assert Hex.Repo.decode_package(message, "other repo", "ecto") == []
     assert Hex.Repo.decode_package(message, "hexpm", "other package") == []
   end
+
+  test "get public key" do
+    hexpm = Hex.Repo.default_hexpm_repo()
+
+    assert {:ok, {200, public_key, _}} = Hex.Repo.get_public_key(hexpm.url, hexpm.auth_key)
+    assert public_key == hexpm.public_key
+
+    assert {:error, _} = Hex.Repo.get_public_key("http://localhost:4000/acme", nil)
+  end
 end
