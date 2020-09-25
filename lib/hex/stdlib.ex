@@ -42,6 +42,55 @@ defmodule Hex.Stdlib do
     end
   end
 
+  # The padding: false on Base.encode64 requires Elixir v1.3+,
+  # so we do a String.replace/3 instead
+  def base_encode64_nopadding(binary) do
+    binary
+    |> Base.encode64()
+    |> String.replace("=", "")
+  end
+
+  require Bitwise
+  require Record
+
+  Record.defrecordp(
+    :rsa_public_key,
+    :RSAPublicKey,
+    Record.extract(:RSAPublicKey, from_lib: "public_key/include/public_key.hrl")
+  )
+
+  # :ssh2_pubkey requires OTP 18+
+  def ssh2_pubkey_encode(rsa_public_key(modulus: n, publicExponent: e)) do
+    <<string("ssh-rsa")::binary, mpint(e)::binary, mpint(n)::binary>>
+  end
+
+  defp mpint(x) when x < 0 do
+    bin = int_to_bin_neg(x, [])
+    string(bin)
+  end
+
+  defp mpint(x) do
+    bin = int_to_bin_pos(x, [])
+    <<msb, _::binary>> = bin
+
+    if Bitwise.band(msb, 0x80) == 0x80 do
+      b = <<0, bin::binary>>
+      string(b)
+    else
+      string(bin)
+    end
+  end
+
+  defp string(bin) do
+    <<byte_size(bin)::32-unsigned-big, bin::binary>>
+  end
+
+  defp int_to_bin_pos(0, ds = [_ | _]), do: :erlang.list_to_binary(ds)
+  defp int_to_bin_pos(x, ds), do: int_to_bin_pos(Bitwise.bsr(x, 8), [Bitwise.band(x, 255) | ds])
+
+  defp int_to_bin_neg(-1, ds = [msb | _]) when msb >= 0x80, do: :erlang.list_to_binary(ds)
+  defp int_to_bin_neg(x, ds), do: int_to_bin_neg(Bitwise.bsr(x, 8), [Bitwise.band(x, 255) | ds])
+
   def file_lstat(path, opts \\ []) do
     opts = Keyword.put_new(opts, :time, :universal)
 
