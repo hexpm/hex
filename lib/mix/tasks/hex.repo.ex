@@ -209,11 +209,13 @@ defmodule Mix.Tasks.Hex.Repo do
         if show_public_key(key) == fingerprint do
           key
         else
-          Mix.raise("public key fingerprint does not match with provided")
+          Mix.raise("Public key fingerprint mismatch")
         end
 
-      {:error, _} ->
-        Mix.raise("could not download public key. check your auth key and the server")
+      other ->
+        Hex.Shell.error("Downloading public key failed")
+        Hex.Utils.print_error_result(other)
+        Mix.Tasks.Hex.set_exit_code(1)
     end
   end
 
