@@ -24,7 +24,7 @@ defmodule Hex.HTTP.SSL do
     'ECDHE-RSA-CHACHA20-POLY1305-SHA256'
   ]
 
-  @default_versions [:"tlsv1.3", :"tlsv1.2", :"tlsv1.1", :tlsv1]
+  @default_versions [:"tlsv1.2", :"tlsv1.1", :tlsv1]
 
   @secure_ssl_version {5, 3, 7}
 
