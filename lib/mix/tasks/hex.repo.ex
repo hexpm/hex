@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Hex.Repo do
 
     * `--public-key PATH` - Path to public key used to verify the registry (optional).
     * `--auth-key KEY` - Key used to authenticate HTTP requests to repository (optional).
-    * `--fetch-public-key FINGERPRINT` - It will automatically download the public key (optional).
+    * `--fetch-public-key FINGERPRINT` - Download public key from the repository and verify against the fingerprint (optional).
 
   ## Set config for repo
 
