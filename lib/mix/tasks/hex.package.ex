@@ -150,11 +150,16 @@ defmodule Mix.Tasks.Hex.Package do
 
     File.write!(tar_path, tarball)
 
-    %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
-      Hex.Tar.unpack!(tar_path, abs_path)
+    if unpack? do
+      %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
+        Hex.Tar.unpack!(tar_path, abs_path)
 
-    verify_inner_checksum!(repo, package, version, inner_checksum)
-    verify_outer_checksum!(repo, package, version, outer_checksum)
+      verify_inner_checksum!(repo, package, version, inner_checksum)
+      verify_outer_checksum!(repo, package, version, outer_checksum)
+    else
+      {:ok, outer_checksum} = Hex.Tar.outer_checksum(tar_path)
+      verify_outer_checksum!(repo, package, version, outer_checksum)
+    end
 
     message =
       if unpack? do
