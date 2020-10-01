@@ -37,11 +37,13 @@ defmodule Mix.Tasks.Hex.Repo do
 
     * `--public-key PATH` - Path to public key used to verify the registry (optional).
     * `--auth-key KEY` - Key used to authenticate HTTP requests to repository (optional).
+    * `--fetch-public-key FINGERPRINT` - Download public key from the repository and verify against the fingerprint (optional).
 
   ## Set config for repo
 
       mix hex.repo set NAME --url URL
       mix hex.repo set NAME --public-key PATH
+      mix hex.repo set NAME --fetch-public-key FINGERPRINT
       mix hex.repo set NAME --auth-key KEY
 
   ## Remove repo
@@ -58,7 +60,7 @@ defmodule Mix.Tasks.Hex.Repo do
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [url: :string, public_key: :string, auth_key: :string]
+  @switches [url: :string, public_key: :string, auth_key: :string, fetch_public_key: :string]
 
   @impl true
   def run(args) do
@@ -109,12 +111,15 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp add(name, url, opts) do
-    public_key = read_public_key(opts[:public_key])
+    public_key =
+      read_public_key(opts[:public_key]) ||
+        fetch_public_key(opts[:fetch_public_key], url, opts[:auth_key])
 
     repo =
       %{
         url: url,
         public_key: nil,
+        fetch_public_key: nil,
         auth_key: nil
       }
       |> Map.merge(Enum.into(opts, %{}))
@@ -196,14 +201,36 @@ defmodule Mix.Tasks.Hex.Repo do
     ssh_hostkey_fingerprint(public_key)
   end
 
+  defp fetch_public_key(nil, _, _), do: nil
+
+  defp fetch_public_key(fingerprint, repo_url, auth_key) do
+    case Hex.Repo.get_public_key(repo_url, auth_key) do
+      {:ok, {200, key, _}} ->
+        if show_public_key(key) == fingerprint do
+          key
+        else
+          Mix.raise("Public key fingerprint mismatch")
+        end
+
+      {:ok, {code, _, _}} ->
+        Hex.Shell.error("Downloading public key failed with code \"#{inspect(code)}\"")
+        Mix.Tasks.Hex.set_exit_code(1)
+
+      other ->
+        Hex.Shell.error("Downloading public key failed")
+        Hex.Utils.print_error_result(other)
+        Mix.Tasks.Hex.set_exit_code(1)
+    end
+  end
+
   # Adapted from https://github.com/erlang/otp/blob/3eddb0f762de248d3230b38bc9d478bfbc8e7331/lib/public_key/src/public_key.erl#L824
   defp ssh_hostkey_fingerprint(key) do
     "SHA256:#{sshfp_string(key)}"
   end
 
   defp sshfp_string(key) do
-    :crypto.hash(:sha256, :public_key.ssh_encode(key, :ssh2_pubkey))
-    |> Base.encode64(padding: false)
+    :crypto.hash(:sha256, Hex.Stdlib.ssh2_pubkey_encode(key))
+    |> Hex.Stdlib.base_encode64_nopadding()
   end
 
   defp show(name) do

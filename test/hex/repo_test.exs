@@ -45,4 +45,30 @@ defmodule Hex.RepoTest do
     assert Hex.Repo.decode_package(message, "other repo", "ecto") == []
     assert Hex.Repo.decode_package(message, "hexpm", "other package") == []
   end
+
+  test "get public key" do
+    bypass = Bypass.open()
+    repos = Hex.State.fetch!(:repos)
+    hexpm = Hex.Repo.default_hexpm_repo()
+    repos = put_in(repos["hexpm"].url, "http://localhost:#{bypass.port}")
+    Hex.State.put(:repos, repos)
+
+    Bypass.expect(bypass, fn %Plug.Conn{request_path: path} = conn ->
+      case path do
+        "/public_key" ->
+          Plug.Conn.resp(conn, 200, hexpm.public_key)
+
+        "/not_found/public_key" ->
+          Plug.Conn.resp(conn, 404, "not found")
+      end
+    end)
+
+    assert {:ok, {200, public_key, _}} =
+             Hex.Repo.get_public_key("http://localhost:#{bypass.port}", nil)
+
+    assert public_key == hexpm.public_key
+
+    assert {:ok, {404, "not found", _}} =
+             Hex.Repo.get_public_key("http://localhost:#{bypass.port}/not_found", nil)
+  end
 end
