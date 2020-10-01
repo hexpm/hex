@@ -77,10 +77,12 @@ defmodule Mix.Tasks.Hex.Info do
 
       {:ok, {404, _, _}} ->
         Hex.Shell.error("No package with name #{package}")
+        Mix.Tasks.Hex.set_exit_code(1)
 
       other ->
         Hex.Shell.error("Failed to retrieve package information")
         Hex.Utils.print_error_result(other)
+        Mix.Tasks.Hex.set_exit_code(1)
     end
   end
 
@@ -93,10 +95,12 @@ defmodule Mix.Tasks.Hex.Info do
 
       {:ok, {404, _, _}} ->
         Hex.Shell.error("No release with name #{package} #{version}")
+        Mix.Tasks.Hex.set_exit_code(1)
 
       other ->
         Hex.Shell.error("Failed to retrieve release information")
         Hex.Utils.print_error_result(other)
+        Mix.Tasks.Hex.set_exit_code(1)
     end
   end
 

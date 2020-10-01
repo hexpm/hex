@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
     assert_received {:mix_shell, :info, ["Config: {:ex_doc, \"~> 0.1.0\"}"]}
     assert_received {:mix_shell, :info, ["Releases: 0.1.0, 0.1.0-rc1, 0.0.1\n"]}
 
-    Mix.Tasks.Hex.Info.run(["no_package"])
+    assert catch_throw(Mix.Tasks.Hex.Info.run(["no_package"])) == {:exit_code, 1}
     assert_received {:mix_shell, :error, ["No package with name no_package"]}
   end
 
@@ -78,7 +78,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
     Mix.Tasks.Hex.Info.run(["ex_doc", "0.1.0-rc1"])
     assert_received {:mix_shell, :info, ["Config: {:ex_doc, \"~> 0.1.0-rc1\"}"]}
 
-    Mix.Tasks.Hex.Info.run(["ex_doc", "1.2.3"])
+    assert catch_throw(Mix.Tasks.Hex.Info.run(["ex_doc", "1.2.3"])) == {:exit_code, 1}
     assert_received {:mix_shell, :error, ["No release with name ex_doc 1.2.3"]}
   end
 
