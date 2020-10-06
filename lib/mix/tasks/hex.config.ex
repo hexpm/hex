@@ -41,6 +41,9 @@ defmodule Mix.Tasks.Hex.Config do
       environment variable `HTTP_PROXY` (Default: `nil`)
     * `https_proxy` - HTTPS proxy server. Can be overridden by setting the
       environment variable `HTTPS_PROXY` (Default: `nil`)
+    * `no_proxy` - A comma separated list of hostnames that will not be proxied,
+      asterisks can be used as wildcards. Can be overridden by setting the
+      environment variable `NO_PROXY` (Default: `nil`)
     * `http_concurrency` - Limits the number of concurrent HTTP requests in
       flight. Can be overridden by setting the environment variable
       `HEX_HTTP_CONCURRENCY` (Default: `8`)
