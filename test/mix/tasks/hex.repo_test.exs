@@ -75,8 +75,8 @@ defmodule Mix.Tasks.Hex.RepoTest do
     in_tmp(fn ->
       Hex.State.put(:home, File.cwd!())
 
-      assert_raise Mix.Error, "Config does not contain repo reponame", fn ->
-        Mix.Tasks.Hex.Repo.run(["show", "reponame"])
+      assert_raise Mix.Error, "Config does not contain repo non-existant-reponame", fn ->
+        Mix.Tasks.Hex.Repo.run(["show", "non-existant-reponame"])
       end
     end)
   end
