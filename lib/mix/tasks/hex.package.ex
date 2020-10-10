@@ -28,7 +28,6 @@ defmodule Mix.Tasks.Hex.Package do
   the target package version, unpacking the target version into
   temporary directory and running a diff command.
 
-      mix hex.package diff PACKAGE VERSION1 VERSION2
       mix hex.package diff PACKAGE VERSION1..VERSION2
 
   This command fetches package tarballs for both versions,
@@ -106,7 +105,7 @@ defmodule Mix.Tasks.Hex.Package do
           Invalid arguments, expected one of:
 
           mix hex.package fetch PACKAGE VERSION [--unpack]
-          mix hex.package diff PACKAGE VERSION
+          mix hex.package diff APP VERSION
           mix hex.package diff PACKAGE VERSION1..VERSION2
         """)
     end
@@ -116,7 +115,7 @@ defmodule Mix.Tasks.Hex.Package do
   def tasks() do
     [
       {"fetch PACKAGE VERSION [--unpack]", "Fetch the package"},
-      {"diff PACKAGE VERSION", "Diff dependency against version"},
+      {"diff APP VERSION", "Diff dependency against version"},
       {"diff PACKAGE VERSION1..VERSION2", "Diff package versions"}
     ]
   end
@@ -207,7 +206,7 @@ defmodule Mix.Tasks.Hex.Package do
   end
 
   defp diff(repo, app, version) when is_binary(version) do
-    Hex.check_deps()
+    Hex.Mix.check_deps()
 
     {path_lock, package} =
       case Map.get(Mix.Dep.Lock.read(), String.to_atom(app)) do
@@ -257,7 +256,7 @@ defmodule Mix.Tasks.Hex.Package do
         tarball = fetch_tarball!(repo, package, version)
 
         %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
-          Hex.unpack_tar!({:binary, tarball}, path)
+          Hex.Tar.unpack!({:binary, tarball}, path)
 
         verify_inner_checksum!(repo, package, version, inner_checksum)
         verify_outer_checksum!(repo, package, version, outer_checksum)
