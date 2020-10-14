@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.Package do
   @default_diff_command "git diff --no-index __PATH1__ __PATH2__"
 
   @doc false
-  def default_diff_command(), do: @default_diff_command()
+  def default_diff_command(), do: @default_diff_command
 
   @moduledoc """
   Fetches or diffs packages.
