@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## v0.20.6-dev
+## v0.20.6 (2020-10-20)
+
+### Bug fixes
+
+* Fix compatibility with OTP 24
 
 ## v0.20.5 (2020-02-05)
 
