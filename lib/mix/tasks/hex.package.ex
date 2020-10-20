@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.Package do
   @default_diff_command "git diff --no-index __PATH1__ __PATH2__"
 
   @doc false
-  def default_diff_command(), do: @default_diff_command()
+  def default_diff_command(), do: @default_diff_command
 
   @moduledoc """
   Fetches or diffs packages.
@@ -27,6 +27,8 @@ defmodule Mix.Tasks.Hex.Package do
   This command compares the project's dependency `APP` against
   the target package version, unpacking the target version into
   temporary directory and running a diff command.
+
+  ## Fetch and diff package contents between versions
 
       mix hex.package diff PACKAGE VERSION1 VERSION2
       mix hex.package diff PACKAGE VERSION1..VERSION2
@@ -153,11 +155,16 @@ defmodule Mix.Tasks.Hex.Package do
 
     File.write!(tar_path, tarball)
 
-    %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
-      Hex.Tar.unpack!(tar_path, abs_path)
+    if unpack? do
+      %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
+        Hex.Tar.unpack!(tar_path, abs_path)
 
-    verify_inner_checksum!(repo, package, version, inner_checksum)
-    verify_outer_checksum!(repo, package, version, outer_checksum)
+      verify_inner_checksum!(repo, package, version, inner_checksum)
+      verify_outer_checksum!(repo, package, version, outer_checksum)
+    else
+      {:ok, outer_checksum} = Hex.Tar.outer_checksum(tar_path)
+      verify_outer_checksum!(repo, package, version, outer_checksum)
+    end
 
     message =
       if unpack? do

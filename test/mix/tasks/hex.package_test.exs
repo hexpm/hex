@@ -19,6 +19,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
       msg = "ex_doc v0.0.1 downloaded to #{cwd}/ex_doc-0.0.1.tar"
       assert_received {:mix_shell, :info, [^msg]}
       assert File.exists?("#{cwd}/ex_doc-0.0.1.tar")
+      refute File.exists?("#{cwd}/ex_doc-0.0.1/")
     end)
   end
 
