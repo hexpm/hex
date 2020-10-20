@@ -28,6 +28,7 @@ defmodule Mix.Tasks.Hex.Package do
   the target package version, unpacking the target version into
   temporary directory and running a diff command.
 
+      mix hex.package diff PACKAGE VERSION1 VERSION2
       mix hex.package diff PACKAGE VERSION1..VERSION2
 
   This command fetches package tarballs for both versions,
