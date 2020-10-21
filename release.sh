@@ -9,20 +9,10 @@ function join { local IFS="$1"; shift; echo "$*"; }
 # $3 = elixir version
 # $4 = saved elixir version
 function build {
-  rm -f .tool-versions
-  rm -rf _build
-  rm -f src/mix_safe_erl_term.erl
-
-  echo "Building erlang ${2} elixir ${3}-otp-${2:0:2}"
-  printf "erlang ${2}\nelixir ${3}-otp-${2:0:2}" > .tool-versions
-
-  MIX_ENV=prod mix compile
-
-  MIX_ENV=prod mix archive.build
-  MIX_ENV=prod mix archive.build -o hex.ez
-
-  mv hex.ez "hex-${4}.ez"
-  mv "hex-${1}.ez" "hex-${1}-${4}.ez"
+  rm -rf _build src/mix_safe_erl_term.erl
+  docker run -v $PWD:/hex hexpm/elixir:${3}-erlang-${2}-ubuntu-xenial-20200212 sh -c "cd /hex && MIX_ENV=prod mix archive.build -o hex-${1}.ez"
+  cp hex-${1}.ez hex-elixir-${4}.ez
+  cp hex-${1}.ez hex-${1}-elixir-${4}.ez
 }
 
 # $1   = hex version
@@ -59,8 +49,8 @@ function s3down {
 function upload {
   for elixir in "${@:2}"
   do
-    s3up "hex-${elixir}.ez" "${elixir}/hex.ez"
-    s3up "hex-${1}-${elixir}.ez" "${elixir}/hex-${1}.ez"
+    s3up "hex-elixir-${elixir}.ez" "${elixir}/hex.ez"
+    s3up "hex-${1}-elixir-${elixir}.ez" "${elixir}/hex-${1}.ez"
   done
 
   # special case 1.0.0 upload
@@ -70,12 +60,11 @@ function upload {
   s3up hex-1.x.csv.signed hex-1.x.csv.signed
 }
 
-
-# UPDATE THIS FOR EVERY RELEASE
 hex_version=$1
 
+# UPDATE THIS FOR EVERY RELEASE
 build ${hex_version} 21.3 1.11.1 1.11.0
-build ${hex_version} 21.3 1.10.0 1.10.0
+build ${hex_version} 21.3 1.10.4 1.10.0
 build ${hex_version} 20.3 1.9.4 1.9.0
 build ${hex_version} 20.3 1.8.2 1.8.0
 build ${hex_version} 19.3 1.7.4 1.7.0
@@ -86,6 +75,7 @@ build ${hex_version} 18.3 1.3.4 1.3.0
 build ${hex_version} 18.3 1.2.6 1.2.0
 build ${hex_version} 17.5 1.1.1 1.1.0
 build ${hex_version} 17.5 1.0.5 1.0.0
+rm -rf _build
 
 hex_csv "${hex_version}" 1.0.0 1.1.0 1.2.0 1.3.0 1.4.0 1.5.0 1.6.0 1.7.0 1.8.0 1.9.0 1.10.0 1.11.0
 upload  "${hex_version}" 1.0.0 1.1.0 1.2.0 1.3.0 1.4.0 1.5.0 1.6.0 1.7.0 1.8.0 1.9.0 1.10.0 1.11.0
@@ -93,8 +83,3 @@ upload  "${hex_version}" 1.0.0 1.1.0 1.2.0 1.3.0 1.4.0 1.5.0 1.6.0 1.7.0 1.8.0 1
 pushd "../hexpm-ops"
 scripts/kubeexec hexpm --prod -- bin/hexpm eval "Hexpm.ReleaseTasks.script([\"add_install.exs\",\"${hex_version}\",\"1.11.0\",\"1.10.0\",\"1.9.0\",\"1.8.0\",\"1.7.0\",\"1.6.0\",\"1.5.0\",\"1.4.0\",\"1.3.0\",\"1.2.0\",\"1.1.0\",\"1.0.0\"])"
 popd
-
-# CDN also needs to be purged
-
-rm -rf _build
-rm -rf .tool-versions

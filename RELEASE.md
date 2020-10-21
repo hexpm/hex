@@ -6,7 +6,7 @@ This document simply outlines the release process:
 
 2. Ensure CHANGELOG is updated and add current date
 
-3. Update the local `release.sh` with the Elixir and OTP versions Hex should be built against. Make sure you have installed all the Elixir and OTP versions listed with asdf
+3. Update the local `release.sh` with the Elixir and OTP versions Hex should be built against.
 
 4. Commit changes above with title "Release vVERSION" and generate new tag
 
