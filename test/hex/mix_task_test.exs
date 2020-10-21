@@ -909,6 +909,9 @@ defmodule Hex.MixTaskTest do
 
       Mix.Task.run("deps.get")
       Mix.Task.run("compile")
+      # due to bug in Mix, dep that was just compiled and about to be updated is not actually
+      # updated because we have the same mtime on .fetch and .mix/compile.fetch lock files
+      wait_until_next_second()
       Mix.Task.run("deps.update", ["ecto_sql"])
     end)
   after
@@ -919,5 +922,10 @@ defmodule Hex.MixTaskTest do
       Ecto_3_3_1.Fixture.MixProject,
       Ecto_3_3_2.Fixture.MixProject
     ])
+  end
+
+  defp wait_until_next_second() do
+    {microseconds, 6} = Time.utc_now().microsecond
+    Process.sleep(div(1_000_000 - microseconds, 1_000) + 1)
   end
 end
