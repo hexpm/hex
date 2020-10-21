@@ -1,5 +1,38 @@
 # CHANGELOG
 
+## v0.21.0-dev (unreleased)
+
+### Enhancements
+
+* Add `--epub` option to `mix hex.docs offline`
+* Add `--replace` option to `mix hex.publish`
+* Add locked version to `mix hex.info <package>`
+* Clarify publish message around ownership
+* Remove reliance on colors for hex.outdated
+* Follow xdg base dir specification
+* Add link to diffs page in footer of `mix hex.outdated`
+* Introduce `latest` branch to install Hex using `mix archive.install git ...`
+* Add `--repo` flag to `mix hex.package` task
+* Make `mix hex.package diff` more CLI-friendly
+* Customize hostname check to allow also wildcard certificates
+* Use API for dependency config in mix hex.info
+* Do not pass --canonical to docs task
+* Always add `*.DS_Store` to `:exclude_patterns`
+* Add note about updatable packages to `mix hex.outdated` task
+* Use tarball outer checksum to check cache freshness
+* Add `--within-requirements` flag to `mix hex.outdated`
+* Add `--fetch-public-key FINGERPRINT` to `mix hex.repo add`
+* Return non-zero exit when package or release are not found in `mix hex.info`
+
+### Bug fixes
+
+* Fix order of organizations displayed on `mix hex.publish`
+* Fix stacktrace warning
+* Hide `mix hex.install` private task
+* Fix `mix hex.repo remove` command doc
+* Fix backtracking on single parent
+* Do not unpack the tarball on `mix hex.package fetch` unless `--unpack` is passed
+
 ## v0.20.6 (2020-10-20)
 
 ### Bug fixes
