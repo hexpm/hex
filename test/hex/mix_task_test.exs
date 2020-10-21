@@ -892,7 +892,7 @@ defmodule Hex.MixTaskTest do
     ])
   end
 
-  if Version.match?(System.version(), "< 1.11.0-dev") do
+  if Version.match?(System.version(), "< 1.12.0-dev") do
     @tag :skip
   end
 
