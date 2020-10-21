@@ -11,8 +11,8 @@ function join { local IFS="$1"; shift; echo "$*"; }
 function build {
   rm -rf _build src/mix_safe_erl_term.erl
   docker run -v $PWD:/hex hexpm/elixir:${3}-erlang-${2}-ubuntu-xenial-20200212 sh -c "cd /hex && MIX_ENV=prod mix archive.build -o hex-${1}.ez"
-  cp hex-${1}.ez hex-${4}.ez
-  cp hex-${1}.ez hex-${1}-${4}.ez
+  cp hex-${1}.ez hex-elixir-${4}.ez
+  cp hex-${1}.ez hex-${1}-elixir-${4}.ez
 }
 
 # $1   = hex version
@@ -49,8 +49,8 @@ function s3down {
 function upload {
   for elixir in "${@:2}"
   do
-    s3up "hex-${elixir}.ez" "${elixir}/hex.ez"
-    s3up "hex-${1}-${elixir}.ez" "${elixir}/hex-${1}.ez"
+    s3up "hex-elixir-${elixir}.ez" "${elixir}/hex.ez"
+    s3up "hex-${1}-elixir-${elixir}.ez" "${elixir}/hex-${1}.ez"
   done
 
   # special case 1.0.0 upload
