@@ -41,10 +41,10 @@ defmodule Mix.Tasks.Hex.Publish do
   `mix hex.publish --revert VERSION` or to only revert the documentation run
   `mix hex.publish docs --revert VERSION`.
 
+  If the last version is reverted, the package is removed.
+
   ## Command line options
 
-    * `--revert VERSION` - Revert given version, if the last version is reverted
-      the package is removed
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
     * `--yes` - Publishes the package without any confirmation prompts
     * `--dry-run` - Builds package and performs local checks without publishing,
@@ -52,6 +52,8 @@ defmodule Mix.Tasks.Hex.Publish do
     * `--replace` - Allows overwriting an existing package version if it exists.
       Private packages can always be overwritten, public packages can only be
       overwritten within one hour after they were initially published.
+    * `--revert VERSION` - Revert given version. If the last version is reverted,
+      the package is removed.
 
   ## Configuration
 
