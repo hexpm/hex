@@ -173,17 +173,18 @@ defmodule Hex.HTTP do
   end
 
   defp proxy_setup do
-    http_proxy = (proxy = Hex.State.fetch!(:http_proxy)) && proxy(:http, proxy)
-    https_proxy = (proxy = Hex.State.fetch!(:https_proxy)) && proxy(:https, proxy)
+    no_proxy = no_proxy()
+    http_proxy = (proxy = Hex.State.fetch!(:http_proxy)) && proxy(:http, proxy, no_proxy)
+    https_proxy = (proxy = Hex.State.fetch!(:https_proxy)) && proxy(:https, proxy, no_proxy)
     {http_proxy, https_proxy}
   end
 
-  defp proxy(scheme, proxy) do
+  defp proxy(scheme, proxy, no_proxy) do
     uri = URI.parse(proxy)
 
     if uri.host && uri.port do
       host = Hex.Stdlib.string_to_charlist(uri.host)
-      :httpc.set_options([{proxy_scheme(scheme), {{host, uri.port}, []}}], :hex)
+      :httpc.set_options([{proxy_scheme(scheme), {{host, uri.port}, no_proxy}}], :hex)
     end
 
     uri
@@ -218,6 +219,12 @@ defmodule Hex.HTTP do
     user = Hex.Stdlib.string_to_charlist(user)
     pass = Hex.Stdlib.string_to_charlist(pass || "")
     [proxy_auth: {user, pass}]
+  end
+
+  defp no_proxy() do
+    (Hex.State.fetch!(:no_proxy) || "")
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.to_charlist/1)
   end
 
   defp user_agent do

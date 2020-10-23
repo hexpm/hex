@@ -67,6 +67,10 @@ defmodule Hex.State do
       env: ["https_proxy", "HTTPS_PROXY"],
       config: [:https_proxy]
     },
+    no_proxy: %{
+      env: ["no_proxy", "NO_PROXY"],
+      config: [:no_proxy]
+    },
     http_timeout: %{
       env: ["HEX_HTTP_TIMEOUT"],
       config: [:http_timeout],
