@@ -123,7 +123,7 @@ defmodule Mix.Tasks.Hex.Package do
     [
       {"fetch PACKAGE VERSION [--unpack]", "Fetch the package"},
       {"diff APP VERSION", "Diff dependency against version"},
-      {"diff PACKAGE VERSION1 VERSION2", "Fetch and diff package contents between versions"},
+      {"diff PACKAGE VERSION1 VERSION2", "Diff package versions"},
       {"diff PACKAGE VERSION1..VERSION2", "Diff package versions"}
     ]
   end
