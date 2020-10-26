@@ -159,7 +159,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
     in_diff_fixture(fn ->
       Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
 
-      assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.1.0"])) ==
+      assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1", "0.1.0"])) ==
                {:exit_code, 1}
 
       assert_received {:mix_shell, :run, [out]}

@@ -100,6 +100,9 @@ defmodule Mix.Tasks.Hex.Package do
       ["fetch", package, version] ->
         fetch(repo(opts), package, version, unpack, output)
 
+      ["diff", package, version1, version2] ->
+        diff(repo(opts), package, parse_version!(version1, version2))
+
       ["diff", package, version] ->
         diff(repo(opts), package, parse_version!(version))
 
@@ -109,6 +112,7 @@ defmodule Mix.Tasks.Hex.Package do
 
           mix hex.package fetch PACKAGE VERSION [--unpack]
           mix hex.package diff APP VERSION
+          mix hex.package diff PACKAGE VERSION1 VERSION2
           mix hex.package diff PACKAGE VERSION1..VERSION2
         """)
     end
@@ -119,6 +123,7 @@ defmodule Mix.Tasks.Hex.Package do
     [
       {"fetch PACKAGE VERSION [--unpack]", "Fetch the package"},
       {"diff APP VERSION", "Diff dependency against version"},
+      {"diff PACKAGE VERSION1 VERSION2", "Fetch and diff package contents between versions"},
       {"diff PACKAGE VERSION1..VERSION2", "Diff package versions"}
     ]
   end
@@ -296,14 +301,20 @@ defmodule Mix.Tasks.Hex.Package do
   defp parse_version!(string) do
     case String.split(string, "..", trim: true) do
       [version1, version2] ->
-        version1 = Hex.Version.parse!(version1)
-        version2 = Hex.Version.parse!(version2)
-        {to_string(version1), to_string(version2)}
-
+        parse_two_versions!(version1, version2)
       [version] ->
-        version = Hex.Version.parse!(version)
-        to_string(version)
+        version |> Hex.Version.parse!() |> to_string()
     end
+  end
+
+  defp parse_version!(version1, version2) do
+    parse_two_versions!(version1, version2)
+  end
+
+  defp parse_two_versions!(version1, version2) do
+    version1 = Hex.Version.parse!(version1)
+    version2 = Hex.Version.parse!(version2)
+    {to_string(version1), to_string(version2)}
   end
 
   defp repo(opts) do
