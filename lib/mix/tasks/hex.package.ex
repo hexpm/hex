@@ -302,6 +302,7 @@ defmodule Mix.Tasks.Hex.Package do
     case String.split(string, "..", trim: true) do
       [version1, version2] ->
         parse_two_versions!(version1, version2)
+
       [version] ->
         version |> Hex.Version.parse!() |> to_string()
     end
