@@ -26,11 +26,11 @@ defmodule Mix.Tasks.Hex.SponsorTest do
     assert_received {:mix_shell, :info, [header_output]}
     assert_received {:mix_shell, :info, [package_line]}
 
-    assert String.match?(header_output, ~r/Dependency/)
-    assert String.match?(header_output, ~r/Sponsorship/)
+    assert header_output =~ "Dependency"
+    assert header_output =~ "Sponsorship"
 
-    assert String.match?(package_line, ~r/#{@package_name}/)
-    assert String.match?(package_line, ~r/#{url}/)
+    assert package_line =~ @package_name
+    assert package_line =~ url
   end
 
   test "without sponsor link", context do
@@ -41,7 +41,7 @@ defmodule Mix.Tasks.Hex.SponsorTest do
     assert_received {:mix_shell, :info, [header_output]}
     refute_received {:mix_shell, :info, [_package_line]}
 
-    assert String.match?(header_output, ~r/No dependencies with sponsorship links found/)
+    assert header_output =~ "No dependencies with sponsorship links found"
   end
 
   defp with_test_package(version, metadata, %{auth: auth}, fun) do

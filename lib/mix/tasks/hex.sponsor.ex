@@ -20,8 +20,6 @@ defmodule Mix.Tasks.Hex.Sponsor do
   @impl true
   def run(_) do
     Hex.Mix.check_deps()
-    Hex.start()
-    Registry.open()
 
     lock = Mix.Dep.Lock.read()
     deps_path = Mix.Project.deps_path()
