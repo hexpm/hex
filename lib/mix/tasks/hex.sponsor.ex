@@ -1,10 +1,10 @@
 defmodule Mix.Tasks.Hex.Sponsor do
   use Mix.Task
 
-  @shortdoc "Shows Hex deps accepting sponsorship"
+  @shortdoc "Show Hex packages accepting sponsorships"
 
   @moduledoc """
-  Shows Hex deps based on mix.lock accepting sponsorship.
+  Show Hex packages in your dependencies that accept sponsorships.
 
   Sponsorship plays an important role to maintain some open
   source projects. This task will display all packages that
@@ -54,10 +54,7 @@ defmodule Mix.Tasks.Hex.Sponsor do
   end
 
   defp read_metadata(package, deps_path) do
-    deps_path
-    |> Path.join(package)
-    |> Path.join(@metadata_file)
-    |> :file.consult()
+    :file.consult(Path.join([deps_path, package, @metadata_file]))
   end
 
   defp sponsorship(metadata) do
