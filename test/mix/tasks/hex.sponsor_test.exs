@@ -41,7 +41,7 @@ defmodule Mix.Tasks.Hex.SponsorTest do
     assert_received {:mix_shell, :info, [header_output]}
     refute_received {:mix_shell, :info, [_package_line]}
 
-    assert header_output =~ "No dependencies with sponsorship links found"
+    assert header_output =~ "No dependencies with sponsorship link found"
   end
 
   defp with_test_package(version, metadata, %{auth: auth}, fun) do
