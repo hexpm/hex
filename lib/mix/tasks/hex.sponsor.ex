@@ -1,8 +1,6 @@
 defmodule Mix.Tasks.Hex.Sponsor do
   use Mix.Task
 
-  alias Hex.Registry.Server, as: Registry
-
   @shortdoc "Shows Hex deps accepting sponsorship"
 
   @moduledoc """
