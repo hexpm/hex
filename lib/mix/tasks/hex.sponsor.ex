@@ -69,7 +69,7 @@ defmodule Mix.Tasks.Hex.Sponsor do
   @impl true
   def tasks() do
     [
-      {"", "Shows Hex deps accepting sponsorship from current project"}
+      {"", @shortdoc}
     ]
   end
 end
