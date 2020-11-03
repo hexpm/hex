@@ -45,9 +45,6 @@ defmodule Mix.Tasks.Hex.Sponsor do
             _ ->
               []
           end
-
-        _ ->
-          []
       end
     end)
   end
