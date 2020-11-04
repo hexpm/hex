@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.OwnerTest do
-  use HexTest.Case
-  @moduletag :integration
+  use HexTest.IntegrationCase
 
   test "add owner" do
     auth = Hexpm.new_user("owner_user1", "owner_user1@mail.com", "passpass", "key")

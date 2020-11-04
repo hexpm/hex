@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.DocsTest do
-  use HexTest.Case
-  @moduletag :integration
+  use HexTest.IntegrationCase
 
   defmodule ExampleDeps.MixProject do
     def project do

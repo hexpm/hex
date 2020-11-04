@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.UserTest do
-  use HexTest.Case
-  @moduletag :integration
+  use HexTest.IntegrationCase
 
   test "register" do
     send(self(), {:mix_shell_input, :prompt, "eric"})

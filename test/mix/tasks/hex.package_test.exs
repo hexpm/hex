@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.PackageTest do
-  use HexTest.Case
-  @moduletag :integration
+  use HexTest.IntegrationCase
 
   test "fetch: success" do
     in_tmp(fn ->
