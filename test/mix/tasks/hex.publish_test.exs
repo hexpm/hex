@@ -6,8 +6,7 @@ defmodule Mix.Tasks.Docs do
 end
 
 defmodule Mix.Tasks.Hex.PublishTest do
-  use HexTest.Case
-  @moduletag :integration
+  use HexTest.IntegrationCase
 
   defmodule DocsSimple.MixProject do
     def project do

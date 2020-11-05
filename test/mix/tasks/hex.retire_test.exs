@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.RetireTest do
-  use HexTest.Case
-  @moduletag :integration
+  use HexTest.IntegrationCase
 
   test "retire and unretire package" do
     auth = Hexpm.new_user("retire_user", "retire_user@mail.com", "passpass", "key")

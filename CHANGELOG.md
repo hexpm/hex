@@ -23,6 +23,7 @@
 * Add `--within-requirements` flag to `mix hex.outdated`
 * Add `--fetch-public-key FINGERPRINT` to `mix hex.repo add`
 * Return non-zero exit when package or release are not found in `mix hex.info`
+* Add `no_proxy` configuration
 
 ### Bug fixes
 

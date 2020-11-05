@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.AuditTest do
-  use HexTest.Case
-  @moduletag :integration
+  use HexTest.IntegrationCase
 
   @package :test_package
   @package_name Atom.to_string(@package)

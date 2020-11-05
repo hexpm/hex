@@ -1,6 +1,5 @@
 defmodule Hex.RepoTest do
-  use HexTest.Case
-  @moduletag :integration
+  use HexTest.IntegrationCase
 
   @private_key File.read!(Path.join(__DIR__, "../fixtures/test_priv.pem"))
 

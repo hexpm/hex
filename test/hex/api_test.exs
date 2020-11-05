@@ -1,6 +1,5 @@
 defmodule Hex.APITest do
-  use HexTest.Case
-  @moduletag :integration
+  use HexTest.IntegrationCase
 
   test "user" do
     assert {:ok, {201, _, _}} = Hex.API.User.new("test_user", "test_user@mail.com", "hunter42")

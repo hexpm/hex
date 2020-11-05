@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.SearchTest do
-  use HexTest.Case
-  @moduletag :integration
+  use HexTest.IntegrationCase
 
   test "search" do
     Mix.Tasks.Hex.Search.run(["doc"])

@@ -1,6 +1,5 @@
 defmodule Mix.Tasks.Hex.BuildTest do
-  use HexTest.Case
-  @moduletag :integration
+  use HexTest.IntegrationCase
 
   defp package_created?(name) do
     File.exists?("#{name}.tar")
