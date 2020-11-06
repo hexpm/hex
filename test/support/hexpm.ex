@@ -72,7 +72,7 @@ defmodule HexTest.Hexpm do
       {'HEX_SIGNING_KEY', key}
     ]
 
-    spawn_link(fn ->
+    spawn(fn ->
       port =
         Port.open({:spawn_executable, hexpm_mix()}, [
           :exit_status,
