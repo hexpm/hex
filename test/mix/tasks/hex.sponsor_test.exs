@@ -42,11 +42,6 @@ defmodule Mix.Tasks.Hex.SponsorTest do
     refute_received {:mix_shell, :info, [_package_line]}
 
     assert header_output =~ "No dependencies with sponsorship link found"
-
-    assert header_output =~
-             "You can add sponsorship links to your projects by adding the following to your mix.exs:"
-
-    assert header_output =~ ~s("Sponsor" => "[your-sponsorship-link]")
   end
 
   defp with_test_package(version, metadata, %{auth: auth}, fun) do

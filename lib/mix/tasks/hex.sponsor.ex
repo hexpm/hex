@@ -9,6 +9,14 @@ defmodule Mix.Tasks.Hex.Sponsor do
   Sponsorship plays an important role to maintain some open
   source projects. This task will display all packages that
   are accepting sponsorship from the current project.
+
+  You can add sponsorship links to your projects by adding the
+  following to your mix.exs:
+
+      links: %{
+        "GitHub" => "[your-repo-link]",
+        "Sponsor" => "[your-sponsorship-link]"
+      }
   """
 
   @behaviour Hex.Mix.TaskDescription
@@ -26,22 +34,7 @@ defmodule Mix.Tasks.Hex.Sponsor do
 
     case sponsor_links do
       [] ->
-        Hex.Shell.info([
-          "No dependencies with sponsorship link found.",
-          ?\n,
-          "You can add sponsorship links to your projects by ",
-          "adding the following to your mix.exs:",
-          ?\n,
-          ?\n,
-          "  links: %{",
-          ?\n,
-          ~s(    "GitHub" => "[your-repo-link]",),
-          ?\n,
-          ~s(    "Sponsor" => "[your-sponsorship-link]"),
-          ?\n,
-          "  }",
-          ?\n
-        ])
+        Hex.Shell.info("No dependencies with sponsorship link found.")
 
       deps_links ->
         header = ["Dependency", "Sponsorship"]
