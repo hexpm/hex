@@ -26,7 +26,22 @@ defmodule Mix.Tasks.Hex.Sponsor do
 
     case sponsor_links do
       [] ->
-        Hex.Shell.info("No dependencies with sponsorship link found")
+        Hex.Shell.info([
+          "No dependencies with sponsorship link found.",
+          ?\n,
+          "You can add sponsorship links to your projects by ",
+          "adding the following to your mix.exs:",
+          ?\n,
+          ?\n,
+          "  links: %{",
+          ?\n,
+          ~s(    "GitHub" => "[your-repo-link]",),
+          ?\n,
+          ~s(    "Sponsor" => "[your-sponsorship-link]"),
+          ?\n,
+          "  }",
+          ?\n
+        ])
 
       deps_links ->
         header = ["Dependency", "Sponsorship"]
