@@ -1,6 +1,16 @@
 defmodule Mix.Tasks.Hex.PackageTest do
   use HexTest.IntegrationCase
 
+  defp in_diff_fixture(fun) do
+    in_fixture("diff", fn ->
+      Mix.Project.push(ReleaseDeps.MixProject)
+      Mix.Dep.Lock.write(%{ex_doc: {:hex, :ex_doc, "0.0.1"}})
+      Hex.State.put(:home, File.cwd!())
+      Mix.Task.run("deps.get")
+      fun.()
+    end)
+  end
+
   test "fetch: success" do
     in_tmp(fn ->
       cwd = File.cwd!()
@@ -84,8 +94,53 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end
   end
 
-  test "diff: success" do
-    in_tmp(fn ->
+  test "diff: success with version number" do
+    in_diff_fixture(fn ->
+      Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
+
+      assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.1.0"])) ==
+               {:exit_code, 1}
+
+      assert_received {:mix_shell, :run, [out]}
+      assert out =~ ~s(-{<<"version">>,<<"0.0.1">>}.)
+      assert out =~ ~s(+{<<"version">>,<<"0.1.0">>}.)
+    end)
+  after
+    purge([ReleaseDeps.MixProject])
+  end
+
+  test "diff: outdated lockfile with single version number" do
+    msg = "Can't continue due to errors on dependencies"
+
+    in_diff_fixture(fn ->
+      assert_raise Mix.Error, msg, fn ->
+        Mix.Dep.Lock.write(%{
+          ok: {:ex_doc, "https://github.com/elixir-lang/ex_doc.git", "abcdefghi", []}
+        })
+
+        Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "1.0.0"])
+      end
+    end)
+  after
+    purge([ReleaseDeps.MixProject])
+  end
+
+  test "diff: not having target package with single version number" do
+    msg =
+      "Cannot find the app \"tesla\" in \"mix.lock\" file, " <>
+        "please ensure it has been specified in \"mix.exs\" and run \"mix deps.get\""
+
+    in_diff_fixture(fn ->
+      assert_raise Mix.Error, msg, fn ->
+        Mix.Tasks.Hex.Package.run(["diff", "tesla", "1.0.0"])
+      end
+    end)
+  after
+    purge([ReleaseDeps.MixProject])
+  end
+
+  test "diff: success with version range" do
+    in_diff_fixture(fn ->
       Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
 
       assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])) ==
@@ -95,10 +150,12 @@ defmodule Mix.Tasks.Hex.PackageTest do
       assert out =~ ~s(-{<<"version">>,<<"0.0.1">>}.)
       assert out =~ ~s(+{<<"version">>,<<"0.1.0">>}.)
     end)
+  after
+    purge([ReleaseDeps.MixProject])
   end
 
   test "diff: success (variant args)" do
-    in_tmp(fn ->
+    in_diff_fixture(fn ->
       Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
 
       assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1", "0.1.0"])) ==
@@ -108,10 +165,12 @@ defmodule Mix.Tasks.Hex.PackageTest do
       assert out =~ ~s(-{<<"version">>,<<"0.0.1">>}.)
       assert out =~ ~s(+{<<"version">>,<<"0.1.0">>}.)
     end)
+  after
+    purge([ReleaseDeps.MixProject])
   end
 
   test "diff: custom diff command" do
-    in_tmp(fn ->
+    in_diff_fixture(fn ->
       Hex.State.put(:diff_command, "ls __PATH1__ __PATH2__")
 
       assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])) ==
@@ -120,27 +179,27 @@ defmodule Mix.Tasks.Hex.PackageTest do
       assert_received {:mix_shell, :run, [out]}
       assert out =~ "hex_metadata.config\nmix.exs"
     end)
-  end
-
-  test "diff: bad version range" do
-    msg = "Expected version range to be in format `VERSION1..VERSION2`, got: `\"1.0.0..\"`"
-
-    assert_raise Mix.Error, msg, fn ->
-      Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "1.0.0.."])
-    end
+  after
+    purge([ReleaseDeps.MixProject])
   end
 
   test "diff: package not found" do
     Hex.State.put(:shell_process, self())
 
-    assert_raise Mix.Error, ~r"Request failed \(404\)", fn ->
-      Mix.Tasks.Hex.Package.run(["diff", "bad", "1.0.0..1.1.0"])
-    end
+    in_diff_fixture(fn ->
+      assert_raise Mix.Error, ~r"Request failed \(404\)", fn ->
+        Mix.Tasks.Hex.Package.run(["diff", "bad", "1.0.0..1.1.0"])
+      end
 
-    in_tmp(fn ->
       assert_raise Mix.Error, ~r"Request failed \(404\)", fn ->
         Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..2.0.0"])
       end
+
+      assert_raise Mix.Error, ~r"Request failed \(404\)", fn ->
+        Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "2.0.0"])
+      end
     end)
+  after
+    purge([ReleaseDeps.MixProject])
   end
 end

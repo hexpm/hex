@@ -20,6 +20,14 @@ defmodule Mix.Tasks.Hex.Package do
 
   You can pipe the fetched tarball to stdout by setting `--output -`.
 
+  ## Diff package versions
+
+      mix hex.package diff APP VERSION
+
+  This command compares the project's dependency `APP` against
+  the target package version, unpacking the target version into
+  temporary directory and running a diff command.
+
   ## Fetch and diff package contents between versions
 
       mix hex.package diff PACKAGE VERSION1 VERSION2
@@ -93,16 +101,17 @@ defmodule Mix.Tasks.Hex.Package do
         fetch(repo(opts), package, version, unpack, output)
 
       ["diff", package, version1, version2] ->
-        diff(repo(opts), package, "#{version1}..#{version2}")
+        diff(repo(opts), package, parse_version!(version1, version2))
 
-      ["diff", package, version_range] ->
-        diff(repo(opts), package, version_range)
+      ["diff", package, version] ->
+        diff(repo(opts), package, parse_version!(version))
 
       _ ->
         Mix.raise("""
           Invalid arguments, expected one of:
 
           mix hex.package fetch PACKAGE VERSION [--unpack]
+          mix hex.package diff APP VERSION
           mix hex.package diff PACKAGE VERSION1 VERSION2
           mix hex.package diff PACKAGE VERSION1..VERSION2
         """)
@@ -113,8 +122,9 @@ defmodule Mix.Tasks.Hex.Package do
   def tasks() do
     [
       {"fetch PACKAGE VERSION [--unpack]", "Fetch the package"},
-      {"diff PACKAGE VERSION1 VERSION2", "Fetch and diff package contents between versions"},
-      {"diff PACKAGE VERSION1..VERSION2", "Fetch and diff package contents between versions"}
+      {"diff APP VERSION", "Diff dependency against version"},
+      {"diff PACKAGE VERSION1 VERSION2", "Diff package versions"},
+      {"diff PACKAGE VERSION1..VERSION2", "Diff package versions"}
     ]
   end
 
@@ -137,15 +147,15 @@ defmodule Mix.Tasks.Hex.Package do
     Hex.Registry.Server.prefetch([{repo, package}])
 
     tarball = fetch_tarball!(repo, package, version)
-    if !is_nil(output), do: File.mkdir_p!(output)
+    if output, do: File.mkdir_p!(output)
 
     abs_name = Path.absname("#{package}-#{version}")
 
     {abs_path, tar_path} =
-      if is_nil(output) do
-        {abs_name, "#{abs_name}.tar"}
-      else
+      if output do
         {output, Path.join(output, "#{package}-#{version}.tar")}
+      else
+        {abs_name, "#{abs_name}.tar"}
       end
 
     File.write!(tar_path, tarball)
@@ -208,38 +218,41 @@ defmodule Mix.Tasks.Hex.Package do
     end
   end
 
-  defp diff(repo, package, version_range) do
-    Hex.Registry.Server.open()
-    Hex.Registry.Server.prefetch([{repo, package}])
+  defp diff(repo, app, version) when is_binary(version) do
+    Hex.Mix.check_deps()
 
-    {version1, version2} = parse_version_range!(version_range)
+    {path_lock, package} =
+      case Map.get(Mix.Dep.Lock.read(), String.to_atom(app)) do
+        nil ->
+          Mix.raise(
+            "Cannot find the app \"#{app}\" in \"mix.lock\" file, " <>
+              "please ensure it has been specified in \"mix.exs\" and run \"mix deps.get\""
+          )
+
+        lock ->
+          path = Path.join(Mix.Project.deps_path(), app)
+          package = Hex.Utils.lock(lock).name
+          {path, package}
+      end
+
+    path = tmp_path("#{package}-#{version}-")
+
+    try do
+      fetch_and_unpack!(repo, package, [{path, version}])
+      code = run_diff_path!(path_lock, path)
+      Mix.Tasks.Hex.set_exit_code(code)
+    after
+      File.rm_rf!(path)
+    end
+  end
+
+  defp diff(repo, package, {version1, version2}) do
     path1 = tmp_path("#{package}-#{version1}-")
     path2 = tmp_path("#{package}-#{version2}-")
 
     try do
-      tarball1 = fetch_tarball!(repo, package, version1)
-      tarball2 = fetch_tarball!(repo, package, version2)
-
-      %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
-        Hex.Tar.unpack!({:binary, tarball1}, path1)
-
-      verify_inner_checksum!(repo, package, version1, inner_checksum)
-      verify_outer_checksum!(repo, package, version1, outer_checksum)
-
-      %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
-        Hex.Tar.unpack!({:binary, tarball2}, path2)
-
-      verify_inner_checksum!(repo, package, version2, inner_checksum)
-      verify_outer_checksum!(repo, package, version2, outer_checksum)
-
-      Hex.Registry.Server.close()
-
-      cmd =
-        Hex.State.fetch!(:diff_command)
-        |> String.replace("__PATH1__", path1)
-        |> String.replace("__PATH2__", path2)
-
-      code = Mix.shell().cmd(cmd)
+      fetch_and_unpack!(repo, package, [{path1, version1}, {path2, version2}])
+      code = run_diff_path!(path1, path2)
       Mix.Tasks.Hex.set_exit_code(code)
     after
       File.rm_rf!(path1)
@@ -247,23 +260,62 @@ defmodule Mix.Tasks.Hex.Package do
     end
   end
 
+  defp fetch_and_unpack!(repo, package, versions) do
+    Hex.Registry.Server.open()
+    Hex.Registry.Server.prefetch([{repo, package}])
+
+    try do
+      Enum.each(versions, fn {path, version} ->
+        tarball = fetch_tarball!(repo, package, version)
+
+        %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
+          Hex.Tar.unpack!({:binary, tarball}, path)
+
+        verify_inner_checksum!(repo, package, version, inner_checksum)
+        verify_outer_checksum!(repo, package, version, outer_checksum)
+      end)
+    after
+      Hex.Registry.Server.close()
+    end
+  end
+
+  defp run_diff_path!(path1, path2) do
+    cmd =
+      Hex.State.fetch!(:diff_command)
+      |> String.replace("__PATH1__", escape_and_quote_path(path1))
+      |> String.replace("__PATH2__", escape_and_quote_path(path2))
+
+    Mix.shell().cmd(cmd)
+  end
+
+  defp escape_and_quote_path(path) do
+    escaped = String.replace(path, "\"", "\\\"")
+    ~s("#{escaped}")
+  end
+
   defp tmp_path(prefix) do
     random_string = Base.encode16(:crypto.strong_rand_bytes(4))
     Path.join(System.tmp_dir!(), prefix <> random_string)
   end
 
-  defp parse_version_range!(string) do
+  defp parse_version!(string) do
     case String.split(string, "..", trim: true) do
       [version1, version2] ->
-        version1 = Hex.Version.parse!(version1)
-        version2 = Hex.Version.parse!(version2)
-        {to_string(version1), to_string(version2)}
+        parse_two_versions!(version1, version2)
 
-      _ ->
-        Mix.raise(
-          "Expected version range to be in format `VERSION1..VERSION2`, got: `#{inspect(string)}`"
-        )
+      [version] ->
+        version |> Hex.Version.parse!() |> to_string()
     end
+  end
+
+  defp parse_version!(version1, version2) do
+    parse_two_versions!(version1, version2)
+  end
+
+  defp parse_two_versions!(version1, version2) do
+    version1 = Hex.Version.parse!(version1)
+    version2 = Hex.Version.parse!(version2)
+    {to_string(version1), to_string(version2)}
   end
 
   defp repo(opts) do
