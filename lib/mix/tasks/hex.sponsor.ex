@@ -25,6 +25,13 @@ defmodule Mix.Tasks.Hex.Sponsor do
 
   @impl true
   def run(_) do
+    unless Mix.Project.get() do
+      raise Mix.raise(
+              "The sponsor task only works inside a Mix project. " <>
+                "Please ensure you are in a directory with a mix.exs file."
+            )
+    end
+
     Hex.Mix.check_deps()
 
     sponsor_links =

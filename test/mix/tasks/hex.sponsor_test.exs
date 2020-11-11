@@ -44,6 +44,22 @@ defmodule Mix.Tasks.Hex.SponsorTest do
     assert header_output =~ "No dependencies with sponsorship link found"
   end
 
+  test "outside a mix project", %{auth: auth} do
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
+      flush()
+
+      error_msg =
+        "The sponsor task only works inside a Mix project. " <>
+          "Please ensure you are in a directory with a mix.exs file."
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Sponsor.run([])
+      end
+    end)
+  end
+
   defp with_test_package(version, metadata, %{auth: auth}, fun) do
     Mix.Project.push(SponsoredDeps.MixProject)
 
