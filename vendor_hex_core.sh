@@ -12,6 +12,7 @@ prefix=mix_
 hex_core_version=`cat $source_dir/hex_core.hrl | grep HEX_CORE_VERSION | cut -d'"' -f2`
 
 filenames="hex_core.hrl \
+           hex_core.erl \
            hex_erl_tar.erl \
            hex_erl_tar.hrl \
            hex_filename.erl \
