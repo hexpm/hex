@@ -24,6 +24,8 @@
 * Add `--fetch-public-key FINGERPRINT` to `mix hex.repo add`
 * Return non-zero exit when package or release are not found in `mix hex.info`
 * Add `no_proxy` configuration
+* Add `mix hex.package diff APP VERSION`
+* `mix hex.sponsor`
 
 ### Bug fixes
 
