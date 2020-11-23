@@ -5,6 +5,8 @@ defmodule HexTest.IntegrationCase do
     quote do
       use HexTest.Case
 
+      @moduletag :integration
+
       setup_all do
         Code.require_file("../setup_hexpm.exs", unquote(__DIR__))
         :ok
