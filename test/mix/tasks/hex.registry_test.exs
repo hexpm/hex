@@ -24,8 +24,6 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       assert {:ok, {200, _, []}} = :mix_hex_repo.get_names(config)
       assert {:ok, {200, _, []}} = :mix_hex_repo.get_versions(config)
 
-      File.mkdir!("public/tarballs")
-
       {:ok, %{tarball: tarball}} = :mix_hex_tarball.create(%{name: "foo", version: "0.10.0"}, [])
       File.write!("public/tarballs/foo-0.10.0.tar", tarball)
 
