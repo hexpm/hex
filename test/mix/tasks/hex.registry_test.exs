@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
     in_tmp(fn ->
       bypass = setup_bypass()
 
-      Mix.Task.rerun("hex.registry", ~w(build --name foo))
+      Mix.Task.run("hex.registry", ~w(build --name foo))
 
       assert_received {:mix_shell, :info, ["* creating private_key.pem"]}
       assert_received {:mix_shell, :info, ["* creating public/public_key"]}
@@ -27,7 +27,8 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       {:ok, %{tarball: tarball}} = :mix_hex_tarball.create(%{name: "foo", version: "0.10.0"}, [])
       File.write!("public/tarballs/foo-0.10.0.tar", tarball)
 
-      Mix.Task.rerun("hex.registry", ~w(build --name foo))
+      Mix.Task.reenable("hex.registry")
+      Mix.Task.run("hex.registry", ~w(build --name foo))
       assert_received {:mix_shell, :info, ["* using private_key.pem"]}
       assert_received {:mix_shell, :info, ["* creating public/packages/foo"]}
       assert_received {:mix_shell, :info, ["* updating public/names"]}
@@ -42,7 +43,8 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       {:ok, %{tarball: tarball}} = :mix_hex_tarball.create(%{name: "foo", version: "0.9.0"}, [])
       File.write!("public/tarballs/foo-0.9.0.tar", tarball)
 
-      Mix.Task.rerun("hex.registry", ~w(build --name foo))
+      Mix.Task.reenable("hex.registry")
+      Mix.Task.run("hex.registry", ~w(build --name foo))
       assert_received {:mix_shell, :info, ["* using private_key.pem"]}
       assert_received {:mix_shell, :info, ["* updating public/packages/foo"]}
       assert_received {:mix_shell, :info, ["* updating public/names"]}
@@ -56,7 +58,8 @@ defmodule Mix.Tasks.Hex.RegistryTest do
 
       # Re-generating private key
       File.rm!("private_key.pem")
-      Mix.Task.rerun("hex.registry", ~w(build --name foo))
+      Mix.Task.reenable("hex.registry")
+      Mix.Task.run("hex.registry", ~w(build --name foo))
       assert_received {:mix_shell, :info, ["* creating private_key.pem"]}
       assert_received {:mix_shell, :info, ["* public key at public/public_key does not" <> _]}
       assert_received {:mix_shell, :info, ["* updating public/public_key"]}
