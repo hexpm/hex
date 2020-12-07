@@ -118,7 +118,7 @@ defmodule Mix.Tasks.Hex.Registry do
     private_key_path = opts[:private_key] || "private_key.pem"
     private_key = get_private_key(private_key_path)
     ensure_public_key(private_key, public_dir)
-    ensure_public_tarballs(public_dir)
+    create_directory(Path.join(public_dir, "tarballs"))
 
     versions =
       Path.wildcard("#{public_dir}/tarballs/*.tar")
@@ -203,11 +203,10 @@ defmodule Mix.Tasks.Hex.Registry do
     end
   end
 
-  defp ensure_public_tarballs(public_dir) do
-    path = Path.join(public_dir, "tarballs")
-
+  defp create_directory(path) do
     unless File.dir?(path) do
       Hex.Shell.info(["* creating ", path])
+      File.mkdir_p!(path)
     end
   end
 
