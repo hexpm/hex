@@ -1,48 +1,3 @@
-# TODO:
-#
-#  * Should this be `mix hex.repo build` instead?
-#
-#  * The current approach is naive, we're always rebuilding all registry files.
-#    
-#    An alternative is to do smart partial updates by publishing tarballs one at a time
-#    but then the usage is likely instead:
-#
-#    ```
-#    mix hex.registry init
-#    mix hex.registry publish PATH_TO_TARBALL
-#    ```
-#
-#    Another advantage of this is we could implement retires:
-#
-#    ```
-#    mix hex.registry retire PACKAGE VERSION
-#    ```
-#
-#    Which we can't have in the naive approach. I'm not sure how important retirements
-#    are in local registries though so that's why I started with something much simpler.
-#
-#  * We were planning to introduce `:hex_registry.build` to hex_core as a building block
-#    but with the current approach I'm not sure it makes sense anymore.
-#
-#    If we extract the logic as is, it seems too local FS centric and thus wouldn't
-#    be used by projects like Hex.pm (which want to save stuff to external storage
-#    and do partial updates) so not appropriate for hex_core?
-#
-#    That being said, I'd be fine extracting it if only so rebar3 can easily use it.
-#
-#    What we for sure could extract though is slightly nicer way to build registry resources,
-#    instead:
-#
-#        %{repository: repo_name, packages: packages}
-#        |> :mix_hex_registry.encode_names()
-#        |> :mix_hex_registry.sign_protobuf(private_key)
-#        |> :zlib.gzip()
-#
-#    we'd have:
-#
-#       :mix_hex_registry.something_something_names(%{...}, private_key)
-#
-#  * Couple more TODOs are inline
 defmodule Mix.Tasks.Hex.Registry do
   use Mix.Task
   @behaviour Hex.Mix.TaskDescription
@@ -61,30 +16,52 @@ defmodule Mix.Tasks.Hex.Registry do
   ## Build a local registry
 
   ```
-  mix hex.registry build
+  $ mix hex.registry build
+  * creating private_key.pem
+  * creating public/public_key
+  * creating public/tarballs
+  * creating public/names
+  * creating public/versions
   ```
 
-  After running this task, the current working directory will look like this:
+  Let's say you have a package `foo-1.0.0.tar`. To publish it, simply copy it to the appropriate
+  directory and re-build the registry:
 
   ```
-  public/
-    tarballs/
-    names
-    versions
-    public_key
-  private_key.pem
+  $ cp foo-1.0.0.tar public/tarballs/
+  $ mix hex.repo build
+  * using private_key.pem
+  * creating public/packages/foo
+  * updating public/names
+  * updating public/versions
   ```
 
-  You can publish packages by copying the tarballs to `public/tarballs/` and re-running
-  `mix hex.registry build`.
+  You can use the HTTP server that ships with Erlang/OTP to serve the `public/` directory at
+  `http://localhost:8000`:
+
+  ```
+  $ erl -s inets -eval 'inets:start(httpd,[{port,8000},{server_name,"localhost"},{server_root,"."},{document_root,"public"}]).'
+  ```
+
+  You can now add it using `mix hex.repo add`:
+
+  ```
+  # replace "acme" with the name of your repository
+  $ mix hex.repo add acme http://localhost:8000 --public-key public/public_key
+  ```
+
+  You can test the repository by trying to retrieve a package that you just published:
+
+  ```
+  $ mix hex.package fetch foo 1.0.0 --repo acme
+  ```
 
   ### Command line options
 
     * `--name` - The name of the registry, defaults to the basename of the current working
       directory
 
-    * `--public-dir` - Path to the directory with registry public files, defaults to
-      `./public`
+    * `--public-dir` - Path to the directory with public files, defaults to `./public`
 
     * `--private-key` - Path to the private key, defaults to `./private_key.pem`
   """
