@@ -36,23 +36,14 @@ defmodule Mix.Tasks.Hex.Registry do
   * updating public/versions
   ```
 
-  You can use the HTTP server that ships with Erlang/OTP to serve the `public/` directory at
-  `http://localhost:8000`:
+  To the the repository you can do the following: start a local web server using the HTTP server
+  that ships with Erlang/OTP, add the repository, and retrieve the package that you just published:
 
   ```
   $ erl -s inets -eval 'inets:start(httpd,[{port,8000},{server_name,"localhost"},{server_root,"."},{document_root,"public"}]).'
-  ```
 
-  You can now add it using `mix hex.repo add`:
-
-  ```
   # replace "acme" with the name of your repository
   $ mix hex.repo add acme http://localhost:8000 --public-key public/public_key
-  ```
-
-  You can test the repository by trying to retrieve a package that you just published:
-
-  ```
   $ mix hex.package fetch foo 1.0.0 --repo acme
   ```
 
