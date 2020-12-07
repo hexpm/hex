@@ -29,7 +29,7 @@ defmodule Mix.Tasks.Hex.Registry do
 
   ```
   $ cp foo-1.0.0.tar public/tarballs/
-  $ mix hex.repo build
+  $ mix hex.registry build
   * using private_key.pem
   * creating public/packages/foo
   * updating public/names
