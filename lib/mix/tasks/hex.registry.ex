@@ -7,12 +7,16 @@
 #    An alternative is to do smart partial updates by publishing tarballs one at a time
 #    but then the usage is likely instead:
 #
-#       mix hex.registry init
-#       mix hex.registry publish PATH_TO_TARBALL
+#    ```
+#    mix hex.registry init
+#    mix hex.registry publish PATH_TO_TARBALL
+#    ```
 #
 #    Another advantage of this is we could implement retires:
 #
-#       mix hex.registry retire PACKAGE VERSION
+#    ```
+#    mix hex.registry retire PACKAGE VERSION
+#    ```
 #
 #    Which we can't have in the naive approach. I'm not sure how important retirements
 #    are in local registries though so that's why I started with something much simpler.
@@ -56,16 +60,20 @@ defmodule Mix.Tasks.Hex.Registry do
 
   ## Build a local registry
 
-      mix hex.registry build
+  ```
+  mix hex.registry build
+  ```
 
   After running this task, the current working directory will look like this:
 
-      public/
-        tarballs/
-        names
-        versions
-        public_key
-      private_key.pem
+  ```
+  public/
+    tarballs/
+    names
+    versions
+    public_key
+  private_key.pem
+  ```
 
   You can publish packages by copying the tarballs to `public/tarballs/` and re-running
   `mix hex.registry build`.
