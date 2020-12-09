@@ -93,8 +93,7 @@ defmodule Mix.Tasks.Hex.Registry do
     create_directory(Path.join(public_dir, "tarballs"))
 
     paths_per_name =
-      Path.wildcard("#{public_dir}/tarballs/*.tar")
-      |> Enum.group_by(fn path ->
+      Enum.group_by(Path.wildcard("#{public_dir}/tarballs/*.tar"), fn path ->
         [name, _version] = String.split(Path.basename(path), ["-", ".tar"], trim: true)
         name
       end)
@@ -102,9 +101,8 @@ defmodule Mix.Tasks.Hex.Registry do
     versions =
       Enum.map(paths_per_name, fn {name, paths} ->
         releases =
-          for path <- paths do
-            build_release(repo_name, path)
-          end
+          paths
+          |> Enum.map(&build_release(repo_name, &1))
           |> Enum.sort(&(Hex.Version.compare(&1.version, &2.version) == :lt))
 
         package =
