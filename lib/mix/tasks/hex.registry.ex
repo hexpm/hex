@@ -85,16 +85,22 @@ defmodule Mix.Tasks.Hex.Registry do
     public_dir = opts[:public_dir] || "public"
     private_key_path = opts[:private_key] || "private_key.pem"
     private_key = get_private_key(private_key_path)
+    build(repo_name, public_dir, private_key)
+  end
+
+  defp build(repo_name, public_dir, private_key) do
     ensure_public_key(private_key, public_dir)
     create_directory(Path.join(public_dir, "tarballs"))
 
-    versions =
+    paths_per_name =
       Path.wildcard("#{public_dir}/tarballs/*.tar")
       |> Enum.group_by(fn path ->
         [name, _version] = String.split(Path.basename(path), ["-", ".tar"], trim: true)
         name
       end)
-      |> Enum.map(fn {name, paths} ->
+
+    versions =
+      Enum.map(paths_per_name, fn {name, paths} ->
         releases =
           for path <- paths do
             tarball = File.read!(path)
@@ -122,7 +128,10 @@ defmodule Mix.Tasks.Hex.Registry do
         {name, Enum.map(releases, & &1.version)}
       end)
 
-    # TODO: remove public_dir/package/* that no longer have corresponding tarballs
+    for path <- Path.wildcard("#{public_dir}/packages/*"),
+        not (Path.basename(path) in Map.keys(paths_per_name)) do
+      remove_file(path)
+    end
 
     names = for {name, _} <- versions, do: %{name: name}
     payload = %{repository: repo_name, packages: names}
@@ -187,6 +196,11 @@ defmodule Mix.Tasks.Hex.Registry do
     end
 
     File.write!(path, data)
+  end
+
+  defp remove_file(path) do
+    Hex.Shell.info(["* removing ", path])
+    File.rm!(path)
   end
 
   ## Key utilities

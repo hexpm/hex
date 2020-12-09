@@ -68,6 +68,21 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       assert_received {:mix_shell, :info, ["* creating private_key.pem"]}
       assert_received {:mix_shell, :info, ["* public key at public/public_key does not" <> _]}
       assert_received {:mix_shell, :info, ["* updating public/public_key"]}
+      assert_received {:mix_shell, :info, ["* updating public/packages/foo"]}
+      assert_received {:mix_shell, :info, ["* updating public/names"]}
+      assert_received {:mix_shell, :info, ["* updating public/versions"]}
+      refute_received _
+
+      # Removing all package releases
+      File.rm!("public/tarballs/foo-0.9.0.tar")
+      File.rm!("public/tarballs/foo-0.10.0.tar")
+      Mix.Task.reenable("hex.registry")
+      Mix.Task.run("hex.registry", ~w(build --name foo))
+      assert_received {:mix_shell, :info, ["* using private_key.pem"]}
+      assert_received {:mix_shell, :info, ["* removing public/packages/foo"]}
+      assert_received {:mix_shell, :info, ["* updating public/names"]}
+      assert_received {:mix_shell, :info, ["* updating public/versions"]}
+      refute_received _
     end)
   end
 
