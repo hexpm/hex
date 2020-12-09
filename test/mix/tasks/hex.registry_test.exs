@@ -1,6 +1,11 @@
 defmodule Mix.Tasks.Hex.RegistryTest do
   use HexTest.Case
 
+  # Older OTP versions dont support :public_key.generate_key({:rsa, 2048, 65537})
+  if :erlang.system_info(:otp_release) < '20' do
+    @moduletag :skip
+  end
+
   test "build" do
     in_tmp(fn ->
       bypass = setup_bypass()
