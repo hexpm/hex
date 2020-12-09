@@ -152,12 +152,11 @@ defmodule Mix.Tasks.Hex.Registry do
           requirement: requirement
         }
 
-        repository =
-          if repository == repo_name do
-            release
-          else
-            Map.put(release, :repository, repository)
-          end
+        if repository == repo_name do
+          release
+        else
+          Map.put(release, :repository, repository)
+        end
       end
 
     %{
