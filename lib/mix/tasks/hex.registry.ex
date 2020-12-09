@@ -103,19 +103,7 @@ defmodule Mix.Tasks.Hex.Registry do
       Enum.map(paths_per_name, fn {name, paths} ->
         releases =
           for path <- paths do
-            tarball = File.read!(path)
-            {:ok, result} = :mix_hex_tarball.unpack(tarball, :memory)
-
-            # TOOD:
-            # dependencies = Enum.map(result.metadata["requirements"], ...)
-            dependencies = []
-
-            %{
-              version: result.metadata["version"],
-              inner_checksum: result.inner_checksum,
-              outer_checksum: result.outer_checksum,
-              dependencies: dependencies
-            }
+            build_release(repo_name, path)
           end
           |> Enum.sort(&(Hex.Version.compare(&1.version, &2.version) == :lt))
 
@@ -142,6 +130,42 @@ defmodule Mix.Tasks.Hex.Registry do
     payload = %{repository: repo_name, packages: versions}
     versions = payload |> :mix_hex_registry.encode_versions() |> sign_and_gzip(private_key)
     write_file("#{public_dir}/versions", versions)
+  end
+
+  defp build_release(repo_name, tarball_path) do
+    tarball = File.read!(tarball_path)
+    {:ok, result} = :mix_hex_tarball.unpack(tarball, :memory)
+
+    dependencies =
+      for {package, map} <- Map.get(result.metadata, "requirements", []) do
+        %{
+          "app" => app,
+          "optional" => optional,
+          "requirement" => requirement,
+          "repository" => repository
+        } = map
+
+        release = %{
+          package: package,
+          app: app,
+          optional: optional,
+          requirement: requirement
+        }
+
+        repository =
+          if repository == repo_name do
+            release
+          else
+            Map.put(release, :repository, repository)
+          end
+      end
+
+    %{
+      version: result.metadata["version"],
+      inner_checksum: result.inner_checksum,
+      outer_checksum: result.outer_checksum,
+      dependencies: dependencies
+    }
   end
 
   defp sign_and_gzip(protobuf, private_key) do

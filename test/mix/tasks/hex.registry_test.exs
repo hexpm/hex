@@ -10,7 +10,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
     in_tmp(fn ->
       bypass = setup_bypass()
 
-      Mix.Task.run("hex.registry", ~w(build --name foo))
+      Mix.Task.run("hex.registry", ~w(build --name acme))
 
       assert_received {:mix_shell, :info, ["* creating private_key.pem"]}
       assert_received {:mix_shell, :info, ["* creating public/public_key"]}
@@ -33,7 +33,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       File.write!("public/tarballs/foo-0.10.0.tar", tarball)
 
       Mix.Task.reenable("hex.registry")
-      Mix.Task.run("hex.registry", ~w(build --name foo))
+      Mix.Task.run("hex.registry", ~w(build --name acme))
       assert_received {:mix_shell, :info, ["* using private_key.pem"]}
       assert_received {:mix_shell, :info, ["* creating public/packages/foo"]}
       assert_received {:mix_shell, :info, ["* updating public/names"]}
@@ -49,7 +49,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       File.write!("public/tarballs/foo-0.9.0.tar", tarball)
 
       Mix.Task.reenable("hex.registry")
-      Mix.Task.run("hex.registry", ~w(build --name foo))
+      Mix.Task.run("hex.registry", ~w(build --name acme))
       assert_received {:mix_shell, :info, ["* using private_key.pem"]}
       assert_received {:mix_shell, :info, ["* updating public/packages/foo"]}
       assert_received {:mix_shell, :info, ["* updating public/names"]}
@@ -64,7 +64,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       # Re-generating private key
       File.rm!("private_key.pem")
       Mix.Task.reenable("hex.registry")
-      Mix.Task.run("hex.registry", ~w(build --name foo))
+      Mix.Task.run("hex.registry", ~w(build --name acme))
       assert_received {:mix_shell, :info, ["* creating private_key.pem"]}
       assert_received {:mix_shell, :info, ["* public key at public/public_key does not" <> _]}
       assert_received {:mix_shell, :info, ["* updating public/public_key"]}
@@ -73,12 +73,65 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       assert_received {:mix_shell, :info, ["* updating public/versions"]}
       refute_received _
 
+      # Package with deps
+      metadata = %{
+        name: "bar",
+        version: "0.1.0",
+        requirements: %{
+          "foo" => %{
+            "app" => "foo",
+            "optional" => false,
+            "repository" => "acme",
+            "requirement" => "~> 0.1.0"
+          },
+          "baz" => %{
+            "app" => "baz",
+            "optional" => false,
+            "repository" => "external",
+            "requirement" => "~> 0.1.0"
+          }
+        }
+      }
+
+      {:ok, %{tarball: tarball}} = :mix_hex_tarball.create(metadata, [])
+      File.write!("public/tarballs/bar-0.1.0.tar", tarball)
+
+      Mix.Task.reenable("hex.registry")
+      Mix.Task.run("hex.registry", ~w(build --name acme))
+      assert_received {:mix_shell, :info, ["* using private_key.pem"]}
+      assert_received {:mix_shell, :info, ["* creating public/packages/bar"]}
+      assert_received {:mix_shell, :info, ["* updating public/packages/foo"]}
+      assert_received {:mix_shell, :info, ["* updating public/names"]}
+      assert_received {:mix_shell, :info, ["* updating public/versions"]}
+      refute_received _
+
+      assert {:ok, {200, _, names}} = :mix_hex_repo.get_names(config)
+      assert names == [%{name: "bar"}, %{name: "foo"}]
+      assert {:ok, {200, _, [package]}} = :mix_hex_repo.get_package(config, "bar")
+
+      assert package.dependencies == [
+               %{
+                 app: "baz",
+                 optional: false,
+                 package: "baz",
+                 requirement: "~> 0.1.0",
+                 repository: "external"
+               },
+               %{
+                 app: "foo",
+                 optional: false,
+                 package: "foo",
+                 requirement: "~> 0.1.0"
+               }
+             ]
+
       # Removing all package releases
       File.rm!("public/tarballs/foo-0.9.0.tar")
       File.rm!("public/tarballs/foo-0.10.0.tar")
       Mix.Task.reenable("hex.registry")
-      Mix.Task.run("hex.registry", ~w(build --name foo))
+      Mix.Task.run("hex.registry", ~w(build --name acme))
       assert_received {:mix_shell, :info, ["* using private_key.pem"]}
+      assert_received {:mix_shell, :info, ["* updating public/packages/bar"]}
       assert_received {:mix_shell, :info, ["* removing public/packages/foo"]}
       assert_received {:mix_shell, :info, ["* updating public/names"]}
       assert_received {:mix_shell, :info, ["* updating public/versions"]}
