@@ -15,13 +15,21 @@ defmodule Mix.Tasks.Hex.Registry do
 
   ## Build a local registry
 
+  To build a registry you need a name, a directory that will be used to store public registry files,
+  and a private key to sign the registry:
+
   ```
-  $ mix hex.registry build
-  * creating private_key.pem
+  $ mix hex.registry build --name=acme --public-dir=public --private-key=private_key.pem
   * creating public/public_key
   * creating public/tarballs
   * creating public/names
   * creating public/versions
+  ```
+
+  You can generate a random private key using the following command:
+
+  ```
+  $ openssl genrsa -out private_key.pem
   ```
 
   Let's say you have a package `foo-1.0.0.tar`. To publish it, simply copy it to the appropriate
@@ -29,7 +37,7 @@ defmodule Mix.Tasks.Hex.Registry do
 
   ```
   $ cp foo-1.0.0.tar public/tarballs/
-  $ mix hex.registry build
+  $ mix hex.registry build --name=acme --public-dir=public --private-key=private_key.pem
   * using private_key.pem
   * creating public/packages/foo
   * updating public/names
@@ -43,18 +51,17 @@ defmodule Mix.Tasks.Hex.Registry do
   $ erl -s inets -eval 'inets:start(httpd,[{port,8000},{server_name,"localhost"},{server_root,"."},{document_root,"public"}]).'
 
   # replace "acme" with the name of your repository
-  $ mix hex.repo add acme http://localhost:8000 --public-key public/public_key
-  $ mix hex.package fetch foo 1.0.0 --repo acme
+  $ mix hex.repo add acme http://localhost:8000 --public-key=public/public_key
+  $ mix hex.package fetch foo 1.0.0 --repo=acme
   ```
 
   ### Command line options
 
-    * `--name` - The name of the registry, defaults to the basename of the current working
-      directory
+    * `--name` - The name of the registry
 
-    * `--public-dir` - Path to the directory with public files, defaults to `./public`
+    * `--public-dir` - Path to the directory with public files
 
-    * `--private-key` - Path to the private key, defaults to `./private_key.pem`
+    * `--private-key` - Path to the private key
   """
   @impl true
   def run(args) do
@@ -81,10 +88,10 @@ defmodule Mix.Tasks.Hex.Registry do
   end
 
   defp build(opts) do
-    repo_name = opts[:name] || Path.dirname(File.cwd!())
-    public_dir = opts[:public_dir] || "public"
-    private_key_path = opts[:private_key] || "private_key.pem"
-    private_key = get_private_key(private_key_path)
+    repo_name = opts[:name] || raise "missing --name"
+    public_dir = opts[:public_dir] || raise "missing --public-dir"
+    private_key_path = opts[:private_key] || raise "missing --private-key"
+    private_key = private_key_path |> File.read!() |> decode_private_key()
     build(repo_name, public_dir, private_key)
   end
 
@@ -171,19 +178,6 @@ defmodule Mix.Tasks.Hex.Registry do
     |> :zlib.gzip()
   end
 
-  defp get_private_key(path) do
-    case File.read(path) do
-      {:ok, data} ->
-        Hex.Shell.info(["* using ", path])
-        decode_private_key(data)
-
-      {:error, :enoent} ->
-        key = generate_random_private_key()
-        write_file(path, encode_private_key(key))
-        key
-    end
-  end
-
   defp ensure_public_key(private_key, public_dir) do
     path = "#{public_dir}/public_key"
     encoded_public_key = private_key |> extract_public_key() |> encode_public_key()
@@ -242,14 +236,6 @@ defmodule Mix.Tasks.Hex.Registry do
 
   defp extract_public_key(rsa_private_key(modulus: m, publicExponent: e)) do
     rsa_public_key(modulus: m, publicExponent: e)
-  end
-
-  defp generate_random_private_key() do
-    :public_key.generate_key({:rsa, 2048, 65537})
-  end
-
-  defp encode_private_key(key) do
-    :public_key.pem_encode([:public_key.pem_entry_encode(:RSAPrivateKey, key)])
   end
 
   defp encode_public_key(key) do
