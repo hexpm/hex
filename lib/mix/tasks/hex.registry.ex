@@ -36,8 +36,8 @@ defmodule Mix.Tasks.Hex.Registry do
   * updating public/versions
   ```
 
-  To test the registry you can do the following: start a local web server using the HTTP server
-  that ships with Erlang/OTP, add the repository, and retrieve the package that you just published:
+  You can test the repository by starting the built-in Erlang/OTP HTTP server, adding the repository,
+  and retrieving the package that you just published.
 
   ```
   $ erl -s inets -eval 'inets:start(httpd,[{port,8000},{server_name,"localhost"},{server_root,"."},{document_root,"public"}]).'
