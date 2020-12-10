@@ -56,7 +56,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
   test "ensure user exists" do
     Mix.Project.push(ReleaseSimple.MixProject)
-    Hex.State.put(:home, tmp_path("does_not_exist"))
+    set_home_path(tmp_path("does_not_exist"))
 
     in_tmp(fn ->
       File.write!("myfile.txt", "hello")
@@ -74,7 +74,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(ReleaseNewSimple.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
       File.write_stat!("mix.exs", %{File.stat!("mix.exs") | mode: 0o100644})
@@ -111,7 +111,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(ReleaseSimple.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
       setup_auth("user2", "hunter42")
@@ -128,7 +128,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(DocsSimple.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       setup_auth("user", "hunter42")
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -147,7 +147,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(DocsFilenameError.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       setup_auth("user", "hunter42")
 
       error_msg = "Invalid filename: top-level filenames cannot match a semantic version pattern"
@@ -166,7 +166,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(DocsDirnameError.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       setup_auth("user", "hunter42")
 
       error_msg = "Invalid filename: top-level filenames cannot match a semantic version pattern"
@@ -185,7 +185,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(DocsError.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       setup_auth("user", "hunter42")
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -204,7 +204,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(ReleaseName.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
       setup_auth("user2", "hunter42")
@@ -235,7 +235,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(ReleaseName.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
 
@@ -257,7 +257,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(ReleaseName.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
       setup_auth("user", "hunter42")
@@ -277,7 +277,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(ReleaseSimple.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
       setup_auth("user2", "hunter42")
@@ -295,7 +295,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(ReleaseSimple.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
 
@@ -320,7 +320,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(ReleaseDeps.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       setup_auth("user", "hunter42")
 
@@ -345,7 +345,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(ReleaseMeta.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       setup_auth("user", "hunter42")
 
       error_msg =
@@ -372,7 +372,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(ReleaseMeta.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       setup_auth("user2", "hunter42")
 
       File.mkdir!("missing")
@@ -401,7 +401,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(ReleaseRepo.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       bypass_repo("myorg")
       setup_auth("user", "hunter42")
@@ -423,7 +423,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(ReleaseRepo.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       setup_auth("user", "hunter42")
 
@@ -439,7 +439,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(ReleaseRepo.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       bypass_repo("myorg2")
       setup_auth("user", "hunter42")
@@ -461,7 +461,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     Mix.Project.push(ReleaseMetaNoFiles.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       setup_auth("user2", "hunter42")
 
       error_msg =

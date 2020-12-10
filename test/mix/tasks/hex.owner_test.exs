@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_user("owner_user2", "owner_user2@mail.com", "passpass", "key")
     Hexpm.new_package("hexpm", "owner_package1", "0.0.1", [], %{}, auth)
 
-    Hex.State.put(:home, tmp_path())
+    set_home_tmp()
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
@@ -26,7 +26,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_user("owner_user2a", "owner_user2a@mail.com", "passpass", "key")
     Hexpm.new_package("hexpm", "owner_package1a", "0.0.1", [], %{}, auth)
 
-    Hex.State.put(:home, tmp_path())
+    set_home_tmp()
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
@@ -53,7 +53,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_user("owner_user2b", "owner_user2b@mail.com", "passpass", "key")
     Hexpm.new_package("hexpm", "owner_package1b", "0.0.1", [], %{}, auth)
 
-    Hex.State.put(:home, tmp_path())
+    set_home_tmp()
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
@@ -74,7 +74,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_user("owner_user2c", "owner_user2c@mail.com", "passpass", "key")
     Hexpm.new_package("hexpm", "owner_package1c", "0.0.1", [], %{}, auth)
 
-    Hex.State.put(:home, tmp_path())
+    set_home_tmp()
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
@@ -94,7 +94,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_user("owner_user4", "owner_user4@mail.com", "passpass", "key")
     Hexpm.new_package("hexpm", "owner_package2", "0.0.1", [], %{}, auth)
 
-    Hex.State.put(:home, tmp_path())
+    set_home_tmp()
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
@@ -113,7 +113,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     auth = Hexpm.new_user("owner_user5", "owner_user5@mail.com", "passpass", "key")
     Hexpm.new_package("hexpm", "owner_package3", "0.0.1", [], %{}, auth)
 
-    Hex.State.put(:home, tmp_path())
+    set_home_tmp()
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
     Mix.Tasks.Hex.Owner.run(["list", "owner_package3"])
@@ -137,7 +137,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", package1, "0.0.1", [], %{}, auth)
     Hexpm.new_package("hexpm", package2, "0.0.1", [], %{}, auth)
 
-    Hex.State.put(:home, tmp_path())
+    set_home_tmp()
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
     Mix.Tasks.Hex.Owner.run(["packages"])
@@ -152,7 +152,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_user("owner_user7b", "owner_user7b@mail.com", "passpass", "key")
     Hexpm.new_package("hexpm", "owner_package6", "0.0.1", [], %{}, auth)
 
-    Hex.State.put(:home, tmp_path())
+    set_home_tmp()
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})

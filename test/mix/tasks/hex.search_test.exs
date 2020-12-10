@@ -16,7 +16,7 @@ defmodule Mix.Tasks.Hex.SearchTest do
 
   test "search all private packages" do
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       auth = Hexpm.new_user("searchuser1", "searchuser1@mail.com", "password", "searchuser1")
       Hexpm.new_repo("searchrepo1", auth)
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
@@ -32,7 +32,7 @@ defmodule Mix.Tasks.Hex.SearchTest do
 
   test "search private package" do
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       auth = Hexpm.new_user("searchuser2", "searchuser2@mail.com", "password", "searchuser2")
       Hexpm.new_repo("searchrepo2", auth)
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])

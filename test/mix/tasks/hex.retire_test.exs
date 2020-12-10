@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Hex.RetireTest do
     auth = Hexpm.new_user("retire_user", "retire_user@mail.com", "passpass", "key")
     Hexpm.new_package("hexpm", "retire_package", "0.0.1", [], %{}, auth)
 
-    Hex.State.put(:home, tmp_path())
+    set_home_tmp()
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Hex.RetireTest do
 
     Hexpm.new_package("hexpm", "retire_package_message", "0.0.1", [], %{}, auth)
 
-    Hex.State.put(:home, tmp_path())
+    set_home_tmp()
     Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
     send(self(), {:mix_shell_input, :prompt, "passpass"})
 

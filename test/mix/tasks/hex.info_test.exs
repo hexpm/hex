@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
     Mix.Project.push(Simple)
 
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
       Mix.Task.run("deps.get")
       Mix.Task.clear()
 
