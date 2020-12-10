@@ -38,7 +38,6 @@ defmodule Mix.Tasks.Hex.Registry do
   ```
   $ cp foo-1.0.0.tar public/tarballs/
   $ mix hex.registry build --name=acme --public-dir=public --private-key=private_key.pem
-  * using private_key.pem
   * creating public/packages/foo
   * updating public/names
   * updating public/versions
