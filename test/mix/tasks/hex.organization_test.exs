@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
 
   test "auth" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
       auth = Hexpm.new_user("orgauth", "orgauth@mail.com", "password", "orgauth")
       Hexpm.new_repo("myorgauth", auth)
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
 
   test "auth with --keyname" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
 
       auth =
         Hexpm.new_user("orgauthwithkeyname", "orgauthwithkeyname@mail.com", "password", "orgauth")
@@ -58,7 +58,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
 
   test "auth --key" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
       auth = Hexpm.new_user("orgauthkey", "orgauthkey@mail.com", "password", "orgauthkey")
       Hexpm.new_repo("myorgauthkey", auth)
 
@@ -85,7 +85,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
 
   test "auth --key with invalid key" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
       message = "Failed to authenticate against organization repository with given key"
 
       assert_raise Mix.Error, message, fn ->
@@ -96,7 +96,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
 
   test "deauth" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
       auth = Hexpm.new_user("orgdeauth", "orgdeauth@mail.com", "password", "orgdeauth")
       Hexpm.new_repo("myorgdeauth", auth)
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
@@ -111,7 +111,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
 
   test "key --generate" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
 
       auth =
         Hexpm.new_user("orgkeygenuser", "orgkeygenuser@mail.com", "password", "orgkeygenuser")
@@ -140,7 +140,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
 
   test "list keys" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
 
       auth =
         Hexpm.new_user("orgkeylistuser", "orgkeylistuser@mail.com", "password", "orgkeylistuser")
@@ -162,7 +162,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
 
   test "revoke key" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
 
       auth =
         Hexpm.new_user(
@@ -189,8 +189,8 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
 
   test "revoke all keys" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
+      set_home_cwd()
 
       auth =
         Hexpm.new_user(

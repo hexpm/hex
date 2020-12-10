@@ -79,7 +79,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     Mix.Project.push(OutdatedDeps.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
 
       Mix.Task.run("deps.get")
@@ -107,7 +107,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     Mix.Project.push(OutdatedDeps.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
 
       Mix.Task.run("deps.get")
@@ -158,7 +158,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     Mix.Project.push(OutdatedMultiDeps.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
 
       Mix.Dep.Lock.write(%{
         foo: {:hex, :foo, "0.1.0"},
@@ -190,7 +190,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     Mix.Project.push(OutdatedDeps.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
 
       Mix.Task.run("deps.get")
@@ -242,7 +242,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     Mix.Project.push(NotOutdatedApp.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       Mix.Dep.Lock.write(%{ex_doc: {:hex, :ex_doc, "0.1.0"}})
 
       Mix.Task.run("deps.get")
@@ -263,7 +263,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     Mix.Project.push(OutdatedBetaDeps.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       Mix.Dep.Lock.write(%{beta: {:hex, :beta, "1.0.0"}})
 
       Mix.Task.run("deps.get")
@@ -306,7 +306,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     Mix.Project.push(OutdatedApp.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       Mix.Dep.Lock.write(%{ex_doc: {:hex, :ex_doc, "0.0.1"}})
 
       Mix.Task.run("deps.get")
@@ -390,7 +390,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     Mix.Project.push(NotOutdatedApp.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       Mix.Dep.Lock.write(%{ex_doc: {:hex, :ex_doc, "0.1.0"}})
 
       Mix.Task.run("deps.get")
@@ -411,7 +411,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     Mix.Project.push(WithoutHexDeps.MixProject)
 
     in_tmp(fn ->
-      Hex.State.put(:home, tmp_path())
+      set_home_tmp()
       Mix.Dep.Lock.write(%{})
 
       Mix.Task.run("deps.get")

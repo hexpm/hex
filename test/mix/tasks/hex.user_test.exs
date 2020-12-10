@@ -28,7 +28,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "auth" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
 
       send(self(), {:mix_shell_input, :prompt, "user"})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -48,7 +48,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "auth with --key-name" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
 
       send(self(), {:mix_shell_input, :prompt, "user"})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -65,7 +65,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "auth organizations" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
 
       auth = Hexpm.new_user("userauthorg", "userauthorg@mail.com", "password", "userauthorg")
       Hexpm.new_repo("myuserauthorg", auth)
@@ -85,7 +85,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "deauth user and organizations" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
 
       auth = Hexpm.new_user("userdeauth1", "userdeauth1@mail.com", "password", "userdeauth1")
       Hexpm.new_repo("myorguserdeauth1", auth)
@@ -103,7 +103,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "whoami" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
       auth = Hexpm.new_user("whoami", "whoami@mail.com", "password", "whoami")
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
@@ -114,7 +114,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "list keys" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
 
       auth = Hexpm.new_user("list_keys", "list_keys@mail.com", "password", "list_keys")
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
@@ -128,7 +128,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "revoke key" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
 
       auth_a = Hexpm.new_user("revoke_key", "revoke_key@mail.com", "password", "revoke_key_a")
       auth_b = Hexpm.new_key("revoke_key", "password", "revoke_key_b")
@@ -161,7 +161,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "revoke all keys" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
 
       auth_a =
         Hexpm.new_user(
@@ -195,7 +195,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "key generate" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
       Hexpm.new_user("userkeygenerate", "userkeygenerate@mail.com", "password", "password")
       send(self(), {:mix_shell_input, :prompt, "userkeygenerate"})
       send(self(), {:mix_shell_input, :prompt, "password"})
@@ -217,7 +217,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
   test "reset local password" do
     in_tmp(fn ->
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
 
       Mix.Tasks.Hex.update_keys(Mix.Tasks.Hex.encrypt_key("hunter42", "qwerty"))
       first_key = Hex.Config.read()[:"$write_key"]

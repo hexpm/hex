@@ -255,8 +255,9 @@ defmodule HexTest.Case do
   def init_reset_state() do
     public_key = File.read!(Path.join(__DIR__, "../fixtures/test_pub.pem"))
 
-    Hex.State.put(:home, Path.expand("../../tmp/hex_home", __DIR__))
-    Hex.State.put(:hexpm_pk, public_key)
+    Hex.State.put(:config_home, Path.expand("../../tmp/hex_config_home", __DIR__))
+    Hex.State.put(:cache_home, Path.expand("../../tmp/hex_cache_home", __DIR__))
+    Hex.State.put(:data_home, Path.expand("../../tmp/hex_data_home", __DIR__))
     Hex.State.put(:api_url, "http://localhost:4043/api")
     Hex.State.put(:api_key_write, nil)
     Hex.State.put(:api_key_read, nil)
@@ -272,6 +273,20 @@ defmodule HexTest.Case do
 
   def reset_state do
     Hex.State.put_all(Application.get_env(:hex, :reset_state))
+  end
+
+  def set_home_cwd() do
+    set_home_path(File.cwd!())
+  end
+
+  def set_home_tmp() do
+    set_home_path(tmp_path())
+  end
+
+  def set_home_path(path) do
+    Hex.State.put(:config_home, path)
+    Hex.State.put(:cache_home, path)
+    Hex.State.put(:data_home, path)
   end
 
   def wait_on_exit({:ok, pid}) do

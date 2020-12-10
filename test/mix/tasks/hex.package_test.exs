@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
     in_fixture("diff", fn ->
       Mix.Project.push(ReleaseDeps.MixProject)
       Mix.Dep.Lock.write(%{ex_doc: {:hex, :ex_doc, "0.0.1"}})
-      Hex.State.put(:home, File.cwd!())
+      set_home_cwd()
       Mix.Task.run("deps.get")
       fun.()
     end)
