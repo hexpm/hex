@@ -4,7 +4,6 @@ defmodule Mix.Tasks.Hex.Registry do
 
   @switches [
     name: :string,
-    public_dir: :string,
     private_key: :string
   ]
 
@@ -15,11 +14,13 @@ defmodule Mix.Tasks.Hex.Registry do
 
   ## Build a local registry
 
+      mix hex.registry build PUBLIC_DIR
+
   To build a registry you need a name, a directory that will be used to store public registry files,
   and a private key to sign the registry:
 
   ```
-  $ mix hex.registry build --name=acme --public-dir=public --private-key=private_key.pem
+  mix hex.registry build public --name=acme --private-key=private_key.pem
   * creating public/public_key
   * creating public/tarballs
   * creating public/names
@@ -29,15 +30,15 @@ defmodule Mix.Tasks.Hex.Registry do
   You can generate a random private key using the following command:
 
   ```
-  $ openssl genrsa -out private_key.pem
+  openssl genrsa -out private_key.pem
   ```
 
   Let's say you have a package `foo-1.0.0.tar`. To publish it, simply copy it to the appropriate
   directory and re-build the registry:
 
   ```
-  $ cp foo-1.0.0.tar public/tarballs/
-  $ mix hex.registry build --name=acme --public-dir=public --private-key=private_key.pem
+  cp foo-1.0.0.tar public/tarballs/
+  mix hex.registry build public --name=acme --private-key=private_key.pem
   * creating public/packages/foo
   * updating public/names
   * updating public/versions
@@ -47,18 +48,16 @@ defmodule Mix.Tasks.Hex.Registry do
   and retrieving the package that you just published.
 
   ```
-  $ erl -s inets -eval 'inets:start(httpd,[{port,8000},{server_name,"localhost"},{server_root,"."},{document_root,"public"}]).'
+  erl -s inets -eval 'inets:start(httpd,[{port,8000},{server_name,"localhost"},{server_root,"."},{document_root,"public"}]).'
 
   # replace "acme" with the name of your repository
-  $ mix hex.repo add acme http://localhost:8000 --public-key=public/public_key
-  $ mix hex.package fetch foo 1.0.0 --repo=acme
+  mix hex.repo add acme http://localhost:8000 --public-key=public/public_key
+  mix hex.package fetch foo 1.0.0 --repo=acme
   ```
 
   ### Command line options
 
     * `--name` - The name of the registry
-
-    * `--public-dir` - Path to the directory with public files
 
     * `--private-key` - Path to the private key
   """
@@ -67,8 +66,8 @@ defmodule Mix.Tasks.Hex.Registry do
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
 
     case args do
-      ["build"] ->
-        build(opts)
+      ["build", public_dir] ->
+        build(public_dir, opts)
 
       _ ->
         Mix.raise("""
@@ -82,13 +81,12 @@ defmodule Mix.Tasks.Hex.Registry do
   @impl true
   def tasks() do
     [
-      {"build", "Build a local registry"}
+      {"build PUBLIC_DIR", "Build a local registry"}
     ]
   end
 
-  defp build(opts) do
+  defp build(public_dir, opts) do
     repo_name = opts[:name] || raise "missing --name"
-    public_dir = opts[:public_dir] || raise "missing --public-dir"
     private_key_path = opts[:private_key] || raise "missing --private-key"
     private_key = private_key_path |> File.read!() |> decode_private_key()
     build(repo_name, public_dir, private_key)

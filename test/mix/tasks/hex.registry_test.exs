@@ -10,7 +10,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
 
       Mix.Task.run(
         "hex.registry",
-        ~w(build --name acme --public-dir public --private-key private_key.pem)
+        ~w(build public --name acme --private-key private_key.pem)
       )
 
       assert_received {:mix_shell, :info, ["* creating public/public_key"]}
@@ -36,7 +36,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
 
       Mix.Task.run(
         "hex.registry",
-        ~w(build --name acme --public-dir public --private-key private_key.pem)
+        ~w(build public --name acme --private-key private_key.pem)
       )
 
       assert_received {:mix_shell, :info, ["* creating public/packages/foo"]}
@@ -56,7 +56,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
 
       Mix.Task.run(
         "hex.registry",
-        ~w(build --name acme --public-dir public --private-key private_key.pem)
+        ~w(build public --name acme --private-key private_key.pem)
       )
 
       assert_received {:mix_shell, :info, ["* updating public/packages/foo"]}
@@ -76,7 +76,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
 
       Mix.Task.run(
         "hex.registry",
-        ~w(build --name acme --public-dir public --private-key private_key.pem)
+        ~w(build public --name acme --private-key private_key.pem)
       )
 
       assert_received {:mix_shell, :info, ["* public key at public/public_key does not" <> _]}
@@ -113,7 +113,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
 
       Mix.Task.run(
         "hex.registry",
-        ~w(build --name acme --public-dir public --private-key private_key.pem)
+        ~w(build public --name acme --private-key private_key.pem)
       )
 
       assert_received {:mix_shell, :info, ["* creating public/packages/bar"]}
@@ -149,7 +149,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
 
       Mix.Task.run(
         "hex.registry",
-        ~w(build --name acme --public-dir public --private-key private_key.pem)
+        ~w(build public --name acme --private-key private_key.pem)
       )
 
       assert_received {:mix_shell, :info, ["* updating public/packages/bar"]}
