@@ -22,6 +22,9 @@ filenames="hex_core.hrl \
            hex_pb_versions.erl \
            hex_tarball.erl \
            hex_registry.erl \
+           hex_repo.erl \
+           hex_http.erl \
+           hex_http_httpc.erl \
            safe_erl_term.xrl"
 
 search_to_replace="hex_core: \

@@ -31,7 +31,7 @@
 %% Creates a package tarball.
 %%
 %% Returns the binary of the tarball the "inner checksum" and "outer checksum".
-%% The inner checksum is deprecated in favor of the inner checksum.
+%% The inner checksum is deprecated in favor of the outer checksum.
 %%
 %% Examples:
 %%
