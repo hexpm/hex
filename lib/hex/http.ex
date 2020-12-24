@@ -224,7 +224,17 @@ defmodule Hex.HTTP do
   defp no_proxy() do
     (Hex.State.fetch!(:no_proxy) || "")
     |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.map(&normalize_no_proxy_domain_desc/1)
     |> Enum.map(&String.to_charlist/1)
+  end
+
+  defp normalize_no_proxy_domain_desc(<<".", rest::binary>>) do
+    "*." <> rest
+  end
+
+  defp normalize_no_proxy_domain_desc(host) do
+    host
   end
 
   defp user_agent do
