@@ -55,10 +55,13 @@ defmodule Mix.Tasks.Hex.Install do
   end
 
   defp find_matching_versions_from_signed_csv!(name, path, hex_version) do
-    csv = read_path!(name, path)
+    # this is safe because the fetched contents are checked using Mix.PublicKey.verify
+    opts = [unsafe_uri: true]
+
+    csv = read_path!(name, path, opts)
 
     signature =
-      read_path!(name, path <> ".signed")
+      read_path!(name, path <> ".signed", opts)
       |> String.replace("\n", "")
       |> Base.decode64!()
 
@@ -77,8 +80,8 @@ defmodule Mix.Tasks.Hex.Install do
     end
   end
 
-  defp read_path!(name, path) do
-    case Mix.Utils.read_path(path) do
+  defp read_path!(name, path, opts) do
+    case Mix.Utils.read_path(path, opts) do
       {:ok, contents} ->
         contents
 
