@@ -56,10 +56,16 @@ defmodule Hex.Config do
   end
 
   def find_config_home() do
-    case {System.get_env("HEX_HOME"), System.get_env("XDG_CONFIG_HOME")} do
-      {directory, _} when is_binary(directory) -> Path.expand(directory)
-      {nil, directory} when is_binary(directory) -> Path.join(Path.expand(directory), "hex")
-      {nil, nil} -> Path.expand("~/.hex")
+    case {System.get_env("HEX_HOME"), System.get_env("MIX_XDG"),
+          System.get_env("XDG_CONFIG_HOME")} do
+      {directory, _, _} when is_binary(directory) ->
+        Path.expand(directory)
+
+      {nil, mix_xdg, directory} when mix_xdg in ["1", "true"] and is_binary(directory) ->
+        Path.join(Path.expand(directory), "hex")
+
+      {nil, _, _} ->
+        Path.expand("~/.hex")
     end
   end
 
