@@ -401,33 +401,51 @@ defmodule Hex.SCM do
         {:ok, ^outer_checksum} ->
           {:ok, :cached}
 
+        {:ok, other_outer_checksum} ->
+          Hex.Shell.warn("""
+          Checksum mismatch between registry and the cached package
+
+          Registry checksum: #{Base.encode16(outer_checksum, case: :lower)}
+          Package checksum:  #{Base.encode16(other_outer_checksum, case: :lower)}
+
+          This may happen when the previously cached package got re-published.
+
+          Re-fetching...\
+          """)
+
+          do_fetch(path, repo, package, version)
+
         {:error, _reason} ->
-          case Hex.Repo.get_tarball(repo, package, version) do
-            {:ok, {200, body, _headers}} ->
-              File.mkdir_p!(Path.dirname(path))
-              File.write!(path, body)
-              {:ok, :new}
-
-            {:ok, {304, _body, _headers}} ->
-              {:ok, :cached}
-
-            {:ok, {code, _body, _headers}} ->
-              {:error, "Request failed (#{code})"}
-
-            {:error, :timeout} ->
-              reason = [
-                "Request failed (:timeout)",
-                :reset,
-                "\nIf this happens consistently, adjust your concurrency and timeout settings:",
-                "\n\n    HEX_HTTP_CONCURRENCY=1 HEX_HTTP_TIMEOUT=120 mix deps.get"
-              ]
-
-              {:error, reason}
-
-            {:error, reason} ->
-              {:error, "Request failed (#{inspect(reason)})"}
-          end
+          do_fetch(path, repo, package, version)
       end
+    end
+  end
+
+  defp do_fetch(path, repo, package, version) do
+    case Hex.Repo.get_tarball(repo, package, version) do
+      {:ok, {200, body, _headers}} ->
+        File.mkdir_p!(Path.dirname(path))
+        File.write!(path, body)
+        {:ok, :new}
+
+      {:ok, {304, _body, _headers}} ->
+        {:ok, :cached}
+
+      {:ok, {code, _body, _headers}} ->
+        {:error, "Request failed (#{code})"}
+
+      {:error, :timeout} ->
+        reason = [
+          "Request failed (:timeout)",
+          :reset,
+          "\nIf this happens consistently, adjust your concurrency and timeout settings:",
+          "\n\n    HEX_HTTP_CONCURRENCY=1 HEX_HTTP_TIMEOUT=120 mix deps.get"
+        ]
+
+        {:error, reason}
+
+      {:error, reason} ->
+        {:error, "Request failed (#{inspect(reason)})"}
     end
   end
 end
