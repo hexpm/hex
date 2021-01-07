@@ -72,7 +72,6 @@ defmodule Hex.Config do
     :filename.basedir(:user_config, "hex", %{os: :linux})
   rescue
     _ -> Mix.raise("MIX_XDG is only available in OTP 19+")
-    end
   end
 
   defp encode_term(list) do
