@@ -103,15 +103,15 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
   end
 
   defp hmac_sha2(mac_key, mac_data) when bit_size(mac_key) === 128 do
-    :crypto.hmac(:sha256, mac_key, mac_data)
+    Hex.Crypto.hmac(:sha256, mac_key, mac_data)
   end
 
   defp hmac_sha2(mac_key, mac_data) when bit_size(mac_key) === 192 do
-    :crypto.hmac(:sha384, mac_key, mac_data)
+    Hex.Crypto.hmac(:sha384, mac_key, mac_data)
   end
 
   defp hmac_sha2(mac_key, mac_data) when bit_size(mac_key) === 256 do
-    :crypto.hmac(:sha512, mac_key, mac_data)
+    Hex.Crypto.hmac(:sha512, mac_key, mac_data)
   end
 
   # Pads a message using the PKCS #7 cryptographic message syntax.

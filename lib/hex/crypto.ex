@@ -19,6 +19,14 @@ defmodule Hex.Crypto do
     Encryption.decrypt({tag, cipher_text}, password: password)
   end
 
+  def hmac(type, key, data) do
+    # TODO: Remove this once we require OTP 22.1
+    case Code.ensure_loaded?(:crypto) and function_exported?(:crypto, :mac, 4) do
+      true -> :crypto.mac(:hmac, type, key, data)
+      false -> :crypto.hmac(type, key, data)
+    end
+  end
+
   def base64url_encode(binary) do
     try do
       Base.url_encode64(binary, padding: false)
