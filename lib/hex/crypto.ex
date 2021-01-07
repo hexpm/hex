@@ -20,8 +20,7 @@ defmodule Hex.Crypto do
   end
 
   def hmac(type, key, data) do
-    # :crypto.mac/4 is introduced in Erlang/OTP 22.1 and :crypto.hmac/{3,4} are
-    # removed in Erlang/OTP 24. The check is needed for backwards compatibility.
+    # TODO: Remove this once we require OTP 22.1
     case Code.ensure_loaded?(:crypto) and function_exported?(:crypto, :mac, 4) do
       true -> :crypto.mac(:hmac, type, key, data)
       false -> :crypto.hmac(type, key, data)
