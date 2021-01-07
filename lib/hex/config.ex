@@ -56,16 +56,23 @@ defmodule Hex.Config do
   end
 
   def find_config_home() do
-    case {System.get_env("HEX_HOME"), System.get_env("MIX_XDG"),
-          System.get_env("XDG_CONFIG_HOME")} do
-      {directory, _, _} when is_binary(directory) ->
-        Path.expand(directory)
+    cond do
+      dir = System.get_env("HEX_HOME") ->
+        dir
 
-      {nil, mix_xdg, directory} when mix_xdg in ["1", "true"] and is_binary(directory) ->
-        Path.join(Path.expand(directory), "hex")
+      System.get_env("MIX_XDG") in ["1", "true"] ->
+        user_config_dir!()
 
-      {nil, _, _} ->
+      true ->
         Path.expand("~/.hex")
+    end
+  end
+
+  defp user_config_dir! do
+    try do
+      :filename.basedir(:user_config, "hex", %{os: :linux})
+    rescue
+      _e -> Mix.raise("MIX_XDG is only available in OTP19+")
     end
   end
 
