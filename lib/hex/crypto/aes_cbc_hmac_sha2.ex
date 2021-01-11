@@ -82,36 +82,50 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
 
   # Support new and old style AES-CBC calls.
   defp aes_cbc_encrypt(key, iv, plain_text) do
-    :crypto.block_encrypt(:aes_cbc, key, iv, plain_text)
+    Hex.Stdlib.crypto_one_time_encrypt(:aes_cbc, key, iv, plain_text)
   rescue
     FunctionClauseError ->
-      key
-      |> bit_size()
-      |> bit_size_to_cipher()
-      |> :crypto.block_encrypt(key, iv, plain_text)
+      aes_cbc_encrypt_fallback(key, iv, plain_text)
+  catch
+    _, _ ->
+      aes_cbc_encrypt_fallback(key, iv, plain_text)
+  end
+
+  defp aes_cbc_encrypt_fallback(key, iv, plain_text) do
+    key
+    |> bit_size()
+    |> bit_size_to_cipher()
+    |> Hex.Stdlib.crypto_one_time_encrypt(key, iv, plain_text)
   end
 
   # Support new and old style AES-CBC calls.
   defp aes_cbc_decrypt(key, iv, cipher_text) do
-    :crypto.block_decrypt(:aes_cbc, key, iv, cipher_text)
+    Hex.Stdlib.crypto_one_time_decrypt(:aes_cbc, key, iv, cipher_text)
   rescue
     FunctionClauseError ->
-      key
-      |> bit_size()
-      |> bit_size_to_cipher()
-      |> :crypto.block_decrypt(key, iv, cipher_text)
+      aes_cbc_decrypt_fallback(key, iv, cipher_text)
+  catch
+    _, _ ->
+      aes_cbc_decrypt_fallback(key, iv, cipher_text)
+  end
+
+  defp aes_cbc_decrypt_fallback(key, iv, cipher_text) do
+    key
+    |> bit_size()
+    |> bit_size_to_cipher()
+    |> Hex.Stdlib.crypto_one_time_decrypt(key, iv, cipher_text)
   end
 
   defp hmac_sha2(mac_key, mac_data) when bit_size(mac_key) === 128 do
-    Hex.Crypto.hmac(:sha256, mac_key, mac_data)
+    Hex.Stdlib.crypto_hmac(:sha256, mac_key, mac_data)
   end
 
   defp hmac_sha2(mac_key, mac_data) when bit_size(mac_key) === 192 do
-    Hex.Crypto.hmac(:sha384, mac_key, mac_data)
+    Hex.Stdlib.crypto_hmac(:sha384, mac_key, mac_data)
   end
 
   defp hmac_sha2(mac_key, mac_data) when bit_size(mac_key) === 256 do
-    Hex.Crypto.hmac(:sha512, mac_key, mac_data)
+    Hex.Stdlib.crypto_hmac(:sha512, mac_key, mac_data)
   end
 
   # Pads a message using the PKCS #7 cryptographic message syntax.
@@ -153,7 +167,28 @@ defmodule Hex.Crypto.AES_CBC_HMAC_SHA2 do
   defp encoding_to_key_length("A192CBC-HS384"), do: 48
   defp encoding_to_key_length("A256CBC-HS512"), do: 64
 
-  defp bit_size_to_cipher(128), do: :aes_cbc128
-  defp bit_size_to_cipher(192), do: :aes_cbc192
-  defp bit_size_to_cipher(256), do: :aes_cbc256
+  # TODO: Remove this once we require OTP 19.0
+  defp bit_size_to_cipher(size) do
+    {:ok, vsn} = :application.get_key(:crypto, :vsn)
+
+    version =
+      vsn
+      |> List.to_string()
+      |> String.split(".")
+      |> Enum.map(&String.to_integer/1)
+
+    if version >= [3, 7, 0] do
+      new_bit_size_to_cipher(size)
+    else
+      old_bit_size_to_cipher(size)
+    end
+  end
+
+  defp new_bit_size_to_cipher(128), do: :aes_128_cbc
+  defp new_bit_size_to_cipher(192), do: :aes_192_cbc
+  defp new_bit_size_to_cipher(256), do: :aes_256_cbc
+
+  defp old_bit_size_to_cipher(128), do: :aes_cbc128
+  defp old_bit_size_to_cipher(192), do: :aes_cbc192
+  defp old_bit_size_to_cipher(256), do: :aes_cbc256
 end

@@ -15,7 +15,7 @@ defmodule Hex.Crypto.AES_GCM do
   def content_encrypt({aad, plain_text}, key, iv)
       when is_binary(aad) and is_binary(plain_text) and bit_size(key) in [128, 192, 256] and
              bit_size(iv) === 96 do
-    :crypto.block_encrypt(:aes_gcm, key, iv, {aad, plain_text})
+    Hex.Stdlib.crypto_one_time_aead_encrypt(:aes_gcm, key, iv, plain_text, aad)
   end
 
   @spec content_decrypt({binary, binary, <<_::16>>}, <<_::16>> | <<_::24>> | <<_::32>>, <<_::12>>) ::
@@ -23,7 +23,7 @@ defmodule Hex.Crypto.AES_GCM do
   def content_decrypt({aad, cipher_text, cipher_tag}, key, iv)
       when is_binary(aad) and is_binary(cipher_text) and bit_size(cipher_tag) === 128 and
              bit_size(key) in [128, 192, 256] and bit_size(iv) === 96 do
-    case :crypto.block_decrypt(:aes_gcm, key, iv, {aad, cipher_text, cipher_tag}) do
+    case Hex.Stdlib.crypto_one_time_aead_decrypt(:aes_gcm, key, iv, cipher_text, aad, cipher_tag) do
       plain_text when is_binary(plain_text) ->
         {:ok, plain_text}
 

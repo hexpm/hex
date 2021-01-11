@@ -120,7 +120,7 @@ defmodule Hex.HTTP.SSL do
   end
 
   defp filter_ciphers(allowed) do
-    available = Hex.Set.new(:ssl.cipher_suites(:openssl))
+    available = Hex.Set.new(Hex.Stdlib.ssl_cipher_suites(:openssl))
     Enum.filter(allowed, &(&1 in available))
   end
 
