@@ -3,7 +3,6 @@ defmodule Hex.State do
 
   @name __MODULE__
   @api_url "https://hex.pm/api"
-  @home "~/.hex"
   @pbkdf2_iters 32_768
 
   def default_api_url(), do: @api_url
@@ -26,14 +25,12 @@ defmodule Hex.State do
       fun: {__MODULE__, :trim_slash}
     },
     cache_home: %{
-      env_path_join: [{"HEX_HOME", ""}, {"XDG_CACHE_HOME", "hex"}],
-      default: @home,
-      fun: {__MODULE__, :path_expand}
+      default: :user_cache,
+      fun: {Hex.Config, :find_config_home}
     },
     config_home: %{
-      env_path_join: [{"HEX_HOME", ""}, {"XDG_CONFIG_HOME", "hex"}],
-      default: @home,
-      fun: {__MODULE__, :path_expand}
+      default: :user_config,
+      fun: {Hex.Config, :find_config_home}
     },
     unsafe_https: %{
       env: ["HEX_UNSAFE_HTTPS"],
@@ -77,9 +74,8 @@ defmodule Hex.State do
       fun: {__MODULE__, :to_integer}
     },
     data_home: %{
-      env_path_join: [{"HEX_HOME", ""}, {"XDG_DATA_HOME", "hex"}],
-      default: @home,
-      fun: {__MODULE__, :path_expand}
+      default: :user_data,
+      fun: {Hex.Config, :find_config_home}
     },
     mirror_url: %{
       env: ["HEX_MIRROR_URL", "HEX_MIRROR"],
