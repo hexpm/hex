@@ -9,7 +9,7 @@
 * Add locked version to `mix hex.info <package>`
 * Clarify publish message around ownership
 * Remove reliance on colors for hex.outdated
-* Follow xdg base dir specification
+* Follow XDG Base Directory Specification
 * Add link to diffs page in footer of `mix hex.outdated`
 * Introduce `latest` branch to install Hex using `mix archive.install git ...`
 * Add `--repo` flag to `mix hex.package` task
@@ -25,7 +25,8 @@
 * Return non-zero exit when package or release are not found in `mix hex.info`
 * Add `no_proxy` configuration
 * Add `mix hex.package diff APP VERSION`
-* `mix hex.sponsor`
+* Add `mix hex.sponsor`
+* Add `mix hex.registry`
 
 ### Bug fixes
 
@@ -35,6 +36,8 @@
 * Fix `mix hex.repo remove` command doc
 * Fix backtracking on single parent
 * Do not unpack the tarball on `mix hex.package fetch` unless `--unpack` is passed
+* Re-fetch stale cached package if registry checksum changed
+* Fix compatibility with OTP 24
 
 ## v0.20.6 (2020-10-20)
 
