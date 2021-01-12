@@ -51,16 +51,28 @@ defmodule Hex.Config do
     if state_pid && state_pid != self() do
       Hex.State.fetch!(:config_home)
     else
-      find_config_home()
+      {:ok, config_home} = find_config_home()
+      config_home
     end
   end
 
-  def find_config_home() do
-    case {System.get_env("HEX_HOME"), System.get_env("XDG_CONFIG_HOME")} do
-      {directory, _} when is_binary(directory) -> Path.expand(directory)
-      {nil, directory} when is_binary(directory) -> Path.join(Path.expand(directory), "hex")
-      {nil, nil} -> Path.expand("~/.hex")
+  def find_config_home(setting \\ :user_cache) do
+    cond do
+      dir = System.get_env("HEX_HOME") ->
+        {:ok, dir}
+
+      System.get_env("MIX_XDG") in ["1", "true"] ->
+        user_setting_dir!(setting)
+
+      true ->
+        {:ok, Path.expand("~/.hex")}
     end
+  end
+
+  defp user_setting_dir!(setting) do
+    {:ok, :filename.basedir(setting, "hex", %{os: :linux})}
+  rescue
+    _ -> Mix.raise("MIX_XDG is only available in OTP 19+")
   end
 
   defp encode_term(list) do
