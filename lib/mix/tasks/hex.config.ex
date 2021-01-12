@@ -56,8 +56,15 @@ defmodule Mix.Tasks.Hex.Config do
       a CA bundle that ships with Hex is used. Can be overridden by setting the
       environment variable `HEX_CACERTS_PATH`. (Default: `nil`)
 
-  `HEX_HOME` environment variable can be set to point to the directory where Hex
-  stores the cache and configuration (Default: `~/.hex`)
+  Hex responds to these additional environment variables:
+
+    * `HEX_HOME` - directory where Hex stores the cache and configuration
+      (Default: `~/.hex`)
+
+    * `MIX_XDG` - asks Hex to follow the [XDG Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)
+      for its home directory and configuration files. `HEX_HOME` has higher preference
+      than `MIX_XDG`. If none of the variables are set, the default directory
+      `~/.hex` will be used.
 
   ## Config overrides
 
