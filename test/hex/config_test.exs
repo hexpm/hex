@@ -10,7 +10,7 @@ defmodule Hex.ConfigTest do
 
   test "find_config_home/1 when HEX_HOME is set" do
     System.put_env("HEX_HOME", "/sys/tmp")
-    assert Config.find_config_home(:user_cache) == {:ok, "/sys/tmp"}
+    assert Config.find_config_home(:user_cache) == {{:env, "HEX_HOME"}, "/sys/tmp"}
     System.delete_env("HEX_HOME")
   end
 
@@ -37,7 +37,7 @@ defmodule Hex.ConfigTest do
   test "find_config_home/1 when MIX_XDG is set and HEX_HOME is set" do
     System.put_env("MIX_XDG", "true")
     System.put_env("HEX_HOME", "/sys/tmp")
-    assert Config.find_config_home(:user_cache) == {:ok, "/sys/tmp"}
+    assert Config.find_config_home(:user_cache) == {{:env, "HEX_HOME"}, "/sys/tmp"}
     System.delete_env("HEX_HOME")
     System.delete_env("MIX_XDG")
   end
