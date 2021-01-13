@@ -213,8 +213,13 @@ defmodule Hex.State do
 
     case result do
       nil ->
-        {:ok, value} = apply(module, func, [spec[:default]])
-        {:default, value}
+        case apply(module, func, [spec[:default]]) do
+          {:ok, value} ->
+            {:default, value}
+
+          {source, value} ->
+            {source, value}
+        end
 
       {source, value} ->
         case apply(module, func, [value]) do
