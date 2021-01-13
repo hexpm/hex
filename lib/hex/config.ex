@@ -51,12 +51,12 @@ defmodule Hex.Config do
     if state_pid && state_pid != self() do
       Hex.State.fetch!(:config_home)
     else
-      {:ok, config_home} = find_config_home()
+      {:ok, config_home} = find_config_home(:user_config)
       config_home
     end
   end
 
-  def find_config_home(setting \\ :user_cache) do
+  def find_config_home(setting) do
     cond do
       dir = System.get_env("HEX_HOME") ->
         {:ok, dir}
