@@ -14,12 +14,23 @@ defmodule Hex.ConfigTest do
     System.delete_env("HEX_HOME")
   end
 
-  @tag skip: System.version() < "1.3" and System.otp_release() < "19"
+  @tag skip: Version.match?(System.version(), "< 1.6.0")
   test "find_config_home/1 when MIX_XDG is set and HEX_HOME is not" do
     System.delete_env("HEX_HOME")
     System.put_env("MIX_XDG", "true")
-    {:ok, dir} = Config.find_config_home(:user_cache)
-    assert dir =~ "/hex"
+    {:ok, cache_dir} = Config.find_config_home(:user_cache)
+    {:ok, config_dir} = Config.find_config_home(:user_config)
+
+    case :os.type() do
+      {_, :linux} ->
+        assert config_dir =~ ".config/hex"
+        assert cache_dir =~ ".cache/hex"
+
+      {_, :darwin} ->
+        assert config_dir =~ "Application Support/hex"
+        assert cache_dir =~ "Caches/hex"
+    end
+
     System.delete_env("MIX_XDG")
   end
 
