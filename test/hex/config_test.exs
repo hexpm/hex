@@ -3,6 +3,7 @@ defmodule Hex.ConfigTest do
   alias Hex.Config
 
   test "find_config_home/1 when no env var flags are set" do
+    System.delete_env("HEX_HOME")
     {:ok, dir} = Config.find_config_home(:user_data)
     assert String.match?(dir, ~r/\/.hex/)
   end
