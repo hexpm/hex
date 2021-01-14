@@ -19,12 +19,11 @@ function build {
 # $... = elixir version
 function hex_csv {
   rm hex-1.x*.csv || true
-
   s3down hex-1.x.csv hex-1.x.csv
 
   for elixir in "${@:2}"
   do
-    sha=$(shasum -a 512 hex-${1}-${elixir}.ez)
+    sha=$(shasum -a 512 hex-${1}-elixir-${elixir}.ez)
     sha=($sha)
     echo "${1},${sha},${elixir}" >> hex-1.x.csv
   done
@@ -54,7 +53,7 @@ function upload {
   done
 
   # special case 1.0.0 upload
-  s3up hex-1.0.0.ez hex.ez
+  s3up hex-elixir-1.0.0.ez hex.ez
 
   s3up hex-1.x.csv hex-1.x.csv
   s3up hex-1.x.csv.signed hex-1.x.csv.signed
