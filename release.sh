@@ -10,8 +10,9 @@ function join { local IFS="$1"; shift; echo "$*"; }
 # $4 = saved elixir version
 function build {
   rm -rf _build src/mix_safe_erl_term.erl
+  docker run -v $PWD:/hex hexpm/elixir:${3}-erlang-${2}-ubuntu-xenial-20200212 sh -c "cd /hex && MIX_ENV=prod mix archive.build -o hex.ez"
   docker run -v $PWD:/hex hexpm/elixir:${3}-erlang-${2}-ubuntu-xenial-20200212 sh -c "cd /hex && MIX_ENV=prod mix archive.build -o hex-${1}.ez"
-  cp hex-${1}.ez hex-elixir-${4}.ez
+  cp hex.ez hex-elixir-${4}.ez
   cp hex-${1}.ez hex-${1}-elixir-${4}.ez
 }
 
