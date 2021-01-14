@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v0.21.0-dev (unreleased)
+## v0.21.0 (2021-01-14)
 
 ### Enhancements
 
@@ -25,8 +25,8 @@
 * Return non-zero exit when package or release are not found in `mix hex.info`
 * Add `no_proxy` configuration
 * Add `mix hex.package diff APP VERSION`
-* Add `mix hex.sponsor`
-* Add `mix hex.registry`
+* Add `mix hex.sponsor` for listing all dependencies ask for sponsors or support
+* Add `mix hex.registry build` for building registries locally
 
 ### Bug fixes
 
