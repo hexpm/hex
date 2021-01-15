@@ -83,6 +83,7 @@ defmodule Hex.Mixfile do
 
   defp unload_hex(_) do
     Application.stop(:hex)
+    Application.unload(:hex)
     paths = Path.wildcard(Path.join(archives_path(), "hex*"))
 
     Enum.each(paths, fn archive ->
