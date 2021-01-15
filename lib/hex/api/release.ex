@@ -11,22 +11,30 @@ defmodule Hex.API.Release do
   def publish(repo, tar, auth, progress \\ fn _ -> nil end, replace \\ false)
 
   def publish(repo, tar, auth, progress, replace?) do
+    Hex.API.check_write_api()
+
     path = "publish?replace=#{replace?}"
     opts = [progress: progress] ++ auth
     API.tar_post_request(repo, path, tar, opts)
   end
 
   def delete(repo, name, version, auth) do
+    Hex.API.check_write_api()
+
     path = "packages/#{URI.encode(name)}/releases/#{URI.encode(version)}"
     API.request(:delete, repo, path, auth)
   end
 
   def retire(repo, name, version, body, auth) do
+    Hex.API.check_write_api()
+
     path = "packages/#{URI.encode(name)}/releases/#{URI.encode(version)}/retire"
     API.erlang_post_request(repo, path, body, auth)
   end
 
   def unretire(repo, name, version, auth) do
+    Hex.API.check_write_api()
+
     path = "packages/#{URI.encode(name)}/releases/#{URI.encode(version)}/retire"
     API.request(:delete, repo, path, auth)
   end

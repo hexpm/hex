@@ -17,6 +17,8 @@ defmodule Hex.API.Package do
     @moduledoc false
 
     def add(repo, package, owner, level, transfer, auth) do
+      Hex.API.check_write_api()
+
       owner = URI.encode_www_form(owner)
       path = "packages/#{URI.encode(package)}/owners/#{URI.encode(owner)}"
       params = %{level: level, transfer: transfer}
@@ -24,6 +26,8 @@ defmodule Hex.API.Package do
     end
 
     def delete(repo, package, owner, auth) do
+      Hex.API.check_write_api()
+
       owner = URI.encode_www_form(owner)
       path = "packages/#{URI.encode(package)}/owners/#{URI.encode(owner)}"
       API.request(:delete, repo, path, auth)
