@@ -1,6 +1,11 @@
 # CHANGELOG
 
-## v0.21.1-dev (unreleased)
+## v0.21.1 (2021-01-15)
+
+### Enhancements
+
+* Warn when using ssl-10.2
+* Disable API write operations when using ssl-10.2
 
 ## v0.21.0 (2021-01-14)
 
