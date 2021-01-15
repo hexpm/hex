@@ -104,4 +104,20 @@ defmodule Hex.API do
       body
     end
   end
+
+  def check_write_api() do
+    case Application.load(:ssl) do
+      :ok ->
+        if :application.get_key(:ssl, :vsn) == {:ok, '10.2'} do
+          Mix.raise("""
+          You are using an OTP release with the application ssl-10.2 which has a vulnerability \
+          making it susceptible to man-in-the-middle attacks. API operations with write
+          capabilities are disabled until you upgrade to newer version, ssl-10.2.1+ or OTP-23.2.2+.
+          """)
+        end
+
+      {:error, _} ->
+        :ok
+    end
+  end
 end
