@@ -36,14 +36,15 @@ defmodule Mix.Tasks.Hex.Repo do
   ### Command line options
 
     * `--public-key PATH` - Path to public key used to verify the registry (optional).
+
     * `--auth-key KEY` - Key used to authenticate HTTP requests to repository (optional).
+
     * `--fetch-public-key FINGERPRINT` - Download public key from the repository and verify against the fingerprint (optional).
 
   ## Set config for repo
 
       mix hex.repo set NAME --url URL
       mix hex.repo set NAME --public-key PATH
-      mix hex.repo set NAME --fetch-public-key FINGERPRINT
       mix hex.repo set NAME --auth-key KEY
 
   ## Remove repo
