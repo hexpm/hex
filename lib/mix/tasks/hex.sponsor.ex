@@ -60,12 +60,19 @@ defmodule Mix.Tasks.Hex.Sponsor do
             _ ->
               []
           end
+
+        nil ->
+          []
       end
     end)
   end
 
   defp read_metadata(package, deps_path) do
-    :file.consult(Path.join([deps_path, package, @metadata_file]))
+    path = Path.join([deps_path, package, @metadata_file])
+
+    if File.exists?(path) do
+      :file.consult(path)
+    end
   end
 
   defp sponsorship(metadata) do
