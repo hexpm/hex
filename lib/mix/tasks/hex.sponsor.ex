@@ -61,7 +61,7 @@ defmodule Mix.Tasks.Hex.Sponsor do
               []
           end
 
-        nil ->
+        {:error, :enoent} ->
           []
       end
     end)
