@@ -60,6 +60,9 @@ defmodule Mix.Tasks.Hex.Sponsor do
             _ ->
               []
           end
+
+        {:error, :enoent} ->
+          []
       end
     end)
   end
