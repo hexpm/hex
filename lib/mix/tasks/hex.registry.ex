@@ -55,6 +55,14 @@ defmodule Mix.Tasks.Hex.Registry do
   mix hex.package fetch foo 1.0.0 --repo=acme
   ```
 
+  To use the package in your Mix project, add it as a dependency and set the `:repo` option to your repository name:
+
+  ```elixir
+  defp deps() do
+    {:decimal, "~> 2.0", repo: "acme"}
+  end
+  ```
+
   ### Command line options
 
     * `--name` - The name of the registry
