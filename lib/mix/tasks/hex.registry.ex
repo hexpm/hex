@@ -71,6 +71,7 @@ defmodule Mix.Tasks.Hex.Registry do
   """
   @impl true
   def run(args) do
+    Hex.start()
     {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
 
     case args do
@@ -81,7 +82,7 @@ defmodule Mix.Tasks.Hex.Registry do
         Mix.raise("""
         Invalid arguments, expected one of:
 
-        mix hex.registry build
+        mix hex.registry build PUBLIC_DIR
         """)
     end
   end
