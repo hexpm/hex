@@ -82,7 +82,7 @@ jobs:
       - uses: actions/checkout@v1
 
       - name: Install OTP and Elixir
-        uses: ericmj/setup-elixir@emj/otp-branches
+        uses: actions/setup-elixir@v1
         with:
           otp-version: ${{matrix.pair.erlang}}
           elixir-version: ${{matrix.pair.elixir}}
