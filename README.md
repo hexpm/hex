@@ -14,7 +14,7 @@ Install Hex locally for development with: `mix install`.
 
 ### Bundled CA certs
 
-Hex bundles a list of root CA certificates used for certificate validation in HTTPS. The certificates are fetched from [Mozilla's source tree](http://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt) with curl's [mk-ca-bundle.pl](https://github.com/bagder/curl/blob/master/lib/mk-ca-bundle.pl) script. The bundle created from the Perl script is stored in `lib/hex/api/ca-bundle.crt` and is included in source control, the file should be updated when new releases are made by Mozilla. When Hex is compiled the certificates are parsed and included with the compiled artifacts. The task `mix certdata` automates this process.
+Hex bundles a list of root CA certificates used for certificate validation in HTTPS. The certificates are fetched from [Mozilla's source tree](http://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt) with curl's [mk-ca-bundle.pl](https://github.com/bagder/curl/blob/master/lib/mk-ca-bundle.pl) script. The bundle created from the Perl script is stored in `lib/hex/http/ca-bundle.crt` and is included in source control, the file should be updated when new releases are made by Mozilla. When Hex is compiled the certificates are parsed and included with the compiled artifacts. The task `mix certdata` automates this process.
 
 ### hexpm
 
