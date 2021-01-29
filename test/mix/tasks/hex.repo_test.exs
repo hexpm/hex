@@ -121,6 +121,12 @@ defmodule Mix.Tasks.Hex.RepoTest do
              ) == {:exit_code, 1}
 
       assert_received {:mix_shell, :error, ["Downloading public key failed"]}
+
+      Mix.Tasks.Hex.Repo.run(["add", "Reponame", "url", "--public-key", "public_key.pem"])
+
+      ["$repos": repos] = Hex.Config.read()
+
+      assert nil == repos["Reponame"]
     end)
   end
 
@@ -130,6 +136,11 @@ defmodule Mix.Tasks.Hex.RepoTest do
 
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
       Mix.Tasks.Hex.Repo.run(["remove", "reponame"])
+      assert ["$repos": %{}] = Hex.Config.read()
+
+      Mix.Tasks.Hex.Repo.run(["add", "another_reponame", "url"])
+      Mix.Tasks.Hex.Repo.run(["add", "Another_RepoName", "url"])
+      Mix.Tasks.Hex.Repo.run(["remove", "another_Reponame"])
       assert ["$repos": %{}] = Hex.Config.read()
     end)
   end
@@ -141,6 +152,10 @@ defmodule Mix.Tasks.Hex.RepoTest do
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
       Mix.Tasks.Hex.Repo.run(["set", "reponame", "--url", "other_url"])
       assert ["$repos": %{"reponame" => %{url: "other_url"}}] = Hex.Config.read()
+
+      Mix.Tasks.Hex.Repo.run(["add", "another_reponame", "url"])
+      Mix.Tasks.Hex.Repo.run(["set", "Another_Reponame", "--url", "other_url"])
+      assert ["$repos": %{"reponame" => %{url: "other_url"}}] = Hex.Config.read()
     end)
   end
 
@@ -150,6 +165,12 @@ defmodule Mix.Tasks.Hex.RepoTest do
 
       Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
       Mix.Tasks.Hex.Repo.run(["show", "reponame"])
+      assert_received {:mix_shell, :info, [headers]}
+      assert_received {:mix_shell, :info, [config]}
+      assert headers =~ ~r{URL.*Public key.*Auth key}
+      assert config =~ "url"
+
+      Mix.Tasks.Hex.Repo.run(["show", "RepoName"])
       assert_received {:mix_shell, :info, [headers]}
       assert_received {:mix_shell, :info, [config]}
       assert headers =~ ~r{URL.*Public key.*Auth key}

@@ -70,16 +70,20 @@ defmodule Mix.Tasks.Hex.Repo do
 
     case args do
       ["add", name, url] ->
-        add(name, url, opts)
+        String.downcase(name)
+        |> add(url, opts)
 
       ["set", name] ->
-        set(name, opts)
+        String.downcase(name)
+        |> set(opts)
 
       ["remove", name] ->
-        remove(name)
+        String.downcase(name)
+        |> remove()
 
       ["show", name] ->
-        show(name)
+        String.downcase(name)
+        |> show()
 
       ["list"] ->
         list()
