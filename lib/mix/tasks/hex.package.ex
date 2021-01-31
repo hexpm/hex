@@ -16,7 +16,9 @@ defmodule Mix.Tasks.Hex.Package do
 
   Fetch a package tarball to the current directory.
 
-      mix hex.package fetch PACKAGE VERSION [--unpack] [--output PATH]
+      mix hex.package fetch PACKAGE [VERSION] [--unpack] [--output PATH]
+
+  If `version` is not given, use the latest version.
 
   You can pipe the fetched tarball to stdout by setting `--output -`.
 
@@ -97,6 +99,9 @@ defmodule Mix.Tasks.Hex.Package do
     output = Keyword.get(opts, :output, nil)
 
     case args do
+      ["fetch", package] ->
+        fetch(repo(opts), package, nil, unpack, output)
+
       ["fetch", package, version] ->
         fetch(repo(opts), package, version, unpack, output)
 
@@ -110,7 +115,7 @@ defmodule Mix.Tasks.Hex.Package do
         Mix.raise("""
           Invalid arguments, expected one of:
 
-          mix hex.package fetch PACKAGE VERSION [--unpack]
+          mix hex.package fetch PACKAGE [VERSION] [--unpack]
           mix hex.package diff APP VERSION
           mix hex.package diff PACKAGE VERSION1 VERSION2
           mix hex.package diff PACKAGE VERSION1..VERSION2
@@ -121,11 +126,16 @@ defmodule Mix.Tasks.Hex.Package do
   @impl true
   def tasks() do
     [
-      {"fetch PACKAGE VERSION [--unpack]", "Fetch the package"},
+      {"fetch PACKAGE [VERSION] [--unpack]", "Fetch the package"},
       {"diff APP VERSION", "Diff dependency against version"},
       {"diff PACKAGE VERSION1 VERSION2", "Diff package versions"},
       {"diff PACKAGE VERSION1..VERSION2", "Diff package versions"}
     ]
+  end
+
+  defp fetch(repo, package, nil, unpack?, output) do
+    version = find_package_latest_version(repo, package)
+    fetch(repo, package, version, unpack?, output)
   end
 
   defp fetch(repo, package, version, false, "-") do
@@ -325,6 +335,27 @@ defmodule Mix.Tasks.Hex.Package do
       Enum.join([repo, organization], ":")
     else
       repo
+    end
+  end
+
+  defp find_package_latest_version(organization, name) do
+    %{"latest_stable_version" => latest_stable_version} =
+      retrieve_package_info(organization, name)
+
+    latest_stable_version
+  end
+
+  defp retrieve_package_info(organization, name) do
+    case Hex.API.Package.get(organization, name) do
+      {:ok, {code, body, _}} when code in 200..299 ->
+        body
+
+      {:ok, {404, _, _}} ->
+        Mix.raise("No package with name #{name}")
+
+      other ->
+        Hex.Shell.error("Failed to retrieve package information")
+        Hex.Utils.print_error_result(other)
     end
   end
 end

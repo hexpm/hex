@@ -22,6 +22,17 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end)
   end
 
+  test "fetch: success using latest version" do
+    in_tmp(fn ->
+      cwd = File.cwd!()
+      Mix.Tasks.Hex.Package.run(["fetch", "postgrex"])
+      msg = "postgrex v0.2.1 downloaded to #{cwd}/postgrex-0.2.1.tar"
+      assert_received {:mix_shell, :info, [^msg]}
+      assert File.exists?("#{cwd}/postgrex-0.2.1.tar")
+      refute File.exists?("#{cwd}/postgrex-0.2.1/")
+    end)
+  end
+
   test "fetch: custom repo" do
     in_tmp(fn ->
       cwd = File.cwd!()
