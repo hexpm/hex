@@ -69,6 +69,29 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       assert {:ok, {200, _, versions}} = :mix_hex_repo.get_versions(config)
       assert versions == [%{name: "foo", retired: [], versions: ["0.9.0", "0.10.0"]}]
 
+      # Versions with hyphen
+      {:ok, %{tarball: tarball}} =
+        :mix_hex_tarball.create(%{name: "foo", version: "1.0.0-rc"}, [])
+
+      File.write!("public/tarballs/foo-1.0.0-rc.tar", tarball)
+
+      Mix.Task.reenable("hex.registry")
+
+      Mix.Task.run(
+        "hex.registry",
+        ~w(build public --name acme --private-key private_key.pem)
+      )
+
+      assert_received {:mix_shell, :info, ["* updating public/packages/foo"]}
+      assert_received {:mix_shell, :info, ["* updating public/names"]}
+      assert_received {:mix_shell, :info, ["* updating public/versions"]}
+      refute_received _
+
+      assert {:ok, {200, _, names}} = :mix_hex_repo.get_names(config)
+      assert names == [%{name: "foo"}]
+      assert {:ok, {200, _, versions}} = :mix_hex_repo.get_versions(config)
+      assert versions == [%{name: "foo", retired: [], versions: ["0.9.0", "0.10.0", "1.0.0-rc"]}]
+
       # Re-generating private key
       0 = Mix.shell().cmd("openssl genrsa -out private_key.pem")
       flush()
@@ -145,6 +168,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       # Removing all package releases
       File.rm!("public/tarballs/foo-0.9.0.tar")
       File.rm!("public/tarballs/foo-0.10.0.tar")
+      File.rm!("public/tarballs/foo-1.0.0-rc.tar")
       Mix.Task.reenable("hex.registry")
 
       Mix.Task.run(

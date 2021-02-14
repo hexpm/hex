@@ -107,7 +107,7 @@ defmodule Mix.Tasks.Hex.Registry do
 
     paths_per_name =
       Enum.group_by(Path.wildcard("#{public_dir}/tarballs/*.tar"), fn path ->
-        [name, _version] = String.split(Path.basename(path), ["-", ".tar"], trim: true)
+        [name | _rest] = String.split(Path.basename(path), ["-", ".tar"], trim: true)
         name
       end)
 
