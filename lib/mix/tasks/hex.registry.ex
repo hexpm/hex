@@ -149,12 +149,10 @@ defmodule Mix.Tasks.Hex.Registry do
 
     dependencies =
       for {package, map} <- Map.get(result.metadata, "requirements", []) do
-        %{
-          "app" => app,
-          "optional" => optional,
-          "requirement" => requirement,
-          "repository" => repository
-        } = map
+        app = Map.fetch!(map, "app")
+        requirement = Map.fetch!(map, "requirement")
+        optional = map["optional"] == true
+        repository = map["repository"]
 
         release = %{
           package: package,
@@ -163,7 +161,7 @@ defmodule Mix.Tasks.Hex.Registry do
           requirement: requirement
         }
 
-        if repository == repo_name do
+        if !repository or repository == repo_name do
           release
         else
           Map.put(release, :repository, repository)
