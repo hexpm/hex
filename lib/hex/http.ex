@@ -18,9 +18,9 @@ defmodule Hex.HTTP do
     request = build_request(url, headers, body)
     profile = Hex.State.fetch!(:httpc_profile)
 
-    retry(method, request, @request_retries, fn request ->
-      redirect(request, @request_redirects, fn request ->
-        timeout(request, timeout, fn request ->
+    retry(method, request, http_opts, @request_retries, fn request, http_opts ->
+      redirect(request, http_opts, @request_redirects, fn request, http_opts ->
+        timeout(request, http_opts, timeout, fn request, http_opts ->
           :httpc.request(method, request, http_opts, opts, profile)
           |> handle_response()
         end)
@@ -56,9 +56,9 @@ defmodule Hex.HTTP do
     end
   end
 
-  defp retry(:get, request, times, fun) do
+  defp retry(:get, request, http_opts, times, fun) do
     result =
-      case fun.(request) do
+      case fun.(request, http_opts) do
         {:http_error, _, _} = error ->
           {:retry, error}
 
@@ -71,23 +71,26 @@ defmodule Hex.HTTP do
 
     case result do
       {:retry, _} when times > 0 ->
-        retry(:get, request, times - 1, fun)
+        retry(:get, request, http_opts, times - 1, fun)
 
       {_other, result} ->
         result
     end
   end
 
-  defp retry(_method, request, _times, fun), do: fun.(request)
+  defp retry(_method, request, http_opts, _times, fun), do: fun.(request, http_opts)
 
-  defp redirect(request, times, fun) do
-    case fun.(request) do
+  defp redirect(request, http_opts, times, fun) do
+    case fun.(request, http_opts) do
       {:ok, response} ->
         case handle_redirect(response) do
           {:ok, location} when times > 0 ->
+            ssl_opts = Hex.HTTP.SSL.ssl_opts(to_string(location))
+            http_opts = Keyword.put(http_opts, :ssl, ssl_opts)
+
             request
             |> update_request(location)
-            |> redirect(times - 0, fun)
+            |> redirect(http_opts, times - 0, fun)
 
           {:ok, _location} ->
             Mix.raise("Too many redirects")
@@ -124,10 +127,8 @@ defmodule Hex.HTTP do
     {new_url, headers}
   end
 
-  defp timeout(request, timeout, fun) do
-    Task.async(fn ->
-      fun.(request)
-    end)
+  defp timeout(request, http_opts, timeout, fun) do
+    Task.async(fn -> fun.(request, http_opts) end)
     |> task_await(:timeout, timeout)
   end
 
