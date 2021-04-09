@@ -21,8 +21,7 @@ defmodule Hex.HTTP do
     retry(method, request, http_opts, @request_retries, fn request, http_opts ->
       redirect(request, http_opts, @request_redirects, fn request, http_opts ->
         timeout(request, http_opts, timeout, fn request, http_opts ->
-          method
-          |> :httpc.request(request, http_opts, opts, profile)
+          :httpc.request(method, request, http_opts, opts, profile)
           |> handle_response()
         end)
       end)
@@ -129,8 +128,7 @@ defmodule Hex.HTTP do
   end
 
   defp timeout(request, http_opts, timeout, fun) do
-    fn -> fun.(request, http_opts) end
-    |> Task.async()
+    Task.async(fn -> fun.(request, http_opts) end)
     |> task_await(:timeout, timeout)
   end
 
