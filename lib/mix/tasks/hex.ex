@@ -304,10 +304,10 @@ defmodule Mix.Tasks.Hex do
     if password != confirm do
       Hex.Shell.error("Entered passwords do not match. Try again")
       prompt_encrypt_key(write_key, read_key, challenge)
+    else
+      encrypted_write_key = Hex.Crypto.encrypt(write_key, password, @apikey_tag)
+      update_keys(encrypted_write_key, read_key)
     end
-
-    encrypted_write_key = Hex.Crypto.encrypt(write_key, password, @apikey_tag)
-    update_keys(encrypted_write_key, read_key)
   end
 
   @doc false
