@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v0.21.2-dev (unreleased)
+## v0.21.2 (2021-04-14)
 
 ### Enhancements
 
@@ -11,6 +11,7 @@
 * Gracefully handle missing hex metadata in sponsor task
 * Fix building hex registry
 * Update ssl opts for host validation on redirect
+* Store correct password after confirmation failure
 
 ## v0.21.1 (2021-01-15)
 
