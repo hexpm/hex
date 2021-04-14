@@ -2,6 +2,16 @@
 
 ## v0.21.2-dev (unreleased)
 
+### Enhancements
+
+* Adds support for `mix hex.package fetch PACKAGE` (without version)
+
+### Bug fixes
+
+* Gracefully handle missing hex metadata in sponsor task
+* Fix building hex registry
+* Update ssl opts for host validation on redirect
+
 ## v0.21.1 (2021-01-15)
 
 ### Enhancements
