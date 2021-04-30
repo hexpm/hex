@@ -118,6 +118,14 @@ defmodule Mix.Tasks.Hex.Registry do
           |> Enum.map(&build_release(repo_name, &1))
           |> Enum.sort(&(Hex.Version.compare(&1.version, &2.version) == :lt))
 
+        updated_at =
+          paths
+          |> Enum.map(&File.stat!(&1).mtime)
+          |> Enum.sort()
+          |> Enum.at(-1)
+
+        updated_at = updated_at && %{seconds: to_unix(updated_at), nanos: 0}
+
         package =
           :mix_hex_registry.build_package(
             %{repository: repo_name, name: name, releases: releases},
@@ -125,7 +133,8 @@ defmodule Mix.Tasks.Hex.Registry do
           )
 
         write_file("#{public_dir}/packages/#{name}", package)
-        {name, Enum.map(releases, & &1.version)}
+        versions = Enum.map(releases, & &1.version)
+        {name, %{updated_at: updated_at, versions: versions}}
       end)
 
     for path <- Path.wildcard("#{public_dir}/packages/*"),
@@ -133,15 +142,30 @@ defmodule Mix.Tasks.Hex.Registry do
       remove_file(path)
     end
 
-    names = for {name, _} <- versions, do: %{name: name}
+    names =
+      for {name, %{updated_at: updated_at}} <- versions do
+        %{name: name, updated_at: updated_at}
+      end
+
     payload = %{repository: repo_name, packages: names}
     names = :mix_hex_registry.build_names(payload, private_key)
     write_file("#{public_dir}/names", names)
 
-    versions = for {name, versions} <- versions, do: %{name: name, versions: versions}
+    versions =
+      for {name, %{versions: versions}} <- versions do
+        %{name: name, versions: versions}
+      end
+
     payload = %{repository: repo_name, packages: versions}
     versions = :mix_hex_registry.build_versions(payload, private_key)
     write_file("#{public_dir}/versions", versions)
+  end
+
+  @unix_epoch :calendar.datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}})
+
+  @doc false
+  def to_unix(erl_datetime) do
+    :calendar.datetime_to_gregorian_seconds(erl_datetime) - @unix_epoch
   end
 
   defp build_release(repo_name, tarball_path) do
