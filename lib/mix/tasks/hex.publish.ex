@@ -13,6 +13,8 @@ defmodule Mix.Tasks.Hex.Publish do
   owners can publish the package, new owners can be added with the
   `mix hex.owner` task.
 
+  Authentication can also be done by setting the `HEX_API_KEY` environment variable, for more information: `Mix.Tasks.Hex.Config`.
+
   Packages and documentation sizes are limited to 8mb compressed, and 64mb uncompressed.
 
   ## Publishing documentation
