@@ -1,5 +1,7 @@
 %% Vendored from hex_core v0.7.1, do not edit manually
 
+%% @doc
+%% Functions for creating and unpacking Hex tarballs.
 -module(mix_hex_tarball).
 -export([create/2, create/3, create_docs/1, create_docs/2, unpack/2, unpack/3,
     unpack_docs/2, unpack_docs/3, format_checksum/1, format_error/1]).
@@ -117,7 +119,7 @@ create_docs(Files) ->
 %% Unpacks a package tarball.
 %%
 %% Remember to verify the outer tarball checksum against the registry checksum
-%% returned from `mix_hex_repo:get_package(Config, Package)`.
+%% returned from `mix_hex_repo:get_package(Config, Package)'.
 %%
 %% Examples:
 %%
@@ -230,13 +232,16 @@ format_byte_size(Size) ->
 %% Internal functions
 %%====================================================================
 
+%% @private
 inner_checksum(Version, MetadataBinary, ContentsBinary) ->
     Blob = <<Version/binary, MetadataBinary/binary, ContentsBinary/binary>>,
     crypto:hash(sha256, Blob).
 
+%% @private
 checksum(ContentsBinary) when is_binary(ContentsBinary) ->
     crypto:hash(sha256, ContentsBinary).
 
+%% @private
 encode_metadata(Meta) ->
     Data = lists:map(
         fun(MetaPair) ->
@@ -245,6 +250,7 @@ encode_metadata(Meta) ->
         end, maps:to_list(Meta)),
     iolist_to_binary(Data).
 
+%% @private
 do_unpack(Files, OuterChecksum, Output) ->
     State = #{
         inner_checksum => undefined,
@@ -260,6 +266,7 @@ do_unpack(Files, OuterChecksum, Output) ->
     State4 = decode_metadata(State3),
     finish_unpack(State4).
 
+%% @private
 finish_unpack({error, _} = Error) ->
     Error;
 finish_unpack(#{metadata := Metadata, files := Files, inner_checksum := InnerChecksum, outer_checksum := OuterChecksum, output := Output}) ->
@@ -283,9 +290,11 @@ finish_unpack(#{metadata := Metadata, files := Files, inner_checksum := InnerChe
             {error, {inner_tarball, Reason}}
     end.
 
+%% @private
 copy_metadata_config(Output, MetadataBinary) ->
     ok = file:write_file(filename:join(Output, "hex_metadata.config"), MetadataBinary).
 
+%% @private
 check_files(#{files := Files} = State) ->
     RequiredFiles = ["VERSION", "CHECKSUM", "metadata.config", "contents.tar.gz"],
     case diff_keys(Files, RequiredFiles, []) of
@@ -296,6 +305,7 @@ check_files(#{files := Files} = State) ->
             {error, {tarball, {missing_files, Keys}}}
     end.
 
+%% @private
 check_version({error, _} = Error) ->
     Error;
 check_version(#{files := Files} = State) ->
@@ -307,6 +317,7 @@ check_version(#{files := Files} = State) ->
             {error, {tarball, {bad_version, Version}}}
     end.
 
+%% @private
 % Note: This checksum is deprecated
 check_inner_checksum({error, _} = Error) ->
     Error;
@@ -330,6 +341,7 @@ check_inner_checksum(#{files := Files} = State) ->
             {error, {tarball, {inner_checksum_mismatch, ExpectedChecksum, ActualChecksum}}}
     end.
 
+%% @private
 decode_metadata({error, _} = Error) ->
     Error;
 decode_metadata(#{files := #{"metadata.config" := Binary}} = State) when is_binary(Binary) ->
@@ -338,6 +350,7 @@ decode_metadata(#{files := #{"metadata.config" := Binary}} = State) when is_bina
         Other -> Other
     end.
 
+%% @private
 do_decode_metadata(Binary) when is_binary(Binary) ->
     {ok, String} = characters_to_list(Binary),
 
@@ -358,6 +371,7 @@ do_decode_metadata(Binary) when is_binary(Binary) ->
             {error, {metadata, Reason}}
     end.
 
+%% @private
 characters_to_list(Binary) ->
     case unicode:characters_to_list(Binary) of
         List when is_list(List) ->
@@ -369,12 +383,14 @@ characters_to_list(Binary) ->
             end
     end.
 
+%% @private
 normalize_metadata(Metadata1) ->
     Metadata2 = maybe_update_with(<<"requirements">>, fun normalize_requirements/1, Metadata1),
     Metadata3 = maybe_update_with(<<"links">>, fun try_into_map/1, Metadata2),
     Metadata4 = maybe_update_with(<<"extra">>, fun try_into_map/1, Metadata3),
     guess_build_tools(Metadata4).
 
+%% @private
 normalize_requirements(Requirements) ->
     case is_list(Requirements) andalso (Requirements /= []) andalso is_list(hd(Requirements)) of
         true ->
@@ -384,14 +400,17 @@ normalize_requirements(Requirements) ->
             try_into_map(fun normalize_normal_requirement/1, Requirements)
     end.
 
+%% @private
 normalize_normal_requirement({Name, Requirement}) ->
     {Name, try_into_map(Requirement)}.
 
+%% @private
 normalize_legacy_requirement(Requirement) ->
     Map = maps:from_list(Requirement),
     Name = maps:get(<<"name">>, Map),
     {Name, maps:without([<<"name">>], Map)}.
 
+%% @private
 guess_build_tools(#{<<"build_tools">> := BuildTools} = Metadata) when is_list(BuildTools) ->
     Metadata;
 guess_build_tools(#{<<"files">> := Filenames} = Metadata) ->
@@ -405,6 +424,7 @@ guess_build_tools(Metadata) ->
 %% Tar Helpers
 %%====================================================================
 
+%% @private
 unpack_tarball(ContentsBinary, memory) ->
     mix_hex_erl_tar:extract({binary, ContentsBinary}, [memory, compressed]);
 unpack_tarball(ContentsBinary, Output) ->
@@ -417,12 +437,14 @@ unpack_tarball(ContentsBinary, Output) ->
             Other
     end.
 
+%% @private
 %% let it silently fail for bad symlinks
 try_updating_mtime(Path) ->
     Time = calendar:universal_time(),
     _ = file:write_file_info(Path, #file_info{mtime=Time}, [{time, universal}]),
     ok.
 
+%% @private
 create_memory_tarball(Files) ->
     Path = tmp_path(),
     {ok, Tar} = mix_hex_erl_tar:open(Path, [write]),
@@ -436,12 +458,15 @@ create_memory_tarball(Files) ->
     ok = file:delete(Path),
     Tarball.
 
+%% @private
 tmp_path() ->
     "tmp_" ++ binary_to_list(encode_base16(crypto:strong_rand_bytes(32))).
 
+%% @private
 add_files(Tar, Files) when is_list(Files) ->
     lists:map(fun(File) -> add_file(Tar, File) end, Files).
 
+%% @private
 add_file(Tar, {Filename, Contents}) when is_list(Filename) and is_binary(Contents) ->
     ok = mix_hex_erl_tar:add(Tar, Contents, Filename, tar_opts());
 add_file(Tar, Filename) when is_list(Filename) ->
@@ -466,12 +491,14 @@ add_file(Tar, {Filename, AbsFilename}) when is_list(Filename), is_list(AbsFilena
             ok = mix_hex_erl_tar:add(Tar, Contents, Filename, Mode, tar_opts())
     end.
 
+%% @private
 tar_opts() ->
     NixEpoch = calendar:datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}}),
     Y2kEpoch = calendar:datetime_to_gregorian_seconds({{2000, 1, 1}, {0, 0, 0}}),
     Epoch = Y2kEpoch - NixEpoch,
     [{atime, Epoch}, {mtime, Epoch}, {ctime, Epoch}, {uid, 0}, {gid, 0}].
 
+%% @private
 %% Reproducible gzip by not setting mtime and OS
 %%
 %% From https://tools.ietf.org/html/rfc1952
@@ -495,6 +522,7 @@ gzip(Uncompressed) ->
     Trailer = <<Crc:32/little, Size:32/little>>,
     iolist_to_binary([Header, Compressed, Trailer]).
 
+%% @private
 gzip_no_header(Uncompressed) ->
     Zstream = zlib:open(),
 
@@ -511,6 +539,7 @@ gzip_no_header(Uncompressed) ->
 %% Helpers
 %%====================================================================
 
+%% @private
 binarify(Binary) when is_binary(Binary) -> Binary;
 binarify(Number) when is_number(Number) -> Number;
 binarify(Atom) when Atom == undefined orelse is_boolean(Atom) -> Atom;
@@ -523,6 +552,7 @@ binarify(Map) when is_map(Map) ->
      List = maps:to_list(Map),
      lists:map(fun({K, V}) -> binarify({K, V}) end, List).
 
+%% @private
 diff_keys(Map, RequiredKeys, OptionalKeys) ->
     Keys = maps:keys(Map),
     MissingKeys = RequiredKeys -- Keys,
@@ -540,21 +570,25 @@ diff_keys(Map, RequiredKeys, OptionalKeys) ->
             {error, {missing_keys, MissingKeys}}
     end.
 
+%% @private
 maybe_update_with(Key, Fun, Map) ->
     case maps:find(Key, Map) of
         {ok, Value} -> maps:put(Key, Fun(Value), Map);
         error -> Map
     end.
 
+%% @private
 try_into_map(List) ->
     try_into_map(fun(X) -> X end, List).
 
+%% @private
 try_into_map(Fun, Input) ->
     case is_list(Input) andalso lists:all(fun(E) -> is_tuple(E) andalso (tuple_size(E) == 2) end, Input) of
         true -> maps:from_list(lists:map(Fun, Input));
         false -> Input
     end.
 
+%% @private
 encode_base16(Binary) ->
     <<X:256/big-unsigned-integer>> = Binary,
     String = string:to_upper(lists:flatten(io_lib:format("~64.16.0b", [X]))),
@@ -563,9 +597,11 @@ encode_base16(Binary) ->
 %% Based on https://github.com/goj/base16/blob/master/src/base16.erl
 %% (C) 2012, Erlang Solutions Ltd.
 
+%% @private
 decode_base16(Base16) ->
     << <<(unhex(H) bsl 4 + unhex(L))>> || <<H,L>> <= Base16 >>.
 
+%% @private
 unhex(D) when $0 =< D andalso D =< $9 ->
     D - $0;
 unhex(D) when $a =< D andalso D =< $f ->

@@ -1,5 +1,7 @@
 %% Vendored from hex_core v0.7.1, do not edit manually
 
+%% @doc
+%% Repo API.
 -module(mix_hex_repo).
 -export([
     get_names/1,
@@ -113,9 +115,11 @@ get_tarball(Config, Name, Version) ->
 %% Internal functions
 %%====================================================================
 
+%% @private
 get(Config, URI, Headers) ->
     mix_hex_http:request(Config, get, URI, Headers, undefined).
 
+%% @private
 get_protobuf(Config, Path, Decoder) ->
     PublicKey = maps:get(repo_public_key, Config),
     ReqHeaders = make_headers(Config),
@@ -135,6 +139,7 @@ get_protobuf(Config, Path, Decoder) ->
             Other
     end.
 
+%% @private
 decode(Signed, PublicKey, Decoder, Config) ->
     Verify = maps:get(repo_verify, Config, true),
 
@@ -151,13 +156,16 @@ decode(Signed, PublicKey, Decoder, Config) ->
             Decoder(Payload)
     end.
 
+%% @private
 repo_name(#{repo_organization := Name}) when is_binary(Name) -> Name;
 repo_name(#{repo_name := Name}) when is_binary(Name) -> Name.
 
+%% @private
 tarball_url(Config, Name, Version) ->
     Filename = tarball_filename(Name, Version),
     build_url(Config, <<"tarballs/", Filename/binary>>).
 
+%% @private
 build_url(#{repo_url := URI, repo_organization := Org}, Path) when is_binary(Org) ->
     <<URI/binary, "/repos/", Org/binary, "/", Path/binary>>;
 build_url(#{repo_url := URI, repo_organization := undefined}, Path) ->
@@ -165,12 +173,15 @@ build_url(#{repo_url := URI, repo_organization := undefined}, Path) ->
 build_url(Config, Path) ->
     build_url(Config#{repo_organization => undefined}, Path).
 
+%% @private
 tarball_filename(Name, Version) ->
     <<Name/binary, "-", Version/binary, ".tar">>.
 
+%% @private
 make_headers(Config) ->
     maps:fold(fun set_header/3, #{}, Config).
 
+%% @private
 set_header(http_etag, ETag, Headers) when is_binary(ETag) -> maps:put(<<"if-none-match">>, ETag, Headers);
 set_header(repo_key, Token, Headers) when is_binary(Token) -> maps:put(<<"authorization">>, Token, Headers);
 set_header(_, _, Headers) -> Headers.

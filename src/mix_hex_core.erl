@@ -1,37 +1,50 @@
 %% Vendored from hex_core v0.7.1, do not edit manually
 
 %% @doc
-%% hex_core entrypoint module.
+%% `hex_core' entrypoint module.
 %%
-%% ### Config
+%% === Config ===
 %%
-%% Most functions in the hex_core API takes a configuration. The configuration sets things
+%% Most functions in the `hex_core' API takes a configuration. The configuration sets things
 %% like HTTP client to use, and API and repository URL. Some of these configuration options
 %% will likely be static for your application and some may change depending on the function
 %% you call.
 %%
-%% ##### Options
+%% === Options ===
 %%
 %% * `api_key' - Authentication key used when accessing the HTTP API.
+%%
 %% * `api_organization' - Name of the organization endpoint in the API, this should
 %%   for example be set when accessing key for a specific organization.
+%%
 %% * `api_repository' - Name of the repository endpoint in the API, this should
 %%   for example be set when accessing packages from a specific repository.
+%%
 %% * `api_url' - URL to the HTTP API (default: `https://hex.pm/api').
+%%
 %% * `http_adapter' - A tuple of a callback module used for HTTP requests, see [`mix_hex_http'](mix_hex_http.html)
 %%   (default: `mix_hex_http_httpc') and the configuration to pass to the HTTP adapter.
+%%
 %% * `http_etag' - Sets the `if-none-match' HTTP header with the given value to do a
 %%   conditional HTTP request.
+%%
 %% * `http_user_agent_fragment' - Will be appended to the `user-agent` HTTP header (default: `(httpc)').
+%%
 %% * `repo_key' - Authentication key used when accessing the repository.
+%%
 %% * `repo_name' - Name of the repository, used for verifying the repository signature
 %%   authenticity (default: `hexpm').
+%%
 %% * `repo_public_key' - Public key used to verify the repository signature
 %%   (defaults to hexpm public key `https://hex.pm/docs/public_keys').
+%%
 %% * `repo_url' - URL to the repository (default: `https://repo.hex.pm').
+%%
 %% * `repo_organization' - Name of the organization repository, appends `/repos/:name'
 %%    to the repository URL and overrides the `repo_name' option.
+%%
 %% * `repo_verify' - If `true' will verify the repository signature (default: `true').
+%%
 %% * `repo_verify_origin' - If `true' will verify the repository signature origin,
 %%   requires protobuf messages as of hex_core v0.4.0 (default: `true').
 

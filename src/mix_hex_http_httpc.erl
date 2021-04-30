@@ -1,6 +1,7 @@
 %% Vendored from hex_core v0.7.1, do not edit manually
 
-%% @hidden
+%% @doc
+%% httpc-based implementation of `mix_hex_http' contract.
 
 -module(mix_hex_http_httpc).
 -behaviour(mix_hex_http).
@@ -24,18 +25,22 @@ request(Method, URI, ReqHeaders, Body, AdapterConfig) ->
 %% Internal functions
 %%====================================================================
 
+%% @private
 build_request(URI, ReqHeaders, Body) ->
     build_request2(binary_to_list(URI), dump_headers(ReqHeaders), Body).
 
+%% @private
 build_request2(URI, ReqHeaders, undefined) ->
     {URI, ReqHeaders};
 build_request2(URI, ReqHeaders, {ContentType, Body}) ->
     {URI, ReqHeaders, ContentType, Body}.
 
+%% @private
 dump_headers(Map) ->
     maps:fold(fun(K, V, Acc) ->
         [{binary_to_list(K), binary_to_list(V)} | Acc] end, [], Map).
 
+%% @private
 load_headers(List) ->
     lists:foldl(fun({K, V}, Acc) ->
         maps:put(list_to_binary(K), list_to_binary(V), Acc) end, #{}, List).
