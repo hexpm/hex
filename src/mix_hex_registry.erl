@@ -1,13 +1,21 @@
 %% Vendored from hex_core v0.7.1, do not edit manually
 
+%% @doc
+%% Functions for encoding and decoding Hex registries.
 -module(mix_hex_registry).
 -export([
     encode_names/1,
     decode_names/2,
+    build_names/2,
+    unpack_names/3,
     encode_versions/1,
     decode_versions/2,
+    build_versions/2,
+    unpack_versions/3,
     encode_package/1,
     decode_package/3,
+    build_package/2,
+    unpack_package/4,
     sign_protobuf/2,
     decode_signed/1,
     decode_and_verify_signed/2,
@@ -24,12 +32,24 @@
 %%====================================================================
 
 %% @doc
-%% Encode Names message.
+%% Builds names resource.
+build_names(Names, PrivateKey) ->
+  Payload = encode_names(Names),
+  zlib:gzip(sign_protobuf(Payload, PrivateKey)).
+
+%% @doc
+%% Unpacks names resource.
+unpack_names(Payload, Repository, PublicKey) ->
+  case decode_and_verify_signed(zlib:gunzip(Payload), PublicKey) of
+    {ok, Names} -> decode_names(Names, Repository);
+    Other -> Other
+  end.
+
+%% @private
 encode_names(Names) ->
     mix_hex_pb_names:encode_msg(Names, 'Names').
 
-%% @doc
-%% Decode message created with encode_names/1.
+%% @private
 decode_names(Payload, no_verify) ->
     #{packages := Packages} = mix_hex_pb_names:decode_msg(Payload, 'Names'),
     {ok, Packages};
@@ -43,12 +63,24 @@ decode_names(Payload, Repository) ->
     end.
 
 %% @doc
-%% Encode Versions message.
+%% Builds versions resource.
+build_versions(Versions, PrivateKey) ->
+  Payload = encode_versions(Versions),
+  zlib:gzip(sign_protobuf(Payload, PrivateKey)).
+
+%% @doc
+%% Unpacks versions resource.
+unpack_versions(Payload, Repository, PublicKey) ->
+  case decode_and_verify_signed(zlib:gunzip(Payload), PublicKey) of
+    {ok, Versions} -> decode_versions(Versions, Repository);
+    Other -> Other
+  end.
+
+%% @private
 encode_versions(Versions) ->
     mix_hex_pb_versions:encode_msg(Versions, 'Versions').
 
-%% @doc
-%% Decode message created with encode_versions/1.
+%% @private
 decode_versions(Payload, no_verify) ->
     #{packages := Packages} = mix_hex_pb_versions:decode_msg(Payload, 'Versions'),
     {ok, Packages};
@@ -60,6 +92,20 @@ decode_versions(Payload, Repository) ->
         _ ->
             {error, unverified}
     end.
+
+%% @doc
+%% Builds package resource.
+build_package(Package, PrivateKey) ->
+  Payload = encode_package(Package),
+  zlib:gzip(sign_protobuf(Payload, PrivateKey)).
+
+%% @doc
+%% Unpacks package resource.
+unpack_package(Payload, Repository, Name, PublicKey) ->
+  case decode_and_verify_signed(zlib:gunzip(Payload), PublicKey) of
+    {ok, Package} -> decode_package(Package, Repository, Name);
+    Other -> Other
+  end.
 
 %% @doc
 %% Encode Package message.
@@ -122,6 +168,7 @@ verify(Binary, Signature, PublicKey) ->
 %% Internal functions
 %%====================================================================
 
+%% @private
 key(#'RSAPublicKey'{} = Key) ->
     {ok, Key};
 key(#'RSAPrivateKey'{} = Key) ->

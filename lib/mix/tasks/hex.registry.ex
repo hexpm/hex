@@ -119,27 +119,28 @@ defmodule Mix.Tasks.Hex.Registry do
           |> Enum.sort(&(Hex.Version.compare(&1.version, &2.version) == :lt))
 
         package =
-          %{repository: repo_name, name: name, releases: releases}
-          |> :mix_hex_registry.encode_package()
-          |> sign_and_gzip(private_key)
+          :mix_hex_registry.build_package(
+            %{repository: repo_name, name: name, releases: releases},
+            private_key
+          )
 
         write_file("#{public_dir}/packages/#{name}", package)
         {name, Enum.map(releases, & &1.version)}
       end)
 
     for path <- Path.wildcard("#{public_dir}/packages/*"),
-        not (Path.basename(path) in Map.keys(paths_per_name)) do
+        not Enum.member?(Map.keys(paths_per_name), Path.basename(path)) do
       remove_file(path)
     end
 
     names = for {name, _} <- versions, do: %{name: name}
     payload = %{repository: repo_name, packages: names}
-    names = payload |> :mix_hex_registry.encode_names() |> sign_and_gzip(private_key)
+    names = :mix_hex_registry.build_names(payload, private_key)
     write_file("#{public_dir}/names", names)
 
     versions = for {name, versions} <- versions, do: %{name: name, versions: versions}
     payload = %{repository: repo_name, packages: versions}
-    versions = payload |> :mix_hex_registry.encode_versions() |> sign_and_gzip(private_key)
+    versions = :mix_hex_registry.build_versions(payload, private_key)
     write_file("#{public_dir}/versions", versions)
   end
 
@@ -174,12 +175,6 @@ defmodule Mix.Tasks.Hex.Registry do
       outer_checksum: result.outer_checksum,
       dependencies: dependencies
     }
-  end
-
-  defp sign_and_gzip(protobuf, private_key) do
-    protobuf
-    |> :mix_hex_registry.sign_protobuf(private_key)
-    |> :zlib.gzip()
   end
 
   defp ensure_public_key(private_key, public_dir) do
