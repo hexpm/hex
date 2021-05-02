@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.7.1, do not edit manually
+%% Vendored from hex_core v0.8.0, do not edit manually
 
 %% -*- coding: utf-8 -*-
 %% Automatically generated, do not edit
@@ -47,8 +47,8 @@ encode_msg(Msg, MsgName, Opts) ->
     verify_msg(Msg, MsgName, Opts),
     TrUserData = proplists:get_value(user_data, Opts),
     case MsgName of
-      'Signed' ->
-	  e_msg_Signed(id(Msg, TrUserData), TrUserData)
+        'Signed' ->
+            e_msg_Signed(id(Msg, TrUserData), TrUserData)
     end.
 
 
@@ -58,16 +58,16 @@ e_msg_Signed(Msg, TrUserData) ->
 
 e_msg_Signed(#{payload := F1} = M, Bin, TrUserData) ->
     B1 = begin
-	   TrF1 = id(F1, TrUserData),
-	   e_type_bytes(TrF1, <<Bin/binary, 10>>, TrUserData)
-	 end,
+             TrF1 = id(F1, TrUserData),
+             e_type_bytes(TrF1, <<Bin/binary, 10>>, TrUserData)
+         end,
     case M of
-      #{signature := F2} ->
-	  begin
-	    TrF2 = id(F2, TrUserData),
-	    e_type_bytes(TrF2, <<B1/binary, 18>>, TrUserData)
-	  end;
-      _ -> B1
+        #{signature := F2} ->
+            begin
+                TrF2 = id(F2, TrUserData),
+                e_type_bytes(TrF2, <<B1/binary, 18>>, TrUserData)
+            end;
+        _ -> B1
     end.
 
 -compile({nowarn_unused_function,e_type_sint/3}).
@@ -198,56 +198,91 @@ decode_msg_2_doit('Signed', Bin, TrUserData) ->
 
 
 d_msg_Signed(Bin, TrUserData) ->
-    dfp_read_field_def_Signed(Bin, 0, 0,
-			      id('$undef', TrUserData),
-			      id('$undef', TrUserData), TrUserData).
+    dfp_read_field_def_Signed(Bin,
+                              0,
+                              0,
+                              id('$undef', TrUserData),
+                              id('$undef', TrUserData),
+                              TrUserData).
 
 dfp_read_field_def_Signed(<<10, Rest/binary>>, Z1, Z2,
-			  F@_1, F@_2, TrUserData) ->
-    d_field_Signed_payload(Rest, Z1, Z2, F@_1, F@_2,
-			   TrUserData);
+                          F@_1, F@_2, TrUserData) ->
+    d_field_Signed_payload(Rest,
+                           Z1,
+                           Z2,
+                           F@_1,
+                           F@_2,
+                           TrUserData);
 dfp_read_field_def_Signed(<<18, Rest/binary>>, Z1, Z2,
-			  F@_1, F@_2, TrUserData) ->
-    d_field_Signed_signature(Rest, Z1, Z2, F@_1, F@_2,
-			     TrUserData);
+                          F@_1, F@_2, TrUserData) ->
+    d_field_Signed_signature(Rest,
+                             Z1,
+                             Z2,
+                             F@_1,
+                             F@_2,
+                             TrUserData);
 dfp_read_field_def_Signed(<<>>, 0, 0, F@_1, F@_2, _) ->
     S1 = #{payload => F@_1},
     if F@_2 == '$undef' -> S1;
        true -> S1#{signature => F@_2}
     end;
 dfp_read_field_def_Signed(Other, Z1, Z2, F@_1, F@_2,
-			  TrUserData) ->
-    dg_read_field_def_Signed(Other, Z1, Z2, F@_1, F@_2,
-			     TrUserData).
+                          TrUserData) ->
+    dg_read_field_def_Signed(Other,
+                             Z1,
+                             Z2,
+                             F@_1,
+                             F@_2,
+                             TrUserData).
 
 dg_read_field_def_Signed(<<1:1, X:7, Rest/binary>>, N,
-			 Acc, F@_1, F@_2, TrUserData)
+                         Acc, F@_1, F@_2, TrUserData)
     when N < 32 - 7 ->
-    dg_read_field_def_Signed(Rest, N + 7, X bsl N + Acc,
-			     F@_1, F@_2, TrUserData);
+    dg_read_field_def_Signed(Rest,
+                             N + 7,
+                             X bsl N + Acc,
+                             F@_1,
+                             F@_2,
+                             TrUserData);
 dg_read_field_def_Signed(<<0:1, X:7, Rest/binary>>, N,
-			 Acc, F@_1, F@_2, TrUserData) ->
+                         Acc, F@_1, F@_2, TrUserData) ->
     Key = X bsl N + Acc,
     case Key of
-      10 ->
-	  d_field_Signed_payload(Rest, 0, 0, F@_1, F@_2,
-				 TrUserData);
-      18 ->
-	  d_field_Signed_signature(Rest, 0, 0, F@_1, F@_2,
-				   TrUserData);
-      _ ->
-	  case Key band 7 of
-	    0 ->
-		skip_varint_Signed(Rest, 0, 0, F@_1, F@_2, TrUserData);
-	    1 -> skip_64_Signed(Rest, 0, 0, F@_1, F@_2, TrUserData);
-	    2 ->
-		skip_length_delimited_Signed(Rest, 0, 0, F@_1, F@_2,
-					     TrUserData);
-	    3 ->
-		skip_group_Signed(Rest, Key bsr 3, 0, F@_1, F@_2,
-				  TrUserData);
-	    5 -> skip_32_Signed(Rest, 0, 0, F@_1, F@_2, TrUserData)
-	  end
+        10 ->
+            d_field_Signed_payload(Rest,
+                                   0,
+                                   0,
+                                   F@_1,
+                                   F@_2,
+                                   TrUserData);
+        18 ->
+            d_field_Signed_signature(Rest,
+                                     0,
+                                     0,
+                                     F@_1,
+                                     F@_2,
+                                     TrUserData);
+        _ ->
+            case Key band 7 of
+                0 ->
+                    skip_varint_Signed(Rest, 0, 0, F@_1, F@_2, TrUserData);
+                1 -> skip_64_Signed(Rest, 0, 0, F@_1, F@_2, TrUserData);
+                2 ->
+                    skip_length_delimited_Signed(Rest,
+                                                 0,
+                                                 0,
+                                                 F@_1,
+                                                 F@_2,
+                                                 TrUserData);
+                3 ->
+                    skip_group_Signed(Rest,
+                                      Key bsr 3,
+                                      0,
+                                      F@_1,
+                                      F@_2,
+                                      TrUserData);
+                5 -> skip_32_Signed(Rest, 0, 0, F@_1, F@_2, TrUserData)
+            end
     end;
 dg_read_field_def_Signed(<<>>, 0, 0, F@_1, F@_2, _) ->
     S1 = #{payload => F@_1},
@@ -256,71 +291,115 @@ dg_read_field_def_Signed(<<>>, 0, 0, F@_1, F@_2, _) ->
     end.
 
 d_field_Signed_payload(<<1:1, X:7, Rest/binary>>, N,
-		       Acc, F@_1, F@_2, TrUserData)
+                       Acc, F@_1, F@_2, TrUserData)
     when N < 57 ->
-    d_field_Signed_payload(Rest, N + 7, X bsl N + Acc, F@_1,
-			   F@_2, TrUserData);
+    d_field_Signed_payload(Rest,
+                           N + 7,
+                           X bsl N + Acc,
+                           F@_1,
+                           F@_2,
+                           TrUserData);
 d_field_Signed_payload(<<0:1, X:7, Rest/binary>>, N,
-		       Acc, _, F@_2, TrUserData) ->
+                       Acc, _, F@_2, TrUserData) ->
     {NewFValue, RestF} = begin
-			   Len = X bsl N + Acc,
-			   <<Bytes:Len/binary, Rest2/binary>> = Rest,
-			   {id(binary:copy(Bytes), TrUserData), Rest2}
-			 end,
-    dfp_read_field_def_Signed(RestF, 0, 0, NewFValue, F@_2,
-			      TrUserData).
+                             Len = X bsl N + Acc,
+                             <<Bytes:Len/binary, Rest2/binary>> = Rest,
+                             {id(binary:copy(Bytes), TrUserData), Rest2}
+                         end,
+    dfp_read_field_def_Signed(RestF,
+                              0,
+                              0,
+                              NewFValue,
+                              F@_2,
+                              TrUserData).
 
 d_field_Signed_signature(<<1:1, X:7, Rest/binary>>, N,
-			 Acc, F@_1, F@_2, TrUserData)
+                         Acc, F@_1, F@_2, TrUserData)
     when N < 57 ->
-    d_field_Signed_signature(Rest, N + 7, X bsl N + Acc,
-			     F@_1, F@_2, TrUserData);
+    d_field_Signed_signature(Rest,
+                             N + 7,
+                             X bsl N + Acc,
+                             F@_1,
+                             F@_2,
+                             TrUserData);
 d_field_Signed_signature(<<0:1, X:7, Rest/binary>>, N,
-			 Acc, F@_1, _, TrUserData) ->
+                         Acc, F@_1, _, TrUserData) ->
     {NewFValue, RestF} = begin
-			   Len = X bsl N + Acc,
-			   <<Bytes:Len/binary, Rest2/binary>> = Rest,
-			   {id(binary:copy(Bytes), TrUserData), Rest2}
-			 end,
-    dfp_read_field_def_Signed(RestF, 0, 0, F@_1, NewFValue,
-			      TrUserData).
+                             Len = X bsl N + Acc,
+                             <<Bytes:Len/binary, Rest2/binary>> = Rest,
+                             {id(binary:copy(Bytes), TrUserData), Rest2}
+                         end,
+    dfp_read_field_def_Signed(RestF,
+                              0,
+                              0,
+                              F@_1,
+                              NewFValue,
+                              TrUserData).
 
 skip_varint_Signed(<<1:1, _:7, Rest/binary>>, Z1, Z2,
-		   F@_1, F@_2, TrUserData) ->
-    skip_varint_Signed(Rest, Z1, Z2, F@_1, F@_2,
-		       TrUserData);
+                   F@_1, F@_2, TrUserData) ->
+    skip_varint_Signed(Rest,
+                       Z1,
+                       Z2,
+                       F@_1,
+                       F@_2,
+                       TrUserData);
 skip_varint_Signed(<<0:1, _:7, Rest/binary>>, Z1, Z2,
-		   F@_1, F@_2, TrUserData) ->
-    dfp_read_field_def_Signed(Rest, Z1, Z2, F@_1, F@_2,
-			      TrUserData).
+                   F@_1, F@_2, TrUserData) ->
+    dfp_read_field_def_Signed(Rest,
+                              Z1,
+                              Z2,
+                              F@_1,
+                              F@_2,
+                              TrUserData).
 
 skip_length_delimited_Signed(<<1:1, X:7, Rest/binary>>,
-			     N, Acc, F@_1, F@_2, TrUserData)
+                             N, Acc, F@_1, F@_2, TrUserData)
     when N < 57 ->
-    skip_length_delimited_Signed(Rest, N + 7, X bsl N + Acc,
-				 F@_1, F@_2, TrUserData);
+    skip_length_delimited_Signed(Rest,
+                                 N + 7,
+                                 X bsl N + Acc,
+                                 F@_1,
+                                 F@_2,
+                                 TrUserData);
 skip_length_delimited_Signed(<<0:1, X:7, Rest/binary>>,
-			     N, Acc, F@_1, F@_2, TrUserData) ->
+                             N, Acc, F@_1, F@_2, TrUserData) ->
     Length = X bsl N + Acc,
     <<_:Length/binary, Rest2/binary>> = Rest,
-    dfp_read_field_def_Signed(Rest2, 0, 0, F@_1, F@_2,
-			      TrUserData).
+    dfp_read_field_def_Signed(Rest2,
+                              0,
+                              0,
+                              F@_1,
+                              F@_2,
+                              TrUserData).
 
 skip_group_Signed(Bin, FNum, Z2, F@_1, F@_2,
-		  TrUserData) ->
+                  TrUserData) ->
     {_, Rest} = read_group(Bin, FNum),
-    dfp_read_field_def_Signed(Rest, 0, Z2, F@_1, F@_2,
-			      TrUserData).
+    dfp_read_field_def_Signed(Rest,
+                              0,
+                              Z2,
+                              F@_1,
+                              F@_2,
+                              TrUserData).
 
 skip_32_Signed(<<_:32, Rest/binary>>, Z1, Z2, F@_1,
-	       F@_2, TrUserData) ->
-    dfp_read_field_def_Signed(Rest, Z1, Z2, F@_1, F@_2,
-			      TrUserData).
+               F@_2, TrUserData) ->
+    dfp_read_field_def_Signed(Rest,
+                              Z1,
+                              Z2,
+                              F@_1,
+                              F@_2,
+                              TrUserData).
 
 skip_64_Signed(<<_:64, Rest/binary>>, Z1, Z2, F@_1,
-	       F@_2, TrUserData) ->
-    dfp_read_field_def_Signed(Rest, Z1, Z2, F@_1, F@_2,
-			      TrUserData).
+               F@_2, TrUserData) ->
+    dfp_read_field_def_Signed(Rest,
+                              Z1,
+                              Z2,
+                              F@_1,
+                              F@_2,
+                              TrUserData).
 
 read_group(Bin, FieldNum) ->
     {NumBytes, EndTagLen} = read_gr_b(Bin, 0, 0, 0, 0, FieldNum),
@@ -386,19 +465,19 @@ merge_msgs(Prev, New, MsgName) when is_atom(MsgName) ->
 merge_msgs(Prev, New, MsgName, Opts) ->
     TrUserData = proplists:get_value(user_data, Opts),
     case MsgName of
-      'Signed' -> merge_msg_Signed(Prev, New, TrUserData)
+        'Signed' -> merge_msg_Signed(Prev, New, TrUserData)
     end.
 
 -compile({nowarn_unused_function,merge_msg_Signed/3}).
 merge_msg_Signed(#{} = PMsg,
-		 #{payload := NFpayload} = NMsg, _) ->
+                 #{payload := NFpayload} = NMsg, _) ->
     S1 = #{payload => NFpayload},
     case {PMsg, NMsg} of
-      {_, #{signature := NFsignature}} ->
-	  S1#{signature => NFsignature};
-      {#{signature := PFsignature}, _} ->
-	  S1#{signature => PFsignature};
-      _ -> S1
+        {_, #{signature := NFsignature}} ->
+            S1#{signature => NFsignature};
+        {#{signature := PFsignature}, _} ->
+            S1#{signature => PFsignature};
+        _ -> S1
     end.
 
 
@@ -408,8 +487,8 @@ verify_msg(Msg, MsgName) when is_atom(MsgName) ->
 verify_msg(Msg, MsgName, Opts) ->
     TrUserData = proplists:get_value(user_data, Opts),
     case MsgName of
-      'Signed' -> v_msg_Signed(Msg, [MsgName], TrUserData);
-      _ -> mk_type_error(not_a_known_message, Msg, [])
+        'Signed' -> v_msg_Signed(Msg, [MsgName], TrUserData);
+        _ -> mk_type_error(not_a_known_message, Msg, [])
     end.
 
 
@@ -417,21 +496,23 @@ verify_msg(Msg, MsgName, Opts) ->
 v_msg_Signed(#{payload := F1} = M, Path, TrUserData) ->
     v_type_bytes(F1, [payload | Path], TrUserData),
     case M of
-      #{signature := F2} ->
-	  v_type_bytes(F2, [signature | Path], TrUserData);
-      _ -> ok
+        #{signature := F2} ->
+            v_type_bytes(F2, [signature | Path], TrUserData);
+        _ -> ok
     end,
     lists:foreach(fun (payload) -> ok;
-		      (signature) -> ok;
-		      (OtherKey) ->
-			  mk_type_error({extraneous_key, OtherKey}, M, Path)
-		  end,
-		  maps:keys(M)),
+                      (signature) -> ok;
+                      (OtherKey) ->
+                          mk_type_error({extraneous_key, OtherKey}, M, Path)
+                  end,
+                  maps:keys(M)),
     ok;
 v_msg_Signed(M, Path, _TrUserData) when is_map(M) ->
     mk_type_error({missing_fields,
-		   [payload] -- maps:keys(M), 'Signed'},
-		  M, Path);
+                   [payload] -- maps:keys(M),
+                   'Signed'},
+                  M,
+                  Path);
 v_msg_Signed(X, Path, _TrUserData) ->
     mk_type_error({expected_msg, 'Signed'}, X, Path).
 
@@ -448,15 +529,15 @@ v_type_bytes(X, Path, _TrUserData) ->
 mk_type_error(Error, ValueSeen, Path) ->
     Path2 = prettify_path(Path),
     erlang:error({gpb_type_error,
-		  {Error, [{value, ValueSeen}, {path, Path2}]}}).
+                  {Error, [{value, ValueSeen}, {path, Path2}]}}).
 
 
 -compile({nowarn_unused_function,prettify_path/1}).
 prettify_path([]) -> top_level;
 prettify_path(PathR) ->
     list_to_atom(string:join(lists:map(fun atom_to_list/1,
-				       lists:reverse(PathR)),
-			     ".")).
+                                       lists:reverse(PathR)),
+                             ".")).
 
 
 -compile({nowarn_unused_function,id/2}).
@@ -485,9 +566,9 @@ cons(Elem, Acc, _TrUserData) -> [Elem | Acc].
 get_msg_defs() ->
     [{{msg, 'Signed'},
       [#{name => payload, fnum => 1, rnum => 2, type => bytes,
-	 occurrence => required, opts => []},
+         occurrence => required, opts => []},
        #{name => signature, fnum => 2, rnum => 3,
-	 type => bytes, occurrence => optional, opts => []}]}].
+         type => bytes, occurrence => optional, opts => []}]}].
 
 
 get_msg_names() -> ['Signed'].
@@ -504,8 +585,8 @@ get_enum_names() -> [].
 
 fetch_msg_def(MsgName) ->
     case find_msg_def(MsgName) of
-      Fs when is_list(Fs) -> Fs;
-      error -> erlang:error({no_such_msg, MsgName})
+        Fs when is_list(Fs) -> Fs;
+        error -> erlang:error({no_such_msg, MsgName})
     end.
 
 

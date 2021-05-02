@@ -45,7 +45,14 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       refute_received _
 
       assert {:ok, {200, _, names}} = :mix_hex_repo.get_names(config)
-      assert names == [%{name: "foo"}]
+      assert [%{name: "foo", updated_at: %{seconds: updated_at}}] = names
+
+      assert updated_at ==
+               "public/tarballs/foo-0.10.0.tar"
+               |> File.stat!()
+               |> Map.fetch!(:mtime)
+               |> Mix.Tasks.Hex.Registry.to_unix()
+
       assert {:ok, {200, _, versions}} = :mix_hex_repo.get_versions(config)
       assert versions == [%{name: "foo", retired: [], versions: ["0.10.0"]}]
 
@@ -65,7 +72,14 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       refute_received _
 
       assert {:ok, {200, _, names}} = :mix_hex_repo.get_names(config)
-      assert names == [%{name: "foo"}]
+      assert [%{name: "foo", updated_at: %{seconds: updated_at}}] = names
+
+      assert updated_at ==
+               "public/tarballs/foo-0.9.0.tar"
+               |> File.stat!()
+               |> Map.fetch!(:mtime)
+               |> Mix.Tasks.Hex.Registry.to_unix()
+
       assert {:ok, {200, _, versions}} = :mix_hex_repo.get_versions(config)
       assert versions == [%{name: "foo", retired: [], versions: ["0.9.0", "0.10.0"]}]
 
@@ -88,7 +102,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       refute_received _
 
       assert {:ok, {200, _, names}} = :mix_hex_repo.get_names(config)
-      assert names == [%{name: "foo"}]
+      assert [%{name: "foo", updated_at: _}] = names
       assert {:ok, {200, _, versions}} = :mix_hex_repo.get_versions(config)
       assert versions == [%{name: "foo", retired: [], versions: ["0.9.0", "0.10.0", "1.0.0-rc"]}]
 
@@ -146,7 +160,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       refute_received _
 
       assert {:ok, {200, _, names}} = :mix_hex_repo.get_names(config)
-      assert names == [%{name: "bar"}, %{name: "foo"}]
+      assert [%{name: "bar", updated_at: _}, %{name: "foo", updated_at: _}] = names
       assert {:ok, {200, _, [package]}} = :mix_hex_repo.get_package(config, "bar")
 
       assert package.dependencies == [

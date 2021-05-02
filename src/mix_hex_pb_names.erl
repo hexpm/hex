@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.7.1, do not edit manually
+%% Vendored from hex_core v0.8.0, do not edit manually
 
 %% -*- coding: utf-8 -*-
 %% Automatically generated, do not edit
@@ -38,22 +38,30 @@
 
 -type 'Package'() ::
       #{name                    => iodata()         % = 1
+        %% updated_at           => 'Timestamp'()    % = 3
        }.
 
--export_type(['Names'/0, 'Package'/0]).
+-type 'Timestamp'() ::
+      #{seconds                 => integer(),       % = 1, 32 bits
+        nanos                   => integer()        % = 2, 32 bits
+       }.
 
--spec encode_msg('Names'() | 'Package'(), atom()) -> binary().
+-export_type(['Names'/0, 'Package'/0, 'Timestamp'/0]).
+
+-spec encode_msg('Names'() | 'Package'() | 'Timestamp'(), atom()) -> binary().
 encode_msg(Msg, MsgName) when is_atom(MsgName) ->
     encode_msg(Msg, MsgName, []).
 
--spec encode_msg('Names'() | 'Package'(), atom(), list()) -> binary().
+-spec encode_msg('Names'() | 'Package'() | 'Timestamp'(), atom(), list()) -> binary().
 encode_msg(Msg, MsgName, Opts) ->
     verify_msg(Msg, MsgName, Opts),
     TrUserData = proplists:get_value(user_data, Opts),
     case MsgName of
-      'Names' -> e_msg_Names(id(Msg, TrUserData), TrUserData);
-      'Package' ->
-	  e_msg_Package(id(Msg, TrUserData), TrUserData)
+        'Names' -> e_msg_Names(id(Msg, TrUserData), TrUserData);
+        'Package' ->
+            e_msg_Package(id(Msg, TrUserData), TrUserData);
+        'Timestamp' ->
+            e_msg_Timestamp(id(Msg, TrUserData), TrUserData)
     end.
 
 
@@ -63,26 +71,51 @@ e_msg_Names(Msg, TrUserData) ->
 
 e_msg_Names(#{repository := F2} = M, Bin, TrUserData) ->
     B1 = case M of
-	   #{packages := F1} ->
-	       TrF1 = id(F1, TrUserData),
-	       if TrF1 == [] -> Bin;
-		  true -> e_field_Names_packages(TrF1, Bin, TrUserData)
-	       end;
-	   _ -> Bin
-	 end,
+             #{packages := F1} ->
+                 TrF1 = id(F1, TrUserData),
+                 if TrF1 == [] -> Bin;
+                    true -> e_field_Names_packages(TrF1, Bin, TrUserData)
+                 end;
+             _ -> Bin
+         end,
     begin
-      TrF2 = id(F2, TrUserData),
-      e_type_string(TrF2, <<B1/binary, 18>>, TrUserData)
+        TrF2 = id(F2, TrUserData),
+        e_type_string(TrF2, <<B1/binary, 18>>, TrUserData)
     end.
 
 e_msg_Package(Msg, TrUserData) ->
     e_msg_Package(Msg, <<>>, TrUserData).
 
 
-e_msg_Package(#{name := F1}, Bin, TrUserData) ->
+e_msg_Package(#{name := F1} = M, Bin, TrUserData) ->
+    B1 = begin
+             TrF1 = id(F1, TrUserData),
+             e_type_string(TrF1, <<Bin/binary, 10>>, TrUserData)
+         end,
+    case M of
+        #{updated_at := F2} ->
+            begin
+                TrF2 = id(F2, TrUserData),
+                e_mfield_Package_updated_at(TrF2,
+                                            <<B1/binary, 26>>,
+                                            TrUserData)
+            end;
+        _ -> B1
+    end.
+
+e_msg_Timestamp(Msg, TrUserData) ->
+    e_msg_Timestamp(Msg, <<>>, TrUserData).
+
+
+e_msg_Timestamp(#{seconds := F1, nanos := F2}, Bin,
+                TrUserData) ->
+    B1 = begin
+             TrF1 = id(F1, TrUserData),
+             e_type_int64(TrF1, <<Bin/binary, 8>>, TrUserData)
+         end,
     begin
-      TrF1 = id(F1, TrUserData),
-      e_type_string(TrF1, <<Bin/binary, 10>>, TrUserData)
+        TrF2 = id(F2, TrUserData),
+        e_type_int32(TrF2, <<B1/binary, 16>>, TrUserData)
     end.
 
 e_mfield_Names_packages(Msg, Bin, TrUserData) ->
@@ -91,12 +124,18 @@ e_mfield_Names_packages(Msg, Bin, TrUserData) ->
     <<Bin2/binary, SubBin/binary>>.
 
 e_field_Names_packages([Elem | Rest], Bin,
-		       TrUserData) ->
+                       TrUserData) ->
     Bin2 = <<Bin/binary, 10>>,
     Bin3 = e_mfield_Names_packages(id(Elem, TrUserData),
-				   Bin2, TrUserData),
+                                   Bin2,
+                                   TrUserData),
     e_field_Names_packages(Rest, Bin3, TrUserData);
 e_field_Names_packages([], Bin, _TrUserData) -> Bin.
+
+e_mfield_Package_updated_at(Msg, Bin, TrUserData) ->
+    SubBin = e_msg_Timestamp(Msg, <<>>, TrUserData),
+    Bin2 = e_varint(byte_size(SubBin), Bin),
+    <<Bin2/binary, SubBin/binary>>.
 
 -compile({nowarn_unused_function,e_type_sint/3}).
 e_type_sint(Value, Bin, _TrUserData) when Value >= 0 ->
@@ -223,227 +262,635 @@ decode_msg_1_catch(Bin, MsgName, TrUserData) ->
 decode_msg_2_doit('Names', Bin, TrUserData) ->
     id(d_msg_Names(Bin, TrUserData), TrUserData);
 decode_msg_2_doit('Package', Bin, TrUserData) ->
-    id(d_msg_Package(Bin, TrUserData), TrUserData).
+    id(d_msg_Package(Bin, TrUserData), TrUserData);
+decode_msg_2_doit('Timestamp', Bin, TrUserData) ->
+    id(d_msg_Timestamp(Bin, TrUserData), TrUserData).
 
 
 
 d_msg_Names(Bin, TrUserData) ->
-    dfp_read_field_def_Names(Bin, 0, 0, id([], TrUserData),
-			     id('$undef', TrUserData), TrUserData).
+    dfp_read_field_def_Names(Bin,
+                             0,
+                             0,
+                             id([], TrUserData),
+                             id('$undef', TrUserData),
+                             TrUserData).
 
 dfp_read_field_def_Names(<<10, Rest/binary>>, Z1, Z2,
-			 F@_1, F@_2, TrUserData) ->
-    d_field_Names_packages(Rest, Z1, Z2, F@_1, F@_2,
-			   TrUserData);
+                         F@_1, F@_2, TrUserData) ->
+    d_field_Names_packages(Rest,
+                           Z1,
+                           Z2,
+                           F@_1,
+                           F@_2,
+                           TrUserData);
 dfp_read_field_def_Names(<<18, Rest/binary>>, Z1, Z2,
-			 F@_1, F@_2, TrUserData) ->
-    d_field_Names_repository(Rest, Z1, Z2, F@_1, F@_2,
-			     TrUserData);
+                         F@_1, F@_2, TrUserData) ->
+    d_field_Names_repository(Rest,
+                             Z1,
+                             Z2,
+                             F@_1,
+                             F@_2,
+                             TrUserData);
 dfp_read_field_def_Names(<<>>, 0, 0, R1, F@_2,
-			 TrUserData) ->
+                         TrUserData) ->
     S1 = #{repository => F@_2},
     if R1 == '$undef' -> S1;
        true -> S1#{packages => lists_reverse(R1, TrUserData)}
     end;
 dfp_read_field_def_Names(Other, Z1, Z2, F@_1, F@_2,
-			 TrUserData) ->
-    dg_read_field_def_Names(Other, Z1, Z2, F@_1, F@_2,
-			    TrUserData).
+                         TrUserData) ->
+    dg_read_field_def_Names(Other,
+                            Z1,
+                            Z2,
+                            F@_1,
+                            F@_2,
+                            TrUserData).
 
 dg_read_field_def_Names(<<1:1, X:7, Rest/binary>>, N,
-			Acc, F@_1, F@_2, TrUserData)
+                        Acc, F@_1, F@_2, TrUserData)
     when N < 32 - 7 ->
-    dg_read_field_def_Names(Rest, N + 7, X bsl N + Acc,
-			    F@_1, F@_2, TrUserData);
+    dg_read_field_def_Names(Rest,
+                            N + 7,
+                            X bsl N + Acc,
+                            F@_1,
+                            F@_2,
+                            TrUserData);
 dg_read_field_def_Names(<<0:1, X:7, Rest/binary>>, N,
-			Acc, F@_1, F@_2, TrUserData) ->
+                        Acc, F@_1, F@_2, TrUserData) ->
     Key = X bsl N + Acc,
     case Key of
-      10 ->
-	  d_field_Names_packages(Rest, 0, 0, F@_1, F@_2,
-				 TrUserData);
-      18 ->
-	  d_field_Names_repository(Rest, 0, 0, F@_1, F@_2,
-				   TrUserData);
-      _ ->
-	  case Key band 7 of
-	    0 ->
-		skip_varint_Names(Rest, 0, 0, F@_1, F@_2, TrUserData);
-	    1 -> skip_64_Names(Rest, 0, 0, F@_1, F@_2, TrUserData);
-	    2 ->
-		skip_length_delimited_Names(Rest, 0, 0, F@_1, F@_2,
-					    TrUserData);
-	    3 ->
-		skip_group_Names(Rest, Key bsr 3, 0, F@_1, F@_2,
-				 TrUserData);
-	    5 -> skip_32_Names(Rest, 0, 0, F@_1, F@_2, TrUserData)
-	  end
+        10 ->
+            d_field_Names_packages(Rest,
+                                   0,
+                                   0,
+                                   F@_1,
+                                   F@_2,
+                                   TrUserData);
+        18 ->
+            d_field_Names_repository(Rest,
+                                     0,
+                                     0,
+                                     F@_1,
+                                     F@_2,
+                                     TrUserData);
+        _ ->
+            case Key band 7 of
+                0 ->
+                    skip_varint_Names(Rest, 0, 0, F@_1, F@_2, TrUserData);
+                1 -> skip_64_Names(Rest, 0, 0, F@_1, F@_2, TrUserData);
+                2 ->
+                    skip_length_delimited_Names(Rest,
+                                                0,
+                                                0,
+                                                F@_1,
+                                                F@_2,
+                                                TrUserData);
+                3 ->
+                    skip_group_Names(Rest,
+                                     Key bsr 3,
+                                     0,
+                                     F@_1,
+                                     F@_2,
+                                     TrUserData);
+                5 -> skip_32_Names(Rest, 0, 0, F@_1, F@_2, TrUserData)
+            end
     end;
 dg_read_field_def_Names(<<>>, 0, 0, R1, F@_2,
-			TrUserData) ->
+                        TrUserData) ->
     S1 = #{repository => F@_2},
     if R1 == '$undef' -> S1;
        true -> S1#{packages => lists_reverse(R1, TrUserData)}
     end.
 
 d_field_Names_packages(<<1:1, X:7, Rest/binary>>, N,
-		       Acc, F@_1, F@_2, TrUserData)
+                       Acc, F@_1, F@_2, TrUserData)
     when N < 57 ->
-    d_field_Names_packages(Rest, N + 7, X bsl N + Acc, F@_1,
-			   F@_2, TrUserData);
+    d_field_Names_packages(Rest,
+                           N + 7,
+                           X bsl N + Acc,
+                           F@_1,
+                           F@_2,
+                           TrUserData);
 d_field_Names_packages(<<0:1, X:7, Rest/binary>>, N,
-		       Acc, Prev, F@_2, TrUserData) ->
+                       Acc, Prev, F@_2, TrUserData) ->
     {NewFValue, RestF} = begin
-			   Len = X bsl N + Acc,
-			   <<Bs:Len/binary, Rest2/binary>> = Rest,
-			   {id(d_msg_Package(Bs, TrUserData), TrUserData),
-			    Rest2}
-			 end,
-    dfp_read_field_def_Names(RestF, 0, 0,
-			     cons(NewFValue, Prev, TrUserData), F@_2,
-			     TrUserData).
+                             Len = X bsl N + Acc,
+                             <<Bs:Len/binary, Rest2/binary>> = Rest,
+                             {id(d_msg_Package(Bs, TrUserData), TrUserData),
+                              Rest2}
+                         end,
+    dfp_read_field_def_Names(RestF,
+                             0,
+                             0,
+                             cons(NewFValue, Prev, TrUserData),
+                             F@_2,
+                             TrUserData).
 
 d_field_Names_repository(<<1:1, X:7, Rest/binary>>, N,
-			 Acc, F@_1, F@_2, TrUserData)
+                         Acc, F@_1, F@_2, TrUserData)
     when N < 57 ->
-    d_field_Names_repository(Rest, N + 7, X bsl N + Acc,
-			     F@_1, F@_2, TrUserData);
+    d_field_Names_repository(Rest,
+                             N + 7,
+                             X bsl N + Acc,
+                             F@_1,
+                             F@_2,
+                             TrUserData);
 d_field_Names_repository(<<0:1, X:7, Rest/binary>>, N,
-			 Acc, F@_1, _, TrUserData) ->
+                         Acc, F@_1, _, TrUserData) ->
     {NewFValue, RestF} = begin
-			   Len = X bsl N + Acc,
-			   <<Bytes:Len/binary, Rest2/binary>> = Rest,
-			   {id(binary:copy(Bytes), TrUserData), Rest2}
-			 end,
-    dfp_read_field_def_Names(RestF, 0, 0, F@_1, NewFValue,
-			     TrUserData).
+                             Len = X bsl N + Acc,
+                             <<Bytes:Len/binary, Rest2/binary>> = Rest,
+                             {id(binary:copy(Bytes), TrUserData), Rest2}
+                         end,
+    dfp_read_field_def_Names(RestF,
+                             0,
+                             0,
+                             F@_1,
+                             NewFValue,
+                             TrUserData).
 
 skip_varint_Names(<<1:1, _:7, Rest/binary>>, Z1, Z2,
-		  F@_1, F@_2, TrUserData) ->
+                  F@_1, F@_2, TrUserData) ->
     skip_varint_Names(Rest, Z1, Z2, F@_1, F@_2, TrUserData);
 skip_varint_Names(<<0:1, _:7, Rest/binary>>, Z1, Z2,
-		  F@_1, F@_2, TrUserData) ->
-    dfp_read_field_def_Names(Rest, Z1, Z2, F@_1, F@_2,
-			     TrUserData).
+                  F@_1, F@_2, TrUserData) ->
+    dfp_read_field_def_Names(Rest,
+                             Z1,
+                             Z2,
+                             F@_1,
+                             F@_2,
+                             TrUserData).
 
 skip_length_delimited_Names(<<1:1, X:7, Rest/binary>>,
-			    N, Acc, F@_1, F@_2, TrUserData)
+                            N, Acc, F@_1, F@_2, TrUserData)
     when N < 57 ->
-    skip_length_delimited_Names(Rest, N + 7, X bsl N + Acc,
-				F@_1, F@_2, TrUserData);
+    skip_length_delimited_Names(Rest,
+                                N + 7,
+                                X bsl N + Acc,
+                                F@_1,
+                                F@_2,
+                                TrUserData);
 skip_length_delimited_Names(<<0:1, X:7, Rest/binary>>,
-			    N, Acc, F@_1, F@_2, TrUserData) ->
+                            N, Acc, F@_1, F@_2, TrUserData) ->
     Length = X bsl N + Acc,
     <<_:Length/binary, Rest2/binary>> = Rest,
-    dfp_read_field_def_Names(Rest2, 0, 0, F@_1, F@_2,
-			     TrUserData).
+    dfp_read_field_def_Names(Rest2,
+                             0,
+                             0,
+                             F@_1,
+                             F@_2,
+                             TrUserData).
 
 skip_group_Names(Bin, FNum, Z2, F@_1, F@_2,
-		 TrUserData) ->
+                 TrUserData) ->
     {_, Rest} = read_group(Bin, FNum),
-    dfp_read_field_def_Names(Rest, 0, Z2, F@_1, F@_2,
-			     TrUserData).
+    dfp_read_field_def_Names(Rest,
+                             0,
+                             Z2,
+                             F@_1,
+                             F@_2,
+                             TrUserData).
 
 skip_32_Names(<<_:32, Rest/binary>>, Z1, Z2, F@_1, F@_2,
-	      TrUserData) ->
-    dfp_read_field_def_Names(Rest, Z1, Z2, F@_1, F@_2,
-			     TrUserData).
+              TrUserData) ->
+    dfp_read_field_def_Names(Rest,
+                             Z1,
+                             Z2,
+                             F@_1,
+                             F@_2,
+                             TrUserData).
 
 skip_64_Names(<<_:64, Rest/binary>>, Z1, Z2, F@_1, F@_2,
-	      TrUserData) ->
-    dfp_read_field_def_Names(Rest, Z1, Z2, F@_1, F@_2,
-			     TrUserData).
+              TrUserData) ->
+    dfp_read_field_def_Names(Rest,
+                             Z1,
+                             Z2,
+                             F@_1,
+                             F@_2,
+                             TrUserData).
 
 d_msg_Package(Bin, TrUserData) ->
-    dfp_read_field_def_Package(Bin, 0, 0,
-			       id('$undef', TrUserData), TrUserData).
+    dfp_read_field_def_Package(Bin,
+                               0,
+                               0,
+                               id('$undef', TrUserData),
+                               id('$undef', TrUserData),
+                               TrUserData).
 
 dfp_read_field_def_Package(<<10, Rest/binary>>, Z1, Z2,
-			   F@_1, TrUserData) ->
-    d_field_Package_name(Rest, Z1, Z2, F@_1, TrUserData);
-dfp_read_field_def_Package(<<>>, 0, 0, F@_1, _) ->
-    #{name => F@_1};
-dfp_read_field_def_Package(Other, Z1, Z2, F@_1,
-			   TrUserData) ->
-    dg_read_field_def_Package(Other, Z1, Z2, F@_1,
-			      TrUserData).
+                           F@_1, F@_2, TrUserData) ->
+    d_field_Package_name(Rest,
+                         Z1,
+                         Z2,
+                         F@_1,
+                         F@_2,
+                         TrUserData);
+dfp_read_field_def_Package(<<26, Rest/binary>>, Z1, Z2,
+                           F@_1, F@_2, TrUserData) ->
+    d_field_Package_updated_at(Rest,
+                               Z1,
+                               Z2,
+                               F@_1,
+                               F@_2,
+                               TrUserData);
+dfp_read_field_def_Package(<<>>, 0, 0, F@_1, F@_2, _) ->
+    S1 = #{name => F@_1},
+    if F@_2 == '$undef' -> S1;
+       true -> S1#{updated_at => F@_2}
+    end;
+dfp_read_field_def_Package(Other, Z1, Z2, F@_1, F@_2,
+                           TrUserData) ->
+    dg_read_field_def_Package(Other,
+                              Z1,
+                              Z2,
+                              F@_1,
+                              F@_2,
+                              TrUserData).
 
 dg_read_field_def_Package(<<1:1, X:7, Rest/binary>>, N,
-			  Acc, F@_1, TrUserData)
+                          Acc, F@_1, F@_2, TrUserData)
     when N < 32 - 7 ->
-    dg_read_field_def_Package(Rest, N + 7, X bsl N + Acc,
-			      F@_1, TrUserData);
+    dg_read_field_def_Package(Rest,
+                              N + 7,
+                              X bsl N + Acc,
+                              F@_1,
+                              F@_2,
+                              TrUserData);
 dg_read_field_def_Package(<<0:1, X:7, Rest/binary>>, N,
-			  Acc, F@_1, TrUserData) ->
+                          Acc, F@_1, F@_2, TrUserData) ->
     Key = X bsl N + Acc,
     case Key of
-      10 ->
-	  d_field_Package_name(Rest, 0, 0, F@_1, TrUserData);
-      _ ->
-	  case Key band 7 of
-	    0 -> skip_varint_Package(Rest, 0, 0, F@_1, TrUserData);
-	    1 -> skip_64_Package(Rest, 0, 0, F@_1, TrUserData);
-	    2 ->
-		skip_length_delimited_Package(Rest, 0, 0, F@_1,
-					      TrUserData);
-	    3 ->
-		skip_group_Package(Rest, Key bsr 3, 0, F@_1,
-				   TrUserData);
-	    5 -> skip_32_Package(Rest, 0, 0, F@_1, TrUserData)
-	  end
+        10 ->
+            d_field_Package_name(Rest,
+                                 0,
+                                 0,
+                                 F@_1,
+                                 F@_2,
+                                 TrUserData);
+        26 ->
+            d_field_Package_updated_at(Rest,
+                                       0,
+                                       0,
+                                       F@_1,
+                                       F@_2,
+                                       TrUserData);
+        _ ->
+            case Key band 7 of
+                0 ->
+                    skip_varint_Package(Rest, 0, 0, F@_1, F@_2, TrUserData);
+                1 ->
+                    skip_64_Package(Rest, 0, 0, F@_1, F@_2, TrUserData);
+                2 ->
+                    skip_length_delimited_Package(Rest,
+                                                  0,
+                                                  0,
+                                                  F@_1,
+                                                  F@_2,
+                                                  TrUserData);
+                3 ->
+                    skip_group_Package(Rest,
+                                       Key bsr 3,
+                                       0,
+                                       F@_1,
+                                       F@_2,
+                                       TrUserData);
+                5 -> skip_32_Package(Rest, 0, 0, F@_1, F@_2, TrUserData)
+            end
     end;
-dg_read_field_def_Package(<<>>, 0, 0, F@_1, _) ->
-    #{name => F@_1}.
+dg_read_field_def_Package(<<>>, 0, 0, F@_1, F@_2, _) ->
+    S1 = #{name => F@_1},
+    if F@_2 == '$undef' -> S1;
+       true -> S1#{updated_at => F@_2}
+    end.
 
 d_field_Package_name(<<1:1, X:7, Rest/binary>>, N, Acc,
-		     F@_1, TrUserData)
+                     F@_1, F@_2, TrUserData)
     when N < 57 ->
-    d_field_Package_name(Rest, N + 7, X bsl N + Acc, F@_1,
-			 TrUserData);
+    d_field_Package_name(Rest,
+                         N + 7,
+                         X bsl N + Acc,
+                         F@_1,
+                         F@_2,
+                         TrUserData);
 d_field_Package_name(<<0:1, X:7, Rest/binary>>, N, Acc,
-		     _, TrUserData) ->
+                     _, F@_2, TrUserData) ->
     {NewFValue, RestF} = begin
-			   Len = X bsl N + Acc,
-			   <<Bytes:Len/binary, Rest2/binary>> = Rest,
-			   {id(binary:copy(Bytes), TrUserData), Rest2}
-			 end,
-    dfp_read_field_def_Package(RestF, 0, 0, NewFValue,
-			       TrUserData).
+                             Len = X bsl N + Acc,
+                             <<Bytes:Len/binary, Rest2/binary>> = Rest,
+                             {id(binary:copy(Bytes), TrUserData), Rest2}
+                         end,
+    dfp_read_field_def_Package(RestF,
+                               0,
+                               0,
+                               NewFValue,
+                               F@_2,
+                               TrUserData).
+
+d_field_Package_updated_at(<<1:1, X:7, Rest/binary>>, N,
+                           Acc, F@_1, F@_2, TrUserData)
+    when N < 57 ->
+    d_field_Package_updated_at(Rest,
+                               N + 7,
+                               X bsl N + Acc,
+                               F@_1,
+                               F@_2,
+                               TrUserData);
+d_field_Package_updated_at(<<0:1, X:7, Rest/binary>>, N,
+                           Acc, F@_1, Prev, TrUserData) ->
+    {NewFValue, RestF} = begin
+                             Len = X bsl N + Acc,
+                             <<Bs:Len/binary, Rest2/binary>> = Rest,
+                             {id(d_msg_Timestamp(Bs, TrUserData), TrUserData),
+                              Rest2}
+                         end,
+    dfp_read_field_def_Package(RestF,
+                               0,
+                               0,
+                               F@_1,
+                               if Prev == '$undef' -> NewFValue;
+                                  true ->
+                                      merge_msg_Timestamp(Prev,
+                                                          NewFValue,
+                                                          TrUserData)
+                               end,
+                               TrUserData).
 
 skip_varint_Package(<<1:1, _:7, Rest/binary>>, Z1, Z2,
-		    F@_1, TrUserData) ->
-    skip_varint_Package(Rest, Z1, Z2, F@_1, TrUserData);
+                    F@_1, F@_2, TrUserData) ->
+    skip_varint_Package(Rest,
+                        Z1,
+                        Z2,
+                        F@_1,
+                        F@_2,
+                        TrUserData);
 skip_varint_Package(<<0:1, _:7, Rest/binary>>, Z1, Z2,
-		    F@_1, TrUserData) ->
-    dfp_read_field_def_Package(Rest, Z1, Z2, F@_1,
-			       TrUserData).
+                    F@_1, F@_2, TrUserData) ->
+    dfp_read_field_def_Package(Rest,
+                               Z1,
+                               Z2,
+                               F@_1,
+                               F@_2,
+                               TrUserData).
 
 skip_length_delimited_Package(<<1:1, X:7, Rest/binary>>,
-			      N, Acc, F@_1, TrUserData)
+                              N, Acc, F@_1, F@_2, TrUserData)
     when N < 57 ->
-    skip_length_delimited_Package(Rest, N + 7,
-				  X bsl N + Acc, F@_1, TrUserData);
+    skip_length_delimited_Package(Rest,
+                                  N + 7,
+                                  X bsl N + Acc,
+                                  F@_1,
+                                  F@_2,
+                                  TrUserData);
 skip_length_delimited_Package(<<0:1, X:7, Rest/binary>>,
-			      N, Acc, F@_1, TrUserData) ->
+                              N, Acc, F@_1, F@_2, TrUserData) ->
     Length = X bsl N + Acc,
     <<_:Length/binary, Rest2/binary>> = Rest,
-    dfp_read_field_def_Package(Rest2, 0, 0, F@_1,
-			       TrUserData).
+    dfp_read_field_def_Package(Rest2,
+                               0,
+                               0,
+                               F@_1,
+                               F@_2,
+                               TrUserData).
 
-skip_group_Package(Bin, FNum, Z2, F@_1, TrUserData) ->
+skip_group_Package(Bin, FNum, Z2, F@_1, F@_2,
+                   TrUserData) ->
     {_, Rest} = read_group(Bin, FNum),
-    dfp_read_field_def_Package(Rest, 0, Z2, F@_1,
-			       TrUserData).
+    dfp_read_field_def_Package(Rest,
+                               0,
+                               Z2,
+                               F@_1,
+                               F@_2,
+                               TrUserData).
 
 skip_32_Package(<<_:32, Rest/binary>>, Z1, Z2, F@_1,
-		TrUserData) ->
-    dfp_read_field_def_Package(Rest, Z1, Z2, F@_1,
-			       TrUserData).
+                F@_2, TrUserData) ->
+    dfp_read_field_def_Package(Rest,
+                               Z1,
+                               Z2,
+                               F@_1,
+                               F@_2,
+                               TrUserData).
 
 skip_64_Package(<<_:64, Rest/binary>>, Z1, Z2, F@_1,
-		TrUserData) ->
-    dfp_read_field_def_Package(Rest, Z1, Z2, F@_1,
-			       TrUserData).
+                F@_2, TrUserData) ->
+    dfp_read_field_def_Package(Rest,
+                               Z1,
+                               Z2,
+                               F@_1,
+                               F@_2,
+                               TrUserData).
+
+d_msg_Timestamp(Bin, TrUserData) ->
+    dfp_read_field_def_Timestamp(Bin,
+                                 0,
+                                 0,
+                                 id('$undef', TrUserData),
+                                 id('$undef', TrUserData),
+                                 TrUserData).
+
+dfp_read_field_def_Timestamp(<<8, Rest/binary>>, Z1, Z2,
+                             F@_1, F@_2, TrUserData) ->
+    d_field_Timestamp_seconds(Rest,
+                              Z1,
+                              Z2,
+                              F@_1,
+                              F@_2,
+                              TrUserData);
+dfp_read_field_def_Timestamp(<<16, Rest/binary>>, Z1,
+                             Z2, F@_1, F@_2, TrUserData) ->
+    d_field_Timestamp_nanos(Rest,
+                            Z1,
+                            Z2,
+                            F@_1,
+                            F@_2,
+                            TrUserData);
+dfp_read_field_def_Timestamp(<<>>, 0, 0, F@_1, F@_2,
+                             _) ->
+    #{seconds => F@_1, nanos => F@_2};
+dfp_read_field_def_Timestamp(Other, Z1, Z2, F@_1, F@_2,
+                             TrUserData) ->
+    dg_read_field_def_Timestamp(Other,
+                                Z1,
+                                Z2,
+                                F@_1,
+                                F@_2,
+                                TrUserData).
+
+dg_read_field_def_Timestamp(<<1:1, X:7, Rest/binary>>,
+                            N, Acc, F@_1, F@_2, TrUserData)
+    when N < 32 - 7 ->
+    dg_read_field_def_Timestamp(Rest,
+                                N + 7,
+                                X bsl N + Acc,
+                                F@_1,
+                                F@_2,
+                                TrUserData);
+dg_read_field_def_Timestamp(<<0:1, X:7, Rest/binary>>,
+                            N, Acc, F@_1, F@_2, TrUserData) ->
+    Key = X bsl N + Acc,
+    case Key of
+        8 ->
+            d_field_Timestamp_seconds(Rest,
+                                      0,
+                                      0,
+                                      F@_1,
+                                      F@_2,
+                                      TrUserData);
+        16 ->
+            d_field_Timestamp_nanos(Rest,
+                                    0,
+                                    0,
+                                    F@_1,
+                                    F@_2,
+                                    TrUserData);
+        _ ->
+            case Key band 7 of
+                0 ->
+                    skip_varint_Timestamp(Rest,
+                                          0,
+                                          0,
+                                          F@_1,
+                                          F@_2,
+                                          TrUserData);
+                1 ->
+                    skip_64_Timestamp(Rest, 0, 0, F@_1, F@_2, TrUserData);
+                2 ->
+                    skip_length_delimited_Timestamp(Rest,
+                                                    0,
+                                                    0,
+                                                    F@_1,
+                                                    F@_2,
+                                                    TrUserData);
+                3 ->
+                    skip_group_Timestamp(Rest,
+                                         Key bsr 3,
+                                         0,
+                                         F@_1,
+                                         F@_2,
+                                         TrUserData);
+                5 ->
+                    skip_32_Timestamp(Rest, 0, 0, F@_1, F@_2, TrUserData)
+            end
+    end;
+dg_read_field_def_Timestamp(<<>>, 0, 0, F@_1, F@_2,
+                            _) ->
+    #{seconds => F@_1, nanos => F@_2}.
+
+d_field_Timestamp_seconds(<<1:1, X:7, Rest/binary>>, N,
+                          Acc, F@_1, F@_2, TrUserData)
+    when N < 57 ->
+    d_field_Timestamp_seconds(Rest,
+                              N + 7,
+                              X bsl N + Acc,
+                              F@_1,
+                              F@_2,
+                              TrUserData);
+d_field_Timestamp_seconds(<<0:1, X:7, Rest/binary>>, N,
+                          Acc, _, F@_2, TrUserData) ->
+    {NewFValue, RestF} = {begin
+                              <<Res:64/signed-native>> = <<(X bsl N +
+                                                                Acc):64/unsigned-native>>,
+                              id(Res, TrUserData)
+                          end,
+                          Rest},
+    dfp_read_field_def_Timestamp(RestF,
+                                 0,
+                                 0,
+                                 NewFValue,
+                                 F@_2,
+                                 TrUserData).
+
+d_field_Timestamp_nanos(<<1:1, X:7, Rest/binary>>, N,
+                        Acc, F@_1, F@_2, TrUserData)
+    when N < 57 ->
+    d_field_Timestamp_nanos(Rest,
+                            N + 7,
+                            X bsl N + Acc,
+                            F@_1,
+                            F@_2,
+                            TrUserData);
+d_field_Timestamp_nanos(<<0:1, X:7, Rest/binary>>, N,
+                        Acc, F@_1, _, TrUserData) ->
+    {NewFValue, RestF} = {begin
+                              <<Res:32/signed-native>> = <<(X bsl N +
+                                                                Acc):32/unsigned-native>>,
+                              id(Res, TrUserData)
+                          end,
+                          Rest},
+    dfp_read_field_def_Timestamp(RestF,
+                                 0,
+                                 0,
+                                 F@_1,
+                                 NewFValue,
+                                 TrUserData).
+
+skip_varint_Timestamp(<<1:1, _:7, Rest/binary>>, Z1, Z2,
+                      F@_1, F@_2, TrUserData) ->
+    skip_varint_Timestamp(Rest,
+                          Z1,
+                          Z2,
+                          F@_1,
+                          F@_2,
+                          TrUserData);
+skip_varint_Timestamp(<<0:1, _:7, Rest/binary>>, Z1, Z2,
+                      F@_1, F@_2, TrUserData) ->
+    dfp_read_field_def_Timestamp(Rest,
+                                 Z1,
+                                 Z2,
+                                 F@_1,
+                                 F@_2,
+                                 TrUserData).
+
+skip_length_delimited_Timestamp(<<1:1, X:7,
+                                  Rest/binary>>,
+                                N, Acc, F@_1, F@_2, TrUserData)
+    when N < 57 ->
+    skip_length_delimited_Timestamp(Rest,
+                                    N + 7,
+                                    X bsl N + Acc,
+                                    F@_1,
+                                    F@_2,
+                                    TrUserData);
+skip_length_delimited_Timestamp(<<0:1, X:7,
+                                  Rest/binary>>,
+                                N, Acc, F@_1, F@_2, TrUserData) ->
+    Length = X bsl N + Acc,
+    <<_:Length/binary, Rest2/binary>> = Rest,
+    dfp_read_field_def_Timestamp(Rest2,
+                                 0,
+                                 0,
+                                 F@_1,
+                                 F@_2,
+                                 TrUserData).
+
+skip_group_Timestamp(Bin, FNum, Z2, F@_1, F@_2,
+                     TrUserData) ->
+    {_, Rest} = read_group(Bin, FNum),
+    dfp_read_field_def_Timestamp(Rest,
+                                 0,
+                                 Z2,
+                                 F@_1,
+                                 F@_2,
+                                 TrUserData).
+
+skip_32_Timestamp(<<_:32, Rest/binary>>, Z1, Z2, F@_1,
+                  F@_2, TrUserData) ->
+    dfp_read_field_def_Timestamp(Rest,
+                                 Z1,
+                                 Z2,
+                                 F@_1,
+                                 F@_2,
+                                 TrUserData).
+
+skip_64_Timestamp(<<_:64, Rest/binary>>, Z1, Z2, F@_1,
+                  F@_2, TrUserData) ->
+    dfp_read_field_def_Timestamp(Rest,
+                                 Z1,
+                                 Z2,
+                                 F@_1,
+                                 F@_2,
+                                 TrUserData).
 
 read_group(Bin, FieldNum) ->
     {NumBytes, EndTagLen} = read_gr_b(Bin, 0, 0, 0, 0, FieldNum),
@@ -509,29 +956,50 @@ merge_msgs(Prev, New, MsgName) when is_atom(MsgName) ->
 merge_msgs(Prev, New, MsgName, Opts) ->
     TrUserData = proplists:get_value(user_data, Opts),
     case MsgName of
-      'Names' -> merge_msg_Names(Prev, New, TrUserData);
-      'Package' -> merge_msg_Package(Prev, New, TrUserData)
+        'Names' -> merge_msg_Names(Prev, New, TrUserData);
+        'Package' -> merge_msg_Package(Prev, New, TrUserData);
+        'Timestamp' ->
+            merge_msg_Timestamp(Prev, New, TrUserData)
     end.
 
 -compile({nowarn_unused_function,merge_msg_Names/3}).
 merge_msg_Names(#{} = PMsg,
-		#{repository := NFrepository} = NMsg, TrUserData) ->
+                #{repository := NFrepository} = NMsg, TrUserData) ->
     S1 = #{repository => NFrepository},
     case {PMsg, NMsg} of
-      {#{packages := PFpackages},
-       #{packages := NFpackages}} ->
-	  S1#{packages =>
-		  'erlang_++'(PFpackages, NFpackages, TrUserData)};
-      {_, #{packages := NFpackages}} ->
-	  S1#{packages => NFpackages};
-      {#{packages := PFpackages}, _} ->
-	  S1#{packages => PFpackages};
-      {_, _} -> S1
+        {#{packages := PFpackages},
+         #{packages := NFpackages}} ->
+            S1#{packages =>
+                    'erlang_++'(PFpackages, NFpackages, TrUserData)};
+        {_, #{packages := NFpackages}} ->
+            S1#{packages => NFpackages};
+        {#{packages := PFpackages}, _} ->
+            S1#{packages => PFpackages};
+        {_, _} -> S1
     end.
 
 -compile({nowarn_unused_function,merge_msg_Package/3}).
-merge_msg_Package(#{}, #{name := NFname}, _) ->
-    #{name => NFname}.
+merge_msg_Package(#{} = PMsg, #{name := NFname} = NMsg,
+                  TrUserData) ->
+    S1 = #{name => NFname},
+    case {PMsg, NMsg} of
+        {#{updated_at := PFupdated_at},
+         #{updated_at := NFupdated_at}} ->
+            S1#{updated_at =>
+                    merge_msg_Timestamp(PFupdated_at,
+                                        NFupdated_at,
+                                        TrUserData)};
+        {_, #{updated_at := NFupdated_at}} ->
+            S1#{updated_at => NFupdated_at};
+        {#{updated_at := PFupdated_at}, _} ->
+            S1#{updated_at => PFupdated_at};
+        {_, _} -> S1
+    end.
+
+-compile({nowarn_unused_function,merge_msg_Timestamp/3}).
+merge_msg_Timestamp(#{},
+                    #{seconds := NFseconds, nanos := NFnanos}, _) ->
+    #{seconds => NFseconds, nanos => NFnanos}.
 
 
 verify_msg(Msg, MsgName) when is_atom(MsgName) ->
@@ -540,68 +1008,129 @@ verify_msg(Msg, MsgName) when is_atom(MsgName) ->
 verify_msg(Msg, MsgName, Opts) ->
     TrUserData = proplists:get_value(user_data, Opts),
     case MsgName of
-      'Names' -> v_msg_Names(Msg, [MsgName], TrUserData);
-      'Package' -> v_msg_Package(Msg, [MsgName], TrUserData);
-      _ -> mk_type_error(not_a_known_message, Msg, [])
+        'Names' -> v_msg_Names(Msg, [MsgName], TrUserData);
+        'Package' -> v_msg_Package(Msg, [MsgName], TrUserData);
+        'Timestamp' ->
+            v_msg_Timestamp(Msg, [MsgName], TrUserData);
+        _ -> mk_type_error(not_a_known_message, Msg, [])
     end.
 
 
 -compile({nowarn_unused_function,v_msg_Names/3}).
 v_msg_Names(#{repository := F2} = M, Path,
-	    TrUserData) ->
+            TrUserData) ->
     case M of
-      #{packages := F1} ->
-	  if is_list(F1) ->
-		 _ = [v_msg_Package(Elem, [packages | Path], TrUserData)
-		      || Elem <- F1],
-		 ok;
-	     true ->
-		 mk_type_error({invalid_list_of, {msg, 'Package'}}, F1,
-			       [packages | Path])
-	  end;
-      _ -> ok
+        #{packages := F1} ->
+            if is_list(F1) ->
+                   _ = [v_msg_Package(Elem, [packages | Path], TrUserData)
+                        || Elem <- F1],
+                   ok;
+               true ->
+                   mk_type_error({invalid_list_of, {msg, 'Package'}},
+                                 F1,
+                                 [packages | Path])
+            end;
+        _ -> ok
     end,
     v_type_string(F2, [repository | Path], TrUserData),
     lists:foreach(fun (packages) -> ok;
-		      (repository) -> ok;
-		      (OtherKey) ->
-			  mk_type_error({extraneous_key, OtherKey}, M, Path)
-		  end,
-		  maps:keys(M)),
+                      (repository) -> ok;
+                      (OtherKey) ->
+                          mk_type_error({extraneous_key, OtherKey}, M, Path)
+                  end,
+                  maps:keys(M)),
     ok;
 v_msg_Names(M, Path, _TrUserData) when is_map(M) ->
     mk_type_error({missing_fields,
-		   [repository] -- maps:keys(M), 'Names'},
-		  M, Path);
+                   [repository] -- maps:keys(M),
+                   'Names'},
+                  M,
+                  Path);
 v_msg_Names(X, Path, _TrUserData) ->
     mk_type_error({expected_msg, 'Names'}, X, Path).
 
 -compile({nowarn_unused_function,v_msg_Package/3}).
 v_msg_Package(#{name := F1} = M, Path, TrUserData) ->
     v_type_string(F1, [name | Path], TrUserData),
+    case M of
+        #{updated_at := F2} ->
+            v_msg_Timestamp(F2, [updated_at | Path], TrUserData);
+        _ -> ok
+    end,
     lists:foreach(fun (name) -> ok;
-		      (OtherKey) ->
-			  mk_type_error({extraneous_key, OtherKey}, M, Path)
-		  end,
-		  maps:keys(M)),
+                      (updated_at) -> ok;
+                      (OtherKey) ->
+                          mk_type_error({extraneous_key, OtherKey}, M, Path)
+                  end,
+                  maps:keys(M)),
     ok;
 v_msg_Package(M, Path, _TrUserData) when is_map(M) ->
-    mk_type_error({missing_fields, [name] -- maps:keys(M),
-		   'Package'},
-		  M, Path);
+    mk_type_error({missing_fields,
+                   [name] -- maps:keys(M),
+                   'Package'},
+                  M,
+                  Path);
 v_msg_Package(X, Path, _TrUserData) ->
     mk_type_error({expected_msg, 'Package'}, X, Path).
+
+-compile({nowarn_unused_function,v_msg_Timestamp/3}).
+v_msg_Timestamp(#{seconds := F1, nanos := F2} = M, Path,
+                TrUserData) ->
+    v_type_int64(F1, [seconds | Path], TrUserData),
+    v_type_int32(F2, [nanos | Path], TrUserData),
+    lists:foreach(fun (seconds) -> ok;
+                      (nanos) -> ok;
+                      (OtherKey) ->
+                          mk_type_error({extraneous_key, OtherKey}, M, Path)
+                  end,
+                  maps:keys(M)),
+    ok;
+v_msg_Timestamp(M, Path, _TrUserData) when is_map(M) ->
+    mk_type_error({missing_fields,
+                   [seconds, nanos] -- maps:keys(M),
+                   'Timestamp'},
+                  M,
+                  Path);
+v_msg_Timestamp(X, Path, _TrUserData) ->
+    mk_type_error({expected_msg, 'Timestamp'}, X, Path).
+
+-compile({nowarn_unused_function,v_type_int32/3}).
+v_type_int32(N, _Path, _TrUserData)
+    when -2147483648 =< N, N =< 2147483647 ->
+    ok;
+v_type_int32(N, Path, _TrUserData) when is_integer(N) ->
+    mk_type_error({value_out_of_range, int32, signed, 32},
+                  N,
+                  Path);
+v_type_int32(X, Path, _TrUserData) ->
+    mk_type_error({bad_integer, int32, signed, 32},
+                  X,
+                  Path).
+
+-compile({nowarn_unused_function,v_type_int64/3}).
+v_type_int64(N, _Path, _TrUserData)
+    when -9223372036854775808 =< N,
+         N =< 9223372036854775807 ->
+    ok;
+v_type_int64(N, Path, _TrUserData) when is_integer(N) ->
+    mk_type_error({value_out_of_range, int64, signed, 64},
+                  N,
+                  Path);
+v_type_int64(X, Path, _TrUserData) ->
+    mk_type_error({bad_integer, int64, signed, 64},
+                  X,
+                  Path).
 
 -compile({nowarn_unused_function,v_type_string/3}).
 v_type_string(S, Path, _TrUserData)
     when is_list(S); is_binary(S) ->
     try unicode:characters_to_binary(S) of
-      B when is_binary(B) -> ok;
-      {error, _, _} ->
-	  mk_type_error(bad_unicode_string, S, Path)
+        B when is_binary(B) -> ok;
+        {error, _, _} ->
+            mk_type_error(bad_unicode_string, S, Path)
     catch
-      error:badarg ->
-	  mk_type_error(bad_unicode_string, S, Path)
+        error:badarg ->
+            mk_type_error(bad_unicode_string, S, Path)
     end;
 v_type_string(X, Path, _TrUserData) ->
     mk_type_error(bad_unicode_string, X, Path).
@@ -611,15 +1140,15 @@ v_type_string(X, Path, _TrUserData) ->
 mk_type_error(Error, ValueSeen, Path) ->
     Path2 = prettify_path(Path),
     erlang:error({gpb_type_error,
-		  {Error, [{value, ValueSeen}, {path, Path2}]}}).
+                  {Error, [{value, ValueSeen}, {path, Path2}]}}).
 
 
 -compile({nowarn_unused_function,prettify_path/1}).
 prettify_path([]) -> top_level;
 prettify_path(PathR) ->
     list_to_atom(string:join(lists:map(fun atom_to_list/1,
-				       lists:reverse(PathR)),
-			     ".")).
+                                       lists:reverse(PathR)),
+                             ".")).
 
 
 -compile({nowarn_unused_function,id/2}).
@@ -648,22 +1177,31 @@ cons(Elem, Acc, _TrUserData) -> [Elem | Acc].
 get_msg_defs() ->
     [{{msg, 'Names'},
       [#{name => packages, fnum => 1, rnum => 2,
-	 type => {msg, 'Package'}, occurrence => repeated,
-	 opts => []},
+         type => {msg, 'Package'}, occurrence => repeated,
+         opts => []},
        #{name => repository, fnum => 2, rnum => 3,
-	 type => string, occurrence => required, opts => []}]},
+         type => string, occurrence => required, opts => []}]},
      {{msg, 'Package'},
       [#{name => name, fnum => 1, rnum => 2, type => string,
-	 occurrence => required, opts => []}]}].
+         occurrence => required, opts => []},
+       #{name => updated_at, fnum => 3, rnum => 3,
+         type => {msg, 'Timestamp'}, occurrence => optional,
+         opts => []}]},
+     {{msg, 'Timestamp'},
+      [#{name => seconds, fnum => 1, rnum => 2, type => int64,
+         occurrence => required, opts => []},
+       #{name => nanos, fnum => 2, rnum => 3, type => int32,
+         occurrence => required, opts => []}]}].
 
 
-get_msg_names() -> ['Names', 'Package'].
+get_msg_names() -> ['Names', 'Package', 'Timestamp'].
 
 
 get_group_names() -> [].
 
 
-get_msg_or_group_names() -> ['Names', 'Package'].
+get_msg_or_group_names() ->
+    ['Names', 'Package', 'Timestamp'].
 
 
 get_enum_names() -> [].
@@ -671,8 +1209,8 @@ get_enum_names() -> [].
 
 fetch_msg_def(MsgName) ->
     case find_msg_def(MsgName) of
-      Fs when is_list(Fs) -> Fs;
-      error -> erlang:error({no_such_msg, MsgName})
+        Fs when is_list(Fs) -> Fs;
+        error -> erlang:error({no_such_msg, MsgName})
     end.
 
 
@@ -689,6 +1227,14 @@ find_msg_def('Names') ->
        type => string, occurrence => required, opts => []}];
 find_msg_def('Package') ->
     [#{name => name, fnum => 1, rnum => 2, type => string,
+       occurrence => required, opts => []},
+     #{name => updated_at, fnum => 3, rnum => 3,
+       type => {msg, 'Timestamp'}, occurrence => optional,
+       opts => []}];
+find_msg_def('Timestamp') ->
+    [#{name => seconds, fnum => 1, rnum => 2, type => int64,
+       occurrence => required, opts => []},
+     #{name => nanos, fnum => 2, rnum => 3, type => int32,
        occurrence => required, opts => []}];
 find_msg_def(_) -> error.
 

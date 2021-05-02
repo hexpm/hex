@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.7.1, do not edit manually
+%% Vendored from hex_core v0.8.0, do not edit manually
 
 %% @doc
 %% httpc-based implementation of `mix_hex_http' contract.
