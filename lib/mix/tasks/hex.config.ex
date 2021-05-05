@@ -55,7 +55,7 @@ defmodule Mix.Tasks.Hex.Config do
     * `cacerts_path` - Path to the CA certificate store PEM file. If not set,
       a CA bundle that ships with Hex is used. Can be overridden by setting the
       environment variable `HEX_CACERTS_PATH`. (Default: `nil`)
-    * `no_short_urls` - If set to true Hex will not verify attempt to
+    * `no_short_urls` - If set to true Hex will not
       shorten any links. Can be overridden by setting the environment variable
       `HEX_NO_SHORT_URLS` (Default: `false`)
 
