@@ -112,7 +112,7 @@ defmodule Hex.State do
       config: [:no_short_urls],
       default: false,
       fun: {__MODULE__, :to_boolean}
-    },
+    }
   }
 
   def start_link([]) do
