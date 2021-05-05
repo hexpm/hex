@@ -22,6 +22,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
       assert_received {:mix_shell, :info, ["http_timeout: nil (default)"]}
       assert_received {:mix_shell, :info, ["mirror_url: nil (default)"]}
       assert_received {:mix_shell, :info, ["config_home:" <> _]}
+      assert_received {:mix_shell, :info, ["no_short_urls: false (default)"]}
     end)
   after
     purge([ReleaseCustomApiUrl.MixProject])

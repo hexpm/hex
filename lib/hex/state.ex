@@ -106,7 +106,13 @@ defmodule Hex.State do
       env: ["HEX_CACERTS_PATH"],
       default: nil,
       config: [:cacerts_path]
-    }
+    },
+    no_short_urls: %{
+      env: ["HEX_NO_SHORT_URLS"],
+      config: [:no_short_urls],
+      default: false,
+      fun: {__MODULE__, :to_boolean}
+    },
   }
 
   def start_link([]) do

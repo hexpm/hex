@@ -298,6 +298,14 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp diff_link(diff_links) do
     long_url = "https://diff.hex.pm/diffs?" <> Enum.join(diff_links, "&")
 
+    if Hex.State.fetch!(:no_short_urls) do
+      long_url
+    else
+      maybe_get_short_link(long_url)
+    end
+  end
+
+  defp maybe_get_short_link(long_url) do
     case Hex.API.ShortURL.create(long_url) do
       :error -> long_url
       {:ok, short_url} -> short_url
