@@ -236,7 +236,20 @@ defmodule Hex.RemoteConverger do
         unless length(deps) == 0, do: print_category(mod)
         print_dependency_group(deps, mod)
       end)
+
+      if any_sponsored_new_or_updated?(dep_changes) do
+        Hex.Shell.info("""
+        You have added or upgraded one or more package that you could sponsor. 
+        Run `mix hex.sponsor` to know how.
+        """)
+      end
     end
+  end
+
+  defp any_sponsored_new_or_updated?(%{new: new, gt: upgraded}) do
+    Enum.any?(new ++ upgraded, fn {name, _, _, _, _} -> 
+      Hex.Sponsor.get_link(name, Mix.Project.deps_path()) != nil
+    end)
   end
 
   defp resolve_dependencies(resolved, locked) do
