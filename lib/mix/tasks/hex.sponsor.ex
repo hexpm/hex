@@ -20,8 +20,6 @@ defmodule Mix.Tasks.Hex.Sponsor do
   """
 
   @behaviour Hex.Mix.TaskDescription
-  @metadata_file "hex_metadata.config"
-  @sponsor_link_name "sponsor"
 
   @impl true
   def run(_) do
@@ -51,34 +49,11 @@ defmodule Mix.Tasks.Hex.Sponsor do
 
   defp sponsor_links(packages, deps_path) do
     Enum.flat_map(packages, fn {_repo, package_name} ->
-      case read_metadata(package_name, deps_path) do
-        {:ok, metadata} ->
-          case sponsorship(metadata) do
-            {_, value} ->
-              [[package_name, value]]
-
-            _ ->
-              []
-          end
-
-        {:error, :enoent} ->
-          []
+      case Hex.Sponsor.get_link(package_name, deps_path) do
+        nil -> []
+        value -> [[package_name, value]]
       end
     end)
-  end
-
-  defp read_metadata(package, deps_path) do
-    :file.consult(Path.join([deps_path, package, @metadata_file]))
-  end
-
-  defp sponsorship(metadata) do
-    case Enum.find(metadata, fn {name, _} -> name == "links" end) do
-      {_links, links} ->
-        Enum.find(links, fn {link, _} -> String.downcase(link) == @sponsor_link_name end)
-
-      _ ->
-        nil
-    end
   end
 
   @impl true
