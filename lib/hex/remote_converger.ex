@@ -238,17 +238,19 @@ defmodule Hex.RemoteConverger do
       end)
 
       if any_sponsored_new_or_updated?(dep_changes) do
-        Hex.Shell.info("""
-        You have added or upgraded one or more package that you could sponsor. 
+        """
+        You have added or upgraded one or more package that you could sponsor.
         Run `mix hex.sponsor` to know how.
-        """)
+        """
+        |> String.trim()
+        |> Hex.Shell.info()
       end
     end
   end
 
   defp any_sponsored_new_or_updated?(%{new: new, gt: upgraded}) do
-    Enum.any?(new ++ upgraded, fn {name, _, _, _, _} -> 
-      Hex.Sponsor.get_link(name, Mix.Project.deps_path()) != nil
+    Enum.any?(new ++ upgraded, fn {name, _, _, _, _} ->
+      Hex.Sponsor.get_link(name, Mix.Project.deps_path())
     end)
   end
 
