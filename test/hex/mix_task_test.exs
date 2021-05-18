@@ -941,13 +941,8 @@ defmodule Hex.MixTaskTest do
 
       assert_received {:mix_shell, :info, ["* Getting sponsored (Hex package)"]}
 
-      msg =
-        String.trim("""
-        You have added or upgraded one or more package that you could sponsor.
-        Run `mix hex.sponsor` to know how.
-        """)
-
-      assert_received {:mix_shell, :info, [^msg]}
+      assert_received {:mix_shell, :info, ["You have added/upgraded packages you could " <> 
+        "sponsor, run `mix hex.sponsor` to learn more"]}
     end)
   end
 end
