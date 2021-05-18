@@ -200,6 +200,10 @@ defmodule Hex.SCM do
 
     File.write!(Path.join(dest, ".hex"), manifest)
 
+    if Hex.Sponsor.get_link(dest) != nil do
+      Hex.State.put(:print_sponsored_tip, true)
+    end
+
     deps =
       lock.deps
       |> Enum.map(fn {dep, req, opts} ->

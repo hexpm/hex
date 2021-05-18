@@ -2,8 +2,8 @@ defmodule Hex.Sponsor do
   @metadata_file "hex_metadata.config"
   @sponsor_link_name "sponsor"
 
-  def get_link(package_name, deps_path) do
-    with {:ok, metadata} <- read_metadata(package_name, deps_path),
+  def get_link(package_path) do
+    with {:ok, metadata} <- read_metadata(package_path),
          {_, value} <- sponsorship(metadata) do
       value
     else
@@ -11,8 +11,16 @@ defmodule Hex.Sponsor do
     end
   end
 
-  defp read_metadata(package, deps_path) do
-    :file.consult(Path.join([deps_path, package, @metadata_file]))
+  def get_link(package_name, deps_path) do
+    deps_path
+    |> Path.join(package_name)
+    |> get_link()
+  end
+
+  defp read_metadata(package_path) do
+    package_path
+    |> Path.join(@metadata_file)
+    |> :file.consult()
   end
 
   defp sponsorship(metadata) do

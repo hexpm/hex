@@ -7,6 +7,12 @@ defmodule Hex.RemoteConverger do
 
   def post_converge() do
     Hex.UpdateChecker.check()
+
+    if Hex.State.fetch!(:print_sponsored_tip) do
+      Hex.Shell.info("You have added/upgraded packages you could sponsor, " <> 
+        "run `mix hex.sponsor` to learn more")
+    end
+
     Registry.close()
   end
 
@@ -52,6 +58,7 @@ defmodule Hex.RemoteConverger do
       {:ok, resolved} ->
         print_success(resolved, locked, old_lock)
         verify_resolved(resolved, old_lock)
+        Hex.State.put(:print_sponsored_tip, false)
         new_lock = Hex.Mix.to_lock(resolved)
         Hex.SCM.prefetch(new_lock)
         lock_merge(lock, new_lock)
@@ -236,18 +243,7 @@ defmodule Hex.RemoteConverger do
         unless length(deps) == 0, do: print_category(mod)
         print_dependency_group(deps, mod)
       end)
-
-      if any_sponsored_new_or_updated?(dep_changes) do
-        Hex.Shell.info("You have added/upgraded packages you could sponsor, " <> 
-          "run `mix hex.sponsor` to learn more")
-      end
     end
-  end
-
-  defp any_sponsored_new_or_updated?(%{new: new, gt: upgraded}) do
-    Enum.any?(new ++ upgraded, fn {name, _, _, _, _} ->
-      Hex.Sponsor.get_link(name, Mix.Project.deps_path())
-    end)
   end
 
   defp resolve_dependencies(resolved, locked) do
