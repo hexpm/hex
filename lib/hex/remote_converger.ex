@@ -238,12 +238,8 @@ defmodule Hex.RemoteConverger do
       end)
 
       if any_sponsored_new_or_updated?(dep_changes) do
-        """
-        You have added or upgraded one or more package that you could sponsor.
-        Run `mix hex.sponsor` to know how.
-        """
-        |> String.trim()
-        |> Hex.Shell.info()
+        Hex.Shell.info("You have added/upgraded packages you could sponsor, " <> 
+          "run `mix hex.sponsor` to learn more")
       end
     end
   end
