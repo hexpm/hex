@@ -208,6 +208,22 @@ defmodule ReleaseRepo.MixProject do
   end
 end
 
+defmodule ReleaseRepoInvalidLicenses.MixProject do
+  def project do
+    [
+      app: :release_repo_invalid_licenses,
+      description: "Invalid license",
+      version: "0.0.1",
+      package: [
+        organization: "myorg",
+        licenses: ["CustomLicense"],
+        files: ["myfile.txt"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
 defmodule ReleaseMisspelledOrganization.MixProject do
   def project do
     [
@@ -303,6 +319,36 @@ defmodule ReleaseCustomApiUrl.MixProject do
       ],
       hex: [
         api_url: "https://custom"
+      ]
+    ]
+  end
+end
+
+defmodule ReleaseMissingLicenses.MixProject do
+  def project do
+    [
+      app: :release_missing_licenses,
+      description: "Package with missing licenses",
+      version: "0.0.1",
+      package: [
+        licenses: [],
+        files: ["myfile.txt"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
+defmodule ReleaseInvalidLicenses.MixProject do
+  def project do
+    [
+      app: :release_invalid_licenses,
+      description: "Package with invalid licenses",
+      version: "0.0.1",
+      package: [
+        licenses: ["CustomLicense"],
+        files: ["myfile.txt"],
+        links: %{"a" => "http://a"}
       ]
     ]
   end

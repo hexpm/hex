@@ -28,6 +28,60 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge([ReleaseSimple.MixProject])
   end
 
+  test "create with missing licenses" do
+    Mix.Project.push(ReleaseMissingLicenses.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+
+      File.write!("myfile.txt", "hello")
+      File.chmod!("myfile.txt", 0o100644)
+
+      Mix.Tasks.Hex.Build.run([])
+
+      assert_received {:mix_shell, :info, ["\e[33m\nYou have not included any licenses\n\e[0m"]}
+      assert package_created?("release_missing_licenses-0.0.1")
+    end)
+  after
+    purge([ReleaseMissingLicenses.MixProject])
+  end
+
+  test "create with invalid licenses" do
+    Mix.Project.push(ReleaseInvalidLicenses.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+
+      File.write!("myfile.txt", "hello")
+      File.chmod!("myfile.txt", 0o100644)
+
+      Mix.Tasks.Hex.Build.run([])
+
+      assert_received {:mix_shell, :info, ["\e[33m\nYou have chosen 1 or more licenses that are not recognized by SPDX\nConsider using a license from https://spdx.org/licenses/\n\e[0m"]}
+      assert package_created?("release_invalid_licenses-0.0.1")
+    end)
+  after
+    purge([ReleaseInvalidLicenses.MixProject])
+  end
+
+  test "create private package with invalid licenses" do
+    Mix.Project.push(ReleaseRepoInvalidLicenses.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+
+      File.write!("myfile.txt", "hello")
+      File.chmod!("myfile.txt", 0o100644)
+
+      Mix.Tasks.Hex.Build.run([])
+
+      refute_received {:mix_shell, :info, ["\e[33m\nYou have chosen 1 or more licenses that are not recognized by SPDX\nConsider using a license from https://spdx.org/licenses/\n\e[0m"]}
+      assert package_created?("release_repo_invalid_licenses-0.0.1")
+    end)
+  after
+    purge([ReleaseRepoInvalidLicenses.MixProject])
+  end
+
   test "create with package name" do
     Mix.Project.push(ReleaseName.MixProject)
 
