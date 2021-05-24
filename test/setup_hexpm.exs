@@ -97,3 +97,6 @@ Hexpm.new_package("hexpm", "ecto", "3.3.1", [], pkg_meta, auth, [
 Hexpm.new_package("hexpm", "ecto", "3.3.2", [], pkg_meta, auth, [
   {"mix.exs", File.read!(Case.fixture_path("ecto_3_3_2/mix.exs"))}
 ])
+
+sponsored_meta = put_in(pkg_meta, ["links", "Sponsor"], "https://my.sponsor.link")
+Hexpm.new_package("hexpm", "sponsored", "0.1.0", [], sponsored_meta, auth)
