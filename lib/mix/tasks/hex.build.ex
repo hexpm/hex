@@ -202,10 +202,16 @@ defmodule Mix.Tasks.Hex.Build do
   defp licenses_valid_or_warn([]), do: Hex.Shell.warn("\nYou have not included any licenses\n")
 
   defp licenses_valid_or_warn(licenses) do
-    unless Enum.all?(licenses, fn l -> l in @spdx_licenses end) do
-      Hex.Shell.warn(
-        "\nYou have chosen 1 or more licenses that are not recognized by SPDX\nConsider using a license from https://spdx.org/licenses/\n"
-      )
+    invalid_licenses = licenses -- @spdx_licenses
+
+    if invalid_licenses != [] do
+      message = [
+        "The following licenses are not recognized by SPDX:\n",
+        Enum.map(invalid_licenses, &" * #{&1}\n"),
+        "\nConsider using licenses from https://spdx.org/licenses"
+      ]
+
+      Hex.Shell.warn(message)
     end
   end
 
