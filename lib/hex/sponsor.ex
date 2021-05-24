@@ -1,4 +1,6 @@
 defmodule Hex.Sponsor do
+  @moduledoc false
+
   @metadata_file "hex_metadata.config"
   @sponsor_link_name "sponsor"
 
