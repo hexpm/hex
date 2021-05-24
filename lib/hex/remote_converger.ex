@@ -9,8 +9,10 @@ defmodule Hex.RemoteConverger do
     Hex.UpdateChecker.check()
 
     if Hex.State.fetch!(:print_sponsored_tip) do
-      Hex.Shell.info("You have added/upgraded packages you could sponsor, " <> 
-        "run `mix hex.sponsor` to learn more")
+      Hex.Shell.info(
+        "You have added/upgraded packages you could sponsor, " <>
+          "run `mix hex.sponsor` to learn more"
+      )
     end
 
     Registry.close()
@@ -194,17 +196,13 @@ defmodule Hex.RemoteConverger do
 
     if req != nil and Hex.Version.parse_requirement(req) == :error do
       Mix.raise(
-        "Required version #{inspect(req)} for package #{name} is incorrectly specified (from: #{
-          from
-        })"
+        "Required version #{inspect(req)} for package #{name} is incorrectly specified (from: #{from})"
       )
     end
 
     if req != nil and not Enum.any?(versions, &Hex.Version.match?(&1, req)) do
       Mix.raise(
-        "No matching version for #{name} #{req} (from: #{from}) in registry#{
-          matching_versions_message(versions, req)
-        }"
+        "No matching version for #{name} #{req} (from: #{from}) in registry#{matching_versions_message(versions, req)}"
       )
     end
   end
