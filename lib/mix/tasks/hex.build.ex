@@ -80,9 +80,12 @@ defmodule Mix.Tasks.Hex.Build do
   @max_description_length 300
   @default_repo "hexpm"
   @metadata_config "hex_metadata.config"
-  @spdx_licenses Code.eval_file("./src/spdx_list.exs") |> elem(0)
   @switches [unpack: :boolean, output: :string]
   @aliases [o: :output]
+
+  spdx_path = Path.join("src", "spdx_list.exs")
+  @spdx_licenses spdx_path |> Code.eval_file() |> elem(0) |> Enum.map(& &1.license_id)
+  @external_resource spdx_path
 
   @impl true
   def run(args) do
@@ -199,7 +202,7 @@ defmodule Mix.Tasks.Hex.Build do
   defp licenses_valid_or_warn([]), do: Hex.Shell.warn("\nYou have not included any licenses\n")
 
   defp licenses_valid_or_warn(licenses) do
-    unless Enum.all?(licenses, fn l -> l in valid_license_ids() end) do
+    unless Enum.all?(licenses, fn l -> l in @spdx_licenses end) do
       Hex.Shell.warn(
         "\nYou have chosen 1 or more licenses that are not recognized by SPDX\nConsider using a license from https://spdx.org/licenses/\n"
       )
@@ -518,6 +521,4 @@ defmodule Mix.Tasks.Hex.Build do
 
   defp default_build_tool([]), do: ["mix"]
   defp default_build_tool(other), do: other
-
-  defp valid_license_ids, do: Enum.map(@spdx_licenses, & &1.license_id)
 end
