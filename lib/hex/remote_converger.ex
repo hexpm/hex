@@ -7,12 +7,6 @@ defmodule Hex.RemoteConverger do
 
   def post_converge() do
     Hex.UpdateChecker.check()
-
-    if Hex.State.fetch!(:print_sponsored_tip) do
-      Hex.Shell.info("You have added/upgraded packages you could sponsor, " <> 
-        "run `mix hex.sponsor` to learn more")
-    end
-
     Registry.close()
   end
 
@@ -58,7 +52,6 @@ defmodule Hex.RemoteConverger do
       {:ok, resolved} ->
         print_success(resolved, locked, old_lock)
         verify_resolved(resolved, old_lock)
-        Hex.State.put(:print_sponsored_tip, false)
         new_lock = Hex.Mix.to_lock(resolved)
         Hex.SCM.prefetch(new_lock)
         lock_merge(lock, new_lock)
