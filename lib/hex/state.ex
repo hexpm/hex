@@ -158,6 +158,15 @@ defmodule Hex.State do
     end)
   end
 
+  def get(key) do
+    Agent.get(@name, fn state ->
+      case Map.fetch(state, key) do
+        {:ok, {_source, value}} -> value
+        :error -> nil
+      end
+    end)
+  end
+
   def fetch!(key) do
     Agent.get(@name, fn state ->
       case Map.fetch(state, key) do
