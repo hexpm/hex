@@ -5,10 +5,8 @@ defmodule Hex.Sponsor do
   @sponsor_link_name "sponsor"
 
   def get_link(package_path) do
-    with {:ok, metadata} <- read_metadata(package_path),
-         {_, value} <- sponsorship(metadata) do
-      value
-    else
+    case read_metadata(package_path) do
+      {:ok, metadata} -> sponsorship(metadata)
       _ -> nil
     end
   end
@@ -28,7 +26,11 @@ defmodule Hex.Sponsor do
   defp sponsorship(metadata) do
     case Enum.find(metadata, fn {name, _} -> name == "links" end) do
       {_links, links} ->
-        Enum.find(links, fn {link, _} -> String.downcase(link) == @sponsor_link_name end)
+        Enum.find_value(links, fn {link, value} ->
+          if String.downcase(link) == @sponsor_link_name do
+            value
+          end
+        end)
 
       _ ->
         nil
