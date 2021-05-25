@@ -196,7 +196,9 @@ defmodule Mix.Tasks.Hex.Build do
 
   defp check_excluded_deps(deps) do
     [
-      "Dependencies excluded from the package (only Hex packages can be dependencies): #{Enum.join(deps, ", ")}"
+      "Dependencies excluded from the package (only Hex packages can be dependencies): #{
+        Enum.join(deps, ", ")
+      }"
     ]
   end
 
