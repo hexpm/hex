@@ -932,6 +932,8 @@ defmodule Hex.MixTaskTest do
     ])
   end
 
+
+  @tag skip: Version.match?(System.version(), "< 1.4.0")
   test "prints a sponsors tip when updating or adding a package with sponsor link" do
     Mix.Project.push(DependsOnSponsored)
 
