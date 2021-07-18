@@ -21,7 +21,7 @@ defmodule Hex.UpdateChecker do
   end
 
   def check() do
-    GenServer.call(@name, :check, @timeout)
+    GenServer.call(@name, :check)
     |> print_update_message()
   end
 
@@ -41,8 +41,8 @@ defmodule Hex.UpdateChecker do
     {:reply, :already_checked, state}
   end
 
-  def handle_call(:check, from, %{started: true, reply: nil} = state) do
-    {:noreply, %{state | from: from}}
+  def handle_call(:check, from, %{started: true, reply: nil, check_timeout: timeout} = state) do
+    {:noreply, %{state | from: from}, timeout}
   end
 
   def handle_call(:check, from, %{started: true} = state) do
@@ -51,6 +51,11 @@ defmodule Hex.UpdateChecker do
 
   def handle_call(:check, _from, %{started: false} = state) do
     {:reply, :latest, state}
+  end
+
+  def handle_info(:timeout, state) do
+    state = reply(:timeout, state)
+    {:noreply, state}
   end
 
   def handle_info({_ref, {:installs, result}}, state) do
@@ -80,6 +85,11 @@ defmodule Hex.UpdateChecker do
 
   defp print_update_message({:http_error, reason}) do
     Hex.Shell.error("Hex update check failed, HTTP ERROR: #{inspect(reason)}")
+    :ok
+  end
+
+  defp print_update_message(:timeout) do
+    Hex.Shell.error("Hex update check failed due to a timeout")
     :ok
   end
 
@@ -124,7 +134,8 @@ defmodule Hex.UpdateChecker do
       from: nil,
       reply: nil,
       done: false,
-      started: false
+      started: false,
+      check_timeout: @timeout
     }
 
     Map.merge(state, init_state)
