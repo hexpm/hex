@@ -9,11 +9,11 @@ defmodule Hex.UpdateChecker do
 
   def start_link(opts \\ []) do
     opts = Keyword.put_new(opts, :name, @name)
-    GenServer.start_link(__MODULE__, [], opts)
+    GenServer.start_link(__MODULE__, opts, opts)
   end
 
-  def init([]) do
-    {:ok, state()}
+  def init(opts) do
+    {:ok, state(opts)}
   end
 
   def start_check() do
@@ -117,12 +117,16 @@ defmodule Hex.UpdateChecker do
     end
   end
 
-  defp state() do
-    %{
+  defp state(opts) do
+    init_state = Keyword.get(opts, :init_state, %{})
+
+    state = %{
       from: nil,
       reply: nil,
       done: false,
       started: false
     }
+
+    Map.merge(state, init_state)
   end
 end
