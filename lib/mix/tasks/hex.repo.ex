@@ -47,6 +47,12 @@ defmodule Mix.Tasks.Hex.Repo do
       mix hex.repo set NAME --public-key PATH
       mix hex.repo set NAME --auth-key KEY
 
+  ## Get config for repo
+
+      mix hex.repo get NAME --url
+      mix hex.repo get NAME --public-key
+      mix hex.repo get NAME --auth-key
+
   ## Remove repo
 
       mix hex.repo remove NAME
@@ -61,19 +67,27 @@ defmodule Mix.Tasks.Hex.Repo do
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [url: :string, public_key: :string, auth_key: :string, fetch_public_key: :string]
+  @add_switches [public_key: :string, auth_key: :string, fetch_public_key: :string]
+  @set_switches [url: :string, public_key: :string, auth_key: :string]
+  @get_switches [url: :boolean, public_key: :boolean, auth_key: :boolean]
 
   @impl true
-  def run(args) do
+  def run(all_args) do
     Hex.start()
-    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
+    {_opts, args} = Hex.OptionParser.parse!(all_args, switches: [])
 
     case args do
       ["add", name, url] ->
+        {opts, _args} = Hex.OptionParser.parse!(all_args, strict: @add_switches)
         add(name, url, opts)
 
       ["set", name] ->
+        {opts, _args} = Hex.OptionParser.parse!(all_args, strict: @set_switches)
         set(name, opts)
+
+      ["get", name] ->
+        {opts, _args} = Hex.OptionParser.parse!(all_args, strict: @get_switches)
+        get(name, opts)
 
       ["remove", name] ->
         remove(name)
@@ -95,6 +109,7 @@ defmodule Mix.Tasks.Hex.Repo do
 
     mix hex.repo add NAME URL
     mix hex.repo set NAME
+    mix hex.repo get NAME
     mix hex.repo remove NAME
     mix hex.repo show NAME
     mix hex.repo list
@@ -106,6 +121,7 @@ defmodule Mix.Tasks.Hex.Repo do
     [
       {"add NAME URL", "Add a repo"},
       {"set NAME", "Set config for repo"},
+      {"get NAME", "Get config for repo"},
       {"remove NAME", "Remove repo"},
       {"list", "List all repos"}
     ]
@@ -144,6 +160,28 @@ defmodule Mix.Tasks.Hex.Repo do
     |> Hex.Config.update_repos()
   end
 
+  defp get(name, [{key, _}]) do
+    case Map.fetch(Hex.State.fetch!(:repos), name) do
+      {:ok, config} ->
+        Hex.Shell.info(Map.get(config, key, ""))
+
+      :error ->
+        Mix.raise("No repo with name: #{name}")
+    end
+  end
+
+  defp get(name, opts) do
+    case Map.fetch(Hex.State.fetch!(:repos), name) do
+      {:ok, config} ->
+        Enum.each(opts, fn {key, _} ->
+          Hex.Shell.info([pretty_config(key), ": ", Map.get(config, key, "")])
+        end)
+
+      :error ->
+        Mix.raise("No repo with name: #{name}")
+    end
+  end
+
   defp remove(name) do
     Hex.State.fetch!(:repos)
     |> Map.delete(name)
@@ -165,6 +203,10 @@ defmodule Mix.Tasks.Hex.Repo do
 
     Mix.Tasks.Hex.print_table(header, values)
   end
+
+  defp pretty_config(:url), do: "URL"
+  defp pretty_config(:public_key), do: "Public key"
+  defp pretty_config(:auth_key), do: "Auth key"
 
   defp read_public_key(nil) do
     nil

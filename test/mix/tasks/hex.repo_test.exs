@@ -144,6 +144,29 @@ defmodule Mix.Tasks.Hex.RepoTest do
     end)
   end
 
+  test "get url" do
+    in_tmp(fn ->
+      Hex.State.put(:config_home, File.cwd!())
+
+      Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
+      Mix.Tasks.Hex.Repo.run(["get", "reponame", "--url"])
+
+      assert_received {:mix_shell, :info, ["url"]}
+    end)
+  end
+
+  test "get url and key" do
+    in_tmp(fn ->
+      Hex.State.put(:config_home, File.cwd!())
+
+      Mix.Tasks.Hex.Repo.run(["add", "reponame", "url", "--auth-key", "key"])
+      Mix.Tasks.Hex.Repo.run(["get", "reponame", "--url", "--auth-key"])
+
+      assert_received {:mix_shell, :info, ["URL: url"]}
+      assert_received {:mix_shell, :info, ["Auth key: key"]}
+    end)
+  end
+
   test "show prints repo config" do
     in_tmp(fn ->
       Hex.State.put(:config_home, File.cwd!())
