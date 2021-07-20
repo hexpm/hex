@@ -98,8 +98,6 @@ jobs:
           mkdir -p ${HEXPM_MIX_HOME}
           PATH=$(pwd)/${HEXPM_ELIXIR_PATH}/bin:$(pwd)/${HEXPM_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/${HEXPM_MIX_HOME} MIX_ARCHIVES=$(pwd)/${HEXPM_MIX_HOME} mix local.hex --force
           PATH=$(pwd)/${HEXPM_ELIXIR_PATH}/bin:$(pwd)/${HEXPM_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/${HEXPM_MIX_HOME} MIX_ARCHIVES=$(pwd)/${HEXPM_MIX_HOME} mix local.rebar --force
-          mix local.hex --force
-          mix local.rebar --force
 
       - name: Set up hexpm
         run: |
@@ -109,6 +107,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo rm -rf /usr/local/bin/rebar3
           mix deps.get
           mix deps.compile
 
