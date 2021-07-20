@@ -30,9 +30,9 @@ defmodule Mix.Tasks.Hex.Retire do
     * `--message "MESSAGE"` - Required message (up to 140 characters) clarifying
       the retirement reason
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
-  
+
   ## Example
- 
+
       mix hex.retire your_app 0.1.1 invalid --message "Package has a breaking bug"
   """
   @behaviour Hex.Mix.TaskDescription
