@@ -69,7 +69,7 @@ defmodule Mix.Tasks.Hex.Repo do
 
   @add_switches [public_key: :string, auth_key: :string, fetch_public_key: :string]
   @set_switches [url: :string, public_key: :string, auth_key: :string]
-  @get_switches [url: :boolean, public_key: :boolean, auth_key: :boolean]
+  @show_switches [url: :boolean, public_key: :boolean, auth_key: :boolean]
 
   @impl true
   def run(all_args) do
@@ -85,15 +85,12 @@ defmodule Mix.Tasks.Hex.Repo do
         {opts, _args} = Hex.OptionParser.parse!(all_args, strict: @set_switches)
         set(name, opts)
 
-      ["get", name] ->
-        {opts, _args} = Hex.OptionParser.parse!(all_args, strict: @get_switches)
-        get(name, opts)
-
       ["remove", name] ->
         remove(name)
 
       ["show", name] ->
-        show(name)
+        {opts, _args} = Hex.OptionParser.parse!(all_args, strict: @show_switches)
+        show(name, opts)
 
       ["list"] ->
         list()
@@ -160,28 +157,6 @@ defmodule Mix.Tasks.Hex.Repo do
     |> Hex.Config.update_repos()
   end
 
-  defp get(name, [{key, _}]) do
-    case Map.fetch(Hex.State.fetch!(:repos), name) do
-      {:ok, config} ->
-        Hex.Shell.info(Map.get(config, key, ""))
-
-      :error ->
-        Mix.raise("No repo with name: #{name}")
-    end
-  end
-
-  defp get(name, opts) do
-    case Map.fetch(Hex.State.fetch!(:repos), name) do
-      {:ok, config} ->
-        Enum.each(opts, fn {key, _} ->
-          Hex.Shell.info([pretty_config(key), ": ", Map.get(config, key, "")])
-        end)
-
-      :error ->
-        Mix.raise("No repo with name: #{name}")
-    end
-  end
-
   defp remove(name) do
     Hex.State.fetch!(:repos)
     |> Map.delete(name)
@@ -203,10 +178,6 @@ defmodule Mix.Tasks.Hex.Repo do
 
     Mix.Tasks.Hex.print_table(header, values)
   end
-
-  defp pretty_config(:url), do: "URL"
-  defp pretty_config(:public_key), do: "Public key"
-  defp pretty_config(:auth_key), do: "Auth key"
 
   defp read_public_key(nil) do
     nil
@@ -276,7 +247,17 @@ defmodule Mix.Tasks.Hex.Repo do
     |> Hex.Stdlib.base_encode64_nopadding()
   end
 
-  defp show(name) do
+  defp show(name, [{key, _} | _]) do
+    case Map.fetch(Hex.State.fetch!(:repos), name) do
+      {:ok, config} ->
+        Hex.Shell.info(Map.get(config, key, ""))
+
+      :error ->
+        Mix.raise("Config does not contain repo #{name}")
+    end
+  end
+
+  defp show(name, []) do
     case Map.fetch(Hex.State.fetch!(:repos), name) do
       {:ok, repo} ->
         header = ["URL", "Public key", "Auth key"]
