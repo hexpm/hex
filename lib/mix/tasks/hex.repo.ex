@@ -54,6 +54,7 @@ defmodule Mix.Tasks.Hex.Repo do
   ## Show repo config
 
       mix hex.repo show NAME
+      mix hex.repo show NAME --url
 
   ## List all repos
 
@@ -61,25 +62,30 @@ defmodule Mix.Tasks.Hex.Repo do
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [url: :string, public_key: :string, auth_key: :string, fetch_public_key: :string]
+  @add_switches [public_key: :string, auth_key: :string, fetch_public_key: :string]
+  @set_switches [url: :string, public_key: :string, auth_key: :string]
+  @show_switches [url: :boolean, public_key: :boolean, auth_key: :boolean]
 
   @impl true
-  def run(args) do
+  def run(all_args) do
     Hex.start()
-    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
+    {_opts, args} = Hex.OptionParser.parse!(all_args, switches: [])
 
     case args do
       ["add", name, url] ->
+        {opts, _args} = Hex.OptionParser.parse!(all_args, strict: @add_switches)
         add(name, url, opts)
 
       ["set", name] ->
+        {opts, _args} = Hex.OptionParser.parse!(all_args, strict: @set_switches)
         set(name, opts)
 
       ["remove", name] ->
         remove(name)
 
       ["show", name] ->
-        show(name)
+        {opts, _args} = Hex.OptionParser.parse!(all_args, strict: @show_switches)
+        show(name, opts)
 
       ["list"] ->
         list()
@@ -107,6 +113,7 @@ defmodule Mix.Tasks.Hex.Repo do
       {"add NAME URL", "Add a repo"},
       {"set NAME", "Set config for repo"},
       {"remove NAME", "Remove repo"},
+      {"show NAME", "Show repo config"},
       {"list", "List all repos"}
     ]
   end
@@ -234,7 +241,17 @@ defmodule Mix.Tasks.Hex.Repo do
     |> Hex.Stdlib.base_encode64_nopadding()
   end
 
-  defp show(name) do
+  defp show(name, [{key, _} | _]) do
+    case Map.fetch(Hex.State.fetch!(:repos), name) do
+      {:ok, config} ->
+        Hex.Shell.info(Map.get(config, key, ""))
+
+      :error ->
+        Mix.raise("Config does not contain repo #{name}")
+    end
+  end
+
+  defp show(name, []) do
     case Map.fetch(Hex.State.fetch!(:repos), name) do
       {:ok, repo} ->
         header = ["URL", "Public key", "Auth key"]

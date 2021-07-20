@@ -144,6 +144,17 @@ defmodule Mix.Tasks.Hex.RepoTest do
     end)
   end
 
+  test "show url" do
+    in_tmp(fn ->
+      Hex.State.put(:config_home, File.cwd!())
+
+      Mix.Tasks.Hex.Repo.run(["add", "reponame", "url"])
+      Mix.Tasks.Hex.Repo.run(["show", "reponame", "--url"])
+
+      assert_received {:mix_shell, :info, ["url"]}
+    end)
+  end
+
   test "show prints repo config" do
     in_tmp(fn ->
       Hex.State.put(:config_home, File.cwd!())
