@@ -47,12 +47,6 @@ defmodule Mix.Tasks.Hex.Repo do
       mix hex.repo set NAME --public-key PATH
       mix hex.repo set NAME --auth-key KEY
 
-  ## Get config for repo
-
-      mix hex.repo get NAME --url
-      mix hex.repo get NAME --public-key
-      mix hex.repo get NAME --auth-key
-
   ## Remove repo
 
       mix hex.repo remove NAME
@@ -60,6 +54,7 @@ defmodule Mix.Tasks.Hex.Repo do
   ## Show repo config
 
       mix hex.repo show NAME
+      mix hex.repo show NAME --url
 
   ## List all repos
 
@@ -106,7 +101,6 @@ defmodule Mix.Tasks.Hex.Repo do
 
     mix hex.repo add NAME URL
     mix hex.repo set NAME
-    mix hex.repo get NAME
     mix hex.repo remove NAME
     mix hex.repo show NAME
     mix hex.repo list
@@ -118,8 +112,8 @@ defmodule Mix.Tasks.Hex.Repo do
     [
       {"add NAME URL", "Add a repo"},
       {"set NAME", "Set config for repo"},
-      {"get NAME", "Get config for repo"},
       {"remove NAME", "Remove repo"},
+      {"show NAME", "Show repo config"},
       {"list", "List all repos"}
     ]
   end
