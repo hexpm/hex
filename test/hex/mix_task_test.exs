@@ -223,6 +223,18 @@ defmodule Hex.MixTaskTest do
     end
   end
 
+  defmodule DependsOnSponsored do
+    def project do
+      [
+        app: :depends_on_sponsored,
+        version: "0.1.0",
+        deps: [
+          {:sponsored, "0.1.0"}
+        ]
+      ]
+    end
+  end
+
   test "deps.get" do
     Mix.Project.push(Simple)
 
@@ -918,5 +930,23 @@ defmodule Hex.MixTaskTest do
       Ecto_3_3_1.Fixture.MixProject,
       Ecto_3_3_2.Fixture.MixProject
     ])
+  end
+
+  @tag skip: Version.match?(System.version(), "< 1.4.0")
+  test "prints a sponsors tip when updating or adding a package with sponsor link" do
+    Mix.Project.push(DependsOnSponsored)
+
+    in_tmp("sponsor_tmp", fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      Mix.Task.run("deps.get")
+
+      assert_received {:mix_shell, :info, ["* Getting sponsored (Hex package)"]}
+
+      assert_received {:mix_shell, :info,
+                       [
+                         "You have added/upgraded packages you could " <>
+                           "sponsor, run `mix hex.sponsor` to learn more"
+                       ]}
+    end)
   end
 end

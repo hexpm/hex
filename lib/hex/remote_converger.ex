@@ -7,6 +7,16 @@ defmodule Hex.RemoteConverger do
 
   def post_converge() do
     Hex.UpdateChecker.check()
+
+    if Hex.State.get(:print_sponsored_tip) do
+      Hex.Shell.info(
+        "You have added/upgraded packages you could sponsor, " <>
+          "run `mix hex.sponsor` to learn more"
+      )
+
+      Hex.State.put(:print_sponsored_tip, false)
+    end
+
     Registry.close()
   end
 
