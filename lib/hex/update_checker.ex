@@ -8,12 +8,14 @@ defmodule Hex.UpdateChecker do
   @update_interval 24 * 60 * 60
 
   def start_link(opts \\ []) do
+    {init_state, opts} = Keyword.pop(opts, :init_state, %{})
     opts = Keyword.put_new(opts, :name, @name)
-    GenServer.start_link(__MODULE__, opts, opts)
+
+    GenServer.start_link(__MODULE__, init_state, opts)
   end
 
-  def init(opts) do
-    {:ok, state(opts)}
+  def init(init_state) do
+    {:ok, state(init_state)}
   end
 
   def start_check() do
@@ -127,9 +129,7 @@ defmodule Hex.UpdateChecker do
     end
   end
 
-  defp state(opts) do
-    init_state = Keyword.get(opts, :init_state, %{})
-
+  defp state(init_state) do
     state = %{
       from: nil,
       reply: nil,
