@@ -455,10 +455,6 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp semver_error_text do
-    "Invalid filename: top-level filenames cannot match a semantic version pattern."
-  end
-
   defp send_tarball(organization, name, version, tarball, auth, progress?) do
     progress = progress_fun(progress?, byte_size(tarball))
 
