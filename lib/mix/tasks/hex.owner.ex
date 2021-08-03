@@ -14,7 +14,7 @@ defmodule Mix.Tasks.Hex.Owner do
   Adds an owner to package by specifying the package name and email or username
   of the new owner.
 
-      mix hex.owner add PACKAGE EMAIL_OR_USERNAME
+      $ mix hex.owner add PACKAGE EMAIL_OR_USERNAME
 
   ## Transfer ownership
 
@@ -22,26 +22,26 @@ defmodule Mix.Tasks.Hex.Owner do
   This task is required to use when transferring ownership of the package to an
   organization.
 
-      mix hex.owner transfer PACKAGE EMAIL_OR_USERNAME
+      $ mix hex.owner transfer PACKAGE EMAIL_OR_USERNAME
 
   ## Remove owner
 
   Removes an owner to package by specifying the package name and email or username
   of the new owner.
 
-      mix hex.owner remove PACKAGE EMAIL_OR_USERNAME
+      $ mix hex.owner remove PACKAGE EMAIL_OR_USERNAME
 
   ## List owners
 
   Lists all owners of given package.
 
-      mix hex.owner list PACKAGE
+      $ mix hex.owner list PACKAGE
 
   ## List owned packages
 
   Lists all packages owned by the current user.
 
-      mix hex.owner packages
+      $ mix hex.owner packages
 
   ## Command line options
 

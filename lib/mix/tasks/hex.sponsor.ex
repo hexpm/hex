@@ -6,6 +6,8 @@ defmodule Mix.Tasks.Hex.Sponsor do
   @moduledoc """
   Show Hex packages in your dependencies that accept sponsorships.
 
+      $ mix hex.sponsor
+
   Sponsorship plays an important role to maintain some open
   source projects. This task will display all packages that
   are accepting sponsorship from the current project.

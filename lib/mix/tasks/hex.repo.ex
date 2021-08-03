@@ -31,7 +31,7 @@ defmodule Mix.Tasks.Hex.Repo do
 
   ## Add a repo
 
-      mix hex.repo add NAME URL
+      $ mix hex.repo add NAME URL
 
   ### Command line options
 
@@ -43,22 +43,22 @@ defmodule Mix.Tasks.Hex.Repo do
 
   ## Set config for repo
 
-      mix hex.repo set NAME --url URL
-      mix hex.repo set NAME --public-key PATH
-      mix hex.repo set NAME --auth-key KEY
+      $ mix hex.repo set NAME --url URL
+      $ mix hex.repo set NAME --public-key PATH
+      $ mix hex.repo set NAME --auth-key KEY
 
   ## Remove repo
 
-      mix hex.repo remove NAME
+      $ mix hex.repo remove NAME
 
   ## Show repo config
 
-      mix hex.repo show NAME
-      mix hex.repo show NAME --url
+      $ mix hex.repo show NAME
+      $ mix hex.repo show NAME --url
 
   ## List all repos
 
-      mix hex.repo list
+      $ mix hex.repo list
   """
   @behaviour Hex.Mix.TaskDescription
 

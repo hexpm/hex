@@ -16,7 +16,7 @@ defmodule Mix.Tasks.Hex.Package do
 
   Fetch a package tarball to the current directory.
 
-      mix hex.package fetch PACKAGE [VERSION] [--unpack] [--output PATH]
+      $ mix hex.package fetch PACKAGE [VERSION] [--unpack] [--output PATH]
 
   If `version` is not given, use the latest version.
 
@@ -24,7 +24,7 @@ defmodule Mix.Tasks.Hex.Package do
 
   ## Diff package versions
 
-      mix hex.package diff APP VERSION
+      $ mix hex.package diff APP VERSION
 
   This command compares the project's dependency `APP` against
   the target package version, unpacking the target version into
@@ -32,8 +32,8 @@ defmodule Mix.Tasks.Hex.Package do
 
   ## Fetch and diff package contents between versions
 
-      mix hex.package diff PACKAGE VERSION1 VERSION2
-      mix hex.package diff PACKAGE VERSION1..VERSION2
+      $ mix hex.package diff PACKAGE VERSION1 VERSION2
+      $ mix hex.package diff PACKAGE VERSION1..VERSION2
 
   This command fetches package tarballs for both versions,
   unpacks them into temporary directories and runs a diff command.
@@ -52,7 +52,7 @@ defmodule Mix.Tasks.Hex.Package do
   configuration option, see `mix help hex.config` for more information.
   The default diff command is:
 
-      #{@default_diff_command}
+      $ #{@default_diff_command}
 
   The `__PATH1__` and `__PATH2__` placeholders will be interpolated with
   paths to directories of unpacked tarballs for each version.
@@ -62,7 +62,7 @@ defmodule Mix.Tasks.Hex.Package do
 
   On Unix systems you can pipe the output to more commands, for example:
 
-      mix hex.package diff decimal 1.0.0..1.1.0 | colordiff | less -R
+      $ mix hex.package diff decimal 1.0.0..1.1.0 | colordiff | less -R
 
   Here, the output of `mix hex.package diff` is piped to the `colordiff`
   utility to adds colours, which in turn is piped to `less -R` which
@@ -71,8 +71,8 @@ defmodule Mix.Tasks.Hex.Package do
   Another option is to configure the diff command itself. For example, to
   force Git to always colour the output we can set the `--color=always` option:
 
-      mix hex.config diff_command "git diff --color=always --no-index __PATH1__ __PATH2__"
-      mix hex.package diff decimal 1.0.0..1.1.0
+      $ mix hex.config diff_command "git diff --color=always --no-index __PATH1__ __PATH2__"
+      $ mix hex.package diff decimal 1.0.0..1.1.0
 
   ## Command line options
 
