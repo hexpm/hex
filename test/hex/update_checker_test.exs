@@ -65,4 +65,14 @@ defmodule Hex.UpdateCheckerTest do
     GenServer.cast(pid, :start_check)
     assert :already_checked = GenServer.call(pid, :check)
   end
+
+  test "handle check timeout" do
+    flush()
+
+    init_state = %{started: true, check_timeout: 1}
+
+    {:ok, pid} = UpdateChecker.start_link(name: nil, init_state: init_state)
+
+    assert :timeout = GenServer.call(pid, :check)
+  end
 end
