@@ -443,7 +443,7 @@ defmodule Mix.Tasks.Hex.Publish do
     end)
   end
 
-  def filename_matches_semver!(filename) do
+  defp filename_matches_semver!(filename) do
     top_level = filename |> Path.split() |> List.first()
 
     case Version.parse(to_string(top_level)) do
@@ -455,7 +455,7 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  def semver_error_text do
+  defp semver_error_text do
     "Invalid filename: top-level filenames cannot match a semantic version pattern."
   end
 
