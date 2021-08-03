@@ -28,18 +28,18 @@ defmodule Mix.Tasks.Hex.Organization do
   This command will generate an API key used to authenticate access to the organization.
   See the `hex.user` tasks to list and control all your active API keys.
 
-      mix hex.organization auth ORGANIZATION  [--key KEY] [--key-name KEY_NAME]
+      $ mix hex.organization auth ORGANIZATION  [--key KEY] [--key-name KEY_NAME]
 
   ## Deauthorize and remove an organization
 
-      mix hex.organization deauth NAME
+      $ mix hex.organization deauth NAME
 
   ## List all authorized organizations
 
   This command will only list organizations you have authorized with this task, it will not
   list organizations you have access to by having authorized with `mix hex.user auth`.
 
-      mix hex.organization list
+      $ mix hex.organization list
 
   ## Generate organization key
 
@@ -52,7 +52,7 @@ defmodule Mix.Tasks.Hex.Organization do
   sets the `repository` permission which allows read-only access to the repository, it can be
   overridden with the `--permission` flag.
 
-      mix hex.organization key ORGANIZATION generate [--key-name KEY_NAME] [--permission PERMISSION]
+      $ mix hex.organization key ORGANIZATION generate [--key-name KEY_NAME] [--permission PERMISSION]
 
   ## Revoke key
 
@@ -60,19 +60,19 @@ defmodule Mix.Tasks.Hex.Organization do
 
   The key can no longer be used to authenticate API requests.
 
-      mix hex.organization key ORGANIZATION revoke KEY_NAME
+      $ mix hex.organization key ORGANIZATION revoke KEY_NAME
 
   ## Revoke all keys
 
   Revoke all keys from the organization.
 
-      mix hex.organization key ORGANIZATION revoke --all
+      $ mix hex.organization key ORGANIZATION revoke --all
 
   ## List keys
 
   Lists all keys associated with the organization.
 
-      mix hex.organization key ORGANIZATION list
+      $ mix hex.organization key ORGANIZATION list
 
   ## Command line options
 

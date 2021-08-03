@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   @moduledoc """
   Shows all Hex dependencies that have newer versions in the registry.
 
-      mix hex.outdated [APP]
+      $ mix hex.outdated [APP]
 
   By default, it only shows top-level packages explicitly listed in the
   `mix.exs` file. All outdated packages can be displayed by using the `--all`

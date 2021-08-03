@@ -14,54 +14,44 @@ defmodule Mix.Tasks.Hex.Registry do
 
   ## Build a local registry
 
-      mix hex.registry build PUBLIC_DIR
+      $ mix hex.registry build PUBLIC_DIR
 
   To build a registry you need a name, a directory that will be used to store public registry files,
   and a private key to sign the registry:
 
-  ```
-  mix hex.registry build public --name=acme --private-key=private_key.pem
-  * creating public/public_key
-  * creating public/tarballs
-  * creating public/names
-  * creating public/versions
-  ```
+      $ mix hex.registry build public --name=acme --private-key=private_key.pem
+      * creating public/public_key
+      * creating public/tarballs
+      * creating public/names
+      * creating public/versions
 
   You can generate a random private key using the following command:
 
-  ```
-  openssl genrsa -out private_key.pem
-  ```
+      $ openssl genrsa -out private_key.pem
 
   Let's say you have a package `foo-1.0.0.tar`. To publish it, simply copy it to the appropriate
   directory and re-build the registry:
 
-  ```
-  cp foo-1.0.0.tar public/tarballs/
-  mix hex.registry build public --name=acme --private-key=private_key.pem
-  * creating public/packages/foo
-  * updating public/names
-  * updating public/versions
-  ```
+      $ cp foo-1.0.0.tar public/tarballs/
+      $ mix hex.registry build public --name=acme --private-key=private_key.pem
+      * creating public/packages/foo
+      * updating public/names
+      * updating public/versions
 
   You can test the repository by starting the built-in Erlang/OTP HTTP server, adding the repository,
   and retrieving the package that you just published.
 
-  ```
-  erl -s inets -eval 'inets:start(httpd,[{port,8000},{server_name,"localhost"},{server_root,"."},{document_root,"public"}]).'
+      $ erl -s inets -eval 'inets:start(httpd,[{port,8000},{server_name,"localhost"},{server_root,"."},{document_root,"public"}]).'
 
-  # replace "acme" with the name of your repository
-  mix hex.repo add acme http://localhost:8000 --public-key=public/public_key
-  mix hex.package fetch foo 1.0.0 --repo=acme
-  ```
+      # replace "acme" with the name of your repository
+      $ mix hex.repo add acme http://localhost:8000 --public-key=public/public_key
+      $ mix hex.package fetch foo 1.0.0 --repo=acme
 
   To use the package in your Mix project, add it as a dependency and set the `:repo` option to your repository name:
 
-  ```elixir
-  defp deps() do
-    {:decimal, "~> 2.0", repo: "acme"}
-  end
-  ```
+      defp deps() do
+        {:decimal, "~> 2.0", repo: "acme"}
+      end
 
   ### Command line options
 

@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.Publish do
   @moduledoc """
   Publishes a new version of the package.
 
-      mix hex.publish
+      $ mix hex.publish
 
   The current authenticated user will be the package owner. Only package
   owners can publish the package, new owners can be added with the

@@ -6,9 +6,9 @@ defmodule Mix.Tasks.Hex.Retire do
   @moduledoc """
   Retires a package version.
 
-      mix hex.retire PACKAGE VERSION REASON
+      $ mix hex.retire PACKAGE VERSION REASON
 
-      mix hex.retire PACKAGE VERSION --unretire
+      $ mix hex.retire PACKAGE VERSION --unretire
 
   Mark a package as retired when you no longer recommend it's usage. A retired
   package is still resolvable and usable but it will be flagged as retired in the
@@ -33,7 +33,7 @@ defmodule Mix.Tasks.Hex.Retire do
 
   ## Example
 
-      mix hex.retire your_app 0.1.1 invalid --message "Package has a breaking bug"
+      $ mix hex.retire your_app 0.1.1 invalid --message "Package has a breaking bug"
   """
   @behaviour Hex.Mix.TaskDescription
 

@@ -8,7 +8,7 @@ defmodule Mix.Tasks.Hex.Search do
 
   If you are authenticated it will additionally search all organizations you are member of.
 
-      mix hex.search PACKAGE
+      $ mix hex.search PACKAGE
 
   ## Command line options
 

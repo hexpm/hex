@@ -8,18 +8,18 @@ defmodule Mix.Tasks.Hex.User do
 
   ## Register a new user
 
-      mix hex.user register
+      $ mix hex.user register
 
   ## Print the current user
 
-      mix hex.user whoami
+      $ mix hex.user whoami
 
   ## Authorize a new user
 
   Authorizes a new user on the local machine by generating a new API key and
   storing it in the Hex config.
 
-      mix hex.user auth [--key-name KEY_NAME]
+      $ mix hex.user auth [--key-name KEY_NAME]
 
   ### Command line options
 
@@ -30,7 +30,7 @@ defmodule Mix.Tasks.Hex.User do
 
   Deauthorizes the user from the local machine by removing the API key from the Hex config.
 
-      mix hex.user deauth
+      $ mix hex.user deauth
 
   ## Generate user key
 
@@ -40,7 +40,7 @@ defmodule Mix.Tasks.Hex.User do
   default this command sets the `api:write` permission which allows write access to the API,
   it can be overridden with the `--permission` flag.
 
-      mix hex.user key generate
+      $ mix hex.user key generate
 
   ### Command line options
 
@@ -60,31 +60,31 @@ defmodule Mix.Tasks.Hex.User do
 
   The key can no longer be used to authenticate API requests.
 
-      mix hex.user key revoke KEY_NAME
+      $ mix hex.user key revoke KEY_NAME
 
   ## Revoke all keys
 
   Revoke all keys from your account.
 
-      mix hex.user key revoke --all
+      $ mix hex.user key revoke --all
 
   ## List keys
 
   Lists all keys associated with your account.
 
-      mix hex.user key list
+      $ mix hex.user key list
 
   ## Reset user account password
 
   Starts the process for resetting account password.
 
-      mix hex.user reset_password account
+      $ mix hex.user reset_password account
 
   ## Reset local password
 
   Updates the local password for your local authentication credentials.
 
-      mix hex.user reset_password local
+      $ mix hex.user reset_password local
   """
   @behaviour Hex.Mix.TaskDescription
 

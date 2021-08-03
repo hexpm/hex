@@ -10,7 +10,7 @@ defmodule Mix.Tasks.Hex.Build do
   to the repository. An app named `foo` at version `1.2.3` will be built as
   `foo-1.2.3.tar`.
 
-      mix hex.build
+      $ mix hex.build
 
   ## Configuration
 
