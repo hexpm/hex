@@ -100,8 +100,10 @@ defmodule Hex.RemoteConverger do
     The dependency resolver is taking more than 30 seconds. This typically \
     happens when Hex cannot find a suitable set of dependencies that match \
     your requirements. Here are some suggestions:
+    
       1. Do not delete mix.lock. If you want to update some dependencies, \
     do mix deps.update dep1 dep2 dep3
+
       2. Tighten up your dependency requirements to the latest version. \
     Instead of {:my_dep, ">= 1.0.0"}, try {:my_dep, "~> 3.6"}
     """)
