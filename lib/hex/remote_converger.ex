@@ -58,22 +58,18 @@ defmodule Hex.RemoteConverger do
 
     Hex.Shell.info("Resolving Hex dependencies...")
 
-    task =
-      Task.async(fn ->
-        Hex.Resolver.resolve(Registry, requests, deps, top_level, repos, locked)
+    {:ok, pid} =
+      Task.start_link(fn ->
+        receive do
+          :done -> :ok
+        after
+          30_000 ->
+            print_slow_resolver()
+        end
       end)
 
-    task_ref = task.ref
-
-    result =
-      receive do
-        {^task_ref, reply} ->
-          reply
-      after
-        30_000 ->
-          slow_resolver()
-          Task.await(task, :infinity)
-      end
+    result = Hex.Resolver.resolve(Registry, requests, deps, top_level, repos, locked)
+    send(pid, :done)
 
     case result do
       {:ok, resolved} ->
@@ -95,12 +91,12 @@ defmodule Hex.RemoteConverger do
     end
   end
 
-  defp slow_resolver() do
+  defp print_slow_resolver() do
     Hex.Shell.warn("""
     The dependency resolver is taking more than 30 seconds. This typically \
     happens when Hex cannot find a suitable set of dependencies that match \
     your requirements. Here are some suggestions:
-    
+
       1. Do not delete mix.lock. If you want to update some dependencies, \
     do mix deps.update dep1 dep2 dep3
 
