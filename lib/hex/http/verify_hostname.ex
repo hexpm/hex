@@ -59,7 +59,7 @@ defmodule Hex.HTTP.VerifyHostname do
     if check_hostname = state[:check_hostname] do
       verify_cert_hostname(cert, check_hostname)
     else
-      {:valud, state}
+      {:valid, state}
     end
   end
 
