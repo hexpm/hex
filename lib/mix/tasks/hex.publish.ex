@@ -328,7 +328,7 @@ defmodule Mix.Tasks.Hex.Publish do
     end)
 
     Hex.Shell.info("")
-    owner_prompt_selection(Map.new(organizations))
+    owner_prompt_selection(Enum.into(organizations, %{}))
   end
 
   defp owner_prompt_selection(organizations) do
