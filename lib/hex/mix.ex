@@ -112,22 +112,6 @@ defmodule Hex.Mix do
   end
 
   @doc """
-  Add a potentially new dependency and its children.
-  This function is used to add Hex packages to the dependency tree which
-  we use in overridden_parents to check overridden status.
-  """
-  def attach_dep_and_children(deps, app, children) do
-    {override, _} = Map.fetch!(deps, app)
-
-    children =
-      Enum.into(children, %{}, fn {_repo, _name, app, _req, _optional} ->
-        {app, {false, %{}}}
-      end)
-
-    Map.merge(children, Map.put(deps, app, {override, children}))
-  end
-
-  @doc """
   Converts a list of dependencies to a requests to the resolver. Skips
   dependencies overriding with another SCM (but include dependencies
   overriding with Hex) and dependencies that are not Hex packages.
