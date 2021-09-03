@@ -38,19 +38,25 @@ defmodule Hex.Mix do
   due to options like `:only`.
   """
   @spec flatten_deps([Mix.Dep.t()], [atom]) :: [Mix.Dep.t()]
-  def flatten_deps(deps, top_level) do
+  def flatten_deps(deps, overridden_map) do
     apps = Enum.map(deps, & &1.app)
-    top_level = Enum.map(top_level, &Atom.to_string/1)
-    prepared_deps = prepare_deps(deps)
 
     deps ++
       for(
         dep <- deps,
-        overridden_map = overridden_parents(top_level, prepared_deps, Atom.to_string(dep.app)),
         %{app: app} = child <- dep.deps,
         app in apps and !overridden_map[Atom.to_string(app)],
         do: child
       )
+  end
+
+  def overridden_deps(deps) do
+    for(
+      dep <- deps,
+      dep.opts[:override],
+      into: %{},
+      do: {Atom.to_string(dep.app), true}
+    )
   end
 
   @doc """

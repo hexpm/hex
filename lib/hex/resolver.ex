@@ -7,7 +7,7 @@ defmodule Hex.Resolver do
 
   @ets :hex_ets_states
 
-  Record.defrecordp(:info, [:registry, :deps, :top_level, :ets, :repos, :backtracks])
+  Record.defrecordp(:info, [:registry, :deps, :top_level, :ets, :repos, :backtracks, :overridden])
   Record.defrecordp(:request, [:app, :name, :req, :repo, :parent, :top_level])
   Record.defrecordp(:parent, [:name, :repo, :version, :requirement, :repo_requirement])
   Record.defrecordp(:state, [:activated, :requests, :optional, :deps])
@@ -23,7 +23,7 @@ defmodule Hex.Resolver do
     :top_level
   ])
 
-  def resolve(registry, requests, deps, top_level, repos, locked) do
+  def resolve(registry, requests, deps, top_level, repos, locked, overridden) do
     tid = :ets.new(@ets, [])
     backtracks = Backtracks.start()
 
@@ -34,7 +34,8 @@ defmodule Hex.Resolver do
         top_level: top_level,
         ets: tid,
         repos: repos,
-        backtracks: backtracks
+        backtracks: backtracks,
+        overridden: overridden
       )
 
     optional = build_optional(locked)
@@ -264,14 +265,13 @@ defmodule Hex.Resolver do
          repo,
          package,
          version,
-         info(registry: registry, top_level: top_level, deps: all_deps),
+         info(registry: registry, top_level: top_level, deps: all_deps, overridden: overridden),
          activated
        ) do
     if deps = registry.deps(repo, package, version) do
       packages = Enum.map(deps, &{elem(&1, 0), elem(&1, 1)})
       registry.prefetch(packages)
       all_deps = attach_dep_and_children(all_deps, app, deps)
-      overridden_map = overridden_parents(top_level, all_deps, app)
 
       {reqs, opts} =
         Enum.reduce(deps, {[], []}, fn {dep_repo, name, app, req, optional}, {reqs, opts} ->
@@ -295,7 +295,7 @@ defmodule Hex.Resolver do
             )
 
           cond do
-            overridden_map[app] ->
+            overridden[app] ->
               {reqs, opts}
 
             optional && !activated[name] ->
