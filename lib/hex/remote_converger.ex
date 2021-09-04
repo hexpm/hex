@@ -33,7 +33,8 @@ defmodule Hex.RemoteConverger do
     old_lock = Mix.Dep.Lock.read()
 
     top_level = Hex.Mix.top_level(deps)
-    flat_deps = Hex.Mix.flatten_deps(deps, top_level)
+    overridden_map = Hex.Mix.overridden_deps(deps)
+    flat_deps = Hex.Mix.flatten_deps(deps, overridden_map)
     requests = Hex.Mix.deps_to_requests(flat_deps)
 
     [
@@ -52,8 +53,6 @@ defmodule Hex.RemoteConverger do
     verify_input(requests, locked)
 
     repos = repo_overrides(deps)
-    deps = Hex.Mix.prepare_deps(deps)
-
     top_level = Enum.map(top_level, &Atom.to_string/1)
 
     Hex.Shell.info("Resolving Hex dependencies...")
@@ -68,7 +67,7 @@ defmodule Hex.RemoteConverger do
         end
       end)
 
-    result = Hex.Resolver.resolve(Registry, requests, deps, top_level, repos, locked)
+    result = Hex.Resolver.resolve(Registry, requests, top_level, repos, locked, overridden_map)
     send(pid, :done)
 
     case result do

@@ -48,7 +48,7 @@ defmodule Hex.MixTest do
 
     deps = [phoenix, ecto, postgrex]
 
-    flattened_deps = Hex.Mix.flatten_deps(deps, [:phoenix])
+    flattened_deps = Hex.Mix.flatten_deps(deps, %{})
     assert phoenix in flattened_deps
     assert ecto in flattened_deps
     assert postgrex in flattened_deps
@@ -63,7 +63,7 @@ defmodule Hex.MixTest do
 
     deps = [ecto, postgrex, phoenix]
 
-    flattened_deps = Hex.Mix.flatten_deps(deps, [:phoenix, :postgrex])
+    flattened_deps = Hex.Mix.flatten_deps(deps, %{"postgrex" => true})
     assert phoenix in flattened_deps
     assert ecto in flattened_deps
     assert postgrex in flattened_deps

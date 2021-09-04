@@ -38,87 +38,25 @@ defmodule Hex.Mix do
   due to options like `:only`.
   """
   @spec flatten_deps([Mix.Dep.t()], [atom]) :: [Mix.Dep.t()]
-  def flatten_deps(deps, top_level) do
+  def flatten_deps(deps, overridden_map) do
     apps = Enum.map(deps, & &1.app)
-    top_level = Enum.map(top_level, &Atom.to_string/1)
-    prepared_deps = prepare_deps(deps)
 
     deps ++
       for(
         dep <- deps,
-        overridden_map = overridden_parents(top_level, prepared_deps, Atom.to_string(dep.app)),
         %{app: app} = child <- dep.deps,
         app in apps and !overridden_map[Atom.to_string(app)],
         do: child
       )
   end
 
-  @doc """
-  Returns a map with the overridden upper breadths dependencies of
-  the given parent (including the parent level itself).
-  """
-  @spec overridden_parents([String.t()], deps, String.t()) :: %{String.t() => true}
-  def overridden_parents(top_level, deps, parent) do
-    deps
-    |> Map.take(top_level)
-    |> do_overridden_parents(deps, parent, %{})
-    |> elem(0)
-  end
-
-  def do_overridden_parents(level, deps, parent, visited) do
-    {children_map, found?, visited} =
-      Enum.reduce(level, {%{}, false, visited}, fn {app, {_override, children}},
-                                                   {acc_map, acc_found?, visited} ->
-        case Map.fetch(visited, app) do
-          {:ok, {children_map, found?}} ->
-            {Map.merge(acc_map, children_map), found? or acc_found?, visited}
-
-          :error ->
-            children_apps = Map.keys(children)
-            children_deps = Map.take(deps, children_apps)
-
-            {children_map, found?, visited} =
-              do_overridden_parents(children_deps, deps, parent, visited)
-
-            visited = Map.put(visited, app, {children_map, found?})
-            {Map.merge(acc_map, children_map), found? or acc_found?, visited}
-        end
-      end)
-
-    cond do
-      found? ->
-        overridden_map = Map.merge(level_to_overridden_map(level), children_map)
-        {overridden_map, true, visited}
-
-      Map.has_key?(level, parent) ->
-        {level_to_overridden_map(level), true, visited}
-
-      true ->
-        {%{}, false, visited}
-    end
-  end
-
-  defp level_to_overridden_map(level) do
-    for {app, {override, _children}} <- level,
-        override,
-        do: {app, true},
-        into: %{}
-  end
-
-  @doc """
-  Add a potentially new dependency and its children.
-  This function is used to add Hex packages to the dependency tree which
-  we use in overridden_parents to check overridden status.
-  """
-  def attach_dep_and_children(deps, app, children) do
-    {override, _} = Map.fetch!(deps, app)
-
-    children =
-      Enum.into(children, %{}, fn {_repo, _name, app, _req, _optional} ->
-        {app, {false, %{}}}
-      end)
-
-    Map.merge(children, Map.put(deps, app, {override, children}))
+  def overridden_deps(deps) do
+    for(
+      dep <- deps,
+      dep.opts[:override],
+      into: %{},
+      do: {Atom.to_string(dep.app), true}
+    )
   end
 
   @doc """

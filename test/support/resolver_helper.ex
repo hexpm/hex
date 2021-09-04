@@ -12,7 +12,7 @@ defmodule HexTest.ResolverHelper do
     |> Enum.map(&{elem(&1, 0), elem(&1, 1)})
     |> Registry.prefetch()
 
-    case Hex.Resolver.resolve(Registry, reqs, deps, top_level, repos, locked) do
+    case Hex.Resolver.resolve(Registry, reqs, top_level, repos, locked, %{}) do
       {:ok, dict} -> dict
       {:error, {_reason, messages}} -> messages <> "\n"
     end
