@@ -107,6 +107,7 @@ defmodule Hex.Resolver do
         active(
           repo: active_repo,
           version: version,
+          versions: versions,
           parents: parents,
           top_level: top_level?
         ) = active
@@ -122,10 +123,10 @@ defmodule Hex.Resolver do
           not version_match?(version, req) ->
             Backtracks.add(info(info, :backtracks), repo, name, version, parents)
 
-            if top_level? do
-              backtrack_parents(parents, info, activated) || backtrack(name, info, activated)
-            else
+            if backtrack?(versions, req) and not top_level? do
               backtrack(name, info, activated) || backtrack_parents(parents, info, activated)
+            else
+              backtrack_parents(parents, info, activated) || backtrack(name, info, activated)
             end
 
           true ->
@@ -206,6 +207,10 @@ defmodule Hex.Resolver do
 
   defp activate(_request, _pending, [], _optional, info, activated, parents) do
     backtrack_parents(parents, info, activated)
+  end
+
+  defp backtrack?(versions, req) do
+    Enum.any?(versions, fn version -> version_match?(version, req) end)
   end
 
   defp backtrack(name, info, activated) do
