@@ -43,4 +43,30 @@ defmodule Hex.Resolver.RegressionTest do
 
     assert equal?(result, resolve(deps))
   end
+
+  # https://github.com/hexpm/hex/issues/901
+  test "issue/901" do
+    open_registry("20210915.ets")
+
+    deps = [phoenix: "~> 1.5", plug_cowboy: "~> 2.0"]
+
+    result =
+      locked(
+        cowboy: "2.9.0",
+        cowboy_telemetry: "0.3.1",
+        cowlib: "2.11.0",
+        mime: "2.0.1",
+        phoenix: "1.5.12",
+        phoenix_pubsub: "2.0.0",
+        plug: "1.12.1",
+        plug_cowboy: "2.5.2",
+        plug_crypto: "1.2.2",
+        ranch: "1.8.0",
+        telemetry: "0.4.3"
+      )
+
+    assert equal?(result, resolve(deps))
+    # the order of the deps should not affect the result
+    assert equal?(result, resolve(Enum.reverse(deps)))
+  end
 end
