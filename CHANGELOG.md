@@ -1,10 +1,24 @@
 # CHANGELOG
 
+## v0.21.3 (2021-09-18)
+
+### Enhancements
+
+* Add config `no_short_urls` and env var `HEX_NO_SHORT_URLS` to disable short URL generation
+* Mention `mix hex.sponsor` when fetching packages that accept sponsorship
+* Add `--key` option to `mix hex.repo show NAME` to print repository key
+* Improve output when update check fails
+* Print hint if version resolution is slow
+
+### Bug fixes
+
+* Improve version backtracking to fix slow version resolutions and downgrading of dependencies
+
 ## v0.21.2 (2021-04-14)
 
 ### Enhancements
 
-* Adds support for `mix hex.package fetch PACKAGE` (without version)
+* Add support for `mix hex.package fetch PACKAGE` (without version)
 
 ### Bug fixes
 
