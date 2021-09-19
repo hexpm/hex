@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v1
 
       - name: Install OTP and Elixir
-        uses: erlef/setup-beam@v1.7
+        uses: erlef/setup-beam@v1.9
         with:
           otp-version: 24
           elixir-version: 1.12
@@ -41,9 +41,11 @@ jobs:
       matrix:
         pair:
           - erlang: master
-            elixir: 1.11.3
-          - erlang: 23.1
+            elixir: 1.12.3
+          - erlang: 24.0
             elixir: master
+          - erlang: 24.0
+            elixir: 1.12.3
           - erlang: 23.1
             elixir: 1.11.3
           - erlang: 23.1
@@ -70,8 +72,8 @@ jobs:
             elixir: 1.0.5
 
     env:
-      HEXPM_OTP: OTP-23.1
-      HEXPM_ELIXIR: v1.11.1
+      HEXPM_OTP: OTP-24.0
+      HEXPM_ELIXIR: v1.12.3
       HEXPM_PATH: hexpm
       HEXPM_ELIXIR_PATH: hexpm_elixir
       HEXPM_OTP_PATH: hexpm_otp
@@ -82,7 +84,7 @@ jobs:
       - uses: actions/checkout@v1
 
       - name: Install OTP and Elixir
-        uses: erlef/setup-beam@v1.7
+        uses: erlef/setup-beam@v1.9
         with:
           otp-version: ${{matrix.pair.erlang}}
           elixir-version: ${{matrix.pair.elixir}}
