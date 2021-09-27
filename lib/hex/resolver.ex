@@ -108,8 +108,7 @@ defmodule Hex.Resolver do
           repo: active_repo,
           version: version,
           versions: versions,
-          parents: parents,
-          top_level: top_level?
+          parents: parents
         ) = active
 
         repo = info(info, :repos)[name] || repo
@@ -123,7 +122,7 @@ defmodule Hex.Resolver do
           not version_match?(version, req) ->
             Backtracks.add(info(info, :backtracks), repo, name, version, parents)
 
-            if backtrack?(versions, req) and not top_level? do
+            if backtrack?(versions, req) do
               backtrack(name, info, activated) || backtrack_parents(parents, info, activated)
             else
               backtrack_parents(parents, info, activated) || backtrack(name, info, activated)
