@@ -177,7 +177,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     if Enum.empty?(values) do
       Hex.Shell.info("No hex dependencies")
     else
-      header = ["Dependency", "Current", "Latest", "Status"]
+      header = ["Dependency", "Current", "Latest", "Status", "Only"]
       Mix.Tasks.Hex.print_table(header, values)
 
       base_message = "Run `mix hex.outdated APP` to see requirements for a specific dependency."
@@ -249,7 +249,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     List.last(versions)
   end
 
-  defp format_all_row([package, lock, latest, requirements]) do
+  defp format_all_row([package, lock, latest, requirements] = list) do
     outdated? = Hex.Version.compare(lock, latest) == :lt
     latest_color = if outdated?, do: :red, else: :green
     req_matches? = req_matches?(requirements, latest)
@@ -265,9 +265,25 @@ defmodule Mix.Tasks.Hex.Outdated do
       [:bright, package],
       lock,
       [latest_color, latest],
-      status
+      status,
+      only_to_string(package_only(package))
     ]
   end
+
+  defp package_only(package) do
+    case Map.get(Hex.Mix.top_level_deps(), String.to_atom(package)) do
+      nil -> nil
+      [{_, _, opts}] -> Keyword.get(opts, :only) || :default
+    end
+  end
+
+  defp only_to_string(list) when is_list(list) do
+    Enum.map(list, &Atom.to_string/1) |> Enum.join(", ")
+  end
+
+  defp only_to_string(nil), do: ""
+
+  defp only_to_string(atom), do: Atom.to_string(atom)
 
   defp build_diff_link([package, lock, latest, requirements]) do
     outdated? = Hex.Version.compare(lock, latest) == :lt

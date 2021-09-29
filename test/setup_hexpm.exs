@@ -41,6 +41,7 @@ Hexpm.new_package(
 )
 
 Hexpm.new_package("hexpm", "package_name", "0.1.0", [], package_name_meta, auth)
+Hexpm.new_package("hexpm", "test_package", "0.1.0", [], pkg_meta, auth)
 Hexpm.new_package("hexpm", "foo", "0.1.0", [], pkg_meta, auth)
 Hexpm.new_package("hexpm", "foo", "0.1.1", [], pkg_meta, auth)
 Hexpm.new_package("hexpm", "bar", "0.1.0", [foo: "~> 0.1.0"], pkg_meta, auth)
