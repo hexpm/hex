@@ -73,7 +73,11 @@ defmodule Hex.Resolver.RegressionTest do
   test "20210926" do
     open_registry("20210926.ets")
 
-    deps = [{:chromic_pdf, "~> 1.1"}, {:telemetry, "~> 0.4 or ~> 1.0"}, {:telemetry_poller, "~> 0.5"}]
+    deps = [
+      {:chromic_pdf, "~> 1.1"},
+      {:telemetry, "~> 0.4 or ~> 1.0"},
+      {:telemetry_poller, "~> 0.5"}
+    ]
 
     result =
       locked(
