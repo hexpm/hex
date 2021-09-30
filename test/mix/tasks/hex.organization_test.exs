@@ -86,11 +86,10 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
   test "auth --key with invalid key" do
     in_tmp(fn ->
       set_home_cwd()
-      message = "Failed to authenticate against organization repository with given key"
+      Mix.Tasks.Hex.Organization.run(["auth", "myorg", "--key", "mykey"])
 
-      assert_raise Mix.Error, message, fn ->
-        Mix.Tasks.Hex.Organization.run(["auth", "myorg", "--key", "mykey"])
-      end
+      assert_received {:mix_shell, :error,
+                       ["Failed to authenticate against organization repository with given key"]}
     end)
   end
 
