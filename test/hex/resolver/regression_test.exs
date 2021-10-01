@@ -69,4 +69,25 @@ defmodule Hex.Resolver.RegressionTest do
     # the order of the deps should not affect the result
     assert equal?(result, resolve(Enum.reverse(deps)))
   end
+
+  test "20210926" do
+    open_registry("20210926.ets")
+
+    deps = [
+      {:chromic_pdf, "~> 1.1"},
+      {:telemetry, "~> 0.4 or ~> 1.0"},
+      {:telemetry_poller, "~> 0.5"}
+    ]
+
+    result =
+      locked(
+        chromic_pdf: "1.1.1",
+        jason: "1.2.2",
+        nimble_pool: "0.2.4",
+        telemetry: "0.4.3",
+        telemetry_poller: "0.5.1"
+      )
+
+    assert equal?(result, resolve(deps))
+  end
 end
