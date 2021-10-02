@@ -142,8 +142,11 @@ defmodule Mix.Tasks.Hex.Publish do
           {:ok, owner} ->
             auth = Mix.Tasks.Hex.auth_info(:write)
             Hex.Shell.info("Publishing package...")
-            create_release(build, organization, auth, opts)
-            transfer_owner(build, owner, auth, opts)
+
+            case create_release(build, organization, auth, opts) do
+              :ok -> transfer_owner(build, owner, auth, opts)
+              _ -> Mix.Tasks.Hex.set_exit_code(1)
+            end
 
           :error ->
             :ok
@@ -188,12 +191,15 @@ defmodule Mix.Tasks.Hex.Publish do
         auth = Mix.Tasks.Hex.auth_info(:write)
         Hex.Shell.info("Publishing package...")
 
-        if :ok == create_release(build, organization, auth, opts) do
-          Hex.Shell.info("Publishing docs...")
-          create_docs(build, organization, auth, opts)
-        end
+        case create_release(build, organization, auth, opts) do
+          :ok ->
+            Hex.Shell.info("Publishing docs...")
+            create_docs(build, organization, auth, opts)
+            transfer_owner(build, owner, auth, opts)
 
-        transfer_owner(build, owner, auth, opts)
+          _ ->
+            Mix.Tasks.Hex.set_exit_code(1)
+        end
 
       :error ->
         :ok

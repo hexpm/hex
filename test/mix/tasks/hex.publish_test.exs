@@ -326,6 +326,28 @@ defmodule Mix.Tasks.Hex.PublishTest do
     purge([ReleaseSimple.MixProject])
   end
 
+  test "create with an invalid HEX_API_KEY" do
+    Process.put(:hex_test_app_name, :publish_with_invalid_hex_api_key)
+    Mix.Project.push(ReleaseSimple.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      File.write!("mix.exs", "mix.exs")
+      File.write!("myfile.txt", "hello")
+
+      Hex.State.put(:api_key_write_unencrypted, "invalid hex api key")
+
+      assert {:exit_code, 1} =
+               ["package", "--yes", "--no-progress", "--replace"]
+               |> Mix.Tasks.Hex.Publish.run()
+               |> catch_throw()
+
+      assert_received {:mix_shell, :info, ["invalid API key"]}
+    end)
+  after
+    purge([ReleaseSimple.MixProject])
+  end
+
   test "create with deps" do
     Process.put(:hex_test_app_name, :publish_with_deps)
     Mix.Project.push(ReleaseDeps.MixProject)
@@ -443,7 +465,11 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
       send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
-      Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--replace"])
+
+      assert {:exit_code, 1} =
+               ["package", "--no-progress", "--replace"]
+               |> Mix.Tasks.Hex.Publish.run()
+               |> catch_throw()
 
       refute_received {:mix_shell, :info, ["Package published to myrepo html_url" <> _]}
     end)
