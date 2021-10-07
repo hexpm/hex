@@ -2,6 +2,7 @@ defmodule Mix.Tasks.Hex.ConfigTest do
   use HexTest.Case
 
   test "config" do
+    Process.put(:hex_test_app_name, :config_custom_api_url)
     Mix.Project.push(ReleaseCustomApiUrl.MixProject)
 
     in_tmp(fn ->

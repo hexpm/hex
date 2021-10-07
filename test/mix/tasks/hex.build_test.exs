@@ -13,6 +13,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "create" do
+    Process.put(:hex_test_app_name, :build_app_name)
     Mix.Project.push(ReleaseSimple.MixProject)
 
     in_tmp(fn ->
@@ -22,13 +23,14 @@ defmodule Mix.Tasks.Hex.BuildTest do
       File.chmod!("myfile.txt", 0o100644)
 
       Mix.Tasks.Hex.Build.run([])
-      assert package_created?("release_a-0.0.1")
+      assert package_created?("build_app_name-0.0.1")
     end)
   after
     purge([ReleaseSimple.MixProject])
   end
 
   test "create with package name" do
+    Process.put(:hex_test_package_name, :build_package_name)
     Mix.Project.push(ReleaseName.MixProject)
 
     in_tmp(fn ->
@@ -38,13 +40,14 @@ defmodule Mix.Tasks.Hex.BuildTest do
       File.chmod!("myfile.txt", 0o100644)
 
       Mix.Tasks.Hex.Build.run([])
-      assert package_created?("released_name-0.0.1")
+      assert package_created?("build_package_name-0.0.1")
     end)
   after
     purge([ReleaseName.MixProject])
   end
 
   test "create with files" do
+    Process.put(:hex_test_app_name, :build_with_files)
     Mix.Project.push(ReleaseFiles.MixProject)
 
     in_tmp(fn ->
@@ -71,7 +74,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
       Mix.Tasks.Hex.Build.run([])
 
-      extract("release_h-0.0.1.tar", "unzip")
+      extract("build_with_files-0.0.1.tar", "unzip")
 
       # Check that mtimes are not retained for files and directories and symlinks
       # erl_tar does not set mtime from tar if a directory contain files
@@ -94,6 +97,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "create with excluded files" do
+    Process.put(:hex_test_app_name, :build_with_excluded_files)
     Mix.Project.push(ReleaseExcludePatterns.MixProject)
 
     in_tmp(fn ->
@@ -106,7 +110,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
       Mix.Tasks.Hex.Build.run([])
 
-      extract("release_i-0.0.1.tar", "unzip")
+      extract("build_with_excluded_files-0.0.1.tar", "unzip")
 
       assert File.ls!("unzip/") == ["myfile.txt"]
       assert File.read!("unzip/myfile.txt") == "hello"
@@ -117,6 +121,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "create with custom output path" do
+    Process.put(:hex_test_app_name, :build_custom_output_path)
     Mix.Project.push(Sample.MixProject)
 
     in_tmp(fn ->
@@ -137,6 +142,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "create with deps" do
+    Process.put(:hex_test_app_name, :build_with_deps)
     Mix.Project.push(ReleaseDeps.MixProject)
 
     in_tmp(fn ->
@@ -159,6 +165,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
   # TODO: convert to integration test
   test "create with custom repo deps" do
+    Process.put(:hex_test_app_name, :build_with_custom_repo_deps)
     Mix.Project.push(ReleaseCustomRepoDeps.MixProject)
 
     in_tmp(fn ->
@@ -176,6 +183,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "errors when there is a git dependency" do
+    Process.put(:hex_test_app_name, :build_git_dependency)
     Mix.Project.push(ReleaseGitDeps.MixProject)
 
     in_tmp(fn ->
@@ -194,6 +202,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "create with meta" do
+    Process.put(:hex_test_app_name, :build_with_meta)
     Mix.Project.push(ReleaseMeta.MixProject)
 
     in_tmp(fn ->
@@ -216,6 +225,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "reject package if description is missing" do
+    Process.put(:hex_test_app_name, :build_no_description)
     Mix.Project.push(ReleaseNoDescription.MixProject)
 
     in_tmp(fn ->
@@ -238,6 +248,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "error if description is too long" do
+    Process.put(:hex_test_app_name, :build_too_long_description)
     Mix.Project.push(ReleaseTooLongDescription.MixProject)
 
     in_tmp(fn ->
@@ -257,6 +268,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "error if package has unstable dependencies" do
+    Process.put(:hex_test_app_name, :build_unstable_deps)
     Mix.Project.push(ReleasePreDeps.MixProject)
 
     in_tmp(fn ->
@@ -273,6 +285,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "error if misspelled organization" do
+    Process.put(:hex_test_app_name, :build_misspelled_organization)
     Mix.Project.push(ReleaseMisspelledOrganization.MixProject)
 
     in_tmp(fn ->
@@ -289,6 +302,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "warn if misplaced config" do
+    Process.put(:hex_test_app_name, :build_warn_config_location)
     Mix.Project.push(ReleaseOrganizationWrongLocation.MixProject)
 
     in_tmp(fn ->
@@ -298,7 +312,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       File.chmod!("myfile.txt", 0o100644)
 
       Mix.Tasks.Hex.Build.run([])
-      assert_received {:mix_shell, :info, ["Building ecto 0.0.1"]}
+      assert_received {:mix_shell, :info, ["Building build_warn_config_location 0.0.1"]}
 
       message =
         "\e[33mMix project configuration :organization belongs under the :package key, " <>
@@ -311,6 +325,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "error if hex_metadata.config is included" do
+    Process.put(:hex_test_app_name, :build_reserved_file)
     Mix.Project.push(ReleaseIncludeReservedFile.MixProject)
 
     in_tmp(fn ->
@@ -330,6 +345,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "build and unpack" do
+    Process.put(:hex_test_app_name, :build_and_unpack)
     Mix.Project.push(Sample.MixProject)
 
     in_fixture("sample", fn ->
@@ -339,10 +355,10 @@ defmodule Mix.Tasks.Hex.BuildTest do
       File.chmod!("myfile.txt", 0o100644)
 
       Mix.Tasks.Hex.Build.run(["--unpack"])
-      assert_received({:mix_shell, :info, ["Saved to sample-0.0.1"]})
+      assert_received({:mix_shell, :info, ["Saved to build_and_unpack-0.0.1"]})
 
-      assert File.exists?("sample-0.0.1/mix.exs")
-      assert File.exists?("sample-0.0.1/hex_metadata.config")
+      assert File.exists?("build_and_unpack-0.0.1/mix.exs")
+      assert File.exists?("build_and_unpack-0.0.1/hex_metadata.config")
 
       Mix.Tasks.Hex.Build.run(["--unpack", "-o", "custom"])
       assert_received({:mix_shell, :info, ["Saved to custom"]})
