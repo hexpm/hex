@@ -1,7 +1,7 @@
 defmodule Sample.MixProject do
   def project do
     [
-      app: :sample,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       description: "sample",
       version: "0.0.1",
       deps: [],
@@ -17,7 +17,7 @@ end
 defmodule ReleaseSimple.MixProject do
   def project do
     [
-      app: :release_a,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       description: "baz",
       version: "0.0.1",
       package: [
@@ -32,7 +32,7 @@ end
 defmodule ReleaseNewSimple.MixProject do
   def project do
     [
-      app: :release_a_new,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       description: "baz",
       version: "0.0.1",
       package: [
@@ -47,7 +47,7 @@ end
 defmodule ReleaseDeps.MixProject do
   def project do
     [
-      app: :release_b,
+      app: Process.get(:hex_test_app_name, :release_deps),
       description: "bar",
       version: "0.0.2",
       deps: [
@@ -63,7 +63,7 @@ end
 defmodule ReleaseCustomRepoDeps.MixProject do
   def project do
     [
-      app: :release_b_custom,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       description: "bar",
       version: "0.0.2",
       deps: [
@@ -80,7 +80,7 @@ end
 defmodule ReleaseMeta.MixProject do
   def project do
     [
-      app: :release_c,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       version: "0.0.3",
       description: "foo",
       package: [
@@ -96,7 +96,7 @@ end
 defmodule ReleaseMetaNoFiles.MixProject do
   def project do
     [
-      app: :release_nf,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       version: "0.0.3",
       description: "foo",
       package: [
@@ -116,7 +116,7 @@ defmodule ReleaseName.MixProject do
       description: "Whatever",
       version: "0.0.1",
       package: [
-        name: :released_name,
+        name: Process.get(:hex_test_package_name) || raise("missing package name"),
         licenses: ["MIT"],
         files: ["myfile.txt"],
         links: %{"a" => "http://a"}
@@ -128,7 +128,7 @@ end
 defmodule ReleaseNoDescription.MixProject do
   def project do
     [
-      app: :release_e,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       version: "0.0.1"
     ]
   end
@@ -137,7 +137,7 @@ end
 defmodule ReleaseTooLongDescription.MixProject do
   def project do
     [
-      app: :release_f,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       description: String.duplicate("w", 301),
       version: "0.0.1"
     ]
@@ -147,7 +147,7 @@ end
 defmodule ReleasePreDeps.MixProject do
   def project do
     [
-      app: :release_g,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       description: "bar",
       version: "0.0.1",
       deps: [
@@ -165,7 +165,7 @@ end
 defmodule ReleaseFiles.MixProject do
   def project do
     [
-      app: :release_h,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       version: "0.0.1",
       description: "foo",
       package: [
@@ -180,7 +180,7 @@ end
 defmodule ReleaseExcludePatterns.MixProject do
   def project do
     [
-      app: :release_i,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       version: "0.0.1",
       description: "foo",
       package: [
@@ -196,7 +196,7 @@ end
 defmodule ReleaseRepo.MixProject do
   def project do
     [
-      app: :ecto,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       description: "baz",
       version: "0.0.1",
       package: [
@@ -211,7 +211,7 @@ end
 defmodule ReleaseMisspelledOrganization.MixProject do
   def project do
     [
-      app: :release_a,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       description: "baz",
       version: "0.0.1",
       package: [
@@ -226,7 +226,7 @@ end
 defmodule ReleaseOrganizationWrongLocation.MixProject do
   def project do
     [
-      app: :ecto,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       description: "baz",
       version: "0.0.1",
       organization: "myorg",
@@ -242,7 +242,7 @@ end
 defmodule ReleaseIncludeReservedFile.MixProject do
   def project do
     [
-      app: :release_a,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       description: "baz",
       version: "0.0.1",
       package: [
@@ -254,27 +254,10 @@ defmodule ReleaseIncludeReservedFile.MixProject do
   end
 end
 
-defmodule ReleaseIncludeRepoDeps.MixProject do
-  def project do
-    [
-      app: :release_a,
-      description: "baz",
-      version: "0.0.1",
-      deps: [
-        {:ex_doc, "0.0.1"}
-      ],
-      package: [
-        licenses: ["MIT"],
-        links: %{"a" => "http://repo"}
-      ]
-    ]
-  end
-end
-
 defmodule ReleaseGitDeps.MixProject do
   def project do
     [
-      app: :release_git_deps,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       description: "Package with git dependencies",
       version: "0.0.2",
       deps: [
@@ -293,7 +276,7 @@ end
 defmodule ReleaseCustomApiUrl.MixProject do
   def project do
     [
-      app: :release_custom_api_url,
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
       description: "Package with custom api_url",
       version: "0.0.1",
       deps: [],
