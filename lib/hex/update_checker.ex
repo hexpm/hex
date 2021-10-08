@@ -23,7 +23,7 @@ defmodule Hex.UpdateChecker do
   end
 
   def check() do
-    GenServer.call(@name, :check)
+    GenServer.call(@name, :check, @timeout * 2)
     |> print_update_message()
   end
 
