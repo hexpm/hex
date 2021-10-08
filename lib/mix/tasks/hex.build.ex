@@ -190,6 +190,26 @@ defmodule Mix.Tasks.Hex.Build do
       |> Enum.join("\n")
       |> Mix.raise()
     end
+
+    if organization in [nil, "hexpm"] do
+      licenses_valid_or_warn(meta.licenses)
+    end
+  end
+
+  defp licenses_valid_or_warn([]), do: Hex.Shell.warn("\nYou have not included any licenses\n")
+
+  defp licenses_valid_or_warn(licenses) do
+    invalid_licenses = Enum.reject(licenses, fn lic -> :mix_hex_licenses.valid(lic) end)
+
+    if invalid_licenses != [] do
+      message = [
+        "The following licenses are not recognized by SPDX:\n",
+        Enum.map(invalid_licenses, &" * #{&1}\n"),
+        "\nConsider using licenses from https://spdx.org/licenses"
+      ]
+
+      Hex.Shell.warn(message)
+    end
   end
 
   defp check_excluded_deps([]), do: []
