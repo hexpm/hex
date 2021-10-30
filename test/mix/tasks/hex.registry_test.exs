@@ -240,7 +240,6 @@ defmodule Mix.Tasks.Hex.RegistryTest do
         ~w(build public --name acme --private-key private_key.pem --incremental)
       )
 
-      assert_received {:mix_shell, :info, ["* reading public/public_key"]}
       assert_received {:mix_shell, :info, ["* reading public/names"]}
       assert_received {:mix_shell, :info, ["* reading public/versions"]}
       assert_received {:mix_shell, :info, ["* skipping public/packages/foo"]}
@@ -274,7 +273,6 @@ defmodule Mix.Tasks.Hex.RegistryTest do
         ~w(build public --name acme --private-key private_key.pem --incremental)
       )
 
-      assert_received {:mix_shell, :info, ["* reading public/public_key"]}
       assert_received {:mix_shell, :info, ["* reading public/names"]}
       assert_received {:mix_shell, :info, ["* reading public/versions"]}
       assert_received {:mix_shell, :info, ["* reading public/packages/foo"]}
@@ -328,7 +326,6 @@ defmodule Mix.Tasks.Hex.RegistryTest do
         ~w(build public --name acme --private-key private_key.pem --incremental)
       )
 
-      assert_received {:mix_shell, :info, ["* reading public/public_key"]}
       assert_received {:mix_shell, :info, ["* reading public/names"]}
       assert_received {:mix_shell, :info, ["* reading public/versions"]}
       assert_received {:mix_shell, :info, ["* skipping public/packages/bar"]}

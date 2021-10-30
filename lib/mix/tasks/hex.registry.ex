@@ -114,16 +114,34 @@ defmodule Mix.Tasks.Hex.Registry do
     repo_name = opts[:name] || raise "missing --name"
     private_key_path = opts[:private_key] || raise "missing --private-key"
     private_key = private_key_path |> File.read!() |> decode_private_key()
+    incremental? = opts[:incremental] == true
 
-    if opts[:incremental] do
-      build_incremental(repo_name, public_dir, private_key)
-    else
-      build(repo_name, public_dir, private_key)
-    end
+    build(repo_name, public_dir, private_key, incremental?)
   end
 
-  defp build(repo_name, public_dir, private_key) do
-    ensure_public_key(private_key, public_dir)
+  defp build(repo_name, public_dir, private_key, incremental?) do
+    public_key = ensure_public_key(private_key, public_dir)
+
+    existing_names =
+      if incremental? do
+        read_names!(repo_name, public_dir, public_key)
+        |> Enum.map(fn %{name: name, updated_at: updated_at} -> {name, updated_at} end)
+        |> Enum.into(%{})
+      else
+        %{}
+      end
+
+    existing_versions =
+      if incremental? do
+        read_versions!(repo_name, public_dir, public_key)
+        |> Enum.map(fn %{name: name, versions: versions} ->
+          {name, %{updated_at: existing_names[name], versions: versions}}
+        end)
+        |> Enum.into(%{})
+      else
+        %{}
+      end
+
     create_directory(Path.join(public_dir, "tarballs"))
 
     paths_per_name =
@@ -134,10 +152,19 @@ defmodule Mix.Tasks.Hex.Registry do
 
     versions =
       Enum.map(paths_per_name, fn {name, paths} ->
+        existing_releases =
+          if incremental? do
+            read_package(repo_name, public_dir, public_key, name)
+          else
+            []
+          end
+
         releases =
           paths
           |> Enum.map(&build_release(repo_name, &1))
+          |> Enum.concat(existing_releases)
           |> Enum.sort(&(Hex.Version.compare(&1.version, &2.version) == :lt))
+          |> Enum.uniq_by(& &1.version)
 
         updated_at =
           paths
@@ -145,7 +172,8 @@ defmodule Mix.Tasks.Hex.Registry do
           |> Enum.sort()
           |> Enum.at(-1)
 
-        updated_at = updated_at && %{seconds: to_unix(updated_at), nanos: 0}
+        previous_updated_at = get_in(existing_names, [name, :updated_at, :seconds])
+        updated_at = %{seconds: max_updated_at(previous_updated_at, updated_at), nanos: 0}
 
         package =
           :mix_hex_registry.build_package(
@@ -157,10 +185,15 @@ defmodule Mix.Tasks.Hex.Registry do
         versions = Enum.map(releases, & &1.version)
         {name, %{updated_at: updated_at, versions: versions}}
       end)
+      |> Enum.into(%{})
 
-    for path <- Path.wildcard("#{public_dir}/packages/*"),
-        not Enum.member?(Map.keys(paths_per_name), Path.basename(path)) do
-      remove_file(path)
+    versions = Map.merge(existing_versions, versions)
+
+    if not incremental? do
+      for path <- Path.wildcard("#{public_dir}/packages/*"),
+          not Enum.member?(Map.keys(paths_per_name), Path.basename(path)) do
+        remove_file(path)
+      end
     end
 
     names =
@@ -182,96 +215,6 @@ defmodule Mix.Tasks.Hex.Registry do
     write_file("#{public_dir}/versions", versions)
   end
 
-  defp build_incremental(repo_name, public_dir, private_key) do
-    ensure_public_key(private_key, public_dir)
-    public_key = read_file!(Path.join(public_dir, "public_key"))
-
-    existing_names =
-      read_names!(repo_name, public_dir, public_key)
-      |> Enum.map(fn %{name: name, updated_at: updated_at} -> {name, updated_at} end)
-      |> Enum.into(%{})
-
-    existing_versions =
-      read_versions!(repo_name, public_dir, public_key)
-      |> Enum.map(fn %{name: name, versions: versions} ->
-        {name, %{updated_at: existing_names[name], versions: versions}}
-      end)
-      |> Enum.into(%{})
-
-    create_directory(Path.join(public_dir, "tarballs"))
-
-    paths_per_name =
-      Enum.group_by(Path.wildcard("#{public_dir}/tarballs/*.tar"), fn path ->
-        [name | _rest] = String.split(Path.basename(path), ["-", ".tar"], trim: true)
-        name
-      end)
-
-    versions =
-      Enum.map(paths_per_name, fn {name, paths} ->
-        existing_releases = read_package!(repo_name, public_dir, public_key, name)
-
-        releases =
-          paths
-          |> Enum.map(&build_release(repo_name, &1))
-          |> Enum.concat(existing_releases)
-          |> Enum.sort(&(Hex.Version.compare(&1.version, &2.version) == :lt))
-          |> Enum.uniq_by(& &1.version)
-
-        updated_at =
-          paths
-          |> Enum.map(&File.stat!(&1).mtime)
-          |> Enum.sort()
-          |> Enum.at(-1)
-
-        existing_updated_at = get_in(existing_names, [name, :updated_at, :seconds])
-
-        max_updated_at =
-          cond do
-            is_nil(updated_at) ->
-              existing_updated_at
-
-            is_nil(existing_updated_at) ->
-              to_unix(updated_at)
-
-            true ->
-              max(to_unix(updated_at), existing_updated_at)
-          end
-
-        max_updated_at = %{seconds: max_updated_at, nanos: 0}
-
-        package =
-          :mix_hex_registry.build_package(
-            %{repository: repo_name, name: name, releases: releases},
-            private_key
-          )
-
-        write_file("#{public_dir}/packages/#{name}", package)
-        versions = Enum.map(releases, & &1.version)
-        {name, %{updated_at: max_updated_at, versions: versions}}
-      end)
-      |> Enum.into(%{})
-
-    combined_versions = Map.merge(existing_versions, versions)
-
-    names =
-      for {name, %{updated_at: updated_at}} <- combined_versions do
-        %{name: name, updated_at: updated_at}
-      end
-
-    payload = %{repository: repo_name, packages: names}
-    names = :mix_hex_registry.build_names(payload, private_key)
-    write_file("#{public_dir}/names", names)
-
-    combined_versions =
-      for {name, %{versions: versions}} <- combined_versions do
-        %{name: name, versions: versions}
-      end
-
-    payload = %{repository: repo_name, packages: combined_versions}
-    combined_versions = :mix_hex_registry.build_versions(payload, private_key)
-    write_file("#{public_dir}/versions", combined_versions)
-  end
-
   ## Build utilities
 
   @unix_epoch :calendar.datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}})
@@ -279,6 +222,13 @@ defmodule Mix.Tasks.Hex.Registry do
   @doc false
   def to_unix(erl_datetime) do
     :calendar.datetime_to_gregorian_seconds(erl_datetime) - @unix_epoch
+  end
+
+  defp max_updated_at(previous_as_unix_or_nil, nil), do: previous_as_unix_or_nil
+  defp max_updated_at(nil, current_as_datetime), do: to_unix(current_as_datetime)
+
+  defp max_updated_at(previous_as_unix, current_as_datetime) do
+    max(previous_as_unix, to_unix(current_as_datetime))
   end
 
   defp build_release(repo_name, tarball_path) do
@@ -329,6 +279,8 @@ defmodule Mix.Tasks.Hex.Registry do
       {:error, :enoent} ->
         write_file(path, encoded_public_key)
     end
+
+    encoded_public_key
   end
 
   ## Incremental build utilities
@@ -367,7 +319,7 @@ defmodule Mix.Tasks.Hex.Registry do
     end
   end
 
-  defp read_package!(repo_name, public_dir, public_key, package_name) do
+  defp read_package(repo_name, public_dir, public_key, package_name) do
     path = Path.join([public_dir, "packages", package_name])
 
     with {:ok, payload} <- read_file(path),
