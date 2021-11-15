@@ -30,6 +30,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "create with missing licenses" do
+    Process.put(:hex_test_app_name, :release_missing_licenses)
     Mix.Project.push(ReleaseMissingLicenses.MixProject)
 
     in_tmp(fn ->
@@ -45,6 +46,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "create with invalid licenses" do
+    Process.put(:hex_test_app_name, :release_invalid_licenses)
     Mix.Project.push(ReleaseInvalidLicenses.MixProject)
 
     in_tmp(fn ->
@@ -64,6 +66,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
   end
 
   test "create private package with invalid licenses" do
+    Process.put(:hex_test_app_name, :release_repo_invalid_licenses)
     Mix.Project.push(ReleaseRepoInvalidLicenses.MixProject)
 
     in_tmp(fn ->
