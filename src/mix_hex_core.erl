@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.8.0, do not edit manually
+%% Vendored from hex_core v0.8.2, do not edit manually
 
 %% @doc
 %% `hex_core' entrypoint module.
@@ -22,13 +22,14 @@
 %%
 %% * `api_url' - URL to the HTTP API (default: `https://hex.pm/api').
 %%
-%% * `http_adapter' - A tuple of a callback module used for HTTP requests, see [`mix_hex_http'](mix_hex_http.html)
-%%   (default: `mix_hex_http_httpc') and the configuration to pass to the HTTP adapter.
+%% * `http_adapter' - A tuple of a callback module and its configuration used
+%%   for HTTP requests (default: `{mix_hex_http_httpc, #{profile => default}}'). See
+%%   {@link mix_hex_http} and {@link mix_hex_http_httpc} for more information.
 %%
 %% * `http_etag' - Sets the `if-none-match' HTTP header with the given value to do a
 %%   conditional HTTP request.
 %%
-%% * `http_user_agent_fragment' - Will be appended to the `user-agent` HTTP header (default: `(httpc)').
+%% * `http_user_agent_fragment' - Will be appended to the `user-agent' HTTP header (default: `<<"(httpc)">>').
 %%
 %% * `repo_key' - Authentication key used when accessing the repository.
 %%

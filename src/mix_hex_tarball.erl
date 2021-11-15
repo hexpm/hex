@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.8.0, do not edit manually
+%% Vendored from hex_core v0.8.2, do not edit manually
 
 %% @doc
 %% Functions for creating and unpacking Hex tarballs.
@@ -158,6 +158,10 @@ unpack(Tarball, Output, _Config) ->
     end.
 
 
+%% @doc
+%% Unpacks a package tarball.
+%%
+%% @see unpack/3
 -spec unpack(tarball(), memory) ->
                 {ok, #{outer_checksum => checksum(), inner_checksum => checksum(),
                        metadata => metadata(), contents => contents()}} |
