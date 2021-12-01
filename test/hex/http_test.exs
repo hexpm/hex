@@ -8,9 +8,12 @@ defmodule Hex.HTTPTest do
       Enum.map([:proxy, :https_proxy], fn opt ->
         :httpc.set_options([{opt, {{'localhost', 80}, ['localhost']}}], :hex)
       end)
+
+      System.delete_env("NETRC")
     end)
 
-    :ok
+    bypass = Bypass.open()
+    {:ok, bypass: bypass}
   end
 
   test "proxy_config returns no credentials when no proxy supplied" do
@@ -50,5 +53,66 @@ defmodule Hex.HTTPTest do
 
     Hex.HTTP.handle_hex_message('"oops, you done goofed";level=fatal  ')
     assert_received {:mix_shell, :error, ["API error: oops, you done goofed"]}
+  end
+
+  test "request adds no authorization header if none is given and no netrc is found", %{
+    bypass: bypass
+  } do
+    in_tmp(fn ->
+      Bypass.expect(bypass, fn conn ->
+        assert Plug.Conn.get_req_header(conn, "authorization") == []
+        Plug.Conn.resp(conn, 200, "")
+      end)
+
+      Hex.HTTP.request(:get, "http://localhost:#{bypass.port}", [], nil)
+    end)
+  end
+
+  test "request adds authorization header based on netrc if none is given", %{bypass: bypass} do
+    in_tmp(fn ->
+      File.write!(".netrc", """
+      machine localhost
+        login john
+        password doe
+      """)
+
+      System.put_env("NETRC", Path.join(File.cwd!(), ".netrc"))
+
+      Bypass.expect(bypass, fn conn ->
+        assert Plug.Conn.get_req_header(conn, "authorization") == [
+                 "Basic #{:base64.encode("john:doe")}"
+               ]
+
+        Plug.Conn.resp(conn, 200, "")
+      end)
+
+      Hex.HTTP.request(:get, "http://localhost:#{bypass.port}", [], nil)
+    end)
+  end
+
+  test "request adds no authorization header based on netrc if authorization is given", %{
+    bypass: bypass
+  } do
+    in_tmp(fn ->
+      File.write!(".netrc", """
+      machine localhost
+        login john
+        password doe
+      """)
+
+      System.put_env("NETRC", Path.join(File.cwd!(), ".netrc"))
+
+      Bypass.expect(bypass, fn conn ->
+        assert Plug.Conn.get_req_header(conn, "authorization") == ["myAuthHeader"]
+        Plug.Conn.resp(conn, 200, "")
+      end)
+
+      Hex.HTTP.request(
+        :get,
+        "http://localhost:#{bypass.port}",
+        [{'authorization', 'myAuthHeader'}],
+        nil
+      )
+    end)
   end
 end
