@@ -40,10 +40,11 @@ jobs:
       fail-fast: false
       matrix:
         pair:
-          - erlang: master
-            elixir: 1.12.3
+          # rebar3 escript fails on erlang master
+          # - erlang: master
+          #   elixir: 1.12.3
           - erlang: 24.0
-            elixir: master
+            elixir: main
           - erlang: 24.0
             elixir: 1.12.3
           - erlang: 23.1
