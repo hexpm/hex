@@ -50,7 +50,7 @@ defmodule Hex.Shell.Process do
     end
   end
 
-  def yes?(message) do
+  def yes?(message, _options \\ []) do
     print_app()
     send(process(), {:mix_shell, :yes?, [message]})
 
