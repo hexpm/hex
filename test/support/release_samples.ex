@@ -336,3 +336,21 @@ defmodule ReleaseInvalidLicenses.MixProject do
     ]
   end
 end
+
+defmodule ReleaseAppFalseDep.MixProject do
+  def project do
+    [
+      app: :release_app_false_dep,
+      description: "Package with invalid licenses",
+      version: "0.0.1",
+      deps: [
+        {:ex_doc, "0.0.1", app: false}
+      ],
+      package: [
+        licenses: [],
+        files: ["myfile.txt"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
