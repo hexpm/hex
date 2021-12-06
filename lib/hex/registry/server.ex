@@ -4,6 +4,7 @@ defmodule Hex.Registry.Server do
   use GenServer
 
   @behaviour Hex.Registry
+  @behaviour Hex.Solver.Registry
   @name __MODULE__
   @filename "cache.ets"
   @timeout 60_000
@@ -30,10 +31,22 @@ defmodule Hex.Registry.Server do
     :ok = GenServer.call(@name, {:prefetch, packages}, @timeout)
   end
 
+  # New solver
+  def versions(package) do
+    GenServer.call(@name, {:versions, package}, @timeout)
+  end
+
+  # New solver
+  def dependencies(package, version) do
+    GenServer.call(@name, {:dependencies, package, version}, @timeout)
+  end
+
+  # Old solver
   def versions(repo, package) do
     GenServer.call(@name, {:versions, repo, package}, @timeout)
   end
 
+  # Old solver
   def deps(repo, package, version) do
     GenServer.call(@name, {:deps, repo, package, version}, @timeout)
   end
@@ -122,6 +135,7 @@ defmodule Hex.Registry.Server do
   def handle_call({:prefetch, packages}, _from, state) do
     packages =
       packages
+      |> Enum.map(&name_to_repo_package/1)
       |> Enum.uniq()
       |> Enum.reject(&(&1 in state.fetched))
       |> Enum.reject(&(&1 in state.pending))
@@ -135,12 +149,51 @@ defmodule Hex.Registry.Server do
     end
   end
 
+  # New solver
+  def handle_call({:versions, package}, from, state) do
+    {repo, package} = name_to_repo_package(package)
+
+    maybe_wait({repo, package}, from, state, fn ->
+      case lookup(state.ets, {:versions, repo, package}) do
+        nil -> :error
+        versions -> {:ok, Enum.map(versions, &Hex.Solver.parse_constraint!/1)}
+      end
+    end)
+  end
+
+  # Old solver
   def handle_call({:versions, repo, package}, from, state) do
     maybe_wait({repo, package}, from, state, fn ->
       lookup(state.ets, {:versions, repo, package})
     end)
   end
 
+  # New solver
+  def handle_call({:dependencies, package, version}, from, state) do
+    {repo, package} = name_to_repo_package(package)
+
+    maybe_wait({repo, package}, from, state, fn ->
+      case lookup(state.ets, {:deps, repo, package, to_string(version)}) do
+        nil ->
+          :error
+
+        deps ->
+          deps =
+            Enum.map(deps, fn {repo, package, app, requirement, optional} ->
+              {
+                repo_package_to_name({repo, package}),
+                Hex.Solver.parse_constraint!(requirement),
+                optional,
+                app
+              }
+            end)
+
+          {:ok, deps}
+      end
+    end)
+  end
+
+  # Old solver
   def handle_call({:deps, repo, package, version}, from, state) do
     maybe_wait({repo, package}, from, state, fn ->
       lookup(state.ets, {:deps, repo, package, version})
@@ -195,6 +248,18 @@ defmodule Hex.Registry.Server do
     state = maybe_close(state)
     {:noreply, state}
   end
+
+  defp name_to_repo_package({repo, package}), do: {repo, package}
+
+  defp name_to_repo_package(name) when is_binary(name) do
+    case String.split(name, "/", parts: 2) do
+      [repo, package] -> {repo, package}
+      [package] -> {"hexpm", package}
+    end
+  end
+
+  defp repo_package_to_name({"hexpm", package}), do: package
+  defp repo_package_to_name({repo, package}), do: "#{repo}/#{package}"
 
   defp open_ets(path) do
     case :ets.file2tab(path) do

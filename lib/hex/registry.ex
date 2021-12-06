@@ -9,6 +9,6 @@ defmodule Hex.Registry do
   @type optional :: boolean
 
   @callback prefetch([{repo, package}]) :: :ok
-  @callback versions(repo, package) :: [version]
-  @callback deps(repo, package, version) :: [{repo, package, app, requirement, optional}]
+  @callback versions(repo, package) :: [version] | nil
+  @callback deps(repo, package, version) :: [{repo, package, app, requirement, optional}] | nil
 end

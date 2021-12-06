@@ -9,7 +9,8 @@ fi
 source_dir=$1/src
 target_dir=src
 prefix=mix_
-hex_core_version=`cat $source_dir/hex_core.hrl | grep HEX_CORE_VERSION | cut -d'"' -f2`
+version=`cat $source_dir/hex_core.hrl | grep HEX_CORE_VERSION | cut -d'"' -f2`
+shortref=`cd $source_dir && git rev-parse --short HEAD`
 
 filenames="hex_core.hrl \
            hex_core.erl \
@@ -49,7 +50,7 @@ for filename in $filenames; do
   source_path=$source_dir/$filename
   target_path=$target_dir/$prefix$filename
 
-  echo "%% Vendored from hex_core v$hex_core_version, do not edit manually" > $target_path
+  echo "%% Vendored from hex_core v$version ($shortref), do not edit manually" > $target_path
   echo >> $target_path
   cat $source_path >> $target_path
 

@@ -112,6 +112,18 @@ defmodule Hex.State do
       config: [:no_short_urls],
       default: false,
       fun: {__MODULE__, :to_boolean}
+    },
+    new_solver: %{
+      env: ["HEX_NEW_SOLVER"],
+      config: [:new_solver],
+      default: true,
+      fun: {__MODULE__, :to_boolean}
+    },
+    old_solver: %{
+      env: ["HEX_OLD_SOLVER"],
+      config: [:old_solver],
+      default: true,
+      fun: {__MODULE__, :to_boolean}
     }
   }
 

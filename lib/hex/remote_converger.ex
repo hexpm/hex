@@ -57,7 +57,19 @@ defmodule Hex.RemoteConverger do
 
     Hex.Shell.info("Resolving Hex dependencies...")
 
-    {:ok, pid} =
+    if Hex.State.fetch!(:new_solver) do
+      new_solver(lock, old_lock, requests, top_level, repos, locked, overridden_map)
+    else
+      old_solver(lock, old_lock, requests, top_level, repos, locked, overridden_map)
+    end
+  after
+    if Version.compare(System.version(), "1.4.0") == :lt do
+      Registry.persist()
+    end
+  end
+
+  defp old_solver(lock, old_lock, requests, top_level, repos, locked, overridden_map) do
+    {:ok, slow_pid} =
       Task.start_link(fn ->
         receive do
           :done -> :ok
@@ -68,7 +80,7 @@ defmodule Hex.RemoteConverger do
       end)
 
     result = Hex.Resolver.resolve(Registry, requests, top_level, repos, locked, overridden_map)
-    send(pid, :done)
+    send(slow_pid, :done)
 
     case result do
       {:ok, resolved} ->
@@ -78,16 +90,233 @@ defmodule Hex.RemoteConverger do
         Hex.SCM.prefetch(new_lock)
         lock_merge(lock, new_lock)
 
-      {:error, {:version, message}} ->
-        resolver_version_failed(message)
+      {:error, reason} ->
+        resolved_failed(reason)
+    end
+  end
 
-      {:error, {:repo, message}} ->
-        resolver_repo_failed(message)
+  defp new_solver(lock, old_lock, requests, top_level, repos, locked, overridden_map) do
+    start_time = System.monotonic_time(:millisecond)
+
+    old_task =
+      Task.async(fn ->
+        if Hex.State.fetch!(:old_solver) do
+          result =
+            Hex.Resolver.resolve(Registry, requests, top_level, repos, locked, overridden_map)
+
+          current_time = System.monotonic_time(:millisecond)
+          total_time = Float.round((current_time - start_time) / 1000, 3)
+          Hex.Shell.info("Old solver completed resolution in #{total_time}s")
+
+          result
+        end
+      end)
+
+    level = Logger.level()
+    Logger.configure(level: :info)
+
+    [{_old_task, old_result}, {_new_task, new_result}] =
+      try do
+        new_task =
+          Task.async(fn ->
+            dependencies =
+              Enum.map(requests, fn {repo, package, app, requirement, _from} ->
+                name = Hex.Utils.package_name(repo, package)
+                constraint = Hex.Solver.parse_constraint!(requirement || ">= 0.0.0-0")
+                {name, constraint, false, app}
+              end)
+
+            locked =
+              Enum.map(locked, fn {repo, package, _app, version} ->
+                name = Hex.Utils.package_name(repo, package)
+                constraint = Hex.Solver.parse_constraint!(version)
+                {name, constraint}
+              end)
+
+            result =
+              Hex.Solver.run(Registry, dependencies, locked, Map.keys(overridden_map),
+                ansi: IO.ANSI.enabled?()
+              )
+
+            current_time = System.monotonic_time(:millisecond)
+            total_time = Float.round((current_time - start_time) / 1000, 3)
+            Hex.Shell.info("New solver completed resolution in #{total_time}s")
+
+            result
+          end)
+
+        Task.yield_many([old_task, new_task], 60_000)
+      after
+        Logger.configure(level: level)
+      end
+
+    if Hex.State.fetch!(:old_solver) and Hex.State.fetch!(:new_solver) do
+      unless old_result do
+        Hex.Shell.error("Old solver timed out")
+      end
+
+      unless new_result do
+        Hex.Shell.error("New solver timed out")
+      end
+
+      if !old_result || !new_result do
+        Mix.raise(
+          "Stopping due to timeouts, solvers can be disabled by setting HEX_OLD_SOLVER=0 or HEX_NEW_SOLVER=0"
+        )
+      end
+
+      {:ok, old_result} = old_result
+      {:ok, new_result} = new_result
+
+      case {old_result, new_result} do
+        {{:ok, old_resolved}, {:ok, new_resolved}} ->
+          old_resolved =
+            old_resolved
+            |> Enum.map(fn {repo, package, _app, version} -> {repo, package, version} end)
+            |> Enum.sort()
+
+          new_resolved = new_normalize_resolved(new_resolved)
+
+          if old_resolved != new_resolved do
+            show_diff(old_resolved, new_resolved)
+            Hex.Shell.warn("New and old solver got different results!")
+          else
+            Hex.Shell.info("New and old solver got the same result!")
+          end
+
+          new_success(new_resolved, requests, locked, lock, old_lock)
+
+        {{:ok, _old_resolved}, {:error, new_message}} ->
+          Hex.Shell.warn("New solver failed but new succeeded")
+          Hex.Shell.warn(["New error message:\n\n", IO.ANSI.reset(), new_message])
+
+          Mix.raise("""
+          Hex dependency resolution failed using the new solver, set HEX_NEW_SOLVER=0 to disable it
+          """)
+
+        {{:error, reason}, {:ok, new_resolved}} ->
+          Hex.Shell.warn("Old solver failed but new succeeded")
+          Hex.Shell.warn("Old error message:")
+          resolved_failed(reason, raise: false)
+          new_success(new_resolved, requests, locked, lock, old_lock)
+
+        {{:error, reason}, {:error, new_message}} ->
+          Hex.Shell.warn("Both old and new solver failed to resolve")
+          Hex.Shell.warn(["New error message:\n\n", IO.ANSI.reset(), new_message, "\n"])
+          Hex.Shell.warn("Old error message:")
+          resolved_failed(reason)
+      end
+    else
+      case new_result do
+        {:ok, {:ok, resolved}} ->
+          resolved = new_normalize_resolved(resolved)
+          new_success(resolved, requests, locked, lock, old_lock)
+
+        {:ok, {:error, message}} ->
+          Hex.Shell.warn([IO.ANSI.reset(), "\n#{message}"])
+      end
     end
-  after
-    if Version.compare(System.version(), "1.4.0") == :lt do
-      Registry.persist()
+  end
+
+  defp new_normalize_resolved(resolved) do
+    resolved
+    |> Enum.map(fn {name, version} ->
+      {repo, package} =
+        case String.split(name, "/", parts: 2) do
+          [repo, package] -> {repo, package}
+          [package] -> {"hexpm", package}
+        end
+
+      {repo, package, to_string(version)}
+    end)
+    |> Enum.sort()
+  end
+
+  defp new_success(resolved, requests, locked, lock, old_lock) do
+    resolved = add_apps_to_resolved(resolved, requests)
+    print_success(resolved, locked, old_lock)
+    verify_resolved(resolved, old_lock)
+    new_lock = Hex.Mix.to_lock(resolved)
+    Hex.SCM.prefetch(new_lock)
+    lock_merge(lock, new_lock)
+  end
+
+  defp show_diff([{repo, package, version} | olds], [{repo, package, version} | news]) do
+    show_diff(olds, news)
+  end
+
+  defp show_diff([{repo, package, old_version} | olds], [{repo, package, new_version} | news]) do
+    IO.inspect({old_version, new_version})
+    name = Hex.Utils.package_name(repo, package)
+    Hex.Shell.info("~ #{name} OLD: #{old_version} NEW: #{new_version}")
+    show_diff(olds, news)
+  end
+
+  defp show_diff([old | olds], [new | news]) do
+    if old < new do
+      {repo, package, version} = old
+      name = Hex.Utils.package_name(repo, package)
+      Hex.Shell.info("- #{name} #{version}")
+      show_diff(olds, [new | news])
+    else
+      {repo, package, version} = new
+      name = Hex.Utils.package_name(repo, package)
+      Hex.Shell.info("+ #{name} #{version}")
+      show_diff([old | olds], news)
     end
+  end
+
+  defp show_diff([], []) do
+    :ok
+  end
+
+  defp add_apps_to_resolved(resolved, requests) do
+    Enum.map(resolved, fn {repo, package, version} ->
+      apps =
+        Enum.flat_map(resolved, fn {parent_repo, parent_package, parent_version} ->
+          deps = Registry.deps(parent_repo, parent_package, parent_version) || []
+
+          app =
+            Enum.find_value(deps, fn
+              {^repo, ^package, app, _requirement, _optional} -> app
+              {_repo, _package, _app, _requirement, _optional} -> nil
+            end)
+
+          if app do
+            [{parent_repo, parent_package, app}]
+          else
+            []
+          end
+        end)
+
+      root_app =
+        Enum.find_value(requests, fn
+          {^repo, ^package, app, _requirement, _from} -> {"hexpm", "myapp", app}
+          {_repo, _package, _app, _requirement, _from} -> nil
+        end)
+
+      apps = Enum.uniq_by(List.wrap(root_app) ++ apps, fn {_repo, _package, app} -> app end)
+
+      case apps do
+        [{_repo, _package, app}] ->
+          {repo, package, app, version}
+
+        apps when apps != [] ->
+          name = Hex.Utils.package_name(repo, package)
+
+          header =
+            "Conflicting OTP application names in dependency definition of #{name} {version}, " <>
+              "in the following packages:\n\n"
+
+          list =
+            Enum.map_join(apps, "\n", fn {parent_repo, parent_package, app} ->
+              name = Hex.Utils.package_name(parent_repo, parent_package)
+              "  * #{name} defined application :#{app}"
+            end)
+
+          Mix.raise(header <> list)
+      end
+    end)
   end
 
   defp print_slow_resolver() do
@@ -140,26 +369,40 @@ defmodule Hex.RemoteConverger do
            old_info.repo == new_info.repo)
   end
 
-  defp resolver_version_failed(message) do
-    Hex.Shell.info("\n" <> message)
+  defp resolved_failed(reason, opts \\ [])
+  defp resolved_failed({:version, message}, opts), do: resolver_version_failed(message, opts)
+  defp resolved_failed({:repo, message}, opts), do: resolver_repo_failed(message, opts)
 
-    Mix.raise(
+  defp resolver_version_failed(message, opts) do
+    Hex.Shell.info("\n#{message}")
+
+    raise_message =
       "Hex dependency resolution failed, change the version " <>
         "requirements of your dependencies or unlock them (by " <>
         "using mix deps.update or mix deps.unlock). If you are " <>
         "unable to resolve the conflicts you can try overriding " <>
         "with {:dependency, \"~> 1.0\", override: true}"
-    )
+
+    if Keyword.get(opts, :raise, true) do
+      Mix.raise(raise_message)
+    else
+      Hex.Shell.error("\n#{raise_message}")
+    end
   end
 
-  defp resolver_repo_failed(message) do
-    Hex.Shell.info("\n" <> message)
+  defp resolver_repo_failed(message, opts) do
+    Hex.Shell.info("\n#{message}")
 
-    Mix.raise(
+    raise_message =
       "Hex dependency resolution failed because of repo conflicts. " <>
         "You can override the repo by adding it as a dependency " <>
         "{:dependency, \"~> 1.0\", repo: \"my_repo\"}"
-    )
+
+    if Keyword.get(opts, :raise, true) do
+      Mix.raise(raise_message)
+    else
+      Hex.Shell.error("\n#{raise_message}")
+    end
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
