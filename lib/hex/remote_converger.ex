@@ -113,7 +113,7 @@ defmodule Hex.RemoteConverger do
       end)
 
     level = Logger.level()
-    Logger.configure(level: :info)
+    Logger.configure(level: if(Hex.State.fetch!(:debug_solver), do: :debug, else: :info))
 
     [{_old_task, old_result}, {_new_task, new_result}] =
       try do
@@ -246,9 +246,8 @@ defmodule Hex.RemoteConverger do
   end
 
   defp show_diff([{repo, package, old_version} | olds], [{repo, package, new_version} | news]) do
-    IO.inspect({old_version, new_version})
     name = Hex.Utils.package_name(repo, package)
-    Hex.Shell.info("~ #{name} OLD: #{old_version} NEW: #{new_version}")
+    Hex.Shell.info("~ #{name} -#{old_version} / +#{new_version}")
     show_diff(olds, news)
   end
 

@@ -113,6 +113,12 @@ defmodule Hex.State do
       default: false,
       fun: {__MODULE__, :to_boolean}
     },
+    debug_solver: %{
+      env: ["HEX_DEBUG_SOLVER"],
+      config: [:debug_solver],
+      default: false,
+      fun: {__MODULE__, :to_boolean}
+    },
     new_solver: %{
       env: ["HEX_NEW_SOLVER"],
       config: [:new_solver],
