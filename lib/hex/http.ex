@@ -6,7 +6,10 @@ defmodule Hex.HTTP do
   @request_retries 2
 
   def request(method, url, headers, body, opts \\ []) do
-    headers = build_headers(headers)
+    headers =
+      headers
+      |> build_headers()
+      |> add_basic_auth_via_netrc(url)
 
     timeout =
       opts[:timeout] ||
@@ -294,5 +297,20 @@ defmodule Hex.HTTP do
     rest
     |> skip_ws()
     |> skip_trail_ws("", "")
+  end
+
+  defp add_basic_auth_via_netrc(%{'authorization' => _} = headers, _url), do: headers
+
+  defp add_basic_auth_via_netrc(%{} = headers, url) do
+    url = URI.parse(url)
+
+    case Hex.Netrc.lookup(url.host) do
+      {:ok, %{username: username, password: password}} ->
+        base64 = :base64.encode_to_string("#{username}:#{password}")
+        Map.put(headers, 'authorization', 'Basic #{base64}')
+
+      _ ->
+        headers
+    end
   end
 end

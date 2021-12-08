@@ -74,6 +74,7 @@ defmodule Hex.Application do
   if Mix.env() == :test do
     defp children do
       [
+        worker(Hex.Netrc.Cache),
         worker(Hex.State),
         worker(Hex.Server),
         worker(Hex.Parallel, [:hex_fetcher])
@@ -82,6 +83,7 @@ defmodule Hex.Application do
   else
     defp children do
       [
+        worker(Hex.Netrc.Cache),
         worker(Hex.State),
         worker(Hex.Server),
         worker(Hex.Parallel, [:hex_fetcher]),
