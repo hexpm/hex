@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## v1.0.0 (2021-12-13)
+
+### Enhancements
+
+* Set exit code to 1 when `mix hex.publish` fails
+* Validate OSS licenses
+* Read authorization credentials from `~/.netrc`
+* Error if building package with an `app: false` dependency
+
+### Bug fixes
+
+* Do not error if the organization authorization key could not be verified, this improves handling of API server issues
+* Improvements to version solver to prevent scenarios where it takes a long time to find a solution
+* Improve error when update checker times out
+
 ## v0.21.3 (2021-09-18)
 
 ### Enhancements
