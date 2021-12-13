@@ -80,15 +80,6 @@ defmodule Mix.Tasks.Hex.Retire do
       {:ok, {code, _body, _headers}} when code in 200..299 ->
         Hex.Shell.info("#{package} #{version} has been retired\n")
 
-        Hex.Shell.warn(
-          "Retiring a version does not affect if the version will still be resolved. " <>
-            "We recommend that you publish a new version of this package, unless there is " <>
-            "already a more recent patch version of this package, because this version may " <>
-            "still be picked by dependency resolution."
-        )
-
-        :ok
-
       other ->
         Hex.Shell.error("Retiring package failed")
         Hex.Utils.print_error_result(other)
