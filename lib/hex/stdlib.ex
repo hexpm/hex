@@ -161,12 +161,9 @@ defmodule Hex.Stdlib do
 
   # TODO: Remove this once we require OTP 22.0
   if Code.ensure_loaded?(:ssl) and function_exported?(:ssl, :cipher_suites, 3) do
-    def ssl_cipher_suites(string_type), do: :ssl.cipher_suites(:all, ssl_version(), string_type)
+    def ssl_cipher_suites(string_type),
+      do: :ssl.cipher_suites(:all, hd(:ssl.versions()[:supported]), string_type)
   else
     def ssl_cipher_suites(string_type), do: :ssl.cipher_suites(string_type)
-  end
-
-  defp ssl_version() do
-    hd(:ssl.versions()[:supported])
   end
 end
