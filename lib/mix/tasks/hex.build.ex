@@ -237,29 +237,29 @@ defmodule Mix.Tasks.Hex.Build do
       |> Hex.Stdlib.enum_split_with(&package_dep?/1)
 
     Enum.each(include, fn {app, _req, opts} ->
-      if opts[:override] do
+      if Keyword.has_key?(opts, :override) do
         Mix.raise(
           "Can't build package with overridden dependency #{app}, remove `override: true`"
         )
       end
 
-      if opts[:compile] do
+      if Keyword.has_key?(opts, :compile) do
         Mix.raise(
           "Can't build package when :compile is set for dependency #{app}, remove `compile: ...`"
         )
       end
 
-      if opts[:manager] do
+      if Keyword.has_key?(opts, :manager) do
         Mix.raise(
           "Can't build package when :manager is set for dependency #{app}, remove `manager: ...`"
         )
       end
 
-      if opts[:app] do
+      if Keyword.has_key?(opts, :app) do
         Mix.raise("Can't build package when :app is set for dependency #{app}, remove `app: ...`")
       end
 
-      if List.wrap(opts[:system_env]) != [] do
+      if Keyword.get(opts, :system_env, []) != [] do
         Mix.raise(
           "Can't build package when :system_env is set for dependency #{app}, remove `system_env: ...`"
         )

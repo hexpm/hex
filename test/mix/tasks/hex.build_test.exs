@@ -257,6 +257,23 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge([ReleaseGitDeps.MixProject])
   end
 
+  test "errors with app false dependency" do
+    Process.put(:hex_test_app_name, :build_app_false_dependency)
+    Mix.Project.push(ReleaseAppFalseDep.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+
+      error_msg = "Can't build package when :app is set for dependency ex_doc, remove `app: ...`"
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+      end
+    end)
+  after
+    purge([ReleaseAppFalseDep.MixProject])
+  end
+
   test "create with meta" do
     Process.put(:hex_test_app_name, :build_with_meta)
     Mix.Project.push(ReleaseMeta.MixProject)
