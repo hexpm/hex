@@ -19,12 +19,13 @@ defmodule Mix.Tasks.Hex.User do
   Authorizes a new user on the local machine by generating a new API key and
   storing it in the Hex config.
 
-      $ mix hex.user auth [--key-name KEY_NAME]
+      $ mix hex.user auth [--key-name KEY_NAME, --web]
 
   ### Command line options
 
     * `--key-name KEY_NAME` - By default Hex will base the key name on your machine's
       hostname, use this option to give your own name.
+    * `--web` - Use WebAuth.
 
   ## Deauthorize the user
 
@@ -91,6 +92,7 @@ defmodule Mix.Tasks.Hex.User do
   @switches [
     all: :boolean,
     key_name: :string,
+    web: :boolean,
     permission: [:string, :keep]
   ]
 

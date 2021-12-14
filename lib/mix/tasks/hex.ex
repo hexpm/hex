@@ -124,6 +124,52 @@ defmodule Mix.Tasks.Hex do
 
   @doc false
   def auth(opts \\ []) do
+    if opts[:web] do
+      web_auth(opts)
+    else
+      normal_auth(opts)
+    end
+  end
+
+  defp web_auth(opts \\ []) do
+    request =
+      opts[:key_name]
+      |> api_key_name("WebAuth")
+      |> Hex.API.WebAuth.get_code()
+
+    device_code = request["device_code"]
+    user_code = request["user_code"]
+
+    """
+    First copy your one-time code: #{user_code}
+    Paste this code at #{@submit_code_url}...\n\n
+    """
+    |> Hex.Shell.format()
+    |> Hex.Shell.info()
+
+    Hex.API.WebAuth.submit_in_browser()
+
+    keys = Hex.API.WebAuth.access_key(device_code)
+
+    write_key = keys["write_key"]
+    read_key = keys["read_key"]
+
+    """
+    You have authenticated Hex using WebAuth.
+
+    However, Hex requires you to have a local password that applies
+    only to this machine for security purposes.
+
+    Please enter it.
+    """
+    |> Hex.Shell.info()
+
+    prompt_encrypt_key(write_key, read_key)
+
+    {:ok, write_key, read_key}
+  end
+
+  defp normal_auth(opts \\ []) do
     username = Hex.Shell.prompt("Username:") |> Hex.Stdlib.string_trim()
     account_password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.Stdlib.string_trim()
     Mix.Tasks.Hex.generate_all_user_keys(username, account_password, opts)
