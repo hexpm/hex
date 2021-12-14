@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v1.0.1 (2021-12-14)
+
+### Bug fixes
+
+* Fix compatibility with some Elixir and OTP combinations
+
 ## v1.0.0 (2021-12-13)
 
 ### Enhancements
