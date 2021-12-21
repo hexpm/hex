@@ -107,6 +107,26 @@ defmodule Hex.APITest do
     assert {:ok, {401, _, _}} = Hex.API.Key.get(auth_d)
   end
 
+  test "web auth" do
+    auth = Hexpm.new_key(user: "user", pass: "hunter42")
+
+    # Get request
+    request = Hex.API.WebAuth.get_code("foobar")
+    user_code = request["user_code"]
+    device_code = request["device_code"]
+
+    assert user_code
+    assert device_code
+
+    Hexpm.submit_web_auth_request(user_code, auth)
+
+    # Access keys
+    keys = Hex.API.WebAuth.access_key(device_code)
+
+    assert keys.write_key
+    assert keys.read_key
+  end
+
   test "owners" do
     auth = Hexpm.new_key(user: "user", pass: "hunter42")
 
