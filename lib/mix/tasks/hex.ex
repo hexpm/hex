@@ -134,15 +134,20 @@ defmodule Mix.Tasks.Hex do
   defp web_auth(opts \\ []) do
     request =
       opts[:key_name]
-      |> api_key_name("WebAuth")
+      |> general_key_name()
       |> Hex.API.WebAuth.get_code()
 
     device_code = request["device_code"]
     user_code = request["user_code"]
 
+    submit_code_url =
+      :api_url
+      |> Hex.State.fetch!()
+      |> String.replace_suffix("api", "login/web_auth")
+
     """
     First copy your one-time code: #{user_code}
-    Paste this code at #{@submit_code_url}...\n\n
+    Paste this code at #{submit_code_url}...
     """
     |> Hex.Shell.format()
     |> Hex.Shell.info()
@@ -151,8 +156,8 @@ defmodule Mix.Tasks.Hex do
 
     keys = Hex.API.WebAuth.access_key(device_code)
 
-    write_key = keys["write_key"]
-    read_key = keys["read_key"]
+    write_key = keys.write_key
+    read_key = keys.read_key
 
     """
     You have authenticated Hex using WebAuth.

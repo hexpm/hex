@@ -11,12 +11,9 @@ defmodule Hex.API.WebAuth do
   end
 
   def submit_in_browser() do
-    Task.start(fn ->
-      "Open link in browser?"
-      |> Hex.Shell.format()
-      |> Hex.Shell.yes?()
-      |> open()
-    end)
+    "Open link in browser?"
+    |> Hex.Shell.yes?()
+    |> open()
   end
 
   def access_key(device_code) do

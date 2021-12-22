@@ -63,6 +63,63 @@ defmodule Mix.Tasks.Hex.UserTest do
     end)
   end
 
+  test "auth with --web" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      task = Task.async(fn -> Mix.Tasks.Hex.User.run(["auth", "--web"]) end)
+      send(task.pid, {:mix_shell_input, :yes?, false})
+      send(task.pid, {:mix_shell_input, :prompt, "hunter43"})
+      send(task.pid, {:mix_shell_input, :prompt, "hunter43"})
+
+      # Wait for output to be sent
+      Process.sleep(100)
+
+      task.pid
+      |> get_user_code
+      |> Hexpm.submit_web_auth_request(Hexpm.new_key(user: "user", pass: "hunter42"))
+
+      Task.await(task)
+
+      {:ok, name} = :inet.gethostname()
+      name = List.to_string(name)
+
+      auth = Mix.Tasks.Hex.auth_info(:read)
+      assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
+      assert "#{name}-write-WebAuth" in Enum.map(body, & &1["name"])
+      assert "#{name}-read-WebAuth" in Enum.map(body, & &1["name"])
+    end)
+  end
+
+  test "auth with --web --key-name" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      task =
+        Task.async(fn ->
+          Mix.Tasks.Hex.User.run(["auth", "--web", "--key-name", "userauthkeyname"])
+        end)
+
+      send(task.pid, {:mix_shell_input, :yes?, false})
+      send(task.pid, {:mix_shell_input, :prompt, "hunter43"})
+      send(task.pid, {:mix_shell_input, :prompt, "hunter43"})
+
+      # Wait for output to be sent
+      Process.sleep(100)
+
+      task.pid
+      |> get_user_code
+      |> Hexpm.submit_web_auth_request(Hexpm.new_key(user: "user", pass: "hunter42"))
+
+      Task.await(task)
+
+      auth = Mix.Tasks.Hex.auth_info(:read)
+      assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
+      assert "userauthkeyname-write-WebAuth" in Enum.map(body, & &1["name"])
+      assert "userauthkeyname-read-WebAuth" in Enum.map(body, & &1["name"])
+    end)
+  end
+
   test "auth organizations" do
     in_tmp(fn ->
       set_home_cwd()
@@ -238,5 +295,15 @@ defmodule Mix.Tasks.Hex.UserTest do
       Mix.Tasks.Hex.User.run(["reset_password", "local"])
       assert_received {:mix_shell, :error, ["Wrong password. Try again"]}
     end)
+  end
+
+  defp get_user_code(pid) do
+    pid
+    |> Process.info(:messages)
+    |> elem(1)
+    |> Enum.at(2)
+    |> elem(2)
+    |> hd()
+    |> String.slice(31..39)
   end
 end
