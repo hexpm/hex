@@ -152,7 +152,7 @@ defmodule Mix.Tasks.Hex do
     |> Hex.Shell.format()
     |> Hex.Shell.info()
 
-    Hex.API.WebAuth.submit_in_browser()
+    Hex.API.WebAuth.submit_in_browser(submit_code_url)
 
     keys = Hex.API.WebAuth.access_key(device_code)
 

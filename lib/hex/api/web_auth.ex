@@ -10,10 +10,10 @@ defmodule Hex.API.WebAuth do
     |> elem(1)
   end
 
-  def submit_in_browser() do
+  def submit_in_browser(url) do
     "Open link in browser?"
     |> Hex.Shell.yes?()
-    |> open()
+    |> open(url)
   end
 
   def access_key(device_code) do
@@ -34,15 +34,10 @@ defmodule Hex.API.WebAuth do
     end
   end
 
-  defp open(bool)
-  defp open(false), do: :ok
+  defp open(bool, url)
+  defp open(false, _), do: :ok
 
-  defp open(true) do
-    url =
-      :api_url
-      |> Hex.State.fetch!()
-      |> String.replace_suffix("api", "login/web_auth")
-
+  defp open(true, url) do
     {cmd, args} =
       case :os.type() do
         {:unix, :darwin} -> {"open", [url]}
