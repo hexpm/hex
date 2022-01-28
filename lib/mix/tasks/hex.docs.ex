@@ -306,7 +306,7 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp open_cmd(path) do
     case :os.type() do
-      {:win32, _} -> {"cmd", ["/c", "start", path]}
+      {:win32, _} -> {"cmd", ["/c", "start", "", path]}
       {:unix, :darwin} -> {"open", [path]}
       {:unix, _} -> {"xdg-open", [path]}
     end
