@@ -25,7 +25,7 @@ defmodule Mix.Tasks.Hex.User do
 
     * `--key-name KEY_NAME` - By default Hex will base the key name on your machine's
       hostname, use this option to give your own name.
-    * `--web` - Use WebAuth.
+    * `--web` - Use browser based authentication.
 
   ## Deauthorize the user
 
