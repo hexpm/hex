@@ -298,12 +298,10 @@ defmodule Mix.Tasks.Hex.UserTest do
   end
 
   defp get_user_code(pid) do
-    pid
-    |> Process.info(:messages)
-    |> elem(1)
-    |> Enum.at(2)
-    |> elem(2)
-    |> hd()
-    |> String.slice(31..39)
+    {:messages, [_, _, {:mix_shell, :info, [message]}, _]} = Process.info(pid, :messages)
+
+    ["First copy your one-time code: " <> user_code, _, _] = String.split(message, "\n")
+
+    user_code
   end
 end
