@@ -10,12 +10,6 @@ defmodule Hex.API.WebAuth do
     code
   end
 
-  def submit_in_browser(url) do
-    "Open link in browser?"
-    |> Hex.Shell.yes?()
-    |> open(url)
-  end
-
   def access_key(device_code) do
     Hex.API.check_write_api()
 
@@ -32,19 +26,5 @@ defmodule Hex.API.WebAuth do
       {:ok, {_code, %{"message" => "request to be verified"}, _headers}} ->
         access_key_task(params)
     end
-  end
-
-  defp open(bool, url)
-  defp open(false, _), do: :ok
-
-  defp open(true, url) do
-    {cmd, args} =
-      case :os.type() do
-        {:unix, :darwin} -> {"open", [url]}
-        {:unix, _} -> {"xdg-open", [url]}
-        {:win32, _} -> {"cmd", ["/c", "start", url]}
-      end
-
-    System.cmd(cmd, args)
   end
 end

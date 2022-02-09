@@ -152,7 +152,9 @@ defmodule Mix.Tasks.Hex do
     |> Hex.Shell.format()
     |> Hex.Shell.info()
 
-    Hex.API.WebAuth.submit_in_browser(submit_code_url)
+    if Hex.Shell.yes?("Open link in browser?") do
+      Hex.Utils.open_url_in_browser(submit_code_url)
+    end
 
     keys = Hex.API.WebAuth.access_key(device_code)
 

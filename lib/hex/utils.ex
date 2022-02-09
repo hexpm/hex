@@ -320,4 +320,15 @@ defmodule Hex.Utils do
       {app, req, opts}
     end)
   end
+
+  def open_url_in_browser(url) do
+    {cmd, args} =
+      case :os.type() do
+        {:unix, :darwin} -> {"open", [url]}
+        {:unix, _} -> {"xdg-open", [url]}
+        {:win32, _} -> {"cmd", ["/c", "start", url]}
+      end
+
+    System.cmd(cmd, args)
+  end
 end
