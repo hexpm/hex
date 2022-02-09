@@ -24,6 +24,7 @@ defmodule Hex.API.WebAuth do
         %{write_key: write_key, read_key: read_key}
 
       {:ok, {_code, %{"message" => "request to be verified"}, _headers}} ->
+        Process.sleep(1000)
         access_key_task(params)
     end
   end
