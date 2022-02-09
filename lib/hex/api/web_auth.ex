@@ -4,10 +4,10 @@ defmodule Hex.API.WebAuth do
   alias Hex.API
 
   def get_code(key_name) do
-    nil
-    |> API.erlang_post_request("web_auth/code", %{key_name: key_name})
-    |> elem(1)
-    |> elem(1)
+    {:ok, {_status, code, _}} =
+      API.erlang_post_request(nil, "web_auth/code", %{key_name: key_name})
+
+    code
   end
 
   def submit_in_browser(url) do
