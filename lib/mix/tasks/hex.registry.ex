@@ -61,13 +61,13 @@ defmodule Mix.Tasks.Hex.Registry do
 
   ## Add a package
 
-      $ mix hex.registry add PUBLIC_DIR PACKAGE1 PACKAGE2 ...
+      $ mix hex.registry add PUBLIC_DIR PACKAGE
 
-  To add one or more packages to an existing registry, supply the public directory of the registry
-  and paths to the new packages. This action also requires the private key used to generate the
-  original registry:
+  To add a package to an existing registry, supply the public directory of the registry and path to
+  the new packages. This action also requires the name of the registry and the private key
+  originally used to generate it:
 
-      $ mix hex.registry add public --private-key=private_key.pem foo-1.0.0.tar
+      $ mix hex.registry add public --name=acme --private-key=private_key.pem foo-1.0.0.tar
       * reading public/name
       * reading public/versions
       * moving foo-1.0.0.tar -> public/tarballs/foo-1.0.0.tar
@@ -76,8 +76,6 @@ defmodule Mix.Tasks.Hex.Registry do
       * updating public/names
       * updating public/versions
 
-  Supplying a `--name` is optional. If given, an error will be raised if the existing registry's
-  name is different than the supplied value.
   """
   @impl true
   def run(args) do
