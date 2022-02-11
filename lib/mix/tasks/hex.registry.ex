@@ -112,22 +112,22 @@ defmodule Mix.Tasks.Hex.Registry do
   ## Add
 
   defp add(public_dir, packages, opts) do
-    repo_name_or_nil = opts[:name]
-    private_key_path = opts[:private_key] || raise "missing --private-key"
+    repo_name = opts[:name] || Mix.raise("missing --name")
+    private_key_path = opts[:private_key] || Mix.raise("missing --private-key")
     private_key = private_key_path |> File.read!() |> decode_private_key()
-    add(repo_name_or_nil, public_dir, private_key, packages)
+    add(repo_name, public_dir, private_key, packages)
   end
 
-  defp add(repo_name_or_nil, public_dir, private_key, packages) do
+  defp add(repo_name, public_dir, private_key, packages) do
     public_key = ensure_public_key(private_key, public_dir)
 
     existing_names =
-      read_names!(repo_name_or_nil, public_dir, public_key)
+      read_names!(repo_name, public_dir, public_key)
       |> Enum.map(fn %{name: name, updated_at: updated_at} -> {name, updated_at} end)
       |> Enum.into(%{})
 
     existing_versions =
-      read_versions!(repo_name_or_nil, public_dir, public_key)
+      read_versions!(repo_name, public_dir, public_key)
       |> Enum.map(fn %{name: name, versions: versions} ->
         {name, %{updated_at: existing_names[name], versions: versions}}
       end)
@@ -135,7 +135,6 @@ defmodule Mix.Tasks.Hex.Registry do
 
     tarball_dir = Path.join(public_dir, "tarballs")
     create_directory(tarball_dir)
-    repo_name = repo_name_or_nil || read_repository_name!(public_dir, private_key)
 
     paths_per_name =
       packages
@@ -367,23 +366,6 @@ defmodule Mix.Tasks.Hex.Registry do
         Invalid package version manifest at #{path}
 
         Is the repository name #{repo_name} correct?
-        """)
-    end
-  end
-
-  defp read_repository_name!(public_dir, public_key) do
-    path = Path.join(public_dir, "names")
-    payload = read_file!(path)
-
-    case :mix_hex_registry.get_repository_name(payload, public_key) do
-      {:ok, repo_name} ->
-        repo_name
-
-      _ ->
-        Mix.raise("""
-        Invalid package name manifest at #{path}
-
-        Is the public key correct?
         """)
     end
   end

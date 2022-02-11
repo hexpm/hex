@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.8.2, do not edit manually
+%% Vendored from hex_core v0.8.0, do not edit manually
 
 %% @doc
 %% Functions for encoding and decoding Hex registries.
@@ -8,7 +8,6 @@
     decode_names/2,
     build_names/2,
     unpack_names/3,
-    get_repository_name/2,
     encode_versions/1,
     decode_versions/2,
     build_versions/2,
@@ -62,19 +61,6 @@ decode_names(Payload, Repository) ->
         _ ->
             {error, unverified}
     end.
-
-%% @doc
-%% Get the encoded repository name.
-get_repository_name(Payload, PublicKey) ->
-  case decode_and_verify_signed(zlib:gunzip(Payload), PublicKey) of
-    {ok, Names} -> decode_repository_name(Names);
-    Other -> Other
-  end.
-
-%% @private
-decode_repository_name(Payload) ->
-  #{repository := Repository} = mix_hex_pb_names:decode_msg(Payload, 'Names'),
-  {ok, Repository}.
 
 %% @doc
 %% Builds versions resource.
