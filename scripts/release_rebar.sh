@@ -109,6 +109,15 @@ ubuntu_version="xenial-20201014"
 build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
 rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
 
+# For Elixir 1.13.0 / rebar 3.15.2
+rebar_name="rebar3"
+rebar_version="3.15.2"
+elixir_version="1.13.0"
+otp_version="22.3.4.22"
+ubuntu_version="xenial-20210114"
+build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
+rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
+
 sign_csv rebar3
 upload rebar3 "${rebar_version}" "${elixir_version}"
 
