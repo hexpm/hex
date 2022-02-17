@@ -144,7 +144,7 @@ defmodule Hex.Mix do
         |> encode_outer_checksum()
 
       deps =
-        Hex.Registry.Server.deps(repo, name, version)
+        Hex.Registry.Server.dependencies(repo, name, version)
         |> Enum.map(&registry_dep_to_def/1)
         |> Enum.sort()
 

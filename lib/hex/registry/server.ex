@@ -3,7 +3,6 @@ defmodule Hex.Registry.Server do
 
   use GenServer
 
-  @behaviour Hex.Registry
   @behaviour Hex.Solver.Registry
   @name __MODULE__
   @filename "cache.ets"
@@ -19,11 +18,11 @@ defmodule Hex.Registry.Server do
     GenServer.call(@name, {:open, opts}, @timeout)
   end
 
-  def close do
+  def close() do
     GenServer.call(@name, :close, @timeout)
   end
 
-  def persist do
+  def persist() do
     GenServer.call(@name, :persist, @timeout)
   end
 
@@ -31,24 +30,20 @@ defmodule Hex.Registry.Server do
     :ok = GenServer.call(@name, {:prefetch, packages}, @timeout)
   end
 
-  # New solver
-  def versions(package) do
-    GenServer.call(@name, {:versions, package}, @timeout)
-  end
-
-  # New solver
-  def dependencies(package, version) do
-    GenServer.call(@name, {:dependencies, package, version}, @timeout)
-  end
-
-  # Old solver
   def versions(repo, package) do
     GenServer.call(@name, {:versions, repo, package}, @timeout)
   end
 
-  # Old solver
-  def deps(repo, package, version) do
-    GenServer.call(@name, {:deps, repo, package, version}, @timeout)
+  def versions(package) do
+    GenServer.call(@name, {:versions, package}, @timeout)
+  end
+
+  def dependencies(repo, package, version) do
+    GenServer.call(@name, {:dependencies, repo, package, version}, @timeout)
+  end
+
+  def dependencies(package, version) do
+    GenServer.call(@name, {:dependencies, package, version}, @timeout)
   end
 
   def inner_checksum(repo, package, version) do
@@ -149,26 +144,37 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  # New solver
-  def handle_call({:versions, package}, from, state) do
-    {repo, package} = name_to_repo_package(package)
-
-    maybe_wait({repo, package}, from, state, fn ->
-      case lookup(state.ets, {:versions, repo, package}) do
-        nil -> :error
-        versions -> {:ok, Enum.map(versions, &Hex.Solver.parse_constraint!/1)}
-      end
-    end)
-  end
-
-  # Old solver
   def handle_call({:versions, repo, package}, from, state) do
     maybe_wait({repo, package}, from, state, fn ->
       lookup(state.ets, {:versions, repo, package})
     end)
   end
 
-  # New solver
+  def handle_call({:versions, package}, from, state) do
+    {repo, package} = name_to_repo_package(package)
+
+    maybe_wait({repo, package}, from, state, fn ->
+      case lookup(state.ets, {:versions, repo, package}) do
+        nil ->
+          :error
+
+        versions ->
+          versions =
+            versions
+            |> Enum.map(&Hex.Solver.parse_constraint!/1)
+            |> Enum.sort(&(Version.compare(&1, &2) in [:lt, :eq]))
+
+          {:ok, versions}
+      end
+    end)
+  end
+
+  def handle_call({:dependencies, repo, package, version}, from, state) do
+    maybe_wait({repo, package}, from, state, fn ->
+      lookup(state.ets, {:deps, repo, package, version})
+    end)
+  end
+
   def handle_call({:dependencies, package, version}, from, state) do
     {repo, package} = name_to_repo_package(package)
 
@@ -190,13 +196,6 @@ defmodule Hex.Registry.Server do
 
           {:ok, deps}
       end
-    end)
-  end
-
-  # Old solver
-  def handle_call({:deps, repo, package, version}, from, state) do
-    maybe_wait({repo, package}, from, state, fn ->
-      lookup(state.ets, {:deps, repo, package, version})
     end)
   end
 
