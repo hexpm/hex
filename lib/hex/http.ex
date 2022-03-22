@@ -21,7 +21,7 @@ defmodule Hex.HTTP do
     request = build_request(url, headers, body)
     profile = Hex.State.fetch!(:httpc_profile)
 
-    retry(method, request, http_opts, @request_retries, fn request, http_opts ->
+    retry(method, request, http_opts, @request_retries, profile, fn request, http_opts ->
       redirect(request, http_opts, @request_redirects, fn request, http_opts ->
         timeout(request, http_opts, timeout, fn request, http_opts ->
           :httpc.request(method, request, http_opts, opts, profile)
@@ -30,6 +30,9 @@ defmodule Hex.HTTP do
       end)
     end)
   end
+
+  defp fallback(:inet), do: :inet6
+  defp fallback(:inet6), do: :inet
 
   defp build_headers(headers) do
     default_headers = %{'user-agent' => user_agent()}
@@ -59,7 +62,7 @@ defmodule Hex.HTTP do
     end
   end
 
-  defp retry(:get, request, http_opts, times, fun) do
+  defp retry(:get, request, http_opts, times, profile, fun) do
     result =
       case fun.(request, http_opts) do
         {:http_error, _, _} = error ->
@@ -68,20 +71,26 @@ defmodule Hex.HTTP do
         {:error, :socket_closed_remotely} = error ->
           {:retry, error}
 
+        {:error, {:failed_connect, [{:to_address, to_addr}, {inet, inet_l, reason}]}}
+        when inet in [:inet, :inet6] and
+               reason in [:ehostunreach, :enetunreach, :eprotonosupport, :nxdomain] ->
+          :httpc.set_options([ipfamily: fallback(inet)], profile)
+          {:retry, {:error, {:failed_connect, [{:to_address, to_addr}, {inet, inet_l, reason}]}}}
+
         other ->
           {:noretry, other}
       end
 
     case result do
       {:retry, _} when times > 0 ->
-        retry(:get, request, http_opts, times - 1, fun)
+        retry(:get, request, http_opts, times - 1, profile, fun)
 
       {_other, result} ->
         result
     end
   end
 
-  defp retry(_method, request, http_opts, _times, fun), do: fun.(request, http_opts)
+  defp retry(_method, request, http_opts, _times, _profile, fun), do: fun.(request, http_opts)
 
   defp redirect(request, http_opts, times, fun) do
     case fun.(request, http_opts) do
