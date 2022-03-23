@@ -233,6 +233,10 @@ defmodule HexTest.Hexpm do
     [key: secret]
   end
 
+  def submit_web_auth_request(user_code, auth) do
+    Hex.API.erlang_post_request(nil, "web_auth/submit", %{user_code: user_code}, auth)
+  end
+
   def new_package(organization, name, version, deps, meta, auth, files \\ nil) do
     reqs =
       Enum.filter(deps, fn
