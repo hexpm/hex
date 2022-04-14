@@ -39,25 +39,32 @@ defmodule Hex.MixProject do
   # Hex because we have to unload Hex before compiling it.
   defp deps(elixir_version) when elixir_version >= {1, 5, 0} do
     [
-      {:stream_data, [github: "whatyouhide/stream_data", tag: "v0.4.0"] ++ test_opts()},
-      {:plug, [github: "elixir-lang/plug", tag: "v1.6.1"] ++ test_opts()},
-      {:mime, [github: "elixir-plug/mime", tag: "v1.3.0"] ++ test_opts()}
+      {:stream_data,
+       [git: "https://github.com/whatyouhide/stream_data.git", tag: "v0.4.0"] ++ test_opts()},
+      {:plug, [git: "https://github.com/elixir-lang/plug.git", tag: "v1.6.1"] ++ test_opts()},
+      {:mime, [git: "https://github.com/elixir-plug/mime.git", tag: "v1.3.0"] ++ test_opts()}
     ] ++ deps()
   end
 
   defp deps(_) do
     [
-      {:plug, [github: "elixir-lang/plug", tag: "v1.1.6"] ++ test_opts()},
-      {:mime, [github: "elixir-lang/mime", tag: "v1.0.1"] ++ test_opts()}
+      {:plug, [git: "https://github.com/elixir-lang/plug.git", tag: "v1.1.6"] ++ test_opts()},
+      {:mime, [git: "https://github.com/elixir-lang/mime.git", tag: "v1.0.1"] ++ test_opts()}
     ] ++ deps()
   end
 
   defp deps do
     [
-      {:bypass, [github: "PSPDFKit-labs/bypass", only: :test]},
-      {:cowboy, [github: "ninenines/cowboy", tag: "1.0.4", manager: :rebar3] ++ test_opts()},
-      {:cowlib, [github: "ninenines/cowlib", tag: "1.0.2", manager: :rebar3] ++ test_opts()},
-      {:ranch, [github: "ninenines/ranch", tag: "1.2.1", manager: :rebar3] ++ test_opts()}
+      {:bypass, [git: "https://github.com/PSPDFKit-labs/bypass.git", only: :test]},
+      {:cowboy,
+       [git: "https://github.com/ninenines/cowboy.git", tag: "1.0.4", manager: :rebar3] ++
+         test_opts()},
+      {:cowlib,
+       [git: "https://github.com/ninenines/cowlib.git", tag: "1.0.2", manager: :rebar3] ++
+         test_opts()},
+      {:ranch,
+       [git: "https://github.com/ninenines/ranch.git", tag: "1.2.1", manager: :rebar3] ++
+         test_opts()}
     ]
   end
 
