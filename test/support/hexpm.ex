@@ -55,14 +55,14 @@ defmodule HexTest.Hexpm do
   end
 
   def start() do
-    path = Hex.Stdlib.string_to_charlist(path())
-    hexpm_mix_home = Hex.Stdlib.string_to_charlist(hexpm_mix_home())
-    hexpm_mix_archives = Hex.Stdlib.string_to_charlist(hexpm_mix_archives())
+    path = String.to_charlist(path())
+    hexpm_mix_home = String.to_charlist(hexpm_mix_home())
+    hexpm_mix_archives = String.to_charlist(hexpm_mix_archives())
 
     key =
       Path.join(__DIR__, "../fixtures/test_priv.pem")
       |> File.read!()
-      |> Hex.Stdlib.string_to_charlist()
+      |> String.to_charlist()
 
     env = [
       {'MIX_ENV', 'hex'},
@@ -122,7 +122,7 @@ defmodule HexTest.Hexpm do
 
   defp hexpm_mix do
     if path = hexpm_elixir() do
-      path = Hex.Stdlib.string_to_charlist(path)
+      path = String.to_charlist(path)
       :os.find_executable('mix', path)
     else
       :os.find_executable('mix')

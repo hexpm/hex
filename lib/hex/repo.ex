@@ -211,13 +211,13 @@ defmodule Hex.Repo do
   end
 
   defp etag_headers(nil), do: %{}
-  defp etag_headers(etag), do: %{'if-none-match' => Hex.Stdlib.string_to_charlist(etag)}
+  defp etag_headers(etag), do: %{'if-none-match' => String.to_charlist(etag)}
 
   defp auth_headers(repo) do
     repo = get_repo(repo)
 
     if key = repo.auth_key do
-      %{'authorization' => Hex.Stdlib.string_to_charlist(key)}
+      %{'authorization' => String.to_charlist(key)}
     else
       %{}
     end
@@ -327,7 +327,7 @@ defmodule Hex.Repo do
   def get_public_key(repo_url, auth_key) do
     auth_headers =
       if auth_key do
-        %{'authorization' => Hex.Stdlib.string_to_charlist(auth_key)}
+        %{'authorization' => String.to_charlist(auth_key)}
       else
         %{}
       end

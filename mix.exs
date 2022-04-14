@@ -1,10 +1,7 @@
 defmodule Hex.MixProject do
   use Mix.Project
 
-  @version "1.0.2-dev"
-
-  {:ok, system_version} = Version.parse(System.version())
-  @elixir_version {system_version.major, system_version.minor, system_version.patch}
+  @version "2.0.0-dev"
 
   def project do
     [
@@ -12,8 +9,7 @@ defmodule Hex.MixProject do
       version: @version,
       elixir: "~> 1.0",
       aliases: aliases(),
-      lockfile: lockfile(@elixir_version),
-      deps: deps(@elixir_version),
+      deps: deps(),
       elixirc_options: elixirc_options(Mix.env()),
       elixirc_paths: elixirc_paths(Mix.env())
     ]
@@ -29,42 +25,15 @@ defmodule Hex.MixProject do
   defp applications(:prod), do: [:ssl, :inets]
   defp applications(_), do: [:ssl, :inets, :logger]
 
-  # We use different versions of plug because older plug version produces
-  # warnings on elixir >=1.3.0 and newer plug versions do not work on elixir <1.2.3
-  defp lockfile(elixir_version) when elixir_version >= {1, 5, 0}, do: "mix-new.lock"
-  defp lockfile(_), do: "mix-old.lock"
-
-  # Can't use hex dependencies because the elixir compiler loads dependencies
-  # and calls the dependency SCM. This would cause us to crash if the SCM was
-  # Hex because we have to unload Hex before compiling it.
-  defp deps(elixir_version) when elixir_version >= {1, 5, 0} do
+  defp deps() do
     [
-      {:stream_data,
-       [git: "https://github.com/whatyouhide/stream_data.git", tag: "v0.4.0"] ++ test_opts()},
-      {:plug, [git: "https://github.com/elixir-lang/plug.git", tag: "v1.6.1"] ++ test_opts()},
-      {:mime, [git: "https://github.com/elixir-plug/mime.git", tag: "v1.3.0"] ++ test_opts()}
-    ] ++ deps()
-  end
-
-  defp deps(_) do
-    [
-      {:plug, [git: "https://github.com/elixir-lang/plug.git", tag: "v1.1.6"] ++ test_opts()},
-      {:mime, [git: "https://github.com/elixir-lang/mime.git", tag: "v1.0.1"] ++ test_opts()}
-    ] ++ deps()
-  end
-
-  defp deps do
-    [
-      {:bypass, [git: "https://github.com/PSPDFKit-labs/bypass.git", only: :test]},
-      {:cowboy,
-       [git: "https://github.com/ninenines/cowboy.git", tag: "1.0.4", manager: :rebar3] ++
-         test_opts()},
-      {:cowlib,
-       [git: "https://github.com/ninenines/cowlib.git", tag: "1.0.2", manager: :rebar3] ++
-         test_opts()},
-      {:ranch,
-       [git: "https://github.com/ninenines/ranch.git", tag: "1.2.1", manager: :rebar3] ++
-         test_opts()}
+      {:stream_data, [github: "whatyouhide/stream_data", tag: "v0.4.0"] ++ test_opts()},
+      {:plug, [github: "elixir-lang/plug", tag: "v1.6.1"] ++ test_opts()},
+      {:mime, [github: "elixir-plug/mime", tag: "v1.3.0"] ++ test_opts()},
+      {:bypass, [github: "PSPDFKit-labs/bypass", only: :test]},
+      {:cowboy, [github: "ninenines/cowboy", tag: "1.0.4", manager: :rebar3] ++ test_opts()},
+      {:cowlib, [github: "ninenines/cowlib", tag: "1.0.2", manager: :rebar3] ++ test_opts()},
+      {:ranch, [github: "ninenines/ranch", tag: "1.2.1", manager: :rebar3] ++ test_opts()}
     ]
   end
 

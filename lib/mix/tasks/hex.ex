@@ -76,7 +76,7 @@ defmodule Mix.Tasks.Hex do
   end
 
   defp format_task(task, max, doc) do
-    Hex.Stdlib.string_pad_trailing(task, max) <> " # " <> doc
+    String.pad_trailing(task, max) <> " # " <> doc
   end
 
   defp line_break(), do: Hex.Shell.info("")
@@ -124,8 +124,8 @@ defmodule Mix.Tasks.Hex do
 
   @doc false
   def auth(opts \\ []) do
-    username = Hex.Shell.prompt("Username:") |> Hex.Stdlib.string_trim()
-    account_password = Mix.Tasks.Hex.password_get("Account password:") |> Hex.Stdlib.string_trim()
+    username = Hex.Shell.prompt("Username:") |> String.trim()
+    account_password = Mix.Tasks.Hex.password_get("Account password:") |> String.trim()
     Mix.Tasks.Hex.generate_all_user_keys(username, account_password, opts)
   end
 
@@ -298,8 +298,8 @@ defmodule Mix.Tasks.Hex do
 
   @doc false
   def prompt_encrypt_key(write_key, read_key, challenge \\ "Local password") do
-    password = password_get("#{challenge}:") |> Hex.Stdlib.string_trim()
-    confirm = password_get("#{challenge} (confirm):") |> Hex.Stdlib.string_trim()
+    password = password_get("#{challenge}:") |> String.trim()
+    confirm = password_get("#{challenge} (confirm):") |> String.trim()
 
     if password != confirm do
       Hex.Shell.error("Entered passwords do not match. Try again")
@@ -312,7 +312,7 @@ defmodule Mix.Tasks.Hex do
 
   @doc false
   def prompt_decrypt_key(encrypted_key, challenge \\ "Local password") do
-    password = password_get("#{challenge}:") |> Hex.Stdlib.string_trim()
+    password = password_get("#{challenge}:") |> String.trim()
 
     case Hex.Crypto.decrypt(encrypted_key, password, @apikey_tag) do
       {:ok, key} ->

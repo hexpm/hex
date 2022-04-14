@@ -14,7 +14,7 @@ defmodule Hex.Netrc.Parser do
   defp parse_contents(contents) when is_binary(contents) do
     parse_result =
       contents
-      |> Hex.Stdlib.string_trim()
+      |> String.trim()
       |> String.split("\n", trim: true)
       |> Enum.map(&String.split/1)
       |> Enum.reduce({%{}, nil}, &parse_line/2)

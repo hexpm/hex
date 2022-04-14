@@ -298,7 +298,7 @@ defmodule Hex.SCM do
   defp parse_old_manifest(file) do
     lines =
       file
-      |> Hex.Stdlib.string_trim()
+      |> String.trim()
       |> String.split("\n")
 
     case lines do

@@ -338,7 +338,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp owner_prompt_selection(organizations) do
-    selection = Hex.Stdlib.string_trim(Hex.Shell.prompt("Your selection:"))
+    selection = String.trim(Hex.Shell.prompt("Your selection:"))
 
     if selection == "1" do
       {:ok, nil}
@@ -502,7 +502,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp relative_path(file, dir) do
     Path.relative_to(file, dir)
-    |> Hex.Stdlib.string_to_charlist()
+    |> String.to_charlist()
   end
 
   defp docs_dir do
