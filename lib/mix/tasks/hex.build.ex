@@ -234,7 +234,7 @@ defmodule Mix.Tasks.Hex.Build do
       Mix.Project.config()[:deps]
       |> Enum.map(&Hex.Mix.normalize_dep/1)
       |> Enum.filter(&prod_dep?/1)
-      |> Hex.Stdlib.enum_split_with(&package_dep?/1)
+      |> Enum.split_with(&package_dep?/1)
 
     Enum.each(include, fn {app, _req, opts} ->
       if Keyword.has_key?(opts, :override) do
@@ -305,7 +305,7 @@ defmodule Mix.Tasks.Hex.Build do
 
     package
     |> Map.put(:files, files)
-    |> maybe_put(:description, package[:description], &Hex.Stdlib.string_trim/1)
+    |> maybe_put(:description, package[:description], &String.trim/1)
     |> maybe_put(:name, package[:name] || config[:app], &to_string(&1))
     |> maybe_put(:build_tools, !package[:build_tools] && guess_build_tools(files), & &1)
     |> Map.take(@meta_fields)
@@ -387,7 +387,7 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   defp dir_files(path) do
-    case Hex.Stdlib.file_lstat(path) do
+    case File.lstat(path) do
       {:ok, %File.Stat{type: :directory}} ->
         new_paths =
           path

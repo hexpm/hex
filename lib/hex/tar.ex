@@ -10,8 +10,8 @@ defmodule Hex.Tar do
   def create!(metadata, files, output) do
     files =
       Enum.map(files, fn
-        {filename, contents} -> {Hex.Stdlib.string_to_charlist(filename), contents}
-        filename -> Hex.Stdlib.string_to_charlist(filename)
+        {filename, contents} -> {String.to_charlist(filename), contents}
+        filename -> String.to_charlist(filename)
       end)
 
     case :mix_hex_tarball.create(metadata, files) do
@@ -31,7 +31,7 @@ defmodule Hex.Tar do
         _ -> File.read!(path)
       end
 
-    dest = if dest == :memory, do: dest, else: Hex.Stdlib.string_to_charlist(dest)
+    dest = if dest == :memory, do: dest, else: String.to_charlist(dest)
 
     case :mix_hex_tarball.unpack(tarball, dest) do
       {:ok, result} ->

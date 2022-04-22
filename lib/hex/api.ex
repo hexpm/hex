@@ -27,7 +27,7 @@ defmodule Hex.API do
     progress = Keyword.fetch!(opts, :progress)
 
     headers =
-      %{'content-length' => Hex.Stdlib.to_charlist(byte_size(body))}
+      %{'content-length' => Integer.to_charlist(byte_size(body))}
       |> Map.merge(headers(opts))
 
     opts = [
@@ -56,7 +56,7 @@ defmodule Hex.API do
   defp auth(opts) do
     cond do
       opts[:key] ->
-        %{'authorization' => Hex.Stdlib.string_to_charlist(opts[:key])}
+        %{'authorization' => String.to_charlist(opts[:key])}
 
       opts[:user] && opts[:pass] ->
         base64 = :base64.encode_to_string(opts[:user] <> ":" <> opts[:pass])

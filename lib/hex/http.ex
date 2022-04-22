@@ -50,7 +50,7 @@ defmodule Hex.HTTP do
   end
 
   defp build_request(url, headers, body) do
-    url = Hex.Stdlib.string_to_charlist(url)
+    url = String.to_charlist(url)
     headers = Map.to_list(headers)
 
     case body do
@@ -196,7 +196,7 @@ defmodule Hex.HTTP do
     uri = URI.parse(proxy)
 
     if uri.host && uri.port do
-      host = Hex.Stdlib.string_to_charlist(uri.host)
+      host = String.to_charlist(uri.host)
       :httpc.set_options([{proxy_scheme(scheme), {{host, uri.port}, no_proxy}}], :hex)
     end
 
@@ -229,8 +229,8 @@ defmodule Hex.HTTP do
   defp proxy_auth(%URI{userinfo: auth}) do
     destructure [user, pass], String.split(auth, ":", parts: 2)
 
-    user = Hex.Stdlib.string_to_charlist(user)
-    pass = Hex.Stdlib.string_to_charlist(pass || "")
+    user = String.to_charlist(user)
+    pass = String.to_charlist(pass || "")
     [proxy_auth: {user, pass}]
   end
 

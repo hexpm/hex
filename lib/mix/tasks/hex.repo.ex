@@ -206,7 +206,9 @@ defmodule Mix.Tasks.Hex.Repo do
   defp show_public_key(public_key) do
     [pem_entry] = :public_key.pem_decode(public_key)
     public_key = :public_key.pem_entry_decode(pem_entry)
-    ssh_hostkey_fingerprint(public_key)
+
+    Hex.Stdlib.ssh_hostkey_fingerprint(:sha256, public_key)
+    |> List.to_string()
   end
 
   defp fetch_public_key(nil, _, _), do: nil
@@ -229,16 +231,6 @@ defmodule Mix.Tasks.Hex.Repo do
         Hex.Utils.print_error_result(other)
         Mix.Tasks.Hex.set_exit_code(1)
     end
-  end
-
-  # Adapted from https://github.com/erlang/otp/blob/3eddb0f762de248d3230b38bc9d478bfbc8e7331/lib/public_key/src/public_key.erl#L824
-  defp ssh_hostkey_fingerprint(key) do
-    "SHA256:#{sshfp_string(key)}"
-  end
-
-  defp sshfp_string(key) do
-    :crypto.hash(:sha256, Hex.Stdlib.ssh2_pubkey_encode(key))
-    |> Hex.Stdlib.base_encode64_nopadding()
   end
 
   defp show(name, [{key, _} | _]) do

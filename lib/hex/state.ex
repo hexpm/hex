@@ -329,7 +329,7 @@ defmodule Hex.State do
   def trim_slash(nil), do: {:ok, nil}
 
   def trim_slash(string) when is_binary(string),
-    do: {:ok, Hex.Stdlib.string_trim_leading(string, "/")}
+    do: {:ok, String.trim_leading(string, "/")}
 
   def trim_slash(_), do: :error
 

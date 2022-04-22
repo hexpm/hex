@@ -8,7 +8,7 @@ if Mix.env() == :dev do
     @ets_version 3
 
     def extract_registry(packages, new_path) do
-      {:ok, original_ets} = :ets.file2tab(Hex.Stdlib.to_charlist(ets_path()))
+      {:ok, original_ets} = :ets.file2tab(String.to_charlist(ets_path()))
       new_ets = :ets.new(@ets_name, [])
 
       try do
@@ -19,7 +19,7 @@ if Mix.env() == :dev do
           copy_package(original_ets, new_ets, package)
         end)
 
-        :ok = :ets.tab2file(new_ets, Hex.Stdlib.to_charlist(new_path))
+        :ok = :ets.tab2file(new_ets, String.to_charlist(new_path))
       after
         :ets.delete(original_ets)
         :ets.delete(new_ets)
