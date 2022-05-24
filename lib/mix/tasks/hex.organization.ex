@@ -49,7 +49,7 @@ defmodule Mix.Tasks.Hex.Organization do
   command is owned by the organization directly, and not the user that generated it. This makes it
   ideal for shared environments such as CI where you don't want to give access to user-specific
   resources and the user's organization membership status won't affect key. By default this command
-  sets the `repository` permission which allows read-only access to the repository, it can be
+  sets the `repository:organization_name` permission which allows read-only access to the organization's repository, it can be
   overridden with the `--permission` flag.
 
       $ mix hex.organization key ORGANIZATION generate [--key-name KEY_NAME] [--permission PERMISSION]
@@ -88,7 +88,7 @@ defmodule Mix.Tasks.Hex.Organization do
       multiple times, possibly values are:
       * `api:read` - API read access.
       * `api:write` - API write access.
-      * `repository` - Access to the organization's repository (this is the default permission).
+      * `repository:organization_name` - Access to the organization's repository (this is the default permission).
   """
   @behaviour Hex.Mix.TaskDescription
 
