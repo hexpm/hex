@@ -12,7 +12,8 @@ defmodule Mix.Tasks.Hex.Owner do
   ## Add owner
 
   Adds an owner to package by specifying the package name and email or username
-  of the new owner.
+  of the new owner. This command also takes a `--level` option, see below for more
+  details.
 
       $ mix hex.owner add PACKAGE EMAIL_OR_USERNAME
 
@@ -45,6 +46,10 @@ defmodule Mix.Tasks.Hex.Owner do
 
   ## Command line options
 
+    * `--level maintainer` - Maintainer level owners have all the powers of package ownership,
+      except they cannot add or remove other package owners
+    * `--level full` - Over the maintainer level, full owners can also add and remove other
+      package owners (default)
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
   """
   @behaviour Hex.Mix.TaskDescription
