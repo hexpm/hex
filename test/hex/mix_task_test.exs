@@ -796,13 +796,23 @@ defmodule Hex.MixTaskTest do
     old_lock
   end
 
-  test "deps.get populates managers" do
+  test "deps.get populates lock" do
     Mix.Project.push(Simple)
 
     in_tmp(fn ->
       Hex.State.put(:cache_home, File.cwd!())
       Mix.Task.run("deps.get")
-      assert %{ecto: {:hex, _, _, _, [:mix], _, _, _}} = Mix.Dep.Lock.read()
+
+      assert %{ecto: {:hex, :ecto, "0.2.0", old_checksum, [:mix], deps, "hexpm", new_checksum}} =
+               Mix.Dep.Lock.read()
+
+      assert String.length(new_checksum) == 64
+      assert String.length(old_checksum) == 64
+
+      assert deps == [
+               {:ex_doc, "~> 0.0.1", [hex: :ex_doc, repo: "hexpm", optional: false]},
+               {:postgrex, "~> 0.2.0", [hex: :postgrex, repo: "hexpm", optional: false]}
+             ]
     end)
   end
 

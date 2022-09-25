@@ -166,7 +166,7 @@ defmodule Hex.Mix do
          label: app
        }) do
     {String.to_atom(app), to_string(constraint),
-     hex: String.to_atom(name), repo: repo, optional: optional}
+     hex: String.to_atom(name), repo: repo || "hexpm", optional: optional}
   end
 
   def packages_from_lock(lock) do
