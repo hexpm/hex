@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.1.0 (d6269a8), do not edit manually
+# Vendored from hex_solver v0.1.0 (7e89b0b), do not edit manually
 
 defmodule Hex.Solver.Solver do
   @moduledoc false
@@ -115,12 +115,11 @@ defmodule Hex.Solver.Solver do
           {:choice, package_range.name, state}
 
         {:ok, package_range, version} ->
-          name = package_range.name
-
           {lister, incompatibilities} =
             PackageLister.dependencies_as_incompatibilities(
               state.lister,
-              name,
+              package_range.repo,
+              package_range.name,
               version
             )
 
@@ -134,7 +133,7 @@ defmodule Hex.Solver.Solver do
               # that will eventually choose a better version.
               conflict =
                 conflict or
-                  incompatibility_conflict?(state, incompatibility, name)
+                  incompatibility_conflict?(state, incompatibility, package_range.name)
 
               state = add_incompatibility(state, incompatibility)
               {state, conflict}
@@ -144,19 +143,20 @@ defmodule Hex.Solver.Solver do
             if conflict do
               state.solution
             else
-              Logger.debug("RESOLVER: selecting #{package_range.name} #{version}")
-              PartialSolution.decide(state.solution, package_range.name, version)
+              package_range = %PackageRange{package_range | constraint: version}
+              Logger.debug("RESOLVER: selecting #{package_range}")
+              PartialSolution.decide(state.solution, package_range)
             end
 
           state = %{state | solution: solution}
-          {:choice, name, state}
+          {:choice, package_range.name, state}
 
-        {:error, name} ->
-          package_range = %PackageRange{name: name, constraint: Util.any()}
+        {:error, package_range} ->
+          package_range = %PackageRange{package_range | constraint: Util.any()}
           term = %Term{positive: true, package_range: package_range}
           incompatibility = Incompatibility.new([term], :package_not_found)
           state = add_incompatibility(state, incompatibility)
-          {:choice, name, state}
+          {:choice, package_range.name, state}
       end
     end
   end
@@ -198,29 +198,8 @@ defmodule Hex.Solver.Solver do
     if Incompatibility.failure?(incompatibility) do
       {:error, incompatibility}
     else
-      resolution = %{
-        # The term in incompatibility.terms that was most recently satisfied by the solution.
-        most_recent_term: nil,
-        # The earliest assignment in the solution such that incompatibility is satisfied
-        # by the solution up to and including this assignment.
-        most_recent_satisfier: nil,
-        # The difference between most_recent_satisfier and most_recent_term, that is,
-        # the versions that are allowed by most_recent_satisfier but not by most_recent_term.
-        # nil if most_recent_satisfier totally satisfies most_recent_term.
-        difference: nil,
-        # The decision level of the earliest assignment before most_recent_satisfier
-        # such that incompatibility is satisfied by the solution up to and including
-        # this assignment and most_recent_satisfier.
-
-        # Decision level 1 is the level where the root package was selected. We can
-        # go back to level 0 but level 1 tends to give better error messages, because
-        # references to the root package end up closer to the final conclusion that
-        # no solution exists.
-        previous_satisfier_level: 1
-      }
-
       resolution =
-        Enum.reduce(incompatibility.terms, resolution, fn term, resolution ->
+        Enum.reduce(incompatibility.terms, new_resolution_state(), fn term, resolution ->
           satisfier = PartialSolution.satisfier(state.solution, term)
 
           resolution =
@@ -295,7 +274,7 @@ defmodule Hex.Solver.Solver do
         throw({__MODULE__, :conflict_resolution, incompatibility, state})
       end
 
-      # Create a new incompatibility be combining the given incompatibility with
+      # Create a new incompatibility by combining the given incompatibility with
       # the incompatibility that caused most_recent_satisfier to be assigned.
       # Doing this iteratively constructs a new new incompatibility that's guaranteed
       # to be true (we know for sure no solution will satisfy the incompatibility)
@@ -342,10 +321,37 @@ defmodule Hex.Solver.Solver do
     end
   end
 
+  defp new_resolution_state() do
+    %{
+      # The term in incompatibility.terms that was most recently satisfied by the solution.
+      most_recent_term: nil,
+      # The earliest assignment in the solution such that incompatibility is satisfied
+      # by the solution up to and including this assignment.
+      most_recent_satisfier: nil,
+      # The difference between most_recent_satisfier and most_recent_term, that is,
+      # the versions that are allowed by most_recent_satisfier but not by most_recent_term.
+      # nil if most_recent_satisfier totally satisfies most_recent_term.
+      difference: nil,
+      # The decision level of the earliest assignment before most_recent_satisfier
+      # such that incompatibility is satisfied by the solution up to and including
+      # this assignment and most_recent_satisfier.
+      # Decision level 1 is the level where the root package was selected. We can
+      # go back to level 0 but level 1 tends to give better error messages, because
+      # references to the root package end up closer to the final conclusion that
+      # no solution exists.
+      previous_satisfier_level: 1
+    }
+  end
+
   defp new_state(registry, root_dependencies, locked, overrides) do
     version = Version.parse!("1.0.0")
     package_range = %PackageRange{name: "$root", constraint: version}
     root = Incompatibility.new([%Term{positive: false, package_range: package_range}], :root)
+
+    locked =
+      Enum.map(locked, fn %{repo: repo, name: package, version: version, label: label} ->
+        %{repo: repo, name: package, constraint: version, label: label}
+      end)
 
     lister = %PackageLister{
       registry: registry,

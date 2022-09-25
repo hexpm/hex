@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.1.0 (d6269a8), do not edit manually
+# Vendored from hex_solver v0.1.0 (7e89b0b), do not edit manually
 
 defmodule Hex.Solver.PartialSolution do
   @moduledoc false
@@ -40,18 +40,27 @@ defmodule Hex.Solver.PartialSolution do
   def satisfier(%PartialSolution{} = solution, term) do
     {:satisfier, assignment} =
       Enum.reduce_while(Enum.reverse(solution.assignments), nil, fn assignment, assigned_term ->
-        if Term.compatible_package?(assignment.term, term) do
-          assigned_term =
-            if assigned_term do
-              Assignment.intersect(assigned_term, assignment)
-            else
-              assignment
-            end
+        if assignment.term.package_range.name == term.package_range.name do
+          if Term.compatible_package?(assignment.term, term) do
+            assigned_term =
+              if assigned_term do
+                Assignment.intersect(assigned_term, assignment)
+              else
+                assignment
+              end
 
-          if Term.satisfies?(assigned_term.term, term) do
-            {:halt, {:satisfier, assignment}}
+            if Term.satisfies?(assigned_term.term, term) do
+              {:halt, {:satisfier, assignment}}
+            else
+              {:cont, assigned_term}
+            end
           else
-            {:cont, assigned_term}
+            if assignment.term.positive do
+              false = term.positive
+              {:halt, {:satisfier, assignment}}
+            else
+              {:cont, assigned_term}
+            end
           end
         else
           {:cont, assigned_term}
@@ -97,10 +106,12 @@ defmodule Hex.Solver.PartialSolution do
     register(solution, assignment)
   end
 
-  def decide(%PartialSolution{} = solution, package, version) do
+  def decide(
+        %PartialSolution{} = solution,
+        %PackageRange{repo: repo, name: package, constraint: version} = package_range
+      ) do
     attempted_solutions = solution.attempted_solutions + if solution.backtracking, do: 1, else: 0
-    decisions = Map.put(solution.decisions, package, version)
-    package_range = %PackageRange{name: package, constraint: version}
+    decisions = Map.put(solution.decisions, package, {version, repo})
     term = %Term{package_range: package_range, positive: true}
 
     solution = %{

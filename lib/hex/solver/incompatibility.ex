@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.1.0 (d6269a8), do not edit manually
+# Vendored from hex_solver v0.1.0 (7e89b0b), do not edit manually
 
 defmodule Hex.Solver.Incompatibility do
   @moduledoc false
@@ -381,7 +381,11 @@ defmodule Hex.Solver.Incompatibility do
   defp package_name(%Term{package_range: %PackageRange{name: "$lock"}}, opts),
     do: bright("lock", opts)
 
-  defp package_name(%Term{package_range: %PackageRange{name: name}}, opts), do: bright(name, opts)
+  defp package_name(%Term{package_range: %PackageRange{repo: nil, name: name}}, opts),
+    do: bright(name, opts)
+
+  defp package_name(%Term{package_range: %PackageRange{repo: repo, name: name}}, opts),
+    do: bright("#{repo}/#{name}", opts)
 
   defp terse_name(term, opts) do
     if Constraint.any?(term.package_range.constraint) do

@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.1.0 (d6269a8), do not edit manually
+# Vendored from hex_solver v0.1.0 (7e89b0b), do not edit manually
 
 defmodule Hex.Solver.Term do
   @moduledoc false
@@ -13,7 +13,7 @@ defmodule Hex.Solver.Term do
             optional: false
 
   def relation(%Term{} = left, %Term{} = right) do
-    true = compatible_package?(left, right)
+    compatible_package?(left, right)
 
     left_constraint = constraint(left)
     right_constraint = constraint(right)
@@ -21,6 +21,7 @@ defmodule Hex.Solver.Term do
     cond do
       right.positive and left.positive ->
         cond do
+          not compatible_package?(left, right) -> :disjoint
           Constraint.allows_all?(right_constraint, left_constraint) -> :subset
           not Constraint.allows_any?(left_constraint, right_constraint) -> :disjoint
           true -> :overlapping
@@ -28,12 +29,14 @@ defmodule Hex.Solver.Term do
 
       right.positive and not left.positive ->
         cond do
+          not compatible_package?(left, right) -> :overlapping
           Constraint.allows_all?(left_constraint, right_constraint) -> :disjoint
           true -> :overlapping
         end
 
       not right.positive and left.positive ->
         cond do
+          not compatible_package?(left, right) -> :subset
           not Constraint.allows_any?(right_constraint, left_constraint) -> :subset
           Constraint.allows_all?(right_constraint, left_constraint) -> :disjoint
           true -> :overlapping
@@ -41,6 +44,7 @@ defmodule Hex.Solver.Term do
 
       not right.positive and not left.positive ->
         cond do
+          not compatible_package?(left, right) -> :overlapping
           Constraint.allows_all?(left_constraint, right_constraint) -> :subset
           true -> :overlapping
         end
@@ -48,24 +52,27 @@ defmodule Hex.Solver.Term do
   end
 
   def intersect(%Term{} = left, %Term{} = right) do
-    true = compatible_package?(left, right)
-    optional = if left.optional == right.optional, do: left.optional, else: false
+    if compatible_package?(left, right) do
+      optional = if left.optional == right.optional, do: left.optional, else: false
 
-    cond do
-      left.positive != right.positive ->
-        positive = if left.positive, do: left, else: right
-        negative = if left.positive, do: right, else: left
+      cond do
+        left.positive != right.positive ->
+          positive = if left.positive, do: left, else: right
+          negative = if left.positive, do: right, else: left
 
-        constraint = Constraint.difference(constraint(positive), constraint(negative))
-        non_empty_term(left, constraint, optional, true)
+          constraint = Constraint.difference(constraint(positive), constraint(negative))
+          non_empty_term(left, constraint, optional, true)
 
-      left.positive and right.positive ->
-        constraint = Constraint.intersect(constraint(left), constraint(right))
-        non_empty_term(left, constraint, optional, true)
+        left.positive and right.positive ->
+          constraint = Constraint.intersect(constraint(left), constraint(right))
+          non_empty_term(left, constraint, optional, true)
 
-      not left.positive and not right.positive ->
-        constraint = Constraint.union(constraint(left), constraint(right))
-        non_empty_term(left, constraint, optional, false)
+        not left.positive and not right.positive ->
+          constraint = Constraint.union(constraint(left), constraint(right))
+          non_empty_term(left, constraint, optional, false)
+      end
+    else
+      nil
     end
   end
 
@@ -81,8 +88,16 @@ defmodule Hex.Solver.Term do
     %{term | positive: not term.positive}
   end
 
-  def compatible_package?(%Term{} = left, %Term{} = right) do
-    left.package_range.name == right.package_range.name
+  def compatible_package?(%Term{package_range: %PackageRange{name: "$root"}}, %Term{}) do
+    true
+  end
+
+  def compatible_package?(%Term{}, %Term{package_range: %PackageRange{name: "$root"}}) do
+    true
+  end
+
+  def compatible_package?(%Term{package_range: left}, %Term{package_range: right}) do
+    {left.repo, left.name} == {right.repo, right.name}
   end
 
   defp constraint(%Term{package_range: %PackageRange{constraint: constraint}}) do

@@ -1,15 +1,28 @@
-# Vendored from hex_solver v0.1.0 (d6269a8), do not edit manually
+# Vendored from hex_solver v0.1.0 (7e89b0b), do not edit manually
 
 defmodule Hex.Solver do
   _ = """
   A version solver.
   """
 
-  @type dependency() :: {package(), constraint(), optional(), label()}
-  @type locked() :: {package(), Version.t()}
+  @type dependency() :: %{
+          repo: repo(),
+          name: package(),
+          constraint: constraint(),
+          optional: optional(),
+          label: label()
+        }
+  @type locked() :: %{
+          repo: repo(),
+          name: package(),
+          version: Version.t(),
+          label: label()
+        }
+  @type repo() :: String.t() | nil
   @type package() :: String.t()
   @type label() :: String.t()
   @type optional() :: boolean()
+  @type result() :: %{package() => {Version.t(), repo()}}
   @opaque constraint() :: Hex.Solver.Requirement.t()
 
   alias Hex.Solver.{Failure, Requirement, Solver}
@@ -35,7 +48,7 @@ defmodule Hex.Solver do
 
   """
   @spec run(module(), [dependency()], [locked()], [label()], ansi: boolean()) ::
-          {:ok, %{package() => Version.t()}} | {:error, String.t()}
+          {:ok, result()} | {:error, String.t()}
   def run(registry, dependencies, locked, overrides, opts \\ []) do
     case Solver.run(registry, dependencies, locked, overrides) do
       {:ok, solution} -> {:ok, Map.drop(solution, ["$root", "$lock"])}

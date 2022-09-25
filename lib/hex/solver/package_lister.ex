@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.1.0 (d6269a8), do not edit manually
+# Vendored from hex_solver v0.1.0 (7e89b0b), do not edit manually
 
 defmodule Hex.Solver.PackageLister do
   @moduledoc false
@@ -10,7 +10,7 @@ defmodule Hex.Solver.PackageLister do
             root_dependencies: [],
             locked: [],
             overrides: [],
-            already_prefetched: MapSet.new(["$lock"]),
+            already_prefetched: MapSet.new([{nil, "$lock"}]),
             already_returned: %{}
 
   # Prefer packages with few remaining versions so that if there is conflict
@@ -20,47 +20,42 @@ defmodule Hex.Solver.PackageLister do
       package_ranges
       |> Enum.sort_by(& &1.name)
       |> Enum.map(fn package_range ->
-        case versions(lister, package_range.name) do
+        case versions(lister, package_range.repo, package_range.name) do
           {:ok, versions} ->
             allowed = Enum.filter(versions, &Constraint.allows?(package_range.constraint, &1))
             {package_range, allowed}
 
           :error ->
-            throw({__MODULE__, :minimal_versions, package_range.name})
+            throw({__MODULE__, :minimal_versions, package_range})
         end
       end)
       |> Enum.min_by(fn {_package_range, versions} -> length(versions) end)
 
     {:ok, package_range, List.first(Enum.sort(versions, &Version.prioritize/2))}
   catch
-    :throw, {__MODULE__, :minimal_versions, name} ->
-      {:error, name}
+    :throw, {__MODULE__, :minimal_versions, package_range} ->
+      {:error, package_range}
   end
 
-  def dependencies_as_incompatibilities(
-        %PackageLister{
-          already_returned: already_returned,
-          overrides: overrides
-        } = lister,
-        package,
-        version
-      ) do
-    {:ok, versions} = versions(lister, package)
-    already_returned = Map.get(already_returned, package, %{})
+  def dependencies_as_incompatibilities(%PackageLister{} = lister, package_repo, package, version) do
+    {:ok, versions} = versions(lister, package_repo, package)
+    already_returned = Map.get(lister.already_returned, {package_repo, package}, %{})
 
+    # Dependencies of package keyed on package version
     versions_dependencies =
       Enum.map(versions, fn version ->
-        {:ok, dependencies} = dependencies(lister, package, version)
+        {:ok, dependencies} = dependencies(lister, package_repo, package, version)
         {version, dependencies}
       end)
 
     {_version, dependencies} = List.keyfind(versions_dependencies, version, 0)
 
+    # Dependencies of package version filtered of overrides and already returned dependencies
     dependencies =
       dependencies
       |> Enum.sort()
-      |> Enum.reject(fn {_dependency, {_constraint, _optional, label}} ->
-        package != "$root" and label in overrides
+      |> Enum.reject(fn {_dependency, %{label: label}} ->
+        package != "$root" and label in lister.overrides
       end)
       |> Enum.reject(fn {dependency, _} ->
         case Map.fetch(already_returned, dependency) do
@@ -70,13 +65,20 @@ defmodule Hex.Solver.PackageLister do
       end)
 
     incompatibilities =
-      dependencies
-      |> Enum.map(fn {dependency, {constraint, optional, _label}} ->
+      Enum.map(dependencies, fn {dependency,
+                                 %{
+                                   repo: dependency_repo,
+                                   constraint: constraint,
+                                   optional: optional
+                                 }} ->
         version_constraints =
           Enum.map(versions_dependencies, fn {version, dependencies} ->
             case Map.fetch(dependencies, dependency) do
-              {:ok, {constraint, optional, _label}} -> {version, {constraint, optional}}
-              :error -> {version, nil}
+              {:ok, %{constraint: constraint, optional: optional}} ->
+                {version, {constraint, optional}}
+
+              :error ->
+                {version, nil}
             end
           end)
 
@@ -88,9 +90,14 @@ defmodule Hex.Solver.PackageLister do
         upper = upper_bound(version_constraints, version, {constraint, optional})
 
         range = %Range{min: lower, max: upper, include_min: !!lower}
-        package_range = %PackageRange{name: package, constraint: range}
-        dependency_range = %PackageRange{name: dependency, constraint: constraint}
+        package_range = %PackageRange{repo: package_repo, name: package, constraint: range}
         package_term = %Term{positive: true, package_range: package_range}
+
+        dependency_range = %PackageRange{
+          repo: dependency_repo,
+          name: dependency,
+          constraint: constraint
+        }
 
         dependency_term = %Term{
           positive: false,
@@ -103,11 +110,16 @@ defmodule Hex.Solver.PackageLister do
 
     prefetch =
       dependencies
-      |> MapSet.new(fn {dependency, _} -> dependency end)
+      |> MapSet.new(fn {dependency, %{repo: repo}} -> {repo, dependency} end)
       |> MapSet.difference(lister.already_prefetched)
 
+    if MapSet.size(prefetch) > 0 do
+      lister.registry.prefetch(Enum.to_list(prefetch))
+    end
+
+    # Dependencies already returned
     already_returned =
-      Enum.reduce(incompatibilities, already_returned, fn incompatibility, acc ->
+      Enum.reduce(incompatibilities, already_returned, fn incompatibility, already_returned ->
         [package_term, dependency_term] =
           case incompatibility do
             %Incompatibility{terms: [single]} -> [single, single]
@@ -116,12 +128,8 @@ defmodule Hex.Solver.PackageLister do
 
         name = dependency_term.package_range.name
         constraint = package_term.package_range.constraint
-        Map.update(acc, name, constraint, &Constraint.union(&1, constraint))
+        Map.update(already_returned, name, constraint, &Constraint.union(&1, constraint))
       end)
-
-    if MapSet.size(prefetch) > 0 do
-      lister.registry.prefetch(Enum.to_list(prefetch))
-    end
 
     lister = %{
       lister
@@ -184,33 +192,57 @@ defmodule Hex.Solver.PackageLister do
 
   @version_1 Elixir.Version.parse!("1.0.0")
 
-  defp versions(_lister, "$root"), do: {:ok, [@version_1]}
-  defp versions(_lister, "$lock"), do: {:ok, [@version_1]}
-  defp versions(%PackageLister{registry: registry}, package), do: registry.versions(package)
+  defp versions(_lister, _repo, "$root"), do: {:ok, [@version_1]}
+  defp versions(_lister, _repo, "$lock"), do: {:ok, [@version_1]}
+
+  defp versions(%PackageLister{registry: registry}, repo, package),
+    do: registry.versions(repo, package)
 
   defp dependencies(
          %PackageLister{root_dependencies: dependencies, locked: locked},
+         _repo,
          "$root",
          @version_1
        ) do
-    lock_dependency = if locked == [], do: [], else: [{"$lock", @version_1, false, "$lock"}]
+    lock_dependency =
+      if locked == [] do
+        []
+      else
+        [%{repo: nil, name: "$lock", constraint: @version_1, optional: false, label: "$lock"}]
+      end
+
     {:ok, dependency_map(lock_dependency ++ dependencies)}
   end
 
-  defp dependencies(%PackageLister{locked: locked}, "$lock", @version_1) do
-    {:ok, Map.new(locked, fn {package, version} -> {package, {version, true, package}} end)}
+  defp dependencies(%PackageLister{locked: locked}, _repo, "$lock", @version_1) do
+    {:ok,
+     Map.new(locked, fn dependency ->
+       {dependency.name,
+        %{
+          repo: dependency.repo,
+          constraint: dependency.constraint,
+          optional: true,
+          label: dependency.label
+        }}
+     end)}
   end
 
-  defp dependencies(%PackageLister{registry: registry}, package, version) do
-    case registry.dependencies(package, version) do
+  defp dependencies(%PackageLister{registry: registry}, repo, package, version) do
+    case registry.dependencies(repo, package, version) do
       {:ok, dependencies} -> {:ok, dependency_map(dependencies)}
       :error -> :error
     end
   end
 
   defp dependency_map(dependencies) do
-    Map.new(dependencies, fn {package, version, optional, label} ->
-      {package, {version, optional, label}}
+    Map.new(dependencies, fn dependency ->
+      {dependency.name,
+       %{
+         repo: dependency.repo,
+         constraint: dependency.constraint,
+         optional: dependency.optional,
+         label: dependency.label
+       }}
     end)
   end
 end
