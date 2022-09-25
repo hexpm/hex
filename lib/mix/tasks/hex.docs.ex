@@ -44,7 +44,7 @@ defmodule Mix.Tasks.Hex.Docs do
   @impl true
   def run(args) do
     Hex.start()
-    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
+    {opts, args} = OptionParser.parse!(args, strict: @switches)
     opts = Keyword.put(opts, :mix_project, !!Mix.Project.get())
 
     case args do
@@ -134,8 +134,7 @@ defmodule Mix.Tasks.Hex.Docs do
   defp find_package_latest_version(organization, name) do
     %{"releases" => releases} = retrieve_package_info(organization, name)
 
-    sorted_versions =
-      Enum.sort(releases, &(Hex.Version.compare(&1["version"], &2["version"]) == :gt))
+    sorted_versions = Enum.sort(releases, &(Version.compare(&1["version"], &2["version"]) == :gt))
 
     if Enum.all?(sorted_versions, &pre_release?/1) do
       sorted_versions
@@ -345,7 +344,7 @@ defmodule Mix.Tasks.Hex.Docs do
     sorted_versions =
       path
       |> File.ls!()
-      |> Enum.sort(&(Hex.Version.compare(&1, &2) == :gt))
+      |> Enum.sort(&(Version.compare(&1, &2) == :gt))
 
     if Enum.all?(sorted_versions, &pre_release?/1) do
       List.first(sorted_versions)
@@ -406,7 +405,7 @@ defmodule Mix.Tasks.Hex.Docs do
   defp pre_release?(version), do: do_pre_release?(version)
 
   defp do_pre_release?(version) do
-    case Hex.Version.parse(version) do
+    case Version.parse(version) do
       {:ok, %Version{pre: []}} -> false
       {:ok, %Version{}} -> true
       _ -> false

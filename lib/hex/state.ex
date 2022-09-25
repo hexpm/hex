@@ -112,6 +112,12 @@ defmodule Hex.State do
       config: [:no_short_urls],
       default: false,
       fun: {__MODULE__, :to_boolean}
+    },
+    debug_solver: %{
+      env: ["HEX_DEBUG_SOLVER"],
+      config: [:debug_solver],
+      default: false,
+      fun: {__MODULE__, :to_boolean}
     }
   }
 
@@ -135,7 +141,7 @@ defmodule Hex.State do
     project_config = Keyword.get(Mix.Project.config(), :hex, [])
 
     state =
-      Enum.into(@config, %{}, fn {key, spec} ->
+      Map.new(@config, fn {key, spec} ->
         {key, load_config_value(global_config, project_config, spec)}
       end)
 

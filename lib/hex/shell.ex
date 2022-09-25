@@ -19,7 +19,7 @@ defmodule Hex.Shell do
   def debug(output) do
     validate_output!(output)
 
-    if Hex.Mix.debug?() do
+    if Mix.debug?() do
       info(output)
     end
   end
@@ -81,15 +81,15 @@ defmodule Hex.Shell do
           |> String.replace("\"", "\\\"")
           |> String.to_charlist()
 
-        'sh -c "' ++ command ++ '"'
+        ~c"sh -c \"" ++ command ++ ~c"\""
 
       {:win32, osname} ->
-        command = '"' ++ String.to_charlist(command) ++ '"'
+        command = ~c"\"" ++ String.to_charlist(command) ++ ~c"\""
 
         case {System.get_env("COMSPEC"), osname} do
-          {nil, :windows} -> 'command.com /s /c ' ++ command
-          {nil, _} -> 'cmd /s /c ' ++ command
-          {cmd, _} -> '#{cmd} /s /c ' ++ command
+          {nil, :windows} -> ~c"command.com /s /c " ++ command
+          {nil, _} -> ~c"cmd /s /c " ++ command
+          {cmd, _} -> ~c"#{cmd} /s /c " ++ command
         end
     end
   end

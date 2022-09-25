@@ -59,7 +59,7 @@ defmodule Mix.Tasks.Hex.Owner do
   @impl true
   def run(args) do
     Hex.start()
-    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
+    {opts, args} = OptionParser.parse!(args, strict: @switches)
     organization = opts[:organization]
     level = opts[:level] || "full"
 

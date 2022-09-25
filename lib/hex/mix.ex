@@ -5,27 +5,6 @@ defmodule Hex.Mix do
 
   @type deps :: %{String.t() => {boolean, deps}}
 
-  if Version.compare(System.version(), "1.2.0") == :lt do
-    def debug?(), do: false
-  else
-    def debug?(), do: Mix.debug?()
-  end
-
-  if Version.compare(System.version(), "1.3.2") == :lt do
-    def check_deps(), do: Mix.Tasks.Deps.Check.run(["--no-compile"])
-  else
-    def check_deps(), do: Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
-  end
-
-  @doc """
-  Returns `true` if the version and requirement match.
-
-  See `Version.match?/2`.
-  """
-  @spec version_match?(String.t(), String.t() | nil) :: boolean
-  def version_match?(_version, nil), do: true
-  def version_match?(version, req), do: Hex.Version.match?(version, req)
-
   @doc """
   Given a tree of dependencies return a flat list of all dependencies in
   the tree.
@@ -65,17 +44,9 @@ defmodule Hex.Mix do
   overriding with Hex) and dependencies that are not Hex packages.
   """
   def deps_to_requests(deps) do
-    requests =
-      for %Mix.Dep{app: app, requirement: req, scm: Hex.SCM, opts: opts, from: from} <- deps do
-        from = Path.relative_to_cwd(from)
-        {opts[:repo], opts[:hex], Atom.to_string(app), req, from}
-      end
-
-    # Elixir < 1.3.0-dev returned deps in reverse order
-    if Version.compare(System.version(), "1.3.0-dev") == :lt do
-      Enum.reverse(requests)
-    else
-      requests
+    for %Mix.Dep{app: app, requirement: req, scm: Hex.SCM, opts: opts, from: from} <- deps do
+      from = Path.relative_to_cwd(from)
+      {opts[:repo], opts[:hex], Atom.to_string(app), req, from}
     end
   end
 
@@ -84,9 +55,9 @@ defmodule Hex.Mix do
   """
   @spec prepare_deps([Mix.Dep.t()]) :: deps
   def prepare_deps(deps) do
-    Enum.into(deps, %{}, fn %Mix.Dep{app: app, deps: deps, opts: opts} ->
+    Map.new(deps, fn %Mix.Dep{app: app, deps: deps, opts: opts} ->
       deps =
-        Enum.into(deps, %{}, fn %Mix.Dep{app: app, opts: opts} ->
+        Map.new(deps, fn %Mix.Dep{app: app, opts: opts} ->
           {Atom.to_string(app), {!!opts[:override], %{}}}
         end)
 
@@ -134,7 +105,7 @@ defmodule Hex.Mix do
   lock of Hex packages.
   """
   def to_lock(result) do
-    Enum.into(result, %{}, fn {repo, name, app, version} ->
+    Map.new(result, fn {repo, name, app, version} ->
       inner_checksum =
         Hex.Registry.Server.inner_checksum(repo, name, version)
         |> Base.encode16(case: :lower)
@@ -144,7 +115,8 @@ defmodule Hex.Mix do
         |> encode_outer_checksum()
 
       deps =
-        Hex.Registry.Server.deps(repo, name, version)
+        Hex.Registry.Server.dependencies(repo, name, version)
+        |> case(do: ({:ok, deps} -> deps))
         |> Enum.map(&registry_dep_to_def/1)
         |> Enum.sort()
 
@@ -186,8 +158,15 @@ defmodule Hex.Mix do
     end
   end
 
-  defp registry_dep_to_def({repo, name, app, req, optional}) do
-    {String.to_atom(app), req, hex: String.to_atom(name), repo: repo, optional: optional}
+  defp registry_dep_to_def(%{
+         repo: repo,
+         name: name,
+         constraint: constraint,
+         optional: optional,
+         label: app
+       }) do
+    {String.to_atom(app), to_string(constraint),
+     hex: String.to_atom(name), repo: repo, optional: optional}
   end
 
   def packages_from_lock(lock) do
@@ -217,12 +196,12 @@ defmodule Hex.Mix do
   def top_level_deps() do
     config = Mix.Project.config()
     apps_paths = apps_paths(config)
-    umbrella_deps = config[:deps] |> Enum.into([], fn deps -> {"", deps} end)
+    umbrella_deps = Enum.map(config[:deps], fn deps -> {"", deps} end)
 
     child_deps =
       Enum.flat_map(apps_paths || [], fn {app, path} ->
         Mix.Project.in_project(app, path, fn _module ->
-          Mix.Project.config()[:deps] |> Enum.into([], fn deps -> {path, deps} end)
+          Enum.map(Mix.Project.config()[:deps], fn deps -> {path, deps} end)
         end)
       end)
 

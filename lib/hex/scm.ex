@@ -40,7 +40,7 @@ defmodule Hex.SCM do
     opts
     |> organization_to_repo()
     |> Keyword.put_new(:hex, name)
-    |> Keyword.put_new(:repo, "hexpm")
+    |> Keyword.update(:repo, "hexpm", &(&1 || "hexpm"))
     |> Keyword.update!(:hex, &to_string/1)
     |> Keyword.update!(:repo, &to_string/1)
   end
@@ -122,7 +122,7 @@ defmodule Hex.SCM do
     lock = Hex.Utils.lock(opts[:lock]) |> ensure_lock(opts)
     name = opts[:hex]
     dest = opts[:dest]
-    repo = opts[:repo]
+    repo = opts[:repo] || "hexpm"
     path = cache_path(repo, name, lock.version)
 
     case Hex.Parallel.await(:hex_fetcher, {:tarball, repo, name, lock.version}, @fetch_timeout) do
@@ -133,10 +133,6 @@ defmodule Hex.SCM do
         Hex.Shell.debug("  [OFFLINE] Using locally cached package (#{path})")
 
       {:ok, :new} ->
-        if Version.compare(System.version(), "1.4.0") == :lt do
-          Registry.persist()
-        end
-
         tarball_url = tarball_url(repo, name, lock.version)
         Hex.Shell.debug("  Fetched package (#{tarball_url})")
 
@@ -259,7 +255,7 @@ defmodule Hex.SCM do
     base_files =
       (meta["files"] || [])
       |> Enum.filter(&(Path.dirname(&1) == "."))
-      |> Enum.into(Hex.Set.new())
+      |> MapSet.new()
 
     Enum.flat_map(@build_tools, fn {file, tool} ->
       if file in base_files do
@@ -350,7 +346,7 @@ defmodule Hex.SCM do
     fetch = fetch_from_lock(lock)
 
     Enum.each(fetch, fn {repo, package, version} ->
-      Hex.Parallel.run(:hex_fetcher, {:tarball, repo, package, version}, fn ->
+      Hex.Parallel.run(:hex_fetcher, {:tarball, repo || "hexpm", package, version}, fn ->
         fetch(repo, package, version)
       end)
     end)
@@ -407,12 +403,12 @@ defmodule Hex.SCM do
 
         {:ok, other_outer_checksum} ->
           Hex.Shell.warn("""
-          Checksum mismatch between registry and the cached package
+          Checksum mismatch between registry and the cached package for #{package} #{version}
 
           Registry checksum: #{Base.encode16(outer_checksum, case: :lower)}
           Package checksum:  #{Base.encode16(other_outer_checksum, case: :lower)}
 
-          This may happen when the previously cached package got re-published.
+          This may happen when the previously cached package got re-published, but it may also indicate a security issue so verify the new package.
 
           Re-fetching...\
           """)

@@ -1,6 +1,10 @@
 defmodule Hex.Utils do
   @moduledoc false
 
+  def package_name("hexpm", package), do: package
+  def package_name(nil, package), do: package
+  def package_name(repo, package), do: "#{repo}/#{package}"
+
   def safe_deserialize_erlang("") do
     nil
   end

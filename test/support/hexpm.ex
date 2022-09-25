@@ -65,11 +65,11 @@ defmodule HexTest.Hexpm do
       |> String.to_charlist()
 
     env = [
-      {'MIX_ENV', 'hex'},
-      {'MIX_HOME', hexpm_mix_home},
-      {'MIX_ARCHIVES', hexpm_mix_archives},
-      {'PATH', path},
-      {'HEX_SIGNING_KEY', key}
+      {~c"MIX_ENV", ~c"hex"},
+      {~c"MIX_HOME", hexpm_mix_home},
+      {~c"MIX_ARCHIVES", hexpm_mix_archives},
+      {~c"PATH", path},
+      {~c"HEX_SIGNING_KEY", key}
     ]
 
     spawn(fn ->
@@ -123,9 +123,9 @@ defmodule HexTest.Hexpm do
   defp hexpm_mix do
     if path = hexpm_elixir() do
       path = String.to_charlist(path)
-      :os.find_executable('mix', path)
+      :os.find_executable(~c"mix", path)
     else
-      :os.find_executable('mix')
+      :os.find_executable(~c"mix")
     end
   end
 
@@ -185,7 +185,7 @@ defmodule HexTest.Hexpm do
   end
 
   defp wait_on_start do
-    case :httpc.request(:get, {'http://localhost:4043', []}, [], []) do
+    case :httpc.request(:get, {~c"http://localhost:4043", []}, [], []) do
       {:ok, _} ->
         :ok
 
@@ -241,12 +241,12 @@ defmodule HexTest.Hexpm do
       end)
 
     reqs =
-      Enum.into(reqs, %{}, fn
+      Map.new(reqs, fn
         {app, req} ->
           {app, %{app: app, requirement: req, optional: false}}
 
         {app, req, opts} ->
-          opts = Enum.into(opts, %{})
+          opts = Map.new(opts)
           default_opts = %{app: app, requirement: req, optional: false}
           {opts[:hex] || app, Map.merge(default_opts, opts)}
       end)

@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Hex.Audit do
 
   @impl true
   def run(_) do
-    Hex.Mix.check_deps()
+    Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
     Hex.start()
     Registry.open()
 

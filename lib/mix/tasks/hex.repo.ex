@@ -69,22 +69,22 @@ defmodule Mix.Tasks.Hex.Repo do
   @impl true
   def run(all_args) do
     Hex.start()
-    {_opts, args} = Hex.OptionParser.parse!(all_args, switches: [])
+    {_opts, args} = OptionParser.parse!(all_args, switches: [])
 
     case args do
       ["add", name, url] ->
-        {opts, _args} = Hex.OptionParser.parse!(all_args, strict: @add_switches)
+        {opts, _args} = OptionParser.parse!(all_args, strict: @add_switches)
         add(name, url, opts)
 
       ["set", name] ->
-        {opts, _args} = Hex.OptionParser.parse!(all_args, strict: @set_switches)
+        {opts, _args} = OptionParser.parse!(all_args, strict: @set_switches)
         set(name, opts)
 
       ["remove", name] ->
         remove(name)
 
       ["show", name] ->
-        {opts, _args} = Hex.OptionParser.parse!(all_args, strict: @show_switches)
+        {opts, _args} = OptionParser.parse!(all_args, strict: @show_switches)
         show(name, opts)
 
       ["list"] ->
@@ -130,7 +130,7 @@ defmodule Mix.Tasks.Hex.Repo do
         fetch_public_key: nil,
         auth_key: nil
       }
-      |> Map.merge(Enum.into(opts, %{}))
+      |> Map.merge(Map.new(opts))
       |> Map.put(:public_key, public_key)
 
     Hex.State.fetch!(:repos)
@@ -147,7 +147,7 @@ defmodule Mix.Tasks.Hex.Repo do
       end
 
     Hex.State.fetch!(:repos)
-    |> Map.update!(name, &Map.merge(&1, Enum.into(opts, %{})))
+    |> Map.update!(name, &Map.merge(&1, Map.new(opts)))
     |> Hex.Config.update_repos()
   end
 

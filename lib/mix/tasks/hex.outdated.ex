@@ -47,9 +47,9 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   @impl true
   def run(args) do
-    Hex.Mix.check_deps()
+    Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
     Hex.start()
-    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
+    {opts, args} = OptionParser.parse!(args, strict: @switches)
     Registry.open()
 
     lock = Mix.Dep.Lock.read()
@@ -96,7 +96,7 @@ defmodule Mix.Tasks.Hex.Outdated do
       end
 
     latest = latest_version(repo, package, current, opts[:pre])
-    outdated? = Hex.Version.compare(current, latest) == :lt
+    outdated? = Version.compare(current, latest) == :lt
     lock_requirements = get_requirements_from_lock(app, lock)
     deps_requirements = get_requirements_from_deps(app, deps)
     requirements = deps_requirements ++ lock_requirements
@@ -225,14 +225,11 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp latest_version(repo, package, default, pre?) do
-    {:ok, default} = Hex.Version.parse(default)
+    {:ok, default} = Version.parse(default)
     pre? = pre? || default.pre != []
-
-    latest =
-      Registry.versions(repo, package)
-      |> highest_version(pre?)
-
-    latest || default
+    {:ok, versions} = Registry.versions(repo, package)
+    latest = highest_version(versions, pre?)
+    to_string(latest || default)
   end
 
   defp highest_version(versions, pre?) do
@@ -240,17 +237,14 @@ defmodule Mix.Tasks.Hex.Outdated do
       if pre? do
         versions
       else
-        Enum.filter(versions, fn version ->
-          {:ok, version} = Hex.Version.parse(version)
-          version.pre == []
-        end)
+        Enum.filter(versions, fn version -> version.pre == [] end)
       end
 
     List.last(versions)
   end
 
   defp format_all_row([package, lock, latest, requirements]) do
-    outdated? = Hex.Version.compare(lock, latest) == :lt
+    outdated? = Version.compare(lock, latest) == :lt
     latest_color = if outdated?, do: :red, else: :green
     req_matches? = req_matches?(requirements, latest)
 
@@ -270,7 +264,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp build_diff_link([package, lock, latest, requirements]) do
-    outdated? = Hex.Version.compare(lock, latest) == :lt
+    outdated? = Version.compare(lock, latest) == :lt
     req_matches? = Enum.all?(requirements, &version_match?(latest, &1))
 
     case {outdated?, req_matches?} do
@@ -280,11 +274,11 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp version_match?(_version, nil), do: true
-  defp version_match?(version, req), do: Hex.Version.match?(version, req)
+  defp version_match?(version, req), do: Version.match?(version, req)
 
   defp any_outdated?(versions) do
     Enum.any?(versions, fn [_package, lock, latest, _requirements] ->
-      Hex.Version.compare(lock, latest) == :lt
+      Version.compare(lock, latest) == :lt
     end)
   end
 

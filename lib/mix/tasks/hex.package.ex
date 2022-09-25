@@ -94,7 +94,7 @@ defmodule Mix.Tasks.Hex.Package do
   @impl true
   def run(args) do
     Hex.start()
-    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches, aliases: @aliases)
+    {opts, args} = OptionParser.parse!(args, strict: @switches, aliases: @aliases)
     unpack = Keyword.get(opts, :unpack, false)
     output = Keyword.get(opts, :output, nil)
 
@@ -229,7 +229,7 @@ defmodule Mix.Tasks.Hex.Package do
   end
 
   defp diff(repo, app, version) when is_binary(version) do
-    Hex.Mix.check_deps()
+    Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
 
     {path_lock, package} =
       case Map.get(Mix.Dep.Lock.read(), String.to_atom(app)) do
@@ -314,7 +314,7 @@ defmodule Mix.Tasks.Hex.Package do
         parse_two_versions!(version1, version2)
 
       [version] ->
-        version |> Hex.Version.parse!() |> to_string()
+        version |> Version.parse!() |> to_string()
     end
   end
 
@@ -323,8 +323,8 @@ defmodule Mix.Tasks.Hex.Package do
   end
 
   defp parse_two_versions!(version1, version2) do
-    version1 = Hex.Version.parse!(version1)
-    version2 = Hex.Version.parse!(version2)
+    version1 = Version.parse!(version1)
+    version2 = Version.parse!(version2)
     {to_string(version1), to_string(version2)}
   end
 

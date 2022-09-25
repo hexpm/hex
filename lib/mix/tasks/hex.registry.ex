@@ -62,7 +62,7 @@ defmodule Mix.Tasks.Hex.Registry do
   @impl true
   def run(args) do
     Hex.start()
-    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
+    {opts, args} = OptionParser.parse!(args, strict: @switches)
 
     case args do
       ["build", public_dir] ->
@@ -106,7 +106,7 @@ defmodule Mix.Tasks.Hex.Registry do
         releases =
           paths
           |> Enum.map(&build_release(repo_name, &1))
-          |> Enum.sort(&(Hex.Version.compare(&1.version, &2.version) == :lt))
+          |> Enum.sort(&(Version.compare(&1.version, &2.version) == :lt))
 
         updated_at =
           paths

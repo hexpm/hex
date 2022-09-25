@@ -7,21 +7,21 @@ defmodule Hex.HTTP.SSL do
 
   # From https://www.ssllabs.com/ssltest/clients.html Android 7
   @default_ciphers [
-    'AES128-GCM-SHA256',
-    'AES128-SHA',
-    'AES256-GCM-SHA384',
-    'AES256-SHA',
-    'DES-CBC3-SHA',
-    'ECDHE-ECDSA-AES128-GCM-SHA256',
-    'ECDHE-ECDSA-AES128-SHA',
-    'ECDHE-ECDSA-AES256-GCM-SHA384',
-    'ECDHE-ECDSA-AES256-SHA',
-    'ECDHE-ECDSA-CHACHA20-POLY1305-SHA256',
-    'ECDHE-RSA-AES128-GCM-SHA256',
-    'ECDHE-RSA-AES128-SHA',
-    'ECDHE-RSA-AES256-GCM-SHA384',
-    'ECDHE-RSA-AES256-SHA',
-    'ECDHE-RSA-CHACHA20-POLY1305-SHA256'
+    ~c"AES128-GCM-SHA256",
+    ~c"AES128-SHA",
+    ~c"AES256-GCM-SHA384",
+    ~c"AES256-SHA",
+    ~c"DES-CBC3-SHA",
+    ~c"ECDHE-ECDSA-AES128-GCM-SHA256",
+    ~c"ECDHE-ECDSA-AES128-SHA",
+    ~c"ECDHE-ECDSA-AES256-GCM-SHA384",
+    ~c"ECDHE-ECDSA-AES256-SHA",
+    ~c"ECDHE-ECDSA-CHACHA20-POLY1305-SHA256",
+    ~c"ECDHE-RSA-AES128-GCM-SHA256",
+    ~c"ECDHE-RSA-AES128-SHA",
+    ~c"ECDHE-RSA-AES256-GCM-SHA384",
+    ~c"ECDHE-RSA-AES256-SHA",
+    ~c"ECDHE-RSA-CHACHA20-POLY1305-SHA256"
   ]
 
   @default_versions [:"tlsv1.2", :"tlsv1.1", :tlsv1]
@@ -120,7 +120,7 @@ defmodule Hex.HTTP.SSL do
   end
 
   defp filter_ciphers(allowed) do
-    available = Hex.Set.new(Hex.Stdlib.ssl_cipher_suites(:openssl))
+    available = MapSet.new(Hex.Stdlib.ssl_cipher_suites(:openssl))
     Enum.filter(allowed, &(&1 in available))
   end
 
