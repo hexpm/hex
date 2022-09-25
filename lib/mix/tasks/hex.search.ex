@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Hex.Search do
   @impl true
   def run(args) do
     Hex.start()
-    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
+    {opts, args} = OptionParser.parse!(args, strict: @switches)
 
     case args do
       [package] ->
@@ -105,7 +105,7 @@ defmodule Mix.Tasks.Hex.Search do
       Enum.find(
         releases,
         %{"version" => nil},
-        &Hex.Version.stable?(&1["version"])
+        &(Version.parse!(&1["version"]).pre == [])
       )
 
     version

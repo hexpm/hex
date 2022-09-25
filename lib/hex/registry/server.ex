@@ -34,16 +34,8 @@ defmodule Hex.Registry.Server do
     GenServer.call(@name, {:versions, repo, package}, @timeout)
   end
 
-  def versions(package) do
-    GenServer.call(@name, {:versions, package}, @timeout)
-  end
-
   def dependencies(repo, package, version) do
     GenServer.call(@name, {:dependencies, repo, package, version}, @timeout)
-  end
-
-  def dependencies(package, version) do
-    GenServer.call(@name, {:dependencies, package, version}, @timeout)
   end
 
   def inner_checksum(repo, package, version) do
@@ -74,8 +66,8 @@ defmodule Hex.Registry.Server do
     %{
       ets: nil,
       path: nil,
-      pending: Hex.Set.new(),
-      fetched: Hex.Set.new(),
+      pending: MapSet.new(),
+      fetched: MapSet.new(),
       waiting: %{},
       closing_fun: nil
     }
@@ -130,7 +122,7 @@ defmodule Hex.Registry.Server do
   def handle_call({:prefetch, packages}, _from, state) do
     packages =
       packages
-      |> Enum.map(&name_to_repo_package/1)
+      |> Enum.map(fn {repo, package} -> {repo || "hexpm", package} end)
       |> Enum.uniq()
       |> Enum.reject(&(&1 in state.fetched))
       |> Enum.reject(&(&1 in state.pending))
@@ -146,15 +138,7 @@ defmodule Hex.Registry.Server do
 
   def handle_call({:versions, repo, package}, from, state) do
     maybe_wait({repo, package}, from, state, fn ->
-      lookup(state.ets, {:versions, repo, package})
-    end)
-  end
-
-  def handle_call({:versions, package}, from, state) do
-    {repo, package} = name_to_repo_package(package)
-
-    maybe_wait({repo, package}, from, state, fn ->
-      case lookup(state.ets, {:versions, repo, package}) do
+      case lookup(state.ets, {:versions, repo || "hexpm", package}) do
         nil ->
           :error
 
@@ -171,26 +155,19 @@ defmodule Hex.Registry.Server do
 
   def handle_call({:dependencies, repo, package, version}, from, state) do
     maybe_wait({repo, package}, from, state, fn ->
-      lookup(state.ets, {:deps, repo, package, version})
-    end)
-  end
-
-  def handle_call({:dependencies, package, version}, from, state) do
-    {repo, package} = name_to_repo_package(package)
-
-    maybe_wait({repo, package}, from, state, fn ->
-      case lookup(state.ets, {:deps, repo, package, to_string(version)}) do
+      case lookup(state.ets, {:deps, repo || "hexpm", package, to_string(version)}) do
         nil ->
           :error
 
         deps ->
           deps =
             Enum.map(deps, fn {repo, package, app, requirement, optional} ->
-              {
-                repo_package_to_name({repo, package}),
-                Hex.Solver.parse_constraint!(requirement),
-                optional,
-                app
+              %{
+                repo: if(repo != "hexpm", do: repo),
+                name: package,
+                constraint: Hex.Solver.parse_constraint!(requirement || ">= 0.0.0"),
+                optional: optional,
+                label: app
               }
             end)
 
@@ -201,19 +178,19 @@ defmodule Hex.Registry.Server do
 
   def handle_call({:inner_checksum, repo, package, version}, from, state) do
     maybe_wait({repo, package}, from, state, fn ->
-      lookup(state.ets, {:inner_checksum, repo, package, version})
+      lookup(state.ets, {:inner_checksum, repo || "hexpm", package, version})
     end)
   end
 
   def handle_call({:outer_checksum, repo, package, version}, from, state) do
     maybe_wait({repo, package}, from, state, fn ->
-      lookup(state.ets, {:outer_checksum, repo, package, version})
+      lookup(state.ets, {:outer_checksum, repo || "hexpm", package, version})
     end)
   end
 
   def handle_call({:retired, repo, package, version}, from, state) do
     maybe_wait({repo, package}, from, state, fn ->
-      lookup(state.ets, {:retired, repo, package, version})
+      lookup(state.ets, {:retired, repo || "hexpm", package, version})
     end)
   end
 
@@ -232,9 +209,10 @@ defmodule Hex.Registry.Server do
   end
 
   def handle_info({:get_package, repo, package, result}, state) do
+    repo = repo || "hexpm"
     repo_package = {repo, package}
-    pending = Hex.Set.delete(state.pending, repo_package)
-    fetched = Hex.Set.put(state.fetched, repo_package)
+    pending = MapSet.delete(state.pending, repo_package)
+    fetched = MapSet.put(state.fetched, repo_package)
     {replys, waiting} = Map.pop(state.waiting, repo_package, [])
 
     write_result(result, repo, package, state)
@@ -247,18 +225,6 @@ defmodule Hex.Registry.Server do
     state = maybe_close(state)
     {:noreply, state}
   end
-
-  defp name_to_repo_package({repo, package}), do: {repo, package}
-
-  defp name_to_repo_package(name) when is_binary(name) do
-    case String.split(name, "/", parts: 2) do
-      [repo, package] -> {repo, package}
-      [package] -> {"hexpm", package}
-    end
-  end
-
-  defp repo_package_to_name({"hexpm", package}), do: package
-  defp repo_package_to_name({repo, package}), do: "#{repo}/#{package}"
 
   defp open_ets(path) do
     case :ets.file2tab(path) do
@@ -299,6 +265,7 @@ defmodule Hex.Registry.Server do
 
   defp purge_repo_from_cache(packages, %{ets: ets}) do
     Enum.each(packages, fn {repo, _package} ->
+      repo = repo || "hexpm"
       config = Hex.Repo.get_repo(repo)
       url = config.url
 
@@ -351,7 +318,7 @@ defmodule Hex.Registry.Server do
       end)
     end)
 
-    pending = Enum.into(packages, state.pending)
+    pending = MapSet.union(MapSet.new(packages), state.pending)
     state = %{state | pending: pending}
     {:reply, :ok, state}
   end
@@ -365,13 +332,15 @@ defmodule Hex.Registry.Server do
       end)
 
     if missing do
+      {repo, package} = missing
+
       message =
         "Hex is running in offline mode and the registry entry for " <>
-          "package #{inspect(missing)} is not cached locally"
+          "package #{Hex.Utils.package_name(repo, package)} is not cached locally"
 
       {:reply, {:error, message}, state}
     else
-      fetched = Enum.into(packages, state.fetched)
+      fetched = MapSet.union(MapSet.new(packages), state.fetched)
       {:reply, :ok, %{state | fetched: fetched}}
     end
   end
@@ -407,7 +376,7 @@ defmodule Hex.Registry.Server do
     versions = Enum.map(releases, & &1[:version])
     :ets.insert(tid, {{:versions, repo, package}, versions})
 
-    if etag = headers['etag'] do
+    if etag = headers[~c"etag"] do
       :ets.insert(tid, {{:registry_etag, repo, package}, List.to_string(etag)})
     end
   end
@@ -427,10 +396,9 @@ defmodule Hex.Registry.Server do
 
   defp print_error(result, repo, package, cached?) do
     cached_message = if cached?, do: " (using cache instead)"
-    repo_message = if repo, do: "#{repo}/"
 
     Hex.Shell.error(
-      "Failed to fetch record for '#{repo_message}#{package}' from registry#{cached_message}"
+      "Failed to fetch record for #{Hex.Utils.package_name(repo, package)} from registry#{cached_message}"
     )
 
     if missing_status?(result) do
@@ -440,7 +408,7 @@ defmodule Hex.Registry.Server do
       )
     end
 
-    if not missing_status?(result) or Hex.Mix.debug?() do
+    if not missing_status?(result) or Mix.debug?() do
       Hex.Utils.print_error_result(result)
     end
   end
@@ -448,24 +416,27 @@ defmodule Hex.Registry.Server do
   defp missing_status?({:ok, {status, _, _}}), do: status in [403, 404]
   defp missing_status?(_), do: false
 
-  defp maybe_wait(package, from, state, fun) do
+  defp maybe_wait({repo, package}, from, state, fun) do
+    repo = repo || "hexpm"
+
     cond do
-      package in state.fetched ->
+      {repo, package} in state.fetched ->
         {:reply, fun.(), state}
 
-      package in state.pending ->
+      {repo, package} in state.pending ->
         tuple = {from, fun}
-        waiting = Map.update(state.waiting, package, [tuple], &[tuple | &1])
+        waiting = Map.update(state.waiting, {repo, package}, [tuple], &[tuple | &1])
         state = %{state | waiting: waiting}
         {:noreply, state}
 
       true ->
-        Mix.raise("Package #{inspect(package)} not prefetched, please report this issue")
+        repo = if repo, do: "#{repo}/"
+        Mix.raise("Package #{repo}#{package} not prefetched, please report this issue")
     end
   end
 
   defp wait_closing(state, fun) do
-    if Hex.Set.size(state.pending) == 0 do
+    if MapSet.size(state.pending) == 0 do
       state = fun.()
       %{state | closing_fun: nil}
     else

@@ -172,29 +172,38 @@ defmodule Hex.SolverTest do
   test "multiple repos" do
     add_repo("repo2")
 
-    assert solve("repo2/repo2_deps": ">= 0.0.0") == %{
-             "repo2/repo2_deps": "0.1.0",
-             "repo2/poison": "2.0.0"
+    assert solve([{:repo2_deps, ">= 0.0.0", repo: "repo2"}]) == %{
+             {"repo2", :repo2_deps} => "0.1.0",
+             {"repo2", :poison} => "2.0.0"
            }
 
-    assert solve("repo2/hexpm_deps": ">= 0.0.0") == %{
-             poison: "2.0.0",
-             "repo2/hexpm_deps": "0.1.0"
+    assert solve([{:hexpm_deps, ">= 0.0.0", repo: "repo2"}]) == %{
+             :poison => "2.0.0",
+             {"repo2", :hexpm_deps} => "0.1.0"
            }
 
-    assert assert solve("repo2/repo2_deps": ">= 0.0.0", "hexpm/phoenix": ">= 0.0.0") == """
-                  Failed to use "poison" because
-                    phoenix requires repo hexpm
-                    repo2_deps requires repo repo2\n
+    assert assert solve([{:repo2_deps, ">= 0.0.0", repo: "repo2"}, {:phoenix, ">= 0.0.0"}]) == %{
+                    :ex_doc => "0.1.0",
+                    :phoenix => "0.0.1",
+                    :postgrex => "0.2.1",
+                    {"repo2", :poison} => "2.0.0",
+                    {"repo2", :repo2_deps} => "0.1.0"
+                  }
+
+    assert assert solve([{:repo2_deps, ">= 0.0.0", repo: "repo2"}, {:phoenix, ">= 1.0.0"}]) == """
+                  Because every version of "repo2/repo2_deps" depends on "repo2/poison >= 0.0.0" and "phoenix >= 1.1.2" depends on "poison ~> 1.5 or ~> 2.0", "repo2/repo2_deps" is incompatible with "phoenix >= 1.1.2".
+                  And because no versions of "phoenix" match ">= 1.0.0 and < 1.1.2", "repo2/repo2_deps" is incompatible with "phoenix >= 1.0.0".
+                  And because "your app" depends on "phoenix >= 1.0.0", no version of "repo2/repo2_deps" is allowed.
+                  So, because "your app" depends on "repo2/repo2_deps >= 0.0.0", version solving failed.\
                   """
   end
 
   test "implicit override repo" do
     add_repo("repo2")
 
-    assert solve("repo2/repo2_deps": ">= 0.0.0", poison: ">= 0.0.0") == %{
-             poison: "2.0.0",
-             "repo2/repo2_deps": "0.1.0"
+    assert solve([{:hexpm_deps, ">= 0.0.0", repo: "repo2"}, {:poison, ">= 0.0.0"}]) == %{
+             :poison => "2.0.0",
+             {"repo2", :hexpm_deps} => "0.1.0"
            }
   end
 end

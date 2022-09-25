@@ -53,27 +53,30 @@ defmodule Hex.RemoteConverger do
 
     Hex.Shell.info("Resolving Hex dependencies...")
     run_solver(lock, old_lock, requests, locked, overridden)
-  after
-    if Version.compare(System.version(), "1.4.0") == :lt do
-      Registry.persist()
-    end
   end
 
   defp run_solver(lock, old_lock, requests, locked, overridden) do
     start_time = System.monotonic_time(:millisecond)
 
     dependencies =
-      Enum.map(requests, fn {repo, package, app, requirement, _from} ->
-        name = Hex.Utils.package_name(repo, package)
-        constraint = Hex.Solver.parse_constraint!(requirement || ">= 0.0.0-0")
-        {name, constraint, false, app}
+      Enum.map(requests, fn {repo, name, app, requirement, _from} ->
+        %{
+          repo: if(repo != "hexpm", do: repo),
+          name: name,
+          constraint: Hex.Solver.parse_constraint!(requirement || ">= 0.0.0-0"),
+          optional: false,
+          label: app
+        }
       end)
 
     locked =
-      Enum.map(locked, fn {repo, package, _app, version} ->
-        name = Hex.Utils.package_name(repo, package)
-        constraint = Hex.Solver.parse_constraint!(version)
-        {name, constraint}
+      Enum.map(locked, fn {repo, name, app, version} ->
+        %{
+          repo: if(repo != "hexpm", do: repo),
+          name: name,
+          version: Hex.Solver.parse_constraint!(version),
+          label: app
+        }
       end)
 
     level = Logger.level()
@@ -109,14 +112,8 @@ defmodule Hex.RemoteConverger do
 
   def normalize_resolved(resolved) do
     resolved
-    |> Enum.map(fn {name, version} ->
-      {repo, package} =
-        case String.split(name, "/", parts: 2) do
-          [repo, package] -> {repo, package}
-          [package] -> {"hexpm", package}
-        end
-
-      {repo, package, to_string(version)}
+    |> Enum.map(fn {name, {version, repo}} ->
+      {repo || "hexpm", name, to_string(version)}
     end)
     |> Enum.sort()
   end
@@ -135,12 +132,18 @@ defmodule Hex.RemoteConverger do
       Enum.map(resolved, fn {repo, package, version} ->
         apps =
           Enum.flat_map(resolved, fn {parent_repo, parent_package, parent_version} ->
-            deps = Registry.dependencies(parent_repo, parent_package, parent_version) || []
+            repo_nil = if repo != "hexpm", do: repo
+
+            deps =
+              case Registry.dependencies(parent_repo, parent_package, parent_version) do
+                {:ok, deps} -> deps
+                :error -> []
+              end
 
             app =
               Enum.find_value(deps, fn
-                {^repo, ^package, app, _requirement, _optional} -> app
-                {_repo, _package, _app, _requirement, _optional} -> nil
+                %{repo: ^repo_nil, name: ^package, label: app} -> app
+                %{} -> nil
               end)
 
             if app do
@@ -248,18 +251,16 @@ defmodule Hex.RemoteConverger do
   end
 
   defp get_deps(repo, name, version) do
-    deps = Registry.dependencies(repo, name, version) || []
+    deps =
+      case Registry.dependencies(repo, name, version) do
+        {:ok, deps} -> deps
+        :error -> []
+      end
 
-    for {repo, name, app, req, optional} <- deps do
+    for %{repo: repo, name: name, constraint: req, optional: optional, label: app} <- deps do
       app = String.to_atom(app)
       opts = [optional: optional, hex: name, repo: repo]
-
-      # Support old packages where requirement could be missing
-      if req do
-        {app, req, opts}
-      else
-        {app, opts}
-      end
+      {app, to_string(req), opts}
     end
   end
 
@@ -285,43 +286,14 @@ defmodule Hex.RemoteConverger do
   end
 
   defp verify_package_req(repo, name, req, from) do
-    versions = Registry.versions(repo, name)
-
-    unless versions do
+    if Registry.versions(repo, name) == :error do
       Mix.raise("No package with name #{name} (from: #{from}) in registry")
     end
 
-    if req != nil and Hex.Version.parse_requirement(req) == :error do
+    if req != nil and Version.parse_requirement(req) == :error do
       Mix.raise(
         "Required version #{inspect(req)} for package #{name} is incorrectly specified (from: #{from})"
       )
-    end
-
-    if req != nil and not Enum.any?(versions, &Hex.Version.match?(&1, req)) do
-      Mix.raise(
-        "No matching version for #{name} #{req} (from: #{from}) in registry#{matching_versions_message(versions, req)}"
-      )
-    end
-  end
-
-  defp matching_versions_message(versions, req) do
-    versions = Enum.map(versions, &Hex.Version.parse!/1)
-    pre_versions = matching_pre_versions(versions, req)
-
-    if pre_versions != [] do
-      "\n\nWhile there is no package matching the requirement above, there are pre-releases available:\n\n" <>
-        Enum.map_join(pre_versions, "\n", &"  * #{&1}") <>
-        "\n\nIn order to match any of them, you need to include the \"-pre\" suffix in your requirement, " <>
-        "where \"pre\" is one of the suffixes listed above."
-    else
-      latest = List.last(versions)
-      "\n\nThe latest version is: #{latest}"
-    end
-  end
-
-  defp matching_pre_versions(versions, req) do
-    for version <- versions, version.pre != [], Hex.Version.match?(%{version | pre: []}, req) do
-      version
     end
   end
 
@@ -380,12 +352,12 @@ defmodule Hex.RemoteConverger do
   defp warning_message(nil, _version), do: nil
 
   defp warning_message(previous_version, version) do
-    prev_ver = Hex.Version.parse!(previous_version)
-    new_ver = Hex.Version.parse!(version)
+    prev_ver = Version.parse!(previous_version)
+    new_ver = Version.parse!(version)
 
     cond do
-      Hex.Version.major_version_change?(prev_ver, new_ver) -> " (major)"
-      Hex.Version.breaking_minor_version_change?(prev_ver, new_ver) -> " (minor)"
+      major_version_change?(prev_ver, new_ver) -> " (major)"
+      breaking_minor_version_change?(prev_ver, new_ver) -> " (minor)"
       true -> nil
     end
   end
@@ -525,16 +497,22 @@ defmodule Hex.RemoteConverger do
   defp verify_deps(repo, name, version, deps) do
     deps =
       Enum.map(deps, fn {app, req, opts} ->
-        {
-          opts[:repo],
-          opts[:hex],
-          Atom.to_string(app),
-          req,
-          !!opts[:optional]
+        %{
+          repo: opts[:repo],
+          name: opts[:hex],
+          constraint: Hex.Solver.parse_constraint!(req),
+          optional: !!opts[:optional],
+          label: Atom.to_string(app)
         }
       end)
 
-    if Enum.sort(deps) != Enum.sort(Registry.dependencies(repo, name, version)) do
+    registry_deps =
+      case Registry.dependencies(repo, name, version) do
+        {:ok, deps} -> deps
+        :error -> []
+      end
+
+    if Enum.sort(deps) != Enum.sort(registry_deps) do
       Mix.raise("Registry dependencies mismatch against lock (#{name} #{version})")
     end
   end
@@ -554,12 +532,16 @@ defmodule Hex.RemoteConverger do
   defp verify_dep(repo, name, version) do
     Hex.Repo.get_repo(repo)
 
-    if versions = Registry.versions(repo, name) do
-      unless version in versions do
-        Mix.raise("Unknown package version #{name} #{version} in lockfile")
-      end
-    else
-      Mix.raise("Unknown package #{name} in lockfile")
+    case Registry.versions(repo, name) do
+      {:ok, versions} ->
+        versions = Enum.map(versions, &to_string/1)
+
+        unless version in versions do
+          Mix.raise("Unknown package version #{name} #{version} in lockfile")
+        end
+
+      :error ->
+        Mix.raise("Unknown package #{name} in lockfile")
     end
   end
 
@@ -574,11 +556,13 @@ defmodule Hex.RemoteConverger do
         %{name: name, version: version, deps: nil, repo: repo} ->
           # Do not error on bad data in the old lock because we should just
           # fix it automatically
-          if deps = Registry.dependencies(repo, name, version) do
-            apps = Enum.map(deps, &elem(&1, 1))
-            [apps, do_with_children(apps, lock)]
-          else
-            []
+          case Registry.dependencies(repo, name, version) do
+            {:ok, deps} ->
+              apps = Enum.map(deps, fn %{label: app} -> app end)
+              [apps, do_with_children(apps, lock)]
+
+            :error ->
+              []
           end
 
         %{deps: deps} ->
@@ -620,7 +604,7 @@ defmodule Hex.RemoteConverger do
 
         case Hex.Utils.lock(old_lock[app]) do
           %{name: ^name, version: version, repo: repo} ->
-            (req && !Hex.Version.match?(version, req)) || repo != opts[:repo]
+            (req && not Version.match?(version, req)) || repo != opts[:repo]
 
           %{} ->
             false
@@ -633,5 +617,13 @@ defmodule Hex.RemoteConverger do
         true
     end)
     |> Enum.map(&Atom.to_string(&1.app))
+  end
+
+  defp major_version_change?(%Version{} = version1, %Version{} = version2) do
+    version1.major != version2.major
+  end
+
+  defp breaking_minor_version_change?(%Version{} = version1, %Version{} = version2) do
+    version1.major == 0 and version2.major == 0 and version1.minor != version2.minor
   end
 end

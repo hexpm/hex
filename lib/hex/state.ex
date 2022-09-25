@@ -141,7 +141,7 @@ defmodule Hex.State do
     project_config = Keyword.get(Mix.Project.config(), :hex, [])
 
     state =
-      Enum.into(@config, %{}, fn {key, spec} ->
+      Map.new(@config, fn {key, spec} ->
         {key, load_config_value(global_config, project_config, spec)}
       end)
 

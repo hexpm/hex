@@ -71,9 +71,9 @@ defmodule Mix.Tasks.Hex.Publish do
 
   @impl true
   def run(args) do
-    Hex.Mix.check_deps()
+    Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
     Hex.start()
-    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
+    {opts, args} = OptionParser.parse!(args, strict: @switches)
 
     build = Build.prepare_package()
     revert_version = opts[:revert]
@@ -290,7 +290,7 @@ defmodule Mix.Tasks.Hex.Publish do
     end)
 
     Hex.Shell.info("")
-    owner_prompt_selection(Enum.into(organizations, %{}))
+    owner_prompt_selection(MapSet.new(organizations))
   end
 
   defp owner_prompt_selection(organizations) do
@@ -426,8 +426,8 @@ defmodule Mix.Tasks.Hex.Publish do
         default_api_url? = api_url == Hex.State.default_api_url()
 
         location =
-          if !default_api_url? && headers['location'] do
-            headers['location']
+          if !default_api_url? && headers[~c"location"] do
+            headers[~c"location"]
           else
             Hex.Utils.hexdocs_url(organization, name, version)
           end

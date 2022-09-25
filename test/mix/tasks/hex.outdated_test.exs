@@ -292,7 +292,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
           [:bright, "beta", :reset],
           ["        ", "1.0.0", :reset],
           ["    ", :red, "1.1.0-beta", :reset],
-          ["  ", :red, "Update not possible", :reset],
+          ["  ", :yellow, "Update possible", :reset],
           "  "
         ]
         |> IO.ANSI.format()

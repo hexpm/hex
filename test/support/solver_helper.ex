@@ -2,19 +2,21 @@ defmodule HexTest.SolverHelper do
   alias Hex.Registry.Server, as: Registry
 
   def solve(dependencies, locked \\ []) do
-    [dependencies, locked]
-    |> Enum.concat()
-    |> Enum.map(&to_string(elem(&1, 0)))
-    |> Registry.prefetch()
-
     dependencies = dependencies(dependencies)
     locked = locked(locked)
-    overridden = []
 
-    case Hex.Solver.run(Registry, dependencies, locked, overridden) do
+    (dependencies ++ locked)
+    |> Enum.map(fn %{repo: repo, name: name} -> {repo, name} end)
+    |> Registry.prefetch()
+
+    case Hex.Solver.run(Registry, dependencies, locked, _overridden = []) do
       {:ok, result} ->
-        Map.new(result, fn {package, version} ->
-          {String.to_atom(package), Version.to_string(version)}
+        Map.new(result, fn
+          {package, {version, nil}} ->
+            {String.to_atom(package), to_string(version)}
+
+          {package, {version, repo}} ->
+            {{repo, String.to_atom(package)}, to_string(version)}
         end)
 
       {:error, message} ->
@@ -25,20 +27,49 @@ defmodule HexTest.SolverHelper do
   defp dependencies(dependencies) do
     Enum.map(dependencies, fn
       {package, requirement} ->
-        package = to_string(package)
-        {package, Hex.Solver.parse_constraint!(requirement || ">= 0.0.0"), false, package}
+        %{
+          repo: nil,
+          name: to_string(package),
+          constraint: Hex.Solver.parse_constraint!(requirement || ">= 0.0.0"),
+          optional: false,
+          label: package
+        }
 
       {package, requirement, opts} ->
-        package = to_string(package)
+        repo = Keyword.get(opts, :repo)
         optional = Keyword.get(opts, :optional, false)
         app = Keyword.get(opts, :app, false)
-        {package, Hex.Solver.parse_constraint!(requirement || ">= 0.0.0"), optional, app}
+
+        %{
+          repo: repo,
+          name: to_string(package),
+          constraint: Hex.Solver.parse_constraint!(requirement || ">= 0.0.0"),
+          optional: optional,
+          label: app
+        }
     end)
   end
 
   defp locked(dependencies) do
-    Enum.map(dependencies, fn {package, requirement} ->
-      {to_string(package), Hex.Solver.parse_constraint!(requirement || ">= 0.0.0")}
+    Enum.map(dependencies, fn
+      {package, requirement} ->
+        %{
+          repo: nil,
+          name: to_string(package),
+          version: Hex.Solver.parse_constraint!(requirement || ">= 0.0.0"),
+          label: package
+        }
+
+      {package, requirement, opts} ->
+        repo = Keyword.get(opts, :repo)
+        app = Keyword.get(opts, :app, false)
+
+        %{
+          repo: repo,
+          name: to_string(package),
+          version: Hex.Solver.parse_constraint!(requirement || ">= 0.0.0"),
+          label: app
+        }
     end)
   end
 

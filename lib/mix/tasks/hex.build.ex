@@ -41,7 +41,7 @@ defmodule Mix.Tasks.Hex.Build do
   @impl true
   def run(args) do
     Hex.start()
-    {opts, _args} = Hex.OptionParser.parse!(args, strict: @switches, aliases: @aliases)
+    {opts, _args} = OptionParser.parse!(args, strict: @switches, aliases: @aliases)
 
     build = prepare_package()
 
@@ -92,7 +92,7 @@ defmodule Mix.Tasks.Hex.Build do
     check_umbrella_project!(config)
     check_root_fields!(config)
 
-    package = Enum.into(config[:package] || [], %{})
+    package = Map.new(config[:package] || [])
     check_misspellings!(package)
     {organization, package} = Map.pop(package, :organization)
     {deps, exclude_deps} = dependencies()
@@ -177,7 +177,7 @@ defmodule Mix.Tasks.Hex.Build do
   defp meta_for(config, package, deps) do
     config
     |> Keyword.take(@root_fields)
-    |> Enum.into(%{})
+    |> Map.new()
     |> Map.merge(package)
     |> package(config)
     |> Map.put(:requirements, deps)
@@ -465,7 +465,7 @@ defmodule Mix.Tasks.Hex.Build do
     base_files =
       paths
       |> Enum.filter(&(Path.dirname(&1) == "."))
-      |> Enum.into(Hex.Set.new())
+      |> MapSet.new()
 
     for {file, tool} <- @build_tools, file in base_files do
       tool

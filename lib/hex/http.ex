@@ -35,8 +35,8 @@ defmodule Hex.HTTP do
   defp fallback(:inet6), do: :inet
 
   defp build_headers(headers) do
-    default_headers = %{'user-agent' => user_agent()}
-    headers = Enum.into(headers, %{})
+    default_headers = %{~c"user-agent" => user_agent()}
+    headers = Map.new(headers)
     Map.merge(default_headers, headers)
   end
 
@@ -118,9 +118,9 @@ defmodule Hex.HTTP do
 
   defp handle_redirect({code, _body, headers})
        when code in [301, 302, 303, 307, 308] do
-    headers = Enum.into(headers, %{})
+    headers = Map.new(headers)
 
-    if location = headers['location'] do
+    if location = headers[~c"location"] do
       {:ok, location}
     else
       :error
@@ -161,8 +161,8 @@ defmodule Hex.HTTP do
   end
 
   defp handle_response({:ok, {{_version, code, _reason}, headers, body}}) do
-    headers = Enum.into(headers, %{})
-    handle_hex_message(headers['x-hex-message'])
+    headers = Map.new(headers)
+    handle_hex_message(headers[~c"x-hex-message"])
     {:ok, {code, unzip(body, headers), headers}}
   end
 
@@ -171,7 +171,7 @@ defmodule Hex.HTTP do
   end
 
   defp unzip(body, headers) do
-    content_encoding = List.to_string(headers['content-encoding'] || '')
+    content_encoding = List.to_string(headers[~c"content-encoding"] || ~c"")
 
     if String.contains?(content_encoding, "gzip") do
       :zlib.gunzip(body)
@@ -251,7 +251,7 @@ defmodule Hex.HTTP do
   end
 
   defp user_agent do
-    'Hex/#{Hex.version()} (Elixir/#{System.version()}) (OTP/#{Hex.Utils.otp_version()})'
+    ~c"Hex/#{Hex.version()} (Elixir/#{System.version()}) (OTP/#{Hex.Utils.otp_version()})"
   end
 
   def handle_hex_message(nil) do
@@ -308,7 +308,7 @@ defmodule Hex.HTTP do
     |> skip_trail_ws("", "")
   end
 
-  defp add_basic_auth_via_netrc(%{'authorization' => _} = headers, _url), do: headers
+  defp add_basic_auth_via_netrc(%{~c"authorization" => _} = headers, _url), do: headers
 
   defp add_basic_auth_via_netrc(%{} = headers, url) do
     url = URI.parse(url)
@@ -316,7 +316,7 @@ defmodule Hex.HTTP do
     case Hex.Netrc.lookup(url.host) do
       {:ok, %{username: username, password: password}} ->
         base64 = :base64.encode_to_string("#{username}:#{password}")
-        Map.put(headers, 'authorization', 'Basic #{base64}')
+        Map.put(headers, ~c"authorization", ~c"Basic #{base64}")
 
       _ ->
         headers

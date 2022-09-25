@@ -780,35 +780,6 @@ defmodule Hex.MixTaskTest do
     end)
   end
 
-  test "deps.get with non matching requirement" do
-    Mix.Project.push(WithNonMatchingRequirement)
-
-    in_tmp(fn ->
-      Hex.State.put(:cache_home, File.cwd!())
-
-      message = ~r{No matching version for ex_doc ~> 100.0.0.*\n\nThe latest version is: 0.1.0}
-
-      assert_raise Mix.Error, message, fn ->
-        Mix.Task.run("deps.get")
-      end
-    end)
-  end
-
-  test "deps.get with only matching pre requirement" do
-    Mix.Project.push(WithOnlyMatchingPreRequirement)
-
-    in_tmp(fn ->
-      Hex.State.put(:cache_home, File.cwd!())
-
-      message =
-        ~r{No matching version for beta ~> 1.1.0.*\n\n.*pre-releases available.*\n\n  \* 1.1.0-beta}
-
-      assert_raise Mix.Error, message, fn ->
-        Mix.Task.run("deps.get")
-      end
-    end)
-  end
-
   defp old_lock_tuple(lock_tuple) do
     {elem(lock_tuple, 0), elem(lock_tuple, 1), elem(lock_tuple, 2), elem(lock_tuple, 3)}
   end

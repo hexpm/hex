@@ -95,7 +95,7 @@ defmodule Hex.Repo do
   end
 
   def update_organizations(repos) do
-    Enum.into(repos, %{}, fn {name, repo} ->
+    Map.new(repos, fn {name, repo} ->
       case split_repo_name(name) do
         [source, organization] ->
           source = Map.fetch!(repos, source)
@@ -109,7 +109,7 @@ defmodule Hex.Repo do
   end
 
   def clean_organizations(repos) do
-    Enum.into(repos, %{}, fn {name, repo} ->
+    Map.new(repos, fn {name, repo} ->
       case split_repo_name(name) do
         [source, organization] ->
           source_repo = Map.fetch!(repos, source)
@@ -192,7 +192,7 @@ defmodule Hex.Repo do
     body
     |> parse_csv()
     |> find_latest_eligible_version()
-    |> is_version_newer()
+    |> version_latest()
   end
 
   defp package_url(repo, package) do
@@ -211,13 +211,13 @@ defmodule Hex.Repo do
   end
 
   defp etag_headers(nil), do: %{}
-  defp etag_headers(etag), do: %{'if-none-match' => String.to_charlist(etag)}
+  defp etag_headers(etag), do: %{~c"if-none-match" => String.to_charlist(etag)}
 
   defp auth_headers(repo) do
     repo = get_repo(repo)
 
     if key = repo.auth_key do
-      %{'authorization' => String.to_charlist(key)}
+      %{~c"authorization" => String.to_charlist(key)}
     else
       %{}
     end
@@ -230,7 +230,7 @@ defmodule Hex.Repo do
   end
 
   defp find_latest_eligible_version(entries) do
-    elixir_version = Hex.Version.parse!(System.version())
+    elixir_version = Version.parse!(System.version())
 
     entries
     |> Enum.reverse()
@@ -238,16 +238,16 @@ defmodule Hex.Repo do
   end
 
   defp find_version([hex_version, _digest | compatible_versions], elixir_version) do
-    if Enum.find(compatible_versions, &(Hex.Version.compare(&1, elixir_version) != :gt)) do
+    if Enum.find(compatible_versions, &(Version.compare(&1, elixir_version) != :gt)) do
       hex_version
     end
   end
 
   # Treat missing as latest
-  defp is_version_newer(nil), do: :latest
+  defp version_latest(nil), do: :latest
 
-  defp is_version_newer(hex_version) do
-    if Hex.Version.compare(hex_version, Hex.version()) == :gt do
+  defp version_latest(hex_version) do
+    if Version.compare(hex_version, Hex.version()) == :gt do
       {:version, hex_version}
     else
       :latest
@@ -327,7 +327,7 @@ defmodule Hex.Repo do
   def get_public_key(repo_url, auth_key) do
     auth_headers =
       if auth_key do
-        %{'authorization' => String.to_charlist(auth_key)}
+        %{~c"authorization" => String.to_charlist(auth_key)}
       else
         %{}
       end

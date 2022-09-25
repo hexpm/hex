@@ -97,7 +97,7 @@ defmodule Mix.Tasks.Hex.User do
   @impl true
   def run(args) do
     Hex.start()
-    {opts, args} = Hex.OptionParser.parse!(args, strict: @switches)
+    {opts, args} = OptionParser.parse!(args, strict: @switches)
 
     case args do
       ["register"] ->
@@ -225,7 +225,7 @@ defmodule Mix.Tasks.Hex.User do
   defp deauth_organizations() do
     Hex.State.fetch!(:repos)
     |> Enum.reject(fn {name, _config} -> String.starts_with?(name, "hexpm:") end)
-    |> Enum.into(%{})
+    |> Map.new()
     |> Hex.Config.update_repos()
   end
 

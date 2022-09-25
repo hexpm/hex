@@ -9,7 +9,6 @@ defmodule Hex.Application do
     Mix.SCM.append(Hex.SCM)
     Mix.RemoteConverger.register(Hex.RemoteConverger)
 
-    Hex.Version.start()
     warn_ssl()
     start_httpc()
 
@@ -28,7 +27,7 @@ defmodule Hex.Application do
   defp warn_ssl() do
     case Application.load(:ssl) do
       :ok ->
-        if :application.get_key(:ssl, :vsn) == {:ok, '10.2'} do
+        if :application.get_key(:ssl, :vsn) == {:ok, ~c"10.2"} do
           Hex.Shell.warn("""
           You are using an OTP release with the application ssl-10.2 which has a vulnerability \
           making it susceptible to man-in-the-middle attacks. You are strongly recommended to \
@@ -53,42 +52,24 @@ defmodule Hex.Application do
     :httpc.set_options(opts, :hex)
   end
 
-  defmacrop worker(module) do
-    if Version.compare(System.version(), "1.5.0") == :lt do
-      import Supervisor.Spec
-      quote do: worker(unquote(module), [[]])
-    else
-      quote do: unquote(module)
-    end
-  end
-
-  defmacrop worker(module, args) do
-    if Version.compare(System.version(), "1.5.0") == :lt do
-      import Supervisor.Spec
-      quote do: worker(unquote(module), [unquote(args)])
-    else
-      quote do: {unquote(module), unquote(args)}
-    end
-  end
-
   if Mix.env() == :test do
     defp children do
       [
-        worker(Hex.Netrc.Cache),
-        worker(Hex.State),
-        worker(Hex.Server),
-        worker(Hex.Parallel, [:hex_fetcher])
+        Hex.Netrc.Cache,
+        Hex.State,
+        Hex.Server,
+        {Hex.Parallel, [:hex_fetcher]}
       ]
     end
   else
     defp children do
       [
-        worker(Hex.Netrc.Cache),
-        worker(Hex.State),
-        worker(Hex.Server),
-        worker(Hex.Parallel, [:hex_fetcher]),
-        worker(Hex.Registry.Server),
-        worker(Hex.UpdateChecker)
+        Hex.Netrc.Cache,
+        Hex.State,
+        Hex.Server,
+        {Hex.Parallel, [:hex_fetcher]},
+        Hex.Registry.Server,
+        Hex.UpdateChecker
       ]
     end
   end
