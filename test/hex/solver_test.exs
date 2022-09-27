@@ -206,4 +206,8 @@ defmodule Hex.SolverTest do
              {"repo2", :hexpm_deps} => "0.1.0"
            }
   end
+
+  test "do not override locked deps" do
+    assert solve([{:foo, "~> 0.2.0", override: true}], [{:foo, "0.2.0"}]) == %{:foo => "0.2.0"}
+  end
 end

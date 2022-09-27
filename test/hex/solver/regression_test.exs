@@ -3,11 +3,6 @@ defmodule Hex.Solver.RegressionTest do
   import HexTest.SolverHelper
   alias Hex.Registry.Server, as: Registry
 
-  # Older OTP versions cannot read ETS files created on OTP 23
-  if :erlang.system_info(:otp_release) < '19' do
-    @moduletag :skip
-  end
-
   setup do
     Hex.State.put(:offline, true)
   end

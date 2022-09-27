@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.0 (bbbcffe), do not edit manually
+# Vendored from hex_solver v0.2.0 (c71c22f), do not edit manually
 
 defmodule Hex.Solver.Constraints.Impl do
   @moduledoc false

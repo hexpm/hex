@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.0 (bbbcffe), do not edit manually
+# Vendored from hex_solver v0.2.0 (c71c22f), do not edit manually
 
 defmodule Hex.Solver.PackageLister do
   @moduledoc false
@@ -55,7 +55,7 @@ defmodule Hex.Solver.PackageLister do
       dependencies
       |> Enum.sort()
       |> Enum.reject(fn {_dependency, %{label: label}} ->
-        package != "$root" and label in lister.overrides
+        package not in ["$root", "$lock"] and label in lister.overrides
       end)
       |> Enum.reject(fn {dependency, _} ->
         case Map.fetch(already_returned, dependency) do
