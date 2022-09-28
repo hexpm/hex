@@ -25,7 +25,8 @@ defmodule Hex.MixProject do
 
   defp deps() do
     [
-      {:bypass, "~> 1.0.0"}
+      {:bypass, "~> 1.0.0"},
+      {:mime, "~> 1.0"}
     ]
   end
 
