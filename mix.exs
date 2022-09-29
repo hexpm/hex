@@ -86,28 +86,27 @@ defmodule Hex.MixProject do
     end)
   end
 
-  if Version.compare(System.version(), "1.10.0") == :lt do
-    defp update_cached_deps(module) do
-      case Mix.ProjectStack.read_cache({:cached_deps, module}) do
-        {env_target, cached_deps} ->
-          cached_deps = Enum.map(cached_deps, &change_scm/1)
-          Mix.ProjectStack.write_cache({:cached_deps, module}, {env_target, cached_deps})
-
-        nil ->
-          :ok
+  cond do
+    Version.compare(System.version(), "1.7.0") == :lt ->
+      defp update_cached_deps(module) do
+        cached_deps = Mix.ProjectStack.read_cache({:cached_deps, Mix.env(), module})
+        cached_deps = Enum.map(cached_deps, &change_scm/1)
+        Mix.ProjectStack.write_cache({:cached_deps, Mix.env(), module}, cached_deps)
       end
-    end
-  else
-    defp update_cached_deps(module) do
-      case Mix.State.read_cache({:cached_deps, module}) do
-        {env_target, cached_deps} ->
-          cached_deps = Enum.map(cached_deps, &change_scm/1)
-          Mix.State.write_cache({:cached_deps, module}, {env_target, cached_deps})
 
-        nil ->
-          :ok
+    Version.compare(System.version(), "1.10.0") == :lt ->
+      defp update_cached_deps(module) do
+        {env_target, cached_deps} = Mix.ProjectStack.read_cache({:cached_deps, module})
+        cached_deps = Enum.map(cached_deps, &change_scm/1)
+        Mix.ProjectStack.write_cache({:cached_deps, module}, {env_target, cached_deps})
       end
-    end
+
+    true ->
+      defp update_cached_deps(module) do
+        {env_target, cached_deps} = Mix.State.read_cache({:cached_deps, module})
+        cached_deps = Enum.map(cached_deps, &change_scm/1)
+        Mix.State.write_cache({:cached_deps, module}, {env_target, cached_deps})
+      end
   end
 
   defp change_scm(%Mix.Dep{deps: deps} = dep) do
