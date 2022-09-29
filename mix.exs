@@ -54,9 +54,7 @@ defmodule Hex.MixProject do
   end
 
   defp unload_hex(_) do
-    {env_target, cached_deps} = Mix.State.read_cache({:cached_deps, __MODULE__})
-    cached_deps = Enum.map(cached_deps, &change_scm/1)
-    Mix.State.write_cache({:cached_deps, __MODULE__}, {env_target, cached_deps})
+    update_cached_deps(__MODULE__)
 
     Application.stop(:hex)
     Application.unload(:hex)
@@ -83,6 +81,20 @@ defmodule Hex.MixProject do
         end
       end)
     end)
+  end
+
+  if Version.compare(System.version(), "1.10.0") == :lt do
+    defp update_cached_deps(module) do
+      {env_target, cached_deps} = Mix.ProjectStack.read_cache({:cached_deps, module})
+      cached_deps = Enum.map(cached_deps, &change_scm/1)
+      Mix.ProjectStack.write_cache({:cached_deps, module}, {env_target, cached_deps})
+    end
+  else
+    defp update_cached_deps(module) do
+      {env_target, cached_deps} = Mix.State.read_cache({:cached_deps, module})
+      cached_deps = Enum.map(cached_deps, &change_scm/1)
+      Mix.State.write_cache({:cached_deps, module}, {env_target, cached_deps})
+    end
   end
 
   defp change_scm(%Mix.Dep{deps: deps} = dep) do
