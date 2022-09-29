@@ -17,13 +17,10 @@ defmodule Hex.MixProject do
 
   def application do
     [
-      applications: applications(Mix.env()),
+      extra_applications: [:ssl, :inets, :logger],
       mod: {Hex.Application, []}
     ]
   end
-
-  defp applications(:prod), do: [:ssl, :inets]
-  defp applications(_), do: [:ssl, :inets, :logger]
 
   defp deps() do
     [
