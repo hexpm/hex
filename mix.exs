@@ -88,15 +88,25 @@ defmodule Hex.MixProject do
 
   if Version.compare(System.version(), "1.10.0") == :lt do
     defp update_cached_deps(module) do
-      {env_target, cached_deps} = Mix.ProjectStack.read_cache({:cached_deps, module})
-      cached_deps = Enum.map(cached_deps, &change_scm/1)
-      Mix.ProjectStack.write_cache({:cached_deps, module}, {env_target, cached_deps})
+      case Mix.ProjectStack.read_cache({:cached_deps, module}) do
+        {env_target, cached_deps} ->
+          cached_deps = Enum.map(cached_deps, &change_scm/1)
+          Mix.ProjectStack.write_cache({:cached_deps, module}, {env_target, cached_deps})
+
+        nil ->
+          :ok
+      end
     end
   else
     defp update_cached_deps(module) do
-      {env_target, cached_deps} = Mix.State.read_cache({:cached_deps, module})
-      cached_deps = Enum.map(cached_deps, &change_scm/1)
-      Mix.State.write_cache({:cached_deps, module}, {env_target, cached_deps})
+      case Mix.State.read_cache({:cached_deps, module}) do
+        {env_target, cached_deps} ->
+          cached_deps = Enum.map(cached_deps, &change_scm/1)
+          Mix.State.write_cache({:cached_deps, module}, {env_target, cached_deps})
+
+        nil ->
+          :ok
+      end
     end
   end
 
