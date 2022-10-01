@@ -9,6 +9,7 @@ defmodule Hex.MixProject do
       version: @version,
       elixir: "~> 1.5",
       aliases: aliases(),
+      config_path: config_path(),
       deps: deps(),
       elixirc_options: elixirc_options(Mix.env()),
       elixirc_paths: elixirc_paths(Mix.env())
@@ -24,23 +25,28 @@ defmodule Hex.MixProject do
 
   defp deps() do
     [
-      {:stream_data, [github: "whatyouhide/stream_data", tag: "v0.4.0"] ++ test_opts()},
-      {:plug, [github: "elixir-lang/plug", tag: "v1.6.1"] ++ test_opts()},
-      {:mime, [github: "elixir-plug/mime", tag: "v1.3.0"] ++ test_opts()},
-      {:bypass, [github: "PSPDFKit-labs/bypass", only: :test]},
-      {:cowboy, [github: "ninenines/cowboy", tag: "1.0.4", manager: :rebar3] ++ test_opts()},
-      {:cowlib, [github: "ninenines/cowlib", tag: "1.0.2", manager: :rebar3] ++ test_opts()},
-      {:ranch, [github: "ninenines/ranch", tag: "1.2.1", manager: :rebar3] ++ test_opts()}
+      {:bypass, "~> 1.0.0"},
+      {:cowboy, "~> 2.7.0"},
+      {:mime, "~> 1.0"},
+      {:plug, "~> 1.9.0"},
+      {:plug_cowboy, "~> 2.1.0"},
+      {:plug_crypto, "~> 1.1.2"}
     ]
   end
-
-  defp test_opts(), do: [only: :test, override: true]
 
   defp elixirc_options(:prod), do: [debug_info: false]
   defp elixirc_options(_), do: []
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  defp config_path() do
+    if Version.compare(System.version(), "1.11.0") in [:eq, :gt] do
+      "config/config.exs"
+    else
+      "config/mix_config.exs"
+    end
+  end
 
   defp aliases do
     [
@@ -52,6 +58,8 @@ defmodule Hex.MixProject do
   end
 
   defp unload_hex(_) do
+    update_cached_deps(__MODULE__)
+
     Application.stop(:hex)
     Application.unload(:hex)
     paths = Path.wildcard(Path.join(archives_path(), "hex*"))
@@ -77,6 +85,29 @@ defmodule Hex.MixProject do
         end
       end)
     end)
+  end
+
+  defp update_cached_deps(module) do
+    cond do
+      Version.compare(System.version(), "1.7.0") == :lt ->
+        cached_deps = Mix.ProjectStack.read_cache({:cached_deps, Mix.env(), module})
+        cached_deps = Enum.map(cached_deps, &change_scm/1)
+        Mix.ProjectStack.write_cache({:cached_deps, Mix.env(), module}, cached_deps)
+
+      Version.compare(System.version(), "1.10.0") == :lt ->
+        {env_target, cached_deps} = Mix.ProjectStack.read_cache({:cached_deps, module})
+        cached_deps = Enum.map(cached_deps, &change_scm/1)
+        Mix.ProjectStack.write_cache({:cached_deps, module}, {env_target, cached_deps})
+
+      true ->
+        {env_target, cached_deps} = Mix.State.read_cache({:cached_deps, module})
+        cached_deps = Enum.map(cached_deps, &change_scm/1)
+        Mix.State.write_cache({:cached_deps, module}, {env_target, cached_deps})
+    end
+  end
+
+  defp change_scm(%Mix.Dep{deps: deps} = dep) do
+    %Mix.Dep{dep | scm: Hex.FakeSCM, deps: Enum.map(deps, &change_scm/1)}
   end
 
   @mk_ca_bundle_url "https://raw.githubusercontent.com/bagder/curl/master/lib/mk-ca-bundle.pl"
@@ -119,4 +150,8 @@ defmodule Hex.MixProject do
   else
     defp archive_ebin(archive), do: Mix.Archive.ebin(archive)
   end
+end
+
+defmodule Hex.FakeSCM do
+  def fetchable?, do: true
 end
