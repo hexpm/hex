@@ -7,13 +7,14 @@ jobs:
     name: Format
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
 
       - name: Install OTP and Elixir
-        uses: erlef/setup-beam@v1.9
+        uses: erlef/setup-beam@v1
         with:
           otp-version: 24
           elixir-version: 1.12
+          version-type: strict
 
       - name: Install dependencies
         run: mix deps.get
@@ -40,11 +41,14 @@ jobs:
       fail-fast: false
       matrix:
         pair:
-          # rebar3 escript fails on erlang master
-          # - erlang: master
-          #   elixir: 1.12.3
-          - erlang: 24.0
+          - erlang: master
+            elixir: 1.14.0
+          - erlang: 25.0
             elixir: main
+          - erlang: 25.0
+            elixir: 1.14.0
+          - erlang: 25.0
+            elixir: 1.13.4
           - erlang: 24.0
             elixir: 1.12.3
           - erlang: 23.1
@@ -63,8 +67,8 @@ jobs:
             elixir: 1.5.3
 
     env:
-      HEXPM_OTP: OTP-24.0
-      HEXPM_ELIXIR: v1.12.3
+      HEXPM_OTP: OTP-25.0
+      HEXPM_ELIXIR: v1.14.0
       HEXPM_PATH: hexpm
       HEXPM_ELIXIR_PATH: hexpm_elixir
       HEXPM_OTP_PATH: hexpm_otp
@@ -72,13 +76,14 @@ jobs:
       HEXPM_MIX_ARCHIVES: hexpm_mix
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
 
       - name: Install OTP and Elixir
-        uses: erlef/setup-beam@v1.9
+        uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.pair.erlang}}
           elixir-version: ${{matrix.pair.elixir}}
+          version-type: strict
 
       - name: Install OTP and Elixir for hexpm
         run: |
