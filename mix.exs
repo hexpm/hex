@@ -25,12 +25,12 @@ defmodule Hex.MixProject do
 
   defp deps() do
     [
-      {:bypass, "~> 1.0.0"},
-      {:cowboy, "~> 2.7.0"},
-      {:mime, "~> 1.0"},
-      {:plug, "~> 1.9.0"},
-      {:plug_cowboy, "~> 2.1.0"},
-      {:plug_crypto, "~> 1.1.2"}
+      {:bypass, "~> 1.0.0", only: :test},
+      {:cowboy, "~> 2.7.0", only: :test},
+      {:mime, "~> 1.0", only: :test},
+      {:plug, "~> 1.9.0", only: :test},
+      {:plug_cowboy, "~> 2.1.0", only: :test},
+      {:plug_crypto, "~> 1.1.2", only: :test}
     ]
   end
 
