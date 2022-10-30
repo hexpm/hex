@@ -130,14 +130,14 @@ defmodule Hex.SolverTest do
 
   test "failure due to locked dep" do
     assert solve([ex_plex: "0.1.0", decimal: nil], decimal: "0.0.1") == """
-           Because "lock" specifies "decimal 0.0.1" and "ex_plex >= 0.1.0 and < 0.2.0" depends on "decimal ~> 0.1.0", "lock" is incompatible with "ex_plex >= 0.1.0 and < 0.2.0".
-           And because "your app" depends on "lock", "ex_plex >= 0.1.0 and < 0.2.0" is forbidden.
+           Because "the lock" specifies "decimal 0.0.1" and "ex_plex >= 0.1.0 and < 0.2.0" depends on "decimal ~> 0.1.0", "the lock" is incompatible with "ex_plex >= 0.1.0 and < 0.2.0".
+           And because "your app" depends on "the lock", "ex_plex >= 0.1.0 and < 0.2.0" is forbidden.
            So, because "your app" depends on "ex_plex 0.1.0", version solving failed.\
            """
 
     assert solve([decimal: nil, ex_plex: "0.1.0"], decimal: "0.0.1") == """
-           Because "lock" specifies "decimal 0.0.1" and "ex_plex >= 0.1.0 and < 0.2.0" depends on "decimal ~> 0.1.0", "lock" is incompatible with "ex_plex >= 0.1.0 and < 0.2.0".
-           And because "your app" depends on "lock", "ex_plex >= 0.1.0 and < 0.2.0" is forbidden.
+           Because "the lock" specifies "decimal 0.0.1" and "ex_plex >= 0.1.0 and < 0.2.0" depends on "decimal ~> 0.1.0", "the lock" is incompatible with "ex_plex >= 0.1.0 and < 0.2.0".
+           And because "your app" depends on "the lock", "ex_plex >= 0.1.0 and < 0.2.0" is forbidden.
            So, because "your app" depends on "ex_plex 0.1.0", version solving failed.\
            """
 

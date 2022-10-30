@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.0 (c71c22f), do not edit manually
+# Vendored from hex_solver v0.2.0 (b0424d1), do not edit manually
 
 defmodule Hex.Solver.PackageRange do
   @moduledoc false
@@ -11,7 +11,7 @@ defmodule Hex.Solver.PackageRange do
             constraint: nil
 
   def to_string(%PackageRange{name: "$root"}), do: "your app"
-  def to_string(%PackageRange{name: "$lock"}), do: "lock"
+  def to_string(%PackageRange{name: "$lock"}), do: "the lock"
 
   def to_string(%PackageRange{repo: nil, name: name, constraint: constraint}),
     do: "#{name}#{constraint(constraint)}"

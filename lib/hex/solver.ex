@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.0 (c71c22f), do not edit manually
+# Vendored from hex_solver v0.2.0 (b0424d1), do not edit manually
 
 defmodule Hex.Solver do
   _ = """
@@ -51,8 +51,12 @@ defmodule Hex.Solver do
           {:ok, result()} | {:error, String.t()}
   def run(registry, dependencies, locked, overrides, opts \\ []) do
     case Solver.run(registry, dependencies, locked, overrides) do
-      {:ok, solution} -> {:ok, Map.drop(solution, ["$root", "$lock"])}
-      {:error, incompatibility} -> {:error, Failure.write(incompatibility, opts)}
+      {:ok, solution} ->
+        {:ok, Map.drop(solution, ["$root", "$lock"])}
+
+      {:error, incompatibility} ->
+        IO.inspect(incompatibility)
+        {:error, Failure.write(incompatibility, opts)}
     end
   end
 
