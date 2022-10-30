@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## v2.0.0 (2022-10-30)
+
+### Enhancements
+
+* New version solver with higher performance and better error messages
+* Switch to IPv6 if requests fail due to connection errors
+
+### Bug fixes
+
+* Fix browser opening on Windows
+
 ## v1.0.1 (2021-12-14)
 
 ### Bug fixes

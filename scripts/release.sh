@@ -8,10 +8,12 @@ function join { local IFS="$1"; shift; echo "$*"; }
 # $2 = erlang version
 # $3 = elixir version
 # $4 = saved elixir version
+# $5 = ubuntu version
 function build {
   rm -rf _build src/mix_safe_erl_term.erl
-  docker run -v $PWD:/hex hexpm/elixir:${3}-erlang-${2}-ubuntu-xenial-20200212 sh -c "cd /hex && MIX_ENV=prod mix archive.build -o hex.ez"
-  docker run -v $PWD:/hex hexpm/elixir:${3}-erlang-${2}-ubuntu-xenial-20200212 sh -c "cd /hex && MIX_ENV=prod mix archive.build -o hex-${1}.ez"
+  docker run -v $PWD:/hex hexpm/elixir:${3}-erlang-${2}-ubuntu-${5} sh -c "mix local.hex --force"
+  docker run -v $PWD:/hex hexpm/elixir:${3}-erlang-${2}-ubuntu-${5} sh -c "cd /hex && mix local.hex --force && MIX_ENV=prod mix archive.build -o hex.ez"
+  docker run -v $PWD:/hex hexpm/elixir:${3}-erlang-${2}-ubuntu-${5} sh -c "cd /hex && mix local.hex --force && MIX_ENV=prod mix archive.build -o hex-${1}.ez"
   cp hex.ez hex-elixir-${4}.ez
   cp hex-${1}.ez hex-${1}-elixir-${4}.ez
 }
@@ -53,9 +55,6 @@ function upload {
     s3up "hex-${1}-elixir-${elixir}.ez" "${elixir}/hex-${1}.ez"
   done
 
-  # special case 1.0.0 upload
-  s3up hex-elixir-1.0.0.ez hex.ez
-
   s3up hex-1.x.csv hex-1.x.csv
   s3up hex-1.x.csv.signed hex-1.x.csv.signed
 }
@@ -63,25 +62,17 @@ function upload {
 hex_version=$1
 
 # UPDATE THIS FOR EVERY RELEASE
-build ${hex_version} 22.3 1.13.0 1.13.0
-build ${hex_version} 22.3 1.12.3 1.12.0
-build ${hex_version} 21.3 1.11.4 1.11.0
-build ${hex_version} 21.3 1.10.4 1.10.0
-build ${hex_version} 20.3 1.9.4 1.9.0
-build ${hex_version} 20.3 1.8.2 1.8.0
-build ${hex_version} 19.3 1.7.4 1.7.0
-build ${hex_version} 19.3 1.6.6 1.6.0
-build ${hex_version} 18.3 1.5.3 1.5.0
-build ${hex_version} 18.3 1.4.5 1.4.0
-build ${hex_version} 18.3 1.3.4 1.3.0
-build ${hex_version} 18.3 1.2.6 1.2.0
-build ${hex_version} 17.5 1.1.1 1.1.0
-build ${hex_version} 17.5 1.0.5 1.0.0
+build ${hex_version} 23.3 1.14.1 1.14.0 xenial-20210114
+build ${hex_version} 22.3 1.13.4 1.13.0 xenial-20200212
+build ${hex_version} 22.3 1.12.3 1.12.0 xenial-20200212
+build ${hex_version} 21.3 1.11.4 1.11.0 xenial-20200212
+build ${hex_version} 21.3 1.10.4 1.10.0 xenial-20200212
+build ${hex_version} 20.3 1.9.4 1.9.0 xenial-20200212
+build ${hex_version} 20.3 1.8.2 1.8.0 xenial-20200212
+build ${hex_version} 19.3 1.7.4 1.7.0 xenial-20200212
+build ${hex_version} 19.3 1.6.6 1.6.0 xenial-20200212
+build ${hex_version} 18.3 1.5.3 1.5.0 xenial-20200212
 rm -rf _build
 
-hex_csv "${hex_version}" 1.0.0 1.1.0 1.2.0 1.3.0 1.4.0 1.5.0 1.6.0 1.7.0 1.8.0 1.9.0 1.10.0 1.11.0 1.12.0 1.13.0
-upload  "${hex_version}" 1.0.0 1.1.0 1.2.0 1.3.0 1.4.0 1.5.0 1.6.0 1.7.0 1.8.0 1.9.0 1.10.0 1.11.0 1.12.0 1.13.0
-
-pushd "../hexpm-ops"
-scripts/kubeexec hexpm --prod -- bin/hexpm eval "Hexpm.ReleaseTasks.script([\"add_install.exs\",\"${hex_version}\",\"1.13.0\",\"1.12.0\",\"1.11.0\",\"1.10.0\",\"1.9.0\",\"1.8.0\",\"1.7.0\",\"1.6.0\",\"1.5.0\",\"1.4.0\",\"1.3.0\",\"1.2.0\",\"1.1.0\",\"1.0.0\"])"
-popd
+hex_csv "${hex_version}" 1.5.0 1.6.0 1.7.0 1.8.0 1.9.0 1.10.0 1.11.0 1.12.0 1.13.0 1.14.0
+upload  "${hex_version}" 1.5.0 1.6.0 1.7.0 1.8.0 1.9.0 1.10.0 1.11.0 1.12.0 1.13.0 1.14.0
