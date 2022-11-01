@@ -51,12 +51,8 @@ defmodule Hex.Solver do
           {:ok, result()} | {:error, String.t()}
   def run(registry, dependencies, locked, overrides, opts \\ []) do
     case Solver.run(registry, dependencies, locked, overrides) do
-      {:ok, solution} ->
-        {:ok, Map.drop(solution, ["$root", "$lock"])}
-
-      {:error, incompatibility} ->
-        IO.inspect(incompatibility)
-        {:error, Failure.write(incompatibility, opts)}
+      {:ok, solution} -> {:ok, Map.drop(solution, ["$root", "$lock"])}
+      {:error, incompatibility} -> {:error, Failure.write(incompatibility, opts)}
     end
   end
 
