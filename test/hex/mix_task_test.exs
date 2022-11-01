@@ -617,7 +617,7 @@ defmodule Hex.MixTaskTest do
     purge([Ecto.Fixture.MixProject, Postgrex.NoConflict.MixProject, Ex_doc.NoConflict.MixProject])
   end
 
-  test "converged hex dependency considers all requirements and creates appconflict" do
+  test "converged hex dependency considers all requirements and creates app conflict" do
     Mix.Project.push(EctoPathDepAppConflict)
 
     in_tmp(fn ->
