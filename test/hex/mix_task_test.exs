@@ -75,6 +75,32 @@ defmodule Hex.MixTaskTest do
     end
   end
 
+  defmodule EctoPathDepConflict do
+    def project do
+      [
+        app: :ecto_path_dep,
+        version: "0.1.0",
+        deps: [
+          {:postgrex, "0.2.1"},
+          {:ecto, path: fixture_path("ecto")}
+        ]
+      ]
+    end
+  end
+
+  defmodule EctoPathDepAppConflict do
+    def project do
+      [
+        app: :ecto_path_dep,
+        version: "0.1.0",
+        deps: [
+          {:postgrex_conflict, ">= 0.0.0", hex: :postgrex},
+          {:ecto, path: fixture_path("ecto")}
+        ]
+      ]
+    end
+  end
+
   defmodule OverrideWithPath do
     def project do
       [
@@ -577,6 +603,36 @@ defmodule Hex.MixTaskTest do
     purge([Ecto.Fixture.MixProject, Postgrex.NoConflict.MixProject, Ex_doc.NoConflict.MixProject])
   end
 
+  test "converged hex dependency considers all requirements and creates conflict" do
+    Mix.Project.push(EctoPathDepConflict)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+
+      assert_raise(Mix.Error, "Hex dependency resolution failed", fn ->
+        Mix.Task.run("deps.get")
+      end)
+    end)
+  after
+    purge([Ecto.Fixture.MixProject, Postgrex.NoConflict.MixProject, Ex_doc.NoConflict.MixProject])
+  end
+
+  test "converged hex dependency considers all requirements and creates appconflict" do
+    Mix.Project.push(EctoPathDepAppConflict)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+
+      assert_raise(
+        Mix.Error,
+        ~r"Conflicting OTP application names in dependency definition of \"postgrex\"",
+        fn -> Mix.Task.run("deps.get") end
+      )
+    end)
+  after
+    purge([Ecto.Fixture.MixProject, Postgrex.NoConflict.MixProject, Ex_doc.NoConflict.MixProject])
+  end
+
   test "do not fetch git children of hex dependencies" do
     Mix.Project.push(SimpleOld)
 
@@ -913,7 +969,6 @@ defmodule Hex.MixTaskTest do
     ])
   end
 
-  @tag skip: Version.match?(System.version(), "< 1.4.0")
   test "prints a sponsors tip when updating or adding a package with sponsor link" do
     Mix.Project.push(DependsOnSponsored)
 

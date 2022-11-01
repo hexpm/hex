@@ -59,15 +59,42 @@ defmodule Hex.RemoteConverger do
     start_time = System.monotonic_time(:millisecond)
 
     dependencies =
-      Enum.map(requests, fn {repo, name, app, requirement, _from} ->
-        %{
-          repo: if(repo != "hexpm", do: repo),
+      Enum.reduce(requests, %{}, fn {repo, name, app, requirement, from}, map ->
+        repo = if(repo != "hexpm", do: repo)
+        constraint = Hex.Solver.parse_constraint!(requirement || ">= 0.0.0-0")
+
+        dependency = %{
+          repo: repo,
           name: name,
-          constraint: Hex.Solver.parse_constraint!(requirement || ">= 0.0.0-0"),
+          constraint: constraint,
           optional: false,
-          label: app
+          label: app,
+          from: from
         }
+
+        Map.update(map, {repo, name}, dependency, fn existing_dependency ->
+          if existing_dependency.label != dependency.label do
+            name = Hex.Utils.package_name(repo, name)
+
+            Mix.raise("""
+            Conflicting OTP application names in dependency definition of #{inspect(name)}, in the following locations:
+
+              * #{existing_dependency.from} defined application :#{existing_dependency.label}
+              * #{dependency.from} defined application :#{dependency.label}
+            """)
+          end
+
+          constraint =
+            Hex.Solver.Constraint.intersect(
+              existing_dependency.constraint,
+              dependency.constraint
+            )
+
+          optional = existing_dependency.optional and dependency.optional
+          %{existing_dependency | constraint: constraint, optional: optional}
+        end)
       end)
+      |> Map.values()
 
     locked =
       Enum.map(locked, fn {repo, name, app, version} ->
@@ -132,7 +159,7 @@ defmodule Hex.RemoteConverger do
       Enum.map(resolved, fn {repo, package, version} ->
         apps =
           Enum.flat_map(resolved, fn {parent_repo, parent_package, parent_version} ->
-            repo_nil = if repo != "hexpm", do: repo
+            repo = if repo != "hexpm", do: repo
 
             deps =
               case Registry.dependencies(parent_repo, parent_package, parent_version) do
@@ -142,7 +169,7 @@ defmodule Hex.RemoteConverger do
 
             app =
               Enum.find_value(deps, fn
-                %{repo: ^repo_nil, name: ^package, label: app} -> app
+                %{repo: ^repo, name: ^package, label: app} -> app
                 %{} -> nil
               end)
 
