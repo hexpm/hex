@@ -9,6 +9,7 @@ defmodule Hex.MixProject do
       version: @version,
       elixir: "~> 1.5",
       aliases: aliases(),
+      preferred_cli_env: ["deps.get": :test],
       config_path: config_path(),
       deps: deps(Mix.env()),
       elixirc_options: elixirc_options(Mix.env()),
