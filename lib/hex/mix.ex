@@ -51,21 +51,6 @@ defmodule Hex.Mix do
   end
 
   @doc """
-  Prepare Mix dependencies for the format the resolver expects.
-  """
-  @spec prepare_deps([Mix.Dep.t()]) :: deps
-  def prepare_deps(deps) do
-    Map.new(deps, fn %Mix.Dep{app: app, deps: deps, opts: opts} ->
-      deps =
-        Map.new(deps, fn %Mix.Dep{app: app, opts: opts} ->
-          {Atom.to_string(app), {!!opts[:override], %{}}}
-        end)
-
-      {Atom.to_string(app), {!!opts[:override], deps}}
-    end)
-  end
-
-  @doc """
   Returns all top level dependencies.
   """
   @spec top_level([Mix.Dep.t()]) :: [atom]
