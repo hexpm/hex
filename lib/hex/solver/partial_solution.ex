@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.0 (b0424d1), do not edit manually
+# Vendored from hex_solver v0.2.1 (b9b507f), do not edit manually
 
 defmodule Hex.Solver.PartialSolution do
   @moduledoc false
@@ -12,32 +12,26 @@ defmodule Hex.Solver.PartialSolution do
             backtracking: false,
             attempted_solutions: 1
 
-  def relation(%PartialSolution{} = solution, %Term{} = term) do
+  def relation(%PartialSolution{} = solution, %Term{} = term, opts \\ []) do
     name = term.package_range.name
 
     case Map.fetch(solution.positive, name) do
       {:ok, positive} ->
-        case Term.relation(positive.term, term) do
-          :disjoint ->
-            if positive.term.optional and not term.optional, do: :overlapping, else: :disjoint
-
-          other ->
-            other
-        end
+        Term.relation(positive.term, term, opts)
 
       :error ->
         case Map.fetch(solution.negative, name) do
-          {:ok, negative} -> Term.relation(negative.term, term)
+          {:ok, negative} -> Term.relation(negative.term, term, opts)
           :error -> :overlapping
         end
     end
   end
 
-  def satisfies?(%PartialSolution{} = solution, %Term{} = term) do
-    relation(solution, term) == :subset
+  def satisfies?(%PartialSolution{} = solution, %Term{} = term, opts \\ []) do
+    relation(solution, term, opts) == :subset
   end
 
-  def satisfier(%PartialSolution{} = solution, term) do
+  def satisfier(%PartialSolution{} = solution, term, opts \\ []) do
     {:satisfier, assignment} =
       Enum.reduce_while(Enum.reverse(solution.assignments), nil, fn assignment, assigned_term ->
         if assignment.term.package_range.name == term.package_range.name do
@@ -49,7 +43,7 @@ defmodule Hex.Solver.PartialSolution do
                 assignment
               end
 
-            if Term.satisfies?(assigned_term.term, term) do
+            if Term.satisfies?(assigned_term.term, term, opts) do
               {:halt, {:satisfier, assignment}}
             else
               {:cont, assigned_term}

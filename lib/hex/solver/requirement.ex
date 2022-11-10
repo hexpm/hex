@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.0 (b0424d1), do not edit manually
+# Vendored from hex_solver v0.2.1 (b9b507f), do not edit manually
 
 defmodule Hex.Solver.Requirement do
   @moduledoc false
@@ -13,6 +13,9 @@ defmodule Hex.Solver.Requirement do
       {:ok, lexed} -> {:ok, delex(lexed, [])}
       :error -> :error
     end
+  catch
+    {__MODULE__, :invalid_constraint} ->
+      :error
   end
 
   def to_constraint(%Elixir.Version{} = version) do
@@ -21,9 +24,6 @@ defmodule Hex.Solver.Requirement do
 
   def to_constraint(%Elixir.Version.Requirement{} = requirement) do
     to_constraint(to_string(requirement))
-  catch
-    {__MODULE__, :invalid_constraint} ->
-      :error
   end
 
   def to_constraint!(string) when is_binary(string) do
@@ -31,6 +31,9 @@ defmodule Hex.Solver.Requirement do
       {:ok, lexed} -> delex(lexed, [])
       :error -> raise Elixir.Version.InvalidRequirementError, string
     end
+  catch
+    {__MODULE__, :invalid_constraint} ->
+      raise Elixir.Version.InvalidRequirementError, string
   end
 
   def to_constraint!(%Elixir.Version{} = version) do
@@ -39,9 +42,6 @@ defmodule Hex.Solver.Requirement do
 
   def to_constraint!(%Elixir.Version.Requirement{} = requirement) do
     to_constraint!(to_string(requirement))
-  catch
-    {__MODULE__, :invalid_constraint} ->
-      raise Elixir.Version.InvalidRequirementError, to_string(requirement)
   end
 
   defp delex([], acc) do
@@ -96,6 +96,10 @@ defmodule Hex.Solver.Requirement do
 
   defp to_range(:<=, version) do
     %Range{max: to_version(version), include_max: true}
+  end
+
+  defp to_range(:~>, _version1, :~>, _version2) do
+    throw({__MODULE__, :invalid_constraint})
   end
 
   defp to_range(op1, version1, :~>, version2) do

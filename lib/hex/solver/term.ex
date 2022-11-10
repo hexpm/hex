@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.0 (b0424d1), do not edit manually
+# Vendored from hex_solver v0.2.1 (b9b507f), do not edit manually
 
 defmodule Hex.Solver.Term do
   @moduledoc false
@@ -12,9 +12,18 @@ defmodule Hex.Solver.Term do
             package_range: nil,
             optional: false
 
-  def relation(%Term{} = left, %Term{} = right) do
-    compatible_package?(left, right)
+  def relation(left, right, opts \\ []) do
+    if Keyword.get(opts, :optionals, true) do
+      case do_relation(left, right) do
+        :disjoint -> if left.optional and not right.optional, do: :overlapping, else: :disjoint
+        other -> if left.optional and right.optional, do: :disjoint, else: other
+      end
+    else
+      do_relation(left, right)
+    end
+  end
 
+  def do_relation(%Term{} = left, %Term{} = right) do
     left_constraint = constraint(left)
     right_constraint = constraint(right)
 
@@ -53,7 +62,7 @@ defmodule Hex.Solver.Term do
 
   def intersect(%Term{} = left, %Term{} = right) do
     if compatible_package?(left, right) do
-      optional = if left.optional == right.optional, do: left.optional, else: false
+      optional = left.optional and right.optional
 
       cond do
         left.positive != right.positive ->
@@ -80,8 +89,8 @@ defmodule Hex.Solver.Term do
     intersect(left, inverse(right))
   end
 
-  def satisfies?(%Term{} = left, %Term{} = right) do
-    compatible_package?(left, right) and relation(left, right) == :subset
+  def satisfies?(%Term{} = left, %Term{} = right, opts \\ []) do
+    compatible_package?(left, right) and relation(left, right, opts) == :subset
   end
 
   def inverse(%Term{} = term) do

@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.0 (b0424d1), do not edit manually
+# Vendored from hex_solver v0.2.1 (b9b507f), do not edit manually
 
 defmodule Hex.Solver.Solver do
   @moduledoc false
@@ -58,7 +58,9 @@ defmodule Hex.Solver.Solver do
   defp unit_propagation_conflict(incompatibility, state) do
     case conflict_resolution(state, incompatibility) do
       {:ok, root_cause, state} ->
-        {:ok, result, state} = propagate_incompatibility(root_cause.terms, nil, root_cause, state)
+        {:ok, result, state} =
+          propagate_incompatibility(root_cause.terms, nil, root_cause, state, optionals: false)
+
         {:halt, {[result], state}}
 
       {:error, incompatibility} ->
@@ -66,8 +68,10 @@ defmodule Hex.Solver.Solver do
     end
   end
 
-  defp propagate_incompatibility([term | terms], unsatisified, incompatibility, state) do
-    case PartialSolution.relation(state.solution, term) do
+  defp propagate_incompatibility(terms, unsatisified, incompatibility, state, opts \\ [])
+
+  defp propagate_incompatibility([term | terms], unsatisified, incompatibility, state, opts) do
+    case PartialSolution.relation(state.solution, term, opts) do
       :disjoint ->
         # If the term is contradicted by the partial solution then the
         # incompatibility is also contradicted so we can deduce nothing
@@ -78,20 +82,20 @@ defmodule Hex.Solver.Solver do
         {:error, :none}
 
       :overlapping ->
-        propagate_incompatibility(terms, term, incompatibility, state)
+        propagate_incompatibility(terms, term, incompatibility, state, opts)
 
       :subset ->
-        propagate_incompatibility(terms, unsatisified, incompatibility, state)
+        propagate_incompatibility(terms, unsatisified, incompatibility, state, opts)
     end
   end
 
-  defp propagate_incompatibility([], nil, _incompatibility, _state) do
+  defp propagate_incompatibility([], nil, _incompatibility, _state, _opts) do
     # All terms in the incompatibility are satisified by the partial solution
     # so we have a conflict
     {:error, :conflict}
   end
 
-  defp propagate_incompatibility([], unsatisfied, incompatibility, state) do
+  defp propagate_incompatibility([], unsatisfied, incompatibility, state, _opts) do
     # Only one term in the incompatibility was unsatisfied
     unsatisfied = %{unsatisfied | positive: not unsatisfied.positive}
     Logger.debug("RESOLVER: derived #{unsatisfied}")
@@ -200,7 +204,7 @@ defmodule Hex.Solver.Solver do
     else
       resolution =
         Enum.reduce(incompatibility.terms, new_resolution_state(), fn term, resolution ->
-          satisfier = PartialSolution.satisfier(state.solution, term)
+          satisfier = PartialSolution.satisfier(state.solution, term, optionals: false)
 
           resolution =
             cond do
@@ -237,7 +241,12 @@ defmodule Hex.Solver.Solver do
               Term.difference(resolution.most_recent_satisfier.term, resolution.most_recent_term)
 
             if difference do
-              satisfier = PartialSolution.satisfier(state.solution, Term.inverse(difference))
+              satisfier =
+                PartialSolution.satisfier(
+                  state.solution,
+                  Term.inverse(difference),
+                  optionals: false
+                )
 
               previous_satisfier_level =
                 max(resolution.previous_satisfier_level, satisfier.decision_level)
