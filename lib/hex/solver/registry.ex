@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.1 (b9b507f), do not edit manually
+# Vendored from hex_solver v0.2.2 (2634e31), do not edit manually
 
 defmodule Hex.Solver.Registry do
   _ = """
