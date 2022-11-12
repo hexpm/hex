@@ -27,13 +27,9 @@ defmodule Mix.Tasks.Hex.RegistryTest do
           ~w(add public --name acme --private-key private_key.pem subdir/foo-0.10.0.tar)
         )
 
-        assert_received {:mix_shell, :info, ["* reading public/names"]}
-        assert_received {:mix_shell, :info, ["* reading public/versions"]}
-
         assert_received {:mix_shell, :info,
-                         ["* moving subdir/foo-0.10.0.tar -> public/tarballs/foo-0.10.0.tar"]}
+                         ["* copying subdir/foo-0.10.0.tar -> public/tarballs/foo-0.10.0.tar"]}
 
-        assert_received {:mix_shell, :info, ["* skipping public/packages/foo"]}
         assert_received {:mix_shell, :info, ["* creating public/packages/foo"]}
         assert_received {:mix_shell, :info, ["* updating public/names"]}
         assert_received {:mix_shell, :info, ["* updating public/versions"]}
@@ -89,13 +85,9 @@ defmodule Mix.Tasks.Hex.RegistryTest do
           ~w(add public --name acme --private-key private_key.pem subdir/foo-0.9.0.tar)
         )
 
-        assert_received {:mix_shell, :info, ["* reading public/names"]}
-        assert_received {:mix_shell, :info, ["* reading public/versions"]}
-
         assert_received {:mix_shell, :info,
-                         ["* moving subdir/foo-0.9.0.tar -> public/tarballs/foo-0.9.0.tar"]}
+                         ["* copying subdir/foo-0.9.0.tar -> public/tarballs/foo-0.9.0.tar"]}
 
-        assert_received {:mix_shell, :info, ["* reading public/packages/foo"]}
         assert_received {:mix_shell, :info, ["* updating public/packages/foo"]}
         assert_received {:mix_shell, :info, ["* updating public/names"]}
         assert_received {:mix_shell, :info, ["* updating public/versions"]}
@@ -119,93 +111,6 @@ defmodule Mix.Tasks.Hex.RegistryTest do
 
         assert {:ok, {200, _, versions}} = :mix_hex_repo.get_versions(config)
         assert versions == [%{name: "foo", retired: [], versions: ["0.9.0", "0.10.0"]}]
-      end)
-    end
-
-    test "adds multiple packages" do
-      in_tmp(fn ->
-        bypass = setup_bypass()
-
-        {:ok, %{tarball: tarball}} =
-          :mix_hex_tarball.create(%{name: "foo", version: "0.10.0"}, [])
-
-        File.mkdir_p!("public/tarballs")
-        File.write!("public/tarballs/foo-0.10.0.tar", tarball)
-        0 = Mix.shell().cmd("openssl genrsa -out private_key.pem")
-
-        Mix.Task.run(
-          "hex.registry",
-          ~w(build public --name acme --private-key private_key.pem)
-        )
-
-        flush()
-
-        {:ok, %{tarball: bar_tarball}} =
-          :mix_hex_tarball.create(%{name: "bar", version: "0.1.0"}, [])
-
-        {:ok, %{tarball: foo_tarball}} =
-          :mix_hex_tarball.create(%{name: "foo", version: "0.9.0"}, [])
-
-        File.mkdir!("subdir")
-        File.write!("subdir/bar-0.1.0.tar", bar_tarball)
-        File.write!("subdir/foo-0.9.0.tar", foo_tarball)
-
-        Mix.Task.reenable("hex.registry")
-
-        Mix.Task.run(
-          "hex.registry",
-          ~w(add public --name acme --private-key private_key.pem subdir/foo-0.9.0.tar subdir/bar-0.1.0.tar)
-        )
-
-        assert_received {:mix_shell, :info, ["* reading public/names"]}
-        assert_received {:mix_shell, :info, ["* reading public/versions"]}
-
-        assert_received {:mix_shell, :info,
-                         ["* moving subdir/foo-0.9.0.tar -> public/tarballs/foo-0.9.0.tar"]}
-
-        assert_received {:mix_shell, :info,
-                         ["* moving subdir/bar-0.1.0.tar -> public/tarballs/bar-0.1.0.tar"]}
-
-        assert_received {:mix_shell, :info, ["* reading public/packages/foo"]}
-        assert_received {:mix_shell, :info, ["* updating public/packages/foo"]}
-        assert_received {:mix_shell, :info, ["* skipping public/packages/bar"]}
-        assert_received {:mix_shell, :info, ["* creating public/packages/bar"]}
-        assert_received {:mix_shell, :info, ["* updating public/names"]}
-        assert_received {:mix_shell, :info, ["* updating public/versions"]}
-        refute_received _
-
-        config = %{
-          :mix_hex_core.default_config()
-          | repo_url: "http://localhost:#{bypass.port}",
-            repo_verify: false,
-            repo_verify_origin: false
-        }
-
-        assert {:ok, {200, _, names}} = :mix_hex_repo.get_names(config)
-
-        assert [
-                 %{name: "bar", updated_at: %{seconds: bar_updated_at}},
-                 %{name: "foo", updated_at: %{seconds: foo_updated_at}}
-               ] = names
-
-        assert bar_updated_at ==
-                 "public/tarballs/bar-0.1.0.tar"
-                 |> File.stat!()
-                 |> Map.fetch!(:mtime)
-                 |> Mix.Tasks.Hex.Registry.to_unix()
-
-        assert foo_updated_at ==
-                 "public/tarballs/foo-0.9.0.tar"
-                 |> File.stat!()
-                 |> Map.fetch!(:mtime)
-                 |> Mix.Tasks.Hex.Registry.to_unix()
-
-        assert {:ok, {200, _, versions}} = :mix_hex_repo.get_versions(config)
-
-        assert versions == [
-                 %{name: "bar", retired: [], versions: ["0.1.0"]},
-                 %{name: "foo", retired: [], versions: ["0.9.0", "0.10.0"]}
-               ]
       end)
     end
   end
