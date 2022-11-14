@@ -153,9 +153,10 @@ defmodule Hex.SolverTest do
   end
 
   test "pre-release" do
-    assert solve(beta: "~> 1.0 and > 1.0.0") == %{beta: "1.0.0"}
-    assert solve(beta: "~> 1.0-beta and > 1.0.0-beta") == %{beta: "1.0.0"}
-    assert solve(beta: "~> 1.1-beta and > 1.1.0-beta") == %{beta: "1.1.0-beta"}
+    assert solve(beta: "~> 1.0") == %{beta: "1.0.0"}
+    assert solve(beta: "~> 1.0 and >= 1.0.0") == %{beta: "1.0.0"}
+    assert solve(beta: "~> 1.0-beta and >= 1.0.0-beta") == %{beta: "1.0.0"}
+    assert solve(beta: "~> 1.1-beta and >= 1.1.0-beta") == %{beta: "1.1.0-beta"}
   end
 
   test "only mix.exs conflicts" do
