@@ -394,7 +394,7 @@ defmodule HexTest.Case do
           |> Plug.Conn.resp(201, Hex.Utils.safe_serialize_erlang(body))
 
         %Plug.Conn{method: "GET", request_path: "/api/users/me"} ->
-          body = %{"organizations" => %{}}
+          body = %{"organizations" => [%{"name" => repo}]}
 
           conn
           |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
