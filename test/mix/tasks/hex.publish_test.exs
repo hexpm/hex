@@ -431,6 +431,36 @@ defmodule Mix.Tasks.Hex.PublishTest do
     purge([ReleaseMeta.MixProject])
   end
 
+  test "create with organization prompt" do
+    Process.put(:hex_test_app_name, :publish_with_organization_prompt)
+    Mix.Project.push(ReleaseSimple.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      setup_auth("user", "hunter42")
+      File.write!("myfile.txt", "hello")
+
+      send(self(), {:mix_shell_input, :prompt, "2"})
+      send(self(), {:mix_shell_input, :yes?, true})
+      send(self(), {:mix_shell_input, :prompt, "hunter42"})
+
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--replace"])
+
+      assert_received {:mix_shell, :info,
+                       ["You are a member of one or multiple organizations. " <> _]}
+
+      assert_received {:mix_shell, :info, ["Publishing package using http://" <> _]}
+      assert_received {:mix_shell, :info, ["Transferring ownership to testorg..."]}
+
+      assert {:ok, {200, body, _headers}} =
+               Hex.API.Package.get("hexpm", "publish_with_organization_prompt")
+
+      assert "testorg" in Enum.map(body["owners"], & &1["username"])
+    end)
+  after
+    purge([ReleaseSimple.MixProject])
+  end
+
   test "create package with :organization config" do
     Process.put(:hex_test_app_name, :publish_with_org_config)
     Mix.Project.push(ReleaseRepo.MixProject)
