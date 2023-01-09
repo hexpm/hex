@@ -1,6 +1,17 @@
 # CHANGELOG
 
-## v2.0.1-dev
+## v2.0.1 (2023-01-09)
+
+### Enhancements
+
+* Raise when parsing intersected ranges
+* Skip unselected optionals during solving
+
+### Bug fixes
+
+* Fix converging of requirements from different sources
+* Fix organization owner prompt during publish
+* Do not override locked deps
 
 ## v2.0.0 (2022-10-30)
 
