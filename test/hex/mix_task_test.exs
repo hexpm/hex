@@ -6,6 +6,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :simple,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:ecto, "0.2.0"}
         ]
@@ -18,6 +19,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :simple,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:ecto, "~> 0.2.1"}
         ]
@@ -30,6 +32,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :simple,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:ecto, "~> 0.2.0"}
         ]
@@ -42,6 +45,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :override,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:ecto, "0.2.0"},
           {:ex_doc, "~> 0.1.0", override: true}
@@ -55,6 +59,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :non_hex_dep,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:has_hex_dep, path: fixture_path("has_hex_dep")}
         ]
@@ -67,6 +72,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :ecto_path_dep,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:postgrex, ">= 0.0.0"},
           {:ecto, path: fixture_path("ecto")}
@@ -80,6 +86,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :ecto_path_dep,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:postgrex, "0.2.1"},
           {:ecto, path: fixture_path("ecto")}
@@ -93,6 +100,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :ecto_path_dep,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:postgrex_conflict, ">= 0.0.0", hex: :postgrex},
           {:ecto, path: fixture_path("ecto")}
@@ -106,6 +114,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :override_with_path,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:postgrex, ">= 0.0.0"},
           {:ex_doc, path: fixture_path("ex_doc"), override: true}
@@ -119,6 +128,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :override_two_levels_with_path,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:phoenix, ">= 0.0.0"},
           {:ex_doc, path: fixture_path("ex_doc"), override: true}
@@ -132,6 +142,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :override_with_path_parent,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:override_with_path, path: fixture_path("override_with_path")}
         ]
@@ -144,6 +155,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :optional,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:only_doc, ">= 0.0.0"}
         ]
@@ -156,6 +168,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :with_optional,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:only_doc, ">= 0.0.0"},
           {:ex_doc, "0.0.1"}
@@ -169,6 +182,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :with_package_name,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:app_name, ">= 0.0.0", hex: :package_name}
         ]
@@ -181,6 +195,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :with_depend_name,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:depend_name, ">= 0.0.0"}
         ]
@@ -193,6 +208,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :with_incorrect_dep_version,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:ex_doc, "> hello"}
         ]
@@ -205,6 +221,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :with_missing_dep_version,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:ex_doc, []}
         ]
@@ -217,6 +234,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :with_non_matching_requirement,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:ex_doc, "~> 100.0.0"}
         ]
@@ -229,6 +247,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :with_only_matching_pre_requirement,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:beta, "~> 1.1.0"}
         ]
@@ -241,6 +260,7 @@ defmodule Hex.MixTaskTest do
       [
         app: :depends_on_ecto_sql,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:ecto_sql, "~> 3.3"},
           {:ecto_enum, "1.4.0"}
@@ -254,11 +274,30 @@ defmodule Hex.MixTaskTest do
       [
         app: :depends_on_sponsored,
         version: "0.1.0",
+        consolidate_protocols: false,
         deps: [
           {:sponsored, "0.1.0"}
         ]
       ]
     end
+  end
+
+  defp reset_code_paths(fun) do
+    path = :code.get_path()
+
+    try do
+      fun.()
+    after
+      :code.add_pathsz(path)
+    end
+  end
+
+  defp deps_compile() do
+    reset_code_paths(fn -> Mix.Task.run("deps.compile") end)
+  end
+
+  defp compile() do
+    reset_code_paths(fn -> Mix.Task.run("compile") end)
   end
 
   test "deps.get" do
@@ -272,7 +311,7 @@ defmodule Hex.MixTaskTest do
       assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
       assert_received {:mix_shell, :info, ["* Getting ex_doc (Hex package)"]}
 
-      Mix.Task.run("deps.compile")
+      deps_compile()
       Mix.Task.run("deps")
 
       assert_received {:mix_shell, :info, ["* ecto 0.2.0 (Hex package)" <> _]}
@@ -304,7 +343,7 @@ defmodule Hex.MixTaskTest do
       Mix.Task.clear()
 
       Mix.Task.run("deps.get")
-      Mix.Task.run("deps.compile")
+      deps_compile()
       Mix.Task.run("deps")
 
       assert_received {:mix_shell, :info, ["* ecto 0.2.0 (Hex package)" <> _]}
@@ -344,7 +383,7 @@ defmodule Hex.MixTaskTest do
       assert_received {:mix_shell, :info, ["* Updating postgrex (Hex package)"]}
       assert_received {:mix_shell, :info, ["* Updating ex_doc (Hex package)"]}
 
-      Mix.Task.run("deps.compile")
+      deps_compile()
       Mix.Task.run("deps")
 
       assert_received {:mix_shell, :info, ["* ecto 0.2.1 (Hex package)" <> _]}
@@ -545,7 +584,7 @@ defmodule Hex.MixTaskTest do
       Hex.State.put(:cache_home, File.cwd!())
 
       Mix.Task.run("deps.get")
-      Mix.Task.run("deps.compile")
+      deps_compile()
       Mix.Task.run("deps")
 
       assert_received {:mix_shell, :info, ["* ecto 0.2.0 (Hex package)" <> _]}
@@ -956,7 +995,7 @@ defmodule Hex.MixTaskTest do
       })
 
       Mix.Task.run("deps.get")
-      Mix.Task.run("compile")
+      compile()
       Mix.Task.run("deps.update", ["ecto_sql"])
     end)
   after

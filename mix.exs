@@ -19,7 +19,7 @@ defmodule Hex.MixProject do
 
   def application do
     [
-      extra_applications: [:ssl, :inets, :logger],
+      extra_applications: [:ssh, :ssl, :inets, :logger],
       mod: {Hex.Application, []}
     ]
   end
