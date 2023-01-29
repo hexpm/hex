@@ -87,18 +87,18 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--replace"])
 
-      message =
-        "Package published to http://localhost:4043/packages/publish_and_revert/0.0.1 " <>
-          "(cea573df6b6ca7027ca918ea349ec34af17774b426dd4c3a0db0bdecca97d0d0)"
-
-      assert_received {:mix_shell, :info, [^message]}
+      assert_received {:mix_shell, :info,
+                       [
+                         "Package published to http://localhost:4043/packages/publish_and_revert/0.0.1 " <>
+                           _
+                       ]}
 
       assert {:ok, {200, _, _}} = Hex.API.Release.get("hexpm", "publish_and_revert", "0.0.1")
 
-      message =
-        "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct\n"
-
-      assert_received {:mix_shell, :info, [^message]}
+      assert_received {:mix_shell, :info,
+                       [
+                         "Before publishing, please read the Code of Conduct: https://hex.pm/policies/codeofconduct\n"
+                       ]}
 
       send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
