@@ -183,6 +183,10 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp docs_task() do
+    # Elixir v1.15 prunes the loadpaths on compilation and
+    # docs will compile code. So we add all original code paths back.
+    path = :code.get_path()
+
     try do
       Mix.Task.run("docs", [])
     rescue
@@ -199,6 +203,8 @@ defmodule Mix.Tasks.Hex.Publish do
         """)
 
         reraise ex, stacktrace
+    after
+      :code.add_pathsz(path)
     end
   end
 
