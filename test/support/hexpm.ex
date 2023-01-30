@@ -49,9 +49,11 @@ defmodule HexTest.Hexpm do
     check_hexpm()
     mix = hexpm_mix() |> List.to_string()
 
+
     cmd(mix, ["ecto.drop", "-r", "Hexpm.RepoBase", "--quiet"])
     cmd(mix, ["ecto.create", "-r", "Hexpm.RepoBase", "--quiet"])
-    cmd(mix, ["ecto.migrate", "-r", "Hexpm.RepoBase"])
+    cmd(mix, ["ecto.load", "-r", "Hexpm.RepoBase", "--quiet"])
+    cmd(mix, ["ecto.migrate", "-r", "Hexpm.RepoBase", "--quiet"])
   end
 
   def start() do
@@ -69,7 +71,8 @@ defmodule HexTest.Hexpm do
       {~c"MIX_HOME", hexpm_mix_home},
       {~c"MIX_ARCHIVES", hexpm_mix_archives},
       {~c"PATH", path},
-      {~c"HEX_SIGNING_KEY", key}
+      {~c"HEX_SIGNING_KEY", key},
+      {~c"HEXPM_SETUP", ~c"1"}
     ]
 
     spawn(fn ->
