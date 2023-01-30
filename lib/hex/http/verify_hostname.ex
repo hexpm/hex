@@ -152,7 +152,7 @@ defmodule Hex.HTTP.VerifyHostname do
   defp wildcard_not_in_label(before_w, after_w) do
     dot_pos = :string.chr(after_w, ?.)
     after_dot = :string.substr(after_w, 1, dot_pos)
-    :string.str(before_w, 'xn--') == 0 and :string.str(after_dot, 'xn--') == 0
+    :string.str(before_w, ~c"xn--") == 0 and :string.str(after_dot, ~c"xn--") == 0
   end
 
   defp try_match_wildcard(before_w, after_w, single_char_w, pattern) do

@@ -3,8 +3,8 @@ defmodule Hex.API do
 
   alias Hex.HTTP
 
-  @erlang_content 'application/vnd.hex+erlang'
-  @tar_content 'application/octet-stream'
+  @erlang_content ~c"application/vnd.hex+erlang"
+  @tar_content ~c"application/octet-stream"
   @tar_chunk_size 10_000
   @tar_timeout 60_000
 
@@ -27,7 +27,7 @@ defmodule Hex.API do
     progress = Keyword.fetch!(opts, :progress)
 
     headers =
-      %{'content-length' => Integer.to_charlist(byte_size(body))}
+      %{~c"content-length" => Integer.to_charlist(byte_size(body))}
       |> Map.merge(headers(opts))
 
     opts = [
@@ -49,18 +49,18 @@ defmodule Hex.API do
   defp repo_path(org), do: "/repos/#{org}/"
 
   defp headers(opts) do
-    %{'accept' => @erlang_content}
+    %{~c"accept" => @erlang_content}
     |> Map.merge(auth(opts))
   end
 
   defp auth(opts) do
     cond do
       opts[:key] ->
-        %{'authorization' => String.to_charlist(opts[:key])}
+        %{~c"authorization" => String.to_charlist(opts[:key])}
 
       opts[:user] && opts[:pass] ->
         base64 = :base64.encode_to_string(opts[:user] <> ":" <> opts[:pass])
-        %{'authorization' => 'Basic ' ++ base64}
+        %{~c"authorization" => ~c"Basic " ++ base64}
 
       true ->
         %{}
@@ -95,7 +95,7 @@ defmodule Hex.API do
   end
 
   defp decode_body(body, headers) do
-    content_type = List.to_string(headers['content-type'] || '')
+    content_type = List.to_string(headers[~c"content-type"] || ~c"")
     erlang_vendor = List.to_string(@erlang_content)
 
     if String.contains?(content_type, erlang_vendor) do
@@ -108,7 +108,7 @@ defmodule Hex.API do
   def check_write_api() do
     case Application.load(:ssl) do
       :ok ->
-        if :application.get_key(:ssl, :vsn) == {:ok, '10.2'} do
+        if :application.get_key(:ssl, :vsn) == {:ok, ~c"10.2"} do
           Mix.raise("""
           You are using an OTP release with the application ssl-10.2 which has a vulnerability \
           making it susceptible to man-in-the-middle attacks. API operations with write

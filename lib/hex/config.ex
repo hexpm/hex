@@ -92,7 +92,7 @@ defmodule Hex.Config do
   end
 
   defp consult(pid, acc, string) when is_pid(pid) do
-    case :io.read(pid, '') do
+    case :io.read(pid, ~c"") do
       {:ok, term} -> consult(pid, [term | acc], string)
       {:error, reason} -> {:error, reason}
       :eof -> {:ok, Enum.reverse(acc)}

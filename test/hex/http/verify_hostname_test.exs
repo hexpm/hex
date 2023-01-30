@@ -19,24 +19,24 @@ defmodule Hex.HTTP.VerifyHostnameTest do
   end
 
   test "success" do
-    assert_match('www.example.com', 'WWW.eXamPle.CoM', false)
-    assert_match('www.example.com.', 'www.example.com', false)
-    assert_match('www.example.com', 'www.example.com.', false)
-    assert_match('*.example.com', 'www.example.com', {[], '.example.com', true})
-    assert_match('b*z.example.com', 'buzz.example.com', {'b', 'z.example.com', false})
-    assert_match('*baz.example.com', 'foobaz.example.com', {[], 'baz.example.com', false})
-    assert_match('baz*.example.com', 'baz1.example.com', {'baz', '.example.com', false})
+    assert_match(~c"www.example.com", ~c"WWW.eXamPle.CoM", false)
+    assert_match(~c"www.example.com.", ~c"www.example.com", false)
+    assert_match(~c"www.example.com", ~c"www.example.com.", false)
+    assert_match(~c"*.example.com", ~c"www.example.com", {[], ~c".example.com", true})
+    assert_match(~c"b*z.example.com", ~c"buzz.example.com", {~c"b", ~c"z.example.com", false})
+    assert_match(~c"*baz.example.com", ~c"foobaz.example.com", {[], ~c"baz.example.com", false})
+    assert_match(~c"baz*.example.com", ~c"baz1.example.com", {~c"baz", ~c".example.com", false})
   end
 
   test "failure" do
-    refute_match('*.com', 'eXamPle.CoM')
-    refute_match('.com.', 'example.com.')
-    refute_match('*.www.example.com', 'www.example.com.')
-    refute_match('foo.*.example.com', 'foo.bar.example.com.')
-    refute_match('xn--*.example.com', 'xn-foobar.example.com')
-    refute_match('*fooxn--bar.example.com', 'bazfooxn--bar.example.com')
-    refute_match('*.akamaized.net', 'tv.eurosport.com')
-    refute_match('a*c.example.com', 'abcd.example.com')
-    refute_match('*baz.example.com', 'foobuzz.example.com')
+    refute_match(~c"*.com", ~c"eXamPle.CoM")
+    refute_match(~c".com.", ~c"example.com.")
+    refute_match(~c"*.www.example.com", ~c"www.example.com.")
+    refute_match(~c"foo.*.example.com", ~c"foo.bar.example.com.")
+    refute_match(~c"xn--*.example.com", ~c"xn-foobar.example.com")
+    refute_match(~c"*fooxn--bar.example.com", ~c"bazfooxn--bar.example.com")
+    refute_match(~c"*.akamaized.net", ~c"tv.eurosport.com")
+    refute_match(~c"a*c.example.com", ~c"abcd.example.com")
+    refute_match(~c"*baz.example.com", ~c"foobuzz.example.com")
   end
 end
