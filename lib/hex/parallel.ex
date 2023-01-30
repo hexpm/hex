@@ -11,12 +11,10 @@ defmodule Hex.Parallel do
     GenServer.start_link(__MODULE__, [], name: name)
   end
 
-  @spec run(GenServer.server(), any, Keyword.t(), (-> any)) :: :ok
   def run(name, id, opts \\ [], fun) do
     GenServer.call(name, {:run, id, opts, fun})
   end
 
-  @spec await(GenServer.server(), any, timeout) :: any
   def await(name, id, timeout) do
     GenServer.call(name, {:await, id}, timeout)
   end
