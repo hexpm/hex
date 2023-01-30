@@ -1,6 +1,14 @@
 # CHANGELOG
 
-## v2.0.2-dev
+## v2.0.2 (2023-01-30)
+
+### Enhancements
+
+* Remove `hex.install` task
+
+### Bug fixes
+
+* Fixes for upcoming Elixir 1.15.0 release
 
 ## v2.0.1 (2023-01-09)
 
