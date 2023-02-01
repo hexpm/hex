@@ -1,6 +1,11 @@
 # CHANGELOG
 
-## v2.0.3-dev
+## v2.0.3 (2023-02-01)
+
+### Enhancements
+
+* Remove dependency on `ssh` application
+* Add `trusted_mirror_url` config and `HEX_TRUSTED_MIRROR_URL` environment variable. When setting either of these the repository authentication key will be included in requests. `mirror_url` config and `HEX_MIRROR_URL` have changed to no longer include the authentication key in requests. This is to ensure secrets are not sent to repository mirrors that are not trusted.
 
 ## v2.0.2 (2023-01-30)
 
