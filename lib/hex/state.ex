@@ -82,6 +82,11 @@ defmodule Hex.State do
       config: [:mirror_url],
       fun: {__MODULE__, :trim_slash}
     },
+    trusted_mirror_url: %{
+      env: ["HEX_TRUSTED_MIRROR_URL", "HEX_TRUSTED_MIRROR"],
+      config: [:trusted_mirror_url],
+      fun: {__MODULE__, :trim_slash}
+    },
     offline: %{
       env: ["HEX_OFFLINE"],
       config: [:offline],
@@ -224,9 +229,10 @@ defmodule Hex.State do
   end
 
   defp load_config_value(global_config, project_config, spec) do
+    env = System.get_env()
+
     result =
-      load_env(spec[:env]) ||
-        load_env_path_join(spec[:env_path_join]) ||
+      load_env(spec[:env], env) ||
         load_project_config(project_config, spec[:config]) ||
         load_global_config(global_config, spec[:config])
 
@@ -271,22 +277,11 @@ defmodule Hex.State do
     |> Path.join("hex.config")
   end
 
-  defp load_env(keys) do
+  defp load_env(keys, env) do
     Enum.find_value(keys || [], fn key ->
-      if value = System.get_env(key) do
-        {{:env, key}, value}
-      else
-        nil
-      end
-    end)
-  end
-
-  defp load_env_path_join(keys) do
-    Enum.find_value(keys || [], fn {key, prefix} ->
-      if value = System.get_env(key) do
-        {{:env_path_join, {key, prefix}}, Path.join(value, prefix)}
-      else
-        nil
+      case Map.fetch(env, key) do
+        {:ok, value} -> {{:env, key}, value}
+        :error -> nil
       end
     end)
   end

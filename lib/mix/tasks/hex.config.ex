@@ -40,23 +40,26 @@ defmodule Mix.Tasks.Hex.Config do
       origin. Can be overridden by setting the environment variable
       `HEX_NO_VERIFY_REPO_ORIGIN` (Default: `false`)
     * `http_proxy` - HTTP proxy server. Can be overridden by setting the
-      environment variable `HTTP_PROXY` (Default: `nil`)
+      environment variable `HTTP_PROXY`
     * `https_proxy` - HTTPS proxy server. Can be overridden by setting the
-      environment variable `HTTPS_PROXY` (Default: `nil`)
+      environment variable `HTTPS_PROXY`
     * `no_proxy` - A comma separated list of hostnames that will not be proxied,
       asterisks can be used as wildcards. Can be overridden by setting the
-      environment variable `no_proxy` or `NO_PROXY` (Default: `nil`)
+      environment variable `no_proxy` or `NO_PROXY`
     * `http_concurrency` - Limits the number of concurrent HTTP requests in
       flight. Can be overridden by setting the environment variable
       `HEX_HTTP_CONCURRENCY` (Default: `8`)
     * `http_timeout` - Sets the timeout for HTTP requests in seconds. Can be
       overridden by setting the environment variable `HEX_HTTP_TIMEOUT`
-      (Default: `nil`)
     * `mirror_url` - Hex mirror URL. Can be overridden by setting the
-      environment variable `HEX_MIRROR` (Default: `nil`)
+      environment variable `HEX_TRUSTED_MIRROR`
+    * `trusted_mirror_url` - Hex mirror URL. Unlike `mirror_url`, this mirror is
+      "trusted", secrets such as authentication information will be sent to the
+      mirror. Can be overridden by setting the environment variable
+      `HEX_TRUSTED_MIRROR`
     * `cacerts_path` - Path to the CA certificate store PEM file. If not set,
       a CA bundle that ships with Hex is used. Can be overridden by setting the
-      environment variable `HEX_CACERTS_PATH`. (Default: `nil`)
+      environment variable `HEX_CACERTS_PATH`
     * `no_short_urls` - If set to true Hex will not
       shorten any links. Can be overridden by setting the environment variable
       `HEX_NO_SHORT_URLS` (Default: `false`)
@@ -190,9 +193,6 @@ defmodule Mix.Tasks.Hex.Config do
 
       {:ok, {{:project_config, _key}, value}} ->
         print_value(key, value, verbose, "(using `mix.exs`)")
-
-      {:ok, {{:env_path_join, {env_var, _prefix}}, value}} ->
-        print_value(key, value, verbose, "(using `#{env_var}`)")
 
       {:ok, {kind, value}} when kind in [:default, :computed] ->
         print_value(key, value, verbose, "(default)")

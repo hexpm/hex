@@ -55,19 +55,20 @@ defmodule Hex.RepoTest do
     Bypass.expect(bypass, fn %Plug.Conn{request_path: path} = conn ->
       case path do
         "/public_key" ->
+          assert Plug.Conn.get_req_header(conn, "authorization") == ["key"]
           Plug.Conn.resp(conn, 200, hexpm.public_key)
 
         "/not_found/public_key" ->
+          assert Plug.Conn.get_req_header(conn, "authorization") == []
           Plug.Conn.resp(conn, 404, "not found")
       end
     end)
 
-    assert {:ok, {200, public_key, _}} =
-             Hex.Repo.get_public_key("http://localhost:#{bypass.port}", nil)
-
+    config = %{url: "http://localhost:#{bypass.port}", auth_key: "key", trusted: true}
+    assert {:ok, {200, public_key, _}} = Hex.Repo.get_public_key(config)
     assert public_key == hexpm.public_key
 
-    assert {:ok, {404, "not found", _}} =
-             Hex.Repo.get_public_key("http://localhost:#{bypass.port}/not_found", nil)
+    config = %{url: "http://localhost:#{bypass.port}/not_found", auth_key: "key", trusted: false}
+    assert {:ok, {404, "not found", _}} = Hex.Repo.get_public_key(config)
   end
 end
