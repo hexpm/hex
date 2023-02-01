@@ -128,7 +128,8 @@ defmodule Mix.Tasks.Hex.Repo do
         url: url,
         public_key: nil,
         fetch_public_key: nil,
-        auth_key: nil
+        auth_key: nil,
+        trusted: true
       }
       |> Map.merge(Map.new(opts))
       |> Map.put(:public_key, public_key)
@@ -214,7 +215,9 @@ defmodule Mix.Tasks.Hex.Repo do
   defp fetch_public_key(nil, _, _), do: nil
 
   defp fetch_public_key(fingerprint, repo_url, auth_key) do
-    case Hex.Repo.get_public_key(repo_url, auth_key) do
+    repo_config = %{url: repo_url, auth_key: auth_key, trusted: true}
+
+    case Hex.Repo.get_public_key(repo_config) do
       {:ok, {200, key, _}} ->
         if show_public_key(key) == fingerprint do
           key

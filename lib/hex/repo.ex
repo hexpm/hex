@@ -22,14 +22,19 @@ defmodule Hex.Repo do
     repos = Hex.State.fetch!(:repos)
 
     case Map.fetch(repos, repo) do
-      {:ok, config} ->
+      {:ok, config} when repo == "hexpm" ->
+        trusted_mirror_url = Hex.State.fetch!(:trusted_mirror_url)
         mirror_url = Hex.State.fetch!(:mirror_url)
 
-        if repo == "hexpm" and mirror_url do
-          {:ok, Map.put(config, :url, mirror_url)}
-        else
-          {:ok, config}
-        end
+        config =
+          config
+          |> Map.put(:url, trusted_mirror_url || mirror_url || config.url)
+          |> Map.put(:trusted, trusted_mirror_url != nil or mirror_url == nil)
+
+        {:ok, config}
+
+      {:ok, config} ->
+        {:ok, config}
 
       :error ->
         fetch_organization_fallback(repo, repos)
@@ -55,13 +60,15 @@ defmodule Hex.Repo do
     |> Map.put(:url, url)
     |> Map.put(:public_key, public_key)
     |> Map.put(:auth_key, auth_key)
+    |> Map.put(:trusted, auth_key)
   end
 
   def default_hexpm_repo(auth_key \\ Hex.State.fetch!(:repos_key)) do
     %{
       url: @hexpm_url,
       public_key: @hexpm_public_key,
-      auth_key: auth_key
+      auth_key: auth_key,
+      trusted: true
     }
   end
 
@@ -171,6 +178,11 @@ defmodule Hex.Repo do
     HTTP.request(:get, tarball_url(repo, package, version), headers, nil)
   end
 
+  def get_public_key(repo) do
+    headers = auth_headers(repo)
+    HTTP.request(:get, public_key_url(repo), headers, nil)
+  end
+
   def verify(body, repo) do
     public_key = get_repo(repo).public_key
 
@@ -210,17 +222,23 @@ defmodule Hex.Repo do
     config.url <> "/tarballs/#{URI.encode(package)}-#{URI.encode(version)}.tar"
   end
 
+  defp public_key_url(repo), do: repo.url <> "/public_key"
+
   defp etag_headers(nil), do: %{}
   defp etag_headers(etag), do: %{~c"if-none-match" => String.to_charlist(etag)}
 
-  defp auth_headers(repo) do
-    repo = get_repo(repo)
+  defp auth_headers(repo) when is_binary(repo) or repo == nil do
+    repo
+    |> get_repo()
+    |> auth_headers()
+  end
 
-    if key = repo.auth_key do
-      %{~c"authorization" => String.to_charlist(key)}
-    else
-      %{}
-    end
+  defp auth_headers(%{trusted: true, auth_key: key}) when is_binary(key) do
+    %{~c"authorization" => String.to_charlist(key)}
+  end
+
+  defp auth_headers(%{trusted: _, auth_key: _}) do
+    %{}
   end
 
   defp parse_csv(body) do
@@ -323,17 +341,4 @@ defmodule Hex.Repo do
   defp repo_name(name) do
     name |> split_repo_name() |> List.last()
   end
-
-  def get_public_key(repo_url, auth_key) do
-    auth_headers =
-      if auth_key do
-        %{~c"authorization" => String.to_charlist(auth_key)}
-      else
-        %{}
-      end
-
-    HTTP.request(:get, public_key_url(repo_url), auth_headers, nil)
-  end
-
-  defp public_key_url(repo_url), do: repo_url <> "/public_key"
 end
