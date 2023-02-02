@@ -46,7 +46,7 @@ defmodule Hex.Repo do
     end
   end
 
-  defp default_organization(source, repo, name) do
+  defp default_organization(repo, source, name) do
     url = merge_values(Map.get(repo, :url), source.url <> "/repos/#{name}")
     public_key = merge_values(Map.get(repo, :public_key), source.public_key)
     auth_key = merge_values(Map.get(repo, :auth_key), source.auth_key)
@@ -83,8 +83,8 @@ defmodule Hex.Repo do
   defp fetch_organization_fallback(repo) do
     case String.split(repo, ":", parts: 2) do
       [source, organization] ->
-        {:ok, source} = fetch_repo(source)
-        {:ok, default_organization(source, %{}, organization)}
+        source = get_repo(source)
+        {:ok, default_organization(%{}, source, organization)}
 
       _ ->
         :error
@@ -113,12 +113,12 @@ defmodule Hex.Repo do
     Map.new(repos, fn {name, repo} ->
       case split_repo_name(name) do
         [source, organization] ->
-          source = Map.fetch!(repos, source)
-          repo = default_organization(source, repo, organization)
+          source = get_repo(source)
+          repo = default_organization(repo, source, organization)
           {name, repo}
 
         _ ->
-          {name, repo}
+          {name, Map.put(repo, :trusted, true)}
       end
     end)
   end
@@ -127,18 +127,22 @@ defmodule Hex.Repo do
     Map.new(repos, fn {name, repo} ->
       case split_repo_name(name) do
         [source, organization] ->
-          source_repo = Map.fetch!(repos, source)
-          repo = put_organization_url(organization, repo, source_repo)
-          repo = clean_repo(repo, source_repo)
+          source = get_repo(source)
+
+          repo =
+            repo
+            |> put_organization_url(organization, source)
+            |> clean_repo(source)
+
           {name, repo}
 
         _ ->
-          {name, repo}
+          {name, Map.delete(repo, :trusted)}
       end
     end)
   end
 
-  defp put_organization_url(organization, repo, source_repo) do
+  defp put_organization_url(repo, organization, source_repo) do
     if repo.url == source_repo.url <> "/repos/#{organization}" do
       Map.delete(repo, :url)
     else
@@ -159,13 +163,10 @@ defmodule Hex.Repo do
   end
 
   defp clean_repo(repo, default) do
-    Enum.reduce(default, repo, fn {key, value}, repo ->
-      if value == Map.get(repo, key) do
-        Map.delete(repo, key)
-      else
-        repo
-      end
-    end)
+    repo
+    |> Map.delete(:trusted)
+    |> Enum.reject(fn {key, value} -> value in [nil, Map.get(default, key)] end)
+    |> Map.new()
   end
 
   defp merge_values(nil, right), do: right

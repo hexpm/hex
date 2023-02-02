@@ -74,12 +74,13 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       assert myorg.url == "http://localhost:4043/repo/repos/myorgauthkey"
       assert myorg.auth_key == body["secret"]
 
-      config = Map.new(Hex.Config.read())
-      repo = config[:"$repos"]["hexpm:myorgauthkey"]
-      assert repo
+      repos = Hex.Config.read_repos(Hex.Config.read())
+      assert repo = repos["hexpm:myorgauthkey"]
       assert repo[:auth_key]
-      refute repo[:public_key]
-      refute repo[:url]
+      assert repo[:trusted]
+      assert repo[:url] == "http://localhost:4043/repo/repos/myorgauthkey"
+
+      refute Map.has_key?(Hex.Config.read()[:"$repos"]["hexpm:myorgauthkey"], :trusted)
     end)
   end
 
@@ -104,7 +105,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       Mix.Tasks.Hex.Organization.run(["auth", "myorgdeauth"])
 
       Mix.Tasks.Hex.Organization.run(["deauth", "myorgdeauth"])
-      refute Hex.Config.read()[:"$repos"]["hexpm:myorgdeauth"]
+      refute Hex.Config.read_repos(Hex.Config.read())["hexpm:myorgdeauth"]
     end)
   end
 
