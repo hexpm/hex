@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## v2.0.4-dev
+## v2.0.4 (2023-02-02)
+
+### Bug fixes
+
+* Fix trust lookup for organizations
 
 ## v2.0.3 (2023-02-01)
 
