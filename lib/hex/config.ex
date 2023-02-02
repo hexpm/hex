@@ -104,8 +104,8 @@ defmodule Hex.Config do
     term
   end
 
-  def read_repos(config, repo_key) do
-    hexpm = Hex.Repo.nostate_default_hexpm_repo(repo_key)
+  def read_repos(config) do
+    hexpm = Hex.Repo.default_hexpm_repo()
 
     (config[:"$repos"] || %{})
     |> Hex.Repo.merge_hexpm(hexpm)

@@ -23,8 +23,10 @@ defmodule Hex.Repo do
 
     case Map.fetch(repos, repo) do
       {:ok, config} when repo == "hexpm" ->
-        hexpm = default_hexpm_repo()
-        {:ok, %{config | url: hexpm.url || config.url, trusted: hexpm.trusted}}
+        hexpm = hexpm_repo()
+        url = hexpm.url || config.url
+        auth_key = hexpm.auth_key || config.auth_key
+        {:ok, %{config | url: url, trusted: hexpm.trusted, auth_key: auth_key}}
 
       {:ok, config} ->
         {:ok, config}
@@ -56,23 +58,24 @@ defmodule Hex.Repo do
     |> Map.put(:trusted, Map.has_key?(repo, :auth_key) or source.trusted)
   end
 
-  def default_hexpm_repo() do
+  def hexpm_repo() do
     trusted_mirror_url = Hex.State.fetch!(:trusted_mirror_url)
     mirror_url = Hex.State.fetch!(:mirror_url)
+    auth_key = Hex.State.fetch!(:repos_key)
 
     %{
       url: trusted_mirror_url || mirror_url,
       public_key: @hexpm_public_key,
-      auth_key: nil,
+      auth_key: auth_key,
       trusted: trusted_mirror_url != nil or mirror_url == nil
     }
   end
 
-  def nostate_default_hexpm_repo(auth_key) do
+  def default_hexpm_repo() do
     %{
       url: @hexpm_url,
       public_key: @hexpm_public_key,
-      auth_key: auth_key,
+      auth_key: nil,
       trusted: true
     }
   end
@@ -102,7 +105,7 @@ defmodule Hex.Repo do
     )
   end
 
-  def merge_hexpm(repos, hexpm \\ default_hexpm_repo()) do
+  def merge_hexpm(repos, hexpm \\ hexpm_repo()) do
     Map.update(repos, "hexpm", hexpm, &Map.merge(hexpm, &1))
   end
 
@@ -144,7 +147,7 @@ defmodule Hex.Repo do
   end
 
   def clean_hexpm(repos) do
-    hexpm = default_hexpm_repo()
+    hexpm = hexpm_repo()
     repo = Map.get(repos, "hexpm", hexpm)
     repo = clean_repo(repo, hexpm)
 

@@ -150,14 +150,11 @@ defmodule Hex.State do
         {key, load_config_value(global_config, project_config, spec)}
       end)
 
-    {_source, repos_key} = Map.fetch!(state, :repos_key)
-
     Map.merge(state, %{
       clean_pass: {:computed, true},
       httpc_profile: {:computed, :hex},
       pbkdf2_iters: {:computed, @pbkdf2_iters},
-      repos: {:computed, Hex.Config.read_repos(global_config, repos_key)},
-      repos_key: {:computed, repos_key},
+      repos: {:computed, Hex.Config.read_repos(global_config)},
       ssl_version: {:computed, ssl_version()},
       shell_process: {:computed, nil}
     })
