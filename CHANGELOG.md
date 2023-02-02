@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## v2.0.5-dev
+
 ## v2.0.4 (2023-02-02)
 
 ### Bug fixes
