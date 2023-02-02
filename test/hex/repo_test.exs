@@ -71,4 +71,39 @@ defmodule Hex.RepoTest do
     config = %{url: "http://localhost:#{bypass.port}/not_found", auth_key: "key", trusted: false}
     assert {:ok, {404, "not found", _}} = Hex.Repo.get_public_key(config)
   end
+
+  test "fetch_repo/1" do
+    assert {:ok,
+            %{auth_key: nil, public_key: _, trusted: true, url: "http://localhost:4043/repo"}} =
+             Hex.Repo.fetch_repo("hexpm")
+
+    assert {:ok,
+            %{
+              auth_key: nil,
+              public_key: _,
+              trusted: true,
+              url: "http://localhost:4043/repo/repos/acme"
+            }} = Hex.Repo.fetch_repo("hexpm:acme")
+
+    assert Hex.Repo.fetch_repo("foo") == :error
+
+    Hex.State.put(:trusted_mirror_url, "http://example.com")
+
+    assert {:ok, %{auth_key: nil, public_key: _, trusted: true, url: "http://example.com"}} =
+             Hex.Repo.fetch_repo("hexpm")
+
+    assert {:ok,
+            %{auth_key: nil, public_key: _, trusted: true, url: "http://example.com/repos/acme"}} =
+             Hex.Repo.fetch_repo("hexpm:acme")
+
+    Hex.State.put(:trusted_mirror_url, nil)
+    Hex.State.put(:mirror_url, "http://example.com")
+
+    assert {:ok, %{auth_key: nil, public_key: _, trusted: false, url: "http://example.com"}} =
+             Hex.Repo.fetch_repo("hexpm")
+
+    assert {:ok,
+            %{auth_key: nil, public_key: _, trusted: false, url: "http://example.com/repos/acme"}} =
+             Hex.Repo.fetch_repo("hexpm:acme")
+  end
 end

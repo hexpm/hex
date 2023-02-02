@@ -23,21 +23,14 @@ defmodule Hex.Repo do
 
     case Map.fetch(repos, repo) do
       {:ok, config} when repo == "hexpm" ->
-        trusted_mirror_url = Hex.State.fetch!(:trusted_mirror_url)
-        mirror_url = Hex.State.fetch!(:mirror_url)
-
-        config =
-          config
-          |> Map.put(:url, trusted_mirror_url || mirror_url || config.url)
-          |> Map.put(:trusted, trusted_mirror_url != nil or mirror_url == nil)
-
-        {:ok, config}
+        hexpm = default_hexpm_repo()
+        {:ok, %{config | url: hexpm.url || config.url, trusted: hexpm.trusted}}
 
       {:ok, config} ->
         {:ok, config}
 
       :error ->
-        fetch_organization_fallback(repo, repos)
+        fetch_organization_fallback(repo)
     end
   end
 
@@ -51,7 +44,7 @@ defmodule Hex.Repo do
     end
   end
 
-  def default_organization(source, repo, name) do
+  defp default_organization(source, repo, name) do
     url = merge_values(Map.get(repo, :url), source.url <> "/repos/#{name}")
     public_key = merge_values(Map.get(repo, :public_key), source.public_key)
     auth_key = merge_values(Map.get(repo, :auth_key), source.auth_key)
@@ -60,10 +53,22 @@ defmodule Hex.Repo do
     |> Map.put(:url, url)
     |> Map.put(:public_key, public_key)
     |> Map.put(:auth_key, auth_key)
-    |> Map.put(:trusted, auth_key)
+    |> Map.put(:trusted, Map.has_key?(repo, :auth_key) or source.trusted)
   end
 
-  def default_hexpm_repo(auth_key \\ Hex.State.fetch!(:repos_key)) do
+  def default_hexpm_repo() do
+    trusted_mirror_url = Hex.State.fetch!(:trusted_mirror_url)
+    mirror_url = Hex.State.fetch!(:mirror_url)
+
+    %{
+      url: trusted_mirror_url || mirror_url,
+      public_key: @hexpm_public_key,
+      auth_key: nil,
+      trusted: trusted_mirror_url != nil or mirror_url == nil
+    }
+  end
+
+  def nostate_default_hexpm_repo(auth_key) do
     %{
       url: @hexpm_url,
       public_key: @hexpm_public_key,
@@ -72,10 +77,10 @@ defmodule Hex.Repo do
     }
   end
 
-  defp fetch_organization_fallback(repo, repos) do
+  defp fetch_organization_fallback(repo) do
     case String.split(repo, ":", parts: 2) do
       [source, organization] ->
-        source = Map.fetch!(repos, source)
+        {:ok, source} = fetch_repo(source)
         {:ok, default_organization(source, %{}, organization)}
 
       _ ->
