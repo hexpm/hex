@@ -103,11 +103,14 @@ create_docs(Files, #{tarball_max_size := TarballMaxSize, tarball_max_uncompresse
     Tarball = gzip(UncompressedTarball),
     Size = byte_size(Tarball),
 
-    case(Size > TarballMaxSize) or (UncompressedSize > TarballMaxUncompressedSize) of
-        true ->
-            {error, {tarball, too_big}};
+    case {(Size > TarballMaxSize), (UncompressedSize > TarballMaxUncompressedSize)} of
+        {_, true} -> 
+            {error, {tarball, {too_big_uncompressed, TarballMaxUncompressedSize}}};
 
-        false ->
+        {true, _} ->
+            {error, {tarball, {too_big_compressed, TarballMaxSize}}};
+
+        {false, false} ->
             {ok, Tarball}
     end.
 
