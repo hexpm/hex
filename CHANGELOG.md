@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## v2.0.6-dev
+## v2.0.6 (2023-02-06)
+
+### Bug fixes
+
+* Fix application startup when there are configured organizations
 
 ## v2.0.5 (2023-02-06)
 
