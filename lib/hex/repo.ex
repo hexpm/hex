@@ -113,7 +113,14 @@ defmodule Hex.Repo do
     Map.new(repos, fn {name, repo} ->
       case split_repo_name(name) do
         [source, organization] ->
-          source = get_repo(source)
+          state_pid = Process.whereis(Hex.State)
+          source =
+            if state_pid && state_pid != self() do
+              source = get_repo(source)
+            else
+              Map.fetch!(repos, source)
+            end
+
           repo = default_organization(repo, source, organization)
           {name, repo}
 
