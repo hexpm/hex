@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## v2.0.5-dev
+## v2.0.5 (2023-02-06)
+
+### Bug fixes
+
+* Fix HTTP authentication for repositories added before v2.0.3
 
 ## v2.0.4 (2023-02-02)
 
