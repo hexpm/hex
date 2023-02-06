@@ -129,4 +129,30 @@ defmodule Hex.RepoTest do
               url: "http://example.com/repos/acme"
             }} = Hex.Repo.fetch_repo("hexpm:acme")
   end
+
+  test "update_organizations/1 without Hex.State" do
+    :ok = Supervisor.terminate_child(Hex.Supervisor, Hex.State)
+    :ok = Supervisor.delete_child(Hex.Supervisor, Hex.State)
+
+    repos = %{
+      "hexpm" => %{
+        url: "http://example.com",
+        public_key: "public",
+        auth_key: "auth",
+        trusted: true
+      },
+      "hexpm:acme" => %{}
+    }
+
+    assert %{
+             "hexpm:acme" => %{
+               auth_key: "auth",
+               public_key: "public",
+               trusted: true,
+               url: "http://example.com/repos/acme"
+             }
+           } = Hex.Repo.update_organizations(repos)
+  after
+    {:ok, _} = Supervisor.start_child(Hex.Supervisor, Hex.State)
+  end
 end

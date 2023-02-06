@@ -114,9 +114,10 @@ defmodule Hex.Repo do
       case split_repo_name(name) do
         [source, organization] ->
           state_pid = Process.whereis(Hex.State)
+
           source =
             if state_pid && state_pid != self() do
-              source = get_repo(source)
+              get_repo(source)
             else
               Map.fetch!(repos, source)
             end
