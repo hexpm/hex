@@ -71,7 +71,7 @@ defmodule Hex.RemoteConverger do
           dependencies,
           locked,
           overridden,
-          ansi: IO.ANSI.enabled?()
+          ansi: Hex.Shell.ansi_enabled?()
         )
       after
         Logger.configure(level: level)
@@ -87,7 +87,7 @@ defmodule Hex.RemoteConverger do
         solver_success(resolved, requests, lock, old_lock)
 
       {:error, message} ->
-        Hex.Shell.warn([IO.ANSI.reset(), message])
+        Hex.Shell.info(message)
         Mix.raise("Hex dependency resolution failed")
     end
   end
