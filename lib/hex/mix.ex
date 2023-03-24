@@ -9,9 +9,9 @@ defmodule Hex.Mix do
     for(
       dep <- deps,
       dep.opts[:override],
-      uniq: true,
       do: dep.app
     )
+    |> Enum.uniq()
   end
 
   @doc """
