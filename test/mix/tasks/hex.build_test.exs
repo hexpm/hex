@@ -341,23 +341,6 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge([ReleaseTooLongDescription.MixProject])
   end
 
-  test "error if package has unstable dependencies" do
-    Process.put(:hex_test_app_name, :build_unstable_deps)
-    Mix.Project.push(ReleasePreDeps.MixProject)
-
-    in_tmp(fn ->
-      Hex.State.put(:cache_home, tmp_path())
-
-      error_msg = "A stable package release cannot have a pre-release dependency"
-
-      assert_raise Mix.Error, error_msg, fn ->
-        Mix.Tasks.Hex.Build.run([])
-      end
-    end)
-  after
-    purge([ReleasePreDeps.MixProject])
-  end
-
   test "error if misspelled organization" do
     Process.put(:hex_test_app_name, :build_misspelled_organization)
     Mix.Project.push(ReleaseMisspelledOrganization.MixProject)

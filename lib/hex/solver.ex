@@ -10,7 +10,8 @@ defmodule Hex.Solver do
           name: package(),
           constraint: constraint(),
           optional: optional(),
-          label: label()
+          label: label(),
+          dependencies: [dependency()]
         }
   @type locked() :: %{
           repo: repo(),

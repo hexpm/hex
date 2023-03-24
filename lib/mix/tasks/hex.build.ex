@@ -97,7 +97,6 @@ defmodule Mix.Tasks.Hex.Build do
     {organization, package} = Map.pop(package, :organization)
     {deps, exclude_deps} = dependencies()
     meta = meta_for(config, package, deps)
-    check_unstable_dependencies!(organization, meta)
 
     %{
       config: config,
@@ -280,13 +279,6 @@ defmodule Mix.Tasks.Hex.Build do
     end
   end
 
-  defp check_unstable_dependencies!(organization, meta) do
-    if organization in [nil, "hexpm"] and not pre_requirement?(meta.version) and
-         has_pre_requirements?(meta) do
-      Mix.raise("A stable package release cannot have a pre-release dependency")
-    end
-  end
-
   defp check_misspellings!(opts) do
     if opts[:organisation] do
       Mix.raise("Invalid Hex package config :organisation, use spelling :organization")
@@ -305,16 +297,6 @@ defmodule Mix.Tasks.Hex.Build do
         "Mix project configuration #{inspect(invalid_field)} belongs under the :package key, did you misplace it?"
       )
     end
-  end
-
-  defp pre_requirement?(version_req) do
-    String.contains?(version_req, "-")
-  end
-
-  defp has_pre_requirements?(meta) do
-    meta.requirements
-    |> Enum.map(& &1.requirement)
-    |> Enum.any?(&pre_requirement?/1)
   end
 
   @scm_keys [:git, :github, :path]

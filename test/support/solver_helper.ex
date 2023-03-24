@@ -33,7 +33,8 @@ defmodule HexTest.SolverHelper do
           name: to_string(package),
           constraint: Hex.Solver.parse_constraint!(requirement || ">= 0.0.0"),
           optional: false,
-          label: package
+          label: package,
+          dependencies: []
         }
 
       {package, requirement, opts} ->
@@ -46,7 +47,8 @@ defmodule HexTest.SolverHelper do
           name: to_string(package),
           constraint: Hex.Solver.parse_constraint!(requirement || ">= 0.0.0"),
           optional: optional,
-          label: app
+          label: app,
+          dependencies: []
         }
     end)
   end

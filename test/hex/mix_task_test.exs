@@ -651,6 +651,13 @@ defmodule Hex.MixTaskTest do
       assert_raise(Mix.Error, "Hex dependency resolution failed", fn ->
         Mix.Task.run("deps.get")
       end)
+
+      solver_output = """
+      \e[33m\e[0mBecause \e[1myour app\e[0m depends on \e[1mecto\e[0m which depends on \e[1mpostgrex 0.2.0\e[0m, \e[1mpostgrex 0.2.0\e[0m is required.
+      So, because \e[1myour app\e[0m depends on \e[1mpostgrex 0.2.1\e[0m, version solving failed.\e[0m\
+      """
+
+      assert_received {:mix_shell, :info, [^solver_output]}
     end)
   after
     purge([Ecto.Fixture.MixProject, Postgrex.NoConflict.MixProject, Ex_doc.NoConflict.MixProject])
