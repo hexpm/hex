@@ -33,8 +33,7 @@ defmodule Hex.RemoteConverger do
     old_lock = Mix.Dep.Lock.read()
 
     overridden = Hex.Mix.overridden_deps(deps)
-    flat_deps = Hex.Mix.flatten_deps(deps, overridden)
-    requests = Hex.Mix.deps_to_requests(flat_deps)
+    requests = Hex.Mix.deps_to_requests(deps, overridden)
 
     [
       Hex.Mix.packages_from_lock(lock),
@@ -57,54 +56,10 @@ defmodule Hex.RemoteConverger do
 
   defp run_solver(lock, old_lock, requests, locked, overridden) do
     start_time = System.monotonic_time(:millisecond)
-
-    dependencies =
-      Enum.reduce(requests, %{}, fn {repo, name, app, requirement, from}, map ->
-        repo = if(repo != "hexpm", do: repo)
-        constraint = Hex.Solver.parse_constraint!(requirement || ">= 0.0.0-0")
-
-        dependency = %{
-          repo: repo,
-          name: name,
-          constraint: constraint,
-          optional: false,
-          label: app,
-          from: from
-        }
-
-        Map.update(map, {repo, name}, dependency, fn existing_dependency ->
-          if existing_dependency.label != dependency.label do
-            name = Hex.Utils.package_name(repo, name)
-
-            Mix.raise("""
-            Conflicting OTP application names in dependency definition of #{inspect(name)}, in the following locations:
-
-              * #{existing_dependency.from} defined application :#{existing_dependency.label}
-              * #{dependency.from} defined application :#{dependency.label}
-            """)
-          end
-
-          constraint =
-            Hex.Solver.Constraint.intersect(
-              existing_dependency.constraint,
-              dependency.constraint
-            )
-
-          optional = existing_dependency.optional and dependency.optional
-          %{existing_dependency | constraint: constraint, optional: optional}
-        end)
-      end)
-      |> Map.values()
-
-    locked =
-      Enum.map(locked, fn {repo, name, app, version} ->
-        %{
-          repo: if(repo != "hexpm", do: repo),
-          name: name,
-          version: Hex.Solver.parse_constraint!(version),
-          label: app
-        }
-      end)
+    dependencies = Enum.map(requests, &request_to_dependency/1)
+    locked = Enum.map(locked, &request_to_locked/1)
+    overridden = Enum.map(overridden, &Atom.to_string/1)
+    verify_otp_app_names(dependencies)
 
     level = Logger.level()
     Logger.configure(level: if(Hex.State.fetch!(:debug_solver), do: :debug, else: :info))
@@ -115,8 +70,8 @@ defmodule Hex.RemoteConverger do
           Registry,
           dependencies,
           locked,
-          Map.keys(overridden),
-          ansi: IO.ANSI.enabled?()
+          overridden,
+          ansi: Hex.Shell.ansi_enabled?()
         )
       after
         Logger.configure(level: level)
@@ -132,9 +87,37 @@ defmodule Hex.RemoteConverger do
         solver_success(resolved, requests, lock, old_lock)
 
       {:error, message} ->
-        Hex.Shell.warn([IO.ANSI.reset(), message])
+        Hex.Shell.info(message)
         Mix.raise("Hex dependency resolution failed")
     end
+  end
+
+  defp request_to_dependency(request) do
+    constraint =
+      if request.requirement do
+        Hex.Solver.parse_constraint!(request.requirement)
+      else
+        %Hex.Solver.Constraints.Range{}
+      end
+
+    %{
+      repo: if(request.repo != "hexpm", do: request.repo),
+      name: request.name,
+      constraint: constraint,
+      optional: false,
+      label: request.app,
+      from: request.from,
+      dependencies: Enum.map(request.dependencies, &request_to_dependency/1)
+    }
+  end
+
+  defp request_to_locked(request) do
+    %{
+      repo: if(request.repo != "hexpm", do: request.repo),
+      name: request.name,
+      version: Hex.Solver.parse_constraint!(request.version),
+      label: request.app
+    }
   end
 
   def normalize_resolved(resolved) do
@@ -146,6 +129,16 @@ defmodule Hex.RemoteConverger do
   end
 
   defp solver_success(resolved, requests, lock, old_lock) do
+    parent_deps =
+      Enum.flat_map(requests, fn %{name: package, dependencies: deps} ->
+        if deps == [] do
+          []
+        else
+          [package]
+        end
+      end)
+
+    resolved = Enum.reject(resolved, fn {_repo, package, _version} -> package in parent_deps end)
     resolved = add_apps_to_resolved(resolved, requests)
     print_success(resolved, old_lock)
     verify_resolved(resolved, old_lock)
@@ -180,12 +173,7 @@ defmodule Hex.RemoteConverger do
             end
           end)
 
-        root_app =
-          Enum.find_value(requests, fn
-            {^repo, ^package, app, _requirement, _from} -> {"hexpm", "myapp", app}
-            {_repo, _package, _app, _requirement, _from} -> nil
-          end)
-
+        root_app = find_root_app_in_requests(requests, repo, package)
         apps = Enum.uniq_by(List.wrap(root_app) ++ apps, fn {_repo, _package, app} -> app end)
 
         case apps do
@@ -233,9 +221,18 @@ defmodule Hex.RemoteConverger do
     resolved
   end
 
+  defp find_root_app_in_requests(requests, repo, package) do
+    Enum.find_value(requests, fn
+      %{repo: ^repo, name: ^package, app: app} -> {"hexpm", "myapp", app}
+      %{dependencies: dependencies} -> find_root_app_in_requests(dependencies, repo, package)
+      %{} -> nil
+    end)
+  end
+
   defp packages_from_requests(deps) do
-    Enum.map(deps, fn {repo, package, _app, _req, _from} ->
-      {repo, package}
+    Enum.flat_map(deps, fn
+      %{repo: repo, name: package, dependencies: []} -> [{repo, package}]
+      %{dependencies: dependencies} -> packages_from_requests(dependencies)
     end)
   end
 
@@ -291,6 +288,7 @@ defmodule Hex.RemoteConverger do
     end
   end
 
+  # TODO: Use requests
   defp verify_deps(deps, top_level) do
     Enum.each(deps, fn dep ->
       if dep.app in top_level and dep.scm == Hex.SCM and dep.requirement == nil do
@@ -303,11 +301,15 @@ defmodule Hex.RemoteConverger do
   end
 
   defp verify_input(requests, locked) do
-    Enum.each(requests, fn {repo, name, _app, req, from} ->
-      verify_package_req(repo, name, req, from)
+    Enum.each(requests, fn
+      %{repo: repo, name: name, requirement: req, from: from, dependencies: []} ->
+        verify_package_req(repo, name, req, from)
+
+      %{} ->
+        nil
     end)
 
-    Enum.each(locked, fn {repo, name, _app, req} ->
+    Enum.each(locked, fn %{repo: repo, name: name, version: req} ->
       verify_package_req(repo, name, req, "mix.lock")
     end)
   end
@@ -322,6 +324,36 @@ defmodule Hex.RemoteConverger do
         "Required version #{inspect(req)} for package #{name} is incorrectly specified (from: #{from})"
       )
     end
+  end
+
+  defp verify_otp_app_names(dependencies) do
+    verify_otp_app_names(dependencies, %{})
+  end
+
+  defp verify_otp_app_names([%{dependencies: []} = dependency | dependencies], map) do
+    map =
+      Map.update(map, {dependency.repo, dependency.name}, dependency, fn existing_dependency ->
+        if existing_dependency.label != dependency.label do
+          name = Hex.Utils.package_name(dependency.repo, dependency.name)
+
+          Mix.raise("""
+          Conflicting OTP application names in dependency definition of #{inspect(name)}, in the following locations:
+
+            * #{existing_dependency.from} defined application :#{existing_dependency.label}
+            * #{dependency.from} defined application :#{dependency.label}
+          """)
+        end
+      end)
+
+    verify_otp_app_names(dependencies, map)
+  end
+
+  defp verify_otp_app_names([%{dependencies: sub_dependencies} | dependencies], map) do
+    verify_otp_app_names(sub_dependencies ++ dependencies, map)
+  end
+
+  defp verify_otp_app_names([], _map) do
+    :ok
   end
 
   defp print_success(resolved, old_lock) do
@@ -522,6 +554,7 @@ defmodule Hex.RemoteConverger do
   defp verify_deps(nil, _name, _version, _deps), do: :ok
 
   defp verify_deps(repo, name, version, deps) do
+    # TODO: Use requests?
     deps =
       Enum.map(deps, fn {app, req, opts} ->
         %{
@@ -621,7 +654,7 @@ defmodule Hex.RemoteConverger do
 
     old_lock
     |> Hex.Mix.from_lock()
-    |> Enum.reject(fn {_repo, _name, app, _version} -> app in unlock end)
+    |> Enum.reject(fn %{app: app} -> app in unlock end)
   end
 
   defp unlock_deps(deps, old_lock) do

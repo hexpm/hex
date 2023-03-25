@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.2 (2634e31), do not edit manually
+# Vendored from hex_solver v0.2.3 (057f77e), do not edit manually
 
 defmodule Hex.Solver do
   _ = """
@@ -10,7 +10,8 @@ defmodule Hex.Solver do
           name: package(),
           constraint: constraint(),
           optional: optional(),
-          label: label()
+          label: label(),
+          dependencies: [dependency()]
         }
   @type locked() :: %{
           repo: repo(),
@@ -32,6 +33,16 @@ defmodule Hex.Solver do
 
   Takes a `Hex.Solver.Registry` implementation, a list of root dependencies, a list of locked
   package versions, and a list of packages that are overridden by the root dependencies.
+
+  Depdendencies with sub-dependencies in the `:dependencies` map field are not expected to be
+  packages in the registry. These dependencies are used to give better error messages for
+  when there are multiple declarations of the dependency with conflicting version requirements.
+  For example:
+
+      * Top dependency 1
+        * package ~> 1.0
+      * Top dependency 2
+        * package ~> 2.0
 
   Locked dependencies are treated as optional dependencies with a single version as
   their constraint.

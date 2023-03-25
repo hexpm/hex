@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.2 (2634e31), do not edit manually
+# Vendored from hex_solver v0.2.3 (057f77e), do not edit manually
 
 defmodule Hex.Solver.Incompatibility do
   @moduledoc false

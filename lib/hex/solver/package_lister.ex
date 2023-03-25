@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.2 (2634e31), do not edit manually
+# Vendored from hex_solver v0.2.3 (057f77e), do not edit manually
 
 defmodule Hex.Solver.PackageLister do
   @moduledoc false
@@ -110,6 +110,7 @@ defmodule Hex.Solver.PackageLister do
 
     prefetch =
       dependencies
+      |> Enum.filter(fn {_dependency, %{prefetch: prefetch}} -> prefetch end)
       |> MapSet.new(fn {dependency, %{repo: repo}} -> {repo, dependency} end)
       |> MapSet.difference(lister.already_prefetched)
 
@@ -195,23 +196,30 @@ defmodule Hex.Solver.PackageLister do
   defp versions(_lister, _repo, "$root"), do: {:ok, [@version_1]}
   defp versions(_lister, _repo, "$lock"), do: {:ok, [@version_1]}
 
-  defp versions(%PackageLister{registry: registry}, repo, package),
-    do: registry.versions(repo, package)
+  defp versions(%PackageLister{} = lister, repo, package) do
+    root_dependency = find_root_dependency(lister, repo, package)
 
-  defp dependencies(
-         %PackageLister{root_dependencies: dependencies, locked: locked},
-         _repo,
-         "$root",
-         @version_1
-       ) do
+    if root_dependency do
+      {:ok, [@version_1]}
+    else
+      lister.registry.versions(repo, package)
+    end
+  end
+
+  defp dependencies(%PackageLister{} = lister, _repo, "$root", @version_1) do
     lock_dependency =
-      if locked == [] do
+      if lister.locked == [] do
         []
       else
         [%{repo: nil, name: "$lock", constraint: @version_1, optional: false, label: "$lock"}]
       end
 
-    {:ok, dependency_map(lock_dependency ++ dependencies)}
+    root_dependencies =
+      Enum.map(lister.root_dependencies, fn dependency ->
+        Map.put(dependency, :prefetch, dependency.dependencies == [])
+      end)
+
+    {:ok, dependency_map(lock_dependency ++ root_dependencies)}
   end
 
   defp dependencies(%PackageLister{locked: locked}, _repo, "$lock", @version_1) do
@@ -222,15 +230,22 @@ defmodule Hex.Solver.PackageLister do
           repo: dependency.repo,
           constraint: dependency.constraint,
           optional: true,
-          label: dependency.label
+          label: dependency.label,
+          prefetch: true
         }}
      end)}
   end
 
-  defp dependencies(%PackageLister{registry: registry}, repo, package, version) do
-    case registry.dependencies(repo, package, version) do
-      {:ok, dependencies} -> {:ok, dependency_map(dependencies)}
-      :error -> :error
+  defp dependencies(%PackageLister{} = lister, repo, package, version) do
+    root_dependency = find_root_dependency(lister, repo, package)
+
+    if root_dependency do
+      {:ok, dependency_map(root_dependency.dependencies)}
+    else
+      case lister.registry.dependencies(repo, package, version) do
+        {:ok, dependencies} -> {:ok, dependency_map(dependencies)}
+        :error -> :error
+      end
     end
   end
 
@@ -241,8 +256,13 @@ defmodule Hex.Solver.PackageLister do
          repo: dependency.repo,
          constraint: dependency.constraint,
          optional: dependency.optional,
-         label: dependency.label
+         label: dependency.label,
+         prefetch: Map.get(dependency, :prefetch, true)
        }}
     end)
+  end
+
+  defp find_root_dependency(%PackageLister{root_dependencies: dependencies}, repo, package) do
+    Enum.find(dependencies, &(&1.repo == repo and &1.name == package and &1.dependencies != []))
   end
 end

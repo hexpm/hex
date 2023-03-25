@@ -41,10 +41,8 @@ jobs:
       fail-fast: false
       matrix:
         pair:
-          - erlang: master
-            elixir: 1.14.0
-          - erlang: 25.0
-            elixir: main
+          # - erlang: master
+          #   elixir: main
           - erlang: 25.0
             elixir: 1.14.0
           - erlang: 25.0

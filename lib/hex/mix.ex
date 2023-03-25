@@ -5,9 +5,19 @@ defmodule Hex.Mix do
 
   @type deps :: %{String.t() => {boolean, deps}}
 
+  def overridden_deps(deps) do
+    for(
+      dep <- deps,
+      dep.opts[:override],
+      do: dep.app
+    )
+    |> Enum.uniq()
+  end
+
   @doc """
-  Given a tree of dependencies return a flat list of all dependencies in
-  the tree.
+  Converts a list of dependencies to a requests to the resolver. Skips
+  dependencies overriding with another SCM (but include dependencies
+  overriding with Hex) and dependencies that are not Hex packages.
 
   The returned flattened list is going to contain duplicated dependencies
   because we want to accumulate all of the different requirements.
@@ -16,38 +26,46 @@ defmodule Hex.Mix do
   in the original list of dependencies as they were likely filtered out
   due to options like `:only`.
   """
-  @spec flatten_deps([Mix.Dep.t()], [atom]) :: [Mix.Dep.t()]
-  def flatten_deps(deps, overridden_map) do
+  def deps_to_requests(deps, overridden) do
     apps = Enum.map(deps, & &1.app)
 
-    deps ++
-      for(
-        dep <- deps,
-        %{app: app} = child <- dep.deps,
-        app in apps and !overridden_map[Atom.to_string(app)],
-        do: child
-      )
+    hex_deps_to_requests(deps, apps, overridden, _top_level? = true) ++
+      Enum.flat_map(deps, fn dep ->
+        if dep.scm != Hex.SCM and dep.deps != [] do
+          [
+            %{
+              repo: nil,
+              name: Atom.to_string(dep.app),
+              requirement: nil,
+              app: Atom.to_string(dep.app),
+              from: Path.relative_to_cwd(dep.from),
+              dependencies: hex_deps_to_requests(dep.deps, apps, overridden, _top_level? = false)
+            }
+          ]
+        else
+          []
+        end
+      end)
   end
 
-  def overridden_deps(deps) do
-    for(
-      dep <- deps,
-      dep.opts[:override],
-      into: %{},
-      do: {Atom.to_string(dep.app), true}
-    )
-  end
-
-  @doc """
-  Converts a list of dependencies to a requests to the resolver. Skips
-  dependencies overriding with another SCM (but include dependencies
-  overriding with Hex) and dependencies that are not Hex packages.
-  """
-  def deps_to_requests(deps) do
-    for %Mix.Dep{app: app, requirement: req, scm: Hex.SCM, opts: opts, from: from} <- deps do
-      from = Path.relative_to_cwd(from)
-      {opts[:repo], opts[:hex], Atom.to_string(app), req, from}
-    end
+  defp hex_deps_to_requests(deps, apps, overridden, top_level?) do
+    Enum.flat_map(deps, fn dep ->
+      if dep.scm == Hex.SCM and dep.app in apps and (dep.top_level or dep.app not in overridden) and
+           dep.top_level == top_level? do
+        [
+          %{
+            repo: dep.opts[:repo],
+            name: dep.opts[:hex],
+            requirement: dep.requirement,
+            app: Atom.to_string(dep.app),
+            from: Path.relative_to_cwd(dep.from),
+            dependencies: []
+          }
+        ]
+      else
+        []
+      end
+    end)
   end
 
   @doc """
@@ -77,7 +95,7 @@ defmodule Hex.Mix do
     Enum.flat_map(lock, fn {app, info} ->
       case Hex.Utils.lock(info) do
         %{name: name, version: version, repo: repo} ->
-          [{repo, name, Atom.to_string(app), version}]
+          [%{repo: repo, name: name, app: Atom.to_string(app), version: version}]
 
         nil ->
           []
