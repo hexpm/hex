@@ -182,22 +182,30 @@ defmodule Hex.Repo do
 
   def get_package(repo, package, etag) do
     headers = Map.merge(etag_headers(etag), auth_headers(repo))
+
     HTTP.request(:get, package_url(repo, package), headers, nil)
+    |> handle_response()
   end
 
   def get_docs(repo, package, version) do
     headers = auth_headers(repo)
+
     HTTP.request(:get, docs_url(repo, package, version), headers, nil)
+    |> handle_response()
   end
 
   def get_tarball(repo, package, version) do
     headers = auth_headers(repo)
+
     HTTP.request(:get, tarball_url(repo, package, version), headers, nil)
+    |> handle_response()
   end
 
   def get_public_key(repo) do
     headers = auth_headers(repo)
+
     HTTP.request(:get, public_key_url(repo), headers, nil)
+    |> handle_response()
   end
 
   def verify(body, repo) do
@@ -214,7 +222,17 @@ defmodule Hex.Repo do
   def get_installs() do
     config = Hex.State.fetch!(:repos)["hexpm"]
     url = config.url <> "/installs/hex-1.x.csv"
+
     HTTP.request(:get, url, %{}, nil)
+    |> handle_response()
+  end
+
+  defp handle_response({:ok, code, headers, body}) do
+    {:ok, {code, body, headers}}
+  end
+
+  defp handle_response({:error, term}) do
+    {:error, term}
   end
 
   def find_new_version_from_csv(body) do

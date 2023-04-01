@@ -86,7 +86,7 @@ defmodule Hex.API do
     {@tar_content, {body, 0}}
   end
 
-  defp handle_response({:ok, {code, body, headers}}) do
+  defp handle_response({:ok, code, headers, body}) do
     {:ok, {code, decode_body(body, headers), headers}}
   end
 

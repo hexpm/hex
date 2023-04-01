@@ -1,10 +1,13 @@
 defmodule Hex.HTTP do
   @moduledoc false
 
+  @behaviour :mix_hex_http
+
   @request_timeout 15_000
   @request_redirects 3
   @request_retries 2
 
+  @impl :mix_hex_http
   def request(method, url, headers, body, opts \\ []) do
     headers =
       headers
@@ -59,6 +62,9 @@ defmodule Hex.HTTP do
 
       nil ->
         {url, headers}
+
+      :undefined ->
+        {url, headers}
     end
   end
 
@@ -94,8 +100,8 @@ defmodule Hex.HTTP do
 
   defp redirect(request, http_opts, times, fun) do
     case fun.(request, http_opts) do
-      {:ok, response} ->
-        case handle_redirect(response) do
+      {:ok, code, headers, body} ->
+        case handle_redirect(code, headers) do
           {:ok, location} when times > 0 ->
             ssl_opts = Hex.HTTP.SSL.ssl_opts(to_string(location))
             http_opts = Keyword.put(http_opts, :ssl, ssl_opts)
@@ -108,7 +114,7 @@ defmodule Hex.HTTP do
             Mix.raise("Too many redirects")
 
           :error ->
-            {:ok, response}
+            {:ok, code, headers, body}
         end
 
       {:error, reason} ->
@@ -116,7 +122,7 @@ defmodule Hex.HTTP do
     end
   end
 
-  defp handle_redirect({code, _body, headers})
+  defp handle_redirect(code, headers)
        when code in [301, 302, 303, 307, 308] do
     headers = Map.new(headers)
 
@@ -127,7 +133,7 @@ defmodule Hex.HTTP do
     end
   end
 
-  defp handle_redirect(_) do
+  defp handle_redirect(_, _) do
     :error
   end
 
@@ -163,7 +169,7 @@ defmodule Hex.HTTP do
   defp handle_response({:ok, {{_version, code, _reason}, headers, body}}) do
     headers = Map.new(headers)
     handle_hex_message(headers[~c"x-hex-message"])
-    {:ok, {code, unzip(body, headers), headers}}
+    {:ok, code, headers, unzip(body, headers)}
   end
 
   defp handle_response({:error, term}) do
