@@ -38,8 +38,9 @@ defmodule Hex.HTTP do
   defp fallback(:inet6), do: :inet
 
   defp build_headers(headers) do
-    default_headers = %{~c"user-agent" => user_agent()}
+    default_headers = %{"user-agent" => user_agent()}
     headers = Map.new(headers)
+
     Map.merge(default_headers, headers)
   end
 
@@ -54,7 +55,7 @@ defmodule Hex.HTTP do
 
   defp build_request(url, headers, body) do
     url = String.to_charlist(url)
-    headers = Map.to_list(headers)
+    headers = Enum.map(headers, &encode_header/1)
 
     case body do
       {content_type, body} ->
@@ -66,6 +67,14 @@ defmodule Hex.HTTP do
       :undefined ->
         {url, headers}
     end
+  end
+
+  defp encode_header({name, value}) when is_binary(name) do
+    {String.to_charlist(name), String.to_charlist(value)}
+  end
+
+  defp encode_header({name, value}) when is_list(name) do
+    {name, value}
   end
 
   defp retry(:get, request, http_opts, times, profile, fun) do
