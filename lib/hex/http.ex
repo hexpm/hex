@@ -7,6 +7,14 @@ defmodule Hex.HTTP do
   @request_redirects 3
   @request_retries 2
 
+  @spec config() :: :mix_hex_core.config()
+  def config do
+    %{
+      :mix_hex_core.default_config()
+      | http_adapter: {__MODULE__, %{}}
+    }
+  end
+
   @impl :mix_hex_http
   def request(method, url, headers, body, opts \\ []) do
     headers =
