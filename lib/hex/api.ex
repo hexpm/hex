@@ -3,8 +3,8 @@ defmodule Hex.API do
 
   alias Hex.HTTP
 
-  @erlang_content ~c"application/vnd.hex+erlang"
-  @tar_content ~c"application/octet-stream"
+  @erlang_content "application/vnd.hex+erlang"
+  @tar_content "application/octet-stream"
   @tar_chunk_size 10_000
   @tar_timeout 60_000
 

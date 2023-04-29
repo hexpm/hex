@@ -58,7 +58,7 @@ defmodule Hex.HTTP do
 
     case body do
       {content_type, body} ->
-        {url, headers, content_type, body}
+        {url, headers, String.to_charlist(content_type), body}
 
       nil ->
         {url, headers}
