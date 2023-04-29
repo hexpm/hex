@@ -128,9 +128,7 @@ defmodule Hex.HTTP do
 
   defp handle_redirect(code, headers)
        when code in [301, 302, 303, 307, 308] do
-    headers = Map.new(headers)
-
-    if location = headers[~c"location"] do
+    if location = headers["location"] do
       {:ok, location}
     else
       :error
@@ -171,8 +169,9 @@ defmodule Hex.HTTP do
   end
 
   defp handle_response({:ok, {{_version, code, _reason}, headers, body}}) do
-    headers = Map.new(headers)
-    handle_hex_message(headers[~c"x-hex-message"])
+    headers = Map.new(headers, &decode_header/1)
+
+    handle_hex_message(headers["x-hex-message"])
     {:ok, code, headers, unzip(body, headers)}
   end
 
@@ -180,8 +179,12 @@ defmodule Hex.HTTP do
     {:error, term}
   end
 
+  defp decode_header({name, value}) do
+    {List.to_string(name), List.to_string(value)}
+  end
+
   defp unzip(body, headers) do
-    content_encoding = List.to_string(headers[~c"content-encoding"] || ~c"")
+    content_encoding = headers["content-encoding"] || ""
 
     if String.contains?(content_encoding, "gzip") do
       :zlib.gunzip(body)

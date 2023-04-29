@@ -95,7 +95,7 @@ defmodule Hex.API do
   end
 
   defp decode_body(body, headers) do
-    content_type = List.to_string(headers[~c"content-type"] || ~c"")
+    content_type = headers["content-type"] || ""
 
     if String.contains?(content_type, @erlang_content) do
       Hex.Utils.safe_deserialize_erlang(body)
