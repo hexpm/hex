@@ -39,7 +39,6 @@ defmodule Hex.HTTP do
 
   defp build_headers(headers) do
     default_headers = %{"user-agent" => user_agent()}
-    headers = Map.new(headers)
 
     Map.merge(default_headers, headers)
   end
