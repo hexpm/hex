@@ -110,7 +110,7 @@ defmodule Hex.HTTPTest do
       Hex.HTTP.request(
         :get,
         "http://localhost:#{bypass.port}",
-        %{~c"authorization" => ~c"myAuthHeader"},
+        %{"authorization" => "myAuthHeader"},
         nil
       )
     end)

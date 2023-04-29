@@ -27,7 +27,7 @@ defmodule Hex.API do
     progress = Keyword.fetch!(opts, :progress)
 
     headers =
-      %{~c"content-length" => Integer.to_charlist(byte_size(body))}
+      %{"content-length" => Integer.to_string(byte_size(body))}
       |> Map.merge(headers(opts))
 
     opts = [
@@ -49,18 +49,18 @@ defmodule Hex.API do
   defp repo_path(org), do: "/repos/#{org}/"
 
   defp headers(opts) do
-    %{~c"accept" => @erlang_content}
+    %{"accept" => @erlang_content}
     |> Map.merge(auth(opts))
   end
 
   defp auth(opts) do
     cond do
       opts[:key] ->
-        %{~c"authorization" => String.to_charlist(opts[:key])}
+        %{"authorization" => opts[:key]}
 
       opts[:user] && opts[:pass] ->
-        base64 = :base64.encode_to_string(opts[:user] <> ":" <> opts[:pass])
-        %{~c"authorization" => ~c"Basic " ++ base64}
+        base64 = :base64.encode(opts[:user] <> ":" <> opts[:pass])
+        %{"authorization" => "Basic " <> base64}
 
       true ->
         %{}
@@ -96,9 +96,8 @@ defmodule Hex.API do
 
   defp decode_body(body, headers) do
     content_type = List.to_string(headers[~c"content-type"] || ~c"")
-    erlang_vendor = List.to_string(@erlang_content)
 
-    if String.contains?(content_type, erlang_vendor) do
+    if String.contains?(content_type, @erlang_content) do
       Hex.Utils.safe_deserialize_erlang(body)
     else
       body

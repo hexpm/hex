@@ -68,12 +68,8 @@ defmodule Hex.HTTP do
     end
   end
 
-  defp encode_header({name, value}) when is_binary(name) do
+  defp encode_header({name, value}) do
     {String.to_charlist(name), String.to_charlist(value)}
-  end
-
-  defp encode_header({name, value}) when is_list(name) do
-    {name, value}
   end
 
   defp retry(:get, request, http_opts, times, profile, fun) do
@@ -265,7 +261,7 @@ defmodule Hex.HTTP do
   end
 
   defp user_agent do
-    ~c"Hex/#{Hex.version()} (Elixir/#{System.version()}) (OTP/#{Hex.Utils.otp_version()})"
+    "Hex/#{Hex.version()} (Elixir/#{System.version()}) (OTP/#{Hex.Utils.otp_version()})"
   end
 
   def handle_hex_message(nil) do
@@ -322,7 +318,7 @@ defmodule Hex.HTTP do
     |> skip_trail_ws("", "")
   end
 
-  defp add_basic_auth_via_netrc(%{~c"authorization" => _} = headers, _url), do: headers
+  defp add_basic_auth_via_netrc(%{"authorization" => _} = headers, _url), do: headers
 
   defp add_basic_auth_via_netrc(%{} = headers, url) do
     url = URI.parse(url)
@@ -330,7 +326,7 @@ defmodule Hex.HTTP do
     case Hex.Netrc.lookup(url.host) do
       {:ok, %{username: username, password: password}} ->
         base64 = :base64.encode_to_string("#{username}:#{password}")
-        Map.put(headers, ~c"authorization", ~c"Basic #{base64}")
+        Map.put(headers, "authorization", "Basic #{base64}")
 
       _ ->
         headers

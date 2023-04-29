@@ -260,7 +260,7 @@ defmodule Hex.Repo do
   defp public_key_url(repo), do: repo.url <> "/public_key"
 
   defp etag_headers(nil), do: %{}
-  defp etag_headers(etag), do: %{~c"if-none-match" => String.to_charlist(etag)}
+  defp etag_headers(etag), do: %{"if-none-match" => etag}
 
   defp auth_headers(repo) when is_binary(repo) or repo == nil do
     repo
@@ -269,7 +269,7 @@ defmodule Hex.Repo do
   end
 
   defp auth_headers(%{trusted: true, auth_key: key}) when is_binary(key) do
-    %{~c"authorization" => String.to_charlist(key)}
+    %{"authorization" => key}
   end
 
   defp auth_headers(%{trusted: _, auth_key: _}) do
