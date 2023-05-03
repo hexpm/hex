@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.8.2, do not edit manually
+%% Vendored from hex_core v0.10.0 (d87858a), do not edit manually
 
 %% @doc
 %% httpc-based implementation of {@link mix_hex_http} contract.
@@ -25,19 +25,21 @@ request(Method, URI, ReqHeaders, Body, AdapterConfig) when is_binary(URI) ->
     HTTPOptions = maps:get(http_options, AdapterConfig, []),
 
     HTTPS =
-      case URI of
-        <<"https", _/binary>> -> true;
-        _ -> false
-      end,
+        case URI of
+            <<"https", _/binary>> -> true;
+            _ -> false
+        end,
     SSLOpts = proplists:get_value(ssl, HTTPOptions),
 
     if
-      HTTPS == true andalso SSLOpts == undefined ->
-        io:format("[mix_hex_http_httpc] using default ssl options which are insecure.~n"
-                  "Configure your adapter with: "
-                  "{mix_hex_http_httpc, #{http_options => [{ssl, SslOpts}]}}~n");
-      true ->
-        ok
+        HTTPS == true andalso SSLOpts == undefined ->
+            io:format(
+                "[mix_hex_http_httpc] using default ssl options which are insecure.~n"
+                "Configure your adapter with: "
+                "{mix_hex_http_httpc, #{http_options => [{ssl, SslOpts}]}}~n"
+            );
+        true ->
+            ok
     end,
 
     Request = build_request(URI, ReqHeaders, Body),
@@ -45,7 +47,8 @@ request(Method, URI, ReqHeaders, Body, AdapterConfig) when is_binary(URI) ->
         {ok, {{_, StatusCode, _}, RespHeaders, RespBody}} ->
             RespHeaders2 = load_headers(RespHeaders),
             {ok, {StatusCode, RespHeaders2, RespBody}};
-        {error, Reason} -> {error, Reason}
+        {error, Reason} ->
+            {error, Reason}
     end.
 
 %%====================================================================
@@ -64,10 +67,20 @@ build_request2(URI, ReqHeaders, {ContentType, Body}) ->
 
 %% @private
 dump_headers(Map) ->
-    maps:fold(fun(K, V, Acc) ->
-        [{binary_to_list(K), binary_to_list(V)} | Acc] end, [], Map).
+    maps:fold(
+        fun(K, V, Acc) ->
+            [{binary_to_list(K), binary_to_list(V)} | Acc]
+        end,
+        [],
+        Map
+    ).
 
 %% @private
 load_headers(List) ->
-    lists:foldl(fun({K, V}, Acc) ->
-        maps:put(list_to_binary(K), list_to_binary(V), Acc) end, #{}, List).
+    lists:foldl(
+        fun({K, V}, Acc) ->
+            maps:put(list_to_binary(K), list_to_binary(V), Acc)
+        end,
+        #{},
+        List
+    ).
