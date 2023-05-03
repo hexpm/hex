@@ -41,8 +41,18 @@ defmodule Hex.RepoTest do
     end)
 
     Hex.State.put(:no_verify_repo_origin, true)
-    assert Hex.Repo.decode_package(message, "other repo", "ecto") == []
-    assert Hex.Repo.decode_package(message, "hexpm", "other package") == []
+
+    assert Hex.Repo.decode_package(message, "other repo", "ecto") == %{
+             name: "ecto",
+             releases: [],
+             repository: "hexpm"
+           }
+
+    assert Hex.Repo.decode_package(message, "hexpm", "other package") == %{
+             name: "ecto",
+             releases: [],
+             repository: "hexpm"
+           }
   end
 
   test "get public key" do

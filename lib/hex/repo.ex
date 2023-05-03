@@ -346,7 +346,7 @@ defmodule Hex.Repo do
       releases
     else
       case :mix_hex_registry.decode_package(body, repo, package) do
-        {:ok, releases} ->
+        {:ok, %{releases: releases}} ->
           outer_checksum? = Enum.all?(releases, &Map.has_key?(&1, :outer_checksum))
 
           if not outer_checksum? and Hex.Server.should_warn_registry_version?() do
