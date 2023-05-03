@@ -1,10 +1,13 @@
 defmodule Hex.HTTP do
   @moduledoc false
 
+  @behaviour :mix_hex_http
+
   @request_timeout 15_000
   @request_redirects 3
   @request_retries 2
 
+  @impl :mix_hex_http
   def request(method, url, headers, body, opts \\ []) do
     headers =
       headers
@@ -35,8 +38,8 @@ defmodule Hex.HTTP do
   defp fallback(:inet6), do: :inet
 
   defp build_headers(headers) do
-    default_headers = %{~c"user-agent" => user_agent()}
-    headers = Map.new(headers)
+    default_headers = %{"user-agent" => user_agent()}
+
     Map.merge(default_headers, headers)
   end
 
@@ -51,15 +54,22 @@ defmodule Hex.HTTP do
 
   defp build_request(url, headers, body) do
     url = String.to_charlist(url)
-    headers = Map.to_list(headers)
+    headers = Enum.map(headers, &encode_header/1)
 
     case body do
       {content_type, body} ->
-        {url, headers, content_type, body}
+        {url, headers, String.to_charlist(content_type), body}
 
       nil ->
         {url, headers}
+
+      :undefined ->
+        {url, headers}
     end
+  end
+
+  defp encode_header({name, value}) do
+    {String.to_charlist(name), String.to_charlist(value)}
   end
 
   defp retry(:get, request, http_opts, times, profile, fun) do
@@ -94,8 +104,8 @@ defmodule Hex.HTTP do
 
   defp redirect(request, http_opts, times, fun) do
     case fun.(request, http_opts) do
-      {:ok, response} ->
-        case handle_redirect(response) do
+      {:ok, code, headers, body} ->
+        case handle_redirect(code, headers) do
           {:ok, location} when times > 0 ->
             ssl_opts = Hex.HTTP.SSL.ssl_opts(to_string(location))
             http_opts = Keyword.put(http_opts, :ssl, ssl_opts)
@@ -108,7 +118,7 @@ defmodule Hex.HTTP do
             Mix.raise("Too many redirects")
 
           :error ->
-            {:ok, response}
+            {:ok, code, headers, body}
         end
 
       {:error, reason} ->
@@ -116,18 +126,16 @@ defmodule Hex.HTTP do
     end
   end
 
-  defp handle_redirect({code, _body, headers})
+  defp handle_redirect(code, headers)
        when code in [301, 302, 303, 307, 308] do
-    headers = Map.new(headers)
-
-    if location = headers[~c"location"] do
+    if location = headers["location"] do
       {:ok, location}
     else
       :error
     end
   end
 
-  defp handle_redirect(_) do
+  defp handle_redirect(_, _) do
     :error
   end
 
@@ -161,17 +169,22 @@ defmodule Hex.HTTP do
   end
 
   defp handle_response({:ok, {{_version, code, _reason}, headers, body}}) do
-    headers = Map.new(headers)
-    handle_hex_message(headers[~c"x-hex-message"])
-    {:ok, {code, unzip(body, headers), headers}}
+    headers = Map.new(headers, &decode_header/1)
+
+    handle_hex_message(headers["x-hex-message"])
+    {:ok, code, headers, unzip(body, headers)}
   end
 
   defp handle_response({:error, term}) do
     {:error, term}
   end
 
+  defp decode_header({name, value}) do
+    {List.to_string(name), List.to_string(value)}
+  end
+
   defp unzip(body, headers) do
-    content_encoding = List.to_string(headers[~c"content-encoding"] || ~c"")
+    content_encoding = headers["content-encoding"] || ""
 
     if String.contains?(content_encoding, "gzip") do
       :zlib.gunzip(body)
@@ -251,7 +264,7 @@ defmodule Hex.HTTP do
   end
 
   defp user_agent do
-    ~c"Hex/#{Hex.version()} (Elixir/#{System.version()}) (OTP/#{Hex.Utils.otp_version()})"
+    "Hex/#{Hex.version()} (Elixir/#{System.version()}) (OTP/#{Hex.Utils.otp_version()})"
   end
 
   def handle_hex_message(nil) do
@@ -308,7 +321,7 @@ defmodule Hex.HTTP do
     |> skip_trail_ws("", "")
   end
 
-  defp add_basic_auth_via_netrc(%{~c"authorization" => _} = headers, _url), do: headers
+  defp add_basic_auth_via_netrc(%{"authorization" => _} = headers, _url), do: headers
 
   defp add_basic_auth_via_netrc(%{} = headers, url) do
     url = URI.parse(url)
@@ -316,7 +329,7 @@ defmodule Hex.HTTP do
     case Hex.Netrc.lookup(url.host) do
       {:ok, %{username: username, password: password}} ->
         base64 = :base64.encode_to_string("#{username}:#{password}")
-        Map.put(headers, ~c"authorization", ~c"Basic #{base64}")
+        Map.put(headers, "authorization", "Basic #{base64}")
 
       _ ->
         headers

@@ -432,8 +432,8 @@ defmodule Mix.Tasks.Hex.Publish do
         default_api_url? = api_url == Hex.State.default_api_url()
 
         location =
-          if !default_api_url? && headers[~c"location"] do
-            headers[~c"location"]
+          if !default_api_url? && headers["location"] do
+            headers["location"]
           else
             Hex.Utils.hexdocs_url(organization, name, version)
           end

@@ -64,7 +64,7 @@ defmodule Hex.HTTPTest do
         Plug.Conn.resp(conn, 200, "")
       end)
 
-      Hex.HTTP.request(:get, "http://localhost:#{bypass.port}", [], nil)
+      Hex.HTTP.request(:get, "http://localhost:#{bypass.port}", %{}, nil)
     end)
   end
 
@@ -86,7 +86,7 @@ defmodule Hex.HTTPTest do
         Plug.Conn.resp(conn, 200, "")
       end)
 
-      Hex.HTTP.request(:get, "http://localhost:#{bypass.port}", [], nil)
+      Hex.HTTP.request(:get, "http://localhost:#{bypass.port}", %{}, nil)
     end)
   end
 
@@ -110,7 +110,7 @@ defmodule Hex.HTTPTest do
       Hex.HTTP.request(
         :get,
         "http://localhost:#{bypass.port}",
-        [{~c"authorization", ~c"myAuthHeader"}],
+        %{"authorization" => "myAuthHeader"},
         nil
       )
     end)
