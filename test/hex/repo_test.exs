@@ -3,11 +3,19 @@ defmodule Hex.RepoTest do
 
   @private_key File.read!(Path.join(__DIR__, "../fixtures/test_priv.pem"))
 
-  test "get_package" do
+  test "get_package/3" do
     assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
 
     assert_raise Mix.Error, ~r"Unknown repository \"bad\"", fn ->
       Hex.Repo.get_package("bad", "postgrex", "")
+    end
+  end
+
+  test "get_tarball/3" do
+    assert {:ok, {200, _, _}} = Hex.Repo.get_tarball("hexpm", "postgrex", "0.2.1")
+
+    assert_raise Mix.Error, ~r"Unknown repository \"bad\"", fn ->
+      Hex.Repo.get_tarball("bad", "postgrex", "0.2.1")
     end
   end
 
@@ -69,7 +77,7 @@ defmodule Hex.RepoTest do
           Plug.Conn.resp(conn, 200, hexpm.public_key)
 
         "/not_found/public_key" ->
-          assert Plug.Conn.get_req_header(conn, "authorization") == []
+          assert Plug.Conn.get_req_header(conn, "authorization") == ["key"]
           Plug.Conn.resp(conn, 404, "not found")
       end
     end)
@@ -78,7 +86,7 @@ defmodule Hex.RepoTest do
     assert {:ok, {200, public_key, _}} = Hex.Repo.get_public_key(config)
     assert public_key == hexpm.public_key
 
-    config = %{url: "http://localhost:#{bypass.port}/not_found", auth_key: "key", trusted: false}
+    config = %{url: "http://localhost:#{bypass.port}/not_found", auth_key: "key", trusted: true}
     assert {:ok, {404, "not found", _}} = Hex.Repo.get_public_key(config)
   end
 
