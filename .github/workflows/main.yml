@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Install OTP and Elixir
-        uses: erlef/setup-beam@ericmj/builds.hex.pm
+        uses: erlef/setup-beam@v1
         with:
           otp-version: 24
           elixir-version: 1.12
@@ -77,7 +77,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Install OTP and Elixir
-        uses: erlef/setup-beam@ericmj/builds.hex.pm
+        uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.pair.erlang}}
           elixir-version: ${{matrix.pair.elixir}}
