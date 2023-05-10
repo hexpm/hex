@@ -263,11 +263,11 @@ defmodule Hex.Repo do
   end
 
   defp put_auth_config(config, %{trusted: true} = repo) do
-    %{config | repo_key: repo.auth_key, repo_url: repo.url}
+    %{config | repo_url: repo.url, repo_key: repo.auth_key}
   end
 
-  defp put_auth_config(config, %{trusted: _}) do
-    config
+  defp put_auth_config(config, %{trusted: false} = repo) do
+    %{config | repo_url: repo.url}
   end
 
   defp put_etag_config(config, etag) do
