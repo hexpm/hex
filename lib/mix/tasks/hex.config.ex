@@ -52,11 +52,11 @@ defmodule Mix.Tasks.Hex.Config do
     * `http_timeout` - Sets the timeout for HTTP requests in seconds. Can be
       overridden by setting the environment variable `HEX_HTTP_TIMEOUT`
     * `mirror_url` - Hex mirror URL. Can be overridden by setting the
-      environment variable `HEX_TRUSTED_MIRROR`
+      environment variable `HEX_TRUSTED_MIRROR_URL`
     * `trusted_mirror_url` - Hex mirror URL. Unlike `mirror_url`, this mirror is
       "trusted", secrets such as authentication information will be sent to the
       mirror. Can be overridden by setting the environment variable
-      `HEX_TRUSTED_MIRROR`
+      `HEX_TRUSTED_MIRROR_URL`
     * `cacerts_path` - Path to the CA certificate store PEM file. If not set,
       a CA bundle that ships with Hex is used. Can be overridden by setting the
       environment variable `HEX_CACERTS_PATH`
