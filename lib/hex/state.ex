@@ -123,6 +123,11 @@ defmodule Hex.State do
       config: [:debug_solver],
       default: false,
       fun: {__MODULE__, :to_boolean}
+    },
+    ci: %{
+      env: ["CI"],
+      default: false,
+      fun: {__MODULE__, :to_boolean}
     }
   }
 

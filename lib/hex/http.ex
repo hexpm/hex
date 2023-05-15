@@ -264,7 +264,8 @@ defmodule Hex.HTTP do
   end
 
   defp user_agent do
-    "Hex/#{Hex.version()} (Elixir/#{System.version()}) (OTP/#{Hex.Utils.otp_version()})"
+    ci = if Hex.State.fetch!(:ci), do: " (CI)", else: ""
+    "Hex/#{Hex.version()} (Elixir/#{System.version()}) (OTP/#{Hex.Utils.otp_version()})#{ci}"
   end
 
   def handle_hex_message(nil) do
