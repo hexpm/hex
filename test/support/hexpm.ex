@@ -49,6 +49,7 @@ defmodule HexTest.Hexpm do
     check_hexpm()
     mix = hexpm_mix() |> List.to_string()
 
+    cmd(mix, ["deps.get"])
     cmd(mix, ["ecto.drop", "-r", "Hexpm.RepoBase", "--quiet"])
     cmd(mix, ["ecto.create", "-r", "Hexpm.RepoBase", "--quiet"])
     cmd(mix, ["ecto.load", "-r", "Hexpm.RepoBase", "--quiet"])
