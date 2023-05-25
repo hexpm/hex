@@ -17,7 +17,7 @@ defmodule Hex.RemoteConverger do
       Hex.State.put(:print_sponsored_tip, false)
     end
 
-    Registry.close()
+    Registry.persist()
   end
 
   def remote?(dep) do

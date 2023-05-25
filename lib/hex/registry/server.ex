@@ -69,7 +69,7 @@ defmodule Hex.Registry.Server do
       pending: MapSet.new(),
       fetched: MapSet.new(),
       waiting: %{},
-      closing_fun: nil
+      pending_fun: nil
     }
   end
 
@@ -99,12 +99,12 @@ defmodule Hex.Registry.Server do
     {:reply, :ok, state}
   end
 
-  def handle_call(:close, from, %{ets: tid, path: path} = state) do
+  def handle_call(:close, from, state) do
     state =
-      wait_closing(state, fn ->
-        if tid do
-          persist(tid, path)
-          :ets.delete(tid)
+      wait_pending(state, fn state ->
+        if state.ets do
+          persist(state.ets, state.path)
+          :ets.delete(state.ets)
         end
 
         GenServer.reply(from, :ok)
@@ -115,7 +115,15 @@ defmodule Hex.Registry.Server do
   end
 
   def handle_call(:persist, _from, state) do
-    persist(state.ets, state.path)
+    state =
+      wait_pending(state, fn state ->
+        if state.ets do
+          persist(state.ets, state.path)
+        end
+
+        state
+      end)
+
     {:reply, :ok, state}
   end
 
@@ -222,7 +230,7 @@ defmodule Hex.Registry.Server do
     end)
 
     state = %{state | pending: pending, waiting: waiting, fetched: fetched}
-    state = maybe_close(state)
+    state = maybe_run_pending(state)
     {:noreply, state}
   end
 
@@ -435,21 +443,21 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  defp wait_closing(state, fun) do
+  defp wait_pending(state, fun) do
     if MapSet.size(state.pending) == 0 do
-      state = fun.()
-      %{state | closing_fun: nil}
+      state = fun.(state)
+      %{state | pending_fun: nil}
     else
-      %{state | closing_fun: fun}
+      %{state | pending_fun: fun}
     end
   end
 
-  defp maybe_close(%{closing_fun: nil} = state) do
+  defp maybe_run_pending(%{pending_fun: nil} = state) do
     state
   end
 
-  defp maybe_close(%{closing_fun: fun} = state) do
-    wait_closing(state, fun)
+  defp maybe_run_pending(%{pending_fun: fun} = state) do
+    wait_pending(state, fun)
   end
 
   defp package_etag(repo, package, %{ets: tid}) do
