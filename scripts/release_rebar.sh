@@ -12,9 +12,7 @@ set -e -u -o pipefail
 function main {
   rm -f rebar rebar3 rebar-1.x.csv rebar-1.x.csv.signed
 
-  # Update these values for every release
-  # Call as ELIXIR_PEM=elixir.pem ./release_rebar.sh
-
+  # Update these values for every release.
   # Note that the order of versions in the CSV file matters so all versions
   # of rebar needs to be updated.
 
@@ -26,7 +24,7 @@ function main {
   ubuntu_version="xenial-20200326"
   build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
   rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
-  upload rebar3 "${rebar_version}" "${elixir_version}"
+  upload_rebar rebar3 "${rebar_version}" "${elixir_version}"
 
   # For Elixir 1.11.4 / rebar 3.15.2
   rebar_name="rebar3"
@@ -36,7 +34,7 @@ function main {
   ubuntu_version="xenial-20201014"
   build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
   rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
-  upload rebar3 "${rebar_version}" "${elixir_version}"
+  upload_rebar rebar3 "${rebar_version}" "${elixir_version}"
 
   # For Elixir 1.13.0 / rebar 3.15.2
   rebar_name="rebar3"
@@ -46,7 +44,7 @@ function main {
   ubuntu_version="xenial-20210114"
   build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
   rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
-  upload rebar3 "${rebar_version}" "${elixir_version}"
+  upload_rebar rebar3 "${rebar_version}" "${elixir_version}"
 
   # For Elixir 1.14.5 / rebar 3.22.0
   rebar_name="rebar3"
@@ -56,7 +54,7 @@ function main {
   ubuntu_version="xenial-20210804"
   build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
   rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
-  upload rebar3 "${rebar_version}" "${elixir_version}"
+  upload_rebar rebar3 "${rebar_version}" "${elixir_version}"
 
   # For Elixir 1.15.0-rc.0 / rebar 3.22.0
   rebar_name="rebar3"
@@ -66,16 +64,20 @@ function main {
   ubuntu_version="xenial-20210804"
   build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
   rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
-  upload rebar3 "${rebar_version}" "${elixir_version}"
+  upload_rebar rebar3 "${rebar_version}" "${elixir_version}"
 
   sign_csv rebar3
+  s3up "rebar3-1.x.csv" "rebar3-1.x.csv"
+  s3up "rebar3-1.x.csv.signed" "rebar3-1.x.csv.signed"
 
   purge_key "${HEX_FASTLY_REPO_SERVICE_ID}" "installs"
   purge_key "${HEX_FASTLY_BUILDS_SERVICE_ID}" "installs"
 
   # build_rebar2 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
   # rebar_csv rebar2 "${rebar_version}" "${elixir_version}"
-  # upload rebar2 "${rebar_version}" "${elixir_version}"
+  # upload_rebar rebar2 "${rebar_version}" "${elixir_version}"
+  # s3up "rebar2-1.x.csv" "rebar2-1.x.csv"
+  # s3up "rebar2-1.x.csv.signed" "rebar2-1.x.csv.signed"
 }
 
 # $1 = rebar name
@@ -118,13 +120,9 @@ function s3down {
 # $1 = rebar name
 # $2 = rebar version
 # $3 = elixir version
-function upload {
+function upload_rebar {
   s3up "${1}" "${3}/${1}"
   s3up "${1}" "${3}/${1}-${2}"
-
-  # Special case 1.0.0 upload
-  s3up "${1}-1.x.csv" "${1}-1.x.csv"
-  s3up "${1}-1.x.csv.signed" "${1}-1.x.csv.signed"
 }
 
 # $1 = rebar version
