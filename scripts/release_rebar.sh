@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# Usage:
+#   ELIXIR_PEM=/path/to/elixir.pem \
+#     HEX_FASTLY_KEY=... \
+#     HEX_FASTLY_REPO_SERVICE_ID=... \
+#     HEX_FASTLY_BUILDS_SERVICE_ID=... \
+#     release_rebar.sh
+
 set -e -u -o pipefail
 
 function main {
@@ -58,6 +65,9 @@ function main {
 
   sign_csv rebar3
   upload rebar3 "${rebar_version}" "${elixir_version}"
+
+  purge_key "${HEX_FASTLY_REPO_SERVICE_ID}" "installs"
+  purge_key "${HEX_FASTLY_BUILDS_SERVICE_ID}" "installs"
 
   # build_rebar2 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
   # rebar_csv rebar2 "${rebar_version}" "${elixir_version}"
@@ -143,6 +153,17 @@ function build_rebar3 {
 
   docker cp rebar3:/rebar3/rebar3 rebar3
   docker rm rebar3
+}
+
+# $1 = service
+# $2 = key
+function purge_key() {
+  curl \
+    -X POST \
+    -H "Fastly-Key: ${HEX_FASTLY_KEY}" \
+    -H "Accept: application/json" \
+    -H "Content-Length: 0" \
+    "https://api.fastly.com/service/$1/purge/$2"
 }
 
 main
