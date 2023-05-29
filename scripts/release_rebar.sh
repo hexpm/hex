@@ -26,6 +26,7 @@ function main {
   ubuntu_version="xenial-20200326"
   build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
   rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
+  upload rebar3 "${rebar_version}" "${elixir_version}"
 
   # For Elixir 1.11.4 / rebar 3.15.2
   rebar_name="rebar3"
@@ -35,6 +36,7 @@ function main {
   ubuntu_version="xenial-20201014"
   build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
   rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
+  upload rebar3 "${rebar_version}" "${elixir_version}"
 
   # For Elixir 1.13.0 / rebar 3.15.2
   rebar_name="rebar3"
@@ -44,6 +46,7 @@ function main {
   ubuntu_version="xenial-20210114"
   build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
   rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
+  upload rebar3 "${rebar_version}" "${elixir_version}"
 
   # For Elixir 1.14.5 / rebar 3.22.0
   rebar_name="rebar3"
@@ -53,6 +56,7 @@ function main {
   ubuntu_version="xenial-20210804"
   build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
   rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
+  upload rebar3 "${rebar_version}" "${elixir_version}"
 
   # For Elixir 1.15.0-rc.0 / rebar 3.22.0
   rebar_name="rebar3"
@@ -62,11 +66,9 @@ function main {
   ubuntu_version="xenial-20210804"
   build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
   rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
+  upload rebar3 "${rebar_version}" "${elixir_version}"
 
   sign_csv rebar3
-
-  # If you add more than one new entry at a time, remember to call this for all of them.
-  upload rebar3 "${rebar_version}" "${elixir_version}"
 
   purge_key "${HEX_FASTLY_REPO_SERVICE_ID}" "installs"
   purge_key "${HEX_FASTLY_BUILDS_SERVICE_ID}" "installs"
