@@ -1,6 +1,50 @@
 #!/usr/bin/env bash
 
-set -e -u
+set -e -u -o pipefail
+
+function main {
+  rm -f rebar rebar3 rebar-1.x.csv rebar-1.x.csv.signed
+
+  # Update these values for every release
+  # Call as ELIXIR_PEM=elixir.pem ./release_rebar.sh
+
+  # Note that the order of versions in the CSV file matters so all versions
+  # of rebar needs to be updated.
+
+  # For Elixir 1.0.0 / rebar 3.13.3
+  rebar_name="rebar3"
+  rebar_version="3.13.3"
+  elixir_version="1.0.0"
+  otp_version="17.5.6.10"
+  ubuntu_version="xenial-20200326"
+  build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
+  rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
+
+  # For Elixir 1.11.4 / rebar 3.15.2
+  rebar_name="rebar3"
+  rebar_version="3.15.2"
+  elixir_version="1.11.4"
+  otp_version="21.3.8.21"
+  ubuntu_version="xenial-20201014"
+  build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
+  rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
+
+  # For Elixir 1.13.0 / rebar 3.15.2
+  rebar_name="rebar3"
+  rebar_version="3.15.2"
+  elixir_version="1.13.0"
+  otp_version="22.3.4.22"
+  ubuntu_version="xenial-20210114"
+  build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
+  rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
+
+  sign_csv rebar3
+  upload rebar3 "${rebar_version}" "${elixir_version}"
+
+  # build_rebar2 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
+  # rebar_csv rebar2 "${rebar_version}" "${elixir_version}"
+  # upload rebar2 "${rebar_version}" "${elixir_version}"
+}
 
 # $1 = rebar name
 # $2 = rebar version
@@ -83,44 +127,4 @@ function build_rebar3 {
   docker rm rebar3
 }
 
-rm rebar rebar3 rebar-1.x.csv rebar-1.x.csv.signed
-
-# Update these values for every release
-# Call as ELIXIR_PEM=elixir.pem ./release_rebar.sh
-
-# Note that the order of versions in the CSV file matters so all versions
-# of rebar needs to be updated.
-
-# For Elixir 1.0.0 / rebar 3.13.3
-rebar_name="rebar3"
-rebar_version="3.13.3"
-elixir_version="1.0.0"
-otp_version="17.5.6.10"
-ubuntu_version="xenial-20200326"
-build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
-rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
-
-# For Elixir 1.11.4 / rebar 3.15.2
-rebar_name="rebar3"
-rebar_version="3.15.2"
-elixir_version="1.11.4"
-otp_version="21.3.8.21"
-ubuntu_version="xenial-20201014"
-build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
-rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
-
-# For Elixir 1.13.0 / rebar 3.15.2
-rebar_name="rebar3"
-rebar_version="3.15.2"
-elixir_version="1.13.0"
-otp_version="22.3.4.22"
-ubuntu_version="xenial-20210114"
-build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
-rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
-
-sign_csv rebar3
-upload rebar3 "${rebar_version}" "${elixir_version}"
-
-# build_rebar2 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
-# rebar_csv rebar2 "${rebar_version}" "${elixir_version}"
-# upload rebar2 "${rebar_version}" "${elixir_version}"
+main
