@@ -38,6 +38,24 @@ function main {
   build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
   rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
 
+  # For Elixir 1.14.5 / rebar 3.22.0
+  rebar_name="rebar3"
+  rebar_version="3.22.0"
+  elixir_version="1.14.5"
+  otp_version="23.3.4.18"
+  ubuntu_version="xenial-20210804"
+  build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
+  rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
+
+  # For Elixir 1.15.0-rc.0 / rebar 3.22.0
+  rebar_name="rebar3"
+  rebar_version="3.22.0"
+  elixir_version="1.15.0-rc.0"
+  otp_version="24.3.4.11"
+  ubuntu_version="xenial-20210804"
+  build_rebar3 "${rebar_version}" "${otp_version}" "${ubuntu_version}"
+  rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
+
   sign_csv rebar3
   upload rebar3 "${rebar_version}" "${elixir_version}"
 
