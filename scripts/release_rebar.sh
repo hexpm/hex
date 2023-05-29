@@ -64,6 +64,8 @@ function main {
   rebar_csv rebar3 "${rebar_version}" "${elixir_version}"
 
   sign_csv rebar3
+
+  # If you add more than one new entry at a time, remember to call this for all of them.
   upload rebar3 "${rebar_version}" "${elixir_version}"
 
   purge_key "${HEX_FASTLY_REPO_SERVICE_ID}" "installs"
