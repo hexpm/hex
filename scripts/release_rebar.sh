@@ -163,6 +163,7 @@ function build_rebar3 {
 # $2 = key
 function purge_key() {
   curl \
+    --fail \
     -X POST \
     -H "Fastly-Key: ${HEX_FASTLY_KEY}" \
     -H "Accept: application/json" \
