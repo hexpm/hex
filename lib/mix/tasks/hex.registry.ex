@@ -58,6 +58,21 @@ defmodule Mix.Tasks.Hex.Registry do
     * `--name` - The name of the registry
 
     * `--private-key` - Path to the private key
+
+  ## Add a package
+
+      $ mix hex.registry add PUBLIC_DIR PACKAGE
+
+  To add a package to an existing registry, supply the public directory of the registry and path to
+  the new package. This action also requires the name of the registry and the private key originally
+  used to generate it:
+
+      $ mix hex.registry add public --name=acme --private-key=private_key.pem foo-1.0.0.tar
+      * copying foo-1.0.0.tar -> public/tarballs/foo-1.0.0.tar
+      * updating public/packages/foo
+      * updating public/names
+      * updating public/versions
+
   """
   @impl true
   def run(args) do
@@ -65,6 +80,9 @@ defmodule Mix.Tasks.Hex.Registry do
     {opts, args} = OptionParser.parse!(args, strict: @switches)
 
     case args do
+      ["add", public_dir, package] ->
+        add(public_dir, package, opts)
+
       ["build", public_dir] ->
         build(public_dir, opts)
 
@@ -72,6 +90,7 @@ defmodule Mix.Tasks.Hex.Registry do
         Mix.raise("""
         Invalid arguments, expected one of:
 
+        mix hex.registry add PUBLIC_DIR PACKAGE
         mix hex.registry build PUBLIC_DIR
         """)
     end
@@ -80,9 +99,82 @@ defmodule Mix.Tasks.Hex.Registry do
   @impl true
   def tasks() do
     [
+      {"add PUBLIC_DIR PACKAGE", "Add package to a local registry"},
       {"build PUBLIC_DIR", "Build a local registry"}
     ]
   end
+
+  ## Add
+
+  defp add(public_dir, package, opts) do
+    repo_name = opts[:name] || Mix.raise("missing --name")
+    private_key_path = opts[:private_key] || Mix.raise("missing --private-key")
+    private_key = private_key_path |> File.read!() |> decode_private_key()
+    add(repo_name, public_dir, private_key, package)
+  end
+
+  defp add(repo_name, public_dir, private_key, package) do
+    public_key = ensure_public_key(private_key, public_dir)
+    tarball_dir = Path.join(public_dir, "tarballs")
+    create_directory(tarball_dir)
+
+    path = copy_file(package, tarball_dir)
+    [package_name | _rest] = String.split(Path.basename(path), ["-", ".tar"], trim: true)
+
+    existing_package_releases = read_package(repo_name, public_dir, public_key, package_name)
+    new_package_release = build_release(repo_name, package)
+
+    package_releases =
+      [new_package_release | existing_package_releases]
+      |> Enum.sort(&(Hex.Version.compare(&1.version, &2.version) == :lt))
+      |> Enum.uniq_by(& &1.version)
+
+    package =
+      :mix_hex_registry.build_package(
+        %{repository: repo_name, name: package_name, releases: package_releases},
+        private_key
+      )
+
+    write_file("#{public_dir}/packages/#{package_name}", package)
+
+    existing_names =
+      read_names(repo_name, public_dir, public_key)
+      |> Enum.map(fn %{name: name, updated_at: updated_at} -> {name, updated_at} end)
+      |> Enum.into(%{})
+
+    previous_updated_at = get_in(existing_names, [package_name, :updated_at, :seconds])
+    new_version_updated_at = File.stat!(path).mtime
+    updated_at = %{seconds: max_updated_at(previous_updated_at, new_version_updated_at), nanos: 0}
+    package_versions = Enum.map(package_releases, & &1.version)
+
+    repo_versions =
+      read_versions(repo_name, public_dir, public_key)
+      |> Enum.map(fn %{name: name, versions: versions} ->
+        {name, %{updated_at: existing_names[name], versions: versions}}
+      end)
+      |> Enum.into(%{})
+      |> Map.put(package_name, %{updated_at: updated_at, versions: package_versions})
+
+    repo_names =
+      Enum.map(repo_versions, fn {name, %{updated_at: updated_at}} ->
+        %{name: name, updated_at: updated_at}
+      end)
+
+    payload = %{repository: repo_name, packages: repo_names}
+    repo_names = :mix_hex_registry.build_names(payload, private_key)
+    write_file("#{public_dir}/names", repo_names)
+
+    repo_versions =
+      Enum.map(repo_versions, fn {name, %{versions: versions}} ->
+        %{name: name, versions: versions}
+      end)
+
+    payload = %{repository: repo_name, packages: repo_versions}
+    repo_versions = :mix_hex_registry.build_versions(payload, private_key)
+    write_file("#{public_dir}/versions", repo_versions)
+  end
+
+  ## Build
 
   defp build(public_dir, opts) do
     repo_name = opts[:name] || raise "missing --name"
@@ -151,11 +243,20 @@ defmodule Mix.Tasks.Hex.Registry do
     write_file("#{public_dir}/versions", versions)
   end
 
+  ## Registry utilities
+
   @unix_epoch :calendar.datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}})
 
   @doc false
   def to_unix(erl_datetime) do
     :calendar.datetime_to_gregorian_seconds(erl_datetime) - @unix_epoch
+  end
+
+  defp max_updated_at(previous_as_unix_or_nil, nil), do: previous_as_unix_or_nil
+  defp max_updated_at(nil, current_as_datetime), do: to_unix(current_as_datetime)
+
+  defp max_updated_at(previous_as_unix, current_as_datetime) do
+    max(previous_as_unix, to_unix(current_as_datetime))
   end
 
   defp build_release(repo_name, tarball_path) do
@@ -206,7 +307,60 @@ defmodule Mix.Tasks.Hex.Registry do
       {:error, :enoent} ->
         write_file(path, encoded_public_key)
     end
+
+    encoded_public_key
   end
+
+  defp read_names(repo_name, public_dir, public_key) do
+    path = Path.join(public_dir, "names")
+    payload = File.read!(path)
+    repo_name_or_no_verify = repo_name || :no_verify
+
+    case :mix_hex_registry.unpack_names(payload, repo_name_or_no_verify, public_key) do
+      {:ok, names} ->
+        names
+
+      {:error, reason} ->
+        Mix.raise(
+          "Invalid package name manifest at #{path}: #{inspect(reason)}." <>
+            "\n\nIs the repository name #{repo_name} correct?"
+        )
+    end
+  end
+
+  defp read_versions(repo_name, public_dir, public_key) do
+    path = Path.join(public_dir, "versions")
+    payload = File.read!(path)
+    repo_name_or_no_verify = repo_name || :no_verify
+
+    case :mix_hex_registry.unpack_versions(payload, repo_name_or_no_verify, public_key) do
+      {:ok, versions} ->
+        versions
+
+      {:error, reason} ->
+        Mix.raise(
+          "Invalid package version manifest at #{path}: #{inspect(reason)}." <>
+            "\n\nIs the repository name #{repo_name} correct?"
+        )
+    end
+  end
+
+  defp read_package(repo_name, public_dir, public_key, package_name) do
+    path = Path.join([public_dir, "packages", package_name])
+
+    case File.read(path) do
+      {:ok, payload} ->
+        case :mix_hex_registry.unpack_package(payload, repo_name, package_name, public_key) do
+          {:ok, package} -> package
+          _ -> []
+        end
+
+      _ ->
+        []
+    end
+  end
+
+  ## File utilities
 
   defp create_directory(path) do
     unless File.dir?(path) do
@@ -224,6 +378,14 @@ defmodule Mix.Tasks.Hex.Registry do
     end
 
     File.write!(path, data)
+  end
+
+  defp copy_file(path, destination_dir) do
+    file = Path.basename(path)
+    destination_file = Path.join(destination_dir, file)
+    Hex.Shell.info(["* copying ", path, " -> ", destination_file])
+    File.cp!(path, destination_file)
+    destination_file
   end
 
   defp remove_file(path) do
