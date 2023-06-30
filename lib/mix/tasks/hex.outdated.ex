@@ -35,6 +35,10 @@ defmodule Mix.Tasks.Hex.Outdated do
   be updated that in turn update their own dependencies, which may cause the
   package you want to update to not be able to update.
 
+  > In a project, this task must be invoked before any other tasks
+  > that may load or start your application. Otherwise, you must
+  > explicitly list `:hex` as part of your `:extra_applications`.
+
   ## Command line options
 
     * `--all` - shows all outdated packages, including children of packages defined in `mix.exs`

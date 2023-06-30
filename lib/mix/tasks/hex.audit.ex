@@ -11,6 +11,10 @@ defmodule Mix.Tasks.Hex.Audit do
   maintainers. The task will display a message describing
   the reason for retirement and exit with a non-zero code
   if any retired dependencies are found.
+
+  > In a project, this task must be invoked before any other tasks
+  > that may load or start your application. Otherwise, you must
+  > explicitly list `:hex` as part of your `:extra_applications`.
   """
 
   @behaviour Hex.Mix.TaskDescription
