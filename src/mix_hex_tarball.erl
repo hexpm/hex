@@ -1,10 +1,16 @@
-%% Vendored from hex_core v0.8.2, do not edit manually
+%% Vendored from hex_core v0.10.0 (d87858a), do not edit manually
 
 %% @doc
 %% Functions for creating and unpacking Hex tarballs.
 -module(mix_hex_tarball).
--export([create/2, create/3, create_docs/1, create_docs/2, unpack/2, unpack/3,
-    unpack_docs/2, unpack_docs/3, format_checksum/1, format_error/1]).
+-export([
+    create/2, create/3,
+    create_docs/1, create_docs/2,
+    unpack/2, unpack/3,
+    unpack_docs/2, unpack_docs/3,
+    format_checksum/1,
+    format_error/1
+]).
 -ifdef(TEST).
 -export([do_decode_metadata/1, gzip/1, normalize_requirements/1]).
 -endif.
@@ -46,8 +52,13 @@
 %%        inner_checksum => <<178,12,...>>}}
 %% '''
 %% @end
--spec create(metadata(), files(), mix_hex_core:config()) -> {ok, #{tarball => tarball(), outer_checksum => checksum(),
-                                                               inner_checksum => tarball()}} | {error, term()}.
+-spec create(metadata(), files(), mix_hex_core:config()) ->
+    {ok, #{
+        tarball => tarball(),
+        outer_checksum => checksum(),
+        inner_checksum => tarball()
+    }}
+    | {error, term()}.
 create(Metadata, Files, Config) ->
     MetadataBinary = encode_metadata(Metadata),
     ContentsTarball = create_memory_tarball(Files),
@@ -58,10 +69,10 @@ create(Metadata, Files, Config) ->
     TarballMaxUncompressedSize = maps:get(tarball_max_uncompressed_size, Config),
 
     OuterFiles = [
-       {"VERSION", ?VERSION},
-       {"CHECKSUM", InnerChecksumBase16},
-       {"metadata.config", MetadataBinary},
-       {"contents.tar.gz", ContentsTarballCompressed}
+        {"VERSION", ?VERSION},
+        {"CHECKSUM", InnerChecksumBase16},
+        {"metadata.config", MetadataBinary},
+        {"contents.tar.gz", ContentsTarballCompressed}
     ],
 
     Tarball = create_memory_tarball(OuterFiles),
@@ -70,18 +81,23 @@ create(Metadata, Files, Config) ->
     UncompressedSize = byte_size(ContentsTarball),
 
     case {(byte_size(Tarball) > TarballMaxSize), (UncompressedSize > TarballMaxUncompressedSize)} of
-        {_, true} -> 
+        {_, true} ->
             {error, {tarball, {too_big_uncompressed, TarballMaxUncompressedSize}}};
-
         {true, _} ->
             {error, {tarball, {too_big_compressed, TarballMaxSize}}};
-
         {false, false} ->
-            {ok, #{tarball => Tarball, outer_checksum => OuterChecksum, inner_checksum => InnerChecksum}}
+            {ok, #{
+                tarball => Tarball, outer_checksum => OuterChecksum, inner_checksum => InnerChecksum
+            }}
     end.
 
--spec create(metadata(), files()) -> {ok, #{tarball => tarball(), outer_checksum => checksum(),
-                                            inner_checksum => tarball()}} | {error, term()}.
+-spec create(metadata(), files()) ->
+    {ok, #{
+        tarball => tarball(),
+        outer_checksum => checksum(),
+        inner_checksum => tarball()
+    }}
+    | {error, term()}.
 create(Metadata, Files) ->
     create(Metadata, Files, mix_hex_core:default_config()).
 
@@ -97,17 +113,20 @@ create(Metadata, Files) ->
 %% '''
 %% @end
 -spec create_docs(files(), mix_hex_core:config()) -> {ok, tarball()} | {error, term()}.
-create_docs(Files, #{tarball_max_size := TarballMaxSize, tarball_max_uncompressed_size := TarballMaxUncompressedSize}) ->
+create_docs(Files, #{
+    tarball_max_size := TarballMaxSize, tarball_max_uncompressed_size := TarballMaxUncompressedSize
+}) ->
     UncompressedTarball = create_memory_tarball(Files),
     UncompressedSize = byte_size(UncompressedTarball),
     Tarball = gzip(UncompressedTarball),
     Size = byte_size(Tarball),
 
-    case(Size > TarballMaxSize) or (UncompressedSize > TarballMaxUncompressedSize) of
-        true ->
-            {error, {tarball, too_big}};
-
-        false ->
+    case {(Size > TarballMaxSize), (UncompressedSize > TarballMaxUncompressedSize)} of
+        {_, true} ->
+            {error, {tarball, {too_big_uncompressed, TarballMaxUncompressedSize}}};
+        {true, _} ->
+            {error, {tarball, {too_big_compressed, TarballMaxSize}}};
+        {false, false} ->
             {ok, Tarball}
     end.
 
@@ -133,43 +152,57 @@ create_docs(Files) ->
 %% {ok,#{outer_checksum => <<...>>,
 %%       metadata => #{<<"name">> => <<"foo">>, ...}}}
 %% '''
--spec unpack(tarball(), memory, mix_hex_core:config()) ->
-                {ok, #{outer_checksum => checksum(), inner_checksum => checksum(),
-                       metadata => metadata(), contents => contents()}} |
-                {error, term()};
-            (tarball(), filename(), mix_hex_core:config()) ->
-                {ok, #{outer_checksum => checksum(), inner_checksum => checksum(),
-                       metadata => metadata()}} |
-                {error, term()}.
-unpack(Tarball, _, #{tarball_max_size := TarballMaxSize}) when byte_size(Tarball) > TarballMaxSize ->
+-spec unpack
+    (tarball(), memory, mix_hex_core:config()) ->
+        {ok, #{
+            outer_checksum => checksum(),
+            inner_checksum => checksum(),
+            metadata => metadata(),
+            contents => contents()
+        }}
+        | {error, term()};
+    (tarball(), filename(), mix_hex_core:config()) ->
+        {ok, #{
+            outer_checksum => checksum(),
+            inner_checksum => checksum(),
+            metadata => metadata()
+        }}
+        | {error, term()}.
+unpack(Tarball, _, #{tarball_max_size := TarballMaxSize}) when
+    byte_size(Tarball) > TarballMaxSize
+->
     {error, {tarball, too_big}};
-
 unpack(Tarball, Output, _Config) ->
     case mix_hex_erl_tar:extract({binary, Tarball}, [memory]) of
         {ok, []} ->
             {error, {tarball, empty}};
-
         {ok, FileList} ->
             OuterChecksum = crypto:hash(sha256, Tarball),
             do_unpack(maps:from_list(FileList), OuterChecksum, Output);
-
         {error, Reason} ->
             {error, {tarball, Reason}}
     end.
-
 
 %% @doc
 %% Unpacks a package tarball.
 %%
 %% @see unpack/3
--spec unpack(tarball(), memory) ->
-                {ok, #{outer_checksum => checksum(), inner_checksum => checksum(),
-                       metadata => metadata(), contents => contents()}} |
-                {error, term()};
-            (tarball(), filename()) ->
-                {ok, #{outer_checksum => checksum(), inner_checksum => checksum(),
-                       metadata => metadata()}} |
-                {error, term()}.
+-spec unpack
+    (tarball(), memory) ->
+        {ok, #{
+            outer_checksum => checksum(),
+            inner_checksum => checksum(),
+            metadata => metadata(),
+            contents => contents()
+        }}
+        | {error, term()};
+    (tarball(), filename()) ->
+        {ok, #{
+            outer_checksum => checksum(),
+            inner_checksum => checksum(),
+            metadata => metadata()
+        }}
+        | {error, term()}.
 unpack(Tarball, Output) ->
     unpack(Tarball, Output, mix_hex_core:default_config()).
 
@@ -185,16 +218,19 @@ unpack(Tarball, Output) ->
 %% > mix_hex_tarball:unpack_docs(Tarball, "path/to/unpack").
 %% ok
 %% '''
--spec unpack_docs(tarball(), memory, mix_hex_core:config()) -> {ok, contents()} | {error, term()};
-                 (tarball(), filename(), mix_hex_core:config()) -> ok | {error, term()}.
-unpack_docs(Tarball, _, #{tarball_max_size := TarballMaxSize}) when byte_size(Tarball) > TarballMaxSize ->
+-spec unpack_docs
+    (tarball(), memory, mix_hex_core:config()) -> {ok, contents()} | {error, term()};
+    (tarball(), filename(), mix_hex_core:config()) -> ok | {error, term()}.
+unpack_docs(Tarball, _, #{tarball_max_size := TarballMaxSize}) when
+    byte_size(Tarball) > TarballMaxSize
+->
     {error, {tarball, too_big}};
-
 unpack_docs(Tarball, Output, _Config) ->
     unpack_tarball(Tarball, Output).
 
--spec unpack_docs(tarball(), memory) -> {ok, contents()} | {error, term()};
-                 (tarball(), filename()) -> ok | {error, term()}.
+-spec unpack_docs
+    (tarball(), memory) -> {ok, contents()} | {error, term()};
+    (tarball(), filename()) -> ok | {error, term()}.
 unpack_docs(Tarball, Output) ->
     unpack_docs(Tarball, Output, mix_hex_core:default_config()).
 
@@ -207,29 +243,37 @@ format_checksum(Checksum) ->
 %% @doc
 %% Converts an error reason term to a human-readable error message string.
 -spec format_error(term()) -> string().
-format_error({tarball, empty}) -> "empty tarball";
-format_error({tarball, {too_big_uncompressed, Size}}) -> 
+format_error({tarball, empty}) ->
+    "empty tarball";
+format_error({tarball, {too_big_uncompressed, Size}}) ->
     io_lib:format("package exceeds max uncompressed size ~w ~s", [format_byte_size(Size), "MB"]);
-format_error({tarball, {too_big_compressed, Size}}) -> 
-     io_lib:format("package exceeds max compressed size ~w ~s", [format_byte_size(Size), "MB"]);
-
-format_error({tarball, {missing_files, Files}}) -> io_lib:format("missing files: ~p", [Files]);
-format_error({tarball, {bad_version, Vsn}}) -> io_lib:format("unsupported version: ~p", [Vsn]);
-format_error({tarball, invalid_checksum}) -> "invalid tarball checksum";
-format_error({tarball, Reason}) -> "tarball error, " ++ mix_hex_erl_tar:format_error(Reason);
-format_error({inner_tarball, Reason}) -> "inner tarball error, " ++ mix_hex_erl_tar:format_error(Reason);
-format_error({metadata, invalid_terms}) -> "error reading package metadata: invalid terms";
-format_error({metadata, not_key_value}) -> "error reading package metadata: not in key-value format";
-format_error({metadata, Reason}) -> "error reading package metadata" ++ mix_safe_erl_term:format_error(Reason);
-
+format_error({tarball, {too_big_compressed, Size}}) ->
+    io_lib:format("package exceeds max compressed size ~w ~s", [format_byte_size(Size), "MB"]);
+format_error({tarball, {missing_files, Files}}) ->
+    io_lib:format("missing files: ~p", [Files]);
+format_error({tarball, {bad_version, Vsn}}) ->
+    io_lib:format("unsupported version: ~p", [Vsn]);
+format_error({tarball, invalid_checksum}) ->
+    "invalid tarball checksum";
+format_error({tarball, Reason}) ->
+    "tarball error, " ++ mix_hex_erl_tar:format_error(Reason);
+format_error({inner_tarball, Reason}) ->
+    "inner tarball error, " ++ mix_hex_erl_tar:format_error(Reason);
+format_error({metadata, invalid_terms}) ->
+    "error reading package metadata: invalid terms";
+format_error({metadata, not_key_value}) ->
+    "error reading package metadata: not in key-value format";
+format_error({metadata, Reason}) ->
+    "error reading package metadata" ++ mix_safe_erl_term:format_error(Reason);
 format_error({checksum_mismatch, ExpectedChecksum, ActualChecksum}) ->
     io_lib:format(
         "tarball checksum mismatch~n~n" ++
-        "Expected (base16-encoded): ~s~n" ++
-        "Actual   (base16-encoded): ~s",
-        [encode_base16(ExpectedChecksum), encode_base16(ActualChecksum)]).
+            "Expected (base16-encoded): ~s~n" ++
+            "Actual   (base16-encoded): ~s",
+        [encode_base16(ExpectedChecksum), encode_base16(ActualChecksum)]
+    ).
 
-format_byte_size(Size) -> 
+format_byte_size(Size) ->
     Size / 1000000.
 
 %%====================================================================
@@ -251,7 +295,9 @@ encode_metadata(Meta) ->
         fun(MetaPair) ->
             String = io_lib_pretty:print(binarify(MetaPair), [{encoding, utf8}]),
             unicode:characters_to_binary([String, ".\n"])
-        end, maps:to_list(Meta)),
+        end,
+        maps:to_list(Meta)
+    ),
     iolist_to_binary(Data).
 
 %% @private
@@ -273,23 +319,36 @@ do_unpack(Files, OuterChecksum, Output) ->
 %% @private
 finish_unpack({error, _} = Error) ->
     Error;
-finish_unpack(#{metadata := Metadata, files := Files, inner_checksum := InnerChecksum, outer_checksum := OuterChecksum, output := Output}) ->
+finish_unpack(#{
+    metadata := Metadata,
+    files := Files,
+    inner_checksum := InnerChecksum,
+    outer_checksum := OuterChecksum,
+    output := Output
+}) ->
     _ = maps:get("VERSION", Files),
     ContentsBinary = maps:get("contents.tar.gz", Files),
 
     case Output of
-      memory -> ok;
-      _ -> filelib:ensure_dir(filename:join(Output, "*"))
+        memory -> ok;
+        _ -> filelib:ensure_dir(filename:join(Output, "*"))
     end,
 
     case unpack_tarball(ContentsBinary, Output) of
         ok ->
             copy_metadata_config(Output, maps:get("metadata.config", Files)),
-            {ok, #{inner_checksum => InnerChecksum, outer_checksum => OuterChecksum, metadata => Metadata}};
-
+            {ok, #{
+                inner_checksum => InnerChecksum,
+                outer_checksum => OuterChecksum,
+                metadata => Metadata
+            }};
         {ok, Contents} ->
-            {ok, #{inner_checksum => InnerChecksum, outer_checksum => OuterChecksum, metadata => Metadata, contents => Contents}};
-
+            {ok, #{
+                inner_checksum => InnerChecksum,
+                outer_checksum => OuterChecksum,
+                metadata => Metadata,
+                contents => Contents
+            }};
         {error, Reason} ->
             {error, {inner_tarball, Reason}}
     end.
@@ -304,7 +363,6 @@ check_files(#{files := Files} = State) ->
     case diff_keys(Files, RequiredFiles, []) of
         ok ->
             State;
-
         {error, {missing_keys, Keys}} ->
             {error, {tarball, {missing_files, Keys}}}
     end.
@@ -316,7 +374,6 @@ check_version(#{files := Files} = State) ->
     case maps:get("VERSION", Files) of
         <<"3">> ->
             State;
-
         Version ->
             {error, {tarball, {bad_version, Version}}}
     end.
@@ -337,10 +394,8 @@ check_inner_checksum(#{files := Files} = State) ->
     if
         byte_size(ExpectedChecksum) /= 32 ->
             {error, {tarball, invalid_inner_checksum}};
-
         ExpectedChecksum == ActualChecksum ->
             maps:put(inner_checksum, ExpectedChecksum, State);
-
         true ->
             {error, {tarball, {inner_checksum_mismatch, ExpectedChecksum, ActualChecksum}}}
     end.
@@ -366,11 +421,9 @@ do_decode_metadata(Binary) when is_binary(Binary) ->
             catch
                 error:function_clause ->
                     {error, {metadata, invalid_terms}};
-
                 error:badarg ->
                     {error, {metadata, not_key_value}}
             end;
-
         {error, {_Line, mix_safe_erl_term, Reason}, _Line2} ->
             {error, {metadata, Reason}}
     end.
@@ -399,7 +452,6 @@ normalize_requirements(Requirements) ->
     case is_list(Requirements) andalso (Requirements /= []) andalso is_list(hd(Requirements)) of
         true ->
             maps:from_list(lists:map(fun normalize_legacy_requirement/1, Requirements));
-
         false ->
             try_into_map(fun normalize_normal_requirement/1, Requirements)
     end.
@@ -418,8 +470,14 @@ normalize_legacy_requirement(Requirement) ->
 guess_build_tools(#{<<"build_tools">> := BuildTools} = Metadata) when is_list(BuildTools) ->
     Metadata;
 guess_build_tools(#{<<"files">> := Filenames} = Metadata) ->
-    BaseFiles = [Filename || Filename <- Filenames, filename:dirname(binary_to_list(Filename)) == "."],
-    BuildTools = lists:usort([Tool || {Filename, Tool} <- ?BUILD_TOOL_FILES, lists:member(Filename, BaseFiles)]),
+    BaseFiles = [
+        Filename
+     || Filename <- Filenames, filename:dirname(binary_to_list(Filename)) == "."
+    ],
+    BuildTools = lists:usort([
+        Tool
+     || {Filename, Tool} <- ?BUILD_TOOL_FILES, lists:member(Filename, BaseFiles)
+    ]),
     Metadata#{<<"build_tools">> => BuildTools};
 guess_build_tools(Metadata) ->
     Metadata.
@@ -435,7 +493,10 @@ unpack_tarball(ContentsBinary, Output) ->
     filelib:ensure_dir(filename:join(Output, "*")),
     case mix_hex_erl_tar:extract({binary, ContentsBinary}, [{cwd, Output}, compressed]) of
         ok ->
-            [try_updating_mtime(filename:join(Output, Path)) || Path <- filelib:wildcard("**", Output)],
+            [
+                try_updating_mtime(filename:join(Output, Path))
+             || Path <- filelib:wildcard("**", Output)
+            ],
             ok;
         Other ->
             Other
@@ -445,7 +506,7 @@ unpack_tarball(ContentsBinary, Output) ->
 %% let it silently fail for bad symlinks
 try_updating_mtime(Path) ->
     Time = calendar:universal_time(),
-    _ = file:write_file_info(Path, #file_info{mtime=Time}, [{time, universal}]),
+    _ = file:write_file_info(Path, #file_info{mtime = Time}, [{time, universal}]),
     ok.
 
 %% @private
@@ -485,7 +546,6 @@ add_file(Tar, {Filename, AbsFilename}) when is_list(Filename), is_list(AbsFilena
             case file:list_dir(AbsFilename) of
                 {ok, []} ->
                     mix_hex_erl_tar:add(Tar, {Filename, AbsFilename}, tar_opts());
-
                 {ok, _} ->
                     ok
             end;
@@ -553,8 +613,8 @@ binarify(List) when is_list(List) ->
 binarify({Key, Value}) ->
     {binarify(Key), binarify(Value)};
 binarify(Map) when is_map(Map) ->
-     List = maps:to_list(Map),
-     lists:map(fun({K, V}) -> binarify({K, V}) end, List).
+    List = maps:to_list(Map),
+    lists:map(fun({K, V}) -> binarify({K, V}) end, List).
 
 %% @private
 diff_keys(Map, RequiredKeys, OptionalKeys) ->
@@ -565,7 +625,6 @@ diff_keys(Map, RequiredKeys, OptionalKeys) ->
     case {MissingKeys, UnknownKeys} of
         {[], []} ->
             ok;
-
         % Server should validate this but clients should not
         % {_, [_ | _]} ->
         %     {error, {unknown_keys, UnknownKeys}};
@@ -587,7 +646,10 @@ try_into_map(List) ->
 
 %% @private
 try_into_map(Fun, Input) ->
-    case is_list(Input) andalso lists:all(fun(E) -> is_tuple(E) andalso (tuple_size(E) == 2) end, Input) of
+    case
+        is_list(Input) andalso
+            lists:all(fun(E) -> is_tuple(E) andalso (tuple_size(E) == 2) end, Input)
+    of
         true -> maps:from_list(lists:map(Fun, Input));
         false -> Input
     end.
@@ -603,7 +665,7 @@ encode_base16(Binary) ->
 
 %% @private
 decode_base16(Base16) ->
-    << <<(unhex(H) bsl 4 + unhex(L))>> || <<H,L>> <= Base16 >>.
+    <<<<(unhex(H) bsl 4 + unhex(L))>> || <<H, L>> <= Base16>>.
 
 %% @private
 unhex(D) when $0 =< D andalso D =< $9 ->

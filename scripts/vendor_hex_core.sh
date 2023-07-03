@@ -17,15 +17,16 @@ filenames="hex_core.hrl \
            hex_erl_tar.erl \
            hex_erl_tar.hrl \
            hex_filename.erl \
+           hex_http.erl \
+           hex_http_httpc.erl \
+           hex_licenses.erl \
            hex_pb_names.erl \
            hex_pb_package.erl \
            hex_pb_signed.erl \
            hex_pb_versions.erl \
-           hex_tarball.erl \
            hex_registry.erl \
            hex_repo.erl \
-           hex_http.erl \
-           hex_http_httpc.erl \
+           hex_tarball.erl \
            safe_erl_term.xrl"
 
 search_to_replace="hex_core: \
@@ -33,6 +34,7 @@ search_to_replace="hex_core: \
                    hex_core.hrl \
                    hex_erl_tar \
                    hex_filename \
+                   hex_licenses \
                    hex_pb_names \
                    hex_pb_package \
                    hex_pb_signed \

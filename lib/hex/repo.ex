@@ -181,30 +181,39 @@ defmodule Hex.Repo do
   defp merge_values(left, _right), do: left
 
   def get_package(repo, package, etag) do
-    headers = Map.merge(etag_headers(etag), auth_headers(repo))
+    config =
+      HTTP.config()
+      |> put_auth_config(repo)
+      |> put_etag_config(etag)
 
-    HTTP.request(:get, package_url(repo, package), headers, nil)
+    :mix_hex_repo.get_package(config, package)
     |> handle_response()
   end
 
   def get_docs(repo, package, version) do
-    headers = auth_headers(repo)
+    config =
+      HTTP.config()
+      |> put_auth_config(repo)
 
-    HTTP.request(:get, docs_url(repo, package, version), headers, nil)
+    :mix_hex_repo.get_docs(config, package, version)
     |> handle_response()
   end
 
   def get_tarball(repo, package, version) do
-    headers = auth_headers(repo)
+    config =
+      HTTP.config()
+      |> put_auth_config(repo)
 
-    HTTP.request(:get, tarball_url(repo, package, version), headers, nil)
+    :mix_hex_repo.get_tarball(config, package, version)
     |> handle_response()
   end
 
   def get_public_key(repo) do
-    headers = auth_headers(repo)
+    config =
+      HTTP.config()
+      |> put_auth_config(repo)
 
-    HTTP.request(:get, public_key_url(repo), headers, nil)
+    :mix_hex_repo.get_public_key(config)
     |> handle_response()
   end
 
@@ -242,38 +251,27 @@ defmodule Hex.Repo do
     |> version_latest()
   end
 
-  defp package_url(repo, package) do
-    config = get_repo(repo)
-    config.url <> "/packages/#{URI.encode(package)}"
-  end
-
-  defp docs_url(repo, package, version) do
-    config = get_repo(repo)
-    config.url <> "/docs/#{URI.encode(package)}-#{URI.encode(version)}.tar.gz"
-  end
-
   def tarball_url(repo, package, version) do
     config = get_repo(repo)
     config.url <> "/tarballs/#{URI.encode(package)}-#{URI.encode(version)}.tar"
   end
 
-  defp public_key_url(repo), do: repo.url <> "/public_key"
+  defp put_auth_config(config, repo) when is_binary(repo) or is_nil(repo) do
+    repo = get_repo(repo)
 
-  defp etag_headers(nil), do: %{}
-  defp etag_headers(etag), do: %{"if-none-match" => etag}
-
-  defp auth_headers(repo) when is_binary(repo) or repo == nil do
-    repo
-    |> get_repo()
-    |> auth_headers()
+    put_auth_config(config, repo)
   end
 
-  defp auth_headers(%{trusted: true, auth_key: key}) when is_binary(key) do
-    %{"authorization" => key}
+  defp put_auth_config(config, %{trusted: true} = repo) do
+    %{config | repo_url: repo.url, repo_key: repo.auth_key}
   end
 
-  defp auth_headers(%{trusted: _, auth_key: _}) do
-    %{}
+  defp put_auth_config(config, %{trusted: false} = repo) do
+    %{config | repo_url: repo.url}
+  end
+
+  defp put_etag_config(config, etag) do
+    %{config | http_etag: etag}
   end
 
   defp parse_csv(body) do
@@ -346,7 +344,7 @@ defmodule Hex.Repo do
       releases
     else
       case :mix_hex_registry.decode_package(body, repo, package) do
-        {:ok, releases} ->
+        {:ok, %{releases: releases}} ->
           outer_checksum? = Enum.all?(releases, &Map.has_key?(&1, :outer_checksum))
 
           if not outer_checksum? and Hex.Server.should_warn_registry_version?() do

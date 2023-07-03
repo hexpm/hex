@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.8.2, do not edit manually
+%% Vendored from hex_core v0.10.0 (d87858a), do not edit manually
 
 %% @doc
 %% Repo API.
@@ -7,7 +7,9 @@
     get_names/1,
     get_versions/1,
     get_package/2,
-    get_tarball/3
+    get_tarball/3,
+    get_docs/3,
+    get_public_key/1
 ]).
 
 %%====================================================================
@@ -29,12 +31,8 @@
 %% '''
 %% @end
 get_names(Config) when is_map(Config) ->
-    Verify = maps:get(repo_verify_origin, Config, true),
     Decoder = fun(Data) ->
-        case Verify of
-            true -> mix_hex_registry:decode_names(Data, repo_name(Config));
-            false -> mix_hex_registry:decode_names(Data, no_verify)
-        end
+        mix_hex_registry:decode_names(Data, verify_repo(Config))
     end,
     get_protobuf(Config, <<"names">>, Decoder).
 
@@ -55,12 +53,8 @@ get_names(Config) when is_map(Config) ->
 %% '''
 %% @end
 get_versions(Config) when is_map(Config) ->
-    Verify = maps:get(repo_verify_origin, Config, true),
     Decoder = fun(Data) ->
-        case Verify of
-            true -> mix_hex_registry:decode_versions(Data, repo_name(Config));
-            false -> mix_hex_registry:decode_versions(Data, no_verify)
-        end
+        mix_hex_registry:decode_versions(Data, verify_repo(Config))
     end,
     get_protobuf(Config, <<"versions">>, Decoder).
 
@@ -106,7 +100,46 @@ get_tarball(Config, Name, Version) ->
     case get(Config, tarball_url(Config, Name, Version), ReqHeaders) of
         {ok, {200, RespHeaders, Tarball}} ->
             {ok, {200, RespHeaders, Tarball}};
+        Other ->
+            Other
+    end.
 
+%% @doc
+%% Gets docs tarball from the repository.
+%%
+%% Examples:
+%%
+%% ```
+%% > {ok, {200, _, Docs}} = mix_hex_repo:get_docs(mix_hex_core:default_config(), <<"package1">>, <<"1.0.0">>),
+%% > mix_hex_tarball:unpack_docs(Docs, memory)
+%% {ok, [{"index.html", <<"<!doctype>">>}, ...]}
+%% '''
+get_docs(Config, Name, Version) ->
+    ReqHeaders = make_headers(Config),
+
+    case get(Config, docs_url(Config, Name, Version), ReqHeaders) of
+        {ok, {200, RespHeaders, Docs}} ->
+            {ok, {200, RespHeaders, Docs}};
+        Other ->
+            Other
+    end.
+
+%% @doc
+%% Gets the public key from the repository.
+%%
+%% Examples:
+%%
+%% ```
+%% > mix_hex_repo:get_public_key(mix_hex_core:default_config())
+%% {ok, {200, _, PublicKey}}
+%% '''
+get_public_key(Config) ->
+    ReqHeaders = make_headers(Config),
+    URI = build_url(Config, <<"public_key">>),
+
+    case get(Config, URI, ReqHeaders) of
+        {ok, {200, RespHeaders, PublicKey}} ->
+            {ok, {200, RespHeaders, PublicKey}};
         Other ->
             Other
     end.
@@ -130,11 +163,9 @@ get_protobuf(Config, Path, Decoder) ->
             case decode(Signed, PublicKey, Decoder, Config) of
                 {ok, Decoded} ->
                     {ok, {200, RespHeaders, Decoded}};
-
                 {error, _} = Error ->
                     Error
             end;
-
         Other ->
             Other
     end.
@@ -157,6 +188,13 @@ decode(Signed, PublicKey, Decoder, Config) ->
     end.
 
 %% @private
+verify_repo(Config) ->
+    case maps:get(repo_verify_origin, Config, true) of
+        true -> repo_name(Config);
+        false -> no_verify
+    end.
+
+%% @private
 repo_name(#{repo_organization := Name}) when is_binary(Name) -> Name;
 repo_name(#{repo_name := Name}) when is_binary(Name) -> Name.
 
@@ -164,6 +202,11 @@ repo_name(#{repo_name := Name}) when is_binary(Name) -> Name.
 tarball_url(Config, Name, Version) ->
     Filename = tarball_filename(Name, Version),
     build_url(Config, <<"tarballs/", Filename/binary>>).
+
+%% @private
+docs_url(Config, Name, Version) ->
+    Filename = docs_filename(Name, Version),
+    build_url(Config, <<"docs/", Filename/binary>>).
 
 %% @private
 build_url(#{repo_url := URI, repo_organization := Org}, Path) when is_binary(Org) ->
@@ -178,10 +221,17 @@ tarball_filename(Name, Version) ->
     <<Name/binary, "-", Version/binary, ".tar">>.
 
 %% @private
+docs_filename(Name, Version) ->
+    <<Name/binary, "-", Version/binary, ".tar.gz">>.
+
+%% @private
 make_headers(Config) ->
     maps:fold(fun set_header/3, #{}, Config).
 
 %% @private
-set_header(http_etag, ETag, Headers) when is_binary(ETag) -> maps:put(<<"if-none-match">>, ETag, Headers);
-set_header(repo_key, Token, Headers) when is_binary(Token) -> maps:put(<<"authorization">>, Token, Headers);
-set_header(_, _, Headers) -> Headers.
+set_header(http_etag, ETag, Headers) when is_binary(ETag) ->
+    maps:put(<<"if-none-match">>, ETag, Headers);
+set_header(repo_key, Token, Headers) when is_binary(Token) ->
+    maps:put(<<"authorization">>, Token, Headers);
+set_header(_, _, Headers) ->
+    Headers.

@@ -1,3 +1,3 @@
-%% Vendored from hex_core v0.8.2, do not edit manually
+%% Vendored from hex_core v0.10.0 (d87858a), do not edit manually
 
--define(HEX_CORE_VERSION, "0.8.2").
+-define(HEX_CORE_VERSION, "0.10.0").

@@ -26,8 +26,8 @@ defmodule Mix.Tasks.Hex.RegistryTest do
           repo_verify_origin: false
       }
 
-      assert {:ok, {200, _, []}} = :mix_hex_repo.get_names(config)
-      assert {:ok, {200, _, []}} = :mix_hex_repo.get_versions(config)
+      assert {:ok, {200, _, %{packages: []}}} = :mix_hex_repo.get_names(config)
+      assert {:ok, {200, _, %{packages: []}}} = :mix_hex_repo.get_versions(config)
 
       {:ok, %{tarball: tarball}} = :mix_hex_tarball.create(%{name: "foo", version: "0.10.0"}, [])
       File.write!("public/tarballs/foo-0.10.0.tar", tarball)
@@ -45,7 +45,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       refute_received _
 
       assert {:ok, {200, _, names}} = :mix_hex_repo.get_names(config)
-      assert [%{name: "foo", updated_at: %{seconds: updated_at}}] = names
+      assert %{packages: [%{name: "foo", updated_at: %{seconds: updated_at}}]} = names
 
       assert updated_at ==
                "public/tarballs/foo-0.10.0.tar"
@@ -54,7 +54,11 @@ defmodule Mix.Tasks.Hex.RegistryTest do
                |> Mix.Tasks.Hex.Registry.to_unix()
 
       assert {:ok, {200, _, versions}} = :mix_hex_repo.get_versions(config)
-      assert versions == [%{name: "foo", retired: [], versions: ["0.10.0"]}]
+
+      assert versions == %{
+               packages: [%{name: "foo", retired: [], versions: ["0.10.0"]}],
+               repository: "acme"
+             }
 
       {:ok, %{tarball: tarball}} = :mix_hex_tarball.create(%{name: "foo", version: "0.9.0"}, [])
       File.write!("public/tarballs/foo-0.9.0.tar", tarball)
@@ -72,7 +76,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       refute_received _
 
       assert {:ok, {200, _, names}} = :mix_hex_repo.get_names(config)
-      assert [%{name: "foo", updated_at: %{seconds: updated_at}}] = names
+      assert %{packages: [%{name: "foo", updated_at: %{seconds: updated_at}}]} = names
 
       assert updated_at ==
                "public/tarballs/foo-0.9.0.tar"
@@ -81,7 +85,11 @@ defmodule Mix.Tasks.Hex.RegistryTest do
                |> Mix.Tasks.Hex.Registry.to_unix()
 
       assert {:ok, {200, _, versions}} = :mix_hex_repo.get_versions(config)
-      assert versions == [%{name: "foo", retired: [], versions: ["0.9.0", "0.10.0"]}]
+
+      assert versions == %{
+               packages: [%{name: "foo", retired: [], versions: ["0.9.0", "0.10.0"]}],
+               repository: "acme"
+             }
 
       # Versions with hyphen
       {:ok, %{tarball: tarball}} =
@@ -102,9 +110,13 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       refute_received _
 
       assert {:ok, {200, _, names}} = :mix_hex_repo.get_names(config)
-      assert [%{name: "foo", updated_at: _}] = names
+      assert %{packages: [%{name: "foo", updated_at: _}]} = names
       assert {:ok, {200, _, versions}} = :mix_hex_repo.get_versions(config)
-      assert versions == [%{name: "foo", retired: [], versions: ["0.9.0", "0.10.0", "1.0.0-rc"]}]
+
+      assert versions == %{
+               packages: [%{name: "foo", retired: [], versions: ["0.9.0", "0.10.0", "1.0.0-rc"]}],
+               repository: "acme"
+             }
 
       # Re-generating private key
       0 = Mix.shell().cmd("openssl genrsa -out private_key.pem")
@@ -160,8 +172,8 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       refute_received _
 
       assert {:ok, {200, _, names}} = :mix_hex_repo.get_names(config)
-      assert [%{name: "bar", updated_at: _}, %{name: "foo", updated_at: _}] = names
-      assert {:ok, {200, _, [package]}} = :mix_hex_repo.get_package(config, "bar")
+      assert %{packages: [%{name: "bar", updated_at: _}, %{name: "foo", updated_at: _}]} = names
+      assert {:ok, {200, _, %{releases: [package]}}} = :mix_hex_repo.get_package(config, "bar")
 
       assert package.dependencies == [
                %{

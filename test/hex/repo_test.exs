@@ -3,11 +3,19 @@ defmodule Hex.RepoTest do
 
   @private_key File.read!(Path.join(__DIR__, "../fixtures/test_priv.pem"))
 
-  test "get_package" do
+  test "get_package/3" do
     assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
 
     assert_raise Mix.Error, ~r"Unknown repository \"bad\"", fn ->
       Hex.Repo.get_package("bad", "postgrex", "")
+    end
+  end
+
+  test "get_tarball/3" do
+    assert {:ok, {200, _, _}} = Hex.Repo.get_tarball("hexpm", "postgrex", "0.2.1")
+
+    assert_raise Mix.Error, ~r"Unknown repository \"bad\"", fn ->
+      Hex.Repo.get_tarball("bad", "postgrex", "0.2.1")
     end
   end
 
@@ -41,8 +49,18 @@ defmodule Hex.RepoTest do
     end)
 
     Hex.State.put(:no_verify_repo_origin, true)
-    assert Hex.Repo.decode_package(message, "other repo", "ecto") == []
-    assert Hex.Repo.decode_package(message, "hexpm", "other package") == []
+
+    assert Hex.Repo.decode_package(message, "other repo", "ecto") == %{
+             name: "ecto",
+             releases: [],
+             repository: "hexpm"
+           }
+
+    assert Hex.Repo.decode_package(message, "hexpm", "other package") == %{
+             name: "ecto",
+             releases: [],
+             repository: "hexpm"
+           }
   end
 
   test "get public key" do
