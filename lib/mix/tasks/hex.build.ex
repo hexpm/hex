@@ -14,6 +14,10 @@ defmodule Mix.Tasks.Hex.Build do
 
   #{Hex.Package.configuration_doc()}
 
+  > In a project, this task must be invoked before any other tasks
+  > that may load or start your application. Otherwise, you must
+  > explicitly list `:hex` as part of your `:extra_applications`.
+
   ### Command line options
 
     * `--unpack` - Builds the tarball and unpacks contents into a directory.
