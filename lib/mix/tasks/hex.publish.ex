@@ -1,6 +1,9 @@
 defmodule Mix.Tasks.Hex.Publish do
+  require Logger
   use Mix.Task
   alias Mix.Tasks.Hex.Build
+  alias Hex.API
+
 
   @shortdoc "Publishes a new package version"
 
@@ -152,7 +155,6 @@ defmodule Mix.Tasks.Hex.Publish do
             Hex.Shell.info("Publishing docs...")
             create_docs(build, organization, auth, opts)
             transfer_owner(build, owner, auth, opts)
-
           _ ->
             Mix.Tasks.Hex.set_exit_code(1)
         end
@@ -487,6 +489,7 @@ defmodule Mix.Tasks.Hex.Publish do
     meta = build.meta
     %{tarball: tarball, outer_checksum: checksum} = Hex.Tar.create!(meta, meta.files, :memory)
     dry_run? = Keyword.get(opts, :dry_run, false)
+    opts = [{:app_name, Keyword.get(build.config, :name)} | opts]
 
     if dry_run? do
       :ok
@@ -508,6 +511,22 @@ defmodule Mix.Tasks.Hex.Publish do
         Hex.Shell.info("")
         Hex.Shell.info("Package published to #{location} (#{checksum})")
         :ok
+
+      {:ok, {403, body, _}} ->
+        Hex.Shell.info("")
+        Hex.Shell.error("Publishing failed")
+
+        path = "/packages/#{URI.encode(Keyword.get(opts, :app_name))}"
+        headers = ["Accept": "application/json"]
+
+        case API.request(:get, nil, path, headers) do
+          {:ok, {code, _, _}} when code in 200..299 ->
+              Hex.Shell.error("Package with the name #{Keyword.get(opts, :app_name)} already exists")
+              :error
+          _ ->
+              Hex.Shell.error(body["message"])
+              :error
+        end
 
       other ->
         Hex.Shell.info("")
