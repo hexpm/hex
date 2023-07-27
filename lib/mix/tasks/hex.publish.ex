@@ -1,9 +1,7 @@
 defmodule Mix.Tasks.Hex.Publish do
-  require Logger
   use Mix.Task
   alias Mix.Tasks.Hex.Build
   alias Hex.API
-
 
   @shortdoc "Publishes a new package version"
 
@@ -155,6 +153,7 @@ defmodule Mix.Tasks.Hex.Publish do
             Hex.Shell.info("Publishing docs...")
             create_docs(build, organization, auth, opts)
             transfer_owner(build, owner, auth, opts)
+
           _ ->
             Mix.Tasks.Hex.set_exit_code(1)
         end
