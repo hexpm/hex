@@ -277,9 +277,6 @@ defmodule Mix.Tasks.Hex.Organization do
           "Failed to authenticate against organization repository with given key because of: #{message}"
         )
 
-      {:ok, {code, _body, _}} when code in [401, 403] ->
-        Hex.Shell.error("Failed to authenticate against organization repository with given key")
-
       other ->
         Hex.Utils.print_error_result(other)
         Hex.Shell.error("Failed to verify authentication key")
