@@ -90,7 +90,9 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       Mix.Tasks.Hex.Organization.run(["auth", "myorg", "--key", "mykey"])
 
       assert_received {:mix_shell, :error,
-                       ["Failed to authenticate against organization repository with given key"]}
+                       [
+                         "Failed to authenticate against organization repository with given key because of: invalid API key"
+                       ]}
     end)
   end
 
