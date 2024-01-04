@@ -1,6 +1,8 @@
 defmodule Hex.Shell do
   @moduledoc false
 
+  import Kernel, except: [exit: 1]
+
   def info(output) do
     validate_output!(output)
     Mix.shell().info(output)
@@ -14,6 +16,7 @@ defmodule Hex.Shell do
   def error(output) do
     validate_output!(output)
     Mix.shell().error(output)
+    exit(1)
   end
 
   def debug(output) do
@@ -123,5 +126,11 @@ defmodule Hex.Shell do
     def ansi_enabled?(), do: false
   else
     def ansi_enabled?(), do: IO.ANSI.enabled?()
+  end
+
+  if Mix.env() == :test do
+    def exit(_), do: :ok
+  else
+    def exit(reason), do: Kernel.exit(reason)
   end
 end
