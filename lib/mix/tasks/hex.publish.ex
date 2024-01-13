@@ -186,6 +186,7 @@ defmodule Mix.Tasks.Hex.Publish do
     # Elixir v1.15 prunes the loadpaths on compilation and
     # docs will compile code. So we add all original code paths back.
     path = :code.get_path()
+    check_ex_doc_version()
 
     try do
       Mix.Task.run("docs", [])
@@ -323,6 +324,24 @@ defmodule Mix.Tasks.Hex.Publish do
       other ->
         Hex.Utils.print_error_result(other)
         true
+    end
+  end
+
+  defp check_ex_doc_version() do
+    case Hex.API.Package.get("hexpm", "ex_doc") do
+      {:ok, {200, body, _headers}} ->
+        current_version = Application.spec(:ex_doc, :vsn) |> List.to_string()
+        latest_version = body["latest_stable_version"]
+
+        if Version.compare(current_version, latest_version) == :lt do
+          Hex.Shell.warn("""
+            A new ex_doc version is available (#{current_version} < #{latest_version}).
+            Add {:ex_doc, ">= 0.0.0", only: :dev, runtime: false} to your dependencies to always get the latest version.
+          """)
+        end
+
+      _other ->
+        Hex.Shell.warn("Could not check latest ex_doc version.")
     end
   end
 
