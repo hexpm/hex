@@ -87,7 +87,9 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
   test "auth --key with invalid key" do
     in_tmp(fn ->
       set_home_cwd()
-      Mix.Tasks.Hex.Organization.run(["auth", "myorg", "--key", "mykey"])
+
+      assert catch_throw(Mix.Tasks.Hex.Organization.run(["auth", "myorg", "--key", "mykey"])) ==
+               {:exit_code, 1}
 
       assert_received {:mix_shell, :error,
                        [

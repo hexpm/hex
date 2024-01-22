@@ -277,9 +277,12 @@ defmodule Mix.Tasks.Hex.Organization do
           "Failed to authenticate against organization repository with given key because of: #{message}"
         )
 
+        Mix.Tasks.Hex.set_exit_code(1)
+
       other ->
         Hex.Utils.print_error_result(other)
         Hex.Shell.error("Failed to verify authentication key")
+        Mix.Tasks.Hex.set_exit_code(1)
     end
   end
 end
