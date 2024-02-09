@@ -126,7 +126,7 @@ defmodule Hex.MixProject do
     %Mix.Dep{dep | scm: Hex.FakeSCM, deps: Enum.map(deps, &change_scm/1)}
   end
 
-  @mk_ca_bundle_url "https://raw.githubusercontent.com/bagder/curl/master/lib/mk-ca-bundle.pl"
+  @mk_ca_bundle_url "https://raw.githubusercontent.com/bagder/curl/master/scripts/mk-ca-bundle.pl"
   @mk_ca_bundle_cmd "mk-ca-bundle.pl"
   @ca_bundle "ca-bundle.crt"
   @ca_bundle_target Path.join("lib/hex/http", @ca_bundle)
