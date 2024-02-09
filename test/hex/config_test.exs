@@ -1,5 +1,5 @@
 defmodule Hex.ConfigTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case
   alias Hex.Config
 
   test "find_config_home/1 when no env var flags are set" do
@@ -11,33 +11,30 @@ defmodule Hex.ConfigTest do
   test "find_config_home/1 when HEX_HOME is set" do
     System.put_env("HEX_HOME", "/sys/tmp")
     assert Config.find_config_home(:user_cache) == {{:env, "HEX_HOME"}, "/sys/tmp"}
+  after
     System.delete_env("HEX_HOME")
   end
 
-  @tag skip: Version.match?(System.version(), "< 1.6.0")
   test "find_config_home/1 when MIX_XDG is set and HEX_HOME is not" do
     System.delete_env("HEX_HOME")
     System.put_env("MIX_XDG", "true")
-    {:ok, cache_dir} = Config.find_config_home(:user_cache)
-    {:ok, config_dir} = Config.find_config_home(:user_config)
+    System.put_env("XDG_CONFIG_HOME", "/xdg_config_home")
+    System.put_env("XDG_CACHE_HOME", "/xdg_cache_home")
 
-    case :os.type() do
-      {_, :linux} ->
-        assert config_dir =~ ".config/hex"
-        assert cache_dir =~ ".cache/hex"
-
-      {_, :darwin} ->
-        assert config_dir =~ "Application Support/hex"
-        assert cache_dir =~ "Caches/hex"
-    end
-
+    assert {{:env, "MIX_XDG"}, "/xdg_config_home/hex"} = Config.find_config_home(:user_config)
+    assert {{:env, "MIX_XDG"}, "/xdg_cache_home/hex"} = Config.find_config_home(:user_cache)
+  after
     System.delete_env("MIX_XDG")
+    System.delete_env("XDG_CONFIG_HOME")
+    System.delete_env("XDG_CACHE_HOME")
   end
 
   test "find_config_home/1 when MIX_XDG is set and HEX_HOME is set" do
     System.put_env("MIX_XDG", "true")
     System.put_env("HEX_HOME", "/sys/tmp")
+
     assert Config.find_config_home(:user_cache) == {{:env, "HEX_HOME"}, "/sys/tmp"}
+  after
     System.delete_env("HEX_HOME")
     System.delete_env("MIX_XDG")
   end

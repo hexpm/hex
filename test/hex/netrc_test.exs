@@ -1,5 +1,5 @@
 defmodule Hex.NetrcTest do
-  use HexTest.Case, async: false
+  use HexTest.Case
 
   alias Hex.Netrc
 

@@ -1,5 +1,5 @@
 defmodule Hex.HTTPTest do
-  use HexTest.Case, async: false
+  use HexTest.Case
 
   setup do
     on_exit(fn ->

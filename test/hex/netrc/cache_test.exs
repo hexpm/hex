@@ -1,5 +1,5 @@
 defmodule Hex.Netrc.CacheTest do
-  use HexTest.Case, async: false
+  use HexTest.Case
 
   alias Hex.Netrc.Cache
 

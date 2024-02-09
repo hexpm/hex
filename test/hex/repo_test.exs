@@ -148,10 +148,6 @@ defmodule Hex.RepoTest do
             }} = Hex.Repo.fetch_repo("hexpm:acme")
   end
 
-  if Version.match?(System.version(), "< 1.6.0") do
-    @tag :skip
-  end
-
   test "update_organizations/1 without Hex.State" do
     :ok = Supervisor.terminate_child(Hex.Supervisor, Hex.State)
     :ok = Supervisor.delete_child(Hex.Supervisor, Hex.State)

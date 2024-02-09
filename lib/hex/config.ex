@@ -62,17 +62,11 @@ defmodule Hex.Config do
         {{:env, "HEX_HOME"}, dir}
 
       System.get_env("MIX_XDG") in ["1", "true"] ->
-        user_setting_dir!(setting)
+        {{:env, "MIX_XDG"}, :filename.basedir(setting, "hex", %{os: :linux})}
 
       true ->
         {:ok, Path.expand("~/.hex")}
     end
-  end
-
-  defp user_setting_dir!(setting) do
-    {{:env, "MIX_XDG"}, :filename.basedir(setting, "hex", %{os: :linux})}
-  rescue
-    _ -> Mix.raise("MIX_XDG is only available in OTP 19+")
   end
 
   defp encode_term(list) do

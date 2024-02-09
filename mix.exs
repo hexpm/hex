@@ -7,7 +7,7 @@ defmodule Hex.MixProject do
     [
       app: :hex,
       version: @version,
-      elixir: "~> 1.5",
+      elixir: "~> 1.6",
       aliases: aliases(),
       preferred_cli_env: ["deps.get": :test],
       config_path: config_path(),
