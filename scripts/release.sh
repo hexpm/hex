@@ -62,6 +62,8 @@ function upload {
 hex_version=$1
 
 # UPDATE THIS FOR EVERY RELEASE
+build ${hex_version} 24.3.4.16 1.16.1 1.16.0 focal-20240123
+build ${hex_version} 24.3.4.16 1.15.7 1.15.0 focal-20240123
 build ${hex_version} 23.3 1.14.2 1.14.0 xenial-20210114
 build ${hex_version} 22.3 1.13.4 1.13.0 xenial-20200212
 build ${hex_version} 22.3 1.12.3 1.12.0 xenial-20200212
@@ -74,5 +76,5 @@ build ${hex_version} 19.3 1.6.6 1.6.0 xenial-20200212
 build ${hex_version} 18.3 1.5.3 1.5.0 xenial-20200212
 rm -rf _build
 
-hex_csv "${hex_version}" 1.5.0 1.6.0 1.7.0 1.8.0 1.9.0 1.10.0 1.11.0 1.12.0 1.13.0 1.14.0
-upload  "${hex_version}" 1.5.0 1.6.0 1.7.0 1.8.0 1.9.0 1.10.0 1.11.0 1.12.0 1.13.0 1.14.0
+hex_csv "${hex_version}" 1.5.0 1.6.0 1.7.0 1.8.0 1.9.0 1.10.0 1.11.0 1.12.0 1.13.0 1.14.0 1.15.0 1.16.0
+upload  "${hex_version}" 1.5.0 1.6.0 1.7.0 1.8.0 1.9.0 1.10.0 1.11.0 1.12.0 1.13.0 1.14.0 1.15.0 1.16.0
