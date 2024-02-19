@@ -16,6 +16,16 @@ defmodule Hex.Application do
     Supervisor.start_link(children(), opts)
   end
 
+  def stop(_state) do
+    Mix.RemoteConverger.register(nil)
+
+    if function_exported?(Mix.SCM, :delete, 1) do
+      Mix.SCM.delete(Hex.SCM)
+    end
+
+    :ok
+  end
+
   if Mix.env() in [:dev, :test] do
     defp dev_setup do
       :erlang.system_flag(:backtrace_depth, 20)
