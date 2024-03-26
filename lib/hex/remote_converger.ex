@@ -343,6 +343,8 @@ defmodule Hex.RemoteConverger do
             * #{dependency.from} defined application :#{dependency.label}
           """)
         end
+
+        dependency
       end)
 
     verify_otp_app_names(dependencies, map)
