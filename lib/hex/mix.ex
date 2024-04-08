@@ -61,7 +61,7 @@ defmodule Hex.Mix do
   defp non_hex_deps_to_requests(deps, all_deps, all_apps, overridden) do
     Enum.flat_map(deps, fn dep ->
       if has_non_hex_deps?(dep, all_apps) do
-        collect_non_hex_deps(deps, all_deps, all_apps, overridden)
+        collect_non_hex_deps(dep, all_deps, all_apps, overridden)
       else
         []
       end
@@ -72,7 +72,7 @@ defmodule Hex.Mix do
     dep.scm != Hex.SCM and dep.deps != [] and dep.app in all_apps
   end
 
-  defp collect_non_hex_deps(deps, all_deps, all_apps, overridden) do
+  defp collect_non_hex_deps(dep, all_deps, all_apps, overridden) do
     sub_apps = Enum.map(dep.deps, & &1.app)
     sub_deps = Enum.filter(dep.deps, &(&1.app in sub_apps))
 
