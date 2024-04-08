@@ -1031,4 +1031,26 @@ defmodule Hex.MixTaskTest do
                        ]}
     end)
   end
+
+  test "deps.get umbrella" do
+    in_fixture("umbrella", fn ->
+      Code.eval_file("mix.exs")
+      Mix.Task.run("deps.get")
+
+      assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
+      assert_received {:mix_shell, :info, ["* Getting ex_doc (Hex package)"]}
+
+      assert %{
+               ex_doc: {:hex, :ex_doc, "0.1.0", _, _, _, _, _},
+               postgrex: {:hex, :postgrex, "0.2.1", _, _, _, _, _}
+             } = Mix.Dep.Lock.read()
+    end)
+  after
+    purge([
+      Umbrella.Fixture.MixProject,
+      Umbrella.MyApp1.Fixture.MixProject,
+      Umbrella.MyApp2.Fixture.MixProject,
+      Umbrella.MyApp3.Fixture.MixProject
+    ])
+  end
 end

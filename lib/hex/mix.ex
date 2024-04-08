@@ -26,32 +26,22 @@ defmodule Hex.Mix do
   in the original list of dependencies as they were likely filtered out
   due to options like `:only`.
   """
-  def deps_to_requests(deps, overridden) do
-    apps = Enum.map(deps, & &1.app)
+  def deps_to_requests(all_deps, overridden) do
+    all_apps = Enum.map(all_deps, & &1.app)
 
-    hex_deps_to_requests(deps, apps, overridden, _top_level? = true) ++
-      Enum.flat_map(deps, fn dep ->
-        if dep.scm != Hex.SCM and dep.deps != [] do
-          [
-            %{
-              repo: nil,
-              name: Atom.to_string(dep.app),
-              requirement: nil,
-              app: Atom.to_string(dep.app),
-              from: Path.relative_to_cwd(dep.from),
-              dependencies: hex_deps_to_requests(dep.deps, apps, overridden, _top_level? = false)
-            }
-          ]
-        else
-          []
-        end
-      end)
+    hex_deps_to_requests(all_deps, all_apps, overridden) ++
+      non_hex_deps_to_requests(all_deps, all_deps, all_apps, overridden)
   end
 
-  defp hex_deps_to_requests(deps, apps, overridden, top_level?) do
+  defp deps_to_requests(deps, all_deps, all_apps, overridden) do
+    hex_deps_to_requests(deps, all_apps, overridden) ++
+      non_hex_deps_to_requests(deps, all_deps, all_apps, overridden)
+  end
+
+  defp hex_deps_to_requests(deps, all_apps, overridden) do
     Enum.flat_map(deps, fn dep ->
-      if dep.scm == Hex.SCM and dep.app in apps and (dep.top_level or dep.app not in overridden) and
-           dep.top_level == top_level? do
+      if dep.scm == Hex.SCM and dep.app in all_apps and
+           (dep.top_level or dep.app not in overridden) do
         [
           %{
             repo: dep.opts[:repo],
@@ -66,6 +56,42 @@ defmodule Hex.Mix do
         []
       end
     end)
+  end
+
+  defp non_hex_deps_to_requests(deps, all_deps, all_apps, overridden) do
+    Enum.flat_map(deps, fn dep ->
+      if has_non_hex_deps?(dep, all_apps) do
+        collect_non_hex_deps(dep, all_deps, all_apps, overridden)
+      else
+        []
+      end
+    end)
+  end
+
+  defp has_non_hex_deps?(dep, all_apps) do
+    dep.scm != Hex.SCM and dep.deps != [] and dep.app in all_apps
+  end
+
+  defp collect_non_hex_deps(dep, all_deps, all_apps, overridden) do
+    sub_apps = Enum.map(dep.deps, & &1.app)
+    sub_deps = Enum.filter(dep.deps, &(&1.app in sub_apps))
+
+    dependencies = deps_to_requests(sub_deps, all_deps, all_apps, overridden)
+
+    if dependencies != [] do
+      [
+        %{
+          repo: nil,
+          name: Atom.to_string(dep.app),
+          requirement: nil,
+          app: Atom.to_string(dep.app),
+          from: Path.relative_to_cwd(dep.from),
+          dependencies: dependencies
+        }
+      ]
+    else
+      []
+    end
   end
 
   @doc """

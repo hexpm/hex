@@ -11,6 +11,7 @@ defmodule Hex.MixProject do
       aliases: aliases(),
       preferred_cli_env: ["deps.get": :test],
       config_path: config_path(),
+      compilers: [:leex] ++ Mix.compilers(),
       deps: deps(Mix.env()),
       elixirc_options: elixirc_options(Mix.env()),
       elixirc_paths: elixirc_paths(Mix.env())
