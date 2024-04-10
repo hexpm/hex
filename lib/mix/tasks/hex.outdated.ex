@@ -210,13 +210,19 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp maybe_sort_by(values, "status") do
+    status_order = %{
+      "Up-to-date" => 1,
+      "Update not possible" => 2,
+      "Update possible" => 3
+    }
+
     Enum.sort_by(values, fn [
-                              [_, _package],
+                              _package,
                               _lock,
-                              [_latest_color, _latest],
-                              status
+                              _latest,
+                              [_color, status]
                             ] ->
-      status
+      Map.get(status_order, status, 0)
     end)
   end
 
