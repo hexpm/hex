@@ -216,13 +216,8 @@ defmodule Mix.Tasks.Hex.Outdated do
       "Update possible" => 3
     }
 
-    Enum.sort_by(values, fn [
-                              _package,
-                              _lock,
-                              _latest,
-                              [_color, status]
-                            ] ->
-      Map.get(status_order, status, 0)
+    Enum.sort_by(values, fn [_package, _lock, _latest, [_color, status]] ->
+      Map.fetch!(status_order, status)
     end)
   end
 
