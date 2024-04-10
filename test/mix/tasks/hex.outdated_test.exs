@@ -570,12 +570,10 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
   end
 
   defp extract_statuses(lines) do
-    Enum.reduce(lines, [], fn {_, _, [line]}, acc ->
-      case Regex.scan(~r/Up-to-date|Update not possible|Update possible/, line) do
-        [] -> acc
-        [[match]] -> [match | acc]
-      end
+    Enum.flat_map(lines, fn {_, _, [line]} ->
+      ~r/Up-to-date|Update not possible|Update possible/
+      |> Regex.scan(line)
+      |> List.flatten()
     end)
-    |> Enum.reverse()
   end
 end
