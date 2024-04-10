@@ -167,7 +167,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       assert catch_throw(Mix.Task.run("hex.outdated", ["--all", "--sort", "status"])) ==
                {:exit_code, 1}
 
-      bar =
+      _bar =
         [
           [:bright, "bar", :reset],
           ["         ", "0.1.0", :reset],
@@ -178,7 +178,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         |> IO.ANSI.format()
         |> List.to_string()
 
-      foo =
+      _foo =
         [
           [:bright, "foo", :reset],
           ["         ", "0.1.0", :reset],
@@ -189,7 +189,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         |> IO.ANSI.format()
         |> List.to_string()
 
-      ex_doc =
+      _ex_doc =
         [
           [:bright, "ex_doc", :reset],
           ["      ", "0.0.1", :reset],
