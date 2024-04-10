@@ -44,10 +44,11 @@ defmodule Mix.Tasks.Hex.Outdated do
     * `--all` - shows all outdated packages, including children of packages defined in `mix.exs`
     * `--pre` - include pre-releases when checking for newer versions
     * `--within-requirements` - exit with non-zero code only if requirements specified in `mix.exs` is met.
+    * `--sort <column>` - sort results by the given column. Currently supports `status`.
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [all: :boolean, pre: :boolean, within_requirements: :boolean]
+  @switches [all: :boolean, pre: :boolean, within_requirements: :boolean, sort: :string]
 
   @impl true
   def run(args) do
@@ -175,7 +176,8 @@ defmodule Mix.Tasks.Hex.Outdated do
       |> Enum.sort()
       |> get_versions(deps, lock, opts[:pre])
 
-    values = Enum.map(versions, &format_all_row/1)
+    values = versions |> Enum.map(&format_all_row/1) |> maybe_sort_by(opts[:sort])
+
     diff_links = Enum.map(versions, &build_diff_link/1) |> Enum.reject(&is_nil/1)
 
     if Enum.empty?(values) do
@@ -206,6 +208,20 @@ defmodule Mix.Tasks.Hex.Outdated do
       end
     end
   end
+
+  defp maybe_sort_by(values, "status") do
+    status_order = %{
+      "Up-to-date" => 1,
+      "Update not possible" => 2,
+      "Update possible" => 3
+    }
+
+    Enum.sort_by(values, fn [_package, _lock, _latest, [_color, status]] ->
+      Map.fetch!(status_order, status)
+    end)
+  end
+
+  defp maybe_sort_by(values, _), do: values
 
   defp get_versions(dep_names, deps, lock, pre?) do
     Enum.flat_map(dep_names, fn name ->

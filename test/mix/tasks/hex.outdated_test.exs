@@ -154,6 +154,65 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end)
   end
 
+  test "outdated --all --sort status" do
+    Mix.Project.push(OutdatedApp.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      assert catch_throw(Mix.Task.run("hex.outdated", ["--all", "--sort", "status"])) ==
+               {:exit_code, 1}
+
+      _bar =
+        [
+          [:bright, "bar", :reset],
+          ["         ", "0.1.0", :reset],
+          ["    ", :green, "0.1.0", :reset],
+          ["   ", :green, "Up-to-date", :reset],
+          "           "
+        ]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      _foo =
+        [
+          [:bright, "foo", :reset],
+          ["         ", "0.1.0", :reset],
+          ["    ", :red, "0.1.1", :reset],
+          ["   ", :yellow, "Update possible", :reset],
+          "      "
+        ]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      _ex_doc =
+        [
+          [:bright, "ex_doc", :reset],
+          ["      ", "0.0.1", :reset],
+          ["    ", :red, "0.1.0", :reset],
+          ["   ", :red, "Update not possible", :reset],
+          "  "
+        ]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      lines = flush()
+      extracted_statuses = extract_statuses(lines)
+
+      assert extracted_statuses == [
+               "Up-to-date",
+               "Update not possible",
+               "Update not possible",
+               "Update not possible",
+               "Update possible"
+             ]
+    end)
+  end
+
   test "outdated --all with multiple dependent packages" do
     Mix.Project.push(OutdatedMultiDeps.MixProject)
 
@@ -507,6 +566,14 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         assert_received {:mix_shell, :info, [^bar]}
         assert_received {:mix_shell, :info, [^foo]}
       end)
+    end)
+  end
+
+  defp extract_statuses(lines) do
+    Enum.flat_map(lines, fn {_, _, [line]} ->
+      ~r/Up-to-date|Update not possible|Update possible/
+      |> Regex.scan(line)
+      |> List.flatten()
     end)
   end
 end
