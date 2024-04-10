@@ -221,7 +221,9 @@ defmodule Mix.Tasks.Hex.Outdated do
     end)
   end
 
-  defp maybe_sort_by(values, _), do: values
+  defp maybe_sort_by(values, nil) do
+    values
+  end
 
   defp get_versions(dep_names, deps, lock, pre?) do
     Enum.flat_map(dep_names, fn name ->
