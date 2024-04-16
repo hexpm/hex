@@ -147,6 +147,32 @@ defmodule Mix.Tasks.Hex.PublishTest do
     end)
   end
 
+  test "try create existing package without permissions" do
+    Process.put(:hex_test_app_name, :ex_doc)
+    Mix.Project.push(ReleaseSimple.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      File.write!("mix.exs", "mix.exs")
+      File.write!("myfile.txt", "hello")
+      setup_auth("user2", "hunter42")
+      send(self(), {:mix_shell_input, :prompt, "hunter42"})
+
+      assert catch_throw(
+               Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--replace", "--yes"])
+             ) == {:exit_code, 1}
+
+      message =
+        "Package with name ex_doc already exists. " <>
+          "Make sure you are authenticated and have permissions to publish the package."
+
+      assert_received {:mix_shell, :error, ["Publishing failed"]}
+      assert_received {:mix_shell, :error, [^message]}
+    end)
+  after
+    purge([ReleaseSimple.MixProject])
+  end
+
   test "publish docs with invalid filename" do
     Mix.Project.push(DocsFilenameError.MixProject)
 
