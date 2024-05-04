@@ -3,7 +3,7 @@ defmodule Hex.API.Package do
 
   alias Hex.API
 
-  def get(repo, name, auth \\ []) do
+  def get(repo, name, auth \\ []) when name != "" do
     path = "packages/#{URI.encode(name)}"
     API.request(:get, repo, path, auth)
   end
@@ -16,7 +16,7 @@ defmodule Hex.API.Package do
   defmodule Owner do
     @moduledoc false
 
-    def add(repo, package, owner, level, transfer, auth) do
+    def add(repo, package, owner, level, transfer, auth) when package != "" do
       Hex.API.check_write_api()
 
       owner = URI.encode_www_form(owner)
@@ -25,7 +25,7 @@ defmodule Hex.API.Package do
       API.erlang_put_request(repo, path, params, auth)
     end
 
-    def delete(repo, package, owner, auth) do
+    def delete(repo, package, owner, auth) when package != "" do
       Hex.API.check_write_api()
 
       owner = URI.encode_www_form(owner)
@@ -33,7 +33,7 @@ defmodule Hex.API.Package do
       API.request(:delete, repo, path, auth)
     end
 
-    def get(repo, package, auth) do
+    def get(repo, package, auth) when package != "" do
       API.request(:get, repo, "packages/#{URI.encode(package)}/owners", auth)
     end
   end
