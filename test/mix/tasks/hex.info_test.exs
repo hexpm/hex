@@ -21,6 +21,9 @@ defmodule Mix.Tasks.Hex.InfoTest do
 
     assert catch_throw(Mix.Tasks.Hex.Info.run(["no_package"])) == {:exit_code, 1}
     assert_received {:mix_shell, :error, ["No package with name no_package"]}
+
+    assert catch_throw(Mix.Tasks.Hex.Info.run([""])) == {:exit_code, 1}
+    assert_received {:mix_shell, :error, ["Package name is empty"]}
   end
 
   test "locked package" do
