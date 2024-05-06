@@ -68,6 +68,11 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Registry.Server.close()
   end
 
+  defp package(_organization, "") do
+    Hex.Shell.error("Package name is empty")
+    Mix.Tasks.Hex.set_exit_code(1)
+  end
+
   defp package(organization, package) do
     auth = organization && Mix.Tasks.Hex.auth_info(:read)
 
