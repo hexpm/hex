@@ -125,6 +125,15 @@ defmodule Hex.SCM do
     repo = opts[:repo] || "hexpm"
     path = cache_path(repo, name, lock.version)
 
+    unknown_options = Keyword.keys(opts) -- ~w[hex dest repo lock env build optional]a
+
+    if unknown_options != [] do
+      Hex.Shell.warn(
+        "#{name} dependency is using unknown options: " <>
+          Enum.map_join(unknown_options, ", ", &inspect/1)
+      )
+    end
+
     case Hex.Parallel.await(:hex_fetcher, {:tarball, repo, name, lock.version}, @fetch_timeout) do
       {:ok, :cached} ->
         Hex.Shell.debug("  Using locally cached package (#{path})")

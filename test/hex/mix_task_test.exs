@@ -229,6 +229,19 @@ defmodule Hex.MixTaskTest do
     end
   end
 
+  defmodule WithUnknownOptions do
+    def project do
+      [
+        app: :with_unknown_options,
+        version: "0.1.0",
+        consolidate_protocols: false,
+        deps: [
+          {:ex_doc, dir: "/bad", typo: true}
+        ]
+      ]
+    end
+  end
+
   defmodule WithNonMatchingRequirement do
     def project do
       [
@@ -879,6 +892,22 @@ defmodule Hex.MixTaskTest do
 
       assert_received {:mix_shell, :info,
                        ["\e[33mex_doc is missing its version requirement, use \">= 0.0.0\"" <> _]}
+    end)
+  end
+
+  test "deps.get with unknown options" do
+    Mix.Project.push(WithUnknownOptions)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+
+      Mix.Task.run("deps.get")
+
+      assert_received {:mix_shell, :info,
+                       ["\e[33mex_doc is missing its version requirement, use \">= 0.0.0\"" <> _]}
+
+      assert_received {:mix_shell, :info,
+                       ["\e[33mex_doc dependency is using unknown options: :dir, :typo\e[0m"]}
     end)
   end
 
