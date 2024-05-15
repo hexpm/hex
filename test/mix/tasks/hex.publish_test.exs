@@ -54,6 +54,53 @@ defmodule Mix.Tasks.Hex.PublishTest do
     end
   end
 
+  defmodule DocsOutputConfigured.MixProject do
+    def project do
+      [
+        app: :ex_doc,
+        version: "0.1.0",
+        aliases: [docs: [&docs/1]],
+        docs: [output: "my_docs"]
+      ]
+    end
+
+    defp docs(_) do
+      File.mkdir_p!("my_docs")
+      File.write!("my_docs/index.html", "the index")
+    end
+  end
+
+  defmodule DocsOutputConfiguredFunction.MixProject do
+    def project do
+      [
+        app: :ex_doc,
+        version: "0.1.0",
+        aliases: [docs: [&docs/1]],
+        docs: &docs_config/0
+      ]
+    end
+
+    defp docs(_) do
+      File.mkdir_p!("my_docs")
+      File.write!("my_docs/index.html", "the index")
+    end
+
+    defp docs_config, do: [output: "my_docs"]
+  end
+
+  defmodule DocsOutputNoOutput.MixProject do
+    def project do
+      [
+        app: :ex_doc,
+        version: "0.1.0",
+        aliases: [docs: [&docs/1]],
+        docs: [output: "my_docs"]
+      ]
+    end
+
+    defp docs(_), do: :ok
+  end
+
   test "ensure user exists" do
     Process.put(:hex_test_app_name, :publish_ensure_user_exists)
     Mix.Project.push(ReleaseSimple.MixProject)
@@ -208,6 +255,54 @@ defmodule Mix.Tasks.Hex.PublishTest do
         refute_received {:mix_shell, :info,
                          ["Docs published to https://hexdocs.pm/invalid_dirname/0.1.0"]}
       end
+    end)
+  end
+
+  test "raises if output folder is missing" do
+    Mix.Project.push(DocsOutputNoOutput.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      setup_auth("user", "hunter42")
+
+      error_msg = "File not found: my_docs/index.html"
+
+      assert_raise Mix.Error, error_msg, fn ->
+        send(self(), {:mix_shell_input, :prompt, "hunter42"})
+        Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
+
+        refute_received {:mix_shell, :info, ["Docs published to https://hexdocs.pm/ex_doc/0.1.0"]}
+      end
+    end)
+  end
+
+  test "publishes docs with different output configured" do
+    Mix.Project.push(DocsOutputConfigured.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      setup_auth("user", "hunter42")
+
+      send(self(), {:mix_shell_input, :prompt, "hunter42"})
+      Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
+
+      assert_received {:mix_shell, :info,
+                       ["Docs published to http://localhost:4043/docs/ex_doc-0.1.0.tar.gz"]}
+    end)
+  end
+
+  test "publishes docs when docs config is a function" do
+    Mix.Project.push(DocsOutputConfiguredFunction.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      setup_auth("user", "hunter42")
+
+      send(self(), {:mix_shell_input, :prompt, "hunter42"})
+      Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
+
+      assert_received {:mix_shell, :info,
+                       ["Docs published to http://localhost:4043/docs/ex_doc-0.1.0.tar.gz"]}
     end)
   end
 

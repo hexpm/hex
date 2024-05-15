@@ -468,7 +468,12 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp docs_dir do
+    docs_output = docs_output_from_config()
+
     cond do
+      docs_output ->
+        docs_output
+
       File.exists?("doc") ->
         "doc"
 
@@ -480,6 +485,14 @@ defmodule Mix.Tasks.Hex.Publish do
           "Documentation could not be found. " <>
             "Please ensure documentation is in the doc/ or docs/ directory"
         )
+    end
+  end
+
+  defp docs_output_from_config() do
+    case Keyword.get(Mix.Project.config(), :docs) do
+      nil -> nil
+      config when is_list(config) -> config[:output]
+      config when is_function(config, 0) -> config.()[:output]
     end
   end
 
