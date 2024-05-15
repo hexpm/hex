@@ -53,6 +53,7 @@ defmodule Mix.Tasks.Hex.User do
       * `api:write` - API write access.
       * `repository:ORGANIZATION_NAME` - Access to given organization repository.
       * `repositories` - Access to repositories for all organizations you are member of.
+      * `package:PACKAGE_NAME` - Access to the given package, can be used for publishing.
 
   ## Revoke key
 
