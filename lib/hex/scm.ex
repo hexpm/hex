@@ -129,7 +129,7 @@ defmodule Hex.SCM do
 
     if unknown_options != [] do
       Hex.Shell.warn(
-        "#{name} dependency is using unknown options: " <>
+        "The #{name} dependency is using unknown options: " <>
           Enum.map_join(unknown_options, ", ", &inspect/1)
       )
     end
