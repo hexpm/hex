@@ -907,7 +907,7 @@ defmodule Hex.MixTaskTest do
                        ["\e[33mex_doc is missing its version requirement, use \">= 0.0.0\"" <> _]}
 
       assert_received {:mix_shell, :info,
-                       ["\e[33mex_doc dependency is using unknown options: :dir, :typo\e[0m"]}
+                       ["\e[33mex_doc is using unknown options: :dir, :typo\e[0m"]}
     end)
   end
 

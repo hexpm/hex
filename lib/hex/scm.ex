@@ -116,6 +116,16 @@ defmodule Hex.SCM do
     end
   end
 
+  # https://hexdocs.pm/mix/Mix.Tasks.Deps.html#module-dependency-definition-options
+  mix_keys = ~w[app env compile optional only targets override manager runtime system_env]a
+
+  # https://hex.pm/docs/usage#options
+  hex_keys = ~w[hex repo organization]a
+
+  internal_keys = ~w[dest lock build]a
+
+  @allowed_keys mix_keys ++ hex_keys ++ internal_keys
+
   def update(opts) do
     Registry.open()
 
@@ -125,11 +135,11 @@ defmodule Hex.SCM do
     repo = opts[:repo] || "hexpm"
     path = cache_path(repo, name, lock.version)
 
-    unknown_options = Keyword.keys(opts) -- ~w[hex dest repo lock env build optional]a
+    unknown_options = Keyword.keys(opts) -- @allowed_keys
 
     if unknown_options != [] do
       Hex.Shell.warn(
-        "The #{name} dependency is using unknown options: " <>
+        "#{name} is using unknown options: " <>
           Enum.map_join(unknown_options, ", ", &inspect/1)
       )
     end
