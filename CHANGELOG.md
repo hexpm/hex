@@ -1,6 +1,24 @@
 # CHANGELOG
 
-## v2.0.7-dev
+## v2.1.0 (2024-05-21)
+
+### Enhancements
+
+* Improve solver error message when collecting conflicting requirements from multiple places. Fixes the "empty" versions error. This is done by including path and git parents of hex packages in the solver.
+* Add "(CI)" to `user-agent` HTTP header if environment variable `CI` is set
+* Improve message for authentication errors
+* Set exit code 1 on `mix hex.organization auth` errors
+* Add `--sort` flag `mix hex.outdated`
+* Improve error message when trying to publish existing package with permissions
+* Consider ex_doc `:output` option when publishing documentation
+* Warn on unknown dependency options
+
+### Bug fixes
+
+* Do not close registry server in post_converge. Fixes the "the table identifier does not refer to an existing ETS table" error.
+* Revert Mix changes on Hex application stop
+* Fix passing requests from umbrella apps to solver
+* Handle empty package name in `mix hex.info`
 
 ## v2.0.6 (2023-02-06)
 
