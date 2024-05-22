@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## v2.1.1-dev
+## v2.1.1 (2024-05-22)
+
+### Bug fixes
+
+* Fix overriding Hex packages from non Hex dependencies
 
 ## v2.1.0 (2024-05-21)
 
