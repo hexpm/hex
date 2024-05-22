@@ -295,6 +295,19 @@ defmodule Hex.MixTaskTest do
     end
   end
 
+  defmodule EctoOverrideParent do
+    def project do
+      [
+        app: :ecto_override_parent,
+        version: "0.1.0",
+        consolidate_protocols: false,
+        deps: [
+          {:ecto_override, path: HexTest.Case.fixture_path("ecto_override")}
+        ]
+      ]
+    end
+  end
+
   defp reset_code_paths(fun) do
     path = :code.get_path()
 
@@ -1080,6 +1093,43 @@ defmodule Hex.MixTaskTest do
       Umbrella.MyApp1.Fixture.MixProject,
       Umbrella.MyApp2.Fixture.MixProject,
       Umbrella.MyApp3.Fixture.MixProject
+    ])
+  end
+
+  test "deps.get with path override" do
+    Mix.Project.push(EctoOverrideParent)
+
+    in_tmp(fn ->
+      Mix.Task.run("deps.get")
+
+      assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
+
+      assert %{
+               postgrex: {:hex, :postgrex, "0.2.0", _, _, _, _, _}
+             } = Mix.Dep.Lock.read()
+    end)
+  after
+    purge([
+      EctoOverride.Fixture.MixProject
+    ])
+  end
+
+  test "deps.get umbrella with path override" do
+    in_fixture("umbrella_override", fn ->
+      Code.eval_file("mix.exs")
+      Mix.Task.run("deps.get")
+
+      assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
+
+      assert %{
+               postgrex: {:hex, :postgrex, "0.2.0", _, _, _, _, _}
+             } = Mix.Dep.Lock.read()
+    end)
+  after
+    purge([
+      UmbrellaOverride.Fixture.MixProject,
+      UmbrellaOverride.MyApp1.Fixture.MixProject,
+      EctoOverride.Fixture.MixProject
     ])
   end
 end
