@@ -1082,4 +1082,23 @@ defmodule Hex.MixTaskTest do
       Umbrella.MyApp3.Fixture.MixProject
     ])
   end
+
+  test "deps.get umbrella with path override" do
+    in_fixture("umbrella_override", fn ->
+      Code.eval_file("mix.exs")
+      Mix.Task.run("deps.get")
+
+      assert_received {:mix_shell, :info, ["* Getting postgrex (Hex package)"]}
+
+      assert %{
+               postgrex: {:hex, :postgrex, "0.2.0", _, _, _, _, _}
+             } = Mix.Dep.Lock.read()
+    end)
+  after
+    purge([
+      UmbrellaOverride.Fixture.MixProject,
+      UmbrellaOverride.MyApp1.Fixture.MixProject,
+      EctoOverride.Fixture.MixProject
+    ])
+  end
 end

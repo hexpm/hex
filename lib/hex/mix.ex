@@ -14,6 +14,16 @@ defmodule Hex.Mix do
     |> Enum.uniq()
   end
 
+  defp non_hex_overridden_deps(deps) do
+    for(
+      dep <- deps,
+      dep.opts[:override],
+      dep.scm != Hex.SCM,
+      do: dep.app
+    )
+    |> Enum.uniq()
+  end
+
   @doc """
   Converts a list of dependencies to a requests to the resolver. Skips
   dependencies overriding with another SCM (but include dependencies
@@ -26,7 +36,8 @@ defmodule Hex.Mix do
   in the original list of dependencies as they were likely filtered out
   due to options like `:only`.
   """
-  def deps_to_requests(all_deps, overridden) do
+  def deps_to_requests(all_deps) do
+    overridden = non_hex_overridden_deps(all_deps)
     all_apps = Enum.map(all_deps, & &1.app)
 
     hex_deps_to_requests(all_deps, all_apps, overridden) ++
@@ -60,16 +71,12 @@ defmodule Hex.Mix do
 
   defp non_hex_deps_to_requests(deps, all_deps, all_apps, overridden) do
     Enum.flat_map(deps, fn dep ->
-      if has_non_hex_deps?(dep, all_apps) do
+      if dep.scm != Hex.SCM and dep.deps != [] and dep.app in all_apps do
         collect_non_hex_deps(dep, all_deps, all_apps, overridden)
       else
         []
       end
     end)
-  end
-
-  defp has_non_hex_deps?(dep, all_apps) do
-    dep.scm != Hex.SCM and dep.deps != [] and dep.app in all_apps
   end
 
   defp collect_non_hex_deps(dep, all_deps, all_apps, overridden) do

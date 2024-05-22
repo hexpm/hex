@@ -33,7 +33,7 @@ defmodule Hex.RemoteConverger do
     old_lock = Mix.Dep.Lock.read()
 
     overridden = Hex.Mix.overridden_deps(deps)
-    requests = Hex.Mix.deps_to_requests(deps, overridden)
+    requests = Hex.Mix.deps_to_requests(deps)
 
     [
       Hex.Mix.packages_from_lock(lock),
