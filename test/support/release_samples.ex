@@ -85,7 +85,7 @@ defmodule ReleaseMeta.MixProject do
       description: "foo",
       package: [
         files: ["myfile.txt", "missing.txt", "missing/*"],
-        licenses: ["Apache"],
+        licenses: ["Apache-2.0"],
         links: %{"a" => "http://a"},
         extra: %{"c" => "d"}
       ]
@@ -101,7 +101,7 @@ defmodule ReleaseMetaNoFiles.MixProject do
       description: "foo",
       package: [
         files: [],
-        licenses: ["Apache"],
+        licenses: ["Apache-2.0"],
         links: %{"a" => "http://a"},
         extra: %{"c" => "d"}
       ]
