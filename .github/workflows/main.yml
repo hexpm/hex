@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   format:
     name: Format
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
 
@@ -24,7 +24,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     services:
       postgres:
@@ -41,10 +41,6 @@ jobs:
       fail-fast: false
       matrix:
         pair:
-          - erlang: master
-            elixir: 1.14.0
-          - erlang: 25.0
-            elixir: main
           - erlang: 25.0
             elixir: 1.14.0
           - erlang: 25.0
@@ -63,8 +59,6 @@ jobs:
             elixir: 1.7.2
           - erlang: 21.3
             elixir: 1.6.6
-          - erlang: 20.3
-            elixir: 1.5.3
 
     env:
       HEXPM_OTP: OTP-25.0
@@ -87,11 +81,11 @@ jobs:
 
       - name: Install OTP and Elixir for hexpm
         run: |
-          wget https://repo.hex.pm/builds/otp/ubuntu-16.04/${HEXPM_OTP}.tar.gz
+          wget https://builds.hex.pm/builds/otp/ubuntu-20.04/${HEXPM_OTP}.tar.gz
           mkdir -p ${HEXPM_OTP_PATH}
           tar -xf ${HEXPM_OTP}.tar.gz -C ${HEXPM_OTP_PATH} --strip-components=1
           ${HEXPM_OTP_PATH}/Install -minimal $(pwd)/${HEXPM_OTP_PATH}
-          wget https://repo.hex.pm/builds/elixir/${HEXPM_ELIXIR}.zip
+          wget https://builds.hex.pm/builds/elixir/${HEXPM_ELIXIR}.zip
           unzip -d ${HEXPM_ELIXIR_PATH} ${HEXPM_ELIXIR}.zip
           mkdir -p ${HEXPM_MIX_HOME}
           PATH=$(pwd)/${HEXPM_ELIXIR_PATH}/bin:$(pwd)/${HEXPM_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/${HEXPM_MIX_HOME} MIX_ARCHIVES=$(pwd)/${HEXPM_MIX_HOME} mix local.hex --force
