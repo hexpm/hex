@@ -4,7 +4,7 @@ Hexpm.init()
 Hexpm.start()
 
 pkg_meta = %{
-  "licenses" => ["GPL-2.0", "MIT", "Apache-2.0"],
+  "licenses" => ["GPL2", "MIT", "Apache"],
   "links" => %{"docs" => "http://docs", "repo" => "http://repo"},
   "description" => "Some description"
 }
