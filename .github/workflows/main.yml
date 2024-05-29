@@ -87,7 +87,7 @@ jobs:
 
       - name: Install OTP and Elixir for hexpm
         run: |
-          wget https://repo.hex.pm/builds/otp/ubuntu-16.04/${HEXPM_OTP}.tar.gz
+          wget https://repo.hex.pm/builds/otp/ubuntu-20.04/${HEXPM_OTP}.tar.gz
           mkdir -p ${HEXPM_OTP_PATH}
           tar -xf ${HEXPM_OTP}.tar.gz -C ${HEXPM_OTP_PATH} --strip-components=1
           ${HEXPM_OTP_PATH}/Install -minimal $(pwd)/${HEXPM_OTP_PATH}
