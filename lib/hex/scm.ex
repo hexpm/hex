@@ -11,8 +11,11 @@ defmodule Hex.SCM do
     true
   end
 
-  def format(_opts) do
-    "Hex package"
+  def format(opts) do
+    case opts[:repo] do
+      "hexpm" -> "Hex package"
+      repo -> "Hex package (from #{repo})"
+    end
   end
 
   def format_lock(opts) do

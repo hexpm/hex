@@ -93,11 +93,6 @@ defmodule Hex.State do
       default: false,
       fun: {__MODULE__, :to_boolean}
     },
-    resolve_verbose: %{
-      env: ["HEX_RESOLVE_VERBOSE"],
-      default: false,
-      fun: {__MODULE__, :to_boolean}
-    },
     repos_key: %{
       env: ["HEX_REPOS_KEY"],
       config: [:repos_key]

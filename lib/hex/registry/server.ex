@@ -135,7 +135,7 @@ defmodule Hex.Registry.Server do
       |> Enum.reject(&(&1 in state.fetched))
       |> Enum.reject(&(&1 in state.pending))
 
-    purge_repo_from_cache(packages, state)
+    purge_changed_repos_from_cache(packages, state)
 
     if Hex.State.fetch!(:offline) do
       prefetch_offline(packages, state)
@@ -271,7 +271,7 @@ defmodule Hex.Registry.Server do
     :ok = :ets.tab2file(tid, String.to_charlist(path))
   end
 
-  defp purge_repo_from_cache(packages, %{ets: ets}) do
+  defp purge_changed_repos_from_cache(packages, %{ets: ets}) do
     Enum.each(packages, fn {repo, _package} ->
       repo = repo || "hexpm"
       config = Hex.Repo.get_repo(repo)
@@ -408,6 +408,8 @@ defmodule Hex.Registry.Server do
     Hex.Shell.error(
       "Failed to fetch record for #{Hex.Utils.package_name(repo, package)} from registry#{cached_message}"
     )
+
+    Hex.Shell.debug("Error result: #{inspect(result, limit: :infinity, pretty: true)}")
 
     if missing_status?(result) do
       Hex.Shell.error(

@@ -17,6 +17,8 @@ defmodule Hex.HTTP do
 
   @impl :mix_hex_http
   def request(method, url, headers, body, opts \\ []) do
+    Hex.Shell.debug("Hex.HTTP.request(#{inspect(method)}, #{inspect(url)})")
+
     headers =
       headers
       |> build_headers()
@@ -36,7 +38,7 @@ defmodule Hex.HTTP do
       redirect(request, http_opts, @request_redirects, fn request, http_opts ->
         timeout(request, http_opts, timeout, fn request, http_opts ->
           :httpc.request(method, request, http_opts, opts, profile)
-          |> handle_response()
+          |> handle_response(method, url)
         end)
       end)
     end)
@@ -176,14 +178,19 @@ defmodule Hex.HTTP do
     end
   end
 
-  defp handle_response({:ok, {{_version, code, _reason}, headers, body}}) do
-    headers = Map.new(headers, &decode_header/1)
+  defp handle_response({:ok, {{_version, code, _reason}, headers, body}}, method, url) do
+    Hex.Shell.debug("Hex.HTTP.request(#{inspect(method)}, #{inspect(url)}) => #{code}")
 
+    headers = Map.new(headers, &decode_header/1)
     handle_hex_message(headers["x-hex-message"])
     {:ok, code, headers, unzip(body, headers)}
   end
 
-  defp handle_response({:error, term}) do
+  defp handle_response({:error, term}, method, url) do
+    Hex.Shell.debug(
+      "Hex.HTTP.request(#{inspect(method)}, #{inspect(url)}) => #{inspect(term, limit: :infinity, pretty: true)}"
+    )
+
     {:error, term}
   end
 

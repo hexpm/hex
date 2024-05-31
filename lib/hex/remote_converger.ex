@@ -32,8 +32,16 @@ defmodule Hex.RemoteConverger do
     # We need the old lock to get the children of Hex packages
     old_lock = Mix.Dep.Lock.read()
 
+    Hex.Shell.debug("Hex.RemoteConverger.converge()")
+    Hex.Shell.debug("deps: #{inspect(deps, limit: :infinity, pretty: true)}")
+    Hex.Shell.debug("lock: #{inspect(lock, limit: :infinity, pretty: true)}")
+    Hex.Shell.debug("old_lock: #{inspect(old_lock, limit: :infinity, pretty: true)}")
+
     overridden = Hex.Mix.overridden_deps(deps)
     requests = Hex.Mix.deps_to_requests(deps)
+
+    Hex.Shell.debug("overridden: #{inspect(overridden, limit: :infinity, pretty: true)}")
+    Hex.Shell.debug("requests: #{inspect(requests, limit: :infinity, pretty: true)}")
 
     [
       Hex.Mix.packages_from_lock(lock),
