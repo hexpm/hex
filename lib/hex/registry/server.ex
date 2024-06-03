@@ -394,12 +394,8 @@ defmodule Hex.Registry.Server do
   end
 
   defp write_result(other, repo, package, %{ets: tid}) do
-    cached? = !!:ets.lookup(tid, {:versions, package})
+    cached? = :ets.lookup(tid, {:versions, repo, package}) != []
     print_error(other, repo, package, cached?)
-
-    unless cached? do
-      raise "Stopping due to errors"
-    end
   end
 
   defp print_error(result, repo, package, cached?) do
