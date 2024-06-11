@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.10.0 (d87858a), do not edit manually
+%% Vendored from hex_core v0.10.1 (8a53ac8), do not edit manually
 
 %% @doc
 %% HTTP contract.
@@ -18,7 +18,7 @@
 -type adapter_config() :: map().
 
 -callback request(method(), URI :: binary(), headers(), body(), adapter_config()) ->
-    {ok, status(), headers(), binary()}
+    {ok, {status(), headers(), binary()}}
     | {error, term()}.
 
 -spec request(mix_hex_core:config(), method(), URI :: binary(), headers(), body()) ->
