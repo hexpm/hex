@@ -162,7 +162,7 @@ defmodule Mix.Tasks.Hex.Build do
       message = [
         "The following licenses are not recognized by SPDX:\n",
         Enum.map(invalid_licenses, &" * #{&1}\n"),
-        "\nConsider using licenses from https://spdx.org/licenses"
+        "\nValid license identifiers are available from https://spdx.org/licenses"
       ]
 
       Hex.Shell.warn(message)
