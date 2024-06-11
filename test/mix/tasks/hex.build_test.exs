@@ -57,7 +57,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
       assert_received {:mix_shell, :info,
                        [
-                         "\e[33mThe following licenses are not recognized by SPDX:\n * CustomLicense\n\nConsider using licenses from https://spdx.org/licenses\e[0m"
+                         "\e[33mThe following licenses are not recognized by SPDX:\n * CustomLicense\n\nValid license identifiers are available from https://spdx.org/licenses\e[0m"
                        ]}
 
       assert package_created?("release_invalid_licenses-0.0.1")
@@ -77,7 +77,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
       refute_received {:mix_shell, :info,
                        [
-                         "\e[33m\nYou have chosen 1 or more licenses that are not recognized by SPDX\nConsider using a license from https://spdx.org/licenses/\n\e[0m"
+                         "\e[33mThe following licenses are not recognized by SPDX:\n * CustomLicense\n\nValid license identifiers are available from https://spdx.org/licenses\e[0m"
                        ]}
 
       assert package_created?("release_repo_invalid_licenses-0.0.1")
