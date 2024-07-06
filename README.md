@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/hexpm/hex/workflows/CI/badge.svg)](https://github.com/hexpm/hex/actions)
 
-Hex is package manager for the Erlang VM.
+Hex is a package manager for the Erlang ecosystem.
 
 This project currently provides tasks that integrate with Mix, [Elixir](https://github.com/elixir-lang/elixir)'s build tool.
 
