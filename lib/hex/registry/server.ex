@@ -235,7 +235,7 @@ defmodule Hex.Registry.Server do
   end
 
   defp open_ets(path) do
-    case :ets.file2tab(path) do
+    case :ets.file2tab(path, verify: true) do
       {:ok, tid} ->
         tid
 
@@ -268,7 +268,12 @@ defmodule Hex.Registry.Server do
   defp persist(tid, path) do
     dir = Path.dirname(path)
     File.mkdir_p!(dir)
-    :ok = :ets.tab2file(tid, String.to_charlist(path))
+
+    :ok =
+      :ets.tab2file(tid, String.to_charlist(path),
+        extended_info: [:object_count, :md5sum],
+        sync: true
+      )
   end
 
   defp purge_repo_from_cache(packages, %{ets: ets}) do
