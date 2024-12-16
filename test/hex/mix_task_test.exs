@@ -854,7 +854,7 @@ defmodule Hex.MixTaskTest do
       Hex.State.put(:cache_home, File.cwd!())
 
       message =
-        ~s[Required version "> hello" for package ex_doc is incorrectly specified (from: mix.exs)]
+        ~r[Required version "> hello" for package ex_doc is incorrectly specified]
 
       assert_raise Mix.Error, message, fn ->
         Mix.Task.run("deps.get")
