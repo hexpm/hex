@@ -364,6 +364,17 @@ defmodule Mix.Tasks.Hex.Docs do
         File.write!(target, body)
         true
 
+      {:error, :timeout} ->
+        message = """
+        Timed out trying to download docs. Try changing your timeout settings:
+
+            HEX_HTTP_TIMEOUT=120 mix hex.docs fetch #{package} #{version}
+        """
+
+        Hex.Shell.error(message)
+
+        false
+
       _ ->
         message = "Couldn't find docs for package with name #{package} or version #{version}"
         Hex.Shell.error(message)
