@@ -136,7 +136,6 @@ defmodule Hex.SCM do
     path = cache_path(repo, name, lock.version)
 
     unknown_options = Keyword.keys(opts) -- @allowed_keys
-    dbg(unknown_options)
 
     if unknown_options != [] do
       Hex.Shell.warn(
