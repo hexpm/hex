@@ -147,7 +147,7 @@ defmodule Hex.RemoteConverger do
 
     deps_to_warn =
       for %{repo: repo, name: name, requirement: requirement, warn_if_outdated: true} <- requests do
-        requirement = Version.parse_requirement!(requirement)
+        {:ok, requirement} = Version.parse_requirement(requirement)
         {:ok, versions} = Registry.versions(repo, name)
 
         latest_version =
