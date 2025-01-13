@@ -153,7 +153,7 @@ defmodule Hex.RemoteConverger do
         latest_version =
           versions
           |> Enum.filter(&Version.match?(&1, requirement))
-          |> Enum.sort({:desc, Version})
+          |> Enum.sort(&(Version.compare(&1, &2) == :gt))
           |> List.first()
 
         {:hex, _name, version, _chhecksum, _managers, _, ^repo, _checksum} =
