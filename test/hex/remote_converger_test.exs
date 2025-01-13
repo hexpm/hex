@@ -7,9 +7,9 @@ defmodule Hex.RemoteConvergetTest do
         app: :outdated_deps,
         version: "0.1.0",
         deps: [
-          {:postgrex, "0.2.1"},
-          {:ecto, "3.3.1"},
-          {:ecto_sql, "3.3.2"}
+          {:postgrex, "0.2.1", warn_if_outdated: true},
+          {:ecto, "3.3.1", warn_if_outdated: true},
+          {:ecto_sql, "3.3.2", warn_if_outdated: true}
         ]
       ]
     end
