@@ -152,15 +152,13 @@ defmodule Hex.RemoteConverger do
 
         versions =
           versions
-          |> Enum.filter(&Version.match?(&1, requirement))
+          |> Enum.filter(fn vsn -> vsn.pre == [] and Version.match?(vsn, requirement) end)
           |> Enum.sort(&(Version.compare(&1, &2) == :gt))
 
-        latest_version = Enum.find(versions, &(&1.pre == [])) || List.first(versions)
-
-        {:hex, _name, version, _chhecksum, _managers, _, ^repo, _checksum} =
-          Map.fetch!(new_lock, String.to_atom(name))
-
-        if Version.compare(latest_version, version) == :gt do
+        with [latest_version | _] <- versions,
+             {:hex, _name, version, _checksum, _managers, _, ^repo, _checksum} <-
+               Map.fetch!(new_lock, String.to_atom(name)),
+             :gt <- Version.compare(latest_version, version) do
           {name, latest_version}
         end
       end
