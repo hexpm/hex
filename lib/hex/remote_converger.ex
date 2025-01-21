@@ -169,7 +169,7 @@ defmodule Hex.RemoteConverger do
     if deps_to_warn != [] do
       IO.warn(
         [
-          "the following deps set `warn_if_outdated: true` and are outdated:\n\n",
+          "the following deps are outdated and set \"warn_if_outdated: true\":\n\n",
           Enum.map_join(deps_to_warn, "\n", fn {name, version} ->
             " * #{name} #{version} is available"
           end)
