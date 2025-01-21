@@ -156,10 +156,14 @@ defmodule Hex.RemoteConverger do
           |> Enum.sort(&(Version.compare(&1, &2) == :gt))
 
         with [latest_version | _] <- versions,
-             {:hex, _name, version, _checksum, _managers, _, ^repo, _checksum} <-
+             {:hex, _name, version, _checksum1, _managers, _, ^repo, _checksum2} <-
                Map.fetch!(new_lock, String.to_atom(name)),
              :gt <- Version.compare(latest_version, version) do
           {name, latest_version}
+        else
+          other ->
+            dbg(other)
+            nil
         end
       end
       |> Enum.filter(& &1)
