@@ -161,8 +161,7 @@ defmodule Hex.RemoteConverger do
              :gt <- Version.compare(latest_version, version) do
           {name, latest_version}
         else
-          other ->
-            dbg(other)
+          _ ->
             nil
         end
       end
