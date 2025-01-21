@@ -150,11 +150,12 @@ defmodule Hex.RemoteConverger do
         {:ok, requirement} = Version.parse_requirement(requirement)
         {:ok, versions} = Registry.versions(repo, name)
 
-        latest_version =
+        versions =
           versions
           |> Enum.filter(&Version.match?(&1, requirement))
           |> Enum.sort(&(Version.compare(&1, &2) == :gt))
-          |> List.first()
+
+        latest_version = Enum.find(versions, &(&1.pre == [])) || List.first(versions)
 
         {:hex, _name, version, _chhecksum, _managers, _, ^repo, _checksum} =
           Map.fetch!(new_lock, String.to_atom(name))
