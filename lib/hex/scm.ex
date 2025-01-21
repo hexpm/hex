@@ -120,7 +120,7 @@ defmodule Hex.SCM do
   mix_keys = ~w[app env compile optional only targets override manager runtime system_env]a
 
   # https://hex.pm/docs/usage#options
-  hex_keys = ~w[hex repo organization]a
+  hex_keys = ~w[hex repo organization warn_if_outdated]a
 
   internal_keys = ~w[dest lock build]a
 

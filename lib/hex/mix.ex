@@ -60,7 +60,8 @@ defmodule Hex.Mix do
             requirement: dep.requirement,
             app: Atom.to_string(dep.app),
             from: Path.relative_to_cwd(dep.from),
-            dependencies: []
+            dependencies: [],
+            warn_if_outdated: dep.opts[:warn_if_outdated]
           }
         ]
       else

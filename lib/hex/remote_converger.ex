@@ -144,6 +144,41 @@ defmodule Hex.RemoteConverger do
     verify_resolved(resolved, old_lock)
     new_lock = Hex.Mix.to_lock(resolved)
     Hex.SCM.prefetch(new_lock)
+
+    deps_to_warn =
+      for %{repo: repo, name: name, requirement: requirement, warn_if_outdated: true} <- requests do
+        {:ok, requirement} = Version.parse_requirement(requirement)
+        {:ok, versions} = Registry.versions(repo, name)
+
+        versions =
+          versions
+          |> Enum.filter(fn vsn -> vsn.pre == [] and Version.match?(vsn, requirement) end)
+          |> Enum.sort(&(Version.compare(&1, &2) == :gt))
+
+        with [latest_version | _] <- versions,
+             {:hex, _name, version, _checksum1, _managers, _, ^repo, _checksum2} <-
+               Map.fetch!(new_lock, String.to_atom(name)),
+             :gt <- Version.compare(latest_version, version) do
+          {name, latest_version}
+        else
+          _ ->
+            nil
+        end
+      end
+      |> Enum.filter(& &1)
+
+    if deps_to_warn != [] do
+      IO.warn(
+        [
+          "the following deps are outdated and set \"warn_if_outdated: true\":\n\n",
+          Enum.map_join(deps_to_warn, "\n", fn {name, version} ->
+            " * #{name} #{version} is available"
+          end)
+        ],
+        []
+      )
+    end
+
     lock_merge(lock, new_lock)
   end
 
