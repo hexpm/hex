@@ -2,6 +2,12 @@
 
 ## v2.1.2-dev
 
+### Enhancements
+
+* Add verifications of the registry cache ets table (`~/.cache/hex/cache.ets`)
+* Add help when docs download times out
+* Support `:warn_if_outdated` in deps
+
 ## v2.1.1 (2024-05-22)
 
 ### Bug fixes
