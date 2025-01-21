@@ -71,7 +71,7 @@ jobs:
 
     env:
       HEXPM_OTP: OTP-27.2
-      HEXPM_ELIXIR: v1.17.3
+      HEXPM_ELIXIR: v1.18.1
       HEXPM_PATH: hexpm
       HEXPM_ELIXIR_PATH: hexpm_elixir
       HEXPM_OTP_PATH: hexpm_otp
