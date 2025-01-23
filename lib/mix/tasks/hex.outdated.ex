@@ -66,6 +66,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     lock
     |> process_lockfile(args, opts)
     |> display_outdated(args, opts)
+    |> set_exit_status(opts)
   end
 
   @impl true
@@ -117,6 +118,8 @@ defmodule Mix.Tasks.Hex.Outdated do
     else
       display_table(versions, args, opts)
     end
+
+    versions
   end
 
   defp display_table([{_package, current, latest, requirements, outdated?}], [_app], _opts) do
@@ -141,8 +144,6 @@ defmodule Mix.Tasks.Hex.Outdated do
     message = "Up-to-date indicates if the requirement matches the latest version."
 
     Hex.Shell.info(["\n", message])
-
-    if outdated?, do: Mix.Tasks.Hex.set_exit_code(1)
   end
 
   defp display_table(versions, _args, opts) do
@@ -159,23 +160,25 @@ defmodule Mix.Tasks.Hex.Outdated do
       base_message = "Run `mix hex.outdated APP` to see requirements for a specific dependency."
       diff_message = maybe_diff_message(diff_links)
       Hex.Shell.info(["\n", base_message, diff_message])
+    end
+  end
 
-      any_outdated? = any_outdated?(versions)
-      req_met? = any_req_matches?(versions)
+  defp set_exit_status(versions, opts) do
+    any_outdated? = any_outdated?(versions)
+    req_met? = any_req_matches?(versions)
 
-      cond do
-        any_outdated? && opts[:within_requirements] && req_met? ->
-          Mix.Tasks.Hex.set_exit_code(1)
+    cond do
+      any_outdated? && opts[:within_requirements] && req_met? ->
+        Mix.Tasks.Hex.set_exit_code(1)
 
-        any_outdated? && opts[:within_requirements] && not req_met? ->
-          nil
+      any_outdated? && opts[:within_requirements] && not req_met? ->
+        nil
 
-        any_outdated? ->
-          Mix.Tasks.Hex.set_exit_code(1)
+      any_outdated? ->
+        Mix.Tasks.Hex.set_exit_code(1)
 
-        true ->
-          nil
-      end
+      true ->
+        nil
     end
   end
 
@@ -345,7 +348,9 @@ defmodule Mix.Tasks.Hex.Outdated do
       package: package,
       lock_version: current,
       latest_version: latest,
-      requirements: Enum.map(requirements, fn [_source, req_version] -> req_version end),
+      requirements: Enum.map(requirements, fn [source, req_version] ->
+        %{source: source, requirement: req_version, up_to_date: version_match?(latest, req_version)}
+      end),
       outdated: outdated?
     }
   end
