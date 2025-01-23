@@ -66,7 +66,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     lock
     |> process_lockfile(args, opts)
     |> display_outdated(args, opts)
-    |> set_exit_status(opts)
+    |> set_exit_code(opts)
   end
 
   @impl true
@@ -163,7 +163,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     end
   end
 
-  defp set_exit_status(versions, opts) do
+  defp set_exit_code(versions, opts) do
     any_outdated? = any_outdated?(versions)
     req_met? = any_req_matches?(versions)
 
