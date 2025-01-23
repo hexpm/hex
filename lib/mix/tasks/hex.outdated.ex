@@ -65,7 +65,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     lock
     |> process_lockfile(args, opts)
-    |> display_outdated(opts)
+    |> display_outdated(args, opts)
   end
 
   @impl true
@@ -108,18 +108,18 @@ defmodule Mix.Tasks.Hex.Outdated do
     """)
   end
 
-  defp display_outdated(versions, opts) do
+  defp display_outdated(versions, args, opts) do
     if opts[:json] do
       versions
       |> Enum.map(&cast_version_map/1)
       |> Jason.encode!()
       |> Hex.Shell.info()
     else
-      display_table(versions, opts)
+      display_table(versions, args, opts)
     end
   end
 
-  defp display_table([{package, current, latest, requirements, outdated?}], _opts) do
+  defp display_table([{package, current, latest, requirements, outdated?}], [_app], _opts) do
     if outdated? do
       [
         "There is newer version of the dependency available ",
@@ -145,7 +145,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     if outdated?, do: Mix.Tasks.Hex.set_exit_code(1)
   end
 
-  defp display_table(versions, opts) do
+  defp display_table(versions, _args, opts) do
     values = versions |> Enum.map(&format_all_row/1) |> maybe_sort_by(opts[:sort])
 
     diff_links = Enum.map(versions, &build_diff_link/1) |> Enum.reject(&is_nil/1)
