@@ -108,7 +108,18 @@ defmodule Mix.Tasks.Hex.Outdated do
     """)
   end
 
-  defp display_outdated([{package, current, latest, requirements, outdated?}], _opts) do
+  defp display_outdated(versions, opts) do
+    if opts[:json] do
+      versions
+      |> Enum.map(&cast_version_map/1)
+      |> Jason.encode!()
+      |> Hex.Shell.info()
+    else
+      display_table(versions, opts)
+    end
+  end
+
+  defp display_table([{package, current, latest, requirements, outdated?}], _opts) do
     if outdated? do
       [
         "There is newer version of the dependency available ",
@@ -134,7 +145,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     if outdated?, do: Mix.Tasks.Hex.set_exit_code(1)
   end
 
-  defp display_outdated(versions, opts) do
+  defp display_table(versions, opts) do
     values = versions |> Enum.map(&format_all_row/1) |> maybe_sort_by(opts[:sort])
 
     diff_links = Enum.map(versions, &build_diff_link/1) |> Enum.reject(&is_nil/1)
@@ -327,5 +338,15 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   defp req_matches?(requirements, latest) do
     Enum.all?(requirements, fn [_source, req_version] -> version_match?(latest, req_version) end)
+  end
+
+  defp cast_version_map({package, current, latest, requirements, outdated?}) do
+    %{
+      package: package,
+      lock_version: current,
+      latest_version: latest,
+      requirements: Enum.map(requirements, fn [_source, req_version] -> req_version end),
+      outdated: outdated?
+    }
   end
 end
