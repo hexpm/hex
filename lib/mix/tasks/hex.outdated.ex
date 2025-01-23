@@ -119,7 +119,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     end
   end
 
-  defp display_table([{package, current, latest, requirements, outdated?}], [_app], _opts) do
+  defp display_table([{_package, current, latest, requirements, outdated?}], [_app], _opts) do
     if outdated? do
       [
         "There is newer version of the dependency available ",
