@@ -33,9 +33,9 @@ defmodule Mix.Tasks.Hex.Publish do
 
   ## Reverting a package
 
-  A new package can be reverted or updated within 24 hours of it's initial publish,
-  a new version of an existing package can be reverted or updated within one hour.
-  Documentation have no limitations on when it can be updated.
+  A new package can be reverted or updated within 24 hours of its initial publish.
+  A new version of an existing package can be reverted or updated within one hour.
+  Documentation has no limitations on when it can be updated.
 
   To update the package simply run the `mix hex.publish` task again. To revert run
   `mix hex.publish --revert VERSION` or to only revert the documentation run
