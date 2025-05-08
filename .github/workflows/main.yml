@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   format:
     name: Format
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
 
@@ -24,7 +24,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     services:
       postgres:
@@ -70,8 +70,8 @@ jobs:
             elixir: 1.6.6
 
     env:
-      HEXPM_OTP: OTP-27.2
-      HEXPM_ELIXIR: v1.18.1
+      HEXPM_OTP: OTP-27.3
+      HEXPM_ELIXIR: v1.18.3
       HEXPM_PATH: hexpm
       HEXPM_ELIXIR_PATH: hexpm_elixir
       HEXPM_OTP_PATH: hexpm_otp
@@ -90,7 +90,7 @@ jobs:
 
       - name: Install OTP and Elixir for hexpm
         run: |
-          wget https://repo.hex.pm/builds/otp/ubuntu-20.04/${HEXPM_OTP}.tar.gz
+          wget https://repo.hex.pm/builds/otp/ubuntu-22.04/${HEXPM_OTP}.tar.gz
           mkdir -p ${HEXPM_OTP_PATH}
           tar -xf ${HEXPM_OTP}.tar.gz -C ${HEXPM_OTP_PATH} --strip-components=1
           ${HEXPM_OTP_PATH}/Install -minimal $(pwd)/${HEXPM_OTP_PATH}
