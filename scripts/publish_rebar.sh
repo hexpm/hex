@@ -8,7 +8,7 @@
 # Unless ELIXIR_PEM is set, nothing is uploaded. After running, can be locally tested:
 #
 #     $ (cd tmp && erl -S httpd)
-#     $ HEX_BUILDS_URL=http://localhost:8000 mix local.hex --force
+#     $ HEX_BUILDS_URL=http://localhost:8000 mix local.rebar --force
 
 set -e -u -o pipefail
 
