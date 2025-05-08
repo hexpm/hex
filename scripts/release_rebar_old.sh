@@ -147,7 +147,7 @@ function build_rebar2 {
 function build_rebar3 {
   docker rm rebar3 || true
 
-  docker run --name rebar3 hexpm/erlang:$2-ubuntu-$3 sh -c "\
+  docker run hexpm/erlang:$2-ubuntu-$3 sh -c "\
     apt update && apt -y install git && \
     git clone https://github.com/erlang/rebar3.git -b $1 && \
     cd rebar3 && \
