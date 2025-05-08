@@ -19,7 +19,7 @@ function main {
   rm -rf "${installs_dir}"
   mkdir "${installs_dir}"
 
-  # s3down rebar.csv rebar.csv
+  # rebar.csv is always rebuilt from scratch. rebar builds are not reproducible, unfortunately.
   touch "${rebar_csv}"
 
   # UPDATE THIS FOR EVERY RELEASE
