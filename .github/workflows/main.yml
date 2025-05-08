@@ -41,7 +41,7 @@ jobs:
       fail-fast: false
       matrix:
         pair:
-          # - erlang: master
+          # - erlang: maint
           #   elixir: main
 
           - erlang: 27.2
@@ -56,18 +56,6 @@ jobs:
             elixir: 1.13.4
           - erlang: 24.3
             elixir: 1.12.3
-          - erlang: 23.3
-            elixir: 1.11.3
-          - erlang: 23.3
-            elixir: 1.10.4
-          - erlang: 22.3
-            elixir: 1.9.4
-          - erlang: 21.3
-            elixir: 1.8.1
-          - erlang: 21.3
-            elixir: 1.7.2
-          - erlang: 21.3
-            elixir: 1.6.6
 
     env:
       HEXPM_OTP: OTP-27.3
