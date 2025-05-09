@@ -27,9 +27,9 @@ function main {
   sed -i.bak "/^${hex_version},/d" "${hex_csv}"
 
   # UPDATE THIS FOR EVERY RELEASE
-  build ${hex_version} 25.3.2.20 1.18.3 1.18.0 noble-20250404
-  build ${hex_version} 26.2.5.11 1.18.3 1.18.0 noble-20250404
-  build ${hex_version} 27.3.3    1.18.3 1.18.0 noble-20250404
+  build ${hex_version} 25.3.2.20 1.18.0 1.18.0 noble-20250404
+  build ${hex_version} 26.2.5.11 1.18.0 1.18.0 noble-20250404
+  build ${hex_version} 27.3.3    1.18.0 1.18.0 noble-20250404
 
   build ${hex_version} 25.3.2.20 1.17.3 1.17.0 noble-20250404
   build ${hex_version} 26.2.5.11 1.17.3 1.17.0 noble-20250404
