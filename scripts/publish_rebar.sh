@@ -2,8 +2,11 @@
 # TODO: rename to scripts/release_rebar.sh. publish_rebar.sh is a temporary name for prettier git diff.
 
 # Usage:
-#   ELIXIR_PEM=/path/to/elixir.pem \
-#     release_rebar.sh HEX_VERSION
+#
+#     $ ELIXIR_PEM=/path/to/elixir.pem \
+#        HEX_FASTLY_KEY=... \
+#        HEX_FASTLY_BUILDS_SERVICE_ID=... \
+#        release_rebar.sh
 #
 # Unless ELIXIR_PEM is set, nothing is uploaded. After running, can be locally tested:
 #
@@ -37,9 +40,9 @@ function main {
       path="${path#./}"
       echo "uploading ${path}..."
       s3up "${path}" "${path}"
-
-      # TODO purge fastly
     done
+
+    purge_key "${HEX_FASTLY_BUILDS_SERVICE_ID}" "installs"
   else
     echo "ELIXIR_PEM is empty, skipping"
     exit 1
@@ -84,6 +87,18 @@ function s3up {
 # $2 = target
 function s3down {
   aws s3 cp "s3://s3.hex.pm/installs/${1}" "${2}"
+}
+
+# $1 = service
+# $2 = key
+function purge_key() {
+  curl \
+    --fail \
+    -X POST \
+    -H "Fastly-Key: ${HEX_FASTLY_KEY}" \
+    -H "Accept: application/json" \
+    -H "Content-Length: 0" \
+    "https://api.fastly.com/service/$1/purge/$2"
 }
 
 main $*

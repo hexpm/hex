@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 
 # Usage:
-#   ELIXIR_PEM=/path/to/elixir.pem \
-#     release_hex.sh HEX_VERSION
+#
+#     $ ELIXIR_PEM=/path/to/elixir.pem \
+#       HEX_FASTLY_KEY=... \
+#       HEX_FASTLY_BUILDS_SERVICE_ID=... \
+#         release_hex.sh HEX_VERSION
 #
 # Unless ELIXIR_PEM is set, nothing is uploaded. After running, can be locally tested:
 #
@@ -19,7 +22,7 @@ function main {
   rm -rf "${installs_dir}"
   mkdir "${installs_dir}"
 
-  s3down hex.csv hex.csv
+  s3down hex.csv "${hex_csv}"
   touch "${hex_csv}"
   sed -i.bak "/^${hex_version},/d" "${hex_csv}"
 
@@ -43,9 +46,9 @@ function main {
       path="${path#./}"
       echo "uploading ${path}..."
       s3up "${path}" "${path}"
-
-      # TODO purge fastly
     done
+
+    purge_key "${HEX_FASTLY_BUILDS_SERVICE_ID}" "installs"
   else
     echo "ELIXIR_PEM is empty, skipping"
     exit 1
@@ -90,6 +93,18 @@ function s3up {
 # $2 = target
 function s3down {
   aws s3 cp "s3://s3.hex.pm/installs/${1}" "${2}"
+}
+
+# $1 = service
+# $2 = key
+function purge_key() {
+  curl \
+    --fail \
+    -X POST \
+    -H "Fastly-Key: ${HEX_FASTLY_KEY}" \
+    -H "Accept: application/json" \
+    -H "Content-Length: 0" \
+    "https://api.fastly.com/service/$1/purge/$2"
 }
 
 main $*
