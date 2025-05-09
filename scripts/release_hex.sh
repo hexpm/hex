@@ -28,9 +28,9 @@ function main {
 
   # UPDATE THIS FOR EVERY RELEASE
 
-  build ${hex_version} 25.3.2.16 1.18.0 1.18.0 noble-20241015 # need to use 1.18.0 and that requires older otp & ubuntu
-  build ${hex_version} 26.2.5.11 1.18.0 1.18.0 noble-20250404
-  build ${hex_version} 27.3.3    1.18.0 1.18.0 noble-20250404
+  build ${hex_version} 25.3.2.16 1.18.0 1.18.0 noble-20241015 # need to use exactly 1.18.0 and that requires older otp & ubuntu
+  build ${hex_version} 26.2.5.6  1.18.0 1.18.0 noble-20241015 # ditto
+  build ${hex_version} 27.2      1.18.0 1.18.0 noble-20241015 # ditto
 
   build ${hex_version} 25.3.2.20 1.17.3 1.17.0 noble-20250404
   build ${hex_version} 26.2.5.11 1.17.3 1.17.0 noble-20250404

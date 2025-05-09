@@ -69,7 +69,7 @@ hex_version=$1
 rm -rf *.ez
 
 # UPDATE THIS FOR EVERY RELEASE
-build ${hex_version} 25.3.2.16 1.18.0 1.18.0 noble-20241015 # need to use 1.18.0 and that requires older otp & ubuntu
+build ${hex_version} 25.3.2.16 1.18.0 1.18.0 noble-20241015 # need to use exactly 1.18.0 and that requires older otp & ubuntu
 build ${hex_version} 25.3.2.20 1.17.3 1.17.0 noble-20250404
 build ${hex_version} 24.3.4.17 1.16.3 1.16.0 focal-20240427
 build ${hex_version} 24.3.4.17 1.15.8 1.15.0 focal-20240427
