@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v2.2.1 (2025-05-09)
+
+### Bug fixes
+
+* Precompile Hex for Elixir 1.18 using Elixir 1.18.0
+
 ## v2.2.0 (2025-05-09)
 
 ### Enhancements
