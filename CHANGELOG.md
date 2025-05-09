@@ -1,12 +1,35 @@
 # CHANGELOG
 
-## v2.1.2-dev
+## v2.2.0 (2025-05-09)
 
 ### Enhancements
 
 * Add verifications of the registry cache ets table (`~/.cache/hex/cache.ets`)
+
 * Add help when docs download times out
+
 * Support `:warn_if_outdated` in deps
+
+  Let's say you have the following in `mix.exs`:
+
+  ```elixir
+  {:ex_doc, ">= 0.0.0", warn_if_outdated: true, only: :dev}
+  ```
+
+  and ExDoc is at version v0.37.2 in `mix.lock`, and v0.37.3 was released.
+
+  You will now see:
+
+  ```sh
+  $ mix deps.get
+  Resolving Hex dependencies...
+  Resolution completed in 0.054s
+  Unchanged:
+    ex_doc 0.37.2
+  warning: the following deps are outdated and set "warn_if_outdated: true":
+
+   * ex_doc 0.37.3 is available
+  ```
 
 ## v2.1.1 (2024-05-22)
 
