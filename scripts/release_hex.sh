@@ -26,15 +26,17 @@ function main {
   touch "${hex_csv}"
   sed -i.bak "/^${hex_version},/d" "${hex_csv}"
 
-  # UPDATE THIS FOR EVERY RELEASE
+  # UPDATE THIS FOR EVERY RELEASE, ORDER MATTERS
 
-  build ${hex_version} 25.3.2.16 1.18.0 1.18.0 noble-20241015 # need to use exactly 1.18.0 and that requires older otp & ubuntu
-  build ${hex_version} 26.2.5.6  1.18.0 1.18.0 noble-20241015 # ditto
-  build ${hex_version} 27.2      1.18.0 1.18.0 noble-20241015 # ditto
-
+  # Elixir v1.17
   build ${hex_version} 25.3.2.20 1.17.3 1.17.0 noble-20250404
   build ${hex_version} 26.2.5.11 1.17.3 1.17.0 noble-20250404
   build ${hex_version} 27.3.3    1.17.3 1.17.0 noble-20250404
+
+  # Elixir v1.18
+  build ${hex_version} 25.3.2.16 1.18.0 1.18.0 noble-20241015 # need to use exactly 1.18.0 and that requires older otp & ubuntu
+  build ${hex_version} 26.2.5.6  1.18.0 1.18.0 noble-20241015 # ditto
+  build ${hex_version} 27.2      1.18.0 1.18.0 noble-20241015 # ditto
 
   rm -rf _build
   rm "${hex_csv}.bak"
