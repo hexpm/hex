@@ -65,15 +65,9 @@
 -type '$msg'() :: 'Signed'().
 -export_type(['$msg_name'/0, '$msg'/0]).
 
--if(?OTP_RELEASE >= 24).
--dialyzer({no_underspecs, encode_msg/2}).
--endif.
 -spec encode_msg('$msg'(), '$msg_name'()) -> binary().
 encode_msg(Msg, MsgName) when is_atom(MsgName) -> encode_msg(Msg, MsgName, []).
 
--if(?OTP_RELEASE >= 24).
--dialyzer({no_underspecs, encode_msg/3}).
--endif.
 -spec encode_msg('$msg'(), '$msg_name'(), list()) -> binary().
 encode_msg(Msg, MsgName, Opts) ->
     verify_msg(Msg, MsgName, Opts),
