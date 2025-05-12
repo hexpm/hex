@@ -445,6 +445,46 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end)
   end
 
+  test "outdated app --json" do
+    Mix.Project.push(OutdatedApp.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      Mix.Dep.Lock.write(%{ex_doc: {:hex, :ex_doc, "0.0.1"}})
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      assert catch_throw(Mix.Task.run("hex.outdated", ["ex_doc", "--json"])) == {:exit_code, 1}
+
+      msg = Jason.encode!([%{
+        outdated: true,
+        requirements: [
+          %{
+            source: "mix.exs",
+            requirement: ">= 0.0.0",
+            up_to_date: true
+          },
+          %{
+            source: "ecto",
+            requirement: "~> 0.0.1",
+            up_to_date: false
+          },
+          %{
+            source: "postgrex",
+            requirement: "0.0.1",
+            up_to_date: false
+          }
+        ],
+        package: "ex_doc",
+        lock_version: "0.0.1",
+        latest_version: "0.1.0"
+      }])
+
+      assert_received {:mix_shell, :info, [^msg]}
+    end)
+  end
+
   test "not outdated app" do
     Mix.Project.push(NotOutdatedApp.MixProject)
 

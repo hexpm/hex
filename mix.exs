@@ -29,6 +29,7 @@ defmodule Hex.MixProject do
     [
       {:bypass, "~> 1.0.0"},
       {:cowboy, "~> 2.7.0"},
+      {:jason, "~> 1.0"},
       {:mime, "~> 1.0"},
       {:plug, "~> 1.9.0"},
       {:plug_cowboy, "~> 2.1.0"},
