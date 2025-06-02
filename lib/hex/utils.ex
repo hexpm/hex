@@ -324,4 +324,24 @@ defmodule Hex.Utils do
       {app, req, opts}
     end)
   end
+
+  @doc """
+  Gets an anonymized identifier for the current git repository.
+
+  This function finds the SHA of the first commit in the repository and hashes it once more for
+  anonymization.
+
+  Returns `nil` if git is not available or the directory is not a git repository.
+  """
+  def client_identifier do
+    with path when is_binary(path) <- System.find_executable("git"),
+         {output, 0} <- System.cmd("git", ["rev-list", "--max-parents=0", "HEAD"]) do
+      output
+      |> String.trim()
+      |> then(&:crypto.hash(:sha256, &1))
+      |> Base.encode16(case: :lower)
+    else
+      _ -> nil
+    end
+  end
 end

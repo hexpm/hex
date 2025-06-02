@@ -48,7 +48,9 @@ defmodule Hex.HTTP do
   defp build_headers(headers) do
     default_headers = %{"user-agent" => user_agent()}
 
-    Map.merge(default_headers, headers)
+    default_headers
+    |> add_client_identifier_header()
+    |> Map.merge(headers)
   end
 
   defp build_http_opts(url, timeout) do
@@ -269,6 +271,13 @@ defmodule Hex.HTTP do
 
   defp normalize_no_proxy_domain_desc(host) do
     host
+  end
+
+  defp add_client_identifier_header(headers) do
+    case Hex.Utils.client_identifier() do
+      nil -> headers
+      identifier -> Map.put(headers, "x-hex-client-id", identifier)
+    end
   end
 
   defp user_agent do
