@@ -127,7 +127,7 @@ defmodule Hex.HTTPTest do
       System.cmd("git", ["commit", "-m", "Initial commit"])
 
       Bypass.expect(bypass, fn conn ->
-        assert [client_id] = Plug.Conn.get_req_header(conn, "x-hex-client-id")
+        assert [client_id] = Plug.Conn.get_req_header(conn, "x-hex-repo-id")
         assert client_id =~ ~r/^[a-f0-9]{64}$/
 
         Plug.Conn.resp(conn, 200, "")

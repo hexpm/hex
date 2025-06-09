@@ -276,7 +276,7 @@ defmodule Hex.HTTP do
   defp add_client_identifier_header(headers) do
     case Hex.Utils.client_identifier() do
       nil -> headers
-      identifier -> Map.put(headers, "x-hex-client-id", identifier)
+      identifier -> Map.put(headers, "x-hex-repo-id", identifier)
     end
   end
 
