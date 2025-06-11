@@ -324,4 +324,40 @@ defmodule Hex.Utils do
       {app, req, opts}
     end)
   end
+
+  @doc """
+  Gets an anonymized identifier for the current git repository.
+
+  This function finds the SHA of the first commit in the repository and hashes it once more for
+  anonymization.
+
+  Returns `nil` when:
+
+  - The `HEX_REPO_IDENTIFIER` environment variable is set to anything other `1` or `true`
+  - The `git` executable isn't available 
+  - The current directory isn't within a git repository
+  """
+  def repo_identifier do
+    case Process.get(:hex_repo_identifier, :unset) do
+      cached when is_binary(cached) ->
+        cached
+
+      _ ->
+        with flag when flag in ["1", "true"] <- System.get_env("HEX_REPO_IDENTIFIER", "1"),
+             path when is_binary(path) <- System.find_executable("git"),
+             {output, 0} <- System.cmd("git", ["rev-list", "--max-parents=0", "HEAD"]) do
+          identifier =
+            output
+            |> String.trim()
+            |> then(&:crypto.hash(:sha256, &1))
+            |> Base.encode16(case: :lower)
+
+          Process.put(:hex_repo_identifier, identifier)
+
+          identifier
+        else
+          _other -> nil
+        end
+    end
+  end
 end
