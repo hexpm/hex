@@ -1,9 +1,9 @@
 defmodule Hex.UtilsTest do
   use ExUnit.Case
 
-  describe "client_identifier/0" do
+  describe "repo_identifier/0" do
     test "an identifier is included within a repository" do
-      assert Hex.Utils.client_identifier() =~ ~r/^[a-f0-9]{64}$/
+      assert Hex.Utils.repo_identifier() =~ ~r/^[a-f0-9]{64}$/
     end
 
     test "identifier is nil outside of a repository" do
@@ -18,10 +18,20 @@ defmodule Hex.UtilsTest do
       try do
         File.mkdir!(dir)
 
-        File.cd!(dir, fn -> refute Hex.Utils.client_identifier() end)
+        File.cd!(dir, fn -> refute Hex.Utils.repo_identifier() end)
       after
         File.rmdir(dir)
       end
+    end
+
+    test "identifier is nil when disabled by an environment variable" do
+      System.put_env("HEX_REPO_IDENTIFIER", "0")
+      refute Hex.Utils.repo_identifier()
+
+      System.put_env("HEX_REPO_IDENTIFIER", "false")
+      refute Hex.Utils.repo_identifier()
+    after
+      System.delete_env("HEX_REPO_IDENTIFIER")
     end
   end
 end

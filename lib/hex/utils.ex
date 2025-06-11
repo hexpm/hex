@@ -333,8 +333,9 @@ defmodule Hex.Utils do
 
   Returns `nil` if git is not available or the directory is not a git repository.
   """
-  def client_identifier do
-    with path when is_binary(path) <- System.find_executable("git"),
+  def repo_identifier do
+    with flag when flag in ["1", "true"] <- System.get_env("HEX_REPO_IDENTIFIER", "1"),
+         path when is_binary(path) <- System.find_executable("git"),
          {output, 0} <- System.cmd("git", ["rev-list", "--max-parents=0", "HEAD"]) do
       output
       |> String.trim()

@@ -49,7 +49,7 @@ defmodule Hex.HTTP do
     default_headers = %{"user-agent" => user_agent()}
 
     default_headers
-    |> add_client_identifier_header()
+    |> add_repo_identifier_header()
     |> Map.merge(headers)
   end
 
@@ -273,8 +273,8 @@ defmodule Hex.HTTP do
     host
   end
 
-  defp add_client_identifier_header(headers) do
-    case Hex.Utils.client_identifier() do
+  defp add_repo_identifier_header(headers) do
+    case Hex.Utils.repo_identifier() do
       nil -> headers
       identifier -> Map.put(headers, "x-hex-repo-id", identifier)
     end
