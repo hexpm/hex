@@ -52,7 +52,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   @impl true
   def run(args) do
-    Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
+    Mix.Tasks.Deps.Loadpaths.run(["--no-compile", "--no-listeners"])
     Hex.start()
     {opts, args} = OptionParser.parse!(args, strict: @switches)
     Registry.open()

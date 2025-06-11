@@ -229,7 +229,7 @@ defmodule Mix.Tasks.Hex.Package do
   end
 
   defp diff(repo, app, version) when is_binary(version) do
-    Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
+    Mix.Tasks.Deps.Loadpaths.run(["--no-compile", "--no-listeners"])
 
     {path_lock, package} =
       case Map.get(Mix.Dep.Lock.read(), String.to_atom(app)) do
