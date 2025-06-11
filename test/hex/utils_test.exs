@@ -1,6 +1,10 @@
 defmodule Hex.UtilsTest do
   use ExUnit.Case
 
+  setup do
+    on_exit(fn -> Process.delete(:hex_repo_identifier) end)
+  end
+
   describe "repo_identifier/0" do
     test "an identifier is included within a repository" do
       assert Hex.Utils.repo_identifier() =~ ~r/^[a-f0-9]{64}$/
@@ -32,6 +36,14 @@ defmodule Hex.UtilsTest do
       refute Hex.Utils.repo_identifier()
     after
       System.delete_env("HEX_REPO_IDENTIFIER")
+    end
+
+    test "the identifier is cached within the current process" do
+      value = "cached-identifier"
+
+      Process.put(:hex_repo_identifier, value)
+
+      assert value == Hex.Utils.repo_identifier()
     end
   end
 end
