@@ -338,14 +338,16 @@ defmodule Hex.Utils do
   - The current directory isn't within a git repository
   """
   def repo_identifier do
-    case Process.get(:hex_repo_identifier, :unset) do
+    case Process.get(:hex_repo_identifier) do
       cached when is_binary(cached) ->
         cached
 
-      _ ->
-        with flag when flag in ["1", "true"] <- System.get_env("HEX_REPO_IDENTIFIER", "1"),
+      nil ->
+        cmd_opts = ~w(rev-list --max-parents=0 HEAD)
+
+        with false <- Hex.State.get(:no_repo_identifier),
              path when is_binary(path) <- System.find_executable("git"),
-             {output, 0} <- System.cmd("git", ["rev-list", "--max-parents=0", "HEAD"]) do
+             {output, 0} <- System.cmd("git", cmd_opts, stderr_to_stdout: true) do
           identifier =
             output
             |> String.trim()
