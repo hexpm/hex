@@ -102,6 +102,10 @@ defmodule Hex.State do
       env: ["HEX_REPOS_KEY"],
       config: [:repos_key]
     },
+    repo_identifier: %{
+      env: ["HEX_REPO_IDENTIFIER"],
+      config: [:repo_identifier]
+    },
     diff_command: %{
       env: ["HEX_DIFF_COMMAND"],
       config: [:diff_command],
