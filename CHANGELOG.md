@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## v2.2.3-dev
+
 ## v2.2.2 (2025-06-27)
 
 ### Bug fixes
