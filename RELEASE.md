@@ -10,9 +10,9 @@ This document simply outlines the release process:
 
 4. Commit changes above with title "Release vVERSION" and generate new tag
 
-5. Set branch latest to the new tag
+5. Set branch latest to the new tag: `git switch latest && git merge --ff-only vVERSION && git switch -`
 
-6. Push main branch, latest branch and the new tag
+6. Push main branch, latest branch and the new tag: `git push origin main latest --tags`
 
 7. Create GitHub release
 
