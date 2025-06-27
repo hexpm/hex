@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## v2.2.2-dev
+## v2.2.2 (2025-06-27)
+
+### Bug fixes
+
+* `mix hex.publish`: Pass `--no-listeners` to `deps.loadpaths`
 
 ## v2.2.1 (2025-05-09)
 
