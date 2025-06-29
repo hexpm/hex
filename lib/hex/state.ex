@@ -102,6 +102,10 @@ defmodule Hex.State do
       env: ["HEX_REPOS_KEY"],
       config: [:repos_key]
     },
+    repo_identifier: %{
+      env: ["HEX_REPO_IDENTIFIER"],
+      config: [:repo_identifier]
+    },
     diff_command: %{
       env: ["HEX_DIFF_COMMAND"],
       config: [:diff_command],
@@ -111,6 +115,12 @@ defmodule Hex.State do
       env: ["HEX_CACERTS_PATH"],
       default: nil,
       config: [:cacerts_path]
+    },
+    no_repo_identifier: %{
+      env: ["HEX_NO_REPO_IDENTIFIER"],
+      default: false,
+      config: [:no_repo_identifier],
+      fun: {__MODULE__, :to_boolean}
     },
     no_short_urls: %{
       env: ["HEX_NO_SHORT_URLS"],
