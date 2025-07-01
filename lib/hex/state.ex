@@ -313,6 +313,7 @@ defmodule Hex.State do
   def to_boolean("true"), do: {:ok, true}
   def to_boolean("FALSE"), do: {:ok, false}
   def to_boolean("TRUE"), do: {:ok, true}
+  def to_boolean(""), do: {:ok, false}
   def to_boolean(_), do: :error
 
   def to_truthy_boolean(value) do
