@@ -407,11 +407,12 @@ defmodule Mix.Tasks.Hex.BuildTest do
 
     in_tmp(fn ->
       Hex.State.put(:cache_home, tmp_path())
-      
+
       File.write!("myfile.txt", "hello")
       File.chmod!("myfile.txt", 0o100644)
 
-      error_msg = "Stopping package build due to errors.\nDependencies excluded from the package (only Hex packages can be dependencies): ecto"
+      error_msg =
+        "Stopping package build due to errors.\nDependencies excluded from the package (only Hex packages can be dependencies): ecto"
 
       assert_raise Mix.Error, error_msg, fn ->
         Mix.Tasks.Hex.Build.run([])

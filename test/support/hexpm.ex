@@ -262,7 +262,7 @@ defmodule HexTest.Hexpm do
       |> Map.put_new(:app, name)
       |> Map.put_new(:build_tools, ["mix"])
       |> Map.put_new(:files, ["mix.exs"])
-      
+
     deps = inspect(deps, pretty: true)
     module = String.capitalize(name)
     mix_exs = :io_lib.format(@mix_exs_template, [module, name, version, deps])
