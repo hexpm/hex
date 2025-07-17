@@ -354,3 +354,22 @@ defmodule ReleaseAppFalseDep.MixProject do
     ]
   end
 end
+
+defmodule ReleaseInUmbrellaDeps.MixProject do
+  def project do
+    [
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
+      description: "includes umbrella",
+      version: "0.2.1",
+      deps: [
+        {:ecto, "3.3.2", in_umbrella: true},
+        {:postgrex, "0.2.1"}
+      ],
+      package: [
+        licenses: ["MIT"],
+        files: ["myfile.txt"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end

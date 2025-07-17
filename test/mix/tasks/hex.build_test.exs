@@ -401,6 +401,26 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge([ReleaseIncludeReservedFile.MixProject])
   end
 
+  test "errors with umbrella deps" do
+    Process.put(:hex_test_app_name, :includes_umbrella_deps)
+    Mix.Project.push(ReleaseInUmbrellaDeps.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      
+      File.write!("myfile.txt", "hello")
+      File.chmod!("myfile.txt", 0o100644)
+
+      error_msg = "Stopping package build due to errors.\nDependencies excluded from the package (only Hex packages can be dependencies): ecto"
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+      end
+    end)
+  after
+    purge([ReleaseInUmbrellaDeps.MixProject])
+  end
+
   test "build and unpack" do
     Process.put(:hex_test_app_name, :build_and_unpack)
     Mix.Project.push(Sample.MixProject)
