@@ -221,6 +221,7 @@ defmodule HexTest.Case do
       {:hexpm, :phoenix_live_reload, "1.0.3", [phoenix: "~> 0.16 or ~> 1.0"]},
       {:hexpm, :postgrex, "0.2.0", [ex_doc: "0.0.1"]},
       {:hexpm, :postgrex, "0.2.1", [ex_doc: "~> 0.1.0"]},
+      {:hexpm, :umb, "0.2.1", [ex_doc: "~> 0.1.0"]},
       {:repo2, :hexpm_deps, "0.1.0", [{:poison, ">= 0.0.0", false, :poison, :hexpm}]},
       {:repo2, :poison, "2.0.0", []},
       {:repo2, :repo2_deps, "0.1.0", [poison: ">= 0.0.0"]}
