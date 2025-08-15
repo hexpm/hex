@@ -6,8 +6,7 @@
 #        HEX_FASTLY_KEY=... \
 #        HEX_FASTLY_BUILDS_SERVICE_ID=... \
 #        release_rebar.sh
-#
-# Unless ELIXIR_PEM is set, nothing is uploaded. After running, can be locally tested:
+# Unless HEX_FASTLY_KEY is set, nothing is uploaded. After running, can be locally tested:
 #
 #     $ (cd tmp && erl -S httpd)
 #     $ HEX_BUILDS_URL=http://localhost:8000 mix local.rebar --force
@@ -27,25 +26,26 @@ function main {
   # UPDATE THIS FOR EVERY RELEASE
   build 3.22.0 25.3.2.20 1.18.3 noble-20250404
   build 3.22.0 26.2.5.11 1.18.3 noble-20250404
-
   build 3.24.0 25.3.2.20 1.18.3 noble-20250404
   build 3.24.0 26.2.5.11 1.18.3 noble-20250404
   build 3.24.0 27.3.3    1.18.3 noble-20250404
   build 3.25.1 28.0.1    1.18.4 noble-20250714
 
-  if [ -n "${ELIXIR_PEM}" ]; then
-    openssl dgst -sha512 -sign "${ELIXIR_PEM}" "${rebar_csv}" | openssl base64 > "${rebar_csv}.signed"
-    cd $installs_dir
-    for path in $(find . -type f | sort); do
-      path="${path#./}"
+  openssl dgst -sha512 -sign "${ELIXIR_PEM}" "${rebar_csv}" | openssl base64 > "${rebar_csv}.signed"
+  cd $installs_dir
+  for path in $(find . -type f | sort); do
+    path="${path#./}"
+
+    if [ -n "${HEX_FASTLY_KEY-}" ]; then
       echo "uploading ${path}..."
       s3up "${path}" "${path}"
-    done
+    else
+      echo "[skip] uploading ${path}..."
+    fi
+  done
 
+  if [ -n "${HEX_FASTLY_KEY-}" ]; then
     purge_key "${HEX_FASTLY_BUILDS_SERVICE_ID}" "installs"
-  else
-    echo "ELIXIR_PEM is empty, skipping"
-    exit 1
   fi
 }
 
