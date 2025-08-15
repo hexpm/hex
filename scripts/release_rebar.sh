@@ -32,6 +32,7 @@ function main {
   build 3.24.0 25.3.2.20 1.18.3 noble-20250404
   build 3.24.0 26.2.5.11 1.18.3 noble-20250404
   build 3.24.0 27.3.3    1.18.3 noble-20250404
+  build 3.25.1 28.0.1    1.18.4 noble-20250714
 
   if [ -n "${ELIXIR_PEM}" ]; then
     openssl dgst -sha512 -sign "${ELIXIR_PEM}" "${rebar_csv}" | openssl base64 > "${rebar_csv}.signed"
