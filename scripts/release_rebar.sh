@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# TODO: rename to scripts/release_rebar.sh. publish_rebar.sh is a temporary name for prettier git diff.
 
 # Usage:
 #
