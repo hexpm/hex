@@ -75,6 +75,21 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
+  defmodule OutdatedDepsWithTypes.MixProject do
+    def project do
+      [
+        app: :outdated_app,
+        version: "0.0.2",
+        deps: [
+          {:bar, "0.1.0"},
+          {:ex_doc, "~> 0.0.1", only: :dev},
+          {:plug, "0.1.0", only: :test},
+          {:bypass, "0.1.0", only: [:dev, :test]}
+        ]
+      ]
+    end
+  end
+
   test "outdated" do
     Mix.Project.push(OutdatedDeps.MixProject)
 
@@ -574,6 +589,110 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       ~r/Up-to-date|Update not possible|Update possible/
       |> Regex.scan(line)
       |> List.flatten()
+    end)
+  end
+
+  test "outdated with dependency types displays type column" do
+    Mix.Project.push(OutdatedDepsWithTypes.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      Mix.Dep.Lock.write(%{
+        bar: {:hex, :bar, "0.1.0"},
+        ex_doc: {:hex, :ex_doc, "0.0.1"},
+        plug: {:hex, :plug, "0.1.0"},
+        bypass: {:hex, :bypass, "0.1.0"}
+      })
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      catch_throw(Mix.Task.run("hex.outdated"))
+
+      # Check that the Type column is present in the header
+      assert_received {:mix_shell, :info,
+                       [
+                         "\e[0m\n\e[1mDependency\e[0m  \e[1mType\e[0m     \e[1mCurrent\e[0m  \e[1mLatest\e[0m  \e[1mStatus\e[0m\n"
+                       ]}
+
+      # Check that dependencies show their correct types
+      assert_received {:mix_shell, :info, [line]}
+      if line =~ "bar", do: assert(line =~ "prod")
+
+      assert_received {:mix_shell, :info, [line]}
+      if line =~ "bypass", do: assert(line =~ "dev/test")
+
+      assert_received {:mix_shell, :info, [line]}
+      if line =~ "ex_doc", do: assert(line =~ "dev")
+
+      assert_received {:mix_shell, :info, [line]}
+      if line =~ "plug", do: assert(line =~ "test")
+    end)
+  end
+
+  test "outdated --dev filters to only dev dependencies" do
+    Mix.Project.push(OutdatedDepsWithTypes.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      Mix.Dep.Lock.write(%{
+        bar: {:hex, :bar, "0.1.0"},
+        ex_doc: {:hex, :ex_doc, "0.0.1"},
+        plug: {:hex, :plug, "0.1.0"},
+        bypass: {:hex, :bypass, "0.1.0"}
+      })
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      catch_throw(Mix.Task.run("hex.outdated", ["--dev"]))
+
+      # Should show dev and dev/test dependencies - need to check that these appear in output
+      # Since we filtered to only dev deps, the output should contain ex_doc and bypass
+      output_lines = Enum.map(1..10, fn _ ->
+        receive do
+          {:mix_shell, :info, [line]} -> line
+        after 100 -> nil
+        end
+      end) |> Enum.filter(&(&1 != nil))
+      
+      combined_output = Enum.join(output_lines, "\n")
+      assert combined_output =~ "ex_doc"
+      assert combined_output =~ "bypass"
+      refute combined_output =~ "bar"
+    end)
+  end
+
+  test "outdated --test filters to only test dependencies" do
+    Mix.Project.push(OutdatedDepsWithTypes.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      Mix.Dep.Lock.write(%{
+        bar: {:hex, :bar, "0.1.0"},
+        ex_doc: {:hex, :ex_doc, "0.0.1"},
+        plug: {:hex, :plug, "0.1.0"},
+        bypass: {:hex, :bypass, "0.1.0"}
+      })
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      catch_throw(Mix.Task.run("hex.outdated", ["--test"]))
+
+      # Should show test and dev/test dependencies - need to check that these appear in output
+      # Since we filtered to only test deps, the output should contain plug and bypass
+      output_lines = Enum.map(1..10, fn _ ->
+        receive do
+          {:mix_shell, :info, [line]} -> line
+        after 100 -> nil
+        end
+      end) |> Enum.filter(&(&1 != nil))
+      
+      combined_output = Enum.join(output_lines, "\n")
+      assert combined_output =~ "plug"
+      assert combined_output =~ "bypass"
+      refute combined_output =~ "bar"
     end)
   end
 end

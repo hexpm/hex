@@ -45,10 +45,19 @@ defmodule Mix.Tasks.Hex.Outdated do
     * `--pre` - include pre-releases when checking for newer versions
     * `--within-requirements` - exit with non-zero code only if requirements specified in `mix.exs` is met.
     * `--sort <column>` - sort results by the given column. Currently supports `status`.
+    * `--dev` - show only dev dependencies
+    * `--test` - show only test dependencies
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [all: :boolean, pre: :boolean, within_requirements: :boolean, sort: :string]
+  @switches [
+    all: :boolean,
+    pre: :boolean,
+    within_requirements: :boolean,
+    sort: :string,
+    dev: :boolean,
+    test: :boolean
+  ]
 
   @impl true
   def run(args) do
@@ -175,6 +184,7 @@ defmodule Mix.Tasks.Hex.Outdated do
       dep_names
       |> Enum.sort()
       |> get_versions(deps, lock, opts[:pre])
+      |> filter_by_type(opts)
 
     values = versions |> Enum.map(&format_all_row/1) |> maybe_sort_by(opts[:sort])
 
@@ -183,7 +193,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     if Enum.empty?(values) do
       Hex.Shell.info("No hex dependencies")
     else
-      header = ["Dependency", "Current", "Latest", "Status"]
+      header = ["Dependency", "Type", "Current", "Latest", "Status"]
       Mix.Tasks.Hex.print_table(header, values)
 
       base_message = "Run `mix hex.outdated APP` to see requirements for a specific dependency."
@@ -225,6 +235,23 @@ defmodule Mix.Tasks.Hex.Outdated do
     values
   end
 
+  defp filter_by_type(versions, opts) do
+    cond do
+      opts[:dev] ->
+        Enum.filter(versions, fn [_package, dep_type, _lock, _latest, _requirements] ->
+          dep_type in ["dev", "dev/test"]
+        end)
+
+      opts[:test] ->
+        Enum.filter(versions, fn [_package, dep_type, _lock, _latest, _requirements] ->
+          dep_type in ["test", "dev/test"]
+        end)
+
+      true ->
+        versions
+    end
+  end
+
   defp get_versions(dep_names, deps, lock, pre?) do
     Enum.flat_map(dep_names, fn name ->
       case Hex.Utils.lock(lock[name]) do
@@ -238,7 +265,9 @@ defmodule Mix.Tasks.Hex.Outdated do
             (deps_requirements ++ lock_requirements)
             |> Enum.map(fn [_, req_version] -> req_version end)
 
-          [[Atom.to_string(name), lock_version, latest_version, requirements]]
+          dep_type = get_dep_type(deps, name)
+
+          [[Atom.to_string(name), dep_type, lock_version, latest_version, requirements]]
 
         _ ->
           []
@@ -265,7 +294,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     List.last(versions)
   end
 
-  defp format_all_row([package, lock, latest, requirements]) do
+  defp format_all_row([package, dep_type, lock, latest, requirements]) do
     outdated? = Version.compare(lock, latest) == :lt
     latest_color = if outdated?, do: :red, else: :green
     req_matches? = req_matches?(requirements, latest)
@@ -279,13 +308,14 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     [
       [:bright, package],
+      dep_type,
       lock,
       [latest_color, latest],
       status
     ]
   end
 
-  defp build_diff_link([package, lock, latest, requirements]) do
+  defp build_diff_link([package, _dep_type, lock, latest, requirements]) do
     outdated? = Version.compare(lock, latest) == :lt
     req_matches? = Enum.all?(requirements, &version_match?(latest, &1))
 
@@ -299,7 +329,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp version_match?(version, req), do: Version.match?(version, req)
 
   defp any_outdated?(versions) do
-    Enum.any?(versions, fn [_package, lock, latest, _requirements] ->
+    Enum.any?(versions, fn [_package, _dep_type, lock, latest, _requirements] ->
       Version.compare(lock, latest) == :lt
     end)
   end
@@ -329,12 +359,50 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp any_req_matches?(versions) do
-    Enum.any?(versions, fn [_package, _lock, latest, requirements] ->
+    Enum.any?(versions, fn [_package, _dep_type, _lock, latest, requirements] ->
       req_matches?(requirements, latest)
     end)
   end
 
   defp req_matches?(requirements, latest) do
     Enum.all?(requirements, &version_match?(latest, &1))
+  end
+
+  defp get_dep_type(deps, dep_name) do
+    case Map.get(deps, dep_name) do
+      nil ->
+        "prod"
+
+      dep_configs ->
+        # Get the opts from the first (main project) dependency config
+        case List.first(dep_configs) do
+          {_src, _req, opts} -> dep_type_from_opts(opts)
+          _ -> "prod"
+        end
+    end
+  end
+
+  defp dep_type_from_opts(opts) do
+    case Keyword.get(opts, :only) do
+      nil ->
+        "prod"
+
+      :dev ->
+        "dev"
+
+      :test ->
+        "test"
+
+      envs when is_list(envs) ->
+        cond do
+          :dev in envs and :test in envs -> "dev/test"
+          :dev in envs -> "dev"
+          :test in envs -> "test"
+          true -> "prod"
+        end
+
+      _ ->
+        "prod"
+    end
   end
 end
