@@ -592,7 +592,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end)
   end
 
-  test "outdated with dependency types displays type column" do
+  test "outdated with dependency types displays only column" do
     Mix.Project.push(OutdatedDepsWithTypes.MixProject)
 
     in_tmp(fn ->
@@ -609,28 +609,29 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
       catch_throw(Mix.Task.run("hex.outdated"))
 
-      # Check that the Type column is present in the header
+      # Check that the Only column is present in the header
       assert_received {:mix_shell, :info,
                        [
-                         "\e[0m\n\e[1mDependency\e[0m  \e[1mType\e[0m     \e[1mCurrent\e[0m  \e[1mLatest\e[0m  \e[1mStatus\e[0m\n"
+                         "\e[0m\n\e[1mDependency\e[0m  \e[1mOnly\e[0m     \e[1mCurrent\e[0m  \e[1mLatest\e[0m  \e[1mStatus\e[0m\n"
                        ]}
 
-      # Check that dependencies show their correct types
-      assert_received {:mix_shell, :info, [line]}
-      if line =~ "bar", do: assert(line =~ "prod")
-
-      assert_received {:mix_shell, :info, [line]}
-      if line =~ "bypass", do: assert(line =~ "dev/test")
-
-      assert_received {:mix_shell, :info, [line]}
-      if line =~ "ex_doc", do: assert(line =~ "dev")
-
-      assert_received {:mix_shell, :info, [line]}
-      if line =~ "plug", do: assert(line =~ "test")
+      # Check that dependencies show their correct only values
+      # Note: dependencies without :only show empty string in the Only column
+      output_lines = Enum.map(1..10, fn _ ->
+        receive do
+          {:mix_shell, :info, [line]} -> line
+        after 100 -> nil
+        end
+      end) |> Enum.filter(&(&1 != nil))
+      
+      combined_output = Enum.join(output_lines, "\n")
+      assert combined_output =~ "bypass" and combined_output =~ "dev,test"
+      assert combined_output =~ "ex_doc" and combined_output =~ "dev"  
+      assert combined_output =~ "plug" and combined_output =~ "test"
     end)
   end
 
-  test "outdated --dev filters to only dev dependencies" do
+  test "outdated --only dev filters to only dev dependencies" do
     Mix.Project.push(OutdatedDepsWithTypes.MixProject)
 
     in_tmp(fn ->
@@ -645,10 +646,10 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Mix.Task.run("deps.get")
       flush()
 
-      catch_throw(Mix.Task.run("hex.outdated", ["--dev"]))
+      catch_throw(Mix.Task.run("hex.outdated", ["--only", "dev"]))
 
-      # Should show dev and dev/test dependencies - need to check that these appear in output
-      # Since we filtered to only dev deps, the output should contain ex_doc and bypass
+      # Should show only dependencies with :only set to :dev
+      # Since we filtered to only "dev", the output should contain only ex_doc
       output_lines = Enum.map(1..10, fn _ ->
         receive do
           {:mix_shell, :info, [line]} -> line
@@ -658,12 +659,12 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       
       combined_output = Enum.join(output_lines, "\n")
       assert combined_output =~ "ex_doc"
-      assert combined_output =~ "bypass"
+      refute combined_output =~ "bypass"  # bypass has [:dev, :test] not just :dev
       refute combined_output =~ "bar"
     end)
   end
 
-  test "outdated --test filters to only test dependencies" do
+  test "outdated --only dev,test filters to dev and test dependencies" do
     Mix.Project.push(OutdatedDepsWithTypes.MixProject)
 
     in_tmp(fn ->
@@ -678,10 +679,11 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       Mix.Task.run("deps.get")
       flush()
 
-      catch_throw(Mix.Task.run("hex.outdated", ["--test"]))
+      catch_throw(Mix.Task.run("hex.outdated", ["--only", "dev,test"]))
 
-      # Should show test and dev/test dependencies - need to check that these appear in output
-      # Since we filtered to only test deps, the output should contain plug and bypass
+      # Should show dependencies with :only set to :dev or :test  
+      # This should include ex_doc (dev) and plug (test)
+      # bypass has [:dev, :test] which displays as "dev,test" but should match both "dev" and "test" individually
       output_lines = Enum.map(1..10, fn _ ->
         receive do
           {:mix_shell, :info, [line]} -> line
@@ -691,7 +693,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       
       combined_output = Enum.join(output_lines, "\n")
       assert combined_output =~ "plug"
-      assert combined_output =~ "bypass"
+      assert combined_output =~ "ex_doc"
+      assert combined_output =~ "bypass"  # bypass should be included since it has dev and test
       refute combined_output =~ "bar"
     end)
   end

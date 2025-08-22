@@ -45,8 +45,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     * `--pre` - include pre-releases when checking for newer versions
     * `--within-requirements` - exit with non-zero code only if requirements specified in `mix.exs` is met.
     * `--sort <column>` - sort results by the given column. Currently supports `status`.
-    * `--dev` - show only dev dependencies
-    * `--test` - show only test dependencies
+    * `--only ANYVALUE` - show only dependencies with the given only value (comma-separated for multiple values)
   """
   @behaviour Hex.Mix.TaskDescription
 
@@ -55,8 +54,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     pre: :boolean,
     within_requirements: :boolean,
     sort: :string,
-    dev: :boolean,
-    test: :boolean
+    only: :string
   ]
 
   @impl true
@@ -184,7 +182,7 @@ defmodule Mix.Tasks.Hex.Outdated do
       dep_names
       |> Enum.sort()
       |> get_versions(deps, lock, opts[:pre])
-      |> filter_by_type(opts)
+      |> filter_by_only(opts)
 
     values = versions |> Enum.map(&format_all_row/1) |> maybe_sort_by(opts[:sort])
 
@@ -193,7 +191,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     if Enum.empty?(values) do
       Hex.Shell.info("No hex dependencies")
     else
-      header = ["Dependency", "Type", "Current", "Latest", "Status"]
+      header = ["Dependency", "Only", "Current", "Latest", "Status"]
       Mix.Tasks.Hex.print_table(header, values)
 
       base_message = "Run `mix hex.outdated APP` to see requirements for a specific dependency."
@@ -235,20 +233,23 @@ defmodule Mix.Tasks.Hex.Outdated do
     values
   end
 
-  defp filter_by_type(versions, opts) do
-    cond do
-      opts[:dev] ->
-        Enum.filter(versions, fn [_package, dep_type, _lock, _latest, _requirements] ->
-          dep_type in ["dev", "dev/test"]
-        end)
-
-      opts[:test] ->
-        Enum.filter(versions, fn [_package, dep_type, _lock, _latest, _requirements] ->
-          dep_type in ["test", "dev/test"]
-        end)
-
-      true ->
+  defp filter_by_only(versions, opts) do
+    case opts[:only] do
+      nil ->
         versions
+
+      only_value ->
+        # deps can have multiple `only` values, so we separate by `,`
+        only_values = String.split(only_value, ",", trim: true)
+
+        Enum.filter(versions, fn [_package, dep_only, _lock, _latest, _requirements] ->
+          if String.contains?(dep_only, ",") do
+            dep_only_parts = String.split(dep_only, ",")
+            Enum.any?(dep_only_parts, &(&1 in only_values))
+          else
+            dep_only in only_values
+          end
+        end)
     end
   end
 
@@ -265,9 +266,9 @@ defmodule Mix.Tasks.Hex.Outdated do
             (deps_requirements ++ lock_requirements)
             |> Enum.map(fn [_, req_version] -> req_version end)
 
-          dep_type = get_dep_type(deps, name)
+          dep_only = get_dep_only(deps, name)
 
-          [[Atom.to_string(name), dep_type, lock_version, latest_version, requirements]]
+          [[Atom.to_string(name), dep_only, lock_version, latest_version, requirements]]
 
         _ ->
           []
@@ -294,7 +295,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     List.last(versions)
   end
 
-  defp format_all_row([package, dep_type, lock, latest, requirements]) do
+  defp format_all_row([package, dep_only, lock, latest, requirements]) do
     outdated? = Version.compare(lock, latest) == :lt
     latest_color = if outdated?, do: :red, else: :green
     req_matches? = req_matches?(requirements, latest)
@@ -308,14 +309,14 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     [
       [:bright, package],
-      dep_type,
+      dep_only,
       lock,
       [latest_color, latest],
       status
     ]
   end
 
-  defp build_diff_link([package, _dep_type, lock, latest, requirements]) do
+  defp build_diff_link([package, _dep_only, lock, latest, requirements]) do
     outdated? = Version.compare(lock, latest) == :lt
     req_matches? = Enum.all?(requirements, &version_match?(latest, &1))
 
@@ -329,7 +330,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp version_match?(version, req), do: Version.match?(version, req)
 
   defp any_outdated?(versions) do
-    Enum.any?(versions, fn [_package, _dep_type, lock, latest, _requirements] ->
+    Enum.any?(versions, fn [_package, _dep_only, lock, latest, _requirements] ->
       Version.compare(lock, latest) == :lt
     end)
   end
@@ -359,7 +360,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp any_req_matches?(versions) do
-    Enum.any?(versions, fn [_package, _dep_type, _lock, latest, requirements] ->
+    Enum.any?(versions, fn [_package, _dep_only, _lock, latest, requirements] ->
       req_matches?(requirements, latest)
     end)
   end
@@ -368,41 +369,36 @@ defmodule Mix.Tasks.Hex.Outdated do
     Enum.all?(requirements, &version_match?(latest, &1))
   end
 
-  defp get_dep_type(deps, dep_name) do
+  defp get_dep_only(deps, dep_name) do
     case Map.get(deps, dep_name) do
       nil ->
-        "prod"
+        ""
 
       dep_configs ->
         # Get the opts from the first (main project) dependency config
         case List.first(dep_configs) do
-          {_src, _req, opts} -> dep_type_from_opts(opts)
-          _ -> "prod"
+          {_src, _req, opts} -> dep_only_from_opts(opts)
+          _ -> ""
         end
     end
   end
 
-  defp dep_type_from_opts(opts) do
+  defp dep_only_from_opts(opts) do
     case Keyword.get(opts, :only) do
       nil ->
-        "prod"
+        ""
 
-      :dev ->
-        "dev"
+      only_value when is_atom(only_value) ->
+        Atom.to_string(only_value)
 
-      :test ->
-        "test"
+      only_value when is_list(only_value) ->
+        # For multiple environments, we'll show them comma-separated in the display
+        only_value
+        |> Enum.map(&Atom.to_string/1)
+        |> Enum.join(",")
 
-      envs when is_list(envs) ->
-        cond do
-          :dev in envs and :test in envs -> "dev/test"
-          :dev in envs -> "dev"
-          :test in envs -> "test"
-          true -> "prod"
-        end
-
-      _ ->
-        "prod"
+      only_value ->
+        to_string(only_value)
     end
   end
 end
