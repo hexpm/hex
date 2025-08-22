@@ -75,6 +75,21 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
+  defmodule OutdatedDepsWithTypes.MixProject do
+    def project do
+      [
+        app: :outdated_app,
+        version: "0.0.2",
+        deps: [
+          {:bar, "0.1.0"},
+          {:ex_doc, "~> 0.0.1", only: :dev},
+          {:plug, "0.1.0", only: :test},
+          {:bypass, "0.1.0", only: [:dev, :test]}
+        ]
+      ]
+    end
+  end
+
   test "outdated" do
     Mix.Project.push(OutdatedDeps.MixProject)
 
@@ -574,6 +589,113 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       ~r/Up-to-date|Update not possible|Update possible/
       |> Regex.scan(line)
       |> List.flatten()
+    end)
+  end
+
+  test "outdated with dependency types displays only column" do
+    Mix.Project.push(OutdatedDepsWithTypes.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      Mix.Dep.Lock.write(%{
+        bar: {:hex, :bar, "0.1.0"},
+        ex_doc: {:hex, :ex_doc, "0.0.1"},
+        plug: {:hex, :plug, "0.1.0"},
+        bypass: {:hex, :bypass, "0.1.0"}
+      })
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      catch_throw(Mix.Task.run("hex.outdated"))
+
+      # Check that the Only column is present in the header
+      assert_received {:mix_shell, :info,
+                       [
+                         "\e[0m\n\e[1mDependency\e[0m  \e[1mOnly\e[0m     \e[1mCurrent\e[0m  \e[1mLatest\e[0m  \e[1mStatus\e[0m\n"
+                       ]}
+
+      # Check that dependencies show their correct only values
+      # Note: dependencies without :only show empty string in the Only column
+      output_lines = Enum.map(1..10, fn _ ->
+        receive do
+          {:mix_shell, :info, [line]} -> line
+        after 100 -> nil
+        end
+      end) |> Enum.filter(&(&1 != nil))
+      
+      combined_output = Enum.join(output_lines, "\n")
+      assert combined_output =~ "bypass" and combined_output =~ "dev,test"
+      assert combined_output =~ "ex_doc" and combined_output =~ "dev"  
+      assert combined_output =~ "plug" and combined_output =~ "test"
+    end)
+  end
+
+  test "outdated --only dev filters to only dev dependencies" do
+    Mix.Project.push(OutdatedDepsWithTypes.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      Mix.Dep.Lock.write(%{
+        bar: {:hex, :bar, "0.1.0"},
+        ex_doc: {:hex, :ex_doc, "0.0.1"},
+        plug: {:hex, :plug, "0.1.0"},
+        bypass: {:hex, :bypass, "0.1.0"}
+      })
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      catch_throw(Mix.Task.run("hex.outdated", ["--only", "dev"]))
+
+      # Should show only dependencies with :only set to :dev
+      # Since we filtered to only "dev", the output should contain only ex_doc
+      output_lines = Enum.map(1..10, fn _ ->
+        receive do
+          {:mix_shell, :info, [line]} -> line
+        after 100 -> nil
+        end
+      end) |> Enum.filter(&(&1 != nil))
+      
+      combined_output = Enum.join(output_lines, "\n")
+      assert combined_output =~ "ex_doc"
+      refute combined_output =~ "bypass"  # bypass has [:dev, :test] not just :dev
+      refute combined_output =~ "bar"
+    end)
+  end
+
+  test "outdated --only dev,test filters to dev and test dependencies" do
+    Mix.Project.push(OutdatedDepsWithTypes.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      Mix.Dep.Lock.write(%{
+        bar: {:hex, :bar, "0.1.0"},
+        ex_doc: {:hex, :ex_doc, "0.0.1"},
+        plug: {:hex, :plug, "0.1.0"},
+        bypass: {:hex, :bypass, "0.1.0"}
+      })
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      catch_throw(Mix.Task.run("hex.outdated", ["--only", "dev,test"]))
+
+      # Should show dependencies with :only set to :dev or :test  
+      # This should include ex_doc (dev) and plug (test)
+      # bypass has [:dev, :test] which displays as "dev,test" but should match both "dev" and "test" individually
+      output_lines = Enum.map(1..10, fn _ ->
+        receive do
+          {:mix_shell, :info, [line]} -> line
+        after 100 -> nil
+        end
+      end) |> Enum.filter(&(&1 != nil))
+      
+      combined_output = Enum.join(output_lines, "\n")
+      assert combined_output =~ "plug"
+      assert combined_output =~ "ex_doc"
+      assert combined_output =~ "bypass"  # bypass should be included since it has dev and test
+      refute combined_output =~ "bar"
     end)
   end
 end
