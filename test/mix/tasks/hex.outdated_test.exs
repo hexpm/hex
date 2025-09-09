@@ -105,7 +105,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       bar =
         [
           [:bright, "bar", :reset],
-          ["         ", "0.1.0", :reset],
+          ["               ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
           ["   ", :green, "Up-to-date", :reset],
           "           "
@@ -133,7 +133,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       bar =
         [
           [:bright, "bar", :reset],
-          ["         ", "0.1.0", :reset],
+          ["               ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
           ["   ", :green, "Up-to-date", :reset],
           "           "
@@ -144,7 +144,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       foo =
         [
           [:bright, "foo", :reset],
-          ["         ", "0.1.0", :reset],
+          ["               ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
           ["   ", :yellow, "Update possible", :reset],
           "      "
@@ -155,7 +155,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       ex_doc =
         [
           [:bright, "ex_doc", :reset],
-          ["      ", "0.0.1", :reset],
+          ["            ", "0.0.1", :reset],
           ["    ", :red, "0.1.0", :reset],
           ["   ", :red, "Update not possible", :reset],
           "  "
@@ -185,7 +185,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       _bar =
         [
           [:bright, "bar", :reset],
-          ["         ", "0.1.0", :reset],
+          ["               ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
           ["   ", :green, "Up-to-date", :reset],
           "           "
@@ -196,7 +196,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       _foo =
         [
           [:bright, "foo", :reset],
-          ["         ", "0.1.0", :reset],
+          ["               ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
           ["   ", :yellow, "Update possible", :reset],
           "      "
@@ -207,7 +207,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       _ex_doc =
         [
           [:bright, "ex_doc", :reset],
-          ["      ", "0.0.1", :reset],
+          ["            ", "0.0.1", :reset],
           ["    ", :red, "0.1.0", :reset],
           ["   ", :red, "Update not possible", :reset],
           "  "
@@ -248,7 +248,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       foo =
         [
           [:bright, "foo", :reset],
-          ["         ", "0.1.0", :reset],
+          ["               ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
           ["   ", :red, "Update not possible", :reset],
           "  "
@@ -276,7 +276,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       bar =
         [
           [:bright, "bar", :reset],
-          ["         ", "0.1.0", :reset],
+          ["               ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
           ["   ", :green, "Up-to-date", :reset],
           "           "
@@ -287,7 +287,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       foo =
         [
           [:bright, "foo", :reset],
-          ["         ", "0.1.0", :reset],
+          ["               ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
           ["   ", :yellow, "Update possible", :reset],
           "      "
@@ -298,7 +298,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       ex_doc =
         [
           [:bright, "ex_doc", :reset],
-          ["      ", "0.0.1", :reset],
+          ["            ", "0.0.1", :reset],
           ["    ", :red, "0.1.0", :reset],
           ["   ", :red, "Update not possible", :reset],
           "  "
@@ -348,7 +348,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       beta =
         [
           [:bright, "beta", :reset],
-          ["        ", "1.0.0", :reset],
+          ["              ", "1.0.0", :reset],
           ["    ", :green, "1.0.0", :reset],
           ["   ", :green, "Up-to-date", :reset],
           ["  "]
@@ -364,7 +364,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       beta =
         [
           [:bright, "beta", :reset],
-          ["        ", "1.0.0", :reset],
+          ["              ", "1.0.0", :reset],
           ["    ", :red, "1.1.0-beta", :reset],
           ["  ", :yellow, "Update possible", :reset],
           "  "
@@ -541,7 +541,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         ex_doc =
           [
             [:bright, "ex_doc", :reset],
-            ["      ", "0.0.1", :reset],
+            ["            ", "0.0.1", :reset],
             ["    ", :red, "0.1.0", :reset],
             ["   ", :red, "Update not possible", :reset],
             "  "
@@ -552,7 +552,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         bar =
           [
             [:bright, "bar", :reset],
-            ["         ", "0.1.0", :reset],
+            ["               ", "0.1.0", :reset],
             ["    ", :green, "0.1.0", :reset],
             ["   ", :green, "Up-to-date", :reset],
             "           "
@@ -563,7 +563,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         foo =
           [
             [:bright, "foo", :reset],
-            ["         ", "0.1.1", :reset],
+            ["               ", "0.1.1", :reset],
             ["    ", :green, "0.1.1", :reset],
             ["   ", :green, "Up-to-date", :reset],
             "           "
@@ -597,6 +597,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
     in_tmp(fn ->
       set_home_tmp()
+
       Mix.Dep.Lock.write(%{
         bar: {:hex, :bar, "0.1.0"},
         ex_doc: {:hex, :ex_doc, "0.0.1"},
@@ -617,16 +618,19 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
       # Check that dependencies show their correct only values
       # Note: dependencies without :only show empty string in the Only column
-      output_lines = Enum.map(1..10, fn _ ->
-        receive do
-          {:mix_shell, :info, [line]} -> line
-        after 100 -> nil
-        end
-      end) |> Enum.filter(&(&1 != nil))
-      
+      output_lines =
+        Enum.map(1..10, fn _ ->
+          receive do
+            {:mix_shell, :info, [line]} -> line
+          after
+            100 -> nil
+          end
+        end)
+        |> Enum.filter(&(&1 != nil))
+
       combined_output = Enum.join(output_lines, "\n")
       assert combined_output =~ "bypass" and combined_output =~ "dev,test"
-      assert combined_output =~ "ex_doc" and combined_output =~ "dev"  
+      assert combined_output =~ "ex_doc" and combined_output =~ "dev"
       assert combined_output =~ "plug" and combined_output =~ "test"
     end)
   end
@@ -636,6 +640,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
     in_tmp(fn ->
       set_home_tmp()
+
       Mix.Dep.Lock.write(%{
         bar: {:hex, :bar, "0.1.0"},
         ex_doc: {:hex, :ex_doc, "0.0.1"},
@@ -650,16 +655,20 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
       # Should show only dependencies with :only set to :dev
       # Since we filtered to only "dev", the output should contain only ex_doc
-      output_lines = Enum.map(1..10, fn _ ->
-        receive do
-          {:mix_shell, :info, [line]} -> line
-        after 100 -> nil
-        end
-      end) |> Enum.filter(&(&1 != nil))
-      
+      output_lines =
+        Enum.map(1..10, fn _ ->
+          receive do
+            {:mix_shell, :info, [line]} -> line
+          after
+            100 -> nil
+          end
+        end)
+        |> Enum.filter(&(&1 != nil))
+
       combined_output = Enum.join(output_lines, "\n")
       assert combined_output =~ "ex_doc"
-      refute combined_output =~ "bypass"  # bypass has [:dev, :test] not just :dev
+      # bypass has [:dev, :test] not just :dev
+      refute combined_output =~ "bypass"
       refute combined_output =~ "bar"
     end)
   end
@@ -669,6 +678,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
     in_tmp(fn ->
       set_home_tmp()
+
       Mix.Dep.Lock.write(%{
         bar: {:hex, :bar, "0.1.0"},
         ex_doc: {:hex, :ex_doc, "0.0.1"},
@@ -684,17 +694,21 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       # Should show dependencies with :only set to :dev or :test  
       # This should include ex_doc (dev) and plug (test)
       # bypass has [:dev, :test] which displays as "dev,test" but should match both "dev" and "test" individually
-      output_lines = Enum.map(1..10, fn _ ->
-        receive do
-          {:mix_shell, :info, [line]} -> line
-        after 100 -> nil
-        end
-      end) |> Enum.filter(&(&1 != nil))
-      
+      output_lines =
+        Enum.map(1..10, fn _ ->
+          receive do
+            {:mix_shell, :info, [line]} -> line
+          after
+            100 -> nil
+          end
+        end)
+        |> Enum.filter(&(&1 != nil))
+
       combined_output = Enum.join(output_lines, "\n")
       assert combined_output =~ "plug"
       assert combined_output =~ "ex_doc"
-      assert combined_output =~ "bypass"  # bypass should be included since it has dev and test
+      # bypass should be included since it has dev and test
+      assert combined_output =~ "bypass"
       refute combined_output =~ "bar"
     end)
   end

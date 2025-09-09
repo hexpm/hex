@@ -224,7 +224,7 @@ defmodule Mix.Tasks.Hex.Outdated do
       "Update possible" => 3
     }
 
-    Enum.sort_by(values, fn [_package, _lock, _latest, [_color, status]] ->
+    Enum.sort_by(values, fn [_package, _dep_only, _lock, _latest, [_color, status]] ->
       Map.fetch!(status_order, status)
     end)
   end
@@ -243,12 +243,8 @@ defmodule Mix.Tasks.Hex.Outdated do
         only_values = String.split(only_value, ",", trim: true)
 
         Enum.filter(versions, fn [_package, dep_only, _lock, _latest, _requirements] ->
-          if String.contains?(dep_only, ",") do
-            dep_only_parts = String.split(dep_only, ",")
-            Enum.any?(dep_only_parts, &(&1 in only_values))
-          else
-            dep_only in only_values
-          end
+          dep_only_parts = String.split(dep_only, ",")
+          Enum.any?(dep_only_parts, &(&1 in only_values))
         end)
     end
   end
@@ -370,35 +366,18 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp get_dep_only(deps, dep_name) do
-    case Map.get(deps, dep_name) do
-      nil ->
-        ""
-
-      dep_configs ->
-        # Get the opts from the first (main project) dependency config
-        case List.first(dep_configs) do
-          {_src, _req, opts} -> dep_only_from_opts(opts)
-          _ -> ""
-        end
+    dep_configs = Map.get(deps, dep_name, [])
+    # Get the opts from the first (main project) dependency config
+    case List.first(dep_configs) do
+      {_src, _req, opts} -> dep_only_from_opts(opts)
+      _ -> ""
     end
   end
 
   defp dep_only_from_opts(opts) do
-    case Keyword.get(opts, :only) do
-      nil ->
-        ""
-
-      only_value when is_atom(only_value) ->
-        Atom.to_string(only_value)
-
-      only_value when is_list(only_value) ->
-        # For multiple environments, we'll show them comma-separated in the display
-        only_value
-        |> Enum.map(&Atom.to_string/1)
-        |> Enum.join(",")
-
-      only_value ->
-        to_string(only_value)
-    end
+    Keyword.get(opts, :only, [])
+    |> List.wrap()
+    |> Enum.map(&to_string/1)
+    |> Enum.join(",")
   end
 end
