@@ -1,15 +1,17 @@
-defmodule Hex.UtilsTest do
+defmodule Hex.RepoIdentifierTest do
   use ExUnit.Case
 
+  alias Hex.RepoIdentifier
+
   setup do
-    Hex.State.put(:repo_identifier, nil)
+    RepoIdentifier.clear()
 
     :ok
   end
 
-  describe "repo_identifier/0" do
+  describe "get/0" do
     test "an identifier is included within a repository" do
-      assert Hex.Utils.repo_identifier() =~ ~r/^[a-f0-9]{64}$/
+      assert RepoIdentifier.get() =~ ~r/^[a-f0-9]{64}$/
     end
 
     test "identifier is nil outside of a repository" do
@@ -24,7 +26,7 @@ defmodule Hex.UtilsTest do
       try do
         File.mkdir!(dir)
 
-        File.cd!(dir, fn -> refute Hex.Utils.repo_identifier() end)
+        File.cd!(dir, fn -> refute RepoIdentifier.get() end)
       after
         File.rmdir(dir)
       end
@@ -34,18 +36,20 @@ defmodule Hex.UtilsTest do
       System.put_env("HEX_NO_REPO_IDENTIFIER", "1")
       Hex.State.refresh()
 
-      refute Hex.Utils.repo_identifier()
+      refute RepoIdentifier.get()
     after
       System.delete_env("HEX_NO_REPO_IDENTIFIER")
       Hex.State.refresh()
     end
+  end
 
-    test "the identifier is cached within the current process" do
+  describe "fetch/0" do
+    test "the identifier is cached accross calls" do
       value = "cached-identifier"
 
-      Hex.State.put(:repo_identifier, value)
+      RepoIdentifier.put(value)
 
-      assert value == Hex.Utils.repo_identifier()
+      assert value == RepoIdentifier.fetch()
     end
   end
 end

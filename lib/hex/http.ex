@@ -274,7 +274,7 @@ defmodule Hex.HTTP do
   end
 
   defp add_repo_identifier_header(headers) do
-    case Hex.Utils.repo_identifier() do
+    case Hex.RepoIdentifier.fetch() do
       nil -> headers
       identifier -> Map.put(headers, "x-hex-repo-id", identifier)
     end

@@ -66,6 +66,7 @@ defmodule Hex.Application do
     defp children do
       [
         Hex.Netrc.Cache,
+        Hex.RepoIdentifier,
         Hex.State,
         Hex.Server,
         {Hex.Parallel, [:hex_fetcher]}
@@ -75,6 +76,7 @@ defmodule Hex.Application do
     defp children do
       [
         Hex.Netrc.Cache,
+        Hex.RepoIdentifier,
         Hex.State,
         Hex.Server,
         {Hex.Parallel, [:hex_fetcher]},
