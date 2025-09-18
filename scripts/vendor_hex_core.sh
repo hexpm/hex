@@ -12,7 +12,16 @@ prefix=mix_
 version=`cat $source_dir/hex_core.hrl | grep HEX_CORE_VERSION | cut -d'"' -f2`
 shortref=`cd $source_dir && git rev-parse --short HEAD`
 
-filenames="hex_core.hrl \
+filenames="hex_api_auth.erl \
+           hex_api_key.erl \
+           hex_api_organization_member.erl \
+           hex_api_organization.erl \
+           hex_api_package_owner.erl \
+           hex_api_package.erl \
+           hex_api_release.erl \
+           hex_api_user.erl \
+           hex_api.erl \
+           hex_core.hrl \
            hex_core.erl \
            hex_erl_tar.erl \
            hex_erl_tar.hrl \

@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.10.1 (8a53ac8), do not edit manually
+%% Vendored from hex_core v0.11.0 (139ff6b), do not edit manually
 
 %% @doc
 %% `hex_core' entrypoint module.

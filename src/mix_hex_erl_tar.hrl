@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.10.1 (8a53ac8), do not edit manually
+%% Vendored from hex_core v0.11.0 (139ff6b), do not edit manually
 
 % Copied from https://github.com/erlang/otp/blob/OTP-20.0.1/lib/stdlib/src/erl_tar.hrl
 

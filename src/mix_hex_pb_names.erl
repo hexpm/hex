@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.10.1 (8a53ac8), do not edit manually
+%% Vendored from hex_core v0.11.0 (139ff6b), do not edit manually
 
 %% -*- coding: utf-8 -*-
 %% % this file is @generated
@@ -75,9 +75,15 @@
 -type '$msg'() :: 'Names'() | 'Package'() | 'Timestamp'().
 -export_type(['$msg_name'/0, '$msg'/0]).
 
+-if(?OTP_RELEASE >= 24).
+-dialyzer({no_underspecs, encode_msg/2}).
+-endif.
 -spec encode_msg('$msg'(), '$msg_name'()) -> binary().
 encode_msg(Msg, MsgName) when is_atom(MsgName) -> encode_msg(Msg, MsgName, []).
 
+-if(?OTP_RELEASE >= 24).
+-dialyzer({no_underspecs, encode_msg/3}).
+-endif.
 -spec encode_msg('$msg'(), '$msg_name'(), list()) -> binary().
 encode_msg(Msg, MsgName, Opts) ->
     verify_msg(Msg, MsgName, Opts),

@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.10.1 (8a53ac8), do not edit manually
+%% Vendored from hex_core v0.11.0 (139ff6b), do not edit manually
 
 %% @doc
 %% Repo API.
@@ -23,11 +23,11 @@
 %%
 %% ```
 %% > mix_hex_repo:get_names(mix_hex_core:default_config()).
-%% {ok, {200, ...,
-%%     [
-%%         #{name => <<"package1">>},
-%%         #{name => <<"package2">>},
-%%     ]}}
+%% {ok,{200, ...,
+%%      #{packages => [
+%%            #{name => <<"package1">>},
+%%            #{name => <<"package2">>},
+%%            ...]}}}
 %% '''
 %% @end
 get_names(Config) when is_map(Config) ->
@@ -44,12 +44,12 @@ get_names(Config) when is_map(Config) ->
 %% ```
 %% > mix_hex_repo:get_versions(Config).
 %% {ok, {200, ...,
-%%     [
-%%         #{name => <<"package1">>, retired => [],
-%%           versions => [<<"1.0.0">>]},
-%%         #{name => <<"package2">>, retired => [<<"0.5.0>>"],
-%%           versions => [<<"0.5.0">>, <<"1.0.0">>]},
-%%     ]}}
+%%       #{packages => [
+%%             #{name => <<"package1">>, retired => [],
+%%               versions => [<<"1.0.0">>]},
+%%             #{name => <<"package2">>, retired => [<<"0.5.0>>"],
+%%               versions => [<<"0.5.0">>, <<"1.0.0">>]},
+%%             ...]}}}
 %% '''
 %% @end
 get_versions(Config) when is_map(Config) ->
@@ -66,12 +66,13 @@ get_versions(Config) when is_map(Config) ->
 %% ```
 %% > mix_hex_repo:get_package(mix_hex_core:default_config(), <<"package1">>).
 %% {ok, {200, ...,
-%%     {
-%%         #{checksum => ..., version => <<"0.5.0">>, dependencies => []},
-%%         #{checksum => ..., version => <<"1.0.0">>, dependencies => [
-%%             #{package => <<"package2">>, optional => true, requirement => <<"~> 0.1">>}
-%%         ]},
-%%     ]}}
+%%       #{name => <<"package1">>,
+%%         releases => [
+%%             #{checksum => ..., version => <<"0.5.0">>, dependencies => []},
+%%             #{checksum => ..., version => <<"1.0.0">>, dependencies => [
+%%                   #{package => <<"package2">>, optional => true, requirement => <<"~> 0.1">>}
+%%             ]},
+%%     ]}}}
 %% '''
 %% @end
 get_package(Config, Name) when is_binary(Name) and is_map(Config) ->
