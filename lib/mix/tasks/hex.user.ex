@@ -287,8 +287,10 @@ defmodule Mix.Tasks.Hex.User do
                 item when is_map(item) -> Map.get(item, "authing_key") == true
                 _ -> false
               end)
+
             is_map(body) ->
               Map.get(body, "authing_key") == true
+
             true ->
               false
           end

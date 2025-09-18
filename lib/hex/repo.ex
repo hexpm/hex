@@ -225,7 +225,6 @@ defmodule Hex.Repo do
     :mix_hex_repo.get_hex_installs(config)
   end
 
-
   def find_new_version_from_csv(body) do
     body
     |> parse_csv()
@@ -237,7 +236,6 @@ defmodule Hex.Repo do
     config = get_repo(repo)
     config.url <> "/tarballs/#{URI.encode(package)}-#{URI.encode(version)}.tar"
   end
-
 
   defp parse_csv(body) do
     body
@@ -351,11 +349,12 @@ defmodule Hex.Repo do
         http_user_agent_fragment: user_agent_fragment()
     }
 
-    config = if repo.auth_key && Map.get(repo, :trusted, true) do
-      Map.put(config, :repo_key, repo.auth_key)
-    else
-      config
-    end
+    config =
+      if repo.auth_key && Map.get(repo, :trusted, true) do
+        Map.put(config, :repo_key, repo.auth_key)
+      else
+        config
+      end
 
     if etag do
       Map.put(config, :http_etag, etag)

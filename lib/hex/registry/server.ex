@@ -360,7 +360,6 @@ defmodule Hex.Registry.Server do
 
   defp write_result({:ok, {code, headers, %{releases: releases}}}, repo, package, %{ets: tid})
        when code in 200..299 do
-
     delete_package(repo, package, tid)
     now = :calendar.universal_time()
 

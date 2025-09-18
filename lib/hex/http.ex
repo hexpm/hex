@@ -47,6 +47,11 @@ defmodule Hex.HTTP do
         Hex.State.fetch!(:http_timeout, fn val -> if is_integer(val), do: val * 1000 end) ||
         @request_timeout
 
+    # Handle progress callback for uploads
+    progress_callback = Map.get(adapter_config, :progress_callback)
+    {body, extra_headers} = wrap_body_with_progress(body, progress_callback)
+    headers = Map.merge(headers, extra_headers)
+
     http_opts = build_http_opts(url, timeout)
     opts = [body_format: :binary]
     request = build_request(url, headers, body)
@@ -387,6 +392,39 @@ defmodule Hex.HTTP do
 
       _ ->
         headers
+    end
+  end
+
+  @chunk_size 10_000
+
+  defp wrap_body_with_progress(body, progress_callback) do
+    case body do
+      {content_type, binary_body}
+      when is_binary(binary_body) and is_function(progress_callback, 1) ->
+        # Create streaming function for httpc chunked upload - match old API pattern exactly
+        total_size = byte_size(binary_body)
+        # Initialize progress bar
+        progress_callback.(0)
+
+        body_fn = fn
+          size when size < total_size ->
+            new_size = min(size + @chunk_size, total_size)
+            chunk = new_size - size
+            progress_callback.(new_size)
+            {:ok, :binary.part(binary_body, size, chunk), new_size}
+
+          _size ->
+            :eof
+        end
+
+        # Return chunked body AND content-length header (required for chunked uploads)
+        body_result = {content_type, {body_fn, 0}}
+        headers = %{"content-length" => Integer.to_string(total_size)}
+        {body_result, headers}
+
+      _other ->
+        # No progress callback or not a binary body, use as-is
+        {body, %{}}
     end
   end
 end

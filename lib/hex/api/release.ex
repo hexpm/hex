@@ -11,11 +11,14 @@ defmodule Hex.API.Release do
 
   def publish(repo, tar, auth, progress \\ fn _ -> nil end, replace \\ false)
 
-  def publish(repo, tar, auth, _progress, replace?) do
+  def publish(repo, tar, auth, progress, replace?) do
     config = build_config(repo, auth)
-    params = [{:replace, replace?}]
 
-    # TODO: Progress callback needs to be handled differently with hex_core
+    # Pass progress callback through adapter config
+    adapter_config = %{progress_callback: progress}
+    config = Map.put(config, :http_adapter, {Hex.HTTP, adapter_config})
+
+    params = [{:replace, replace?}]
     :mix_hex_api_release.publish(config, tar, params)
   end
 
