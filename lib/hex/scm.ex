@@ -382,7 +382,6 @@ defmodule Hex.SCM do
           case lock_status(dest: dest, lock: info) do
             :ok -> []
             :mismatch -> [{repo, name, version}]
-            :outdated -> [{repo, name, version}]
           end
 
         nil ->

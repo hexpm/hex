@@ -45,28 +45,28 @@ defmodule HexTest.Case do
 
   defp escape_path(path) do
     case :os.type() do
-      {:win32, _} -> String.replace(path, ~R'[~#%&*{}\\:<>?/+|"]', "_")
+      {:win32, _} -> String.replace(path, ~r'[~#%&*{}\\:<>?/+|"]', "_")
       _ -> path
     end
   end
 
   defmacro test_tmp() do
     module = escape_path("#{__CALLER__.module}")
-    function = escape_path("#{elem(__CALLER__.function, 0)}")
+    function = escape_path("#{elem(__CALLER__.function || {nil}, 0)}")
 
     Path.join([HexTest.Case.tmp_path(), module, function])
   end
 
   defmacro test_name() do
     module = escape_path("#{__CALLER__.module}")
-    function = escape_path("#{elem(__CALLER__.function, 0)}")
+    function = escape_path("#{elem(__CALLER__.function || {nil}, 0)}")
 
     Path.join([module, function])
   end
 
   defmacro in_tmp(fun) do
     module = escape_path("#{__CALLER__.module}")
-    function = escape_path("#{elem(__CALLER__.function, 0)}")
+    function = escape_path("#{elem(__CALLER__.function || {nil}, 0)}")
 
     path = Path.join([module, function])
 
@@ -84,7 +84,7 @@ defmodule HexTest.Case do
 
   defmacro in_fixture(which, block) do
     module = inspect(__CALLER__.module)
-    function = Atom.to_string(elem(__CALLER__.function, 0))
+    function = Atom.to_string(elem(__CALLER__.function || {nil}, 0))
     tmp = Path.join(module, function)
 
     quote do
