@@ -338,28 +338,40 @@ defmodule Hex.Utils do
   - The current directory isn't within a git repository
   """
   def repo_identifier do
-    case Hex.State.get(:repo_identifier) do
-      cached when is_binary(cached) ->
+    cond do
+      cached = Hex.State.get(:repo_identifier) ->
         cached
 
-      nil ->
-        cmd_args = ~w(rev-list --max-parents=0 HEAD)
+      Hex.State.get(:no_repo_identifier) ->
+        nil
 
-        with false <- Hex.State.get(:no_repo_identifier),
-             path when is_binary(path) <- System.find_executable("git"),
-             {output, 0} <- System.cmd("git", cmd_args, stderr_to_stdout: true) do
-          identifier =
-            output
-            |> String.trim()
-            |> then(&:crypto.hash(:sha256, &1))
-            |> Base.encode16(case: :lower)
+      output = initial_commit_sha() ->
+        identifier =
+          output
+          |> String.trim()
+          |> then(&:crypto.hash(:sha256, &1))
+          |> Base.encode16(case: :lower)
 
-          Hex.State.put(:repo_identifier, identifier)
+        Hex.State.put(:repo_identifier, identifier)
 
-          identifier
-        else
-          _other -> nil
-        end
+        identifier
+
+      true ->
+        nil
+    end
+  end
+
+  defp initial_commit_sha do
+    cmd_args = ~w(rev-list --max-parents=0 HEAD)
+
+    with path when is_binary(path) <- System.find_executable("git") do
+      case System.cmd("git", cmd_args, stderr_to_stdout: true) do
+        {output, 0} ->
+          output
+
+        {output, exit_status} ->
+          Hex.Shell.debug("  Unable to extract git identifier: (Exit #{exit_status}) \n\n" <> output)
+      end
     end
   end
 end
