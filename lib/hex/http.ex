@@ -15,8 +15,26 @@ defmodule Hex.HTTP do
     }
   end
 
+  # Keep old signatures for backward compatibility
+  def request(method, url, headers, body) do
+    request(method, url, headers, body, %{})
+  end
+
+  def request(method, url, headers, body, opts) when is_list(opts) do
+    adapter_config = Keyword.get(opts, :adapter_config, %{})
+    request(method, url, headers, body, adapter_config)
+  end
+
   @impl :mix_hex_http
-  def request(method, url, headers, body, opts \\ []) do
+  def request(method, url, headers, body, adapter_config) when is_map(adapter_config) do
+    # Convert method to atom if it's not already
+    method = if is_binary(method), do: String.to_atom(method), else: method
+    # Convert URL to string if it's binary
+    url = if is_binary(url), do: url, else: to_string(url)
+
+    # Convert headers from map to our format
+    headers = if is_map(headers), do: headers, else: Map.new(headers)
+
     Hex.Shell.debug("Hex.HTTP.request(#{inspect(method)}, #{inspect(url)})")
 
     headers =
@@ -25,7 +43,7 @@ defmodule Hex.HTTP do
       |> add_basic_auth_via_netrc(url)
 
     timeout =
-      opts[:timeout] ||
+      adapter_config[:timeout] ||
         Hex.State.fetch!(:http_timeout, fn val -> if is_integer(val), do: val * 1000 end) ||
         @request_timeout
 
@@ -34,14 +52,26 @@ defmodule Hex.HTTP do
     request = build_request(url, headers, body)
     profile = Hex.State.fetch!(:httpc_profile)
 
-    retry(method, request, http_opts, @request_retries, profile, fn request, http_opts ->
-      redirect(request, http_opts, @request_redirects, fn request, http_opts ->
-        timeout(request, http_opts, timeout, fn request, http_opts ->
-          :httpc.request(method, request, http_opts, opts, profile)
-          |> handle_response(method, url)
+    result =
+      retry(method, request, http_opts, @request_retries, profile, fn request, http_opts ->
+        redirect(request, http_opts, @request_redirects, fn request, http_opts ->
+          timeout(request, http_opts, timeout, fn request, http_opts ->
+            :httpc.request(method, request, http_opts, opts, profile)
+            |> handle_response(method, url)
+          end)
         end)
       end)
-    end)
+
+    # Convert to hex_core expected format
+    case result do
+      {:ok, status, headers, body} ->
+        # Convert headers to map with binary keys/values for hex_core
+        headers = Map.new(headers, fn {k, v} -> {to_string(k), to_string(v)} end)
+        {:ok, {status, headers, body}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   defp fallback(:inet), do: :inet6
@@ -68,7 +98,15 @@ defmodule Hex.HTTP do
 
     case body do
       {content_type, body} ->
-        {url, headers, String.to_charlist(content_type), body}
+        # content_type might already be a charlist from hex_core
+        content_type =
+          if is_binary(content_type) do
+            String.to_charlist(content_type)
+          else
+            content_type
+          end
+
+        {url, headers, content_type, body}
 
       nil ->
         {url, headers}

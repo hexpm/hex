@@ -1,25 +1,31 @@
 defmodule Hex.API.User do
   @moduledoc false
 
-  alias Hex.API
+  alias Hex.API.Client
 
   def me(auth) do
-    API.request(:get, nil, "users/me", auth)
+    config = Client.config(auth)
+    :mix_hex_api_user.me(config)
   end
 
   def get(username) do
-    API.request(:get, nil, "users/#{URI.encode(username)}")
+    config = Client.config()
+    :mix_hex_api_user.get(config, to_string(username))
   end
 
   def new(username, email, password) do
-    Hex.API.check_write_api()
+    config = Client.config()
 
-    API.erlang_post_request(nil, "users", %{username: username, email: email, password: password})
+    :mix_hex_api_user.create(
+      config,
+      to_string(username),
+      to_string(password),
+      to_string(email)
+    )
   end
 
   def password_reset(name) do
-    Hex.API.check_write_api()
-
-    API.erlang_post_request(nil, "users/#{URI.encode(name)}/reset", %{})
+    config = Client.config()
+    :mix_hex_api_user.reset_password(config, to_string(name))
   end
 end

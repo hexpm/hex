@@ -347,7 +347,7 @@ defmodule Mix.Tasks.Hex.Package do
 
   defp retrieve_package_info(organization, name) do
     case Hex.API.Package.get(organization, name) do
-      {:ok, {code, body, _}} when code in 200..299 ->
+      {:ok, {code, _, body}} when code in 200..299 ->
         body
 
       {:ok, {404, _, _}} ->

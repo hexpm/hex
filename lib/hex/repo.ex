@@ -1,8 +1,6 @@
 defmodule Hex.Repo do
   @moduledoc false
 
-  alias Hex.HTTP
-
   @public_keys_html "https://hex.pm/docs/public_keys"
   @hexpm_url "https://repo.hex.pm"
   @hexpm_public_key """
@@ -181,40 +179,32 @@ defmodule Hex.Repo do
   defp merge_values(left, _right), do: left
 
   def get_package(repo, package, etag) do
-    config =
-      HTTP.config()
-      |> put_auth_config(repo)
-      |> put_etag_config(etag)
-
+    repo = get_repo(repo)
+    config = build_hex_core_config(repo, etag)
     :mix_hex_repo.get_package(config, package)
-    |> handle_response()
   end
 
   def get_docs(repo, package, version) do
-    config =
-      HTTP.config()
-      |> put_auth_config(repo)
-
+    repo = get_repo(repo)
+    config = build_hex_core_config(repo)
     :mix_hex_repo.get_docs(config, package, version)
-    |> handle_response()
   end
 
   def get_tarball(repo, package, version) do
-    config =
-      HTTP.config()
-      |> put_auth_config(repo)
-
+    repo = get_repo(repo)
+    config = build_hex_core_config(repo)
     :mix_hex_repo.get_tarball(config, package, version)
-    |> handle_response()
+  end
+
+  def get_public_key(repo) when is_map(repo) do
+    config = build_hex_core_config(repo)
+    :mix_hex_repo.get_public_key(config)
   end
 
   def get_public_key(repo) do
-    config =
-      HTTP.config()
-      |> put_auth_config(repo)
-
+    repo = get_repo(repo)
+    config = build_hex_core_config(repo)
     :mix_hex_repo.get_public_key(config)
-    |> handle_response()
   end
 
   def verify(body, repo) do
@@ -229,20 +219,12 @@ defmodule Hex.Repo do
   end
 
   def get_installs() do
-    config = Hex.State.fetch!(:repos)["hexpm"]
-    url = config.url <> "/installs/hex-1.x.csv"
+    repo = get_repo("hexpm")
+    config = build_hex_core_config(repo)
 
-    HTTP.request(:get, url, %{}, nil)
-    |> handle_response()
+    :mix_hex_repo.get_hex_installs(config)
   end
 
-  defp handle_response({:ok, code, headers, body}) do
-    {:ok, {code, body, headers}}
-  end
-
-  defp handle_response({:error, term}) do
-    {:error, term}
-  end
 
   def find_new_version_from_csv(body) do
     body
@@ -256,23 +238,6 @@ defmodule Hex.Repo do
     config.url <> "/tarballs/#{URI.encode(package)}-#{URI.encode(version)}.tar"
   end
 
-  defp put_auth_config(config, repo) when is_binary(repo) or is_nil(repo) do
-    repo = get_repo(repo)
-
-    put_auth_config(config, repo)
-  end
-
-  defp put_auth_config(config, %{trusted: true} = repo) do
-    %{config | repo_url: repo.url, repo_key: repo.auth_key}
-  end
-
-  defp put_auth_config(config, %{trusted: false} = repo) do
-    %{config | repo_url: repo.url}
-  end
-
-  defp put_etag_config(config, etag) do
-    %{config | http_etag: etag}
-  end
 
   defp parse_csv(body) do
     body
@@ -373,5 +338,33 @@ defmodule Hex.Repo do
 
   defp repo_name(name) do
     name |> split_repo_name() |> List.last()
+  end
+
+  defp build_hex_core_config(repo, etag \\ nil) do
+    config = %{
+      :mix_hex_core.default_config()
+      | http_adapter: {Hex.HTTP, %{}},
+        repo_url: repo.url,
+        repo_public_key: Map.get(repo, :public_key),
+        repo_verify: true,
+        repo_verify_origin: true,
+        http_user_agent_fragment: user_agent_fragment()
+    }
+
+    config = if repo.auth_key && Map.get(repo, :trusted, true) do
+      Map.put(config, :repo_key, repo.auth_key)
+    else
+      config
+    end
+
+    if etag do
+      Map.put(config, :http_etag, etag)
+    else
+      config
+    end
+  end
+
+  defp user_agent_fragment do
+    "hex/#{Hex.version()} (elixir/#{System.version()}) (otp/#{Hex.Utils.otp_version()})"
   end
 end

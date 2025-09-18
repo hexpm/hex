@@ -350,7 +350,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--replace"])
 
-      assert {:ok, {200, body, _}} = Hex.API.Release.get("hexpm", "publish_package_name", "0.0.1")
+      assert {:ok, {200, _, body}} = Hex.API.Release.get("hexpm", "publish_package_name", "0.0.1")
       assert body["meta"]["app"] == "release_d"
     end)
   after
@@ -372,7 +372,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["--no-progress", "--replace", "--yes"])
       assert_received {:mix_shell, :info, ["Building publish_package_name_no_confirm 0.0.1"]}
 
-      assert {:ok, {200, body, _}} =
+      assert {:ok, {200, _, body}} =
                Hex.API.Release.get("hexpm", "publish_package_name_no_confirm", "0.0.1")
 
       assert body["meta"]["app"] == "release_d"
@@ -573,7 +573,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert_received {:mix_shell, :info, ["Publishing package using http://" <> _]}
       assert_received {:mix_shell, :info, ["Transferring ownership to testorg..."]}
 
-      assert {:ok, {200, body, _headers}} =
+      assert {:ok, {200, _headers, body}} =
                Hex.API.Package.get("hexpm", "publish_with_organization_prompt")
 
       assert "testorg" in Enum.map(body["owners"], & &1["username"])

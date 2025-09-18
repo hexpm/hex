@@ -150,19 +150,19 @@ defmodule Hex.Utils do
     Hex.Shell.info(inspect(reason))
   end
 
-  def print_error_result({:ok, {status, nil, _headers}}) do
+  def print_error_result({:ok, {status, _headers, nil}}) do
     print_http_code(status)
   end
 
-  def print_error_result({:ok, {status, "", _headers}}) do
+  def print_error_result({:ok, {status, _headers, ""}}) do
     print_http_code(status)
   end
 
-  def print_error_result({:ok, {_status, body, _headers}}) when is_binary(body) do
+  def print_error_result({:ok, {_status, _headers, body}}) when is_binary(body) do
     Hex.Shell.info(body)
   end
 
-  def print_error_result({:ok, {status, body, _headers}}) when is_map(body) do
+  def print_error_result({:ok, {status, _headers, body}}) when is_map(body) do
     message = body["message"]
     errors = body["errors"]
 

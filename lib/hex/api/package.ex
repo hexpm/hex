@@ -1,40 +1,62 @@
 defmodule Hex.API.Package do
   @moduledoc false
 
-  alias Hex.API
+  alias Hex.API.Client
 
   def get(repo, name, auth \\ []) when name != "" do
-    path = "packages/#{URI.encode(name)}"
-    API.request(:get, repo, path, auth)
+    config = build_config(repo, auth)
+    :mix_hex_api_package.get(config, to_string(name))
   end
 
   def search(repo, search, auth \\ []) do
-    path = "packages?search=#{URI.encode(search)}&sort=downloads"
-    API.request(:get, repo, path, auth)
+    config = build_config(repo, auth)
+    search_params = [{:sort, "downloads"}]
+
+    :mix_hex_api_package.search(config, to_string(search), search_params)
+  end
+
+  defp build_config(repo, auth) do
+    opts = if repo, do: [repository: to_string(repo)], else: []
+    opts = if auth, do: Keyword.merge(opts, auth), else: opts
+    Client.config(opts)
   end
 
   defmodule Owner do
     @moduledoc false
 
-    def add(repo, package, owner, level, transfer, auth) when package != "" do
-      Hex.API.check_write_api()
+    alias Hex.API.Client
 
-      owner = URI.encode_www_form(owner)
-      path = "packages/#{URI.encode(package)}/owners/#{URI.encode(owner)}"
-      params = %{level: level, transfer: transfer}
-      API.erlang_put_request(repo, path, params, auth)
+    def add(repo, package, owner, level, transfer, auth) when package != "" do
+      config = build_config(repo, auth)
+
+      :mix_hex_api_package_owner.add(
+        config,
+        to_string(package),
+        to_string(owner),
+        to_string(level),
+        transfer
+      )
     end
 
     def delete(repo, package, owner, auth) when package != "" do
-      Hex.API.check_write_api()
+      config = build_config(repo, auth)
 
-      owner = URI.encode_www_form(owner)
-      path = "packages/#{URI.encode(package)}/owners/#{URI.encode(owner)}"
-      API.request(:delete, repo, path, auth)
+      :mix_hex_api_package_owner.delete(
+        config,
+        to_string(package),
+        to_string(owner)
+      )
     end
 
     def get(repo, package, auth) when package != "" do
-      API.request(:get, repo, "packages/#{URI.encode(package)}/owners", auth)
+      config = build_config(repo, auth)
+      :mix_hex_api_package_owner.list(config, to_string(package))
+    end
+
+    defp build_config(repo, auth) do
+      opts = if repo, do: [repository: to_string(repo)], else: []
+      opts = if auth, do: Keyword.merge(opts, auth), else: opts
+      Client.config(opts)
     end
   end
 end

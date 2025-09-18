@@ -218,7 +218,7 @@ defmodule Mix.Tasks.Hex.Repo do
     repo_config = %{url: repo_url, auth_key: auth_key, trusted: true}
 
     case Hex.Repo.get_public_key(repo_config) do
-      {:ok, {200, key, _}} ->
+      {:ok, {200, _, key}} ->
         if show_public_key(key) == fingerprint do
           key
         else

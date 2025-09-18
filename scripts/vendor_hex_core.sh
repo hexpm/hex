@@ -19,6 +19,7 @@ filenames="hex_api_auth.erl \
            hex_api_package_owner.erl \
            hex_api_package.erl \
            hex_api_release.erl \
+           hex_api_short_url.erl \
            hex_api_user.erl \
            hex_api.erl \
            hex_core.hrl \

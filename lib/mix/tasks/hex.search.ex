@@ -51,11 +51,11 @@ defmodule Mix.Tasks.Hex.Search do
     |> lookup_packages()
   end
 
-  defp lookup_packages({:ok, {200, [], _headers}}) do
+  defp lookup_packages({:ok, {200, _headers, []}}) do
     Hex.Shell.info("No packages found")
   end
 
-  defp lookup_packages({:ok, {200, packages, _headers}}) do
+  defp lookup_packages({:ok, {200, _headers, packages}}) do
     include_organizations? = Enum.any?(packages, &(&1["repository"] != "hexpm"))
 
     if include_organizations? do

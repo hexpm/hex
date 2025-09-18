@@ -314,10 +314,10 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp package_exists?(build) do
     case Hex.API.Package.get("hexpm", build.meta.name) do
-      {:ok, {200, _body, _headers}} ->
+      {:ok, {200, _headers, _body}} ->
         true
 
-      {:ok, {404, _body, _headers}} ->
+      {:ok, {404, _headers, _body}} ->
         false
 
       other ->
@@ -328,7 +328,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp user_organizations(auth) do
     case Hex.API.User.me(auth) do
-      {:ok, {200, body, _header}} ->
+      {:ok, {200, _header, body}} ->
         Enum.map(body["organizations"], & &1["name"])
 
       other ->
@@ -351,7 +351,7 @@ defmodule Mix.Tasks.Hex.Publish do
       :ok
     else
       case Hex.API.Package.Owner.add("hexpm", build.meta.name, owner, "full", true, auth) do
-        {:ok, {status, _body, _header}} when status in 200..299 ->
+        {:ok, {status, _header, _body}} when status in 200..299 ->
           :ok
 
         other ->
@@ -427,7 +427,7 @@ defmodule Mix.Tasks.Hex.Publish do
     progress = progress_fun(progress?, byte_size(tarball))
 
     case Hex.API.ReleaseDocs.publish(organization, name, version, tarball, auth, progress) do
-      {:ok, {code, _body, headers}} when code in 200..299 ->
+      {:ok, {code, headers, _body}} when code in 200..299 ->
         api_url = Hex.State.fetch!(:api_url)
         default_api_url? = api_url == Hex.State.default_api_url()
 
@@ -516,7 +516,7 @@ defmodule Mix.Tasks.Hex.Publish do
     replace? = Keyword.get(opts, :replace, false)
 
     case Hex.API.Release.publish(organization, tarball, auth, progress, replace?) do
-      {:ok, {code, body, _}} when code in 200..299 ->
+      {:ok, {code, _, body}} when code in 200..299 ->
         location = body["html_url"] || body["url"]
         checksum = String.downcase(Base.encode16(checksum, case: :lower))
         Hex.Shell.info("")
