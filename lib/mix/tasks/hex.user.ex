@@ -280,22 +280,7 @@ defmodule Mix.Tasks.Hex.User do
 
     case Hex.API.Key.delete_all(auth) do
       {:ok, {code, _headers, body}} when code in 200..299 ->
-        auth_key_deleted =
-          cond do
-            is_list(body) ->
-              Enum.any?(body, fn
-                item when is_map(item) -> Map.get(item, "authing_key") == true
-                _ -> false
-              end)
-
-            is_map(body) ->
-              Map.get(body, "authing_key") == true
-
-            true ->
-              false
-          end
-
-        if auth_key_deleted do
+        if Map.get(body, "authing_key") == true do
           Mix.Tasks.Hex.User.run(["deauth"])
         end
 

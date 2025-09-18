@@ -9,10 +9,10 @@ defmodule Hex.API.Client do
         http_user_agent_fragment: user_agent_fragment()
     }
 
-    config = maybe_put_api_key(config, opts)
-    config = maybe_put_organization(config, opts)
-    config = maybe_put_repository(config, opts)
     config
+    |> maybe_put_api_key(opts)
+    |> maybe_put_organization(opts)
+    |> maybe_put_repository(opts)
   end
 
   defp maybe_put_api_key(config, opts) do
