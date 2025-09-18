@@ -4,21 +4,15 @@ defmodule Hex.API.Package do
   alias Hex.API.Client
 
   def get(repo, name, auth \\ []) when name != "" do
-    config = build_config(repo, auth)
+    config = Client.build_config(repo, auth)
     :mix_hex_api_package.get(config, to_string(name))
   end
 
   def search(repo, search, auth \\ []) do
-    config = build_config(repo, auth)
+    config = Client.build_config(repo, auth)
     search_params = [{:sort, "downloads"}]
 
     :mix_hex_api_package.search(config, to_string(search), search_params)
-  end
-
-  defp build_config(repo, auth) do
-    opts = if repo, do: [repository: to_string(repo)], else: []
-    opts = if auth, do: Keyword.merge(opts, auth), else: opts
-    Client.config(opts)
   end
 
   defmodule Owner do
@@ -27,7 +21,7 @@ defmodule Hex.API.Package do
     alias Hex.API.Client
 
     def add(repo, package, owner, level, transfer, auth) when package != "" do
-      config = build_config(repo, auth)
+      config = Client.build_config(repo, auth)
 
       :mix_hex_api_package_owner.add(
         config,
@@ -39,7 +33,7 @@ defmodule Hex.API.Package do
     end
 
     def delete(repo, package, owner, auth) when package != "" do
-      config = build_config(repo, auth)
+      config = Client.build_config(repo, auth)
 
       :mix_hex_api_package_owner.delete(
         config,
@@ -49,14 +43,8 @@ defmodule Hex.API.Package do
     end
 
     def get(repo, package, auth) when package != "" do
-      config = build_config(repo, auth)
+      config = Client.build_config(repo, auth)
       :mix_hex_api_package_owner.list(config, to_string(package))
-    end
-
-    defp build_config(repo, auth) do
-      opts = if repo, do: [repository: to_string(repo)], else: []
-      opts = if auth, do: Keyword.merge(opts, auth), else: opts
-      Client.config(opts)
     end
   end
 end

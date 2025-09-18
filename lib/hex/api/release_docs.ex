@@ -4,7 +4,7 @@ defmodule Hex.API.ReleaseDocs do
   alias Hex.API.Client
 
   def get(repo, name, version) do
-    config = build_config(repo, [])
+    config = Client.build_config(repo, [])
 
     path =
       :mix_hex_api.build_repository_path(config, [
@@ -19,7 +19,7 @@ defmodule Hex.API.ReleaseDocs do
   end
 
   def publish(repo, name, version, tar, auth, progress \\ fn _ -> nil end) do
-    config = build_config(repo, auth)
+    config = Client.build_config(repo, auth)
 
     # Pass progress callback through adapter config
     adapter_config = %{progress_callback: progress}
@@ -40,7 +40,7 @@ defmodule Hex.API.ReleaseDocs do
   end
 
   def delete(repo, name, version, auth) do
-    config = build_config(repo, auth)
+    config = Client.build_config(repo, auth)
 
     path =
       :mix_hex_api.build_repository_path(config, [
@@ -52,11 +52,5 @@ defmodule Hex.API.ReleaseDocs do
       ])
 
     :mix_hex_api.delete(config, path)
-  end
-
-  defp build_config(repo, auth) do
-    opts = if repo, do: [repository: to_string(repo)], else: []
-    opts = if auth, do: Keyword.merge(opts, auth), else: opts
-    Client.config(opts)
   end
 end

@@ -48,7 +48,14 @@ defmodule Hex.API.Client do
     end
   end
 
-  defp user_agent_fragment do
-    "hex/#{Hex.version()} (elixir/#{System.version()}) (otp/#{Hex.Utils.otp_version()})"
+  def build_config(repo, auth) do
+    opts = if repo, do: [repository: to_string(repo)], else: []
+    opts = if auth, do: Keyword.merge(opts, auth), else: opts
+    config(opts)
+  end
+
+  def user_agent_fragment do
+    ci = if Hex.State.fetch!(:ci), do: " (CI)", else: ""
+    "hex/#{Hex.version()} (elixir/#{System.version()})#{ci}"
   end
 end

@@ -346,7 +346,7 @@ defmodule Hex.Repo do
         repo_public_key: Map.get(repo, :public_key),
         repo_verify: true,
         repo_verify_origin: true,
-        http_user_agent_fragment: user_agent_fragment()
+        http_user_agent_fragment: Hex.API.Client.user_agent_fragment()
     }
 
     config =
@@ -361,9 +361,5 @@ defmodule Hex.Repo do
     else
       config
     end
-  end
-
-  defp user_agent_fragment do
-    "hex/#{Hex.version()} (elixir/#{System.version()}) (otp/#{Hex.Utils.otp_version()})"
   end
 end

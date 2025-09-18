@@ -39,7 +39,6 @@ defmodule Hex.HTTP do
 
     headers =
       headers
-      |> build_headers()
       |> add_basic_auth_via_netrc(url)
 
     timeout =
@@ -81,12 +80,6 @@ defmodule Hex.HTTP do
 
   defp fallback(:inet), do: :inet6
   defp fallback(:inet6), do: :inet
-
-  defp build_headers(headers) do
-    default_headers = %{"user-agent" => user_agent()}
-
-    Map.merge(default_headers, headers)
-  end
 
   defp build_http_opts(url, timeout) do
     [
@@ -319,11 +312,6 @@ defmodule Hex.HTTP do
 
   defp normalize_no_proxy_domain_desc(host) do
     host
-  end
-
-  defp user_agent do
-    ci = if Hex.State.fetch!(:ci), do: " (CI)", else: ""
-    "Hex/#{Hex.version()} (Elixir/#{System.version()}) (OTP/#{Hex.Utils.otp_version()})#{ci}"
   end
 
   def handle_hex_message(nil) do
