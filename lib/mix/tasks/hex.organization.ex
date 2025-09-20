@@ -193,7 +193,7 @@ defmodule Mix.Tasks.Hex.Organization do
     Hex.Shell.info("Revoking all keys...")
 
     case Hex.API.Key.Organization.delete_all(organization, auth) do
-      {:ok, {code, _body, _headers}} when code in 200..299 ->
+      {:ok, {code, _headers, _body}} when code in 200..299 ->
         :ok
 
       other ->
@@ -208,7 +208,7 @@ defmodule Mix.Tasks.Hex.Organization do
     Hex.Shell.info("Revoking key #{key}...")
 
     case Hex.API.Key.Organization.delete(organization, key, auth) do
-      {:ok, {code, _body, _headers}} when code in 200..299 ->
+      {:ok, {code, _headers, _body}} when code in 200..299 ->
         :ok
 
       other ->
@@ -222,7 +222,7 @@ defmodule Mix.Tasks.Hex.Organization do
     auth = Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.Key.Organization.get(organization, auth) do
-      {:ok, {code, body, _headers}} when code in 200..299 ->
+      {:ok, {code, _headers, body}} when code in 200..299 ->
         values =
           Enum.map(body, fn %{"name" => name, "inserted_at" => time} ->
             [name, time]
@@ -269,10 +269,10 @@ defmodule Mix.Tasks.Hex.Organization do
 
   defp test_key(key, name) do
     case Hex.API.Auth.get("repository", name, key: key) do
-      {:ok, {code, _body, _}} when code in 200..299 ->
+      {:ok, {code, _, _body}} when code in 200..299 ->
         :ok
 
-      {:ok, {code, %{"message" => message}, _}} when code in [401, 403] ->
+      {:ok, {code, _, %{"message" => message}}} when code in [401, 403] ->
         Hex.Shell.error(
           "Failed to authenticate against organization repository with given key because of: #{message}"
         )

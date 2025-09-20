@@ -173,7 +173,7 @@ defmodule Mix.Tasks.Hex.User do
     auth = Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.User.me(auth) do
-      {:ok, {code, body, _}} when code in 200..299 ->
+      {:ok, {code, _, body}} when code in 200..299 ->
         Hex.Shell.info(body["username"])
 
       other ->
@@ -279,8 +279,10 @@ defmodule Mix.Tasks.Hex.User do
     Hex.Shell.info("Revoking all keys...")
 
     case Hex.API.Key.delete_all(auth) do
-      {:ok, {code, %{"name" => _, "authing_key" => true}, _headers}} when code in 200..299 ->
-        Mix.Tasks.Hex.User.run(["deauth"])
+      {:ok, {code, _headers, body}} when code in 200..299 ->
+        if Map.get(body, "authing_key") == true do
+          Mix.Tasks.Hex.User.run(["deauth"])
+        end
 
       other ->
         Hex.Shell.error("Key revocation failed")
@@ -294,11 +296,11 @@ defmodule Mix.Tasks.Hex.User do
     Hex.Shell.info("Revoking key #{key}...")
 
     case Hex.API.Key.delete(key, auth) do
-      {:ok, {200, %{"name" => ^key, "authing_key" => true}, _headers}} ->
+      {:ok, {200, _headers, %{"name" => ^key, "authing_key" => true}}} ->
         Mix.Tasks.Hex.User.run(["deauth"])
         :ok
 
-      {:ok, {code, _body, _headers}} when code in 200..299 ->
+      {:ok, {code, _headers, _body}} when code in 200..299 ->
         :ok
 
       other ->
@@ -312,7 +314,7 @@ defmodule Mix.Tasks.Hex.User do
     auth = Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.Key.get(auth) do
-      {:ok, {code, body, _headers}} when code in 200..299 ->
+      {:ok, {code, _headers, body}} when code in 200..299 ->
         values =
           Enum.map(body, fn %{"name" => name, "inserted_at" => time} ->
             [name, time]

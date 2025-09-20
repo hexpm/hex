@@ -199,14 +199,16 @@ defmodule HexTest.Hexpm do
   end
 
   def new_repo(repository, auth) do
-    Hex.API.erlang_post_request(nil, "repo", %{"name" => repository}, auth)
+    config = Hex.API.Client.config(auth)
+    body = %{"name" => to_string(repository)}
+    :mix_hex_api.post(config, ["repo"], body)
   end
 
   def new_user(username, email, password, key) do
     permissions = [%{"domain" => "api"}]
     {:ok, {201, _, _}} = Hex.API.User.new(username, email, password)
 
-    {:ok, {201, %{"secret" => secret}, _}} =
+    {:ok, {201, _, %{"secret" => secret}}} =
       Hex.API.Key.new(key, permissions, user: username, pass: password)
 
     [key: secret, "$write_key": Mix.Tasks.Hex.encrypt_key(password, secret), "$read_key": secret]
@@ -214,14 +216,14 @@ defmodule HexTest.Hexpm do
 
   def new_key(auth) do
     permissions = [%{"domain" => "api"}]
-    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new("key", permissions, auth)
+    {:ok, {201, _, %{"secret" => secret}}} = Hex.API.Key.new("key", permissions, auth)
     [key: secret]
   end
 
   def new_key(username, password, key) do
     permissions = [%{"domain" => "api"}]
 
-    {:ok, {201, %{"secret" => secret}, _}} =
+    {:ok, {201, _, %{"secret" => secret}}} =
       Hex.API.Key.new(key, permissions, user: username, pass: password)
 
     [key: secret, "$write_key": Mix.Tasks.Hex.encrypt_key(password, secret), "$read_key": secret]
@@ -230,7 +232,7 @@ defmodule HexTest.Hexpm do
   def new_organization_key(organization, key, auth) do
     permissions = [%{"domain" => "api"}]
 
-    {:ok, {201, %{"secret" => secret}, _}} =
+    {:ok, {201, _, %{"secret" => secret}}} =
       Hex.API.Key.Organization.new(organization, key, permissions, auth)
 
     [key: secret]
@@ -270,7 +272,7 @@ defmodule HexTest.Hexpm do
     files = files || [{"mix.exs", List.to_string(mix_exs)}]
     %{tarball: tarball} = Hex.Tar.create!(meta, files, :memory)
 
-    {:ok, {result, %{"version" => ^version}, _}} =
+    {:ok, {result, _, %{"version" => ^version}}} =
       Hex.API.Release.publish(organization, tarball, auth)
 
     assert result in [200, 201]

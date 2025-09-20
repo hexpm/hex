@@ -232,10 +232,10 @@ defmodule HexTest.Case do
     write_permissions = [%{"domain" => "api"}]
     read_permissions = [%{"domain" => "api", "resource" => "read"}]
 
-    {:ok, {201, write_body, _}} =
+    {:ok, {201, _, write_body}} =
       Hex.API.Key.new("setup_auth_write", write_permissions, user: username, pass: password)
 
-    {:ok, {201, read_body, _}} =
+    {:ok, {201, _, read_body}} =
       Hex.API.Key.new("setup_auth_read", read_permissions, user: username, pass: password)
 
     write_key = Mix.Tasks.Hex.encrypt_key(password, write_body["secret"])
@@ -247,7 +247,7 @@ defmodule HexTest.Case do
   def get_auth(username, password) do
     permissions = [%{"domain" => "api"}]
 
-    {:ok, {201, body, _}} =
+    {:ok, {201, _, body}} =
       Hex.API.Key.new("setup_auth", permissions, user: username, pass: password)
 
     [key: body["secret"]]

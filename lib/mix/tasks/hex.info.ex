@@ -77,7 +77,7 @@ defmodule Mix.Tasks.Hex.Info do
     auth = organization && Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.Package.get(organization, package, auth) do
-      {:ok, {code, body, _}} when code in 200..299 ->
+      {:ok, {code, _, body}} when code in 200..299 ->
         print_package(body, locked_dep(package))
 
       {:ok, {404, _, _}} ->
@@ -95,7 +95,7 @@ defmodule Mix.Tasks.Hex.Info do
     auth = organization && Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.Release.get(organization, package, version, auth) do
-      {:ok, {code, body, _}} when code in 200..299 ->
+      {:ok, {code, _, body}} when code in 200..299 ->
         print_release(organization, package, body)
 
       {:ok, {404, _, _}} ->

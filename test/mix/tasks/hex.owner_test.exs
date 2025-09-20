@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
                        "Adding owner owner_user2@mail.com with ownership level full to owner_package1"
                      ]}
 
-    assert {:ok, {200, %{"owned_packages" => %{"owner_package1" => _}}, _}} =
+    assert {:ok, {200, _, %{"owned_packages" => %{"owner_package1" => _}}}} =
              Hex.API.User.get("owner_user2")
   end
 
@@ -44,7 +44,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
                        "Adding owner owner_user2a@mail.com with ownership level maintainer to owner_package1a"
                      ]}
 
-    assert {:ok, {200, %{"owned_packages" => %{"owner_package1a" => _}}, _}} =
+    assert {:ok, {200, _, %{"owned_packages" => %{"owner_package1a" => _}}}} =
              Hex.API.User.get("owner_user2a")
   end
 
@@ -85,7 +85,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
                        "Adding owner owner_user2c with ownership level full to owner_package1c"
                      ]}
 
-    assert {:ok, {200, %{"owned_packages" => %{"owner_package1c" => _}}, _}} =
+    assert {:ok, {200, _, %{"owned_packages" => %{"owner_package1c" => _}}}} =
              Hex.API.User.get("owner_user2c")
   end
 
@@ -105,7 +105,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     assert_received {:mix_shell, :info,
                      ["Removing owner owner_user3@mail.com from owner_package2"]}
 
-    assert {:ok, {200, %{"owned_packages" => owned}, _}} = Hex.API.User.get("owner_user3")
+    assert {:ok, {200, _, %{"owned_packages" => owned}}} = Hex.API.User.get("owner_user3")
     assert owned == %{}
   end
 
@@ -163,8 +163,8 @@ defmodule Mix.Tasks.Hex.OwnerTest do
                        "Transferring ownership to owner_user7b for owner_package6"
                      ]}
 
-    assert {:ok, {200, %{"owned_packages" => packages_a}, _}} = Hex.API.User.get("owner_user7a")
-    assert {:ok, {200, %{"owned_packages" => packages_b}, _}} = Hex.API.User.get("owner_user7b")
+    assert {:ok, {200, _, %{"owned_packages" => packages_a}}} = Hex.API.User.get("owner_user7a")
+    assert {:ok, {200, _, %{"owned_packages" => packages_b}}} = Hex.API.User.get("owner_user7b")
 
     assert Map.keys(packages_a) == []
     assert Map.keys(packages_b) == ["owner_package6"]

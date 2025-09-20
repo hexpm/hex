@@ -136,7 +136,7 @@ defmodule Mix.Tasks.Hex do
   @doc false
   def generate_user_key(key_name, permissions, opts) do
     case Hex.API.Key.new(key_name, permissions, opts) do
-      {:ok, {201, body, _}} ->
+      {:ok, {201, _, body}} ->
         {:ok, body["secret"]}
 
       other ->
@@ -189,7 +189,7 @@ defmodule Mix.Tasks.Hex do
     auth = auth || auth_info(:write)
 
     case Hex.API.Key.Organization.new(organization_name, key_name, permissions, auth) do
-      {:ok, {201, body, _}} ->
+      {:ok, {201, _, body}} ->
         {:ok, body["secret"]}
 
       other ->
