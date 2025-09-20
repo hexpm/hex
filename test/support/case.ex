@@ -232,7 +232,7 @@ defmodule HexTest.Case do
     {:ok, {201, _, read_body}} =
       Hex.API.Key.new("setup_auth_read", read_permissions, user: username, pass: password)
 
-    write_key = Mix.Tasks.Hex.encrypt_key(password, write_body["secret"])
+    write_key = write_body["secret"]
     read_key = read_body["secret"]
     Mix.Tasks.Hex.update_keys(write_key, read_key)
     [key: write_key]

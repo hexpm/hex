@@ -1,8 +1,6 @@
 defmodule Mix.Tasks.Hex do
   use Mix.Task
 
-  @apikey_tag "HEXAPIKEY"
-
   @shortdoc "Prints Hex help information"
 
   @moduledoc """
@@ -124,62 +122,119 @@ defmodule Mix.Tasks.Hex do
 
   @doc false
   def auth(opts \\ []) do
-    username = Hex.Shell.prompt("Username:") |> String.trim()
-    account_password = Mix.Tasks.Hex.password_get("Account password:") |> String.trim()
-    Mix.Tasks.Hex.generate_all_user_keys(username, account_password, opts)
+    auth_device(opts)
   end
 
-  @local_password_prompt "You have authenticated on Hex using your account password. However, " <>
-                           "Hex requires you to have a local password that applies only to this machine for security " <>
-                           "purposes. Please enter it."
-
   @doc false
-  def generate_user_key(key_name, permissions, opts) do
-    case Hex.API.Key.new(key_name, permissions, opts) do
-      {:ok, {201, _, body}} ->
-        {:ok, body["secret"]}
+  def auth_device(_opts \\ []) do
+    Hex.Shell.info("Starting OAuth device flow authentication...")
 
-      other ->
-        Mix.shell().error("Generation of key failed")
-        Hex.Utils.print_error_result(other)
+    case Hex.API.OAuth.device_authorization() do
+      {:ok, {200, _, device_response}} ->
+        perform_device_flow(device_response)
+
+      {:ok, {status, _, error}} ->
+        Hex.Shell.error("Device authorization failed (#{status}): #{inspect(error)}")
+        :error
+
+      {:error, reason} ->
+        Hex.Shell.error("Device authorization error: #{inspect(reason)}")
         :error
     end
   end
 
-  @doc false
-  def generate_all_user_keys(username, password, opts \\ []) do
-    Hex.Shell.info("Generating keys...")
-    auth = [user: username, pass: password]
-    key_name = api_key_name(opts[:key_name])
-    permissions = [%{"domain" => "api"}]
+  defp perform_device_flow(device_response) do
+    device_code = device_response["device_code"]
+    user_code = device_response["user_code"]
+    verification_uri = device_response["verification_uri"]
+    interval = device_response["interval"] || 5
 
-    case generate_user_key(key_name, permissions, auth) do
-      {:ok, write_key} ->
-        key_name = api_key_name(opts[:key_name], "read")
-        permissions = [%{"domain" => "api", "resource" => "read"}]
+    Hex.Shell.info("To authenticate, visit: #{verification_uri}")
+    Hex.Shell.info("And enter the code: #{user_code}")
+    Hex.Shell.info("")
+    Hex.Shell.info("Waiting for authentication...")
 
-        case generate_user_key(key_name, permissions, key: write_key) do
-          {:ok, read_key} ->
-            key_name = repositories_key_name(opts[:key_name])
-            permissions = [%{"domain" => "repositories"}]
+    case poll_for_token(device_code, interval) do
+      {:ok, initial_token} ->
+        exchange_and_store_tokens(initial_token)
 
-            case generate_user_key(key_name, permissions, key: write_key) do
-              {:ok, organization_key} ->
-                auth_organization("hexpm", organization_key)
+      :error ->
+        :error
+    end
+  end
 
-                Hex.Shell.info(@local_password_prompt)
-                prompt_encrypt_key(write_key, read_key)
-                {:ok, write_key, read_key, organization_key}
+  defp poll_for_token(device_code, interval, attempt \\ 1) do
+    case Hex.API.OAuth.poll_device_token(device_code) do
+      {:ok, {200, _, token_response}} ->
+        {:ok, token_response}
 
-              :error ->
-                :ok
-            end
+      {:ok, {400, _, %{"error" => "authorization_pending"}}} ->
+        if attempt > 120 do
+          Hex.Shell.error("Authentication timed out. Please try again.")
+          :error
+        else
+          Process.sleep(interval * 1000)
+          poll_for_token(device_code, interval, attempt + 1)
+        end
 
-          :error ->
+      {:ok, {400, _, %{"error" => "slow_down"}}} ->
+        # Increase polling interval
+        new_interval = min(interval * 2, 30)
+        Process.sleep(new_interval * 1000)
+        poll_for_token(device_code, new_interval, attempt + 1)
+
+      {:ok, {400, _, %{"error" => "expired_token"}}} ->
+        Hex.Shell.error("Device code expired. Please try again.")
+        :error
+
+      {:ok, {403, _, %{"error" => "access_denied"}}} ->
+        Hex.Shell.error("Authentication was denied.")
+        :error
+
+      {:ok, {status, _, error}} ->
+        Hex.Shell.error("Authentication failed (#{status}): #{inspect(error)}")
+        :error
+
+      {:error, reason} ->
+        Hex.Shell.error("Authentication error: #{inspect(reason)}")
+        :error
+    end
+  end
+
+  defp exchange_and_store_tokens(initial_token) do
+    Hex.Shell.info("Authentication successful! Exchanging tokens...")
+
+    # Exchange for write token
+    case Hex.API.OAuth.exchange_token(initial_token["access_token"], "api:write") do
+      {:ok, {200, _, write_token_response}} ->
+        # Exchange for read token
+        case Hex.API.OAuth.exchange_token(initial_token["access_token"], "api:read repositories") do
+          {:ok, {200, _, read_token_response}} ->
+            # Store both tokens
+            tokens = %{
+              "write" => Hex.OAuth.create_token_data(write_token_response),
+              "read" => Hex.OAuth.create_token_data(read_token_response)
+            }
+
+            Hex.OAuth.store_tokens(tokens)
+            Hex.Shell.info("Authentication completed successfully!")
+            {:ok, tokens}
+
+          {:ok, {status, _, error}} ->
+            Hex.Shell.error("Failed to exchange read token (#{status}): #{inspect(error)}")
+            :error
+
+          {:error, reason} ->
+            Hex.Shell.error("Read token exchange error: #{inspect(reason)}")
             :error
         end
 
-      :error ->
+      {:ok, {status, _, error}} ->
+        Hex.Shell.error("Failed to exchange write token (#{status}): #{inspect(error)}")
+        :error
+
+      {:error, reason} ->
+        Hex.Shell.error("Write token exchange error: #{inspect(reason)}")
         :error
     end
   end
@@ -229,12 +284,16 @@ defmodule Mix.Tasks.Hex do
   end
 
   @doc false
+  def clear_oauth_tokens do
+    Hex.OAuth.clear_tokens()
+    Hex.Shell.info("OAuth tokens cleared.")
+  end
+
+  @doc false
   def update_keys(write_key, read_key \\ nil) do
     Hex.Config.update(
       "$write_key": write_key,
-      "$read_key": read_key,
-      "$encrypted_key": nil,
-      encrypted_key: nil
+      "$read_key": read_key
     )
 
     Hex.State.put(:api_key_write, write_key)
@@ -255,26 +314,78 @@ defmodule Mix.Tasks.Hex do
   def auth_info(permission, opts \\ [])
 
   def auth_info(:write, opts) do
-    api_key_write_unencrypted = Hex.State.fetch!(:api_key_write_unencrypted)
-    api_key_write = Hex.State.fetch!(:api_key_write)
+    # Try OAuth tokens first
+    case Hex.OAuth.get_token(:write) do
+      {:ok, access_token} ->
+        [key: access_token]
 
-    cond do
-      api_key_write_unencrypted -> [key: api_key_write_unencrypted]
-      api_key_write -> [key: prompt_decrypt_key(api_key_write)]
-      Keyword.get(opts, :auth_inline, true) -> authenticate_inline()
-      true -> []
+      {:error, :token_expired} ->
+        Hex.Shell.info("Access token expired. Please re-authenticate.")
+
+        if Keyword.get(opts, :auth_inline, true) do
+          authenticate_inline()
+        else
+          []
+        end
+
+      {:error, :no_auth} ->
+        # Fall back to API key from config/env or test setup
+        case Hex.State.fetch!(:api_key_write_unencrypted) do
+          nil ->
+            # Also check regular API key (used by tests)
+            case Hex.State.fetch!(:api_key_write) do
+              nil ->
+                if Keyword.get(opts, :auth_inline, true) do
+                  authenticate_inline()
+                else
+                  []
+                end
+
+              api_key ->
+                [key: api_key]
+            end
+
+          api_key ->
+            [key: api_key]
+        end
     end
   end
 
   def auth_info(:read, opts) do
-    api_key_write_unencrypted = Hex.State.fetch!(:api_key_write_unencrypted)
-    api_key_read = Hex.State.fetch!(:api_key_read)
+    # Try OAuth tokens first
+    case Hex.OAuth.get_token(:read) do
+      {:ok, access_token} ->
+        [key: access_token]
 
-    cond do
-      api_key_write_unencrypted -> [key: api_key_write_unencrypted]
-      api_key_read -> [key: api_key_read]
-      Keyword.get(opts, :auth_inline, true) -> authenticate_inline()
-      true -> []
+      {:error, :token_expired} ->
+        Hex.Shell.info("Access token expired. Please re-authenticate.")
+
+        if Keyword.get(opts, :auth_inline, true) do
+          authenticate_inline()
+        else
+          []
+        end
+
+      {:error, :no_auth} ->
+        # Fall back to API key from config/env or test setup
+        case Hex.State.fetch!(:api_key_write_unencrypted) do
+          nil ->
+            # Also check regular API key (used by tests)
+            case Hex.State.fetch!(:api_key_read) || Hex.State.fetch!(:api_key_write) do
+              nil ->
+                if Keyword.get(opts, :auth_inline, true) do
+                  authenticate_inline()
+                else
+                  []
+                end
+
+              api_key ->
+                [key: api_key]
+            end
+
+          api_key ->
+            [key: api_key]
+        end
     end
   end
 
@@ -284,8 +395,15 @@ defmodule Mix.Tasks.Hex do
 
     if authenticate? do
       case auth() do
-        {:ok, write_key, _read_key, _org_key} -> [key: write_key]
-        :error -> no_auth_error()
+        {:ok, _tokens} ->
+          # Auth succeeded, try to get write token
+          case Hex.OAuth.get_token(:write) do
+            {:ok, access_token} -> [key: access_token]
+            {:error, _} -> no_auth_error()
+          end
+
+        :error ->
+          no_auth_error()
       end
     else
       no_auth_error()
@@ -294,44 +412,6 @@ defmodule Mix.Tasks.Hex do
 
   defp no_auth_error() do
     Mix.raise("No authenticated user found. Run `mix hex.user auth`")
-  end
-
-  @doc false
-  def prompt_encrypt_key(write_key, read_key, challenge \\ "Local password") do
-    password = password_get("#{challenge}:") |> String.trim()
-    confirm = password_get("#{challenge} (confirm):") |> String.trim()
-
-    if password != confirm do
-      Hex.Shell.error("Entered passwords do not match. Try again")
-      prompt_encrypt_key(write_key, read_key, challenge)
-    else
-      encrypted_write_key = Hex.Crypto.encrypt(write_key, password, @apikey_tag)
-      update_keys(encrypted_write_key, read_key)
-    end
-  end
-
-  @doc false
-  def prompt_decrypt_key(encrypted_key, challenge \\ "Local password") do
-    password = password_get("#{challenge}:") |> String.trim()
-
-    case Hex.Crypto.decrypt(encrypted_key, password, @apikey_tag) do
-      {:ok, key} ->
-        key
-
-      :error ->
-        Hex.Shell.error("Wrong password. Try again")
-        prompt_decrypt_key(encrypted_key, challenge)
-    end
-  end
-
-  @doc false
-  def encrypt_key(password, key) do
-    Hex.Crypto.encrypt(key, password, @apikey_tag)
-  end
-
-  @doc false
-  def decrypt_key(password, key) do
-    Hex.Crypto.decrypt(key, password, @apikey_tag)
   end
 
   @doc false
@@ -355,40 +435,6 @@ defmodule Mix.Tasks.Hex do
       destructure [domain, resource], String.split(permission, ":", parts: 2)
       %{"domain" => domain, "resource" => resource}
     end)
-  end
-
-  # Password prompt that hides input by every 1ms
-  # clearing the line with stderr
-  @doc false
-  def password_get(prompt) do
-    if Hex.State.fetch!(:clean_pass) do
-      password_clean(prompt)
-    else
-      Hex.Shell.prompt(prompt <> " ")
-    end
-  end
-
-  defp password_clean(prompt) do
-    pid = spawn_link(fn -> loop(prompt) end)
-    ref = make_ref()
-    value = IO.gets(prompt <> " ")
-
-    send(pid, {:done, self(), ref})
-    receive do: ({:done, ^pid, ^ref} -> :ok)
-
-    value
-  end
-
-  defp loop(prompt) do
-    receive do
-      {:done, parent, ref} ->
-        send(parent, {:done, self(), ref})
-        IO.write(:standard_error, "\e[2K\r")
-    after
-      1 ->
-        IO.write(:standard_error, "\e[2K\r#{prompt} ")
-        loop(prompt)
-    end
   end
 
   @progress_steps 25

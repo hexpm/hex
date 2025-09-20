@@ -49,7 +49,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
 
     in_tmp(fn ->
       Hex.State.put(:cache_home, tmp_path())
-      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
+      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
       Mix.Dep.Lock.write(%{@package => {:hex, @package, version}})
 
       Mix.Task.run("deps.get")
@@ -59,7 +59,6 @@ defmodule Mix.Tasks.Hex.AuditTest do
   end
 
   defp retire_test_package(version, reason, message \\ "") do
-    send(self(), {:mix_shell_input, :prompt, "passpass"})
     Mix.Tasks.Hex.Retire.run([@package_name, version, reason, "--message", message])
 
     # Mix does not support the RemoteConverger.post_converge/0 callback on Elixir < 1.4,

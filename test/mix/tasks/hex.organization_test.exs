@@ -4,10 +4,11 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
   test "auth" do
     in_tmp(fn ->
       set_home_cwd()
-      auth = Hexpm.new_user("orgauth", "orgauth@mail.com", "password", "orgauth")
+      auth = Hexpm.new_user("orgauth", "orgauth@mail.com", "password", "key")
+      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
       Hexpm.new_repo("myorgauth", auth)
-      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
+      send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "password"})
       Mix.Tasks.Hex.Organization.run(["auth", "myorgauth"])
 
@@ -20,7 +21,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
 
       {:ok, hostname} = :inet.gethostname()
       name = "#{hostname}-repository-myorgauth"
-      assert {:ok, {200, _, body}} = Hex.API.Key.get(auth)
+      assert {:ok, {200, _, body}} = Hex.API.Key.Organization.get("myorgauth", auth)
       assert name in Enum.map(body, & &1["name"])
     end)
   end
@@ -30,11 +31,13 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       set_home_cwd()
 
       auth =
-        Hexpm.new_user("orgauthwithkeyname", "orgauthwithkeyname@mail.com", "password", "orgauth")
+        Hexpm.new_user("orgauthwithkeyname", "orgauthwithkeyname@mail.com", "password", "key")
+
+      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
 
       Hexpm.new_repo("myorgauthwithkeyname", auth)
-      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
+      send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "password"})
 
       Mix.Tasks.Hex.Organization.run([
@@ -51,7 +54,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       assert myorg.url == "http://localhost:4043/repo/repos/myorgauthwithkeyname"
       assert is_binary(myorg.auth_key)
 
-      assert {:ok, {200, _, body}} = Hex.API.Key.get(auth)
+      assert {:ok, {200, _, body}} = Hex.API.Key.Organization.get("myorgauthwithkeyname", auth)
       assert "orgauthkeyname-repository-myorgauthwithkeyname" in Enum.map(body, & &1["name"])
     end)
   end
@@ -59,7 +62,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
   test "auth --key" do
     in_tmp(fn ->
       set_home_cwd()
-      auth = Hexpm.new_user("orgauthkey", "orgauthkey@mail.com", "password", "orgauthkey")
+      auth = Hexpm.new_user("orgauthkey", "orgauthkey@mail.com", "password", "key")
       Hexpm.new_repo("myorgauthkey", auth)
 
       parameters = [%{"domain" => "repository", "resource" => "myorgauthkey"}]
@@ -101,10 +104,11 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
   test "deauth" do
     in_tmp(fn ->
       set_home_cwd()
-      auth = Hexpm.new_user("orgdeauth", "orgdeauth@mail.com", "password", "orgdeauth")
+      auth = Hexpm.new_user("orgdeauth", "orgdeauth@mail.com", "password", "key")
+      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
       Hexpm.new_repo("myorgdeauth", auth)
-      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
+      send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "password"})
       Mix.Tasks.Hex.Organization.run(["auth", "myorgdeauth"])
 
@@ -117,12 +121,12 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       set_home_cwd()
 
-      auth =
-        Hexpm.new_user("orgkeygenuser", "orgkeygenuser@mail.com", "password", "orgkeygenuser")
+      auth = Hexpm.new_user("orgkeygenuser", "orgkeygenuser@mail.com", "password", "key")
+      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
 
       Hexpm.new_repo("orgkeygenrepo", auth)
-      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
+      send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "password"})
       args = ["key", "orgkeygenrepo", "generate", "--permission", "api:read"]
       Mix.Tasks.Hex.Organization.run(args)
@@ -146,12 +150,12 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       set_home_cwd()
 
-      auth =
-        Hexpm.new_user("orgkeylistuser", "orgkeylistuser@mail.com", "password", "orgkeylistuser")
+      auth = Hexpm.new_user("orgkeylistuser", "orgkeylistuser@mail.com", "password", "key")
+      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
 
       Hexpm.new_repo("orgkeylistrepo", auth)
-      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
+      send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "password"})
       args = ["key", "orgkeylistrepo", "generate", "--key-name", "orgkeylistrepo"]
       Mix.Tasks.Hex.Organization.run(args)
@@ -168,21 +172,16 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       set_home_cwd()
 
-      auth =
-        Hexpm.new_user(
-          "orgkeyrevokeyuser",
-          "orgkeyrevokeyuser@mail.com",
-          "password",
-          "orgkeyrevokeuser1"
-        )
+      auth = Hexpm.new_user("orgkeyrevokeyuser", "orgkeyrevokeyuser@mail.com", "password", "key")
+      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
 
       Hexpm.new_repo("orgkeyrevokerepo", auth)
       Hexpm.new_organization_key("orgkeyrevokerepo", "orgkeyrevokerepo2", auth)
-      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
       assert {:ok, {200, _, [%{"name" => "orgkeyrevokerepo2"}]}} =
                Hex.API.Key.Organization.get("orgkeyrevokerepo", auth)
 
+      send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "password"})
       Mix.Tasks.Hex.Organization.run(["key", "orgkeyrevokerepo", "revoke", "orgkeyrevokerepo2"])
       assert_received {:mix_shell, :info, ["Revoking key orgkeyrevokerepo2..."]}
@@ -194,23 +193,19 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
   test "revoke all keys" do
     in_tmp(fn ->
       set_home_cwd()
-      set_home_cwd()
 
       auth =
-        Hexpm.new_user(
-          "orgkeyrevokealluser",
-          "orgkeyrevokealluser@mail.com",
-          "password",
-          "orgkeyrevokealluser1"
-        )
+        Hexpm.new_user("orgkeyrevokealluser", "orgkeyrevokealluser@mail.com", "password", "key")
+
+      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
 
       Hexpm.new_repo("orgkeyrevokeallrepo", auth)
       Hexpm.new_organization_key("orgkeyrevokeallrepo", "orgkeyrevokeallrepo2", auth)
-      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
       assert {:ok, {200, _, [%{"name" => "orgkeyrevokeallrepo2"}]}} =
                Hex.API.Key.Organization.get("orgkeyrevokeallrepo", auth)
 
+      send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "password"})
       Mix.Tasks.Hex.Organization.run(["key", "orgkeyrevokeallrepo", "revoke", "--all"])
       assert_received {:mix_shell, :info, ["Revoking all keys..."]}

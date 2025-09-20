@@ -211,7 +211,7 @@ defmodule HexTest.Hexpm do
     {:ok, {201, _, %{"secret" => secret}}} =
       Hex.API.Key.new(key, permissions, user: username, pass: password)
 
-    [key: secret, "$write_key": Mix.Tasks.Hex.encrypt_key(password, secret), "$read_key": secret]
+    [key: secret, "$write_key": secret, "$read_key": secret]
   end
 
   def new_key(auth) do
@@ -226,7 +226,7 @@ defmodule HexTest.Hexpm do
     {:ok, {201, _, %{"secret" => secret}}} =
       Hex.API.Key.new(key, permissions, user: username, pass: password)
 
-    [key: secret, "$write_key": Mix.Tasks.Hex.encrypt_key(password, secret), "$read_key": secret]
+    [key: secret, "$write_key": secret, "$read_key": secret]
   end
 
   def new_organization_key(organization, key, auth) do
@@ -276,5 +276,105 @@ defmodule HexTest.Hexpm do
       Hex.API.Release.publish(organization, tarball, auth)
 
     assert result in [200, 201]
+  end
+
+  @doc """
+  Creates OAuth tokens for testing without going through the device flow.
+  Returns the same format that would be stored after OAuth authentication.
+  """
+  def new_oauth_user(username, email, password) do
+    # Create user account (still needed for whoami etc)
+    {:ok, {201, _, _}} = Hex.API.User.new(username, email, password)
+
+    # Generate mock OAuth tokens
+    write_token = "oauth_write_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+    read_token = "oauth_read_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+    write_refresh = "refresh_write_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+    read_refresh = "refresh_read_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+
+    expires_at = System.system_time(:second) + 3600
+
+    tokens = %{
+      "write" => %{
+        "access_token" => write_token,
+        "refresh_token" => write_refresh,
+        "expires_at" => expires_at
+      },
+      "read" => %{
+        "access_token" => read_token,
+        "refresh_token" => read_refresh,
+        "expires_at" => expires_at
+      }
+    }
+
+    # Store OAuth tokens
+    Hex.OAuth.store_tokens(tokens)
+
+    # Return auth format for API calls
+    [key: write_token, "$oauth_tokens": tokens]
+  end
+
+  @doc """
+  Creates OAuth tokens for a user that already exists.
+  """
+  def new_oauth_tokens() do
+    write_token = "oauth_write_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+    read_token = "oauth_read_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+    write_refresh = "refresh_write_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+    read_refresh = "refresh_read_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+
+    expires_at = System.system_time(:second) + 3600
+
+    tokens = %{
+      "write" => %{
+        "access_token" => write_token,
+        "refresh_token" => write_refresh,
+        "expires_at" => expires_at
+      },
+      "read" => %{
+        "access_token" => read_token,
+        "refresh_token" => read_refresh,
+        "expires_at" => expires_at
+      }
+    }
+
+    Hex.OAuth.store_tokens(tokens)
+    [key: write_token, "$oauth_tokens": tokens]
+  end
+
+  @doc """
+  Creates expired OAuth tokens for testing refresh logic.
+  """
+  def new_expired_oauth_tokens() do
+    write_token = "oauth_write_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+    read_token = "oauth_read_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+    write_refresh = "refresh_write_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+    read_refresh = "refresh_read_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+
+    # Set expiration in the past
+    expires_at = System.system_time(:second) - 100
+
+    tokens = %{
+      "write" => %{
+        "access_token" => write_token,
+        "refresh_token" => write_refresh,
+        "expires_at" => expires_at
+      },
+      "read" => %{
+        "access_token" => read_token,
+        "refresh_token" => read_refresh,
+        "expires_at" => expires_at
+      }
+    }
+
+    Hex.OAuth.store_tokens(tokens)
+    [key: write_token, "$oauth_tokens": tokens]
+  end
+
+  @doc """
+  Clears any stored OAuth tokens for testing.
+  """
+  def clear_oauth_tokens() do
+    Hex.OAuth.clear_tokens()
   end
 end

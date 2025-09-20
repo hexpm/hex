@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Hex.SearchTest do
       set_home_tmp()
       auth = Hexpm.new_user("searchuser1", "searchuser1@mail.com", "password", "searchuser1")
       Hexpm.new_repo("searchrepo1", auth)
-      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
+      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
 
       Mix.Tasks.Hex.Search.run(["doc"])
 
@@ -35,7 +35,7 @@ defmodule Mix.Tasks.Hex.SearchTest do
       set_home_tmp()
       auth = Hexpm.new_user("searchuser2", "searchuser2@mail.com", "password", "searchuser2")
       Hexpm.new_repo("searchrepo2", auth)
-      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
+      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
 
       Mix.Tasks.Hex.Search.run(["doc", "--organization", "searchrepo2"])
 

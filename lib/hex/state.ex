@@ -12,11 +12,14 @@ defmodule Hex.State do
       config: [:"$read_key"]
     },
     api_key_write: %{
-      config: [:"$write_key", :"$encrypted_key"]
+      config: [:"$write_key"]
     },
     api_key_write_unencrypted: %{
       env: ["HEX_API_KEY"],
       config: [:api_key]
+    },
+    oauth_tokens: %{
+      config: [:"$oauth_tokens"]
     },
     api_url: %{
       env: ["HEX_API_URL", "HEX_API"],

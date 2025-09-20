@@ -46,7 +46,7 @@ defmodule Mix.Tasks.Hex.SponsorTest do
   test "outside a mix project", %{auth: auth} do
     in_tmp(fn ->
       Hex.State.put(:cache_home, tmp_path())
-      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
+      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
       flush()
 
       error_msg =
@@ -73,7 +73,7 @@ defmodule Mix.Tasks.Hex.SponsorTest do
 
     in_tmp(fn ->
       Hex.State.put(:cache_home, tmp_path())
-      Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
+      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
       Mix.Dep.Lock.write(%{@package => {:hex, @package, version}})
 
       Mix.Task.run("deps.get")

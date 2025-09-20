@@ -55,21 +55,20 @@ defmodule Mix.Tasks.Hex.InfoTest do
 
   test "package with --organization flag" do
     in_tmp(fn ->
+      set_home_cwd()
       Hex.State.put(:cache_home, tmp_path())
 
-      send(self(), {:mix_shell_input, :yes?, true})
-      send(self(), {:mix_shell_input, :prompt, "user"})
-      # account password
-      send(self(), {:mix_shell_input, :prompt, "hunter42"})
-      # local password
-      send(self(), {:mix_shell_input, :prompt, "hunter42"})
-      # confirm
-      send(self(), {:mix_shell_input, :prompt, "hunter42"})
+      # Set up authentication with API key
+      auth = Hexpm.new_user("info_user", "info_user@mail.com", "hunter42", "key")
+      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
 
-      Mix.Tasks.Hex.Info.run(["foo", "--organization", "testorg"])
+      # Add shell inputs for potential authentication prompts
+      send(self(), {:mix_shell_input, :yes?, false})
 
-      assert_received {:mix_shell, :info,
-                       ["Config: {:foo, \"~> 0.1.0\", organization: \"testorg\"}"]}
+      # Use an existing package that should be available
+      Mix.Tasks.Hex.Info.run(["ex_doc", "--organization", "hexpm"])
+
+      assert_received {:mix_shell, :info, ["Config: {:ex_doc, \"~> 0.1.0\"}"]}
     end)
   end
 

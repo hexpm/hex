@@ -429,11 +429,9 @@ defmodule Mix.Tasks.Hex.PublishTest do
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
 
-      send(self(), {:mix_shell_input, :prompt, "user2"})
-      send(self(), {:mix_shell_input, :prompt, "hunter42"})
-      Mix.Tasks.Hex.User.run(["key", "generate"])
-      assert_received {:mix_shell, :info, ["Generating key..."]}
-      assert_received {:mix_shell, :info, [key]}
+      # Set up a test API key for HEX_API_KEY testing
+      auth = Hexpm.new_user("hex_api_key_user", "hex_api_key_user@mail.com", "hunter42", "key")
+      key = auth[:key]
 
       Hex.State.put(:api_key_write_unencrypted, key)
       Mix.Tasks.Hex.Publish.run(["package", "--yes", "--no-progress", "--replace"])
