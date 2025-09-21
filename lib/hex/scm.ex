@@ -181,9 +181,8 @@ defmodule Hex.SCM do
       rescue
         exception ->
           require Hex.Stdlib
-          stacktrace = Hex.Stdlib.stacktrace()
           File.rm(path)
-          reraise(exception, stacktrace)
+          reraise(exception, __STACKTRACE__)
       end
 
     if tarball_inner_checksum != registry_inner_checksum do
