@@ -6,7 +6,7 @@ defmodule Hex.Stdlib do
     cond do
       # Requires Elixir 1.15.0
       function_exported?(Mix, :ensure_application!, 1) ->
-        Mix.ensure_application!(:ssh)
+        apply(Mix, :ensure_application!, [:ssh])
         apply(:ssh, :hostkey_fingerprint, [digset_type, key])
 
       Code.ensure_loaded?(:ssh) and function_exported?(:ssh, :hostkey_fingerprint, 2) ->

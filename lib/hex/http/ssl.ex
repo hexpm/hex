@@ -26,8 +26,6 @@ defmodule Hex.HTTP.SSL do
 
   @default_versions [:"tlsv1.2", :"tlsv1.1", :tlsv1]
 
-  @secure_ssl_version {5, 3, 7}
-
   Record.defrecordp(
     :certificate,
     :OTPCertificate,
