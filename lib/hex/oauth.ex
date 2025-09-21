@@ -148,9 +148,8 @@ defmodule Hex.OAuth do
       {:ok, access_token} ->
         {:ok, access_token}
 
-      {:error, _} ->
-        # If refresh failed, check if we still have a valid token
-        # (in case the expiration check was too conservative)
+      {:error, :no_refresh_token} ->
+        # No refresh token available, check if current token is still valid
         case token_data do
           %{"access_token" => token, "expires_at" => expires_at} when is_binary(token) ->
             current_time = System.system_time(:second)
@@ -164,6 +163,14 @@ defmodule Hex.OAuth do
           _ ->
             {:error, :no_auth}
         end
+
+      {:error, :refresh_failed} ->
+        # Refresh explicitly failed (network error, invalid refresh token, etc.)
+        {:error, :refresh_failed}
+
+      {:error, _other} ->
+        # Other refresh errors should also be treated as refresh failures
+        {:error, :refresh_failed}
     end
   end
 end

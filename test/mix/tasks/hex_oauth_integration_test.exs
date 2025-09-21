@@ -82,9 +82,9 @@ defmodule Mix.Tasks.HexOAuthIntegrationTest do
         }
       }
 
-      # Test expired token returns error
+      # Test expired token with refresh token returns refresh_failed (since no server is mocked)
       Hex.OAuth.store_tokens(expired_tokens)
-      assert {:error, :token_expired} = Hex.OAuth.get_token(:write)
+      assert {:error, :refresh_failed} = Hex.OAuth.get_token(:write)
 
       # Test valid token works
       Hex.OAuth.store_tokens(valid_tokens)
@@ -94,8 +94,18 @@ defmodule Mix.Tasks.HexOAuthIntegrationTest do
       mixed_tokens = Map.merge(expired_tokens, valid_tokens)
       Hex.OAuth.store_tokens(mixed_tokens)
 
-      assert {:error, :token_expired} = Hex.OAuth.get_token(:write)
+      assert {:error, :refresh_failed} = Hex.OAuth.get_token(:write)
       assert {:ok, "valid_token"} = Hex.OAuth.get_token(:read)
+
+      # Test expired token without refresh token returns token_expired
+      expired_no_refresh = %{
+        "write" => %{
+          "access_token" => "expired_token_no_refresh",
+          "expires_at" => past_time
+        }
+      }
+      Hex.OAuth.store_tokens(expired_no_refresh)
+      assert {:error, :token_expired} = Hex.OAuth.get_token(:write)
     end
 
     # These HTTP-level tests are already covered in oauth_test.exs
@@ -140,8 +150,8 @@ defmodule Mix.Tasks.HexOAuthIntegrationTest do
 
       Hex.OAuth.store_tokens(tokens)
 
-      assert [key: "oauth_write_token"] = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
-      assert [key: "oauth_read_token"] = Mix.Tasks.Hex.auth_info(:read, auth_inline: false)
+      assert [key: "oauth_write_token", oauth: true] = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
+      assert [key: "oauth_read_token", oauth: true] = Mix.Tasks.Hex.auth_info(:read, auth_inline: false)
     end
 
     test "auth_info falls back to API key when no OAuth tokens" do

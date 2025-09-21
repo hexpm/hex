@@ -317,10 +317,19 @@ defmodule Mix.Tasks.Hex do
     # Try OAuth tokens first
     case Hex.OAuth.get_token(:write) do
       {:ok, access_token} ->
-        [key: access_token]
+        [key: access_token, oauth: true]
+
+      {:error, :refresh_failed} ->
+        Hex.Shell.info("Token refresh failed. Please re-authenticate.")
+
+        if Keyword.get(opts, :auth_inline, true) do
+          authenticate_inline()
+        else
+          []
+        end
 
       {:error, :token_expired} ->
-        Hex.Shell.info("Access token expired. Please re-authenticate.")
+        Hex.Shell.info("Access token expired and could not be refreshed. Please re-authenticate.")
 
         if Keyword.get(opts, :auth_inline, true) do
           authenticate_inline()
@@ -355,10 +364,19 @@ defmodule Mix.Tasks.Hex do
     # Try OAuth tokens first
     case Hex.OAuth.get_token(:read) do
       {:ok, access_token} ->
-        [key: access_token]
+        [key: access_token, oauth: true]
+
+      {:error, :refresh_failed} ->
+        Hex.Shell.info("Token refresh failed. Please re-authenticate.")
+
+        if Keyword.get(opts, :auth_inline, true) do
+          authenticate_inline()
+        else
+          []
+        end
 
       {:error, :token_expired} ->
-        Hex.Shell.info("Access token expired. Please re-authenticate.")
+        Hex.Shell.info("Access token expired and could not be refreshed. Please re-authenticate.")
 
         if Keyword.get(opts, :auth_inline, true) do
           authenticate_inline()
@@ -398,7 +416,7 @@ defmodule Mix.Tasks.Hex do
         {:ok, _tokens} ->
           # Auth succeeded, try to get write token
           case Hex.OAuth.get_token(:write) do
-            {:ok, access_token} -> [key: access_token]
+            {:ok, access_token} -> [key: access_token, oauth: true]
             {:error, _} -> no_auth_error()
           end
 

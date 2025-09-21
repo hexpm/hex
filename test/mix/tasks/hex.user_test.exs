@@ -343,26 +343,58 @@ defmodule Mix.Tasks.Hex.UserTest do
         )
       end)
 
+      # Expect multiple token requests: poll, exchange for write, exchange for read
+      token_request_count = :counters.new(1, [])
+
       Bypass.expect(bypass, "POST", "/api/oauth/token", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        params = Hex.Utils.safe_deserialize_erlang(body)
+
+        count = :counters.get(token_request_count, 1)
+        :counters.add(token_request_count, 1, 1)
+
+        resp_body = case params["grant_type"] do
+          "urn:ietf:params:oauth:grant-type:device_code" ->
+            # First request is polling for device token
+            %{
+              "access_token" => "inline_token",
+              "token_type" => "bearer",
+              "expires_in" => 3600,
+              "refresh_token" => "inline_refresh",
+              "scope" => "api repositories"
+            }
+          "urn:ietf:params:oauth:grant-type:token-exchange" ->
+            # Exchange requests based on requested scope
+            case params["scope"] do
+              "api:write" ->
+                %{
+                  "access_token" => "write_token",
+                  "token_type" => "bearer",
+                  "expires_in" => 3600,
+                  "refresh_token" => "write_refresh",
+                  "scope" => "api:write"
+                }
+              "api:read repositories" ->
+                %{
+                  "access_token" => "read_token",
+                  "token_type" => "bearer",
+                  "expires_in" => 3600,
+                  "refresh_token" => "read_refresh",
+                  "scope" => "api:read repositories"
+                }
+            end
+        end
+
         conn
         |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(
-          200,
-          Hex.Utils.safe_serialize_erlang(%{
-            "access_token" => "inline_token",
-            "token_type" => "bearer",
-            "expires_in" => 3600,
-            "refresh_token" => "inline_refresh",
-            "scope" => "api repositories"
-          })
-        )
+        |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(resp_body))
       end)
 
       # Calling auth_info should trigger inline auth
       auth = Mix.Tasks.Hex.auth_info(:write)
 
-      # Should get auth after inline flow
-      assert [key: _token] = auth
+      # Should get auth after inline flow with OAuth flag
+      assert [key: _token, oauth: true] = auth
 
       assert_received {:mix_shell, :yes?,
                        ["No authenticated user found. Do you want to authenticate now?"]}
@@ -419,7 +451,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       }
 
       Hex.OAuth.store_tokens(tokens)
-      assert [key: "oauth_token"] = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
+      assert [key: "oauth_token", oauth: true] = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
 
       # Clear OAuth tokens - should fall back to API key
       Hex.OAuth.clear_tokens()
