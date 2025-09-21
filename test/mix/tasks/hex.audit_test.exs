@@ -49,7 +49,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
 
     in_tmp(fn ->
       Hex.State.put(:cache_home, tmp_path())
-      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
+      Hex.State.put(:api_key, auth[:key])
       Mix.Dep.Lock.write(%{@package => {:hex, @package, version}})
 
       Mix.Task.run("deps.get")

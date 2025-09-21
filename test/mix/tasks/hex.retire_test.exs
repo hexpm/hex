@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Hex.RetireTest do
     Hexpm.new_package("hexpm", "retire_package", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
+    Hex.State.put(:api_key, auth[:key])
 
     Mix.Tasks.Hex.Retire.run(["retire_package", "0.0.1", "renamed", "--message", "message"])
     assert_received {:mix_shell, :info, ["retire_package 0.0.1 has been retired\n"]}
@@ -28,7 +28,7 @@ defmodule Mix.Tasks.Hex.RetireTest do
     Hexpm.new_package("hexpm", "retire_package_message", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
+    Hex.State.put(:api_key, auth[:key])
 
     assert_raise Mix.Error, "Missing required flag --message", fn ->
       Mix.Tasks.Hex.Retire.run(["retire_package_message", "0.0.1", "renamed"])

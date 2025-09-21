@@ -60,7 +60,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
 
       # Set up authentication with API key
       auth = Hexpm.new_user("info_user", "info_user@mail.com", "hunter42", "key")
-      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
+      Hex.State.put(:api_key, auth[:key])
 
       # Add shell inputs for potential authentication prompts
       send(self(), {:mix_shell_input, :yes?, false})

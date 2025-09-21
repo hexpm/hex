@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", "owner_package1", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
+    Hex.State.put(:api_key, auth[:key])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
     Mix.Tasks.Hex.Owner.run(["add", "owner_package1", "owner_user2@mail.com"])
@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", "owner_package1a", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
+    Hex.State.put(:api_key, auth[:key])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
 
@@ -54,7 +54,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", "owner_package1b", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
+    Hex.State.put(:api_key, auth[:key])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
 
@@ -75,7 +75,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", "owner_package1c", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
+    Hex.State.put(:api_key, auth[:key])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
     Mix.Tasks.Hex.Owner.run(["add", "owner_package1c", "owner_user2c"])
@@ -95,7 +95,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", "owner_package2", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
+    Hex.State.put(:api_key, auth[:key])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
     send(self(), {:mix_shell_input, :prompt, "passpass"})
@@ -114,7 +114,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", "owner_package3", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
+    Hex.State.put(:api_key, auth[:key])
 
     Mix.Tasks.Hex.Owner.run(["list", "owner_package3"])
 
@@ -138,7 +138,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", package2, "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
+    Hex.State.put(:api_key, auth[:key])
 
     Mix.Tasks.Hex.Owner.run(["packages"])
     owner_package4_msg = "#{package1} - http://localhost:4043/packages/#{package1}"
@@ -153,7 +153,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", "owner_package6", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
+    Hex.State.put(:api_key, auth[:key])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
     Mix.Tasks.Hex.Owner.run(["transfer", "owner_package6", "owner_user7b"])

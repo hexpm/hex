@@ -121,9 +121,7 @@ defmodule Mix.Tasks.HexOAuthIntegrationTest do
 
       # Clear any existing tokens and API keys
       Hex.OAuth.clear_tokens()
-      Hex.State.put(:api_key_write, nil)
-      Hex.State.put(:api_key_read, nil)
-      Hex.State.put(:api_key_write_unencrypted, nil)
+      Hex.State.put(:api_key, nil)
 
       on_exit(fn ->
         Hex.State.put(:api_url, original_url)
@@ -159,18 +157,17 @@ defmodule Mix.Tasks.HexOAuthIntegrationTest do
     end
 
     test "auth_info falls back to API key when no OAuth tokens" do
-      Hex.State.put(:api_key_write, "fallback_write_key")
-      Hex.State.put(:api_key_read, "fallback_read_key")
+      Hex.State.put(:api_key, "fallback_api_key")
 
-      assert [key: "fallback_write_key"] = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
-      assert [key: "fallback_read_key"] = Mix.Tasks.Hex.auth_info(:read, auth_inline: false)
+      assert [key: "fallback_api_key"] = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
+      assert [key: "fallback_api_key"] = Mix.Tasks.Hex.auth_info(:read, auth_inline: false)
     end
 
-    test "auth_info uses write key for read when no separate read key", %{bypass: _bypass} do
-      Hex.State.put(:api_key_write, "write_only_key")
-      Hex.State.put(:api_key_read, nil)
+    test "auth_info uses API key for both read and write", %{bypass: _bypass} do
+      Hex.State.put(:api_key, "api_key")
 
-      assert [key: "write_only_key"] = Mix.Tasks.Hex.auth_info(:read, auth_inline: false)
+      assert [key: "api_key"] = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
+      assert [key: "api_key"] = Mix.Tasks.Hex.auth_info(:read, auth_inline: false)
     end
 
     test "auth_info handles token expiration message", %{bypass: bypass} do

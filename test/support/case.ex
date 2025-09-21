@@ -229,12 +229,11 @@ defmodule HexTest.Case do
     {:ok, {201, _, write_body}} =
       Hex.API.Key.new("setup_auth_write", write_permissions, user: username, pass: password)
 
-    {:ok, {201, _, read_body}} =
+    {:ok, {201, _, _read_body}} =
       Hex.API.Key.new("setup_auth_read", read_permissions, user: username, pass: password)
 
     write_key = write_body["secret"]
-    read_key = read_body["secret"]
-    Mix.Tasks.Hex.update_keys(write_key, read_key)
+    Hex.State.put(:api_key, write_key)
     [key: write_key]
   end
 
@@ -254,9 +253,8 @@ defmodule HexTest.Case do
     Hex.State.put(:cache_home, Path.expand("../../tmp/hex_cache_home", __DIR__))
     Hex.State.put(:data_home, Path.expand("../../tmp/hex_data_home", __DIR__))
     Hex.State.put(:api_url, "http://localhost:4043/api")
-    Hex.State.put(:api_key_write, nil)
-    Hex.State.put(:api_key_read, nil)
-    Hex.State.put(:api_key_write_unencrypted, nil)
+    Hex.State.put(:api_key, nil)
+    Hex.State.put(:oauth_tokens, nil)
     Hex.State.update!(:repos, &put_in(&1["hexpm"].url, "http://localhost:4043/repo"))
     Hex.State.update!(:repos, &put_in(&1["hexpm"].public_key, public_key))
     Hex.State.update!(:repos, &put_in(&1["hexpm"].auth_key, nil))

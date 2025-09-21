@@ -127,6 +127,10 @@ defmodule Mix.Tasks.Hex do
 
   @doc false
   def auth_device(_opts \\ []) do
+    # Clean up any existing authentication
+    revoke_existing_oauth_tokens()
+    revoke_and_cleanup_old_api_keys()
+
     Hex.Shell.info("Starting OAuth device flow authentication...")
 
     case Hex.API.OAuth.device_authorization() do
@@ -303,14 +307,64 @@ defmodule Mix.Tasks.Hex do
   end
 
   @doc false
-  def update_keys(write_key, read_key \\ nil) do
-    Hex.Config.update(
-      "$write_key": write_key,
-      "$read_key": read_key
-    )
+  def revoke_existing_oauth_tokens do
+    case Hex.Config.read()[:"$oauth_tokens"] do
+      nil ->
+        :ok
 
-    Hex.State.put(:api_key_write, write_key)
-    Hex.State.put(:api_key_read, read_key)
+      tokens when is_map(tokens) ->
+        Enum.each(tokens, fn {_type, token_data} ->
+          if access_token = token_data["access_token"] do
+            case Hex.API.OAuth.revoke_token(access_token) do
+              {:ok, {code, _, _}} when code in 200..299 ->
+                :ok
+              _ ->
+                :ok
+            end
+          end
+        end)
+
+        Hex.Config.remove([:"$oauth_tokens"])
+        Hex.Shell.info("Revoked existing OAuth tokens.")
+
+      _ ->
+        :ok
+    end
+  end
+
+  @doc false
+  def revoke_and_cleanup_old_api_keys do
+    config = Hex.Config.read()
+
+    # Check for old write key
+    if write_key = config[:"$write_key"] do
+      # Try to revoke on server (might fail if already revoked or invalid)
+      case Hex.API.Key.delete(write_key, [key: write_key]) do
+        {:ok, {code, _, _}} when code in 200..299 ->
+          Hex.Shell.info("Revoked old write API key.")
+        _ ->
+          # Key might already be invalid, continue anyway
+          :ok
+      end
+    end
+
+    # Check for old read key (only if different from write key)
+    if read_key = config[:"$read_key"] do
+      if read_key != config[:"$write_key"] do
+        case Hex.API.Key.delete(read_key, [key: read_key]) do
+          {:ok, {code, _, _}} when code in 200..299 ->
+            Hex.Shell.info("Revoked old read API key.")
+          _ ->
+            :ok
+        end
+      end
+    end
+
+    # Remove from config if they existed
+    if config[:"$write_key"] || config[:"$read_key"] do
+      Hex.Config.remove([:"$write_key", :"$read_key"])
+      Hex.Shell.info("Removed deprecated API keys from config.")
+    end
   end
 
   @doc false
@@ -351,20 +405,13 @@ defmodule Mix.Tasks.Hex do
         end
 
       {:error, :no_auth} ->
-        # Fall back to API key from config/env or test setup
-        case Hex.State.fetch!(:api_key_write_unencrypted) do
+        # Fall back to API key from config/env
+        case Hex.State.fetch!(:api_key) do
           nil ->
-            # Also check regular API key (used by tests)
-            case Hex.State.fetch!(:api_key_write) do
-              nil ->
-                if Keyword.get(opts, :auth_inline, true) do
-                  authenticate_inline()
-                else
-                  []
-                end
-
-              api_key ->
-                [key: api_key]
+            if Keyword.get(opts, :auth_inline, true) do
+              authenticate_inline()
+            else
+              []
             end
 
           api_key ->
@@ -398,20 +445,13 @@ defmodule Mix.Tasks.Hex do
         end
 
       {:error, :no_auth} ->
-        # Fall back to API key from config/env or test setup
-        case Hex.State.fetch!(:api_key_write_unencrypted) do
+        # Fall back to API key from config/env (write key can be used for read)
+        case Hex.State.fetch!(:api_key) do
           nil ->
-            # Also check regular API key (used by tests)
-            case Hex.State.fetch!(:api_key_read) || Hex.State.fetch!(:api_key_write) do
-              nil ->
-                if Keyword.get(opts, :auth_inline, true) do
-                  authenticate_inline()
-                else
-                  []
-                end
-
-              api_key ->
-                [key: api_key]
+            if Keyword.get(opts, :auth_inline, true) do
+              authenticate_inline()
+            else
+              []
             end
 
           api_key ->

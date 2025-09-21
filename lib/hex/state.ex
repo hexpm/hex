@@ -8,13 +8,7 @@ defmodule Hex.State do
   def default_api_url(), do: @api_url
 
   @config %{
-    api_key_read: %{
-      config: [:"$read_key"]
-    },
-    api_key_write: %{
-      config: [:"$write_key"]
-    },
-    api_key_write_unencrypted: %{
+    api_key: %{
       env: ["HEX_API_KEY"],
       config: [:api_key]
     },

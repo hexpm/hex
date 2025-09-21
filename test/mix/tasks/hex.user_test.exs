@@ -12,8 +12,6 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Clear any existing auth
       Hex.OAuth.clear_tokens()
-      Hex.State.put(:api_key_write, nil)
-      Hex.State.put(:api_key_read, nil)
 
       # Track which endpoints are called in order
       calls = Agent.start_link(fn -> [] end)
@@ -121,7 +119,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       # Verify the device flow messages were shown using assert_received
       assert_received {:mix_shell, :info, ["Starting OAuth device flow authentication..."]}
       assert_received {:mix_shell, :info, ["To authenticate, visit: https://hex.pm/oauth/device"]}
-      assert_received {:mix_shell, :info, ["And enter the code: TEST-CODE"]}
+      assert_received {:mix_shell, :info, ["— enter the code: TEST-CODE"]}
       assert_received {:mix_shell, :info, [""]}
       assert_received {:mix_shell, :info, ["Waiting for authentication..."]}
       assert_received {:mix_shell, :info, ["Authentication successful! Exchanging tokens..."]}
@@ -140,6 +138,110 @@ defmodule Mix.Tasks.Hex.UserTest do
       config = Hex.Config.read()
       assert config[:"$oauth_tokens"]["write"]["access_token"] == "write_token"
       assert config[:"$oauth_tokens"]["read"]["access_token"] == "read_token"
+
+      # Cleanup
+      Hex.State.put(:api_url, original_url)
+    end)
+  end
+
+  test "auth uses verification_uri_complete when available" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      bypass = Bypass.open()
+      original_url = Hex.State.fetch!(:api_url)
+      Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+      Hex.OAuth.clear_tokens()
+
+      # Set up device authorization with verification_uri_complete
+      Bypass.expect(bypass, "POST", "/api/oauth/device_authorization", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+        |> Plug.Conn.resp(
+          200,
+          Hex.Utils.safe_serialize_erlang(%{
+            "device_code" => "complete_device_code",
+            "user_code" => "COMPLETE-CODE",
+            "verification_uri" => "https://hex.pm/oauth/device",
+            "verification_uri_complete" => "https://hex.pm/oauth/device?user_code=COMPLETE-CODE",
+            "expires_in" => 600,
+            "interval" => 0
+          })
+        )
+      end)
+
+      # Set up combined polling and token exchange endpoint
+      Bypass.expect(bypass, "POST", "/api/oauth/token", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+
+        cond do
+          String.contains?(body, "device_code") ->
+            # Device polling - succeed immediately
+            conn
+            |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+            |> Plug.Conn.resp(
+              200,
+              Hex.Utils.safe_serialize_erlang(%{
+                "access_token" => "initial_token",
+                "token_type" => "bearer",
+                "expires_in" => 3600,
+                "refresh_token" => "initial_refresh",
+                "scope" => "api repositories"
+              })
+            )
+
+          String.contains?(body, "api:write") ->
+            # Token exchange for write scope
+            conn
+            |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+            |> Plug.Conn.resp(
+              200,
+              Hex.Utils.safe_serialize_erlang(%{
+                "access_token" => "write_token",
+                "token_type" => "bearer",
+                "expires_in" => 3600,
+                "refresh_token" => "write_refresh",
+                "scope" => "api:write"
+              })
+            )
+
+          String.contains?(body, "api:read") ->
+            # Token exchange for read scope
+            conn
+            |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+            |> Plug.Conn.resp(
+              200,
+              Hex.Utils.safe_serialize_erlang(%{
+                "access_token" => "read_token",
+                "token_type" => "bearer",
+                "expires_in" => 3600,
+                "refresh_token" => "read_refresh",
+                "scope" => "api:read repositories"
+              })
+            )
+
+          true ->
+            conn
+            |> Plug.Conn.resp(500, "Unexpected request")
+        end
+      end)
+
+      # Run the auth task
+      Mix.Tasks.Hex.User.run(["auth"])
+
+      # Verify that it uses the complete URI and doesn't show the user code
+      assert_received {:mix_shell, :info, ["Starting OAuth device flow authentication..."]}
+      assert_received {:mix_shell, :info, ["To authenticate, visit: https://hex.pm/oauth/device?user_code=COMPLETE-CODE"]}
+
+      # Should NOT receive the "enter the code" message since verification_uri_complete is provided
+      refute_received {:mix_shell, :info, ["— enter the code: COMPLETE-CODE"]}
+
+      assert_received {:mix_shell, :info, [""]}
+      assert_received {:hex_system_cmd, "open", ["https://hex.pm/oauth/device?user_code=COMPLETE-CODE"], []}
+      assert_received {:mix_shell, :info, ["Waiting for authentication..."]}
+      assert_received {:mix_shell, :info, ["Authentication successful! Exchanging tokens..."]}
+      assert_received {:mix_shell, :info, ["Authentication completed successfully!"]}
 
       # Cleanup
       Hex.State.put(:api_url, original_url)
@@ -321,8 +423,6 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Clear all auth
       Hex.OAuth.clear_tokens()
-      Hex.State.put(:api_key_write, nil)
-      Hex.State.put(:api_key_read, nil)
 
       # User says yes to authenticate inline
       send(self(), {:mix_shell_input, :yes?, true})
@@ -412,8 +512,6 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Clear all auth
       Hex.OAuth.clear_tokens()
-      Hex.State.put(:api_key_write, nil)
-      Hex.State.put(:api_key_read, nil)
 
       # User says no to authenticate inline
       send(self(), {:mix_shell_input, :yes?, false})
@@ -439,7 +537,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       assert [] = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
 
       # Test with API key set
-      Hex.State.put(:api_key_write, "test_api_key")
+      Hex.State.put(:api_key, "test_api_key")
       assert [key: "test_api_key"] = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
 
       # Test with OAuth tokens
@@ -564,7 +662,7 @@ defmodule Mix.Tasks.Hex.UserTest do
     in_tmp(fn ->
       set_home_cwd()
       auth = Hexpm.new_user("whoami", "whoami@mail.com", "password", "key")
-      Mix.Tasks.Hex.update_keys(auth[:key], auth[:key])
+      Hex.State.put(:api_key, auth[:key])
 
       Mix.Tasks.Hex.User.run(["whoami"])
       assert_received {:mix_shell, :info, ["whoami"]}
