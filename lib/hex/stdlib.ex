@@ -1,14 +1,6 @@
 defmodule Hex.Stdlib do
   @moduledoc false
 
-  defmacro stacktrace() do
-    if Version.compare(System.version(), "1.7.0") == :lt do
-      quote do: System.stacktrace()
-    else
-      quote do: __STACKTRACE__
-    end
-  end
-
   # TODO: Remove this once we require OTP 24.0
   def ssh_hostkey_fingerprint(digset_type, key) do
     cond do

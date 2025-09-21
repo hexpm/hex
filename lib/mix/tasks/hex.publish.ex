@@ -192,7 +192,6 @@ defmodule Mix.Tasks.Hex.Publish do
     rescue
       ex in [Mix.NoTaskError] ->
         require Hex.Stdlib
-        stacktrace = Hex.Stdlib.stacktrace()
 
         Mix.shell().error("""
         Publication failed because the "docs" task is unavailable. You may resolve this by:
@@ -202,7 +201,7 @@ defmodule Mix.Tasks.Hex.Publish do
           3. Publishing the package without docs by running "mix hex.publish package" (not recommended)
         """)
 
-        reraise ex, stacktrace
+        reraise ex, __STACKTRACE__
     after
       :code.add_pathsz(path)
     end
