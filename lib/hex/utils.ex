@@ -324,4 +324,45 @@ defmodule Hex.Utils do
       {app, req, opts}
     end)
   end
+
+  @doc """
+  Returns the appropriate command for opening a file or URL with the system's default handler.
+
+  Returns a tuple of {command, args, options} suitable for use with System.cmd/3.
+  """
+  def open_cmd(path) do
+    case :os.type() do
+      {:win32, _} ->
+        dirname = Path.dirname(path)
+        basename = Path.basename(path)
+        {"cmd", ["/c", "start", basename], [cd: dirname]}
+
+      {:unix, :darwin} ->
+        {"open", [path], []}
+
+      {:unix, _} ->
+        {"xdg-open", [path], []}
+    end
+  end
+
+  @doc """
+  Opens a file or URL with the system's default handler.
+
+  In test environment, sends a message instead of actually executing the command.
+  """
+  def system_open(path) do
+    path
+    |> open_cmd()
+    |> system_cmd()
+  end
+
+  if Mix.env() == :test do
+    defp system_cmd({cmd, args, options}) do
+      send(self(), {:hex_system_cmd, cmd, args, options})
+    end
+  else
+    defp system_cmd({cmd, args, options}) do
+      System.cmd(cmd, args, options)
+    end
+  end
 end

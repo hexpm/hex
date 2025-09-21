@@ -147,11 +147,24 @@ defmodule Mix.Tasks.Hex do
     device_code = device_response["device_code"]
     user_code = device_response["user_code"]
     verification_uri = device_response["verification_uri"]
+    verification_uri_complete = device_response["verification_uri_complete"]
     interval = device_response["interval"] || 5
 
-    Hex.Shell.info("To authenticate, visit: #{verification_uri}")
-    Hex.Shell.info("And enter the code: #{user_code}")
+    # Use the complete URI if available (has user code pre-filled), otherwise fall back to basic URI
+    uri_to_open = verification_uri_complete || verification_uri
+
+    Hex.Shell.info("To authenticate, visit: #{uri_to_open}")
+
+    # Only show the user code if we don't have the complete URI
+    if !verification_uri_complete do
+      Hex.Shell.info("— enter the code: #{user_code}")
+    end
+
     Hex.Shell.info("")
+
+    # Automatically open the browser
+    Hex.Utils.system_open(uri_to_open)
+
     Hex.Shell.info("Waiting for authentication...")
 
     case poll_for_token(device_code, interval) do

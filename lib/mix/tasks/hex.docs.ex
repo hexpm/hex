@@ -298,34 +298,7 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp browser_open(path) do
-    path
-    |> open_cmd()
-    |> system_cmd()
-  end
-
-  defp open_cmd(path) do
-    case :os.type() do
-      {:win32, _} ->
-        dirname = Path.dirname(path)
-        basename = Path.basename(path)
-        {"cmd", ["/c", "start", basename], [cd: dirname]}
-
-      {:unix, :darwin} ->
-        {"open", [path], []}
-
-      {:unix, _} ->
-        {"xdg-open", [path], []}
-    end
-  end
-
-  if Mix.env() == :test do
-    defp system_cmd({cmd, args, options}) do
-      send(self(), {:hex_system_cmd, cmd, args, options})
-    end
-  else
-    defp system_cmd({cmd, args, options}) do
-      System.cmd(cmd, args, options)
-    end
+    Hex.Utils.system_open(path)
   end
 
   defp open_file(path) do
