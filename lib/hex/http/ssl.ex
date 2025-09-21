@@ -120,7 +120,8 @@ defmodule Hex.HTTP.SSL do
   end
 
   defp filter_ciphers(allowed) do
-    available = MapSet.new(Hex.Stdlib.ssl_cipher_suites(:openssl))
+    [ssl_version | _] = :ssl.versions()[:supported]
+    available = MapSet.new(:ssl.cipher_suites(:all, ssl_version, :openssl))
     Enum.filter(allowed, &(&1 in available))
   end
 
