@@ -1,12 +1,14 @@
-%% Vendored from hex_core v0.11.0 (8d1b5a0), do not edit manually
+%% Vendored from hex_core v0.11.0 (75e889f), do not edit manually
 
 %% @doc
 %% Hex HTTP API - OAuth.
 -module(mix_hex_api_oauth).
 -export([
-    device_authorization/2,
-    token/2,
-    revoke/2
+    device_authorization/3,
+    poll_device_token/3,
+    exchange_token/4,
+    refresh_token/3,
+    revoke_token/3
 ]).
 
 %% @doc
@@ -18,8 +20,7 @@
 %%
 %% ```
 %% 1> Config = mix_hex_core:default_config().
-%% 2> Params = #{client_id => <<"cli">>, scope => <<"api:write">>}.
-%% 3> mix_hex_api_oauth:device_authorization(Config, Params).
+%% 2> mix_hex_api_oauth:device_authorization(Config, <<"cli">>, <<"api:write">>).
 %% {ok,{200, ..., #{
 %%     <<"device_code">> => <<"...">>,
 %%     <<"user_code">> => <<"ABCD-1234">>,
@@ -30,31 +31,17 @@
 %% }}}
 %% '''
 %% @end
--spec device_authorization(mix_hex_core:config(), map()) -> mix_hex_api:response().
-device_authorization(Config, Params) ->
+-spec device_authorization(mix_hex_core:config(), binary(), binary()) -> mix_hex_api:response().
+device_authorization(Config, ClientId, Scope) ->
     Path = <<"oauth/device_authorization">>,
+    Params = #{
+        <<"client_id">> => ClientId,
+        <<"scope">> => Scope
+    },
     mix_hex_api:post(Config, Path, Params).
 
 %% @doc
-%% OAuth token endpoint supporting multiple grant types.
-%%
-%% Supported grant types:
-%% - `authorization_code` - Exchange authorization code for token
-%% - `urn:ietf:params:oauth:grant-type:device_code` - Poll for device authorization
-%% - `refresh_token` - Refresh an existing token
-%% - `urn:ietf:params:oauth:grant-type:token-exchange` - Token exchange (RFC 8693)
-%%
-%% ## Device Code Grant
-%%
-%% ```
-%% 1> Config = mix_hex_core:default_config().
-%% 2> Params = #{
-%%     grant_type => <<"urn:ietf:params:oauth:grant-type:device_code">>,
-%%     device_code => <<"...">>,
-%%     client_id => <<"cli">>
-%% }.
-%% 3> mix_hex_api_oauth:token(Config, Params).
-%% '''
+%% Polls the OAuth token endpoint for device authorization completion.
 %%
 %% Returns:
 %% - `{ok, {200, _, Token}}` - Authorization complete
@@ -63,61 +50,81 @@ device_authorization(Config, Params) ->
 %% - `{ok, {400, _, #{<<"error">> => <<"expired_token">>}}}` - Code expired
 %% - `{ok, {403, _, #{<<"error">> => <<"access_denied">>}}}` - User denied
 %%
-%% ## Authorization Code Grant
+%% Examples:
 %%
 %% ```
 %% 1> Config = mix_hex_core:default_config().
-%% 2> Params = #{
-%%     grant_type => <<"authorization_code">>,
-%%     code => <<"...">>,
-%%     client_id => <<"...">>,
-%%     client_secret => <<"...">>,
-%%     redirect_uri => <<"...">>,
-%%     code_verifier => <<"...">>
-%% }.
-%% 3> mix_hex_api_oauth:token(Config, Params).
-%% '''
-%%
-%% ## Refresh Token Grant
-%%
-%% ```
-%% 1> Config = mix_hex_core:default_config().
-%% 2> Params = #{
-%%     grant_type => <<"refresh_token">>,
-%%     refresh_token => <<"...">>,
-%%     client_id => <<"...">>,
-%%     client_secret => <<"...">>
-%% }.
-%% 3> mix_hex_api_oauth:token(Config, Params).
-%% '''
-%%
-%% ## Token Exchange Grant (RFC 8693)
-%%
-%% ```
-%% 1> Config = mix_hex_core:default_config().
-%% 2> Params = #{
-%%     grant_type => <<"urn:ietf:params:oauth:grant-type:token-exchange">>,
-%%     subject_token => <<"...">>,
-%%     subject_token_type => <<"urn:x-oath:params:oauth:token-type:key">>,
-%%     client_id => <<"...">>,
-%%     scope => <<"api:read">>
-%% }.
-%% 3> mix_hex_api_oauth:token(Config, Params).
-%% '''
-%%
-%% Successful response includes:
-%% ```
-%% #{
+%% 2> mix_hex_api_oauth:poll_device_token(Config, <<"cli">>, DeviceCode).
+%% {ok, {200, _, #{
 %%     <<"access_token">> => <<"...">>,
 %%     <<"refresh_token">> => <<"...">>,
 %%     <<"token_type">> => <<"Bearer">>,
 %%     <<"expires_in">> => 3600
-%% }
+%% }}}
 %% '''
 %% @end
--spec token(mix_hex_core:config(), map()) -> mix_hex_api:response().
-token(Config, Params) ->
+-spec poll_device_token(mix_hex_core:config(), binary(), binary()) -> mix_hex_api:response().
+poll_device_token(Config, ClientId, DeviceCode) ->
     Path = <<"oauth/token">>,
+    Params = #{
+        <<"grant_type">> => <<"urn:ietf:params:oauth:grant-type:device_code">>,
+        <<"device_code">> => DeviceCode,
+        <<"client_id">> => ClientId
+    },
+    mix_hex_api:post(Config, Path, Params).
+
+%% @doc
+%% Exchanges a token for a new token with different scopes using RFC 8693 token exchange.
+%%
+%% Examples:
+%%
+%% ```
+%% 1> Config = mix_hex_core:default_config().
+%% 2> mix_hex_api_oauth:exchange_token(Config, <<"cli">>, SubjectToken, <<"api:write">>).
+%% {ok, {200, _, #{
+%%     <<"access_token">> => <<"...">>,
+%%     <<"refresh_token">> => <<"...">>,
+%%     <<"token_type">> => <<"Bearer">>,
+%%     <<"expires_in">> => 3600
+%% }}}
+%% '''
+%% @end
+-spec exchange_token(mix_hex_core:config(), binary(), binary(), binary()) -> mix_hex_api:response().
+exchange_token(Config, ClientId, SubjectToken, Scope) ->
+    Path = <<"oauth/token">>,
+    Params = #{
+        <<"grant_type">> => <<"urn:ietf:params:oauth:grant-type:token-exchange">>,
+        <<"subject_token">> => SubjectToken,
+        <<"subject_token_type">> => <<"urn:ietf:params:oauth:token-type:access_token">>,
+        <<"client_id">> => ClientId,
+        <<"scope">> => Scope
+    },
+    mix_hex_api:post(Config, Path, Params).
+
+%% @doc
+%% Refreshes an access token using a refresh token.
+%%
+%% Examples:
+%%
+%% ```
+%% 1> Config = mix_hex_core:default_config().
+%% 2> mix_hex_api_oauth:refresh_token(Config, <<"cli">>, RefreshToken).
+%% {ok, {200, _, #{
+%%     <<"access_token">> => <<"...">>,
+%%     <<"refresh_token">> => <<"...">>,
+%%     <<"token_type">> => <<"Bearer">>,
+%%     <<"expires_in">> => 3600
+%% }}}
+%% '''
+%% @end
+-spec refresh_token(mix_hex_core:config(), binary(), binary()) -> mix_hex_api:response().
+refresh_token(Config, ClientId, RefreshToken) ->
+    Path = <<"oauth/token">>,
+    Params = #{
+        <<"grant_type">> => <<"refresh_token">>,
+        <<"refresh_token">> => RefreshToken,
+        <<"client_id">> => ClientId
+    },
     mix_hex_api:post(Config, Path, Params).
 
 %% @doc
@@ -131,16 +138,15 @@ token(Config, Params) ->
 %%
 %% ```
 %% 1> Config = mix_hex_core:default_config().
-%% 2> Params = #{
-%%     token => <<"...">>,
-%%     client_id => <<"cli">>,
-%%     token_type_hint => <<"access_token">>  % optional
-%% }.
-%% 3> mix_hex_api_oauth:revoke(Config, Params).
+%% 2> mix_hex_api_oauth:revoke_token(Config, <<"cli">>, Token).
 %% {ok, {200, ..., nil}}
 %% '''
 %% @end
--spec revoke(mix_hex_core:config(), map()) -> mix_hex_api:response().
-revoke(Config, Params) ->
+-spec revoke_token(mix_hex_core:config(), binary(), binary()) -> mix_hex_api:response().
+revoke_token(Config, ClientId, Token) ->
     Path = <<"oauth/revoke">>,
+    Params = #{
+        <<"token">> => Token,
+        <<"client_id">> => ClientId
+    },
     mix_hex_api:post(Config, Path, Params).

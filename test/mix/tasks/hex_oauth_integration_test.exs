@@ -104,6 +104,7 @@ defmodule Mix.Tasks.HexOAuthIntegrationTest do
           "expires_at" => past_time
         }
       }
+
       Hex.OAuth.store_tokens(expired_no_refresh)
       assert {:error, :token_expired} = Hex.OAuth.get_token(:write)
     end
@@ -150,8 +151,11 @@ defmodule Mix.Tasks.HexOAuthIntegrationTest do
 
       Hex.OAuth.store_tokens(tokens)
 
-      assert [key: "oauth_write_token", oauth: true] = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
-      assert [key: "oauth_read_token", oauth: true] = Mix.Tasks.Hex.auth_info(:read, auth_inline: false)
+      assert [key: "oauth_write_token", oauth: true] =
+               Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
+
+      assert [key: "oauth_read_token", oauth: true] =
+               Mix.Tasks.Hex.auth_info(:read, auth_inline: false)
     end
 
     test "auth_info falls back to API key when no OAuth tokens" do
