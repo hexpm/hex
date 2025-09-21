@@ -333,9 +333,7 @@ defmodule Hex.Utils do
   def open_cmd(path) do
     case :os.type() do
       {:win32, _} ->
-        dirname = Path.dirname(path)
-        basename = Path.basename(path)
-        {"cmd", ["/c", "start", basename], [cd: dirname]}
+        {"cmd", ["/c", "start", path]}
 
       {:unix, :darwin} ->
         {"open", [path], []}

@@ -318,6 +318,7 @@ defmodule Mix.Tasks.Hex do
             case Hex.API.OAuth.revoke_token(access_token) do
               {:ok, {code, _, _}} when code in 200..299 ->
                 :ok
+
               _ ->
                 :ok
             end
@@ -339,9 +340,10 @@ defmodule Mix.Tasks.Hex do
     # Check for old write key
     if write_key = config[:"$write_key"] do
       # Try to revoke on server (might fail if already revoked or invalid)
-      case Hex.API.Key.delete(write_key, [key: write_key]) do
+      case Hex.API.Key.delete(write_key, key: write_key) do
         {:ok, {code, _, _}} when code in 200..299 ->
           Hex.Shell.info("Revoked old write API key.")
+
         _ ->
           # Key might already be invalid, continue anyway
           :ok
@@ -351,9 +353,10 @@ defmodule Mix.Tasks.Hex do
     # Check for old read key (only if different from write key)
     if read_key = config[:"$read_key"] do
       if read_key != config[:"$write_key"] do
-        case Hex.API.Key.delete(read_key, [key: read_key]) do
+        case Hex.API.Key.delete(read_key, key: read_key) do
           {:ok, {code, _, _}} when code in 200..299 ->
             Hex.Shell.info("Revoked old read API key.")
+
           _ ->
             :ok
         end

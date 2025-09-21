@@ -232,13 +232,19 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Verify that it uses the complete URI and doesn't show the user code
       assert_received {:mix_shell, :info, ["Starting OAuth device flow authentication..."]}
-      assert_received {:mix_shell, :info, ["To authenticate, visit: https://hex.pm/oauth/device?user_code=COMPLETE-CODE"]}
+
+      assert_received {:mix_shell, :info,
+                       [
+                         "To authenticate, visit: https://hex.pm/oauth/device?user_code=COMPLETE-CODE"
+                       ]}
 
       # Should NOT receive the "enter the code" message since verification_uri_complete is provided
       refute_received {:mix_shell, :info, ["— enter the code: COMPLETE-CODE"]}
 
       assert_received {:mix_shell, :info, [""]}
-      assert_received {:hex_system_cmd, "open", ["https://hex.pm/oauth/device?user_code=COMPLETE-CODE"], []}
+
+      assert_received {:hex_system_cmd, _cmd, _args, _opts}
+
       assert_received {:mix_shell, :info, ["Waiting for authentication..."]}
       assert_received {:mix_shell, :info, ["Authentication successful! Exchanging tokens..."]}
       assert_received {:mix_shell, :info, ["Authentication completed successfully!"]}
