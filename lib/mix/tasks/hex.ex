@@ -125,6 +125,13 @@ defmodule Mix.Tasks.Hex do
     auth_device(opts)
   end
 
+  defp get_hostname() do
+    case :inet.gethostname() do
+      {:ok, hostname} -> to_string(hostname)
+      {:error, _} -> nil
+    end
+  end
+
   @doc false
   def auth_device(_opts \\ []) do
     # Clean up any existing authentication
@@ -133,7 +140,9 @@ defmodule Mix.Tasks.Hex do
 
     Hex.Shell.info("Starting OAuth device flow authentication...")
 
-    case Hex.API.OAuth.device_authorization() do
+    name = get_hostname()
+
+    case Hex.API.OAuth.device_authorization("api repositories", name) do
       {:ok, {200, _, device_response}} ->
         perform_device_flow(device_response)
 

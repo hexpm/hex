@@ -10,7 +10,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       Hex.OAuth.clear_tokens()
 
       # Test that device authorization works but don't try to complete the flow
-      assert {:ok, {200, _headers, response}} = Hex.API.OAuth.device_authorization()
+      assert {:ok, {200, _headers, response}} = Hex.API.OAuth.device_authorization("api")
 
       assert %{
                "device_code" => device_code,
@@ -39,8 +39,49 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Test device authorization
       assert {:ok, {200, _headers, %{"device_code" => device_code}}} =
-               Hex.API.OAuth.device_authorization()
+               Hex.API.OAuth.device_authorization("api")
 
+      assert is_binary(device_code)
+    end)
+  end
+
+  test "auth with custom name parameter" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      Hex.OAuth.clear_tokens()
+
+      # Test device authorization with a custom name
+      custom_name = "MyTestDevice"
+
+      assert {:ok, {200, _headers, response}} =
+               Hex.API.OAuth.device_authorization("api repositories", custom_name)
+
+      assert %{
+               "device_code" => device_code,
+               "user_code" => user_code
+             } = response
+
+      assert is_binary(device_code)
+      assert is_binary(user_code)
+
+      # Verify the flow works with the name parameter
+      assert {:ok, {400, _headers, %{"error" => "authorization_pending"}}} =
+               Hex.API.OAuth.poll_device_token(device_code)
+    end)
+  end
+
+  test "auth with nil name parameter" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      Hex.OAuth.clear_tokens()
+
+      # Test device authorization with nil name (should work)
+      assert {:ok, {200, _headers, response}} =
+               Hex.API.OAuth.device_authorization("api repositories", nil)
+
+      assert %{"device_code" => device_code} = response
       assert is_binary(device_code)
     end)
   end
@@ -67,7 +108,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Test that repeated polling gets proper response
       assert {:ok, {200, _headers, %{"device_code" => device_code}}} =
-               Hex.API.OAuth.device_authorization()
+               Hex.API.OAuth.device_authorization("api")
 
       # Immediate polling should get authorization_pending
       assert {:ok, {400, _headers, %{"error" => "authorization_pending"}}} =
@@ -82,7 +123,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       Hex.OAuth.clear_tokens()
 
       # Test device authorization returns proper structure
-      assert {:ok, {200, _headers, response}} = Hex.API.OAuth.device_authorization()
+      assert {:ok, {200, _headers, response}} = Hex.API.OAuth.device_authorization("api")
 
       assert %{
                "device_code" => _,

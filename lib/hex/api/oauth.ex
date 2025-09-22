@@ -9,10 +9,11 @@ defmodule Hex.API.OAuth do
   Initiates the OAuth device authorization flow.
 
   Returns device code, user code, and verification URIs for user authentication.
+  Optionally accepts a name parameter to identify the token.
 
   ## Examples
 
-      iex> Hex.API.OAuth.device_authorization()
+      iex> Hex.API.OAuth.device_authorization("api")
       {:ok, {200, _headers, %{
         "device_code" => "...",
         "user_code" => "ABCD-1234",
@@ -22,9 +23,10 @@ defmodule Hex.API.OAuth do
         "interval" => 5
       }}}
   """
-  def device_authorization(scopes \\ "api repositories") do
+  def device_authorization(scopes, name \\ nil) do
     config = Client.config()
-    :mix_hex_api_oauth.device_authorization(config, @client_id, scopes)
+    opts = if name, do: [name: name], else: []
+    :mix_hex_api_oauth.device_authorization(config, @client_id, scopes, opts)
   end
 
   @doc """

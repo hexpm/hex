@@ -1,10 +1,11 @@
-%% Vendored from hex_core v0.11.0 (75e889f), do not edit manually
+%% Vendored from hex_core v0.11.0 (94a912d), do not edit manually
 
 %% @doc
 %% Hex HTTP API - OAuth.
 -module(mix_hex_api_oauth).
 -export([
     device_authorization/3,
+    device_authorization/4,
     poll_device_token/3,
     exchange_token/4,
     refresh_token/3,
@@ -33,11 +34,32 @@
 %% @end
 -spec device_authorization(mix_hex_core:config(), binary(), binary()) -> mix_hex_api:response().
 device_authorization(Config, ClientId, Scope) ->
+    device_authorization(Config, ClientId, Scope, []).
+
+%% @doc
+%% Initiates the OAuth device authorization flow with optional parameters.
+%%
+%% Options:
+%%   * name - A name to identify the token (e.g., hostname of the device)
+%%
+%% Examples:
+%%
+%% ```
+%% 1> Config = mix_hex_core:default_config().
+%% 2> mix_hex_api_oauth:device_authorization(Config, <<"cli">>, <<"api:write">>, [{name, <<"MyMachine">>}]).
+%% '''
+%% @end
+-spec device_authorization(mix_hex_core:config(), binary(), binary(), proplists:proplist()) -> mix_hex_api:response().
+device_authorization(Config, ClientId, Scope, Opts) ->
     Path = <<"oauth/device_authorization">>,
-    Params = #{
+    Params0 = #{
         <<"client_id">> => ClientId,
         <<"scope">> => Scope
     },
+    Params = case proplists:get_value(name, Opts) of
+        undefined -> Params0;
+        Name -> Params0#{<<"name">> => Name}
+    end,
     mix_hex_api:post(Config, Path, Params).
 
 %% @doc

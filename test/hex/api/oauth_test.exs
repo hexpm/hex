@@ -17,7 +17,7 @@ defmodule Hex.API.OAuthTest do
     end
 
     test "defaults to api repositories scope" do
-      assert {:ok, {200, _headers, response}} = Hex.API.OAuth.device_authorization()
+      assert {:ok, {200, _headers, response}} = Hex.API.OAuth.device_authorization("api")
 
       # Should return valid device authorization data
       assert is_binary(response["device_code"])
@@ -32,12 +32,32 @@ defmodule Hex.API.OAuthTest do
       # Server may return 200 (accepted), 400 (invalid scope), or 401 (invalid client)
       assert status in [200, 400, 401]
     end
+
+    test "sends name parameter when provided" do
+      name = "TestMachine"
+
+      assert {:ok, {200, _headers, response}} =
+               Hex.API.OAuth.device_authorization("api repositories", name)
+
+      # Verify the response has the expected structure
+      assert is_binary(response["device_code"])
+      assert is_binary(response["user_code"])
+    end
+
+    test "works without name parameter" do
+      assert {:ok, {200, _headers, response}} =
+               Hex.API.OAuth.device_authorization("api repositories", nil)
+
+      # Should still return valid device authorization data
+      assert is_binary(response["device_code"])
+      assert is_binary(response["user_code"])
+    end
   end
 
   describe "poll_device_token/1" do
     test "returns authorization_pending for valid device code" do
       # First get a valid device code
-      {:ok, {200, _headers, device_response}} = Hex.API.OAuth.device_authorization()
+      {:ok, {200, _headers, device_response}} = Hex.API.OAuth.device_authorization("api")
       device_code = device_response["device_code"]
 
       # Polling should return authorization_pending since user hasn't authorized
