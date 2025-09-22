@@ -301,12 +301,6 @@ defmodule Mix.Tasks.Hex do
   end
 
   @doc false
-  def clear_oauth_tokens do
-    Hex.OAuth.clear_tokens()
-    Hex.Shell.info("OAuth tokens cleared.")
-  end
-
-  @doc false
   def revoke_existing_oauth_tokens do
     case Hex.Config.read()[:"$oauth_tokens"] do
       nil ->

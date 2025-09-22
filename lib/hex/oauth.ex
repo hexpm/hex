@@ -118,17 +118,7 @@ defmodule Hex.OAuth do
   end
 
   defp get_stored_tokens do
-    # Try to get from state first (in memory), then from config
-    Hex.State.get(:oauth_tokens) ||
-      case Hex.Config.read()[:"$oauth_tokens"] do
-        nil ->
-          nil
-
-        tokens ->
-          # Cache in state for faster access
-          Hex.State.put(:oauth_tokens, tokens)
-          tokens
-      end
+    Hex.State.get(:oauth_tokens)
   end
 
   defp valid_token?(token_data) do

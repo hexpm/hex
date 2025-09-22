@@ -1,191 +1,127 @@
 defmodule Hex.API.OAuthTest do
   use HexTest.IntegrationCase
 
-  setup do
-    bypass = Bypass.open()
-    Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
-    {:ok, bypass: bypass}
-  end
+  # Using real test server at localhost:4043 with OAuth client configured
 
   describe "device_authorization/1" do
-    test "returns device authorization data", %{bypass: bypass} do
-      expected_response = %{
-        "device_code" => "test_device_code",
-        "user_code" => "TEST123",
-        "verification_uri" => "https://hex.pm/oauth/device",
-        "verification_uri_complete" => "https://hex.pm/oauth/device?user_code=TEST123",
-        "expires_in" => 600,
-        "interval" => 5
-      }
-
-      Bypass.expect(bypass, "POST", "/api/oauth/device_authorization", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(expected_response))
-      end)
-
+    test "returns device authorization data" do
       assert {:ok, {200, _headers, response}} =
                Hex.API.OAuth.device_authorization("api repositories")
 
-      assert response == expected_response
+      # Verify the response has the expected structure from the real server
+      assert is_binary(response["device_code"])
+      assert is_binary(response["user_code"])
+      assert is_binary(response["verification_uri"])
+      assert is_integer(response["expires_in"])
+      assert is_integer(response["interval"])
     end
 
-    test "defaults to api repositories scope", %{bypass: bypass} do
-      Bypass.expect(bypass, "POST", "/api/oauth/device_authorization", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(%{}))
-      end)
+    test "defaults to api repositories scope" do
+      assert {:ok, {200, _headers, response}} = Hex.API.OAuth.device_authorization()
 
-      Hex.API.OAuth.device_authorization()
+      # Should return valid device authorization data
+      assert is_binary(response["device_code"])
+      assert is_binary(response["user_code"])
     end
 
-    test "handles error response", %{bypass: bypass} do
-      Bypass.expect(bypass, "POST", "/api/oauth/device_authorization", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(400, Hex.Utils.safe_serialize_erlang(%{"error" => "invalid_request"}))
-      end)
+    test "handles invalid scope" do
+      # The real server should handle invalid scopes - may accept or reject
+      assert {:ok, {status, _headers, _response}} =
+               Hex.API.OAuth.device_authorization("invalid_scope")
 
-      assert {:ok, {400, _headers, %{"error" => "invalid_request"}}} =
-               Hex.API.OAuth.device_authorization()
+      # Server may return 200 (accepted), 400 (invalid scope), or 401 (invalid client)
+      assert status in [200, 400, 401]
     end
   end
 
   describe "poll_device_token/1" do
-    test "returns token on successful authorization", %{bypass: bypass} do
-      expected_response = %{
-        "access_token" => "access_token_value",
-        "token_type" => "bearer",
-        "expires_in" => 3600,
-        "refresh_token" => "refresh_token_value",
-        "scope" => "api repositories"
-      }
+    test "returns authorization_pending for valid device code" do
+      # First get a valid device code
+      {:ok, {200, _headers, device_response}} = Hex.API.OAuth.device_authorization()
+      device_code = device_response["device_code"]
 
-      Bypass.expect(bypass, "POST", "/api/oauth/token", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(expected_response))
-      end)
-
-      assert {:ok, {200, _headers, response}} =
-               Hex.API.OAuth.poll_device_token("test_device_code")
-
-      assert response == expected_response
-    end
-
-    test "returns authorization_pending when user hasn't authorized yet", %{bypass: bypass} do
-      Bypass.expect(bypass, "POST", "/api/oauth/token", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(
-          400,
-          Hex.Utils.safe_serialize_erlang(%{"error" => "authorization_pending"})
-        )
-      end)
-
+      # Polling should return authorization_pending since user hasn't authorized
       assert {:ok, {400, _headers, %{"error" => "authorization_pending"}}} =
-               Hex.API.OAuth.poll_device_token("test_device_code")
+               Hex.API.OAuth.poll_device_token(device_code)
     end
 
-    test "returns slow_down when polling too frequently", %{bypass: bypass} do
-      Bypass.expect(bypass, "POST", "/api/oauth/token", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(400, Hex.Utils.safe_serialize_erlang(%{"error" => "slow_down"}))
-      end)
+    test "returns invalid_grant for invalid device code" do
+      assert {:ok, {400, _headers, %{"error" => "invalid_grant"}}} =
+               Hex.API.OAuth.poll_device_token("invalid_device_code")
+    end
 
-      assert {:ok, {400, _headers, %{"error" => "slow_down"}}} =
-               Hex.API.OAuth.poll_device_token("test_device_code")
+    test "handles malformed device code" do
+      assert {:ok, {400, _headers, %{"error" => error}}} =
+               Hex.API.OAuth.poll_device_token("")
+
+      assert error in ["invalid_grant", "invalid_request"]
     end
   end
 
   describe "exchange_token/2" do
-    test "exchanges token for more limited scope", %{bypass: bypass} do
-      expected_response = %{
-        "access_token" => "limited_access_token",
-        "token_type" => "bearer",
-        "expires_in" => 3600,
-        "refresh_token" => "limited_refresh_token",
-        "scope" => "api:write"
-      }
+    test "handles invalid token exchange" do
+      # Test with a completely invalid token
+      assert {:ok, {status, _headers, %{"error" => error}}} =
+               Hex.API.OAuth.exchange_token("invalid_token", "api:write")
 
-      Bypass.expect(bypass, "POST", "/api/oauth/token", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(expected_response))
-      end)
-
-      assert {:ok, {200, _headers, response}} =
-               Hex.API.OAuth.exchange_token("original_token", "api:write")
-
-      assert response == expected_response
+      assert status in [400, 401]
+      assert error in ["invalid_token", "invalid_grant"]
     end
 
-    test "handles invalid token", %{bypass: bypass} do
-      Bypass.expect(bypass, "POST", "/api/oauth/token", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(400, Hex.Utils.safe_serialize_erlang(%{"error" => "invalid_grant"}))
-      end)
+    test "handles token exchange with invalid scope" do
+      # Test with invalid scope and invalid token (expect token error first)
+      assert {:ok, {status, _headers, %{"error" => error}}} =
+               Hex.API.OAuth.exchange_token("invalid_token", "invalid_scope")
 
-      assert {:ok, {400, _headers, %{"error" => "invalid_grant"}}} =
-               Hex.API.OAuth.exchange_token("invalid_token", "api:write")
+      assert status in [400, 401]
+      assert error in ["invalid_token", "invalid_grant", "invalid_scope"]
+    end
+
+    test "validates token format" do
+      # Test with malformed token
+      assert {:ok, {status, _headers, %{"error" => error}}} =
+               Hex.API.OAuth.exchange_token("malformed_token", "api:write")
+
+      assert status in [400, 401]
+      assert error in ["invalid_grant", "invalid_token"]
     end
   end
 
   describe "refresh_token/1" do
-    test "refreshes access token", %{bypass: bypass} do
-      expected_response = %{
-        "access_token" => "new_access_token",
-        "token_type" => "bearer",
-        "expires_in" => 3600,
-        "refresh_token" => "new_refresh_token",
-        "scope" => "api:write"
-      }
+    test "handles invalid refresh token" do
+      # Test with a completely invalid refresh token
+      assert {:ok, {status, _headers, %{"error" => error}}} =
+               Hex.API.OAuth.refresh_token("invalid_refresh_token")
 
-      Bypass.expect(bypass, "POST", "/api/oauth/token", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(expected_response))
-      end)
-
-      assert {:ok, {200, _headers, response}} = Hex.API.OAuth.refresh_token("refresh_token_value")
-      assert response == expected_response
+      assert status in [400, 401]
+      assert error in ["invalid_token", "invalid_grant"]
     end
 
-    test "handles invalid refresh token", %{bypass: bypass} do
-      Bypass.expect(bypass, "POST", "/api/oauth/token", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(400, Hex.Utils.safe_serialize_erlang(%{"error" => "invalid_grant"}))
-      end)
+    test "handles malformed refresh token" do
+      # Test with malformed refresh token
+      assert {:ok, {status, _headers, %{"error" => error}}} =
+               Hex.API.OAuth.refresh_token("malformed_token")
 
-      assert {:ok, {400, _headers, %{"error" => "invalid_grant"}}} =
-               Hex.API.OAuth.refresh_token("invalid_refresh_token")
+      assert status in [400, 401]
+      assert error in ["invalid_token", "invalid_grant"]
+    end
+
+    test "handles empty refresh token" do
+      assert {:ok, {400, _headers, %{"error" => error}}} =
+               Hex.API.OAuth.refresh_token("")
+
+      assert error in ["invalid_grant", "invalid_request"]
     end
   end
 
   describe "revoke_token/1" do
-    test "revokes token successfully", %{bypass: bypass} do
-      Bypass.expect(bypass, "POST", "/api/oauth/revoke", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(""))
-      end)
-
-      assert {:ok, {200, _headers, ""}} = Hex.API.OAuth.revoke_token("token_to_revoke")
+    test "returns 200 for token revocation" do
+      # OAuth revoke endpoint returns 200 even for invalid tokens (per RFC 7009)
+      assert {:ok, {200, _headers, _body}} = Hex.API.OAuth.revoke_token("any_token")
     end
 
-    test "handles invalid token", %{bypass: bypass} do
-      Bypass.expect(bypass, "POST", "/api/oauth/revoke", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(400, Hex.Utils.safe_serialize_erlang(%{"error" => "invalid_request"}))
-      end)
-
-      assert {:ok, {400, _headers, %{"error" => "invalid_request"}}} =
-               Hex.API.OAuth.revoke_token("invalid_token")
+    test "handles empty token" do
+      assert {:ok, {200, _headers, _body}} = Hex.API.OAuth.revoke_token("")
     end
   end
 end

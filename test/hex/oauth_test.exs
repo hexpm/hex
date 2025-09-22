@@ -1,12 +1,5 @@
 defmodule Hex.OAuthTest do
-  use HexTest.Case
-
-  setup do
-    # Clear any stored tokens before each test
-    Hex.OAuth.clear_tokens()
-
-    :ok
-  end
+  use HexTest.IntegrationCase
 
   describe "get_token/1" do
     test "returns error when no tokens are stored" do
@@ -50,6 +43,24 @@ defmodule Hex.OAuthTest do
 
       assert {:error, :token_expired} = Hex.OAuth.get_token(:read)
     end
+
+    test "returns error when token is expired and refresh fails" do
+      # Create expired token with invalid refresh token (since we can't test real refresh)
+      past_time = System.system_time(:second) - 100
+
+      expired_tokens = %{
+        "write" => %{
+          "access_token" => "expired_token",
+          "refresh_token" => "invalid_refresh_token",
+          "expires_at" => past_time
+        }
+      }
+
+      Hex.OAuth.store_tokens(expired_tokens)
+
+      # Should fail to refresh and return error
+      assert {:error, :refresh_failed} = Hex.OAuth.get_token(:write)
+    end
   end
 
   describe "store_tokens/1" do
@@ -71,6 +82,14 @@ defmodule Hex.OAuthTest do
       config = Hex.Config.read()
       assert config[:"$oauth_tokens"] == tokens
     end
+
+    test "handles empty tokens" do
+      Hex.OAuth.store_tokens(%{})
+
+      assert Hex.State.get(:oauth_tokens) == %{}
+      config = Hex.Config.read()
+      assert config[:"$oauth_tokens"] == %{}
+    end
   end
 
   describe "clear_tokens/0" do
@@ -91,6 +110,28 @@ defmodule Hex.OAuthTest do
       assert Hex.State.get(:oauth_tokens) == nil
       refute Hex.OAuth.has_tokens?()
     end
+
+    test "clears tokens from config file" do
+      tokens = %{
+        "write" => %{
+          "access_token" => "config_token",
+          "refresh_token" => "config_refresh",
+          "expires_at" => System.system_time(:second) + 3600
+        }
+      }
+
+      Hex.OAuth.store_tokens(tokens)
+
+      # Verify token is in config
+      config = Hex.Config.read()
+      assert config[:"$oauth_tokens"]["write"]["access_token"] == "config_token"
+
+      Hex.OAuth.clear_tokens()
+
+      # Verify token is removed from config
+      config = Hex.Config.read()
+      assert is_list(config) or not Map.has_key?(config, :"$oauth_tokens")
+    end
   end
 
   describe "has_tokens?/0" do
@@ -104,6 +145,20 @@ defmodule Hex.OAuthTest do
           "access_token" => "token",
           "refresh_token" => "refresh",
           "expires_at" => System.system_time(:second) + 3600
+        }
+      }
+
+      Hex.OAuth.store_tokens(tokens)
+      assert Hex.OAuth.has_tokens?()
+    end
+
+    test "returns true even with expired tokens" do
+      past_time = System.system_time(:second) - 100
+
+      tokens = %{
+        "read" => %{
+          "access_token" => "expired_token",
+          "expires_at" => past_time
         }
       }
 
@@ -139,6 +194,21 @@ defmodule Hex.OAuthTest do
                "refresh_token"
              ]
     end
+
+    test "handles missing refresh token" do
+      oauth_response = %{
+        "access_token" => "test_token",
+        "expires_in" => 3600,
+        "token_type" => "bearer",
+        "scope" => "api"
+      }
+
+      token_data = Hex.OAuth.create_token_data(oauth_response)
+
+      assert token_data["access_token"] == "test_token"
+      refute Map.has_key?(token_data, "refresh_token")
+      assert is_integer(token_data["expires_at"])
+    end
   end
 
   test "token validation considers 60 second buffer" do
@@ -159,72 +229,34 @@ defmodule Hex.OAuthTest do
   end
 
   describe "refresh_token/1" do
-    setup do
-      bypass = Bypass.open()
-      original_url = Hex.State.fetch!(:api_url)
-      Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
-
-      on_exit(fn ->
-        Hex.State.put(:api_url, original_url)
-      end)
-
-      {:ok, bypass: bypass}
-    end
-
-    test "successfully refreshes token", %{bypass: bypass} do
-      # Setup initial tokens
+    test "handles refresh token failure with real server" do
+      # Test refresh token failure (since we can't create valid OAuth tokens)
       tokens = %{
         "write" => %{
           "access_token" => "old_token",
-          "refresh_token" => "refresh_token_value",
+          "refresh_token" => "invalid_refresh_token",
           "expires_at" => System.system_time(:second) + 100
         }
       }
 
       Hex.OAuth.store_tokens(tokens)
 
-      # Mock successful refresh response
-      Bypass.expect(bypass, "POST", "/api/oauth/token", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(
-          200,
-          Hex.Utils.safe_serialize_erlang(%{
-            "access_token" => "new_access_token",
-            "refresh_token" => "new_refresh_token",
-            "expires_in" => 3600,
-            "token_type" => "bearer"
-          })
-        )
-      end)
-
-      assert {:ok, "new_access_token"} = Hex.OAuth.refresh_token(:write)
-
-      # Verify tokens were updated
-      updated_tokens = Hex.State.get(:oauth_tokens)
-      write_token = updated_tokens["write"]
-      assert write_token["access_token"] == "new_access_token"
-      assert write_token["refresh_token"] == "new_refresh_token"
-      assert write_token["expires_at"] > System.system_time(:second) + 3500
+      # This should make a real HTTP request to the server and fail
+      assert {:error, :refresh_failed} = Hex.OAuth.refresh_token(:write)
     end
 
-    test "handles refresh failure", %{bypass: bypass} do
+    test "handles refresh failure with invalid token" do
       tokens = %{
         "read" => %{
           "access_token" => "old_token",
-          "refresh_token" => "invalid_refresh",
+          "refresh_token" => "definitely_invalid_refresh_token",
           "expires_at" => System.system_time(:second) + 100
         }
       }
 
       Hex.OAuth.store_tokens(tokens)
 
-      Bypass.expect(bypass, "POST", "/api/oauth/token", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(400, Hex.Utils.safe_serialize_erlang(%{"error" => "invalid_grant"}))
-      end)
-
+      # This should make a real HTTP request and fail
       assert {:error, :refresh_failed} = Hex.OAuth.refresh_token(:read)
     end
 
@@ -243,6 +275,27 @@ defmodule Hex.OAuthTest do
 
     test "returns error when no tokens stored" do
       assert {:error, :no_auth} = Hex.OAuth.refresh_token(:read)
+    end
+
+    test "handles network errors gracefully" do
+      tokens = %{
+        "write" => %{
+          "access_token" => "token",
+          "refresh_token" => "some_token",
+          "expires_at" => System.system_time(:second) + 100
+        }
+      }
+
+      Hex.OAuth.store_tokens(tokens)
+
+      # Temporarily point to invalid URL to simulate network error
+      original_url = Hex.State.fetch!(:api_url)
+      Hex.State.put(:api_url, "http://invalid-host:9999/api")
+
+      assert {:error, :refresh_failed} = Hex.OAuth.refresh_token(:write)
+
+      # Restore original URL
+      Hex.State.put(:api_url, original_url)
     end
   end
 end

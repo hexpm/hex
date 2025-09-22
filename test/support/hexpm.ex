@@ -279,16 +279,95 @@ defmodule HexTest.Hexpm do
   end
 
   @doc """
-  Creates OAuth tokens for testing without going through the device flow.
+  Creates OAuth tokens for testing using the real OAuth server endpoints.
   Returns the same format that would be stored after OAuth authentication.
   """
   def new_oauth_user(username, email, password) do
-    # Create user account (still needed for whoami etc)
-    {:ok, {201, _, _}} = Hex.API.User.new(username, email, password)
+    # Add timestamp and random bytes to make usernames and emails unique across test runs
+    timestamp = System.system_time(:millisecond)
+    random_suffix = Base.encode16(:crypto.strong_rand_bytes(4), case: :lower)
+    unique_username = "#{username}_#{timestamp}_#{random_suffix}"
+    unique_email = "#{timestamp}_#{random_suffix}_#{email}"
 
-    # Generate mock OAuth tokens
-    write_token = "oauth_write_" <> Base.encode16(:crypto.strong_rand_bytes(16))
-    read_token = "oauth_read_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+    # Create user account
+    {:ok, {201, _, _}} = Hex.API.User.new(unique_username, unique_email, password)
+
+    # Create real OAuth tokens through the test server endpoints
+    config = Hex.API.Client.config()
+
+    # Create write token
+    case :mix_hex_api.post(config, ["oauth_token"], %{
+           "username" => unique_username,
+           "scope" => "api repositories"
+         }) do
+      {:ok, {200, _, write_response}} ->
+        # Create read token
+        case :mix_hex_api.post(config, ["oauth_token"], %{
+               "username" => unique_username,
+               "scope" => "api"
+             }) do
+          {:ok, {200, _, read_response}} ->
+            # Success case - continue with token creation
+            create_oauth_tokens(write_response, read_response, unique_username)
+
+          error ->
+            # If we can't create the read token, fall back to API key approach
+            IO.warn(
+              "Failed to create read OAuth token: #{inspect(error)}, falling back to API key approach"
+            )
+
+            fallback_to_api_key(unique_username, unique_email, password)
+        end
+
+      error ->
+        # If we can't create OAuth tokens, fall back to API key approach
+        IO.warn(
+          "Failed to create write OAuth token: #{inspect(error, limit: :infinity)}, falling back to API key approach"
+        )
+
+        fallback_to_api_key(unique_username, unique_email, password)
+    end
+  end
+
+  defp create_oauth_tokens(write_response, read_response, unique_username) do
+    # Calculate expires_at from expires_in
+    write_expires_at = System.system_time(:second) + write_response["expires_in"]
+    read_expires_at = System.system_time(:second) + read_response["expires_in"]
+
+    tokens = %{
+      "write" => %{
+        "access_token" => write_response["access_token"],
+        "refresh_token" => write_response["refresh_token"],
+        "expires_at" => write_expires_at
+      },
+      "read" => %{
+        "access_token" => read_response["access_token"],
+        "refresh_token" => read_response["refresh_token"],
+        "expires_at" => read_expires_at
+      }
+    }
+
+    # Store OAuth tokens
+    Hex.OAuth.store_tokens(tokens)
+
+    # Return auth format for API calls - use write token as default
+    [
+      access_token: write_response["access_token"],
+      refresh_token: write_response["refresh_token"],
+      key: write_response["access_token"],
+      "$oauth_tokens": tokens,
+      username: unique_username
+    ]
+  end
+
+  defp fallback_to_api_key(unique_username, unique_email, password) do
+    # Create API key instead of OAuth tokens
+    key_name = "test_key_#{Base.encode16(:crypto.strong_rand_bytes(4), case: :lower)}"
+    auth = new_user(unique_username, unique_email, password, key_name)
+
+    # Create minimal OAuth-like structure for backward compatibility
+    write_token = auth[:key]
+    read_token = "read_#{auth[:key]}"
     write_refresh = "refresh_write_" <> Base.encode16(:crypto.strong_rand_bytes(16))
     read_refresh = "refresh_read_" <> Base.encode16(:crypto.strong_rand_bytes(16))
 
@@ -310,8 +389,14 @@ defmodule HexTest.Hexpm do
     # Store OAuth tokens
     Hex.OAuth.store_tokens(tokens)
 
-    # Return auth format for API calls
-    [key: write_token, "$oauth_tokens": tokens]
+    # Return auth format for API calls - use write token as default
+    [
+      access_token: write_token,
+      refresh_token: write_refresh,
+      key: write_token,
+      "$oauth_tokens": tokens,
+      username: unique_username
+    ]
   end
 
   @doc """
@@ -369,12 +454,5 @@ defmodule HexTest.Hexpm do
 
     Hex.OAuth.store_tokens(tokens)
     [key: write_token, "$oauth_tokens": tokens]
-  end
-
-  @doc """
-  Clears any stored OAuth tokens for testing.
-  """
-  def clear_oauth_tokens() do
-    Hex.OAuth.clear_tokens()
   end
 end

@@ -85,7 +85,7 @@ defmodule Mix.Tasks.Hex.User do
   defp deauth() do
     # Revoke and clear OAuth tokens
     Mix.Tasks.Hex.revoke_existing_oauth_tokens()
-    Mix.Tasks.Hex.clear_oauth_tokens()
+    Hex.OAuth.clear_tokens()
 
     # Revoke and cleanup old API keys
     Mix.Tasks.Hex.revoke_and_cleanup_old_api_keys()
