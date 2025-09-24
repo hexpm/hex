@@ -115,4 +115,25 @@ defmodule Hex.HTTPTest do
       )
     end)
   end
+
+  test "request includes identifier header when available", %{bypass: bypass} do
+    in_tmp(fn ->
+      # Initialize a git repository with a commit
+      System.cmd("git", ["init", "--initial-branch=main"])
+      System.cmd("git", ["config", "user.email", "test@example.com"])
+      System.cmd("git", ["config", "user.name", "Test User"])
+      File.write!("test.txt", "test content")
+      System.cmd("git", ["add", "test.txt"])
+      System.cmd("git", ["commit", "-m", "Initial commit"])
+
+      Bypass.expect(bypass, fn conn ->
+        assert [client_id] = Plug.Conn.get_req_header(conn, "x-hex-repo-id")
+        assert client_id =~ ~r/^[a-f0-9]{64}$/
+
+        Plug.Conn.resp(conn, 200, "")
+      end)
+
+      Hex.HTTP.request(:get, "http://localhost:#{bypass.port}", %{}, nil)
+    end)
+  end
 end

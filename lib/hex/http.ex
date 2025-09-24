@@ -41,6 +41,7 @@ defmodule Hex.HTTP do
     headers =
       headers
       |> add_basic_auth_via_netrc(url)
+      |> add_repo_identifier_header()
 
     timeout =
       adapter_config[:timeout] ||
@@ -313,6 +314,13 @@ defmodule Hex.HTTP do
 
   defp normalize_no_proxy_domain_desc(host) do
     host
+  end
+
+  defp add_repo_identifier_header(headers) do
+    case Hex.RepoIdentifier.fetch() do
+      nil -> headers
+      identifier -> Map.put(headers, "x-hex-repo-id", identifier)
+    end
   end
 
   def handle_hex_message(nil) do
