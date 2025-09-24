@@ -11,6 +11,7 @@ defmodule Hex.RepoIdentifierTest do
 
   describe "get/0" do
     test "an identifier is included within a repository" do
+      RepoIdentifier.clear()
       assert RepoIdentifier.get() =~ ~r/^[a-f0-9]{64}$/
     end
 
@@ -34,7 +35,6 @@ defmodule Hex.RepoIdentifierTest do
   describe "fetch/0" do
     test "the identifier is cached accross calls" do
       value = "cached-identifier"
-
       RepoIdentifier.put(value)
 
       assert value == RepoIdentifier.fetch()
