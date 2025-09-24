@@ -133,6 +133,7 @@ defmodule Hex.HTTPTest do
         Plug.Conn.resp(conn, 200, "")
       end)
 
+      Hex.RepoIdentifier.clear()
       Hex.HTTP.request(:get, "http://localhost:#{bypass.port}", %{}, nil)
     end)
   end
