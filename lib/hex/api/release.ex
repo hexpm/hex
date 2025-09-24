@@ -1,41 +1,44 @@
 defmodule Hex.API.Release do
   @moduledoc false
 
-  alias Hex.API
+  alias Hex.API.Client
 
   def get(repo, name, version, auth \\ []) do
-    path = "packages/#{URI.encode(name)}/releases/#{URI.encode(version)}"
-    API.request(:get, repo, path, auth)
+    config = Client.build_config(repo, auth)
+
+    :mix_hex_api_release.get(config, to_string(name), to_string(version))
   end
 
   def publish(repo, tar, auth, progress \\ fn _ -> nil end, replace \\ false)
 
   def publish(repo, tar, auth, progress, replace?) do
-    Hex.API.check_write_api()
+    config = Client.build_config(repo, auth)
 
-    path = "publish?replace=#{replace?}"
-    opts = [progress: progress] ++ auth
-    API.tar_post_request(repo, path, tar, opts)
+    # Pass progress callback through adapter config
+    adapter_config = %{progress_callback: progress}
+    config = Map.put(config, :http_adapter, {Hex.HTTP, adapter_config})
+
+    params = [{:replace, replace?}]
+    :mix_hex_api_release.publish(config, tar, params)
   end
 
   def delete(repo, name, version, auth) do
-    Hex.API.check_write_api()
+    config = Client.build_config(repo, auth)
 
-    path = "packages/#{URI.encode(name)}/releases/#{URI.encode(version)}"
-    API.request(:delete, repo, path, auth)
+    :mix_hex_api_release.delete(config, to_string(name), to_string(version))
   end
 
   def retire(repo, name, version, body, auth) do
-    Hex.API.check_write_api()
+    config = Client.build_config(repo, auth)
+    # Convert body to binary map for hex_core
+    params = Map.new(body, fn {k, v} -> {to_string(k), to_string(v)} end)
 
-    path = "packages/#{URI.encode(name)}/releases/#{URI.encode(version)}/retire"
-    API.erlang_post_request(repo, path, body, auth)
+    :mix_hex_api_release.retire(config, to_string(name), to_string(version), params)
   end
 
   def unretire(repo, name, version, auth) do
-    Hex.API.check_write_api()
+    config = Client.build_config(repo, auth)
 
-    path = "packages/#{URI.encode(name)}/releases/#{URI.encode(version)}/retire"
-    API.request(:delete, repo, path, auth)
+    :mix_hex_api_release.unretire(config, to_string(name), to_string(version))
   end
 end

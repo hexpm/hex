@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
     Mix.Tasks.Hex.User.run(["register"])
 
-    assert {:ok, {200, body, _}} = Hex.API.User.get("eric")
+    assert {:ok, {200, _, body}} = Hex.API.User.get("eric")
     assert body["username"] == "eric"
   end
 
@@ -40,7 +40,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       name = List.to_string(name)
 
       auth = Mix.Tasks.Hex.auth_info(:read)
-      assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
+      assert {:ok, {200, _, body}} = Hex.API.Key.get(auth)
       assert "#{name}-api" in Enum.map(body, & &1["name"])
       assert "#{name}-repositories" in Enum.map(body, & &1["name"])
     end)
@@ -57,7 +57,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       Mix.Tasks.Hex.User.run(["auth", "--key-name", "userauthkeyname"])
 
       auth = Mix.Tasks.Hex.auth_info(:read)
-      assert {:ok, {200, body, _}} = Hex.API.Key.get(auth)
+      assert {:ok, {200, _, body}} = Hex.API.Key.get(auth)
       assert "userauthkeyname-api" in Enum.map(body, & &1["name"])
       assert "userauthkeyname-repositories" in Enum.map(body, & &1["name"])
     end)
@@ -119,7 +119,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       auth = Hexpm.new_user("list_keys", "list_keys@mail.com", "password", "list_keys")
       Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
 
-      assert {:ok, {200, [%{"name" => "list_keys"}], _}} = Hex.API.Key.get(auth)
+      assert {:ok, {200, _, [%{"name" => "list_keys"}]}} = Hex.API.Key.get(auth)
 
       Mix.Tasks.Hex.User.run(["key", "list"])
       assert_received {:mix_shell, :info, ["list_keys" <> _]}

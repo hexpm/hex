@@ -13,12 +13,6 @@ defmodule HexTest.Case do
     flush([])
   end
 
-  if Version.compare(System.version(), "1.10.0-rc.0") == :lt do
-    def clear_cache(), do: Mix.ProjectStack.clear_cache()
-  else
-    def clear_cache(), do: Mix.State.clear_cache()
-  end
-
   defp flush(acc) do
     receive do
       any -> flush([any | acc])
@@ -45,28 +39,28 @@ defmodule HexTest.Case do
 
   defp escape_path(path) do
     case :os.type() do
-      {:win32, _} -> String.replace(path, ~R'[~#%&*{}\\:<>?/+|"]', "_")
+      {:win32, _} -> String.replace(path, ~r'[~#%&*{}\\:<>?/+|"]', "_")
       _ -> path
     end
   end
 
   defmacro test_tmp() do
     module = escape_path("#{__CALLER__.module}")
-    function = escape_path("#{elem(__CALLER__.function, 0)}")
+    function = escape_path("#{elem(__CALLER__.function || {nil}, 0)}")
 
     Path.join([HexTest.Case.tmp_path(), module, function])
   end
 
   defmacro test_name() do
     module = escape_path("#{__CALLER__.module}")
-    function = escape_path("#{elem(__CALLER__.function, 0)}")
+    function = escape_path("#{elem(__CALLER__.function || {nil}, 0)}")
 
     Path.join([module, function])
   end
 
   defmacro in_tmp(fun) do
     module = escape_path("#{__CALLER__.module}")
-    function = escape_path("#{elem(__CALLER__.function, 0)}")
+    function = escape_path("#{elem(__CALLER__.function || {nil}, 0)}")
 
     path = Path.join([module, function])
 
@@ -84,7 +78,7 @@ defmodule HexTest.Case do
 
   defmacro in_fixture(which, block) do
     module = inspect(__CALLER__.module)
-    function = Atom.to_string(elem(__CALLER__.function, 0))
+    function = Atom.to_string(elem(__CALLER__.function || {nil}, 0))
     tmp = Path.join(module, function)
 
     quote do
@@ -221,6 +215,7 @@ defmodule HexTest.Case do
       {:hexpm, :phoenix_live_reload, "1.0.3", [phoenix: "~> 0.16 or ~> 1.0"]},
       {:hexpm, :postgrex, "0.2.0", [ex_doc: "0.0.1"]},
       {:hexpm, :postgrex, "0.2.1", [ex_doc: "~> 0.1.0"]},
+      {:hexpm, :umb, "0.2.1", [ex_doc: "~> 0.1.0"]},
       {:repo2, :hexpm_deps, "0.1.0", [{:poison, ">= 0.0.0", false, :poison, :hexpm}]},
       {:repo2, :poison, "2.0.0", []},
       {:repo2, :repo2_deps, "0.1.0", [poison: ">= 0.0.0"]}
@@ -231,10 +226,10 @@ defmodule HexTest.Case do
     write_permissions = [%{"domain" => "api"}]
     read_permissions = [%{"domain" => "api", "resource" => "read"}]
 
-    {:ok, {201, write_body, _}} =
+    {:ok, {201, _, write_body}} =
       Hex.API.Key.new("setup_auth_write", write_permissions, user: username, pass: password)
 
-    {:ok, {201, read_body, _}} =
+    {:ok, {201, _, read_body}} =
       Hex.API.Key.new("setup_auth_read", read_permissions, user: username, pass: password)
 
     write_key = Mix.Tasks.Hex.encrypt_key(password, write_body["secret"])
@@ -246,7 +241,7 @@ defmodule HexTest.Case do
   def get_auth(username, password) do
     permissions = [%{"domain" => "api"}]
 
-    {:ok, {201, body, _}} =
+    {:ok, {201, _, body}} =
       Hex.API.Key.new("setup_auth", permissions, user: username, pass: password)
 
     [key: body["secret"]]
@@ -321,7 +316,7 @@ defmodule HexTest.Case do
       Mix.shell(Hex.Shell.Process)
       Mix.Task.clear()
       Hex.Shell.Process.flush()
-      clear_cache()
+      Mix.State.clear_cache()
       Mix.ProjectStack.clear_stack()
     end
 

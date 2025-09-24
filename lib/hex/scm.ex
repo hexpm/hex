@@ -181,9 +181,8 @@ defmodule Hex.SCM do
       rescue
         exception ->
           require Hex.Stdlib
-          stacktrace = Hex.Stdlib.stacktrace()
           File.rm(path)
-          reraise(exception, stacktrace)
+          reraise(exception, __STACKTRACE__)
       end
 
     if tarball_inner_checksum != registry_inner_checksum do
@@ -382,7 +381,6 @@ defmodule Hex.SCM do
           case lock_status(dest: dest, lock: info) do
             :ok -> []
             :mismatch -> [{repo, name, version}]
-            :outdated -> [{repo, name, version}]
           end
 
         nil ->
@@ -442,15 +440,15 @@ defmodule Hex.SCM do
 
   defp do_fetch(path, repo, package, version) do
     case Hex.Repo.get_tarball(repo, package, version) do
-      {:ok, {200, body, _headers}} ->
+      {:ok, {200, _, body}} ->
         File.mkdir_p!(Path.dirname(path))
         File.write!(path, body)
         {:ok, :new}
 
-      {:ok, {304, _body, _headers}} ->
+      {:ok, {304, _headers, _body}} ->
         {:ok, :cached}
 
-      {:ok, {code, _body, _headers}} ->
+      {:ok, {code, _headers, _body}} ->
         {:error, "Request failed (#{code})"}
 
       {:error, :timeout} ->

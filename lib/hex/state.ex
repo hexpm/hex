@@ -133,7 +133,7 @@ defmodule Hex.State do
     ci: %{
       env: ["CI"],
       default: false,
-      fun: {__MODULE__, :to_boolean}
+      fun: {__MODULE__, :to_truthy_boolean}
     }
   }
 
@@ -319,7 +319,17 @@ defmodule Hex.State do
   def to_boolean("true"), do: {:ok, true}
   def to_boolean("FALSE"), do: {:ok, false}
   def to_boolean("TRUE"), do: {:ok, true}
+  def to_boolean(""), do: {:ok, false}
   def to_boolean(_), do: :error
+
+  def to_truthy_boolean(value) do
+    value
+    |> to_boolean()
+    |> then(fn
+      :error -> {:ok, true}
+      boolean -> boolean
+    end)
+  end
 
   def to_integer(nil), do: {:ok, nil}
   def to_integer(""), do: {:ok, nil}

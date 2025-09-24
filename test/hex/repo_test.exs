@@ -83,11 +83,11 @@ defmodule Hex.RepoTest do
     end)
 
     config = %{url: "http://localhost:#{bypass.port}", auth_key: "key", trusted: true}
-    assert {:ok, {200, public_key, _}} = Hex.Repo.get_public_key(config)
+    assert {:ok, {200, _, public_key}} = Hex.Repo.get_public_key(config)
     assert public_key == hexpm.public_key
 
     config = %{url: "http://localhost:#{bypass.port}/not_found", auth_key: "key", trusted: false}
-    assert {:ok, {404, "not found", _}} = Hex.Repo.get_public_key(config)
+    assert {:ok, {404, _, "not found"}} = Hex.Repo.get_public_key(config)
   end
 
   test "fetch_repo/1" do

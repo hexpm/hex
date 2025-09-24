@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.10.1 (8a53ac8), do not edit manually
+%% Vendored from hex_core v0.11.0 (a1bf7f7), do not edit manually
 
 %% @doc
 %% Functions for creating and unpacking Hex tarballs.
@@ -143,7 +143,7 @@ create_docs(Files, Config) ->
             {error, {tarball, {too_big_uncompressed, TarballMaxUncompressedSize}}}
     end.
 
--spec create_docs(files()) -> {ok, tarball()}.
+-spec create_docs(files()) -> {ok, tarball()} | {error, term()}.
 create_docs(Files) ->
     create_docs(Files, mix_hex_core:default_config()).
 

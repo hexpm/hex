@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Hex.Audit do
 
   @impl true
   def run(_) do
-    Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
+    Mix.Tasks.Deps.Loadpaths.run(["--no-compile", "--no-listeners"])
     Hex.start()
     Registry.open()
 

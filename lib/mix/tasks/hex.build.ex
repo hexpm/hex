@@ -303,7 +303,7 @@ defmodule Mix.Tasks.Hex.Build do
     end
   end
 
-  @scm_keys [:git, :github, :path]
+  @scm_keys [:git, :github, :path, :in_umbrella]
 
   defp package_dep?({_app, _req, opts}) do
     keys = Keyword.keys(opts)

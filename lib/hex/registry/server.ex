@@ -358,14 +358,8 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  defp write_result({:ok, {code, body, headers}}, repo, package, %{ets: tid})
+  defp write_result({:ok, {code, headers, %{releases: releases}}}, repo, package, %{ets: tid})
        when code in 200..299 do
-    releases =
-      body
-      |> :zlib.gunzip()
-      |> Hex.Repo.verify(repo)
-      |> Hex.Repo.decode_package(repo, package)
-
     delete_package(repo, package, tid)
     now = :calendar.universal_time()
 
@@ -399,7 +393,7 @@ defmodule Hex.Registry.Server do
   end
 
   defp write_result(other, repo, package, %{ets: tid}) do
-    cached? = !!:ets.lookup(tid, {:versions, package})
+    cached? = !!:ets.lookup(tid, {:versions, repo, package})
     print_error(other, repo, package, cached?)
 
     unless cached? do

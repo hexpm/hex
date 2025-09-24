@@ -1,25 +1,56 @@
 defmodule Hex.API.ReleaseDocs do
   @moduledoc false
 
-  alias Hex.API
+  alias Hex.API.Client
 
   def get(repo, name, version) do
-    path = "packages/#{URI.encode(name)}/releases/#{URI.encode(version)}/docs"
-    API.request(:get, repo, path)
+    config = Client.build_config(repo, [])
+
+    path =
+      :mix_hex_api.build_repository_path(config, [
+        "packages",
+        to_string(name),
+        "releases",
+        to_string(version),
+        "docs"
+      ])
+
+    :mix_hex_api.get(config, path)
   end
 
   def publish(repo, name, version, tar, auth, progress \\ fn _ -> nil end) do
-    Hex.API.check_write_api()
+    config = Client.build_config(repo, auth)
 
-    path = "packages/#{URI.encode(name)}/releases/#{URI.encode(version)}/docs"
-    opts = [progress: progress] ++ auth
-    API.tar_post_request(repo, path, tar, opts)
+    # Pass progress callback through adapter config
+    adapter_config = %{progress_callback: progress}
+    config = Map.put(config, :http_adapter, {Hex.HTTP, adapter_config})
+
+    path =
+      :mix_hex_api.build_repository_path(config, [
+        "packages",
+        to_string(name),
+        "releases",
+        to_string(version),
+        "docs"
+      ])
+
+    body = {"application/octet-stream", tar}
+
+    :mix_hex_api.post(config, path, body)
   end
 
   def delete(repo, name, version, auth) do
-    Hex.API.check_write_api()
+    config = Client.build_config(repo, auth)
 
-    path = "packages/#{URI.encode(name)}/releases/#{URI.encode(version)}/docs"
-    API.request(:delete, repo, path, auth)
+    path =
+      :mix_hex_api.build_repository_path(config, [
+        "packages",
+        to_string(name),
+        "releases",
+        to_string(version),
+        "docs"
+      ])
+
+    :mix_hex_api.delete(config, path)
   end
 end

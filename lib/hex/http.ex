@@ -6,6 +6,7 @@ defmodule Hex.HTTP do
   @request_timeout 15_000
   @request_redirects 3
   @request_retries 2
+  @chunk_size 10_000
 
   @spec config() :: :mix_hex_core.config()
   def config do
@@ -15,43 +16,72 @@ defmodule Hex.HTTP do
     }
   end
 
+  # Keep old signatures for backward compatibility
+  def request(method, url, headers, body) do
+    request(method, url, headers, body, %{})
+  end
+
+  def request(method, url, headers, body, opts) when is_list(opts) do
+    adapter_config = Keyword.get(opts, :adapter_config, %{})
+    request(method, url, headers, body, adapter_config)
+  end
+
   @impl :mix_hex_http
-  def request(method, url, headers, body, opts \\ []) do
+  def request(method, url, headers, body, adapter_config) when is_map(adapter_config) do
+    # Convert method to atom if it's not already
+    method = if is_binary(method), do: String.to_atom(method), else: method
+    # Convert URL to string if it's binary
+    url = if is_binary(url), do: url, else: to_string(url)
+
+    # Convert headers from map to our format
+    headers = if is_map(headers), do: headers, else: Map.new(headers)
+
+    Hex.Shell.debug("Hex.HTTP.request(#{inspect(method)}, #{inspect(url)})")
+
     headers =
       headers
-      |> build_headers()
       |> add_basic_auth_via_netrc(url)
+      |> add_repo_identifier_header()
 
     timeout =
-      opts[:timeout] ||
+      adapter_config[:timeout] ||
         Hex.State.fetch!(:http_timeout, fn val -> if is_integer(val), do: val * 1000 end) ||
         @request_timeout
+
+    # Handle progress callback for uploads
+    progress_callback = Map.get(adapter_config, :progress_callback)
+    {body, extra_headers} = wrap_body_with_progress(body, progress_callback)
+    headers = Map.merge(headers, extra_headers)
 
     http_opts = build_http_opts(url, timeout)
     opts = [body_format: :binary]
     request = build_request(url, headers, body)
     profile = Hex.State.fetch!(:httpc_profile)
 
-    retry(method, request, http_opts, @request_retries, profile, fn request, http_opts ->
-      redirect(request, http_opts, @request_redirects, fn request, http_opts ->
-        timeout(request, http_opts, timeout, fn request, http_opts ->
-          :httpc.request(method, request, http_opts, opts, profile)
-          |> handle_response()
+    result =
+      retry(method, request, http_opts, @request_retries, profile, fn request, http_opts ->
+        redirect(request, http_opts, @request_redirects, fn request, http_opts ->
+          timeout(request, http_opts, timeout, fn request, http_opts ->
+            :httpc.request(method, request, http_opts, opts, profile)
+            |> handle_response(method, url)
+          end)
         end)
       end)
-    end)
+
+    # Convert to hex_core expected format
+    case result do
+      {:ok, status, headers, body} ->
+        # Convert headers to map with binary keys/values for hex_core
+        headers = Map.new(headers, fn {k, v} -> {to_string(k), to_string(v)} end)
+        {:ok, {status, headers, body}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   defp fallback(:inet), do: :inet6
   defp fallback(:inet6), do: :inet
-
-  defp build_headers(headers) do
-    default_headers = %{"user-agent" => user_agent()}
-
-    default_headers
-    |> add_repo_identifier_header()
-    |> Map.merge(headers)
-  end
 
   defp build_http_opts(url, timeout) do
     [
@@ -68,7 +98,15 @@ defmodule Hex.HTTP do
 
     case body do
       {content_type, body} ->
-        {url, headers, String.to_charlist(content_type), body}
+        # content_type might already be a charlist from hex_core
+        content_type =
+          if is_binary(content_type) do
+            String.to_charlist(content_type)
+          else
+            content_type
+          end
+
+        {url, headers, content_type, body}
 
       nil ->
         {url, headers}
@@ -178,14 +216,19 @@ defmodule Hex.HTTP do
     end
   end
 
-  defp handle_response({:ok, {{_version, code, _reason}, headers, body}}) do
-    headers = Map.new(headers, &decode_header/1)
+  defp handle_response({:ok, {{_version, code, _reason}, headers, body}}, method, url) do
+    Hex.Shell.debug("Hex.HTTP.request(#{inspect(method)}, #{inspect(url)}) => #{code}")
 
+    headers = Map.new(headers, &decode_header/1)
     handle_hex_message(headers["x-hex-message"])
     {:ok, code, headers, unzip(body, headers)}
   end
 
-  defp handle_response({:error, term}) do
+  defp handle_response({:error, term}, method, url) do
+    Hex.Shell.debug(
+      "Hex.HTTP.request(#{inspect(method)}, #{inspect(url)}) => #{inspect(term, limit: :infinity, pretty: true)}"
+    )
+
     {:error, term}
   end
 
@@ -280,11 +323,6 @@ defmodule Hex.HTTP do
     end
   end
 
-  defp user_agent do
-    ci = if Hex.State.fetch!(:ci), do: " (CI)", else: ""
-    "Hex/#{Hex.version()} (Elixir/#{System.version()}) (OTP/#{Hex.Utils.otp_version()})#{ci}"
-  end
-
   def handle_hex_message(nil) do
     :ok
   end
@@ -351,6 +389,33 @@ defmodule Hex.HTTP do
 
       _ ->
         headers
+    end
+  end
+
+  defp wrap_body_with_progress(body, progress_callback) do
+    case body do
+      {content_type, binary_body}
+      when is_binary(binary_body) and is_function(progress_callback, 1) ->
+        total_size = byte_size(binary_body)
+        progress_callback.(0)
+
+        body_fn = fn
+          size when size < total_size ->
+            new_size = min(size + @chunk_size, total_size)
+            chunk = new_size - size
+            progress_callback.(new_size)
+            {:ok, :binary.part(binary_body, size, chunk), new_size}
+
+          _size ->
+            :eof
+        end
+
+        body_result = {content_type, {body_fn, 0}}
+        headers = %{"content-length" => Integer.to_string(total_size)}
+        {body_result, headers}
+
+      _other ->
+        {body, %{}}
     end
   end
 end
