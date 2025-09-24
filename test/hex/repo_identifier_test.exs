@@ -15,21 +15,9 @@ defmodule Hex.RepoIdentifierTest do
     end
 
     test "identifier is nil outside of a repository" do
-      # The tmp_dir resolves at hex/test/tmp, which allows git to traverse up to the repository
-      # root and find a commit. We're creating a temporary directory to simulate being outside of
-      # a repository instead.
-      dir =
-        "../../.."
-        |> Path.expand(__DIR__)
-        |> Path.join("empty-directory")
-
-      try do
-        File.mkdir!(dir)
-
-        File.cd!(dir, fn -> refute RepoIdentifier.get() end)
-      after
-        File.rmdir(dir)
-      end
+      dir = Path.join(System.tmp_dir!(), Base.encode16(:crypto.strong_rand_bytes(8)))
+      File.mkdir!(dir)
+      File.cd!(dir, fn -> refute RepoIdentifier.get() end)
     end
 
     test "identifier is nil when disabled by an environment variable" do

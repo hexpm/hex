@@ -7,8 +7,8 @@ defmodule Hex.RepoIdentifier do
 
   Returns `nil` when:
 
-  - The `HEX_REPO_IDENTIFIER` environment variable is set to anything other `1` or `true`
-  - The `git` executable isn't available 
+  - The `HEX_NO_REPO_IDENTIFIER` environment variable is set to anything other `1` or `true`
+  - The `git` executable isn't available
   - The current directory isn't within a git repository
   """
 
