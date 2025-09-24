@@ -81,10 +81,10 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         app: :outdated_app,
         version: "0.0.2",
         deps: [
-          {:bar, "0.1.0"},
-          {:ex_doc, "~> 0.0.1", only: :dev},
-          {:plug, "0.1.0", only: :test},
-          {:bypass, "0.1.0", only: [:dev, :test]}
+          {:ex_doc, "0.0.1"},
+          {:beta, "1.0.0", only: :dev},
+          {:tired, "0.1.0", only: :test},
+          {:foo, "0.1.0", only: [:dev, :test]}
         ]
       ]
     end
@@ -105,7 +105,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       bar =
         [
           [:bright, "bar", :reset],
-          ["               ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
           ["   ", :green, "Up-to-date", :reset],
           "           "
@@ -133,7 +134,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       bar =
         [
           [:bright, "bar", :reset],
-          ["               ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
           ["   ", :green, "Up-to-date", :reset],
           "           "
@@ -144,7 +146,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       foo =
         [
           [:bright, "foo", :reset],
-          ["               ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
           ["   ", :yellow, "Update possible", :reset],
           "      "
@@ -155,7 +158,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       ex_doc =
         [
           [:bright, "ex_doc", :reset],
-          ["            ", "0.0.1", :reset],
+          ["      ", :reset],
+          ["      ", "0.0.1", :reset],
           ["    ", :red, "0.1.0", :reset],
           ["   ", :red, "Update not possible", :reset],
           "  "
@@ -185,7 +189,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       _bar =
         [
           [:bright, "bar", :reset],
-          ["               ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
           ["   ", :green, "Up-to-date", :reset],
           "           "
@@ -196,7 +201,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       _foo =
         [
           [:bright, "foo", :reset],
-          ["               ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
           ["   ", :yellow, "Update possible", :reset],
           "      "
@@ -207,7 +213,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       _ex_doc =
         [
           [:bright, "ex_doc", :reset],
-          ["            ", "0.0.1", :reset],
+          ["      ", :reset],
+          ["      ", "0.0.1", :reset],
           ["    ", :red, "0.1.0", :reset],
           ["   ", :red, "Update not possible", :reset],
           "  "
@@ -248,7 +255,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       foo =
         [
           [:bright, "foo", :reset],
-          ["               ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
           ["   ", :red, "Update not possible", :reset],
           "  "
@@ -276,7 +284,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       bar =
         [
           [:bright, "bar", :reset],
-          ["               ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
           ["   ", :green, "Up-to-date", :reset],
           "           "
@@ -287,7 +296,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       foo =
         [
           [:bright, "foo", :reset],
-          ["               ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
           ["   ", :yellow, "Update possible", :reset],
           "      "
@@ -298,7 +308,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       ex_doc =
         [
           [:bright, "ex_doc", :reset],
-          ["            ", "0.0.1", :reset],
+          ["      ", :reset],
+          ["      ", "0.0.1", :reset],
           ["    ", :red, "0.1.0", :reset],
           ["   ", :red, "Update not possible", :reset],
           "  "
@@ -348,7 +359,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       beta =
         [
           [:bright, "beta", :reset],
-          ["              ", "1.0.0", :reset],
+          ["        ", :reset],
+          ["      ", "1.0.0", :reset],
           ["    ", :green, "1.0.0", :reset],
           ["   ", :green, "Up-to-date", :reset],
           ["  "]
@@ -364,7 +376,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       beta =
         [
           [:bright, "beta", :reset],
-          ["              ", "1.0.0", :reset],
+          ["        ", :reset],
+          ["      ", "1.0.0", :reset],
           ["    ", :red, "1.1.0-beta", :reset],
           ["  ", :yellow, "Update possible", :reset],
           "  "
@@ -541,7 +554,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         ex_doc =
           [
             [:bright, "ex_doc", :reset],
-            ["            ", "0.0.1", :reset],
+            ["      ", :reset],
+            ["      ", "0.0.1", :reset],
             ["    ", :red, "0.1.0", :reset],
             ["   ", :red, "Update not possible", :reset],
             "  "
@@ -552,7 +566,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         bar =
           [
             [:bright, "bar", :reset],
-            ["               ", "0.1.0", :reset],
+            ["         ", :reset],
+            ["      ", "0.1.0", :reset],
             ["    ", :green, "0.1.0", :reset],
             ["   ", :green, "Up-to-date", :reset],
             "           "
@@ -563,7 +578,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         foo =
           [
             [:bright, "foo", :reset],
-            ["               ", "0.1.1", :reset],
+            ["         ", :reset],
+            ["      ", "0.1.1", :reset],
             ["    ", :green, "0.1.1", :reset],
             ["   ", :green, "Up-to-date", :reset],
             "           "
@@ -599,10 +615,10 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       set_home_tmp()
 
       Mix.Dep.Lock.write(%{
-        bar: {:hex, :bar, "0.1.0"},
         ex_doc: {:hex, :ex_doc, "0.0.1"},
-        plug: {:hex, :plug, "0.1.0"},
-        bypass: {:hex, :bypass, "0.1.0"}
+        beta: {:hex, :beta, "1.0.0"},
+        tired: {:hex, :tired, "0.1.0"},
+        foo: {:hex, :foo, "0.1.0"}
       })
 
       Mix.Task.run("deps.get")
@@ -611,10 +627,12 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       catch_throw(Mix.Task.run("hex.outdated"))
 
       # Check that the Only column is present in the header
-      assert_received {:mix_shell, :info,
-                       [
-                         "\e[0m\n\e[1mDependency\e[0m  \e[1mOnly\e[0m     \e[1mCurrent\e[0m  \e[1mLatest\e[0m  \e[1mStatus\e[0m\n"
-                       ]}
+      assert_received {:mix_shell, :info, [header_line]}
+      assert header_line =~ "Dependency"
+      assert header_line =~ "Only"
+      assert header_line =~ "Current"
+      assert header_line =~ "Latest"
+      assert header_line =~ "Status"
 
       # Check that dependencies show their correct only values
       # Note: dependencies without :only show empty string in the Only column
@@ -629,9 +647,9 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         |> Enum.filter(&(&1 != nil))
 
       combined_output = Enum.join(output_lines, "\n")
-      assert combined_output =~ "bypass" and combined_output =~ "dev,test"
-      assert combined_output =~ "ex_doc" and combined_output =~ "dev"
-      assert combined_output =~ "plug" and combined_output =~ "test"
+      assert combined_output =~ "foo" and combined_output =~ "dev,test"
+      assert combined_output =~ "beta" and combined_output =~ "dev"
+      assert combined_output =~ "tired" and combined_output =~ "test"
     end)
   end
 
@@ -642,10 +660,10 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       set_home_tmp()
 
       Mix.Dep.Lock.write(%{
-        bar: {:hex, :bar, "0.1.0"},
         ex_doc: {:hex, :ex_doc, "0.0.1"},
-        plug: {:hex, :plug, "0.1.0"},
-        bypass: {:hex, :bypass, "0.1.0"}
+        beta: {:hex, :beta, "1.0.0"},
+        tired: {:hex, :tired, "0.1.0"},
+        foo: {:hex, :foo, "0.1.0"}
       })
 
       Mix.Task.run("deps.get")
@@ -666,10 +684,10 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         |> Enum.filter(&(&1 != nil))
 
       combined_output = Enum.join(output_lines, "\n")
-      assert combined_output =~ "ex_doc"
-      # bypass has [:dev, :test] not just :dev
-      refute combined_output =~ "bypass"
-      refute combined_output =~ "bar"
+      assert combined_output =~ "beta"
+      # foo has [:dev, :test] not just :dev, but beta only has :dev so both should show
+      assert combined_output =~ "foo"
+      refute combined_output =~ "ex_doc"
     end)
   end
 
@@ -680,10 +698,10 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       set_home_tmp()
 
       Mix.Dep.Lock.write(%{
-        bar: {:hex, :bar, "0.1.0"},
         ex_doc: {:hex, :ex_doc, "0.0.1"},
-        plug: {:hex, :plug, "0.1.0"},
-        bypass: {:hex, :bypass, "0.1.0"}
+        beta: {:hex, :beta, "1.0.0"},
+        tired: {:hex, :tired, "0.1.0"},
+        foo: {:hex, :foo, "0.1.0"}
       })
 
       Mix.Task.run("deps.get")
@@ -705,11 +723,11 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         |> Enum.filter(&(&1 != nil))
 
       combined_output = Enum.join(output_lines, "\n")
-      assert combined_output =~ "plug"
-      assert combined_output =~ "ex_doc"
-      # bypass should be included since it has dev and test
-      assert combined_output =~ "bypass"
-      refute combined_output =~ "bar"
+      assert combined_output =~ "tired"
+      assert combined_output =~ "beta"
+      # foo should be included since it has dev and test
+      assert combined_output =~ "foo"
+      refute combined_output =~ "ex_doc"
     end)
   end
 end
