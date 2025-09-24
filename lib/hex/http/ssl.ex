@@ -26,8 +26,6 @@ defmodule Hex.HTTP.SSL do
 
   @default_versions [:"tlsv1.2", :"tlsv1.1", :tlsv1]
 
-  @secure_ssl_version {5, 3, 7}
-
   Record.defrecordp(
     :certificate,
     :OTPCertificate,
@@ -40,20 +38,6 @@ defmodule Hex.HTTP.SSL do
     Record.extract(:OTPTBSCertificate, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
   )
 
-  def secure_ssl? do
-    check? = not Hex.State.fetch!(:unsafe_https)
-
-    if check? and Hex.State.fetch!(:ssl_version) <= @secure_ssl_version do
-      Mix.raise(
-        "Insecure HTTPS request (peer verification disabled), " <>
-          "please update to OTP 17.4 or later, or disable by setting " <>
-          "the environment variable HEX_UNSAFE_HTTPS=1"
-      )
-    end
-
-    check?
-  end
-
   def get_ca_certs do
     case Hex.State.fetch!(:cacerts_path) do
       nil -> Certs.cacerts()
@@ -65,31 +49,20 @@ defmodule Hex.HTTP.SSL do
     hostname = String.to_charlist(URI.parse(url).host)
     ciphers = filter_ciphers(@default_ciphers)
 
-    if secure_ssl?() do
-      partial_chain = &partial_chain(Certs.cacerts(), &1)
+    partial_chain = &partial_chain(Certs.cacerts(), &1)
 
-      [
-        verify: :verify_peer,
-        depth: 4,
-        partial_chain: partial_chain,
-        cacerts: get_ca_certs(),
-        server_name_indication: hostname,
-        secure_renegotiate: true,
-        reuse_sessions: true,
-        versions: @default_versions,
-        ciphers: ciphers
-      ]
-      |> customize_hostname_check(hostname)
-    else
-      [
-        verify: :verify_none,
-        server_name_indication: hostname,
-        secure_renegotiate: true,
-        reuse_sessions: true,
-        versions: @default_versions,
-        ciphers: ciphers
-      ]
-    end
+    [
+      verify: :verify_peer,
+      depth: 4,
+      partial_chain: partial_chain,
+      cacerts: get_ca_certs(),
+      server_name_indication: hostname,
+      secure_renegotiate: true,
+      reuse_sessions: true,
+      versions: @default_versions,
+      ciphers: ciphers
+    ]
+    |> customize_hostname_check()
   end
 
   def partial_chain(cacerts, certs) do
@@ -120,27 +93,12 @@ defmodule Hex.HTTP.SSL do
   end
 
   defp filter_ciphers(allowed) do
-    available = MapSet.new(Hex.Stdlib.ssl_cipher_suites(:openssl))
+    [ssl_version | _] = :ssl.versions()[:supported]
+    available = MapSet.new(:ssl.cipher_suites(:all, ssl_version, :openssl))
     Enum.filter(allowed, &(&1 in available))
   end
 
-  defp customize_hostname_check(opts, hostname) do
-    if ssl_major_version() >= 9 do
-      # From OTP 20.0 use built-in support for custom hostname checks
-      Keyword.put(opts, :customize_hostname_check, match_fun: &VerifyHostname.match_fun/2)
-    else
-      # Before OTP 20.0 use mint_shims for hostname check, from a custom verify_fun
-      Keyword.put(opts, :verify_fun, {&VerifyHostname.verify_fun/3, check_hostname: hostname})
-    end
-  end
-
-  defp ssl_major_version do
-    # Elixir 1.0.5 - 1.1.1 have no Application.spec/2
-    case :application.get_key(:ssl, :vsn) do
-      {:ok, value} -> value
-      :undefined -> nil
-    end
-    |> :string.to_integer()
-    |> elem(0)
+  defp customize_hostname_check(opts) do
+    Keyword.put(opts, :customize_hostname_check, match_fun: &VerifyHostname.match_fun/2)
   end
 end

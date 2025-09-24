@@ -1,20 +1,12 @@
 defmodule Hex.Stdlib do
   @moduledoc false
 
-  defmacro stacktrace() do
-    if Version.compare(System.version(), "1.7.0") == :lt do
-      quote do: System.stacktrace()
-    else
-      quote do: __STACKTRACE__
-    end
-  end
-
   # TODO: Remove this once we require OTP 24.0
   def ssh_hostkey_fingerprint(digset_type, key) do
     cond do
       # Requires Elixir 1.15.0
       function_exported?(Mix, :ensure_application!, 1) ->
-        Mix.ensure_application!(:ssh)
+        apply(Mix, :ensure_application!, [:ssh])
         apply(:ssh, :hostkey_fingerprint, [digset_type, key])
 
       Code.ensure_loaded?(:ssh) and function_exported?(:ssh, :hostkey_fingerprint, 2) ->
@@ -67,16 +59,6 @@ defmodule Hex.Stdlib do
       apply(:crypto, :crypto_one_time_aead, [cipher, key, iv, cipher_text, aad, cipher_tag, false])
     else
       apply(:crypto, :block_decrypt, [:aes_gcm, key, iv, {aad, cipher_text, cipher_tag}])
-    end
-  end
-
-  # TODO: Remove this once we require OTP 22.0
-  def ssl_cipher_suites(string_type) do
-    if Code.ensure_loaded?(:ssl) and function_exported?(:ssl, :cipher_suites, 3) do
-      [ssl_version | _] = :ssl.versions()[:supported]
-      apply(:ssl, :cipher_suites, [:all, ssl_version, string_type])
-    else
-      apply(:ssl, :cipher_suites, [string_type])
     end
   end
 end

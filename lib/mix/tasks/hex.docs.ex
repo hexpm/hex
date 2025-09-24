@@ -152,7 +152,7 @@ defmodule Mix.Tasks.Hex.Docs do
     auth = if organization, do: Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.Package.get(organization, name, auth) do
-      {:ok, {code, body, _}} when code in 200..299 ->
+      {:ok, {code, _, body}} when code in 200..299 ->
         body
 
       {:ok, {404, _, _}} ->
@@ -359,7 +359,7 @@ defmodule Mix.Tasks.Hex.Docs do
     repo = org_to_repo(organization)
 
     case Hex.Repo.get_docs(repo, package, version) do
-      {:ok, {200, body, _}} ->
+      {:ok, {200, _, body}} ->
         File.mkdir_p!(Path.dirname(target))
         File.write!(target, body)
         true
