@@ -230,39 +230,115 @@ defmodule Mix.Tasks.Hex do
   defp exchange_and_store_tokens(initial_token) do
     Hex.Shell.info("Authentication successful! Exchanging tokens...")
 
-    # Exchange for write token
-    case Hex.API.OAuth.exchange_token(initial_token["access_token"], "api:write") do
-      {:ok, {200, _, write_token_response}} ->
-        # Exchange for read token
-        case Hex.API.OAuth.exchange_token(initial_token["access_token"], "api:read repositories") do
-          {:ok, {200, _, read_token_response}} ->
-            # Store both tokens
-            tokens = %{
-              "write" => Hex.OAuth.create_token_data(write_token_response),
-              "read" => Hex.OAuth.create_token_data(read_token_response)
-            }
+    # Parse the granted scopes from the initial token
+    granted_scopes = parse_granted_scopes(initial_token["scope"] || "")
 
-            Hex.OAuth.store_tokens(tokens)
-            Hex.Shell.info("Authentication completed successfully!")
-            {:ok, tokens}
+    # Determine what tokens we can create based on granted scopes
+    write_token = create_write_token(initial_token, granted_scopes)
+    read_token = create_read_token(initial_token, granted_scopes)
+
+    # Store the tokens based on what we obtained
+    case {write_token, read_token} do
+      {nil, nil} ->
+        # Couldn't get proper tokens - this is an error condition
+        Hex.Shell.error("Failed to obtain proper access tokens")
+        Hex.Shell.error("Please try authenticating again or check your permissions")
+        :error
+
+      {write, read} ->
+        tokens = %{
+          "write" => if(write, do: Hex.OAuth.create_token_data(write)),
+          "read" => if(read, do: Hex.OAuth.create_token_data(read))
+        }
+
+        Hex.OAuth.store_tokens(tokens)
+
+        message =
+          cond do
+            write && read -> "Authentication completed successfully!"
+            write -> "Authentication completed with write access only"
+            read -> "Authentication completed with read-only access"
+          end
+
+        Hex.Shell.info(message)
+        {:ok, tokens}
+    end
+  end
+
+  defp parse_granted_scopes(scope_string) when is_binary(scope_string) do
+    String.split(scope_string, " ", trim: true)
+  end
+
+  defp parse_granted_scopes(_), do: []
+
+  defp create_write_token(initial_token, granted_scopes) do
+    # Check if we have write permission
+    cond do
+      "api" in granted_scopes || "api:write" in granted_scopes ->
+        # We have write permission, exchange for api:write token
+        case Hex.API.OAuth.exchange_token(initial_token["access_token"], "api:write") do
+          {:ok, {200, _, write_token_response}} ->
+            write_token_response
 
           {:ok, {status, _, error}} ->
-            Hex.Shell.error("Failed to exchange read token (#{status}): #{inspect(error)}")
-            :error
+            Hex.Shell.warn("Could not exchange for write token (#{status}): #{inspect(error)}")
+            nil
 
           {:error, reason} ->
-            Hex.Shell.error("Read token exchange error: #{inspect(reason)}")
-            :error
+            Hex.Shell.warn("Write token exchange error: #{inspect(reason)}")
+            nil
         end
 
-      {:ok, {status, _, error}} ->
-        Hex.Shell.error("Failed to exchange write token (#{status}): #{inspect(error)}")
-        :error
-
-      {:error, reason} ->
-        Hex.Shell.error("Write token exchange error: #{inspect(reason)}")
-        :error
+      true ->
+        # No write permission granted
+        nil
     end
+  end
+
+  defp create_read_token(initial_token, granted_scopes) do
+    # Always create a separate read token - they have different refresh rates and conditions
+    # Determine what read scopes we can request
+    read_scopes = build_read_scopes(granted_scopes)
+
+    if read_scopes != "" do
+      case Hex.API.OAuth.exchange_token(initial_token["access_token"], read_scopes) do
+        {:ok, {200, _, read_token_response}} ->
+          read_token_response
+
+        {:ok, {status, _, error}} ->
+          Hex.Shell.warn("Could not exchange for read token (#{status}): #{inspect(error)}")
+          nil
+
+        {:error, reason} ->
+          Hex.Shell.warn("Read token exchange error: #{inspect(reason)}")
+          nil
+      end
+    else
+      # No read scopes available
+      nil
+    end
+  end
+
+  defp build_read_scopes(granted_scopes) do
+    read_scopes = []
+
+    # Add repositories if granted
+    read_scopes =
+      if "repositories" in granted_scopes do
+        ["repositories" | read_scopes]
+      else
+        read_scopes
+      end
+
+    # Add api:read if we have any API read permission
+    read_scopes =
+      if "api" in granted_scopes || "api:read" in granted_scopes || "api:write" in granted_scopes do
+        ["api:read" | read_scopes]
+      else
+        read_scopes
+      end
+
+    Enum.join(read_scopes, " ")
   end
 
   @doc false
