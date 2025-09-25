@@ -14,6 +14,7 @@ shortref=`cd $source_dir && git rev-parse --short HEAD`
 
 filenames="hex_api_auth.erl \
            hex_api_key.erl \
+           hex_api_oauth.erl \
            hex_api_organization_member.erl \
            hex_api_organization.erl \
            hex_api_package_owner.erl \

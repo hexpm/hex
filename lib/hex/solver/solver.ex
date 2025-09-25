@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.3 (057f77e), do not edit manually
+# Vendored from hex_solver v0.2.3 (f702d44), do not edit manually
 
 defmodule Hex.Solver.Solver do
   @moduledoc false
@@ -118,7 +118,7 @@ defmodule Hex.Solver.Solver do
           state = add_incompatibility(state, incompatibility)
           {:choice, package_range.name, state}
 
-        {:ok, package_range, version} ->
+        {:ok, %PackageRange{} = package_range, version} ->
           {lister, incompatibilities} =
             PackageLister.dependencies_as_incompatibilities(
               state.lister,
@@ -155,7 +155,7 @@ defmodule Hex.Solver.Solver do
           state = %{state | solution: solution}
           {:choice, package_range.name, state}
 
-        {:error, package_range} ->
+        {:error, %PackageRange{} = package_range} ->
           package_range = %PackageRange{package_range | constraint: Util.any()}
           term = %Term{positive: true, package_range: package_range}
           incompatibility = Incompatibility.new([term], :package_not_found)

@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.3 (057f77e), do not edit manually
+# Vendored from hex_solver v0.2.3 (f702d44), do not edit manually
 
 defmodule Hex.Solver.Incompatibility do
   @moduledoc false
@@ -409,7 +409,7 @@ defmodule Hex.Solver.Incompatibility do
     end
   end
 
-  defp term_abs(term), do: %Term{term | positive: true}
+  defp term_abs(%Term{} = term), do: %Term{term | positive: true}
 
   defp bright_term_abs(term, opts), do: bright(term_abs(term), opts)
 

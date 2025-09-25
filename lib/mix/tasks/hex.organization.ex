@@ -170,7 +170,7 @@ defmodule Mix.Tasks.Hex.Organization do
         permissions = [%{"domain" => "repository", "resource" => organization}]
         auth = Mix.Tasks.Hex.auth_info(:write)
 
-        case Mix.Tasks.Hex.generate_user_key(key_name, permissions, auth) do
+        case Mix.Tasks.Hex.generate_organization_key(organization, key_name, permissions, auth) do
           {:ok, key} -> key
           :error -> nil
         end

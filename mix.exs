@@ -14,8 +14,16 @@ defmodule Hex.MixProject do
       compilers: [:leex] ++ Mix.compilers(),
       deps: deps(Mix.env()),
       elixirc_options: elixirc_options(Mix.env()),
-      elixirc_paths: elixirc_paths(Mix.env())
+      elixirc_paths: elixirc_paths(Mix.env()),
+      test_ignore_filters: [
+        "test/fixtures/**/*.exs",
+        "test/setup_hexpm.exs"
+      ]
     ]
+  end
+
+  def cli do
+    [preferred_envs: ["deps.get": :test]]
   end
 
   def application do
@@ -30,6 +38,7 @@ defmodule Hex.MixProject do
       {:bypass, "~> 2.0"},
       {:cowboy, "~> 2.14"},
       {:mime, "~> 1.0"},
+      {:mox, "~> 1.0"},
       {:plug, "~> 1.18"},
       {:plug_cowboy, "~> 2.7"}
     ]
@@ -69,16 +78,12 @@ defmodule Hex.MixProject do
 
       Enum.each(files, fn file ->
         file = List.to_string(file)
-        size = byte_size(file) - byte_size(".beam")
 
-        case file do
-          <<name::binary-size(size), ".beam">> ->
-            module = String.to_atom(name)
-            :code.delete(module)
-            :code.purge(module)
-
-          _ ->
-            :ok
+        if String.ends_with?(file, ".beam") do
+          name = String.trim_trailing(file, ".beam")
+          module = String.to_atom(name)
+          :code.delete(module)
+          :code.purge(module)
         end
       end)
     end)
