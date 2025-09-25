@@ -9,6 +9,7 @@ defmodule Hex.MixProject do
       version: @version,
       elixir: "~> 1.12",
       aliases: aliases(),
+      preferred_cli_env: ["deps.get": :test],
       config_path: "config/config.exs",
       compilers: [:leex] ++ Mix.compilers(),
       deps: deps(Mix.env()),
@@ -77,16 +78,12 @@ defmodule Hex.MixProject do
 
       Enum.each(files, fn file ->
         file = List.to_string(file)
-        size = byte_size(file) - byte_size(".beam")
 
-        case file do
-          <<name::binary-size(^size), ".beam">> ->
-            module = String.to_atom(name)
-            :code.delete(module)
-            :code.purge(module)
-
-          _ ->
-            :ok
+        if String.ends_with?(file, ".beam") do
+          name = String.trim_trailing(file, ".beam")
+          module = String.to_atom(name)
+          :code.delete(module)
+          :code.purge(module)
         end
       end)
     end)
