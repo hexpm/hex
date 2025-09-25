@@ -9,13 +9,16 @@ defmodule Hex.MixProject do
       version: @version,
       elixir: "~> 1.12",
       aliases: aliases(),
-      preferred_cli_env: ["deps.get": :test],
       config_path: "config/config.exs",
       compilers: [:leex] ++ Mix.compilers(),
       deps: deps(Mix.env()),
       elixirc_options: elixirc_options(Mix.env()),
       elixirc_paths: elixirc_paths(Mix.env())
     ]
+  end
+
+  def cli do
+    [preferred_envs: ["deps.get": :test]]
   end
 
   def application do
@@ -73,7 +76,7 @@ defmodule Hex.MixProject do
         size = byte_size(file) - byte_size(".beam")
 
         case file do
-          <<name::binary-size(size), ".beam">> ->
+          <<name::binary-size(^size), ".beam">> ->
             module = String.to_atom(name)
             :code.delete(module)
             :code.purge(module)
