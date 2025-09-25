@@ -13,7 +13,11 @@ defmodule Hex.MixProject do
       compilers: [:leex] ++ Mix.compilers(),
       deps: deps(Mix.env()),
       elixirc_options: elixirc_options(Mix.env()),
-      elixirc_paths: elixirc_paths(Mix.env())
+      elixirc_paths: elixirc_paths(Mix.env()),
+      test_ignore_filters: [
+        "test/fixtures/**/*.exs",
+        "test/setup_hexpm.exs"
+      ]
     ]
   end
 
