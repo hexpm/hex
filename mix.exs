@@ -9,6 +9,7 @@ defmodule Hex.MixProject do
       version: @version,
       elixir: "~> 1.12",
       aliases: aliases(),
+      # TODO: Remove when we only support Elixir 1.15+
       preferred_cli_env: ["deps.get": :test],
       config_path: "config/config.exs",
       compilers: [:leex] ++ Mix.compilers(),

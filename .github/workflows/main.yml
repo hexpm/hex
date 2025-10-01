@@ -62,7 +62,7 @@ jobs:
     env:
       HEXPM_OTP: OTP-28.1
       HEXPM_ELIXIR: v1.18.4
-      HEXPM_BRANCH: ericmj/oauth-device
+      HEXPM_BRANCH: main
       HEXPM_PATH: hexpm
       HEXPM_ELIXIR_PATH: hexpm_elixir
       HEXPM_OTP_PATH: hexpm_otp
