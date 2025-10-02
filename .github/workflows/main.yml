@@ -62,6 +62,7 @@ jobs:
     env:
       HEXPM_OTP: OTP-28.1
       HEXPM_ELIXIR: v1.18.4
+      HEXPM_BRANCH: main
       HEXPM_PATH: hexpm
       HEXPM_ELIXIR_PATH: hexpm_elixir
       HEXPM_OTP_PATH: hexpm_otp
@@ -92,7 +93,7 @@ jobs:
 
       - name: Set up hexpm
         run: |
-          git clone https://github.com/hexpm/hexpm.git hexpm
+          git clone -b ${HEXPM_BRANCH} https://github.com/hexpm/hexpm.git hexpm
           cd hexpm; PATH=$(pwd)/../${HEXPM_ELIXIR_PATH}/bin:$(pwd)/../${HEXPM_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/../${HEXPM_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXPM_MIX_HOME} MIX_ENV=hex ../${HEXPM_ELIXIR_PATH}/bin/mix deps.get; cd ..
           cd hexpm; PATH=$(pwd)/../${HEXPM_ELIXIR_PATH}/bin:$(pwd)/../${HEXPM_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/../${HEXPM_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXPM_MIX_HOME} MIX_ENV=hex ../${HEXPM_ELIXIR_PATH}/bin/mix compile; cd ..
 

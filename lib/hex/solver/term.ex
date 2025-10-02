@@ -1,12 +1,10 @@
-# Vendored from hex_solver v0.2.3 (057f77e), do not edit manually
+# Vendored from hex_solver v0.2.3 (f702d44), do not edit manually
 
 defmodule Hex.Solver.Term do
   @moduledoc false
 
   alias Hex.Solver.{Constraint, PackageRange, Term}
   alias Hex.Solver.Constraints.Empty
-
-  require Logger
 
   defstruct positive: true,
             package_range: nil,

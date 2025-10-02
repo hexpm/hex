@@ -65,6 +65,10 @@ defmodule Mix.Tasks.Hex.Search do
     end
   end
 
+  defp lookup_packages({:ok, {_status, _headers, _body}}) do
+    Hex.Shell.info("No packages found")
+  end
+
   defp print_with_organizations(packages) do
     values =
       Enum.map(packages, fn package ->

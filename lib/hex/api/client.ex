@@ -18,7 +18,9 @@ defmodule Hex.API.Client do
   defp maybe_put_api_key(config, opts) do
     cond do
       opts[:key] ->
-        Map.put(config, :api_key, opts[:key])
+        # Add Bearer prefix only for OAuth tokens
+        token = if opts[:oauth], do: "Bearer #{opts[:key]}", else: opts[:key]
+        Map.put(config, :api_key, token)
 
       opts[:user] && opts[:pass] ->
         # For basic auth, add it as an HTTP header

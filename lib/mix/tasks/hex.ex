@@ -1,8 +1,6 @@
 defmodule Mix.Tasks.Hex do
   use Mix.Task
 
-  @apikey_tag "HEXAPIKEY"
-
   @shortdoc "Prints Hex help information"
 
   @moduledoc """
@@ -124,64 +122,223 @@ defmodule Mix.Tasks.Hex do
 
   @doc false
   def auth(opts \\ []) do
-    username = Hex.Shell.prompt("Username:") |> String.trim()
-    account_password = Mix.Tasks.Hex.password_get("Account password:") |> String.trim()
-    Mix.Tasks.Hex.generate_all_user_keys(username, account_password, opts)
+    auth_device(opts)
   end
 
-  @local_password_prompt "You have authenticated on Hex using your account password. However, " <>
-                           "Hex requires you to have a local password that applies only to this machine for security " <>
-                           "purposes. Please enter it."
-
-  @doc false
-  def generate_user_key(key_name, permissions, opts) do
-    case Hex.API.Key.new(key_name, permissions, opts) do
-      {:ok, {201, _, body}} ->
-        {:ok, body["secret"]}
-
-      other ->
-        Mix.shell().error("Generation of key failed")
-        Hex.Utils.print_error_result(other)
-        :error
+  defp get_hostname() do
+    case :inet.gethostname() do
+      {:ok, hostname} -> to_string(hostname)
+      {:error, _} -> nil
     end
   end
 
   @doc false
-  def generate_all_user_keys(username, password, opts \\ []) do
-    Hex.Shell.info("Generating keys...")
-    auth = [user: username, pass: password]
-    key_name = api_key_name(opts[:key_name])
-    permissions = [%{"domain" => "api"}]
+  def auth_device(_opts \\ []) do
+    # Clean up any existing authentication
+    revoke_existing_oauth_tokens()
+    revoke_and_cleanup_old_api_keys()
 
-    case generate_user_key(key_name, permissions, auth) do
-      {:ok, write_key} ->
-        key_name = api_key_name(opts[:key_name], "read")
-        permissions = [%{"domain" => "api", "resource" => "read"}]
+    Hex.Shell.info("Starting OAuth device flow authentication...")
 
-        case generate_user_key(key_name, permissions, key: write_key) do
-          {:ok, read_key} ->
-            key_name = repositories_key_name(opts[:key_name])
-            permissions = [%{"domain" => "repositories"}]
+    name = get_hostname()
 
-            case generate_user_key(key_name, permissions, key: write_key) do
-              {:ok, organization_key} ->
-                auth_organization("hexpm", organization_key)
+    case Hex.API.OAuth.device_authorization("api repositories", name) do
+      {:ok, {200, _, device_response}} ->
+        perform_device_flow(device_response)
 
-                Hex.Shell.info(@local_password_prompt)
-                prompt_encrypt_key(write_key, read_key)
-                {:ok, write_key, read_key, organization_key}
+      {:ok, {status, _, error}} ->
+        Hex.Shell.error("Device authorization failed (#{status}): #{inspect(error)}")
+        :error
 
-              :error ->
-                :ok
-            end
+      {:error, reason} ->
+        Hex.Shell.error("Device authorization error: #{inspect(reason)}")
+        :error
+    end
+  end
 
-          :error ->
-            :error
-        end
+  defp perform_device_flow(device_response) do
+    device_code = device_response["device_code"]
+    user_code = device_response["user_code"]
+    verification_uri = device_response["verification_uri"]
+    verification_uri_complete = device_response["verification_uri_complete"]
+    interval = device_response["interval"] || 5
+
+    # Use the complete URI if available (has user code pre-filled), otherwise fall back to basic URI
+    uri_to_open = verification_uri_complete || verification_uri
+
+    Hex.Shell.info("To authenticate, visit: #{uri_to_open}")
+
+    # Only show the user code if we don't have the complete URI
+    if !verification_uri_complete do
+      Hex.Shell.info("— enter the code: #{user_code}")
+    end
+
+    Hex.Shell.info("")
+
+    # Automatically open the browser
+    Hex.Utils.system_open(uri_to_open)
+
+    Hex.Shell.info("Waiting for authentication...")
+
+    case poll_for_token(device_code, interval) do
+      {:ok, initial_token} ->
+        exchange_and_store_tokens(initial_token)
 
       :error ->
         :error
     end
+  end
+
+  defp poll_for_token(device_code, interval, attempt \\ 1) do
+    case Hex.API.OAuth.poll_device_token(device_code) do
+      {:ok, {200, _, token_response}} ->
+        {:ok, token_response}
+
+      {:ok, {400, _, %{"error" => "authorization_pending"}}} ->
+        if attempt > 120 do
+          Hex.Shell.error("Authentication timed out. Please try again.")
+          :error
+        else
+          Process.sleep(interval * 1000)
+          poll_for_token(device_code, interval, attempt + 1)
+        end
+
+      {:ok, {400, _, %{"error" => "slow_down"}}} ->
+        # Increase polling interval
+        new_interval = min(interval * 2, 30)
+        Process.sleep(new_interval * 1000)
+        poll_for_token(device_code, new_interval, attempt + 1)
+
+      {:ok, {400, _, %{"error" => "expired_token"}}} ->
+        Hex.Shell.error("Device code expired. Please try again.")
+        :error
+
+      {:ok, {403, _, %{"error" => "access_denied"}}} ->
+        Hex.Shell.error("Authentication was denied.")
+        :error
+
+      {:ok, {status, _, error}} ->
+        Hex.Shell.error("Authentication failed (#{status}): #{inspect(error)}")
+        :error
+
+      {:error, reason} ->
+        Hex.Shell.error("Authentication error: #{inspect(reason)}")
+        :error
+    end
+  end
+
+  defp exchange_and_store_tokens(initial_token) do
+    Hex.Shell.info("Authentication successful! Exchanging tokens...")
+
+    # Parse the granted scopes from the initial token
+    granted_scopes = parse_granted_scopes(initial_token["scope"] || "")
+
+    # Determine what tokens we can create based on granted scopes
+    write_token = create_write_token(initial_token, granted_scopes)
+    read_token = create_read_token(initial_token, granted_scopes)
+
+    # Store the tokens based on what we obtained
+    case {write_token, read_token} do
+      {nil, nil} ->
+        # Couldn't get proper tokens - this is an error condition
+        Hex.Shell.error("Failed to obtain proper access tokens")
+        Hex.Shell.error("Please try authenticating again or check your permissions")
+        :error
+
+      {write, read} ->
+        tokens = %{
+          "write" => if(write, do: Hex.OAuth.create_token_data(write)),
+          "read" => if(read, do: Hex.OAuth.create_token_data(read))
+        }
+
+        Hex.OAuth.store_tokens(tokens)
+
+        message =
+          cond do
+            write && read -> "Authentication completed successfully!"
+            write -> "Authentication completed with write access only"
+            read -> "Authentication completed with read-only access"
+          end
+
+        Hex.Shell.info(message)
+        {:ok, tokens}
+    end
+  end
+
+  defp parse_granted_scopes(scope_string) when is_binary(scope_string) do
+    String.split(scope_string, " ", trim: true)
+  end
+
+  defp parse_granted_scopes(_), do: []
+
+  defp create_write_token(initial_token, granted_scopes) do
+    # Check if we have write permission
+    cond do
+      "api" in granted_scopes || "api:write" in granted_scopes ->
+        # We have write permission, exchange for api:write token
+        case Hex.API.OAuth.exchange_token(initial_token["access_token"], "api:write") do
+          {:ok, {200, _, write_token_response}} ->
+            write_token_response
+
+          {:ok, {status, _, error}} ->
+            Hex.Shell.warn("Could not exchange for write token (#{status}): #{inspect(error)}")
+            nil
+
+          {:error, reason} ->
+            Hex.Shell.warn("Write token exchange error: #{inspect(reason)}")
+            nil
+        end
+
+      true ->
+        # No write permission granted
+        nil
+    end
+  end
+
+  defp create_read_token(initial_token, granted_scopes) do
+    # Always create a separate read token - they have different refresh rates and conditions
+    # Determine what read scopes we can request
+    read_scopes = build_read_scopes(granted_scopes)
+
+    if read_scopes != "" do
+      case Hex.API.OAuth.exchange_token(initial_token["access_token"], read_scopes) do
+        {:ok, {200, _, read_token_response}} ->
+          read_token_response
+
+        {:ok, {status, _, error}} ->
+          Hex.Shell.warn("Could not exchange for read token (#{status}): #{inspect(error)}")
+          nil
+
+        {:error, reason} ->
+          Hex.Shell.warn("Read token exchange error: #{inspect(reason)}")
+          nil
+      end
+    else
+      # No read scopes available
+      nil
+    end
+  end
+
+  defp build_read_scopes(granted_scopes) do
+    read_scopes = []
+
+    # Add repositories if granted
+    read_scopes =
+      if "repositories" in granted_scopes do
+        ["repositories" | read_scopes]
+      else
+        read_scopes
+      end
+
+    # Add api:read if we have any API read permission
+    read_scopes =
+      if "api" in granted_scopes || "api:read" in granted_scopes || "api:write" in granted_scopes do
+        ["api:read" | read_scopes]
+      else
+        read_scopes
+      end
+
+    Enum.join(read_scopes, " ")
   end
 
   @doc false
@@ -229,16 +386,67 @@ defmodule Mix.Tasks.Hex do
   end
 
   @doc false
-  def update_keys(write_key, read_key \\ nil) do
-    Hex.Config.update(
-      "$write_key": write_key,
-      "$read_key": read_key,
-      "$encrypted_key": nil,
-      encrypted_key: nil
-    )
+  def revoke_existing_oauth_tokens do
+    case Hex.Config.read()[:"$oauth_tokens"] do
+      nil ->
+        :ok
 
-    Hex.State.put(:api_key_write, write_key)
-    Hex.State.put(:api_key_read, read_key)
+      tokens when is_map(tokens) ->
+        Enum.each(tokens, fn {_type, token_data} ->
+          if access_token = token_data["access_token"] do
+            case Hex.API.OAuth.revoke_token(access_token) do
+              {:ok, {code, _, _}} when code in 200..299 ->
+                :ok
+
+              _ ->
+                :ok
+            end
+          end
+        end)
+
+        Hex.Config.remove([:"$oauth_tokens"])
+        Hex.Shell.info("Revoked existing OAuth tokens.")
+
+      _ ->
+        :ok
+    end
+  end
+
+  @doc false
+  def revoke_and_cleanup_old_api_keys do
+    config = Hex.Config.read()
+
+    # Check for old write key
+    if write_key = config[:"$write_key"] do
+      # Try to revoke on server (might fail if already revoked or invalid)
+      case Hex.API.Key.delete(write_key, key: write_key) do
+        {:ok, {code, _, _}} when code in 200..299 ->
+          Hex.Shell.info("Revoked old write API key.")
+
+        _ ->
+          # Key might already be invalid, continue anyway
+          :ok
+      end
+    end
+
+    # Check for old read key (only if different from write key)
+    if read_key = config[:"$read_key"] do
+      if read_key != config[:"$write_key"] do
+        case Hex.API.Key.delete(read_key, key: read_key) do
+          {:ok, {code, _, _}} when code in 200..299 ->
+            Hex.Shell.info("Revoked old read API key.")
+
+          _ ->
+            :ok
+        end
+      end
+    end
+
+    # Remove from config if they existed
+    if config[:"$write_key"] || config[:"$read_key"] do
+      Hex.Config.remove([:"$write_key", :"$read_key"])
+      Hex.Shell.info("Removed deprecated API keys from config.")
+    end
   end
 
   @doc false
@@ -255,26 +463,82 @@ defmodule Mix.Tasks.Hex do
   def auth_info(permission, opts \\ [])
 
   def auth_info(:write, opts) do
-    api_key_write_unencrypted = Hex.State.fetch!(:api_key_write_unencrypted)
-    api_key_write = Hex.State.fetch!(:api_key_write)
+    # Try OAuth tokens first
+    case Hex.OAuth.get_token(:write) do
+      {:ok, access_token} ->
+        [key: access_token, oauth: true]
 
-    cond do
-      api_key_write_unencrypted -> [key: api_key_write_unencrypted]
-      api_key_write -> [key: prompt_decrypt_key(api_key_write)]
-      Keyword.get(opts, :auth_inline, true) -> authenticate_inline()
-      true -> []
+      {:error, :refresh_failed} ->
+        Hex.Shell.info("Token refresh failed. Please re-authenticate.")
+
+        if Keyword.get(opts, :auth_inline, true) do
+          authenticate_inline()
+        else
+          []
+        end
+
+      {:error, :token_expired} ->
+        Hex.Shell.info("Access token expired and could not be refreshed. Please re-authenticate.")
+
+        if Keyword.get(opts, :auth_inline, true) do
+          authenticate_inline()
+        else
+          []
+        end
+
+      {:error, :no_auth} ->
+        # Fall back to API key from config/env
+        case Hex.State.fetch!(:api_key) do
+          nil ->
+            if Keyword.get(opts, :auth_inline, true) do
+              authenticate_inline()
+            else
+              []
+            end
+
+          api_key ->
+            [key: api_key]
+        end
     end
   end
 
   def auth_info(:read, opts) do
-    api_key_write_unencrypted = Hex.State.fetch!(:api_key_write_unencrypted)
-    api_key_read = Hex.State.fetch!(:api_key_read)
+    # Try OAuth tokens first
+    case Hex.OAuth.get_token(:read) do
+      {:ok, access_token} ->
+        [key: access_token, oauth: true]
 
-    cond do
-      api_key_write_unencrypted -> [key: api_key_write_unencrypted]
-      api_key_read -> [key: api_key_read]
-      Keyword.get(opts, :auth_inline, true) -> authenticate_inline()
-      true -> []
+      {:error, :refresh_failed} ->
+        Hex.Shell.info("Token refresh failed. Please re-authenticate.")
+
+        if Keyword.get(opts, :auth_inline, true) do
+          authenticate_inline()
+        else
+          []
+        end
+
+      {:error, :token_expired} ->
+        Hex.Shell.info("Access token expired and could not be refreshed. Please re-authenticate.")
+
+        if Keyword.get(opts, :auth_inline, true) do
+          authenticate_inline()
+        else
+          []
+        end
+
+      {:error, :no_auth} ->
+        # Fall back to API key from config/env (write key can be used for read)
+        case Hex.State.fetch!(:api_key) do
+          nil ->
+            if Keyword.get(opts, :auth_inline, true) do
+              authenticate_inline()
+            else
+              []
+            end
+
+          api_key ->
+            [key: api_key]
+        end
     end
   end
 
@@ -284,8 +548,15 @@ defmodule Mix.Tasks.Hex do
 
     if authenticate? do
       case auth() do
-        {:ok, write_key, _read_key, _org_key} -> [key: write_key]
-        :error -> no_auth_error()
+        {:ok, _tokens} ->
+          # Auth succeeded, try to get write token
+          case Hex.OAuth.get_token(:write) do
+            {:ok, access_token} -> [key: access_token, oauth: true]
+            {:error, _} -> no_auth_error()
+          end
+
+        :error ->
+          no_auth_error()
       end
     else
       no_auth_error()
@@ -294,44 +565,6 @@ defmodule Mix.Tasks.Hex do
 
   defp no_auth_error() do
     Mix.raise("No authenticated user found. Run `mix hex.user auth`")
-  end
-
-  @doc false
-  def prompt_encrypt_key(write_key, read_key, challenge \\ "Local password") do
-    password = password_get("#{challenge}:") |> String.trim()
-    confirm = password_get("#{challenge} (confirm):") |> String.trim()
-
-    if password != confirm do
-      Hex.Shell.error("Entered passwords do not match. Try again")
-      prompt_encrypt_key(write_key, read_key, challenge)
-    else
-      encrypted_write_key = Hex.Crypto.encrypt(write_key, password, @apikey_tag)
-      update_keys(encrypted_write_key, read_key)
-    end
-  end
-
-  @doc false
-  def prompt_decrypt_key(encrypted_key, challenge \\ "Local password") do
-    password = password_get("#{challenge}:") |> String.trim()
-
-    case Hex.Crypto.decrypt(encrypted_key, password, @apikey_tag) do
-      {:ok, key} ->
-        key
-
-      :error ->
-        Hex.Shell.error("Wrong password. Try again")
-        prompt_decrypt_key(encrypted_key, challenge)
-    end
-  end
-
-  @doc false
-  def encrypt_key(password, key) do
-    Hex.Crypto.encrypt(key, password, @apikey_tag)
-  end
-
-  @doc false
-  def decrypt_key(password, key) do
-    Hex.Crypto.decrypt(key, password, @apikey_tag)
   end
 
   @doc false
@@ -355,40 +588,6 @@ defmodule Mix.Tasks.Hex do
       destructure [domain, resource], String.split(permission, ":", parts: 2)
       %{"domain" => domain, "resource" => resource}
     end)
-  end
-
-  # Password prompt that hides input by every 1ms
-  # clearing the line with stderr
-  @doc false
-  def password_get(prompt) do
-    if Hex.State.fetch!(:clean_pass) do
-      password_clean(prompt)
-    else
-      Hex.Shell.prompt(prompt <> " ")
-    end
-  end
-
-  defp password_clean(prompt) do
-    pid = spawn_link(fn -> loop(prompt) end)
-    ref = make_ref()
-    value = IO.gets(prompt <> " ")
-
-    send(pid, {:done, self(), ref})
-    receive do: ({:done, ^pid, ^ref} -> :ok)
-
-    value
-  end
-
-  defp loop(prompt) do
-    receive do
-      {:done, parent, ref} ->
-        send(parent, {:done, self(), ref})
-        IO.write(:standard_error, "\e[2K\r")
-    after
-      1 ->
-        IO.write(:standard_error, "\e[2K\r#{prompt} ")
-        loop(prompt)
-    end
   end
 
   @progress_steps 25

@@ -191,8 +191,6 @@ defmodule Mix.Tasks.Hex.Publish do
       Mix.Task.run("docs", [])
     rescue
       ex in [Mix.NoTaskError] ->
-        require Hex.Stdlib
-
         Mix.shell().error("""
         Publication failed because the "docs" task is unavailable. You may resolve this by:
 

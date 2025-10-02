@@ -180,7 +180,6 @@ defmodule Hex.SCM do
         Hex.Tar.unpack!(path, dest)
       rescue
         exception ->
-          require Hex.Stdlib
           File.rm(path)
           reraise(exception, __STACKTRACE__)
       end

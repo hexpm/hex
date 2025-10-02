@@ -21,7 +21,7 @@ defmodule Hex.APITest do
   end
 
   test "release" do
-    auth = Hexpm.new_key(user: "user", pass: "hunter42")
+    auth = Hexpm.new_user("release_user", "release_user@mail.com", "hunter42", "key")
 
     %{tarball: tarball} = Hex.Tar.create!(meta(:pear, "0.0.1", []), ["mix.exs"], :memory)
     assert {:ok, {404, _, _}} = Hex.API.Release.get("hexpm", "pear", "0.0.1")
@@ -45,7 +45,7 @@ defmodule Hex.APITest do
   end
 
   test "docs" do
-    auth = Hexpm.new_key(user: "user", pass: "hunter42")
+    auth = Hexpm.new_user("docs_user", "docs_user@mail.com", "hunter42", "key")
 
     %{tarball: tarball} = Hex.Tar.create!(meta(:tangerine, "0.0.1", []), ["mix.exs"], :memory)
     assert {:ok, {201, _, _}} = Hex.API.Release.publish("hexpm", tarball, auth)
@@ -108,12 +108,12 @@ defmodule Hex.APITest do
   end
 
   test "owners" do
-    auth = Hexpm.new_key(user: "user", pass: "hunter42")
+    auth = Hexpm.new_user("owners_user", "owners_user@mail.com", "hunter42", "key")
 
     Hexpm.new_package("hexpm", "orange", "0.0.1", %{}, %{}, auth)
     Hex.API.User.new("orange_user", "orange_user@mail.com", "hunter42")
 
-    assert {:ok, {200, _, [%{"username" => "user"}]}} =
+    assert {:ok, {200, _, [%{"username" => "owners_user"}]}} =
              Hex.API.Package.Owner.get("hexpm", "orange", auth)
 
     assert {:ok, {status, _, _}} =
@@ -130,7 +130,7 @@ defmodule Hex.APITest do
 
     assert {:ok, {200, _, owners}} = Hex.API.Package.Owner.get("hexpm", "orange", auth)
     assert length(owners) == 2
-    assert Enum.any?(owners, &match?(%{"username" => "user"}, &1))
+    assert Enum.any?(owners, &match?(%{"username" => "owners_user"}, &1))
     assert Enum.any?(owners, &match?(%{"username" => "orange_user"}, &1))
 
     assert {:ok, {status, _, _}} =
@@ -138,7 +138,7 @@ defmodule Hex.APITest do
 
     assert status in 200..299
 
-    assert {:ok, {200, _, [%{"username" => "user"}]}} =
+    assert {:ok, {200, _, [%{"username" => "owners_user"}]}} =
              Hex.API.Package.Owner.get("hexpm", "orange", auth)
   end
 end
