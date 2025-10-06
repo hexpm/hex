@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.11.0 (94a912d), do not edit manually
+%% Vendored from hex_core v0.11.0 (5cb699e), do not edit manually
 
 %% @doc
 %% `hex_core' entrypoint module.
@@ -13,6 +13,11 @@
 %% === Options ===
 %%
 %% * `api_key' - Authentication key used when accessing the HTTP API.
+%%
+%% * `api_otp' - TOTP (Time-based One-Time Password) code for two-factor authentication.
+%%   May be required for write operations when using OAuth tokens. If required, the
+%%   server will return `{error, otp_required}' and you should retry with this option set.
+%%   The 6-digit code from your authenticator app.
 %%
 %% * `api_organization' - Name of the organization endpoint in the API, this should
 %%   for example be set when accessing key for a specific organization.
@@ -49,6 +54,10 @@
 %% * `repo_verify_origin' - If `true' will verify the repository signature origin,
 %%   requires protobuf messages as of hex_core v0.4.0 (default: `true').
 %%
+%% * `send_100_continue' - If `true' will send `Expect: 100-continue' header for
+%%   publish operations. This allows the server to validate authentication and
+%%   authorization before the client sends the request body (default: `true').
+%%
 %% * `tarball_max_size' - Maximum size of package tarball, defaults to
 %%   `16_777_216' (16 MiB). Set to `infinity' to not enforce the limit.
 %%
@@ -81,6 +90,7 @@
 
 -type config() :: #{
     api_key => binary() | undefined,
+    api_otp => binary() | undefined,
     api_organization => binary() | undefined,
     api_repository => binary() | undefined,
     api_url => binary(),
@@ -95,6 +105,7 @@
     repo_organization => binary() | undefined,
     repo_verify => boolean(),
     repo_verify_origin => boolean(),
+    send_100_continue => boolean(),
     tarball_max_size => pos_integer() | infinity,
     tarball_max_uncompressed_size => pos_integer() | infinity,
     docs_tarball_max_size => pos_integer() | infinity,
@@ -105,6 +116,7 @@
 default_config() ->
     #{
         api_key => undefined,
+        api_otp => undefined,
         api_organization => undefined,
         api_repository => undefined,
         api_url => <<"https://hex.pm/api">>,
@@ -119,6 +131,7 @@ default_config() ->
         repo_organization => undefined,
         repo_verify => true,
         repo_verify_origin => true,
+        send_100_continue => true,
         tarball_max_size => 16 * 1024 * 1024,
         tarball_max_uncompressed_size => 128 * 1024 * 1024,
         docs_tarball_max_size => 16 * 1024 * 1024,

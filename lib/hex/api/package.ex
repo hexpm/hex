@@ -21,25 +21,29 @@ defmodule Hex.API.Package do
     alias Hex.API.Client
 
     def add(repo, package, owner, level, transfer, auth) when package != "" do
-      config = Client.build_config(repo, auth)
+      Mix.Tasks.Hex.with_otp_retry(auth, fn auth_with_otp ->
+        config = Client.build_config(repo, auth_with_otp)
 
-      :mix_hex_api_package_owner.add(
-        config,
-        to_string(package),
-        to_string(owner),
-        to_string(level),
-        transfer
-      )
+        :mix_hex_api_package_owner.add(
+          config,
+          to_string(package),
+          to_string(owner),
+          to_string(level),
+          transfer
+        )
+      end)
     end
 
     def delete(repo, package, owner, auth) when package != "" do
-      config = Client.build_config(repo, auth)
+      Mix.Tasks.Hex.with_otp_retry(auth, fn auth_with_otp ->
+        config = Client.build_config(repo, auth_with_otp)
 
-      :mix_hex_api_package_owner.delete(
-        config,
-        to_string(package),
-        to_string(owner)
-      )
+        :mix_hex_api_package_owner.delete(
+          config,
+          to_string(package),
+          to_string(owner)
+        )
+      end)
     end
 
     def get(repo, package, auth) when package != "" do

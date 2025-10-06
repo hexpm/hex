@@ -12,6 +12,9 @@ defmodule Hex.State do
       env: ["HEX_API_KEY"],
       config: [:api_key]
     },
+    api_otp: %{
+      env: ["HEX_OTP"]
+    },
     oauth_tokens: %{
       config: [:"$oauth_tokens"]
     },
