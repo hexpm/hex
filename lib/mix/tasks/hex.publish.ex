@@ -150,6 +150,8 @@ defmodule Mix.Tasks.Hex.Publish do
         case create_release(build, organization, auth, opts) do
           :ok ->
             Hex.Shell.info("Publishing docs...")
+            # Refresh auth to pick up cached OTP from package publish
+            auth = Mix.Tasks.Hex.auth_info(:write)
             create_docs(build, organization, auth, opts)
             transfer_owner(build, owner, auth, opts)
 

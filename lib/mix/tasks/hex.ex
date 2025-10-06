@@ -455,6 +455,8 @@ defmodule Mix.Tasks.Hex do
   end
 
   defp prompt_otp() do
+    Hex.Shell.info("")
+
     Hex.Shell.prompt("Enter your 2FA code:")
     |> String.trim()
   end
@@ -588,17 +590,17 @@ defmodule Mix.Tasks.Hex do
   def with_otp_retry(auth, fun) when is_function(fun, 1) do
     case fun.(auth) do
       {:error, :otp_required} ->
-        # Server requires OTP, prompt for it and retry
         otp = prompt_otp()
+        Hex.State.put(:api_otp, otp)
         auth_with_otp = Keyword.put(auth, :otp, otp)
-        fun.(auth_with_otp)
+        with_otp_retry(auth_with_otp, fun)
 
       {:error, :invalid_totp} ->
-        # Invalid OTP code provided, show error and prompt again
         Hex.Shell.error("Invalid two-factor authentication code")
         otp = prompt_otp()
+        Hex.State.put(:api_otp, otp)
         auth_with_otp = Keyword.put(auth, :otp, otp)
-        fun.(auth_with_otp)
+        with_otp_retry(auth_with_otp, fun)
 
       result ->
         result
@@ -636,8 +638,6 @@ defmodule Mix.Tasks.Hex do
   end
 
   def progress(max) do
-    put_progress(0, 0)
-
     fn size ->
       fraction = size / max
       completed = trunc(fraction * @progress_steps)

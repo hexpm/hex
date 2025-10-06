@@ -53,6 +53,16 @@ defmodule Hex.HTTP do
     {body, extra_headers} = wrap_body_with_progress(body, progress_callback)
     headers = Map.merge(headers, extra_headers)
 
+    # Work around httpc bug: disable connection reuse when using Expect: 100-continue
+    # httpc doesn't properly handle connection state when receiving final status (401)
+    # instead of 100 Continue response
+    headers =
+      if headers["expect"] == "100-continue" do
+        Map.put(headers, "connection", "close")
+      else
+        headers
+      end
+
     http_opts = build_http_opts(url, timeout)
     opts = [body_format: :binary]
     request = build_request(url, headers, body)
@@ -397,7 +407,6 @@ defmodule Hex.HTTP do
       {content_type, binary_body}
       when is_binary(binary_body) and is_function(progress_callback, 1) ->
         total_size = byte_size(binary_body)
-        progress_callback.(0)
 
         body_fn = fn
           size when size < total_size ->
