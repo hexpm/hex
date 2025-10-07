@@ -4,78 +4,73 @@ defmodule Hex.OAuth do
   alias Hex.API.OAuth
 
   @doc """
-  Retrieves a valid access token for the given permission type.
+  Retrieves a valid access token.
 
   Automatically refreshes the token if it's expired.
   Returns {:error, :no_auth} if no tokens are available.
+
+  Since we now use 2FA for write operations, we use a single token for both read and write.
+  The permission parameter is kept for backward compatibility but is no longer used.
   """
   def get_token(permission) when permission in [:read, :write] do
-    case get_stored_tokens() do
+    case get_stored_token() do
       nil ->
         {:error, :no_auth}
 
-      tokens ->
-        token_data = Map.get(tokens, to_string(permission))
-
-        if token_data && valid_token?(token_data) do
+      token_data ->
+        if valid_token?(token_data) do
           {:ok, token_data["access_token"]}
         else
           # Try to refresh the token
-          refresh_token_if_possible(permission, token_data)
+          refresh_token_if_possible(token_data)
         end
     end
   end
 
   @doc """
-  Stores OAuth tokens for both read and write permissions.
+  Stores OAuth token data.
+
+  Since we now use 2FA for write operations, we only store a single token.
 
   Expected format:
   %{
-    "write" => %{
-      "access_token" => "...",
-      "refresh_token" => "...",
-      "expires_at" => unix_timestamp
-    },
-    "read" => %{
-      "access_token" => "...",
-      "refresh_token" => "...",
-      "expires_at" => unix_timestamp
-    }
+    "access_token" => "...",
+    "refresh_token" => "...",
+    "expires_at" => unix_timestamp
   }
   """
-  def store_tokens(tokens) do
-    Hex.Config.update([{:"$oauth_tokens", tokens}])
-    Hex.State.put(:oauth_tokens, tokens)
+  def store_token(token_data) do
+    Hex.Config.update([{:"$oauth_token", token_data}])
+    Hex.State.put(:oauth_token, token_data)
   end
 
   @doc """
   Clears all stored OAuth tokens.
   """
   def clear_tokens do
-    Hex.Config.remove([:"$oauth_tokens"])
-    Hex.State.put(:oauth_tokens, nil)
+    Hex.Config.remove([:"$oauth_token"])
+    Hex.State.put(:oauth_token, nil)
   end
 
   @doc """
   Checks if we have any OAuth tokens stored.
   """
   def has_tokens? do
-    get_stored_tokens() != nil
+    get_stored_token() != nil
   end
 
   @doc """
-  Refreshes a token for the given permission type.
+  Refreshes the stored OAuth token.
+
+  The permission parameter is kept for backward compatibility but is no longer used.
   """
   def refresh_token(permission) when permission in [:read, :write] do
-    case get_stored_tokens() do
+    case get_stored_token() do
       nil ->
         {:error, :no_auth}
 
-      tokens ->
-        permission_str = to_string(permission)
-        token_data = Map.get(tokens, permission_str)
-
-        if token_data && token_data["refresh_token"] do
+      token_data ->
+        if token_data["refresh_token"] do
           case OAuth.refresh_token(token_data["refresh_token"]) do
             {:ok, {200, _, new_token_data}} ->
               # Update the token data with new values
@@ -86,9 +81,8 @@ defmodule Hex.OAuth do
                 |> Map.put("expires_at", expires_at)
                 |> Map.take(["access_token", "refresh_token", "expires_at"])
 
-              # Update stored tokens
-              updated_tokens = Map.put(tokens, permission_str, new_token_data)
-              store_tokens(updated_tokens)
+              # Update stored token
+              store_token(new_token_data)
 
               {:ok, new_token_data["access_token"]}
 
@@ -117,8 +111,8 @@ defmodule Hex.OAuth do
     |> Map.take(["access_token", "refresh_token", "expires_at"])
   end
 
-  defp get_stored_tokens do
-    Hex.State.get(:oauth_tokens)
+  defp get_stored_token do
+    Hex.State.get(:oauth_token)
   end
 
   defp valid_token?(token_data) do
@@ -133,8 +127,8 @@ defmodule Hex.OAuth do
     end
   end
 
-  defp refresh_token_if_possible(permission, token_data) do
-    case refresh_token(permission) do
+  defp refresh_token_if_possible(token_data) do
+    case refresh_token(:write) do
       {:ok, access_token} ->
         {:ok, access_token}
 

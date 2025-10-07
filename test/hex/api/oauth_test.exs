@@ -78,35 +78,6 @@ defmodule Hex.API.OAuthTest do
     end
   end
 
-  describe "exchange_token/2" do
-    test "handles invalid token exchange" do
-      # Test with a completely invalid token
-      assert {:ok, {status, _headers, %{"error" => error}}} =
-               Hex.API.OAuth.exchange_token("invalid_token", "api:write")
-
-      assert status in [400, 401]
-      assert error in ["invalid_token", "invalid_grant"]
-    end
-
-    test "handles token exchange with invalid scope" do
-      # Test with invalid scope and invalid token (expect token error first)
-      assert {:ok, {status, _headers, %{"error" => error}}} =
-               Hex.API.OAuth.exchange_token("invalid_token", "invalid_scope")
-
-      assert status in [400, 401]
-      assert error in ["invalid_token", "invalid_grant", "invalid_scope"]
-    end
-
-    test "validates token format" do
-      # Test with malformed token
-      assert {:ok, {status, _headers, %{"error" => error}}} =
-               Hex.API.OAuth.exchange_token("malformed_token", "api:write")
-
-      assert status in [400, 401]
-      assert error in ["invalid_grant", "invalid_token"]
-    end
-  end
-
   describe "refresh_token/1" do
     test "handles invalid refresh token" do
       # Test with a completely invalid refresh token

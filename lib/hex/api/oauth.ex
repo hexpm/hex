@@ -48,24 +48,6 @@ defmodule Hex.API.OAuth do
   end
 
   @doc """
-  Exchanges a token for a new token with different scopes using RFC 8693 token exchange.
-
-  ## Examples
-
-      iex> Hex.API.OAuth.exchange_token(subject_token, "api:write")
-      {:ok, {200, _headers, %{
-        "access_token" => "...",
-        "refresh_token" => "...",
-        "token_type" => "Bearer",
-        "expires_in" => 3600
-      }}}
-  """
-  def exchange_token(subject_token, scope) do
-    config = Client.config()
-    :mix_hex_api_oauth.exchange_token(config, @client_id, subject_token, scope)
-  end
-
-  @doc """
   Refreshes an access token using a refresh token.
 
   ## Examples

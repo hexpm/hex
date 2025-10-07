@@ -179,8 +179,8 @@ defmodule Mix.Tasks.Hex do
     Hex.Shell.info("Waiting for authentication...")
 
     case poll_for_token(device_code, interval) do
-      {:ok, initial_token} ->
-        exchange_and_store_tokens(initial_token)
+      {:ok, token} ->
+        store_token(token)
 
       :error ->
         :error
@@ -232,108 +232,15 @@ defmodule Mix.Tasks.Hex do
       "-" <> String.slice(user_code, mid, String.length(user_code))
   end
 
-  defp exchange_and_store_tokens(initial_token) do
-    # Parse the granted scopes from the initial token
-    granted_scopes = parse_granted_scopes(initial_token["scope"] || "")
+  defp store_token(token) do
+    # Create token data with expiration time
+    token_data = Hex.OAuth.create_token_data(token)
 
-    # Determine what tokens we can create based on granted scopes
-    write_token = create_write_token(initial_token, granted_scopes)
-    read_token = create_read_token(initial_token, granted_scopes)
-
-    # Store the tokens based on what we obtained
-    case {write_token, read_token} do
-      {nil, nil} ->
-        # Couldn't get proper tokens - this is an error condition
-        Hex.Shell.error("Failed to obtain proper access tokens")
-        Hex.Shell.error("Please try authenticating again or check your permissions")
-        :error
-
-      {write, read} ->
-        tokens = %{
-          "write" => if(write, do: Hex.OAuth.create_token_data(write)),
-          "read" => if(read, do: Hex.OAuth.create_token_data(read))
-        }
-
-        Hex.OAuth.store_tokens(tokens)
-        Hex.Shell.info("Authentication completed successfully!")
-        {:ok, tokens}
-    end
-  end
-
-  defp parse_granted_scopes(scope_string) when is_binary(scope_string) do
-    String.split(scope_string, " ", trim: true)
-  end
-
-  defp parse_granted_scopes(_), do: []
-
-  defp create_write_token(initial_token, granted_scopes) do
-    # Check if we have write permission
-    cond do
-      "api" in granted_scopes || "api:write" in granted_scopes ->
-        # We have write permission, exchange for api:write token
-        case Hex.API.OAuth.exchange_token(initial_token["access_token"], "api:write") do
-          {:ok, {200, _, write_token_response}} ->
-            write_token_response
-
-          {:ok, {status, _, error}} ->
-            Hex.Shell.warn("Could not exchange for write token (#{status}): #{inspect(error)}")
-            nil
-
-          {:error, reason} ->
-            Hex.Shell.warn("Write token exchange error: #{inspect(reason)}")
-            nil
-        end
-
-      true ->
-        # No write permission granted
-        nil
-    end
-  end
-
-  defp create_read_token(initial_token, granted_scopes) do
-    # Always create a separate read token - they have different refresh rates and conditions
-    # Determine what read scopes we can request
-    read_scopes = build_read_scopes(granted_scopes)
-
-    if read_scopes != "" do
-      case Hex.API.OAuth.exchange_token(initial_token["access_token"], read_scopes) do
-        {:ok, {200, _, read_token_response}} ->
-          read_token_response
-
-        {:ok, {status, _, error}} ->
-          Hex.Shell.warn("Could not exchange for read token (#{status}): #{inspect(error)}")
-          nil
-
-        {:error, reason} ->
-          Hex.Shell.warn("Read token exchange error: #{inspect(reason)}")
-          nil
-      end
-    else
-      # No read scopes available
-      nil
-    end
-  end
-
-  defp build_read_scopes(granted_scopes) do
-    read_scopes = []
-
-    # Add repositories if granted
-    read_scopes =
-      if "repositories" in granted_scopes do
-        ["repositories" | read_scopes]
-      else
-        read_scopes
-      end
-
-    # Add api:read if we have any API read permission
-    read_scopes =
-      if "api" in granted_scopes || "api:read" in granted_scopes || "api:write" in granted_scopes do
-        ["api:read" | read_scopes]
-      else
-        read_scopes
-      end
-
-    Enum.join(read_scopes, " ")
+    # Store a single token for both read and write operations
+    # With 2FA now required for write operations, we don't need separate tokens
+    Hex.OAuth.store_token(token_data)
+    Hex.Shell.info("You are authenticated!")
+    {:ok, token_data}
   end
 
   @doc false
@@ -382,25 +289,22 @@ defmodule Mix.Tasks.Hex do
 
   @doc false
   def revoke_existing_oauth_tokens do
-    case Hex.Config.read()[:"$oauth_tokens"] do
+    case Hex.Config.read()[:"$oauth_token"] do
       nil ->
         :ok
 
-      tokens when is_map(tokens) ->
-        Enum.each(tokens, fn {_type, token_data} ->
-          if access_token = token_data["access_token"] do
-            case Hex.API.OAuth.revoke_token(access_token) do
-              {:ok, {code, _, _}} when code in 200..299 ->
-                :ok
+      token_data when is_map(token_data) ->
+        if access_token = token_data["access_token"] do
+          case Hex.API.OAuth.revoke_token(access_token) do
+            {:ok, {code, _, _}} when code in 200..299 ->
+              :ok
 
-              _ ->
-                :ok
-            end
+            _ ->
+              :ok
           end
-        end)
+        end
 
-        Hex.Config.remove([:"$oauth_tokens"])
-        Hex.Shell.info("Revoked existing OAuth tokens.")
+        Hex.Config.remove([:"$oauth_token"])
 
       _ ->
         :ok
@@ -414,33 +318,19 @@ defmodule Mix.Tasks.Hex do
     # Check for old write key
     if write_key = config[:"$write_key"] do
       # Try to revoke on server (might fail if already revoked or invalid)
-      case Hex.API.Key.delete(write_key, key: write_key) do
-        {:ok, {code, _, _}} when code in 200..299 ->
-          Hex.Shell.info("Revoked old write API key.")
-
-        _ ->
-          # Key might already be invalid, continue anyway
-          :ok
-      end
+      _ = Hex.API.Key.delete(write_key, key: write_key)
     end
 
     # Check for old read key (only if different from write key)
     if read_key = config[:"$read_key"] do
       if read_key != config[:"$write_key"] do
-        case Hex.API.Key.delete(read_key, key: read_key) do
-          {:ok, {code, _, _}} when code in 200..299 ->
-            Hex.Shell.info("Revoked old read API key.")
-
-          _ ->
-            :ok
-        end
+        _ = Hex.API.Key.delete(read_key, key: read_key)
       end
     end
 
     # Remove from config if they existed
     if config[:"$write_key"] || config[:"$read_key"] do
       Hex.Config.remove([:"$write_key", :"$read_key"])
-      Hex.Shell.info("Removed deprecated API keys from config.")
     end
   end
 

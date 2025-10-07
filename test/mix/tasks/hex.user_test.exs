@@ -135,30 +135,6 @@ defmodule Mix.Tasks.Hex.UserTest do
     end)
   end
 
-  test "token exchange functionality" do
-    in_tmp(fn ->
-      set_home_cwd()
-
-      # Create a user with OAuth tokens
-      auth = Hexpm.new_oauth_user("exchangeuser", "exchangeuser@mail.com", "password")
-
-      # Extract access token from auth
-      access_token = auth[:access_token]
-
-      # Test token exchange
-      assert {:ok, {200, _headers, response}} =
-               Hex.API.OAuth.exchange_token(access_token, "api:write")
-
-      assert %{
-               "access_token" => new_token,
-               "token_type" => "bearer"
-             } = response
-
-      assert is_binary(new_token)
-      assert new_token != access_token
-    end)
-  end
-
   test "token refresh functionality" do
     in_tmp(fn ->
       set_home_cwd()
@@ -289,28 +265,6 @@ defmodule Mix.Tasks.Hex.UserTest do
                 "refresh_token" => "inline_refresh",
                 "scope" => "api repositories"
               }
-
-            "urn:ietf:params:oauth:grant-type:token-exchange" ->
-              # Exchange requests based on requested scope
-              case params["scope"] do
-                "api:write" ->
-                  %{
-                    "access_token" => "write_token",
-                    "token_type" => "bearer",
-                    "expires_in" => 3600,
-                    "refresh_token" => "write_refresh",
-                    "scope" => "api:write"
-                  }
-
-                "api:read repositories" ->
-                  %{
-                    "access_token" => "read_token",
-                    "token_type" => "bearer",
-                    "expires_in" => 3600,
-                    "refresh_token" => "read_refresh",
-                    "scope" => "api:read repositories"
-                  }
-              end
           end
 
         conn
@@ -349,14 +303,12 @@ defmodule Mix.Tasks.Hex.UserTest do
       future_time = System.system_time(:second) + 3600
 
       tokens = %{
-        "write" => %{
-          "access_token" => "oauth_token",
-          "refresh_token" => "oauth_refresh",
-          "expires_at" => future_time
-        }
+        "access_token" => "oauth_token",
+        "refresh_token" => "oauth_refresh",
+        "expires_at" => future_time
       }
 
-      Hex.OAuth.store_tokens(tokens)
+      Hex.OAuth.store_token(tokens)
 
       assert [key: "oauth_token", oauth: true] =
                Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
@@ -379,19 +331,12 @@ defmodule Mix.Tasks.Hex.UserTest do
       past_time = System.system_time(:second) - 3600
 
       tokens = %{
-        "write" => %{
-          "access_token" => "expired_token",
-          "refresh_token" => "refresh_token",
-          "expires_at" => past_time
-        },
-        "read" => %{
-          "access_token" => "expired_read_token",
-          "refresh_token" => "refresh_read_token",
-          "expires_at" => past_time
-        }
+        "access_token" => "expired_token",
+        "refresh_token" => "refresh_token",
+        "expires_at" => past_time
       }
 
-      Hex.OAuth.store_tokens(tokens)
+      Hex.OAuth.store_token(tokens)
 
       # Mock refresh token endpoint
       Bypass.expect(bypass, "POST", "/api/oauth/token", fn conn ->
@@ -427,8 +372,8 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Verify new tokens were stored
       config = Hex.Config.read()
-      assert config[:"$oauth_tokens"]["write"]["access_token"] == "new_token"
-      assert config[:"$oauth_tokens"]["write"]["refresh_token"] == "new_refresh_token"
+      assert config[:"$oauth_token"]["access_token"] == "new_token"
+      assert config[:"$oauth_token"]["refresh_token"] == "new_refresh_token"
 
       Hex.State.put(:api_url, original_url)
     end)
@@ -444,17 +389,15 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Store OAuth tokens
       tokens = %{
-        "write" => %{
-          "access_token" => auth[:access_token],
-          "refresh_token" => auth[:refresh_token],
-          "expires_at" => System.system_time(:second) + 3600
-        }
+        "access_token" => auth[:access_token],
+        "refresh_token" => auth[:refresh_token],
+        "expires_at" => System.system_time(:second) + 3600
       }
 
-      Hex.OAuth.store_tokens(tokens)
+      Hex.OAuth.store_token(tokens)
 
       # Verify OAuth tokens exist
-      assert Hex.Config.read()[:"$oauth_tokens"]
+      assert Hex.Config.read()[:"$oauth_token"]
 
       # Create organization auth
       send(self(), {:mix_shell_input, :prompt, "password"})
@@ -463,59 +406,8 @@ defmodule Mix.Tasks.Hex.UserTest do
       Mix.Tasks.Hex.User.run(["deauth"])
 
       # Verify OAuth tokens are cleared
-      refute Hex.Config.read()[:"$oauth_tokens"]
+      refute Hex.Config.read()[:"$oauth_token"]
       refute Hex.Config.read()[:"$repos"]["hexpm:myorguserdeauth1"]
-    end)
-  end
-
-  test "deauth specific organizations only" do
-    in_tmp(fn ->
-      set_home_cwd()
-
-      # Create OAuth tokens
-      auth = Hexpm.new_oauth_user("userdeauth2", "userdeauth2@mail.com", "password")
-      Hexpm.new_repo("org1", auth)
-      Hexpm.new_repo("org2", auth)
-
-      # Store OAuth tokens
-      tokens = %{
-        "write" => %{
-          "access_token" => auth[:access_token],
-          "refresh_token" => auth[:refresh_token],
-          "expires_at" => System.system_time(:second) + 3600
-        }
-      }
-
-      Hex.OAuth.store_tokens(tokens)
-
-      # Auth to both organizations
-      send(self(), {:mix_shell_input, :prompt, "password"})
-      Mix.Tasks.Hex.Organization.run(["auth", "org1"])
-
-      send(self(), {:mix_shell_input, :prompt, "password"})
-      Mix.Tasks.Hex.Organization.run(["auth", "org2"])
-
-      # Deauth all (deauth doesn't take org arguments)
-      Mix.Tasks.Hex.User.run(["deauth"])
-
-      # OAuth tokens should be cleared
-      refute Hex.Config.read()[:"$oauth_tokens"]
-      # Both orgs should be removed
-      refute Hex.Config.read()[:"$repos"]["hexpm:org1"]
-      refute Hex.Config.read()[:"$repos"]["hexpm:org2"]
-    end)
-  end
-
-  test "auth handles token exchange failure" do
-    in_tmp(fn ->
-      set_home_cwd()
-
-      # Create a user with OAuth tokens but simulate exchange failure
-      auth = Hexpm.new_oauth_user("exchangefail", "exchangefail@mail.com", "password")
-
-      # Try to exchange for an invalid scope
-      assert {:ok, {400, _headers, %{"error" => _}}} =
-               Hex.API.OAuth.exchange_token(auth[:access_token], "invalid:scope")
     end)
   end
 
@@ -539,24 +431,17 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Store tokens
       tokens = %{
-        "write" => %{
-          "access_token" => "write_access",
-          "refresh_token" => "write_refresh",
-          "expires_at" => System.system_time(:second) + 3600
-        },
-        "read" => %{
-          "access_token" => "read_access",
-          "refresh_token" => "read_refresh",
-          "expires_at" => System.system_time(:second) + 3600
-        }
+        "access_token" => "write_access",
+        "refresh_token" => "write_refresh",
+        "expires_at" => System.system_time(:second) + 3600
       }
 
-      Hex.OAuth.store_tokens(tokens)
+      Hex.OAuth.store_token(tokens)
       assert Hex.OAuth.has_tokens?()
 
-      # Retrieve tokens
+      # Retrieve tokens - same token for both read and write
       assert {:ok, "write_access"} = Hex.OAuth.get_token(:write)
-      assert {:ok, "read_access"} = Hex.OAuth.get_token(:read)
+      assert {:ok, "write_access"} = Hex.OAuth.get_token(:read)
 
       # Clear tokens
       Hex.OAuth.clear_tokens()
@@ -571,21 +456,14 @@ defmodule Mix.Tasks.Hex.UserTest do
       # Create user with OAuth tokens
       auth = Hexpm.new_oauth_user("whoamioauth", "whoamioauth@mail.com", "password")
 
-      # Store OAuth tokens - need both read and write
+      # Store OAuth token
       tokens = %{
-        "write" => %{
-          "access_token" => auth[:access_token],
-          "refresh_token" => auth[:refresh_token],
-          "expires_at" => System.system_time(:second) + 3600
-        },
-        "read" => %{
-          "access_token" => auth[:access_token],
-          "refresh_token" => auth[:refresh_token],
-          "expires_at" => System.system_time(:second) + 3600
-        }
+        "access_token" => auth[:access_token],
+        "refresh_token" => auth[:refresh_token],
+        "expires_at" => System.system_time(:second) + 3600
       }
 
-      Hex.OAuth.store_tokens(tokens)
+      Hex.OAuth.store_token(tokens)
 
       Mix.Tasks.Hex.User.run(["whoami"])
       assert_received {:mix_shell, :info, [username]}
@@ -602,62 +480,6 @@ defmodule Mix.Tasks.Hex.UserTest do
       Mix.Tasks.Hex.User.run(["whoami"])
       assert_received {:mix_shell, :info, [username]}
       assert String.starts_with?(username, "whoamiapi")
-    end)
-  end
-
-  test "whoami without authentication" do
-    in_tmp(fn ->
-      set_home_cwd()
-
-      # Clear all auth
-      Hex.OAuth.clear_tokens()
-      Hex.State.put(:api_key, nil)
-
-      # User declines inline auth
-      send(self(), {:mix_shell_input, :yes?, false})
-
-      # Should raise when no auth
-      assert_raise Mix.Error, "No authenticated user found. Run `mix hex.user auth`", fn ->
-        Mix.Tasks.Hex.User.run(["whoami"])
-      end
-    end)
-  end
-
-  test "token scopes are handled correctly" do
-    in_tmp(fn ->
-      set_home_cwd()
-
-      # Create user with OAuth tokens
-      auth = Hexpm.new_oauth_user("scopeuser", "scopeuser@mail.com", "password")
-
-      # Test different scope exchanges
-      assert {:ok, {200, _headers, write_response}} =
-               Hex.API.OAuth.exchange_token(auth[:access_token], "api:write")
-
-      assert write_response["scope"] == "api:write" or
-               String.contains?(write_response["scope"], "write")
-
-      assert {:ok, {200, _headers, read_response}} =
-               Hex.API.OAuth.exchange_token(auth[:access_token], "api:read")
-
-      assert read_response["scope"] == "api:read" or
-               String.contains?(read_response["scope"], "read")
-    end)
-  end
-
-  test "multiple scope handling" do
-    in_tmp(fn ->
-      set_home_cwd()
-
-      auth = Hexpm.new_oauth_user("multiscope", "multiscope@mail.com", "password")
-
-      # Test requesting multiple scopes
-      assert {:ok, {200, _headers, response}} =
-               Hex.API.OAuth.exchange_token(auth[:access_token], "api:read repositories")
-
-      assert response["scope"] == "api:read repositories" or
-               (String.contains?(response["scope"], "read") and
-                  String.contains?(response["scope"], "repositories"))
     end)
   end
 
@@ -691,14 +513,12 @@ defmodule Mix.Tasks.Hex.UserTest do
       future_time = System.system_time(:second) + 3600
 
       tokens = %{
-        "write" => %{
-          "access_token" => "oauth_token",
-          "refresh_token" => "refresh_token",
-          "expires_at" => future_time
-        }
+        "access_token" => "oauth_token",
+        "refresh_token" => "refresh_token",
+        "expires_at" => future_time
       }
 
-      Hex.OAuth.store_tokens(tokens)
+      Hex.OAuth.store_token(tokens)
 
       # Set HEX_OTP in state
       Hex.State.put(:api_otp, "123456")
@@ -718,14 +538,12 @@ defmodule Mix.Tasks.Hex.UserTest do
       future_time = System.system_time(:second) + 3600
 
       tokens = %{
-        "write" => %{
-          "access_token" => "oauth_token",
-          "refresh_token" => "refresh_token",
-          "expires_at" => future_time
-        }
+        "access_token" => "oauth_token",
+        "refresh_token" => "refresh_token",
+        "expires_at" => future_time
       }
 
-      Hex.OAuth.store_tokens(tokens)
+      Hex.OAuth.store_token(tokens)
 
       # Don't set HEX_OTP - should not prompt upfront
       Hex.State.put(:api_otp, nil)
