@@ -19,38 +19,42 @@ defmodule Hex.API.ReleaseDocs do
   end
 
   def publish(repo, name, version, tar, auth, progress \\ fn _ -> nil end) do
-    config = Client.build_config(repo, auth)
+    Mix.Tasks.Hex.with_otp_retry(auth, fn auth_with_otp ->
+      config = Client.build_config(repo, auth_with_otp)
 
-    # Pass progress callback through adapter config
-    adapter_config = %{progress_callback: progress}
-    config = Map.put(config, :http_adapter, {Hex.HTTP, adapter_config})
+      # Pass progress callback through adapter config
+      adapter_config = %{progress_callback: progress}
+      config = Map.put(config, :http_adapter, {Hex.HTTP, adapter_config})
 
-    path =
-      :mix_hex_api.build_repository_path(config, [
-        "packages",
-        to_string(name),
-        "releases",
-        to_string(version),
-        "docs"
-      ])
+      path =
+        :mix_hex_api.build_repository_path(config, [
+          "packages",
+          to_string(name),
+          "releases",
+          to_string(version),
+          "docs"
+        ])
 
-    body = {"application/octet-stream", tar}
+      body = {"application/octet-stream", tar}
 
-    :mix_hex_api.post(config, path, body)
+      :mix_hex_api.post(config, path, body)
+    end)
   end
 
   def delete(repo, name, version, auth) do
-    config = Client.build_config(repo, auth)
+    Mix.Tasks.Hex.with_otp_retry(auth, fn auth_with_otp ->
+      config = Client.build_config(repo, auth_with_otp)
 
-    path =
-      :mix_hex_api.build_repository_path(config, [
-        "packages",
-        to_string(name),
-        "releases",
-        to_string(version),
-        "docs"
-      ])
+      path =
+        :mix_hex_api.build_repository_path(config, [
+          "packages",
+          to_string(name),
+          "releases",
+          to_string(version),
+          "docs"
+        ])
 
-    :mix_hex_api.delete(config, path)
+      :mix_hex_api.delete(config, path)
+    end)
   end
 end

@@ -138,8 +138,6 @@ defmodule Mix.Tasks.Hex do
     revoke_existing_oauth_tokens()
     revoke_and_cleanup_old_api_keys()
 
-    Hex.Shell.info("Starting OAuth device flow authentication...")
-
     name = get_hostname()
 
     case Hex.API.OAuth.device_authorization("api repositories", name) do
@@ -167,12 +165,12 @@ defmodule Mix.Tasks.Hex do
     uri_to_open = verification_uri_complete || verification_uri
 
     Hex.Shell.info("To authenticate, visit: #{uri_to_open}")
-
-    # Only show the user code if we don't have the complete URI
-    if !verification_uri_complete do
-      Hex.Shell.info("— enter the code: #{user_code}")
-    end
-
+    Hex.Shell.info("")
+    Hex.Shell.info("Your verification code:")
+    Hex.Shell.info("")
+    Hex.Shell.info("  #{format_user_code(user_code)}")
+    Hex.Shell.info("")
+    Hex.Shell.info("Verify this code matches what is shown in your browser.")
     Hex.Shell.info("")
 
     # Automatically open the browser
@@ -227,9 +225,14 @@ defmodule Mix.Tasks.Hex do
     end
   end
 
-  defp exchange_and_store_tokens(initial_token) do
-    Hex.Shell.info("Authentication successful! Exchanging tokens...")
+  defp format_user_code(user_code) do
+    mid = div(String.length(user_code), 2)
 
+    String.slice(user_code, 0, mid) <>
+      "-" <> String.slice(user_code, mid, String.length(user_code))
+  end
+
+  defp exchange_and_store_tokens(initial_token) do
     # Parse the granted scopes from the initial token
     granted_scopes = parse_granted_scopes(initial_token["scope"] || "")
 
@@ -252,15 +255,7 @@ defmodule Mix.Tasks.Hex do
         }
 
         Hex.OAuth.store_tokens(tokens)
-
-        message =
-          cond do
-            write && read -> "Authentication completed successfully!"
-            write -> "Authentication completed with write access only"
-            read -> "Authentication completed with read-only access"
-          end
-
-        Hex.Shell.info(message)
+        Hex.Shell.info("Authentication completed successfully!")
         {:ok, tokens}
     end
   end
@@ -459,6 +454,13 @@ defmodule Mix.Tasks.Hex do
     |> Hex.Config.update_repos()
   end
 
+  defp prompt_otp() do
+    Hex.Shell.info("")
+
+    Hex.Shell.prompt("Enter your 2FA code:")
+    |> String.trim()
+  end
+
   @doc false
   def auth_info(permission, opts \\ [])
 
@@ -466,7 +468,14 @@ defmodule Mix.Tasks.Hex do
     # Try OAuth tokens first
     case Hex.OAuth.get_token(:write) do
       {:ok, access_token} ->
-        [key: access_token, oauth: true]
+        # Don't prompt for OTP upfront - will be prompted if server requires it
+        otp = Hex.State.fetch!(:api_otp)
+
+        if otp do
+          [key: access_token, oauth: true, otp: otp]
+        else
+          [key: access_token, oauth: true]
+        end
 
       {:error, :refresh_failed} ->
         Hex.Shell.info("Token refresh failed. Please re-authenticate.")
@@ -551,8 +560,18 @@ defmodule Mix.Tasks.Hex do
         {:ok, _tokens} ->
           # Auth succeeded, try to get write token
           case Hex.OAuth.get_token(:write) do
-            {:ok, access_token} -> [key: access_token, oauth: true]
-            {:error, _} -> no_auth_error()
+            {:ok, access_token} ->
+              # Don't prompt for OTP upfront - will be prompted if server requires it
+              otp = Hex.State.fetch!(:api_otp)
+
+              if otp do
+                [key: access_token, oauth: true, otp: otp]
+              else
+                [key: access_token, oauth: true]
+              end
+
+            {:error, _} ->
+              no_auth_error()
           end
 
         :error ->
@@ -565,6 +584,27 @@ defmodule Mix.Tasks.Hex do
 
   defp no_auth_error() do
     Mix.raise("No authenticated user found. Run `mix hex.user auth`")
+  end
+
+  @doc false
+  def with_otp_retry(auth, fun) when is_function(fun, 1) do
+    case fun.(auth) do
+      {:error, :otp_required} ->
+        otp = prompt_otp()
+        Hex.State.put(:api_otp, otp)
+        auth_with_otp = Keyword.put(auth, :otp, otp)
+        with_otp_retry(auth_with_otp, fun)
+
+      {:error, :invalid_totp} ->
+        Hex.Shell.error("Invalid two-factor authentication code")
+        otp = prompt_otp()
+        Hex.State.put(:api_otp, otp)
+        auth_with_otp = Keyword.put(auth, :otp, otp)
+        with_otp_retry(auth_with_otp, fun)
+
+      result ->
+        result
+    end
   end
 
   @doc false
@@ -598,8 +638,6 @@ defmodule Mix.Tasks.Hex do
   end
 
   def progress(max) do
-    put_progress(0, 0)
-
     fn size ->
       fraction = size / max
       completed = trunc(fraction * @progress_steps)

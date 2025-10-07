@@ -11,6 +11,7 @@ defmodule Hex.API.Client do
 
     config
     |> maybe_put_api_key(opts)
+    |> maybe_put_otp(opts)
     |> maybe_put_organization(opts)
     |> maybe_put_repository(opts)
   end
@@ -31,6 +32,14 @@ defmodule Hex.API.Client do
 
       true ->
         config
+    end
+  end
+
+  defp maybe_put_otp(config, opts) do
+    if otp = opts[:otp] do
+      Map.put(config, :api_otp, otp)
+    else
+      config
     end
   end
 

@@ -137,4 +137,61 @@ defmodule Hex.HTTPTest do
       Hex.HTTP.request(:get, "http://localhost:#{bypass.port}", %{}, nil)
     end)
   end
+
+  test "request with Expect 100-continue receives body after 100 response", %{bypass: bypass} do
+    # Test that httpc handles 100-continue flow correctly
+    body_content = "test request body"
+
+    Bypass.expect(bypass, fn conn ->
+      # Verify the Expect header is present
+      assert ["100-continue"] = Plug.Conn.get_req_header(conn, "expect")
+
+      # Send 100 Continue informational response
+      conn = Plug.Conn.inform(conn, 100, [])
+
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      assert body == body_content
+
+      Plug.Conn.resp(conn, 201, "success")
+    end)
+
+    {:ok, {status, _headers, response_body}} =
+      Hex.HTTP.request(
+        :post,
+        "http://localhost:#{bypass.port}",
+        %{"expect" => "100-continue"},
+        {"text/plain", body_content}
+      )
+
+    assert status == 201
+    assert response_body == "success"
+  end
+
+  test "request with Expect 100-continue stops sending body on error response", %{
+    bypass: bypass
+  } do
+    # Test that when server responds with error before 100, body is not sent
+    # Note: This is handled by httpc automatically - if server responds with
+    # error status instead of 100 Continue, httpc won't send the body
+
+    Bypass.expect(bypass, fn conn ->
+      # Verify the Expect header is present
+      assert ["100-continue"] = Plug.Conn.get_req_header(conn, "expect")
+
+      # Immediately respond with 401 Unauthorized without reading body
+      # httpc should NOT send the body when it receives this error
+      Plug.Conn.resp(conn, 401, "unauthorized")
+    end)
+
+    {:ok, {status, _headers, response_body}} =
+      Hex.HTTP.request(
+        :post,
+        "http://localhost:#{bypass.port}",
+        %{"expect" => "100-continue"},
+        {"text/plain", "this body should not be sent"}
+      )
+
+    assert status == 401
+    assert response_body == "unauthorized"
+  end
 end

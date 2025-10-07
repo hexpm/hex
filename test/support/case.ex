@@ -368,7 +368,6 @@ defmodule HexTest.Case do
     Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
 
     package_path = "/api/repos/#{repo}/packages/ecto"
-    release_path = "/api/repos/#{repo}/publish"
 
     Bypass.expect(bypass, fn conn ->
       case conn do
@@ -379,7 +378,10 @@ defmodule HexTest.Case do
           |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
           |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
 
-        %Plug.Conn{method: "POST", request_path: ^release_path} ->
+        %Plug.Conn{
+          method: "POST",
+          path_info: ["api", "repos", ^repo, "packages", _name, "releases"]
+        } ->
           body = %{"html_url" => "myrepo html_url"}
 
           conn

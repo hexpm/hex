@@ -12,33 +12,41 @@ defmodule Hex.API.Release do
   def publish(repo, tar, auth, progress \\ fn _ -> nil end, replace \\ false)
 
   def publish(repo, tar, auth, progress, replace?) do
-    config = Client.build_config(repo, auth)
+    Mix.Tasks.Hex.with_otp_retry(auth, fn auth_with_otp ->
+      config = Client.build_config(repo, auth_with_otp)
 
-    # Pass progress callback through adapter config
-    adapter_config = %{progress_callback: progress}
-    config = Map.put(config, :http_adapter, {Hex.HTTP, adapter_config})
+      # Pass progress callback through adapter config
+      adapter_config = %{progress_callback: progress}
+      config = Map.put(config, :http_adapter, {Hex.HTTP, adapter_config})
 
-    params = [{:replace, replace?}]
-    :mix_hex_api_release.publish(config, tar, params)
+      params = [{:replace, replace?}]
+      :mix_hex_api_release.publish(config, tar, params)
+    end)
   end
 
   def delete(repo, name, version, auth) do
-    config = Client.build_config(repo, auth)
+    Mix.Tasks.Hex.with_otp_retry(auth, fn auth_with_otp ->
+      config = Client.build_config(repo, auth_with_otp)
 
-    :mix_hex_api_release.delete(config, to_string(name), to_string(version))
+      :mix_hex_api_release.delete(config, to_string(name), to_string(version))
+    end)
   end
 
   def retire(repo, name, version, body, auth) do
-    config = Client.build_config(repo, auth)
-    # Convert body to binary map for hex_core
-    params = Map.new(body, fn {k, v} -> {to_string(k), to_string(v)} end)
+    Mix.Tasks.Hex.with_otp_retry(auth, fn auth_with_otp ->
+      config = Client.build_config(repo, auth_with_otp)
+      # Convert body to binary map for hex_core
+      params = Map.new(body, fn {k, v} -> {to_string(k), to_string(v)} end)
 
-    :mix_hex_api_release.retire(config, to_string(name), to_string(version), params)
+      :mix_hex_api_release.retire(config, to_string(name), to_string(version), params)
+    end)
   end
 
   def unretire(repo, name, version, auth) do
-    config = Client.build_config(repo, auth)
+    Mix.Tasks.Hex.with_otp_retry(auth, fn auth_with_otp ->
+      config = Client.build_config(repo, auth_with_otp)
 
-    :mix_hex_api_release.unretire(config, to_string(name), to_string(version))
+      :mix_hex_api_release.unretire(config, to_string(name), to_string(version))
+    end)
   end
 end

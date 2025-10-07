@@ -682,4 +682,58 @@ defmodule Mix.Tasks.Hex.UserTest do
                Hex.API.OAuth.poll_device_token(device_code)
     end)
   end
+
+  test "auth_info includes OTP from HEX_OTP environment variable" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      # Setup OAuth tokens
+      future_time = System.system_time(:second) + 3600
+
+      tokens = %{
+        "write" => %{
+          "access_token" => "oauth_token",
+          "refresh_token" => "refresh_token",
+          "expires_at" => future_time
+        }
+      }
+
+      Hex.OAuth.store_tokens(tokens)
+
+      # Set HEX_OTP in state
+      Hex.State.put(:api_otp, "123456")
+
+      # Get auth info - should include OTP
+      auth = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
+
+      assert [key: "oauth_token", oauth: true, otp: "123456"] = auth
+    end)
+  end
+
+  test "auth_info does not prompt for OTP when HEX_OTP is not set" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      # Setup OAuth tokens
+      future_time = System.system_time(:second) + 3600
+
+      tokens = %{
+        "write" => %{
+          "access_token" => "oauth_token",
+          "refresh_token" => "refresh_token",
+          "expires_at" => future_time
+        }
+      }
+
+      Hex.OAuth.store_tokens(tokens)
+
+      # Don't set HEX_OTP - should not prompt upfront
+      Hex.State.put(:api_otp, nil)
+
+      # Get auth info - should not include OTP (server will prompt if needed)
+      auth = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
+
+      assert [key: "oauth_token", oauth: true] = auth
+    end)
+  end
 end

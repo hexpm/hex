@@ -12,13 +12,13 @@ defmodule Mix.Tasks.Hex.User do
 
   ## Authorize a new user
 
-  Authorizes a new user on the local machine using OAuth device flow.
+  Authorizes a new user on the local machine.
 
       $ mix hex.user auth
 
   ## Deauthorize the user
 
-  Deauthorizes the user from the local machine by removing OAuth tokens from the Hex config.
+  Deauthorizes the user from the local machine.
 
       $ mix hex.user deauth
   """

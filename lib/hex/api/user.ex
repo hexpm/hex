@@ -13,6 +13,7 @@ defmodule Hex.API.User do
     :mix_hex_api_user.get(config, to_string(username))
   end
 
+  # NOTE: Only used for testing
   def new(username, email, password) do
     config = Client.config()
 
@@ -22,10 +23,5 @@ defmodule Hex.API.User do
       to_string(password),
       to_string(email)
     )
-  end
-
-  def password_reset(name) do
-    config = Client.config()
-    :mix_hex_api_user.reset_password(config, to_string(name))
   end
 end
