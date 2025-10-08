@@ -17,7 +17,7 @@ defmodule Hex.MixProject do
       elixirc_options: elixirc_options(Mix.env()),
       elixirc_paths: elixirc_paths(Mix.env()),
       test_ignore_filters: [
-        "test/fixtures/**/*.exs",
+        ~r"^test/fixtures/",
         "test/setup_hexpm.exs"
       ]
     ]
