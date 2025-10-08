@@ -254,7 +254,7 @@ defmodule HexTest.Case do
     Hex.State.put(:data_home, Path.expand("../../tmp/hex_data_home", __DIR__))
     Hex.State.put(:api_url, "http://localhost:4043/api")
     Hex.State.put(:api_key, nil)
-    Hex.State.put(:oauth_tokens, nil)
+    Hex.State.put(:oauth_token, nil)
     Hex.State.update!(:repos, &put_in(&1["hexpm"].url, "http://localhost:4043/repo"))
     Hex.State.update!(:repos, &put_in(&1["hexpm"].public_key, public_key))
     Hex.State.update!(:repos, &put_in(&1["hexpm"].auth_key, nil))

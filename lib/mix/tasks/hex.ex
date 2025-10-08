@@ -351,12 +351,20 @@ defmodule Mix.Tasks.Hex do
     |> String.trim()
   end
 
-  @doc false
+  @doc """
+  Returns authentication info for the given operation type.
+
+  The permission parameter determines whether to include OTP for 2FA:
+  - :write - includes OTP if available (required for write operations with 2FA)
+  - :read - does not include OTP
+
+  Both read and write operations use the same OAuth token.
+  """
   def auth_info(permission, opts \\ [])
 
   def auth_info(:write, opts) do
     # Try OAuth tokens first
-    case Hex.OAuth.get_token(:write) do
+    case Hex.OAuth.get_token() do
       {:ok, access_token} ->
         # Don't prompt for OTP upfront - will be prompted if server requires it
         otp = Hex.State.fetch!(:api_otp)
@@ -403,7 +411,7 @@ defmodule Mix.Tasks.Hex do
 
   def auth_info(:read, opts) do
     # Try OAuth tokens first
-    case Hex.OAuth.get_token(:read) do
+    case Hex.OAuth.get_token() do
       {:ok, access_token} ->
         [key: access_token, oauth: true]
 
@@ -448,8 +456,8 @@ defmodule Mix.Tasks.Hex do
     if authenticate? do
       case auth() do
         {:ok, _tokens} ->
-          # Auth succeeded, try to get write token
-          case Hex.OAuth.get_token(:write) do
+          # Auth succeeded, try to get token
+          case Hex.OAuth.get_token() do
             {:ok, access_token} ->
               # Don't prompt for OTP upfront - will be prompted if server requires it
               otp = Hex.State.fetch!(:api_otp)

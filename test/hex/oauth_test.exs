@@ -1,10 +1,9 @@
 defmodule Hex.OAuthTest do
   use HexTest.IntegrationCase
 
-  describe "get_token/1" do
+  describe "get_token/0" do
     test "returns error when no tokens are stored" do
-      assert {:error, :no_auth} = Hex.OAuth.get_token(:read)
-      assert {:error, :no_auth} = Hex.OAuth.get_token(:write)
+      assert {:error, :no_auth} = Hex.OAuth.get_token()
     end
 
     test "returns valid token when available and not expired" do
@@ -18,9 +17,7 @@ defmodule Hex.OAuthTest do
 
       Hex.OAuth.store_token(token_data)
 
-      # Same token for both read and write
-      assert {:ok, "test_token"} = Hex.OAuth.get_token(:read)
-      assert {:ok, "test_token"} = Hex.OAuth.get_token(:write)
+      assert {:ok, "test_token"} = Hex.OAuth.get_token()
     end
 
     test "returns error when token is expired and no refresh possible" do
@@ -33,7 +30,7 @@ defmodule Hex.OAuthTest do
 
       Hex.OAuth.store_token(token_data)
 
-      assert {:error, :token_expired} = Hex.OAuth.get_token(:read)
+      assert {:error, :token_expired} = Hex.OAuth.get_token()
     end
 
     test "returns error when token is expired and refresh fails" do
@@ -48,7 +45,7 @@ defmodule Hex.OAuthTest do
       Hex.OAuth.store_token(token_data)
 
       # Should fail to refresh and return error
-      assert {:error, :refresh_failed} = Hex.OAuth.get_token(:write)
+      assert {:error, :refresh_failed} = Hex.OAuth.get_token()
     end
   end
 
@@ -190,7 +187,7 @@ defmodule Hex.OAuthTest do
     end
   end
 
-  describe "refresh_token/1" do
+  describe "refresh_token/0" do
     test "returns error when no refresh token available" do
       token_data = %{
         "access_token" => "token_without_refresh",
@@ -199,11 +196,11 @@ defmodule Hex.OAuthTest do
 
       Hex.OAuth.store_token(token_data)
 
-      assert {:error, :no_refresh_token} = Hex.OAuth.refresh_token(:write)
+      assert {:error, :no_refresh_token} = Hex.OAuth.refresh_token()
     end
 
     test "returns error when no tokens stored" do
-      assert {:error, :no_auth} = Hex.OAuth.refresh_token(:read)
+      assert {:error, :no_auth} = Hex.OAuth.refresh_token()
     end
   end
 end

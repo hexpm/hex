@@ -10,9 +10,8 @@ defmodule Hex.OAuth do
   Returns {:error, :no_auth} if no tokens are available.
 
   Since we now use 2FA for write operations, we use a single token for both read and write.
-  The permission parameter is kept for backward compatibility but is no longer used.
   """
-  def get_token(permission) when permission in [:read, :write] do
+  def get_token do
     case get_stored_token() do
       nil ->
         {:error, :no_auth}
@@ -61,10 +60,8 @@ defmodule Hex.OAuth do
 
   @doc """
   Refreshes the stored OAuth token.
-
-  The permission parameter is kept for backward compatibility but is no longer used.
   """
-  def refresh_token(permission) when permission in [:read, :write] do
+  def refresh_token do
     case get_stored_token() do
       nil ->
         {:error, :no_auth}
@@ -128,7 +125,7 @@ defmodule Hex.OAuth do
   end
 
   defp refresh_token_if_possible(token_data) do
-    case refresh_token(:write) do
+    case refresh_token() do
       {:ok, access_token} ->
         {:ok, access_token}
 
