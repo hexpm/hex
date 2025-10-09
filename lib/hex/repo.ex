@@ -1,7 +1,6 @@
 defmodule Hex.Repo do
   @moduledoc false
 
-  @public_keys_html "https://hex.pm/docs/public_keys"
   @hexpm_url "https://repo.hex.pm"
   @hexpm_public_key """
   -----BEGIN PUBLIC KEY-----
@@ -179,48 +178,31 @@ defmodule Hex.Repo do
   defp merge_values(left, _right), do: left
 
   def get_package(repo, package, etag) do
-    repo = get_repo(repo)
-    config = build_hex_core_config(repo, etag)
+    repo_config = get_repo(repo)
+    config = build_hex_core_config(repo_config, repo, etag)
     :mix_hex_repo.get_package(config, package)
   end
 
   def get_docs(repo, package, version) do
-    repo = get_repo(repo)
-    config = build_hex_core_config(repo)
+    repo_config = get_repo(repo)
+    config = build_hex_core_config(repo_config, repo)
     :mix_hex_repo.get_docs(config, package, version)
   end
 
   def get_tarball(repo, package, version) do
-    repo = get_repo(repo)
-    config = build_hex_core_config(repo)
+    repo_config = get_repo(repo)
+    config = build_hex_core_config(repo_config, repo)
     :mix_hex_repo.get_tarball(config, package, version)
   end
 
-  def get_public_key(repo) when is_map(repo) do
-    config = build_hex_core_config(repo)
+  def get_public_key(repo_config) when is_map(repo_config) do
+    config = build_hex_core_config(repo_config, "")
     :mix_hex_repo.get_public_key(config)
-  end
-
-  def get_public_key(repo) do
-    repo = get_repo(repo)
-    config = build_hex_core_config(repo)
-    :mix_hex_repo.get_public_key(config)
-  end
-
-  def verify(body, repo) do
-    public_key = get_repo(repo).public_key
-
-    if Hex.State.fetch!(:unsafe_registry) do
-      %{payload: payload} = :mix_hex_registry.decode_signed(body)
-      payload
-    else
-      do_verify(body, public_key, repo)
-    end
   end
 
   def get_installs() do
     repo = get_repo("hexpm")
-    config = build_hex_core_config(repo)
+    config = build_hex_core_config(repo, "")
 
     :mix_hex_repo.get_hex_installs(config)
   end
@@ -268,98 +250,46 @@ defmodule Hex.Repo do
     end
   end
 
-  defp do_verify(body, public_key, repo) do
-    unless public_key do
-      Mix.raise(
-        "No public key stored for #{repo}. Either install a public " <>
-          "key with `mix hex.repo` or disable the registry " <>
-          "verification check by setting `HEX_UNSAFE_REGISTRY=1`."
-      )
-    end
-
-    case :mix_hex_registry.decode_and_verify_signed(body, public_key) do
-      {:ok, payload} ->
-        payload
-
-      {:error, :unverified} ->
-        Mix.raise(
-          "Could not verify authenticity of fetched registry file. " <>
-            "This may happen because a proxy or some entity is " <>
-            "interfering with the download or because you don't have a " <>
-            "public key to verify the registry.\n\nYou may try again " <>
-            "later or check if a new public key has been released " <> public_key_message(repo)
-        )
-
-      {:error, :bad_key} ->
-        Mix.raise("invalid public key")
-    end
-  end
-
-  defp public_key_message("hexpm:" <> _), do: "on our public keys page: #{@public_keys_html}"
-  defp public_key_message("hexpm"), do: "on our public keys page: #{@public_keys_html}"
-  defp public_key_message(repo), do: "for repo #{repo}"
-
-  def decode_package(body, repo, package) do
-    repo = repo_name(repo)
-
-    if Hex.State.fetch!(:no_verify_repo_origin) do
-      {:ok, releases} = :mix_hex_registry.decode_package(body, :no_verify, :no_verify)
-      releases
-    else
-      case :mix_hex_registry.decode_package(body, repo, package) do
-        {:ok, %{releases: releases}} ->
-          outer_checksum? = Enum.all?(releases, &Map.has_key?(&1, :outer_checksum))
-
-          if not outer_checksum? and Hex.Server.should_warn_registry_version?() do
-            Hex.Shell.warn(
-              "Fetched old registry record version from repo #{repo}. The " <>
-                "repository you are using should update to include the new :outer_checksum field"
-            )
-          end
-
-          releases
-
-        {:error, :unverified} ->
-          Mix.raise(
-            "Fetched deprecated registry record version from repo #{repo}. For security " <>
-              "reasons this registry version is no longer supported. The repository " <>
-              "you are using should update to fix the security reason. Set " <>
-              "HEX_NO_VERIFY_REPO_ORIGIN=1 to disable this check."
-          )
-      end
-    end
-  end
-
   defp split_repo_name(name) do
     String.split(name, ":", parts: 2)
   end
 
-  defp repo_name(name) do
-    name |> split_repo_name() |> List.last()
-  end
-
-  defp build_hex_core_config(repo, etag \\ nil) do
+  defp build_hex_core_config(repo_config, repo_name, etag \\ nil) do
     config = %{
       :mix_hex_core.default_config()
       | http_adapter: {Hex.HTTP, %{}},
-        repo_url: repo.url,
-        repo_public_key: Map.get(repo, :public_key),
+        repo_name: hex_to_actual_repo_name(repo_name),
+        repo_url: repo_config.url,
+        repo_public_key: Map.get(repo_config, :public_key),
         repo_verify: true,
         repo_verify_origin: true,
         http_user_agent_fragment: Hex.API.Client.user_agent_fragment()
     }
 
     config =
-      if repo.auth_key && Map.get(repo, :trusted, true) do
-        Map.put(config, :repo_key, repo.auth_key)
-      else
-        config
+      cond do
+        # First priority: explicit repo auth key (from HEX_REPOS_KEY or config)
+        repo_config.auth_key && Map.get(repo_config, :trusted, true) ->
+          %{config | repo_key: repo_config.auth_key}
+
+        # Second priority: fallback to OAuth token if available
+        match?({:ok, _}, Hex.OAuth.get_token()) ->
+          {:ok, access_token} = Hex.OAuth.get_token()
+          # Format as Bearer token for OAuth authentication
+          %{config | repo_key: "Bearer #{access_token}"}
+
+        # No authentication available
+        true ->
+          config
       end
 
     if etag do
-      Map.put(config, :http_etag, etag)
+      %{config | http_etag: etag}
     else
       config
     end
   end
+
+  defp hex_to_actual_repo_name("hexpm:" <> repo), do: repo
+  defp hex_to_actual_repo_name(repo), do: repo
 end

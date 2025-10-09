@@ -8,6 +8,7 @@ defmodule Hex.Registry.Server do
   @filename "cache.ets"
   @timeout 60_000
   @ets_version 3
+  @public_keys_html "https://hex.pm/docs/public_keys"
 
   def start_link(opts \\ []) do
     opts = Keyword.put_new(opts, :name, @name)
@@ -416,12 +417,36 @@ defmodule Hex.Registry.Server do
     end
 
     if not missing_status?(result) or Mix.debug?() do
-      Hex.Utils.print_error_result(result)
+      case result do
+        {:error, :bad_signature} ->
+          Hex.Shell.error(
+            "Could not verify authenticity of fetched registry file. " <>
+              "This may happen because a proxy or some entity is " <>
+              "interfering with the download or because you don't have a " <>
+              "public key to verify the registry.\n\nYou may try again " <>
+              "later or check if a new public key has been released " <> public_key_message(repo)
+          )
+
+        {:error, :bad_repo_name} ->
+          Hex.Shell.error(
+            "Fetched deprecated registry record version from repo #{repo}. For security " <>
+              "reasons this registry version is no longer supported. The repository " <>
+              "you are using should update to fix the security reason. Set " <>
+              "HEX_NO_VERIFY_REPO_ORIGIN=1 to disable this check."
+          )
+
+        _other ->
+          Hex.Utils.print_error_result(result)
+      end
     end
   end
 
   defp missing_status?({:ok, {status, _, _}}), do: status in [403, 404]
   defp missing_status?(_), do: false
+
+  defp public_key_message("hexpm:" <> _), do: "on our public keys page: #{@public_keys_html}"
+  defp public_key_message("hexpm"), do: "on our public keys page: #{@public_keys_html}"
+  defp public_key_message(repo), do: "for repo #{repo}"
 
   defp maybe_wait({repo, package}, from, state, fun) do
     repo = repo || "hexpm"
