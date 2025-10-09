@@ -15,12 +15,12 @@ defmodule Hex.RepoIdentifier do
   use Agent
 
   def start_link(_args) do
-    Agent.start_link(fn -> nil end, name: __MODULE__)
+    Agent.start_link(fn -> :not_fetched end, name: __MODULE__)
   end
 
   def fetch do
     Agent.get_and_update(__MODULE__, fn
-      nil ->
+      :not_fetched ->
         value = get()
 
         {value, value}
@@ -51,7 +51,7 @@ defmodule Hex.RepoIdentifier do
   end
 
   def clear do
-    Agent.update(__MODULE__, fn _value -> nil end)
+    Agent.update(__MODULE__, fn _value -> :not_fetched end)
   end
 
   defp initial_commit_sha do
@@ -64,8 +64,10 @@ defmodule Hex.RepoIdentifier do
 
         {output, exit_status} ->
           Hex.Shell.debug(
-            "  Unable to extract git identifier: (Exit #{exit_status}) \n\n" <> output
+            "Unable to extract git identifier: (Exit #{exit_status})\n  #{String.trim(output)}"
           )
+
+          nil
       end
     end
   end
