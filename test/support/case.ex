@@ -266,6 +266,7 @@ defmodule HexTest.Case do
 
   def reset_state do
     Hex.State.put_all(Application.get_env(:hex, :reset_state))
+    Hex.OAuth.clear_tokens()
   end
 
   def set_home_cwd() do

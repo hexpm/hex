@@ -12,26 +12,27 @@ defmodule Hex.RepoIdentifier do
   - The current directory isn't within a git repository
   """
 
-  use Agent
-
   def start_link(_args) do
-    Agent.start_link(fn -> :not_fetched end, name: __MODULE__)
+    Hex.OnceCache.start_link(name: __MODULE__)
+  end
+
+  def child_spec(arg) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [arg]}
+    }
   end
 
   def fetch do
-    Agent.get_and_update(__MODULE__, fn
-      :not_fetched ->
-        value = get()
-
-        {value, value}
-
-      cached ->
-        {cached, cached}
-    end)
+    Hex.OnceCache.fetch(__MODULE__, &get/0)
   end
 
   def put(value) do
-    Agent.update(__MODULE__, fn _value -> value end)
+    Hex.OnceCache.put(__MODULE__, value)
+  end
+
+  def clear do
+    Hex.OnceCache.clear(__MODULE__)
   end
 
   def get do
@@ -48,10 +49,6 @@ defmodule Hex.RepoIdentifier do
       true ->
         nil
     end
-  end
-
-  def clear do
-    Agent.update(__MODULE__, fn _value -> :not_fetched end)
   end
 
   defp initial_commit_sha do

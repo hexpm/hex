@@ -1,8 +1,6 @@
 defmodule Hex.RepoTest do
   use HexTest.IntegrationCase
 
-  @private_key File.read!(Path.join(__DIR__, "../fixtures/test_priv.pem"))
-
   test "get_package/3" do
     assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
 

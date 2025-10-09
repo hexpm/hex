@@ -255,14 +255,17 @@ defmodule Hex.Repo do
   end
 
   defp build_hex_core_config(repo_config, repo_name, etag \\ nil) do
+    unsafe_registry = Hex.State.fetch!(:unsafe_registry)
+    no_verify_repo_origin = Hex.State.fetch!(:no_verify_repo_origin)
+
     config = %{
       :mix_hex_core.default_config()
       | http_adapter: {Hex.HTTP, %{}},
         repo_name: hex_to_actual_repo_name(repo_name),
         repo_url: repo_config.url,
         repo_public_key: Map.get(repo_config, :public_key),
-        repo_verify: true,
-        repo_verify_origin: true,
+        repo_verify: !unsafe_registry,
+        repo_verify_origin: !no_verify_repo_origin,
         http_user_agent_fragment: Hex.API.Client.user_agent_fragment()
     }
 
@@ -273,14 +276,17 @@ defmodule Hex.Repo do
           %{config | repo_key: repo_config.auth_key}
 
         # Second priority: fallback to OAuth token if available
-        match?({:ok, _}, Hex.OAuth.get_token()) ->
-          {:ok, access_token} = Hex.OAuth.get_token()
-          # Format as Bearer token for OAuth authentication
-          %{config | repo_key: "Bearer #{access_token}"}
-
-        # No authentication available
         true ->
-          config
+          case Hex.OAuth.get_token() do
+            {:ok, access_token} ->
+              # Format as Bearer token for OAuth authentication
+              %{config | repo_key: "Bearer #{access_token}"}
+
+            {:error, _reason} ->
+              # No authentication available - continue without auth
+              # Server will return 401/403 if authentication is required
+              config
+          end
       end
 
     if etag do

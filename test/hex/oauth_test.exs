@@ -30,7 +30,7 @@ defmodule Hex.OAuthTest do
 
       Hex.OAuth.store_token(token_data)
 
-      assert {:error, :token_expired} = Hex.OAuth.get_token()
+      assert {:error, :no_refresh_token} = Hex.OAuth.get_token()
     end
 
     test "returns error when token is expired and refresh fails" do
@@ -201,6 +201,67 @@ defmodule Hex.OAuthTest do
 
     test "returns error when no tokens stored" do
       assert {:error, :no_auth} = Hex.OAuth.refresh_token()
+    end
+  end
+
+  describe "concurrent token refresh" do
+    test "handles multiple concurrent get_token calls with expired token" do
+      # Store an expired token with no refresh token
+      # This simulates the race condition scenario where multiple processes
+      # try to get the token at the same time
+      past_time = System.system_time(:second) - 100
+
+      token_data = %{
+        "access_token" => "expired_token",
+        "expires_at" => past_time
+      }
+
+      Hex.OAuth.store_token(token_data)
+
+      # Spawn multiple concurrent tasks that all try to get the token
+      tasks =
+        for _ <- 1..10 do
+          Task.async(fn ->
+            Hex.OAuth.get_token()
+          end)
+        end
+
+      # Wait for all tasks to complete
+      results = Task.await_many(tasks)
+
+      # All should fail since there's no refresh token, but they should all
+      # return the same error and not crash
+      assert Enum.all?(results, fn result ->
+               result == {:error, :no_refresh_token}
+             end)
+    end
+
+    test "handles concurrent get_token calls with valid token" do
+      # Store a valid token
+      future_time = System.system_time(:second) + 3600
+
+      token_data = %{
+        "access_token" => "valid_token",
+        "refresh_token" => "refresh_token",
+        "expires_at" => future_time
+      }
+
+      Hex.OAuth.store_token(token_data)
+
+      # Spawn multiple concurrent tasks
+      tasks =
+        for _ <- 1..10 do
+          Task.async(fn ->
+            Hex.OAuth.get_token()
+          end)
+        end
+
+      # All should succeed
+      results = Task.await_many(tasks)
+
+      assert Enum.all?(results, fn result ->
+               result == {:ok, "valid_token"}
+             end)
     end
   end
 end
