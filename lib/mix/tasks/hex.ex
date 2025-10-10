@@ -384,7 +384,7 @@ defmodule Mix.Tasks.Hex do
           []
         end
 
-      {:error, :token_expired} ->
+      {:error, :no_refresh_token} ->
         Hex.Shell.info("Access token expired and could not be refreshed. Please re-authenticate.")
 
         if Keyword.get(opts, :auth_inline, true) do
@@ -424,7 +424,7 @@ defmodule Mix.Tasks.Hex do
           []
         end
 
-      {:error, :token_expired} ->
+      {:error, :no_refresh_token} ->
         Hex.Shell.info("Access token expired and could not be refreshed. Please re-authenticate.")
 
         if Keyword.get(opts, :auth_inline, true) do

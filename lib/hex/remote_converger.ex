@@ -27,6 +27,11 @@ defmodule Hex.RemoteConverger do
   def converge(deps, lock) do
     Registry.open()
 
+    # Check and refresh OAuth token before fetching packages
+    # This ensures we only prompt once for authentication instead of
+    # getting multiple prompts during concurrent package fetches
+    check_and_refresh_auth()
+
     # We cannot use given lock here, because all deps that are being
     # converged have been removed from the lock by Mix
     # We need the old lock to get the children of Hex packages
@@ -722,5 +727,30 @@ defmodule Hex.RemoteConverger do
 
   defp breaking_minor_version_change?(%Version{} = version1, %Version{} = version2) do
     version1.major == 0 and version2.major == 0 and version1.minor != version2.minor
+  end
+
+  defp check_and_refresh_auth do
+    # Try to get token with authentication prompting enabled
+    # The OnceCache ensures only one process prompts even if multiple processes
+    # detect the expired token concurrently
+    case Hex.OAuth.get_token(prompt_auth: true) do
+      {:ok, _access_token} ->
+        # Token is valid, was successfully refreshed, or user authenticated
+        :ok
+
+      {:error, :auth_failed} ->
+        Mix.raise("Authentication failed. Unable to access private packages.")
+
+      {:error, :auth_declined} ->
+        Mix.raise("Authentication required to access private packages. Run `mix hex.user auth`")
+
+      {:error, :no_auth} ->
+        # No OAuth token - this is OK, user might only be fetching public packages
+        :ok
+
+      {:error, _other} ->
+        # Other errors (shouldn't happen with prompt_auth: true, but handle gracefully)
+        :ok
+    end
   end
 end
