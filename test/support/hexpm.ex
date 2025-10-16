@@ -205,7 +205,7 @@ defmodule HexTest.Hexpm do
   end
 
   def new_user(username, email, password, key) do
-    permissions = [%{"domain" => "api"}]
+    permissions = [%{"domain" => "api"}, %{"domain" => "repositories"}]
     {:ok, {201, _, _}} = Hex.API.User.new(username, email, password)
 
     {:ok, {201, _, %{"secret" => secret}}} =

@@ -1,5 +1,5 @@
 defmodule Hex.API.OAuthTest do
-  use HexTest.IntegrationCase
+  use HexTest.IntegrationCase, async: true
 
   # Using real test server at localhost:4043 with OAuth client configured
 
@@ -113,6 +113,107 @@ defmodule Hex.API.OAuthTest do
 
     test "handles empty token" do
       assert {:ok, {200, _headers, _body}} = Hex.API.OAuth.revoke_token("")
+    end
+  end
+
+  describe "exchange_api_key/3" do
+    test "exchanges valid API key for OAuth access token" do
+      auth = HexTest.Hexpm.new_user("apikey_user", "apikey@example.com", "password", "api_key")
+      api_key = auth[:key]
+
+      assert {:ok, {200, _headers, response}} =
+               Hex.API.OAuth.exchange_api_key(api_key, "api")
+
+      assert is_binary(response["access_token"])
+      assert response["token_type"] == "bearer"
+      assert is_integer(response["expires_in"])
+      assert response["expires_in"] > 0
+      assert response["scope"] == "api"
+      refute Map.has_key?(response, "refresh_token")
+    end
+
+    test "exchanges API key with multiple scopes" do
+      {:ok, {201, _, _}} =
+        Hex.API.User.new("apikey_multi", "apikey_multi@example.com", "password")
+
+      permissions = [%{"domain" => "api"}, %{"domain" => "repositories"}]
+
+      {:ok, {201, _, %{"secret" => api_key}}} =
+        Hex.API.Key.new("api_key_multi", permissions, user: "apikey_multi", pass: "password")
+
+      assert {:ok, {200, _headers, response}} =
+               Hex.API.OAuth.exchange_api_key(api_key, "api repositories")
+
+      assert is_binary(response["access_token"])
+      assert response["token_type"] == "bearer"
+      assert response["scope"] == "api repository:hexpm"
+    end
+
+    test "accepts scopes as list" do
+      {:ok, {201, _, _}} = Hex.API.User.new("apikey_list", "apikey_list@example.com", "password")
+
+      permissions = [%{"domain" => "api"}, %{"domain" => "repositories"}]
+
+      {:ok, {201, _, %{"secret" => api_key}}} =
+        Hex.API.Key.new("api_key_list", permissions, user: "apikey_list", pass: "password")
+
+      assert {:ok, {200, _headers, response}} =
+               Hex.API.OAuth.exchange_api_key(api_key, ["api", "repositories"])
+
+      assert is_binary(response["access_token"])
+      assert response["scope"] == "api repository:hexpm"
+    end
+
+    test "sends name parameter when provided" do
+      auth =
+        HexTest.Hexpm.new_user(
+          "apikey_named",
+          "apikey_named@example.com",
+          "password",
+          "api_key_named"
+        )
+
+      api_key = auth[:key]
+
+      assert {:ok, {200, _headers, response}} =
+               Hex.API.OAuth.exchange_api_key(api_key, "api", "TestMachine")
+
+      assert is_binary(response["access_token"])
+    end
+
+    test "works without name parameter" do
+      auth =
+        HexTest.Hexpm.new_user(
+          "apikey_noname",
+          "apikey_noname@example.com",
+          "password",
+          "api_key_noname"
+        )
+
+      api_key = auth[:key]
+
+      assert {:ok, {200, _headers, response}} =
+               Hex.API.OAuth.exchange_api_key(api_key, "api", nil)
+
+      assert is_binary(response["access_token"])
+    end
+
+    test "returns error for invalid API key" do
+      assert {:ok, {401, _headers, response}} =
+               Hex.API.OAuth.exchange_api_key("invalid_api_key", "api")
+
+      assert is_map(response)
+      assert Map.has_key?(response, "message") or Map.has_key?(response, "error")
+    end
+
+    test "returns error for empty API key" do
+      assert {:ok, {400, _headers, _response}} =
+               Hex.API.OAuth.exchange_api_key("", "api")
+    end
+
+    test "handles malformed API key" do
+      assert {:ok, {401, _headers, _response}} =
+               Hex.API.OAuth.exchange_api_key("malformed-key", "api")
     end
   end
 end

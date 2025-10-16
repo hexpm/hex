@@ -41,11 +41,17 @@ defmodule Mix.Tasks.Hex.Repo do
 
     * `--fetch-public-key FINGERPRINT` - Download public key from the repository and verify against the fingerprint (optional).
 
+    * `--no-oauth-exchange` - Disable OAuth token exchange for API keys. Use the API key directly instead of exchanging it for a short-lived OAuth token (optional).
+
+    * `--oauth-exchange-url URL` - Custom URL for OAuth token exchange. By default, the API URL is used (optional).
+
   ## Set config for repo
 
       $ mix hex.repo set NAME --url URL
       $ mix hex.repo set NAME --public-key PATH
       $ mix hex.repo set NAME --auth-key KEY
+      $ mix hex.repo set NAME --no-oauth-exchange
+      $ mix hex.repo set NAME --oauth-exchange-url URL
 
   ## Remove repo
 
@@ -62,9 +68,27 @@ defmodule Mix.Tasks.Hex.Repo do
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @add_switches [public_key: :string, auth_key: :string, fetch_public_key: :string]
-  @set_switches [url: :string, public_key: :string, auth_key: :string]
-  @show_switches [url: :boolean, public_key: :boolean, auth_key: :boolean]
+  @add_switches [
+    public_key: :string,
+    auth_key: :string,
+    fetch_public_key: :string,
+    no_oauth_exchange: :boolean,
+    oauth_exchange_url: :string
+  ]
+  @set_switches [
+    url: :string,
+    public_key: :string,
+    auth_key: :string,
+    no_oauth_exchange: :boolean,
+    oauth_exchange_url: :string
+  ]
+  @show_switches [
+    url: :boolean,
+    public_key: :boolean,
+    auth_key: :boolean,
+    oauth_exchange: :boolean,
+    oauth_exchange_url: :boolean
+  ]
 
   @impl true
   def run(all_args) do
@@ -119,9 +143,16 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp add(name, url, opts) do
+    opts_with_exchange = normalize_oauth_exchange_opt(opts)
+
     public_key =
-      read_public_key(opts[:public_key]) ||
-        fetch_public_key(opts[:fetch_public_key], url, opts[:auth_key])
+      read_public_key(opts_with_exchange[:public_key]) ||
+        fetch_public_key(
+          opts_with_exchange[:fetch_public_key],
+          url,
+          opts_with_exchange[:auth_key],
+          opts_with_exchange[:oauth_exchange]
+        )
 
     repo =
       %{
@@ -129,9 +160,11 @@ defmodule Mix.Tasks.Hex.Repo do
         public_key: nil,
         fetch_public_key: nil,
         auth_key: nil,
+        oauth_exchange: true,
+        oauth_exchange_url: nil,
         trusted: true
       }
-      |> Map.merge(Map.new(opts))
+      |> Map.merge(Map.new(opts_with_exchange))
       |> Map.put(:public_key, public_key)
 
     Hex.State.fetch!(:repos)
@@ -146,6 +179,8 @@ defmodule Mix.Tasks.Hex.Repo do
       else
         opts
       end
+
+    opts = normalize_oauth_exchange_opt(opts)
 
     Hex.State.fetch!(:repos)
     |> Map.update!(name, &Map.merge(&1, Map.new(opts)))
@@ -212,10 +247,15 @@ defmodule Mix.Tasks.Hex.Repo do
     |> List.to_string()
   end
 
-  defp fetch_public_key(nil, _, _), do: nil
+  defp fetch_public_key(nil, _, _, _), do: nil
 
-  defp fetch_public_key(fingerprint, repo_url, auth_key) do
-    repo_config = %{url: repo_url, auth_key: auth_key, trusted: true}
+  defp fetch_public_key(fingerprint, repo_url, auth_key, oauth_exchange) do
+    repo_config = %{
+      url: repo_url,
+      auth_key: auth_key,
+      trusted: true,
+      oauth_exchange: oauth_exchange
+    }
 
     case Hex.Repo.get_public_key(repo_config) do
       {:ok, {200, _, key}} ->
@@ -239,7 +279,9 @@ defmodule Mix.Tasks.Hex.Repo do
   defp show(name, [{key, _} | _]) do
     case Map.fetch(Hex.State.fetch!(:repos), name) do
       {:ok, config} ->
-        Hex.Shell.info(Map.get(config, key, ""))
+        value = Map.get(config, key, "")
+        value = if is_boolean(value), do: to_string(value), else: value
+        Hex.Shell.info(value)
 
       :error ->
         Mix.raise("Config does not contain repo #{name}")
@@ -255,6 +297,18 @@ defmodule Mix.Tasks.Hex.Repo do
 
       :error ->
         Mix.raise("Config does not contain repo #{name}")
+    end
+  end
+
+  defp normalize_oauth_exchange_opt(opts) do
+    if Keyword.has_key?(opts, :no_oauth_exchange) do
+      oauth_exchange = !opts[:no_oauth_exchange]
+
+      opts
+      |> Keyword.delete(:no_oauth_exchange)
+      |> Keyword.put(:oauth_exchange, oauth_exchange)
+    else
+      opts
     end
   end
 end

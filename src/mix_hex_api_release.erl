@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.11.0 (5cb699e), do not edit manually
+%% Vendored from hex_core v0.11.0 (cdc6d80), do not edit manually
 
 %% @doc
 %% Hex HTTP API - Releases.
@@ -81,18 +81,6 @@ publish(Config, Tarball) -> publish(Config, Tarball, []).
 %% Supported query params :
 %%  - replace : boolean
 %%
-%% === Two-Factor Authentication ===
-%%
-%% When using OAuth tokens, two-factor authentication may be required.
-%% If required, the server will respond with `{error, otp_required}' and
-%% you should retry the request with the TOTP code in the `api_otp' config option.
-%%
-%% Possible 2FA-related errors:
-%% - `{error, otp_required}' - OTP code is required, retry with `api_otp' set
-%% - `{error, invalid_totp}' - OTP code was invalid, retry with correct code
-%% - `{ok, {403, _, #{<<"message">> => <<"Two-factor authentication must be enabled for API write access">>}}}' - User must enable 2FA
-%% - `{ok, {429, _, #{<<"message">> => <<"Too many failed two-factor authentication attempts. Please try again later.">>}}}' - Rate limited
-%%
 %% Examples:
 %%
 %% ```
@@ -113,10 +101,6 @@ publish(Config, Tarball) -> publish(Config, Tarball, []).
 %%      <<"url">> => <<"https://hex.pm/api/packages/package/releases/1.0.0">>,
 %%      <<"version">> => <<"1.0.0">>
 %%      }}}
-%%
-%% %% With 2FA
-%% > Config = maps:put(api_otp, <<"123456">>, mix_hex_core:default_config()).
-%% > mix_hex_api_release:publish(Config, Tarball).
 %% '''
 %% @end
 -spec publish(mix_hex_core:config(), binary(), publish_params()) -> mix_hex_api:response().
@@ -145,12 +129,6 @@ publish(Config, Tarball, Params) when
 %% @doc
 %% Deletes a package release.
 %%
-%% === Two-Factor Authentication ===
-%%
-%% When using OAuth tokens, you must provide the TOTP code via the
-%% `api_otp' config option. See {@link publish/3} for possible 2FA-related
-%% error responses.
-%%
 %% Examples:
 %%
 %% ```
@@ -165,12 +143,6 @@ delete(Config, Name, Version) when is_map(Config) and is_binary(Name) and is_bin
 
 %% @doc
 %% Retires a package release.
-%%
-%% === Two-Factor Authentication ===
-%%
-%% When using OAuth tokens, you must provide the TOTP code via the
-%% `api_otp' config option. See {@link publish/3} for possible 2FA-related
-%% error responses.
 %%
 %% Examples:
 %%
@@ -188,12 +160,6 @@ retire(Config, Name, Version, Params) when
 
 %% @doc
 %% Unretires a package release.
-%%
-%% === Two-Factor Authentication ===
-%%
-%% When using OAuth tokens, you must provide the TOTP code via the
-%% `api_otp' config option. See {@link publish/3} for possible 2FA-related
-%% error responses.
 %%
 %% Examples:
 %%
