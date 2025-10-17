@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.11.0 (5cb699e), do not edit manually
+%% Vendored from hex_core v0.11.0 (cdc6d80), do not edit manually
 
 %% @doc
 %% `hex_core' entrypoint module.
@@ -15,9 +15,13 @@
 %% * `api_key' - Authentication key used when accessing the HTTP API.
 %%
 %% * `api_otp' - TOTP (Time-based One-Time Password) code for two-factor authentication.
-%%   May be required for write operations when using OAuth tokens. If required, the
-%%   server will return `{error, otp_required}' and you should retry with this option set.
-%%   The 6-digit code from your authenticator app.
+%%   When using OAuth tokens, write operations require 2FA if the user has it enabled.
+%%   If required, the server returns one of:
+%%   - `{error, otp_required}' - Retry the request with a 6-digit TOTP code in this option
+%%   - `{error, invalid_totp}' - The provided TOTP code was incorrect, retry with correct code
+%%   - `{ok, {403, _, #{<<"message">> => <<"Two-factor authentication must be enabled for API write access">>}}}' - User must enable 2FA first
+%%   - `{ok, {429, _, _}}' - Too many failed TOTP attempts, rate limited
+%%   API keys do not require TOTP validation.
 %%
 %% * `api_organization' - Name of the organization endpoint in the API, this should
 %%   for example be set when accessing key for a specific organization.

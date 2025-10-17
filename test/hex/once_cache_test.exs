@@ -44,7 +44,6 @@ defmodule Hex.OnceCacheTest do
     end
 
     test "handles concurrent calls correctly", %{cache: cache} do
-      pid = self()
       counter = :counters.new(1, [])
 
       compute_fn = fn ->

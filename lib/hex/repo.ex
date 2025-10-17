@@ -169,9 +169,27 @@ defmodule Hex.Repo do
 
   defp clean_repo(repo, default) do
     repo
+    |> clean_expired_oauth_token()
     |> Map.delete(:trusted)
     |> Enum.reject(fn {key, value} -> value in [nil, Map.get(default, key)] end)
     |> Map.new()
+  end
+
+  defp clean_expired_oauth_token(repo) do
+    case repo[:oauth_token] do
+      %{"expires_at" => expires_at} ->
+        current_time = System.system_time(:second)
+
+        # Keep token if it's valid for more than 5 minutes (300 seconds)
+        if expires_at > current_time + 300 do
+          repo
+        else
+          Map.delete(repo, :oauth_token)
+        end
+
+      _ ->
+        repo
+    end
   end
 
   defp merge_values(nil, right), do: right
@@ -271,11 +289,22 @@ defmodule Hex.Repo do
 
     config =
       cond do
-        # First priority: explicit repo auth key (from HEX_REPOS_KEY or config)
-        repo_config.auth_key && Map.get(repo_config, :trusted, true) ->
+        # First priority: explicit repo auth key with OAuth exchange disabled - use API key directly
+        repo_config.auth_key && Map.get(repo_config, :trusted, true) &&
+            Map.get(repo_config, :oauth_exchange, true) == false ->
           %{config | repo_key: repo_config.auth_key}
 
-        # Second priority: fallback to OAuth token if available
+        # Second priority: Exchange API key for OAuth token if enabled (default)
+        repo_config.auth_key && Map.get(repo_config, :trusted, true) ->
+          case exchange_api_key_for_token(repo_config, repo_name) do
+            {:ok, access_token} ->
+              %{config | repo_key: "Bearer #{access_token}"}
+
+            {:error, reason} ->
+              raise "Failed to exchange API key for OAuth token: #{inspect(reason)}"
+          end
+
+        # Third priority: fallback to OAuth token if available (from device flow or other sources)
         true ->
           case Hex.OAuth.get_token() do
             {:ok, access_token} ->
@@ -298,4 +327,77 @@ defmodule Hex.Repo do
 
   defp hex_to_actual_repo_name("hexpm:" <> repo), do: repo
   defp hex_to_actual_repo_name(repo), do: repo
+
+  defp exchange_api_key_for_token(repo_config, repo_name) do
+    case get_cached_token(repo_config) do
+      {:ok, access_token} ->
+        {:ok, access_token}
+
+      :expired ->
+        do_exchange_api_key(repo_config, repo_name)
+
+      :not_found ->
+        do_exchange_api_key(repo_config, repo_name)
+    end
+  end
+
+  defp get_cached_token(repo_config) do
+    case Map.get(repo_config, :oauth_token) do
+      %{"access_token" => token, "expires_at" => expires_at} ->
+        current_time = System.system_time(:second)
+
+        if expires_at > current_time + 300 do
+          {:ok, token}
+        else
+          :expired
+        end
+
+      _ ->
+        :not_found
+    end
+  end
+
+  defp do_exchange_api_key(repo_config, repo_name) do
+    api_key = repo_config.auth_key
+    scopes = "repositories"
+    oauth_url = Map.get(repo_config, :oauth_exchange_url)
+    name = get_hostname()
+
+    case Hex.API.OAuth.exchange_api_key(api_key, scopes, name, oauth_url) do
+      {:ok, {200, _, response}} when is_map(response) ->
+        access_token = response["access_token"]
+        expires_in = response["expires_in"] || 1800
+
+        cache_token(repo_config, repo_name, access_token, expires_in)
+
+        {:ok, access_token}
+
+      {:ok, {status, _, _}} when status >= 400 ->
+        {:error, :exchange_failed}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp get_hostname do
+    case :inet.gethostname() do
+      {:ok, hostname} -> to_string(hostname)
+      {:error, _} -> nil
+    end
+  end
+
+  defp cache_token(repo_config, repo_name, access_token, expires_in) do
+    expires_at = System.system_time(:second) + expires_in
+
+    token_data = %{
+      "access_token" => access_token,
+      "expires_at" => expires_at
+    }
+
+    repos = Hex.State.fetch!(:repos)
+    updated_repo = Map.put(repo_config, :oauth_token, token_data)
+    updated_repos = Map.put(repos, repo_name, updated_repo)
+    Hex.Config.update_repos(updated_repos)
+  end
 end

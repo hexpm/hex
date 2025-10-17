@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.11.0 (5cb699e), do not edit manually
+%% Vendored from hex_core v0.11.0 (cdc6d80), do not edit manually
 
 %% @doc
 %% Hex HTTP API - OAuth.
@@ -8,7 +8,9 @@
     device_authorization/4,
     poll_device_token/3,
     refresh_token/3,
-    revoke_token/3
+    revoke_token/3,
+    client_credentials_token/4,
+    client_credentials_token/5
 ]).
 
 %% @doc
@@ -115,6 +117,59 @@ refresh_token(Config, ClientId, RefreshToken) ->
         <<"refresh_token">> => RefreshToken,
         <<"client_id">> => ClientId
     },
+    mix_hex_api:post(Config, Path, Params).
+
+%% @doc
+%% Exchanges an API key for an OAuth access token using the client credentials grant.
+%%
+%% @see client_credentials_token/5
+%% @end
+-spec client_credentials_token(mix_hex_core:config(), binary(), binary(), binary()) -> mix_hex_api:response().
+client_credentials_token(Config, ClientId, ApiKey, Scope) ->
+    client_credentials_token(Config, ClientId, ApiKey, Scope, []).
+
+%% @doc
+%% Exchanges an API key for an OAuth access token using the client credentials grant with optional parameters.
+%%
+%% This grant type allows exchanging a long-lived API key for a short-lived OAuth access token.
+%% The API key is sent as the client_secret parameter.
+%%
+%% Options:
+%%   * `name' - A name to identify the token (e.g., hostname of the client)
+%%
+%% Returns:
+%% - `{ok, {200, _, Token}}` - Token exchange successful
+%% - `{ok, {400, _, #{<<"error">> => ...}}}` - Invalid request or scope
+%% - `{ok, {401, _, #{<<"error">> => ...}}}` - Invalid API key
+%%
+%% Examples:
+%%
+%% ```
+%% 1> Config = mix_hex_core:default_config().
+%% 2> mix_hex_api_oauth:client_credentials_token(Config, <<"cli">>, ApiKey, <<"api">>).
+%% {ok, {200, _, #{
+%%     <<"access_token">> => <<"...">>,
+%%     <<"token_type">> => <<"bearer">>,
+%%     <<"expires_in">> => 1800,
+%%     <<"scope">> => <<"api">>
+%% }}}
+%%
+%% 3> mix_hex_api_oauth:client_credentials_token(Config, <<"cli">>, ApiKey, <<"api">>, [{name, <<"MyMachine">>}]).
+%% '''
+%% @end
+-spec client_credentials_token(mix_hex_core:config(), binary(), binary(), binary(), proplists:proplist()) -> mix_hex_api:response().
+client_credentials_token(Config, ClientId, ApiKey, Scope, Opts) ->
+    Path = <<"oauth/token">>,
+    Params0 = #{
+        <<"grant_type">> => <<"client_credentials">>,
+        <<"client_id">> => ClientId,
+        <<"client_secret">> => ApiKey,
+        <<"scope">> => Scope
+    },
+    Params = case proplists:get_value(name, Opts) of
+        undefined -> Params0;
+        Name -> Params0#{<<"name">> => Name}
+    end,
     mix_hex_api:post(Config, Path, Params).
 
 %% @doc

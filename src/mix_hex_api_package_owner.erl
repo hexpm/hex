@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.11.0 (5cb699e), do not edit manually
+%% Vendored from hex_core v0.11.0 (cdc6d80), do not edit manually
 
 %% @doc
 %% Hex HTTP API - Package Owners.
@@ -65,12 +65,6 @@ get(Config, PackageName, UsernameOrEmail) when
 %% @doc
 %% Adds a packages owner.
 %%
-%% === Two-Factor Authentication ===
-%%
-%% When using OAuth tokens, two-factor authentication may be required.
-%% See {@link mix_hex_api_release:publish/3} for possible 2FA-related error
-%% responses and handling.
-%%
 %% Examples:
 %%
 %% ```
@@ -99,12 +93,6 @@ add(Config, PackageName, UsernameOrEmail, Level, Transfer) when
 
 %% @doc
 %% Deletes a packages owner.
-%%
-%% === Two-Factor Authentication ===
-%%
-%% When using OAuth tokens, two-factor authentication may be required.
-%% See {@link mix_hex_api_release:publish/3} for possible 2FA-related error
-%% responses and handling.
 %%
 %% Examples:
 %%
