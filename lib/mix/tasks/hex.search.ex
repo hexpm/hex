@@ -1,50 +1,97 @@
 defmodule Mix.Tasks.Hex.Search do
   use Mix.Task
 
-  @shortdoc "Searches for package names"
+  @shortdoc "Open and perform searches"
 
   @moduledoc """
-  Displays packages matching the given search query.
+  Open and perform searches.
 
-  If you are authenticated it will additionally search all organizations you are member of.
+  When invoked without arguments, it opens up a search page on
+  https://hexdocs.pm with all of your dependencies selected:
 
-      $ mix hex.search PACKAGE
+      $ mix hex.search
 
-  ## Command line options
+  You may also pass command line flags, to execute searches
+  via the command line, according to the modes below.
+
+  ## Package search
+
+  Specify `--package PACKAGE` to search for a given package.
+
+      $ mix hex.search --package PACKAGE
+
+  If you are authenticated, it will additionally search all organizations
+  you are member of.
+
+  ### Options
 
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
 
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [organization: :string, all_organizations: :boolean]
+  @switches [organization: :string, package: :string]
 
   @impl true
   def run(args) do
-    Hex.start()
-    {opts, args} = OptionParser.parse!(args, strict: @switches)
-
     case args do
-      [package] ->
-        search_package(package, opts[:organization])
+      [] ->
+        hexdocs_search()
 
       _ ->
-        Mix.raise("""
-        Invalid arguments, expected:
+        {opts, args} = OptionParser.parse!(args, strict: @switches)
 
-        mix hex.search PACKAGE
-        """)
+        case args do
+          [package] ->
+            Mix.shell().error(
+              "mix hex.search PACKAGE is deprecated, use --package PACKAGE instead"
+            )
+
+            package_search(package, opts[:organization])
+
+          _ ->
+            package = opts[:package]
+
+            if is_binary(package) and args == [] do
+              package_search(package, opts[:organization])
+            else
+              Mix.raise("""
+              Invalid arguments, expected:
+
+              mix hex.search
+              mix hex.search --package PACKAGE
+              """)
+            end
+        end
     end
   end
 
   @impl true
   def tasks() do
     [
-      {"PACKAGE", "Searches for package names"}
+      {"", "Opens up hexdocs.pm with your dependencies"},
+      {"--package PACKAGE", "Searches for package names"}
     ]
   end
 
-  defp search_package(package, organization) do
+  defp hexdocs_search() do
+    Mix.Tasks.Deps.Loadpaths.run(["--no-compile", "--no-listeners"])
+    Hex.start()
+
+    packages =
+      for {_app, info} <- Mix.Dep.Lock.read(),
+          %{repo: "hexpm", name: name, version: version} <- [Hex.Utils.lock(info)] do
+        "#{name}:#{version}"
+      end
+      |> Enum.sort()
+      |> Enum.join(",")
+      |> URI.encode_www_form()
+
+    Hex.Utils.system_open("https://hexdocs.pm/?packages=#{packages}&q=")
+  end
+
+  defp package_search(package, organization) do
+    Hex.start()
     auth = Mix.Tasks.Hex.auth_info(:read, auth_inline: false)
 
     Hex.API.Package.search(organization, package, auth)
