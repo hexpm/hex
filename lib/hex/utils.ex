@@ -333,14 +333,28 @@ defmodule Hex.Utils do
   def open_cmd(path) do
     case :os.type() do
       {:win32, _} ->
-        {"cmd", ["/c", "start", path]}
+        {"cmd", win_cmd_args(path)}
 
       {:unix, :darwin} ->
-        {"open", [path], []}
+        {"open", [path]}
 
       {:unix, _} ->
-        {"xdg-open", [path], []}
+        cond do
+          System.find_executable("xdg-open") ->
+            {"xdg-open", [path]}
+
+          # When inside WSL
+          System.find_executable("cmd.exe") ->
+            {"cmd.exe", win_cmd_args(path)}
+
+          true ->
+            {"open", [path]}
+        end
     end
+  end
+
+  defp win_cmd_args(path) do
+    ["/c", "start", String.replace(path, "&", "^&")]
   end
 
   @doc """
@@ -355,12 +369,12 @@ defmodule Hex.Utils do
   end
 
   if Mix.env() == :test do
-    defp system_cmd({cmd, args, options}) do
-      send(self(), {:hex_system_cmd, cmd, args, options})
+    defp system_cmd({cmd, args}) do
+      send(self(), {:hex_system_cmd, cmd, args})
     end
   else
-    defp system_cmd({cmd, args, options}) do
-      System.cmd(cmd, args, options)
+    defp system_cmd({cmd, args}) do
+      System.cmd(cmd, args)
     end
   end
 end
