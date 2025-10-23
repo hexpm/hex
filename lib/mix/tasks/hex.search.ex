@@ -83,6 +83,7 @@ defmodule Mix.Tasks.Hex.Search do
           %{repo: "hexpm", name: name, version: version} <- [Hex.Utils.lock(info)] do
         "#{name}:#{version}"
       end
+      |> Enum.sort()
       |> Enum.join(",")
       |> URI.encode_www_form()
 

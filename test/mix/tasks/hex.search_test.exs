@@ -26,7 +26,7 @@ defmodule Mix.Tasks.Hex.SearchTest do
         Mix.Tasks.Hex.Search.run([])
         assert_received {:hex_system_cmd, _, ["https://hexdocs.pm/?packages=" <> packages]}
 
-        assert packages =~ URI.encode_www_form("foo:0.1.0,bar:0.1.0")
+        assert packages =~ URI.encode_www_form("bar:0.1.0,foo:0.1.0")
         assert String.ends_with?(packages, "&q=")
       end)
     end
