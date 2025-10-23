@@ -319,8 +319,8 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   if Mix.env() == :test do
-    defp system_cmd({cmd, args, options}) do
-      send(self(), {:hex_system_cmd, cmd, args, options})
+    defp system_cmd({cmd, args, _options}) do
+      send(self(), {:hex_system_cmd, cmd, args})
     end
   else
     defp system_cmd({cmd, args, options}) do

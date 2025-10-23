@@ -324,4 +324,57 @@ defmodule Hex.Utils do
       {app, req, opts}
     end)
   end
+
+  @doc """
+  Returns the appropriate command for opening a file or URL with the system's default handler.
+
+  Returns a tuple of {command, args, options} suitable for use with System.cmd/3.
+  """
+  def open_cmd(path) do
+    case :os.type() do
+      {:win32, _} ->
+        {"cmd", win_cmd_args(path)}
+
+      {:unix, :darwin} ->
+        {"open", [path]}
+
+      {:unix, _} ->
+        cond do
+          System.find_executable("xdg-open") ->
+            {"xdg-open", [path]}
+
+          # When inside WSL
+          System.find_executable("cmd.exe") ->
+            {"cmd.exe", win_cmd_args(path)}
+
+          true ->
+            {"open", [path]}
+        end
+    end
+  end
+
+  defp win_cmd_args(path) do
+    ["/c", "start", String.replace(path, "&", "^&")]
+  end
+
+  @doc """
+  Opens a file or URL with the system's default handler.
+
+  In test environment, sends a message instead of actually executing the command.
+  """
+  def system_open(path) do
+    path
+    |> open_cmd()
+    |> system_cmd()
+  end
+
+  if Mix.env() == :test do
+    defp system_cmd({cmd, args}) do
+      send(self(), {:hex_system_cmd, cmd, args})
+    end
+  else
+    defp system_cmd({cmd, args}) do
+      System.cmd(cmd, args)
+    end
+  end
 end
