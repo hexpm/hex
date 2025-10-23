@@ -64,6 +64,7 @@ defmodule Hex.Repo do
       url: trusted_mirror_url || mirror_url,
       public_key: @hexpm_public_key,
       auth_key: auth_key,
+      oauth_exchange: true,
       trusted: trusted_mirror_url != nil or mirror_url == nil
     }
   end
@@ -73,6 +74,7 @@ defmodule Hex.Repo do
       url: @hexpm_url,
       public_key: @hexpm_public_key,
       auth_key: nil,
+      oauth_exchange: true,
       trusted: true
     }
   end

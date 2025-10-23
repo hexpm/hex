@@ -41,7 +41,12 @@ defmodule Mix.Tasks.Hex.Repo do
 
     * `--fetch-public-key FINGERPRINT` - Download public key from the repository and verify against the fingerprint (optional).
 
-    * `--no-oauth-exchange` - Disable OAuth token exchange for API keys. Use the API key directly instead of exchanging it for a short-lived OAuth token (optional).
+    * `--oauth-exchange` - Enable OAuth token exchange for API keys. Exchange the API key for a short-lived OAuth token
+      instead of using the API key directly. Defaults to enabled for hexpm, disabled for other repositories.
+      In the future, this will default to enabled for all repositories (optional).
+
+    * `--no-oauth-exchange` - Disable OAuth token exchange for API keys. Use the API key directly instead of exchanging
+      it for a short-lived OAuth token. Currently a no-op, but will disable OAuth token exchange  in the future (optional).
 
     * `--oauth-exchange-url URL` - Custom URL for OAuth token exchange. By default, the API URL is used (optional).
 
@@ -50,6 +55,7 @@ defmodule Mix.Tasks.Hex.Repo do
       $ mix hex.repo set NAME --url URL
       $ mix hex.repo set NAME --public-key PATH
       $ mix hex.repo set NAME --auth-key KEY
+      $ mix hex.repo set NAME --oauth-exchange
       $ mix hex.repo set NAME --no-oauth-exchange
       $ mix hex.repo set NAME --oauth-exchange-url URL
 
@@ -72,14 +78,14 @@ defmodule Mix.Tasks.Hex.Repo do
     public_key: :string,
     auth_key: :string,
     fetch_public_key: :string,
-    no_oauth_exchange: :boolean,
+    oauth_exchange: :boolean,
     oauth_exchange_url: :string
   ]
   @set_switches [
     url: :string,
     public_key: :string,
     auth_key: :string,
-    no_oauth_exchange: :boolean,
+    oauth_exchange: :boolean,
     oauth_exchange_url: :string
   ]
   @show_switches [
@@ -143,15 +149,17 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp add(name, url, opts) do
-    opts_with_exchange = normalize_oauth_exchange_opt(opts)
+    # Default oauth_exchange to true for hexpm/repo.hex.pm, false for others
+    default_oauth_exchange = name == "hexpm"
+    oauth_exchange = Keyword.get(opts, :oauth_exchange, default_oauth_exchange)
 
     public_key =
-      read_public_key(opts_with_exchange[:public_key]) ||
+      read_public_key(opts[:public_key]) ||
         fetch_public_key(
-          opts_with_exchange[:fetch_public_key],
+          opts[:fetch_public_key],
           url,
-          opts_with_exchange[:auth_key],
-          opts_with_exchange[:oauth_exchange]
+          opts[:auth_key],
+          oauth_exchange
         )
 
     repo =
@@ -160,11 +168,11 @@ defmodule Mix.Tasks.Hex.Repo do
         public_key: nil,
         fetch_public_key: nil,
         auth_key: nil,
-        oauth_exchange: true,
+        oauth_exchange: oauth_exchange,
         oauth_exchange_url: nil,
         trusted: true
       }
-      |> Map.merge(Map.new(opts_with_exchange))
+      |> Map.merge(Map.new(opts))
       |> Map.put(:public_key, public_key)
 
     Hex.State.fetch!(:repos)
@@ -179,8 +187,6 @@ defmodule Mix.Tasks.Hex.Repo do
       else
         opts
       end
-
-    opts = normalize_oauth_exchange_opt(opts)
 
     Hex.State.fetch!(:repos)
     |> Map.update!(name, &Map.merge(&1, Map.new(opts)))
@@ -297,18 +303,6 @@ defmodule Mix.Tasks.Hex.Repo do
 
       :error ->
         Mix.raise("Config does not contain repo #{name}")
-    end
-  end
-
-  defp normalize_oauth_exchange_opt(opts) do
-    if Keyword.has_key?(opts, :no_oauth_exchange) do
-      oauth_exchange = !opts[:no_oauth_exchange]
-
-      opts
-      |> Keyword.delete(:no_oauth_exchange)
-      |> Keyword.put(:oauth_exchange, oauth_exchange)
-    else
-      opts
     end
   end
 end
