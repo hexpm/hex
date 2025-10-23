@@ -1,14 +1,34 @@
 defmodule Mix.Tasks.Hex.SearchTest do
   use HexTest.IntegrationCase
 
+  defmodule SearchDeps.MixProject do
+    def project do
+      [
+        app: :search_app,
+        version: "0.0.1",
+        deps: [
+          {:foo, "0.1.0"}
+        ]
+      ]
+    end
+  end
+
   describe "hexdocs" do
     test "no args" do
-      Mix.Tasks.Hex.Search.run([])
-      assert_received {:hex_system_cmd, _, args}
-      vsn = Application.spec(:plug, :vsn)
-      assert "https://hexdocs.pm/?packages=" <> packages = List.last(args)
-      assert packages =~ URI.encode_www_form("plug:#{vsn},")
-      assert String.ends_with?(packages, "&q=")
+      Mix.Project.push(SearchDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        Mix.Dep.Lock.write(%{foo: {:hex, :foo, "0.1.0"}, bar: {:hex, :bar, "0.1.0"}})
+        Mix.Task.run("deps.get")
+        flush()
+
+        Mix.Tasks.Hex.Search.run([])
+        assert_received {:hex_system_cmd, _, ["https://hexdocs.pm/?packages=" <> packages]}
+
+        assert packages =~ URI.encode_www_form("foo:0.1.0,bar:0.1.0")
+        assert String.ends_with?(packages, "&q=")
+      end)
     end
   end
 
