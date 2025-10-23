@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Hex.SearchTest do
   describe "hexdocs" do
     test "no args" do
       Mix.Tasks.Hex.Search.run([])
-      assert_received {:hex_system_cmd, "open", ["https://hexdocs.pm/?packages=" <> packages]}
+      assert_received {:hex_system_cmd, _, ["https://hexdocs.pm/?packages=" <> packages]}
 
       vsn = Application.spec(:plug, :vsn)
       assert packages =~ URI.encode_www_form("plug:#{vsn},")
