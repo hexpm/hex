@@ -18,6 +18,7 @@ function main {
   hex_version=$1
   installs_dir="$PWD/tmp/installs"
   hex_csv="${installs_dir}/hex.csv"
+  hex_1x_csv="${installs_dir}/hex-1.x.csv"
 
   rm -rf "${installs_dir}"
   mkdir "${installs_dir}"
@@ -26,7 +27,18 @@ function main {
   touch "${hex_csv}"
   sed -i.bak "/^${hex_version},/d" "${hex_csv}"
 
+  s3down hex-1.x.csv "${hex_1x_csv}" || true
+  touch "${hex_1x_csv}"
+  sed -i.bak "/^${hex_version},/d" "${hex_1x_csv}"
+
   # UPDATE THIS FOR EVERY RELEASE, ORDER MATTERS
+
+  # Elixir v1.12-v1.16 (old CSV format)
+  build_old ${hex_version} 22.3      1.12.3 1.12.0 xenial-20200212
+  build_old ${hex_version} 22.3      1.13.4 1.13.0 xenial-20200212
+  build_old ${hex_version} 23.3      1.14.2 1.14.0 xenial-20210114
+  build_old ${hex_version} 24.3.4.17 1.15.8 1.15.0 focal-20240427
+  build_old ${hex_version} 24.3.4.17 1.16.3 1.16.0 focal-20240427
 
   # Elixir v1.17
   build ${hex_version} 25.3.2.20 1.17.3 1.17.0 noble-20250404
@@ -40,9 +52,11 @@ function main {
 
   rm -rf _build
   rm "${hex_csv}.bak"
+  rm "${hex_1x_csv}.bak"
 
   if [ -n "${ELIXIR_PEM}" ]; then
     openssl dgst -sha512 -sign "${ELIXIR_PEM}" "${hex_csv}" | openssl base64 > "${hex_csv}.signed"
+    openssl dgst -sha512 -sign "${ELIXIR_PEM}" "${hex_1x_csv}" | openssl base64 > "${hex_1x_csv}.signed"
 
     cd $installs_dir
     for path in $(find . -type f | sort); do
@@ -52,10 +66,39 @@ function main {
     done
 
     purge_key "${HEX_FASTLY_BUILDS_SERVICE_ID}" "installs"
+    sleep 5
+    purge_key "${HEX_FASTLY_BUILDS_SERVICE_ID}" "installs"
   else
     echo "ELIXIR_PEM is empty, skipping"
     exit 1
   fi
+}
+
+# $1 = hex version
+# $2 = erlang version
+# $3 = elixir version
+# $4 = saved elixir version
+# $5 = ubuntu version
+function build_old {
+  hex_version=$1
+  otp_version=$2
+  elixir_version=$3
+  saved_elixir_version=$4
+  ubuntu_version=$5
+
+  echo "Building ${elixir_version} ${otp_version} ${ubuntu_version} (old format)"
+  rm -rf _build src/mix_safe_erl_term.erl
+  hex_ez=hex-${hex_version}.ez
+
+  mkdir -p "$installs_dir/${saved_elixir_version}"
+  docker run -v $(pwd):/hex hexpm/elixir:${elixir_version}-erlang-${otp_version}-ubuntu-${ubuntu_version} sh -c " \
+    cd /hex && \
+    MIX_ENV=prod mix archive.build -o ${hex_ez}"
+
+  mv "${hex_ez}" "${installs_dir}/${saved_elixir_version}/${hex_ez}"
+  sha=$(shasum -a 512 "${installs_dir}/${saved_elixir_version}/${hex_ez}")
+  sha=($sha)
+  echo "${hex_version},${sha},${saved_elixir_version}" >> "${hex_1x_csv}"
 }
 
 # $1 = hex version
