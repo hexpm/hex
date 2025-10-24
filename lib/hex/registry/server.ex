@@ -420,19 +420,20 @@ defmodule Hex.Registry.Server do
       case result do
         {:error, :bad_signature} ->
           Hex.Shell.error(
-            "Could not verify authenticity of fetched registry file. " <>
+            "Could not verify authenticity of fetched registry file because signature verification failed. " <>
               "This may happen because a proxy or some entity is " <>
               "interfering with the download or because you don't have a " <>
               "public key to verify the registry.\n\nYou may try again " <>
-              "later or check if a new public key has been released " <> public_key_message(repo)
+              "later or check if a new public key has been released #{public_key_message(repo)}. " <>
+              "Set HEX_UNSAFE_REGISTRY=1 to disable this check and allow insecure package downloads."
           )
 
         {:error, :bad_repo_name} ->
           Hex.Shell.error(
-            "Fetched deprecated registry record version from repo #{repo}. For security " <>
-              "reasons this registry version is no longer supported. The repository " <>
-              "you are using should update to fix the security reason. Set " <>
-              "HEX_NO_VERIFY_REPO_ORIGIN=1 to disable this check."
+            "The configured repository name for your dependency #{Hex.Utils.package_name(repo, package)} does not " <>
+              "match the repository name in the registry. This could be because the repository name is incorrect or " <>
+              "because the registry has not been updated to the latest registry format. " <>
+              "Set HEX_NO_VERIFY_REPO_ORIGIN=1 to disable this check and allow insecure package downloads."
           )
 
         _other ->
