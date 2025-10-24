@@ -8,6 +8,7 @@ defmodule Hex.Registry.Server do
   @filename "cache.ets"
   @timeout 60_000
   @ets_version 3
+  @public_keys_html "https://hex.pm/docs/public_keys"
 
   def start_link(opts \\ []) do
     opts = Keyword.put_new(opts, :name, @name)
@@ -416,12 +417,37 @@ defmodule Hex.Registry.Server do
     end
 
     if not missing_status?(result) or Mix.debug?() do
-      Hex.Utils.print_error_result(result)
+      case result do
+        {:error, :bad_signature} ->
+          Hex.Shell.error(
+            "Could not verify authenticity of fetched registry file because signature verification failed. " <>
+              "This may happen because a proxy or some entity is " <>
+              "interfering with the download or because you don't have a " <>
+              "public key to verify the registry.\n\nYou may try again " <>
+              "later or check if a new public key has been released #{public_key_message(repo)}. " <>
+              "Set HEX_UNSAFE_REGISTRY=1 to disable this check and allow insecure package downloads."
+          )
+
+        {:error, :bad_repo_name} ->
+          Hex.Shell.error(
+            "The configured repository name for your dependency #{Hex.Utils.package_name(repo, package)} does not " <>
+              "match the repository name in the registry. This could be because the repository name is incorrect or " <>
+              "because the registry has not been updated to the latest registry format. " <>
+              "Set HEX_NO_VERIFY_REPO_ORIGIN=1 to disable this check and allow insecure package downloads."
+          )
+
+        _other ->
+          Hex.Utils.print_error_result(result)
+      end
     end
   end
 
   defp missing_status?({:ok, {status, _, _}}), do: status in [403, 404]
   defp missing_status?(_), do: false
+
+  defp public_key_message("hexpm:" <> _), do: "on our public keys page: #{@public_keys_html}"
+  defp public_key_message("hexpm"), do: "on our public keys page: #{@public_keys_html}"
+  defp public_key_message(repo), do: "for repo #{repo}"
 
   defp maybe_wait({repo, package}, from, state, fun) do
     repo = repo || "hexpm"

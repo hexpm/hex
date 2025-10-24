@@ -281,13 +281,22 @@ defmodule Hex.Repo do
       {:ok, payload} ->
         payload
 
-      {:error, :unverified} ->
+      {:error, :bad_signature} ->
         Mix.raise(
-          "Could not verify authenticity of fetched registry file. " <>
+          "Could not verify authenticity of fetched registry file because signature verification failed. " <>
             "This may happen because a proxy or some entity is " <>
             "interfering with the download or because you don't have a " <>
             "public key to verify the registry.\n\nYou may try again " <>
-            "later or check if a new public key has been released " <> public_key_message(repo)
+            "later or check if a new public key has been released #{public_key_message(repo)}. " <>
+            "Set HEX_UNSAFE_REGISTRY=1 to disable this check and allow insecure package downloads."
+        )
+
+      {:error, :bad_repo_name} ->
+        Mix.raise(
+          "The configured repository name does not match the repository name in the registry. " <>
+            "This could be because the repository name is incorrect or " <>
+            "because the registry has not been updated to the latest registry format. " <>
+            "Set HEX_NO_VERIFY_REPO_ORIGIN=1 to disable this check and allow insecure package downloads."
         )
 
       {:error, :bad_key} ->
@@ -295,9 +304,9 @@ defmodule Hex.Repo do
     end
   end
 
-  defp public_key_message("hexpm:" <> _), do: "on our public keys page: #{@public_keys_html}"
-  defp public_key_message("hexpm"), do: "on our public keys page: #{@public_keys_html}"
-  defp public_key_message(repo), do: "for repo #{repo}"
+  def public_key_message("hexpm:" <> _), do: "on our public keys page: #{@public_keys_html}"
+  def public_key_message("hexpm"), do: "on our public keys page: #{@public_keys_html}"
+  def public_key_message(repo), do: "for repo #{repo}"
 
   def decode_package(body, repo, package) do
     repo = repo_name(repo)
@@ -319,12 +328,12 @@ defmodule Hex.Repo do
 
           releases
 
-        {:error, :unverified} ->
+        {:error, :bad_repo_name} ->
           Mix.raise(
-            "Fetched deprecated registry record version from repo #{repo}. For security " <>
-              "reasons this registry version is no longer supported. The repository " <>
-              "you are using should update to fix the security reason. Set " <>
-              "HEX_NO_VERIFY_REPO_ORIGIN=1 to disable this check."
+            "The configured repository name for your dependency #{Hex.Utils.package_name(repo, package)} does not " <>
+              "match the repository name in the registry. This could be because the repository name is incorrect or " <>
+              "because the registry has not been updated to the latest registry format. " <>
+              "Set HEX_NO_VERIFY_REPO_ORIGIN=1 to disable this check and allow insecure package downloads."
           )
       end
     end
