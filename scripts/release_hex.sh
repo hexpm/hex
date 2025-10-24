@@ -28,15 +28,22 @@ function main {
 
   # UPDATE THIS FOR EVERY RELEASE, ORDER MATTERS
 
+  # Elixir v1.12-v1.16
+  build ${hex_version} 22.3      1.12.3 1.12.0 xenial-20200212
+  build ${hex_version} 22.3      1.13.4 1.13.0 xenial-20200212
+  build ${hex_version} 23.3      1.14.2 1.14.0 xenial-20210114
+  build ${hex_version} 24.3.4.17 1.15.8 1.15.0 focal-20240427
+  build ${hex_version} 24.3.4.17 1.16.3 1.16.0 focal-20240427
+
   # Elixir v1.17
   build ${hex_version} 25.3.2.20 1.17.3 1.17.0 noble-20250404
   build ${hex_version} 26.2.5.11 1.17.3 1.17.0 noble-20250404
   build ${hex_version} 27.3.3    1.17.3 1.17.0 noble-20250404
 
   # Elixir v1.18
-  build ${hex_version} 25.3.2.16 1.18.0 1.18.0 noble-20241015 # need to use exactly 1.18.0 and that requires older otp & ubuntu
-  build ${hex_version} 26.2.5.6  1.18.0 1.18.0 noble-20241015 # ditto
-  build ${hex_version} 27.2      1.18.0 1.18.0 noble-20241015 # ditto
+  build ${hex_version} 25.3.2.20 1.18.0 1.18.0 noble-20250404 # need to use exactly 1.18.0 and that requires older otp & ubuntu
+  build ${hex_version} 26.2.5.11 1.18.0 1.18.0 noble-20250404 # ditto
+  build ${hex_version} 27.3.3    1.18.0 1.18.0 noble-20250404 # ditto
 
   rm -rf _build
   rm "${hex_csv}.bak"
