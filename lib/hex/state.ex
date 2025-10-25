@@ -112,12 +112,6 @@ defmodule Hex.State do
       default: nil,
       config: [:cacerts_path]
     },
-    no_repo_identifier: %{
-      env: ["HEX_NO_REPO_IDENTIFIER"],
-      default: false,
-      config: [:no_repo_identifier],
-      fun: {__MODULE__, :to_boolean}
-    },
     no_short_urls: %{
       env: ["HEX_NO_SHORT_URLS"],
       config: [:no_short_urls],
