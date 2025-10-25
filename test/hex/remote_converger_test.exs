@@ -47,4 +47,26 @@ defmodule Hex.RemoteConvergetTest do
       refute output =~ "postgrex"
     end)
   end
+
+  defmodule WarnOutdatedWithHexOption.MixProject do
+    def project do
+      [
+        app: :warn_outdated_with_hex_option,
+        version: "0.1.0",
+        deps: [
+          # Package name is "package_name" but app name is "app_name"
+          {:app_name, ">= 0.0.0", hex: :package_name, warn_if_outdated: true}
+        ]
+      ]
+    end
+  end
+
+  test "deps with warn_if_outdated: true and hex: option" do
+    in_tmp(fn ->
+      Mix.Project.push(WarnOutdatedWithHexOption.MixProject)
+
+      # This should not crash with KeyError when the package name differs from app name
+      assert :ok = Mix.Tasks.Deps.Get.run([])
+    end)
+  end
 end
