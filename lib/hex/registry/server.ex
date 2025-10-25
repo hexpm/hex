@@ -410,10 +410,7 @@ defmodule Hex.Registry.Server do
     )
 
     if missing_status?(result) do
-      Hex.Shell.error(
-        "This could be because the package does not exist, it was spelled " <>
-          "incorrectly or you don't have permissions to it"
-      )
+      print_missing_package_diagnostics(repo, package, result)
     end
 
     if not missing_status?(result) or Mix.debug?() do
@@ -439,6 +436,22 @@ defmodule Hex.Registry.Server do
         _other ->
           Hex.Utils.print_error_result(result)
       end
+    end
+  end
+
+  defp print_missing_package_diagnostics(repo, package, result) do
+    {:ok, {status, _headers, _body}} = result
+    package_name = Hex.Utils.package_name(repo, package)
+
+    cond do
+      # Package does not exist
+      status == 404 ->
+        Hex.Shell.error(
+          "The package #{package_name} does not exist. Please verify the package name is spelled correctly"
+        )
+
+      true ->
+        Hex.Shell.error("This could be because you don't have permissions to it")
     end
   end
 
