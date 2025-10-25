@@ -151,7 +151,7 @@ defmodule Hex.RemoteConverger do
     Hex.SCM.prefetch(new_lock)
 
     deps_to_warn =
-      for %{repo: repo, name: name, requirement: requirement, warn_if_outdated: true} <- requests do
+      for %{repo: repo, name: name, app: app, requirement: requirement, warn_if_outdated: true} <- requests do
         {:ok, requirement} = Version.parse_requirement(requirement)
         {:ok, versions} = Registry.versions(repo, name)
 
@@ -162,7 +162,7 @@ defmodule Hex.RemoteConverger do
 
         with [latest_version | _] <- versions,
              {:hex, _name, version, _checksum1, _managers, _, ^repo, _checksum2} <-
-               Map.fetch!(new_lock, String.to_atom(name)),
+               Map.fetch!(new_lock, String.to_atom(app)),
              :gt <- Version.compare(latest_version, version) do
           {name, latest_version}
         else
