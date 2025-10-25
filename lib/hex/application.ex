@@ -49,7 +49,6 @@ defmodule Hex.Application do
     defp children do
       [
         Hex.Netrc.Cache,
-        Hex.RepoIdentifier,
         Hex.OAuth,
         Hex.State,
         Hex.Server,
@@ -60,7 +59,6 @@ defmodule Hex.Application do
     defp children do
       [
         Hex.Netrc.Cache,
-        Hex.RepoIdentifier,
         Hex.OAuth,
         Hex.State,
         Hex.Server,
