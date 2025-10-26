@@ -371,7 +371,8 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   defp format_metadata_value(map) when is_map(map) do
-    "\n    " <> Enum.map_join(map, "\n    ", fn {key, val} -> "#{key}: #{val}" end)
+    "\n    " <>
+      Enum.map_join(map, "\n    ", fn {key, val} -> "#{key}: #{format_metadata_value(val)}" end)
   end
 
   defp format_metadata_value(value) do
