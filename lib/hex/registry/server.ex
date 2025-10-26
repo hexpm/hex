@@ -9,6 +9,7 @@ defmodule Hex.Registry.Server do
   @timeout 60_000
   @ets_version 3
   @public_keys_html "https://hex.pm/docs/public_keys"
+  @dashboard_url "https://hex.pm/dashboard"
 
   def start_link(opts \\ []) do
     opts = Keyword.put_new(opts, :name, @name)
@@ -447,12 +448,44 @@ defmodule Hex.Registry.Server do
       # Package does not exist
       status == 404 ->
         Hex.Shell.error(
-          "The package #{package_name} does not exist. Please verify the package name is spelled correctly"
+          "The package #{package_name} does not exist. Please verify the package name is spelled correctly."
         )
 
+      # Permission issue
+      status == 403 ->
+        print_permission_error(package_name)
+
       true ->
-        Hex.Shell.error("This could be because you don't have permissions to it")
+        Hex.Shell.error("Error encounted fetching registry entry for #{package_name}")
     end
+  end
+
+  defp print_permission_error(package_name) do
+    has_auth = has_authentication?()
+
+    if has_auth do
+      Hex.Shell.error(
+        "You don't have permission to access #{package_name}. This could be because the package is private " <>
+          "and you don't have the required permissions. Contact the package owner to request access, or " <>
+          "check your permissions at: #{@dashboard_url}"
+      )
+    else
+      Hex.Shell.error(
+        "You don't have permission to access #{package_name}. This could be because the package is private " <>
+          "and requires authentication: run 'mix hex.user auth' to authenticate."
+      )
+    end
+  end
+
+  defp has_authentication? do
+    # Check if user has OAuth token
+    has_oauth = Hex.OAuth.has_tokens?()
+
+    # Check for API keys
+    repos_key = Hex.State.get(:repos_key)
+    api_key = Hex.State.get(:api_key)
+
+    has_oauth || repos_key != nil || api_key != nil
   end
 
   defp missing_status?({:ok, {status, _, _}}), do: status in [403, 404]
