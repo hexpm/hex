@@ -1,4 +1,4 @@
-defmodule Hex.RemoteConvergetTest do
+defmodule Hex.RemoteConvergerTest do
   use HexTest.IntegrationCase
 
   defmodule OutdatedDepsBefore.MixProject do
