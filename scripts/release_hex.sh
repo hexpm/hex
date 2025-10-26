@@ -3,8 +3,6 @@
 # Usage:
 #
 #     $ ELIXIR_PEM=/path/to/elixir.pem \
-#       HEX_FASTLY_KEY=... \
-#       HEX_FASTLY_BUILDS_SERVICE_ID=... \
 #         release_hex.sh HEX_VERSION
 #
 # Unless ELIXIR_PEM is set, nothing is uploaded. After running, can be locally tested:
@@ -13,6 +11,8 @@
 #     $ HEX_BUILDS_URL=http://localhost:8000 mix local.hex --force
 
 set -e -u -o pipefail
+
+HEX_FASTLY_BUILDS_SERVICE_ID="GbeDoh1ZO7MEM3zut4K2fR"
 
 function main {
   hex_version=$1
@@ -46,9 +46,14 @@ function main {
   build ${hex_version} 27.3.3    1.17.3 1.17.0 noble-20250404
 
   # Elixir v1.18
-  build ${hex_version} 25.3.2.20 1.18.0 1.18.0 noble-20250404 # need to use exactly 1.18.0 and that requires older otp & ubuntu
-  build ${hex_version} 26.2.5.11 1.18.0 1.18.0 noble-20250404 # ditto
-  build ${hex_version} 27.3.3    1.18.0 1.18.0 noble-20250404 # ditto
+  build ${hex_version} 25.3.2.20 1.18.0 1.18.0 noble-20251001 # need to use exactly 1.18.0 and that requires older otp & ubuntu
+  build ${hex_version} 26.2.5.11 1.18.0 1.18.0 noble-20251001 # ditto
+  build ${hex_version} 27.3.3    1.18.0 1.18.0 noble-20251001 # ditto
+
+  # Elixir v1.19
+  build ${hex_version} 26.2.5.15 1.19.1 1.19.0 noble-20251001
+  build ${hex_version} 27.3.4.3  1.19.1 1.19.0 noble-20251001
+  build ${hex_version} 28.1.1    1.19.1 1.19.0 noble-20251001
 
   rm -rf _build
   rm "${hex_csv}.bak"
@@ -65,9 +70,7 @@ function main {
       s3up "${path}" "${path}"
     done
 
-    purge_key "${HEX_FASTLY_BUILDS_SERVICE_ID}" "installs"
-    sleep 5
-    purge_key "${HEX_FASTLY_BUILDS_SERVICE_ID}" "installs"
+    purge_key "installs"
   else
     echo "ELIXIR_PEM is empty, skipping"
     exit 1
@@ -141,16 +144,11 @@ function s3down {
   aws s3 cp "s3://s3.hex.pm/installs/${1}" "${2}"
 }
 
-# $1 = service
-# $2 = key
+# $1 = key
 function purge_key() {
-  curl \
-    --fail \
-    -X POST \
-    -H "Fastly-Key: ${HEX_FASTLY_KEY}" \
-    -H "Accept: application/json" \
-    -H "Content-Length: 0" \
-    "https://api.fastly.com/service/$1/purge/$2"
+  fastly purge --service-id=${HEX_FASTLY_BUILDS_SERVICE_ID} --key=${1}
+  sleep 5
+  fastly purge --service-id=${HEX_FASTLY_BUILDS_SERVICE_ID} --key=${1}
 }
 
 main $*

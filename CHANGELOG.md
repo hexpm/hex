@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v2.3.0-dev
+## v2.3.0
 
 ### Enhancements
 
@@ -14,6 +14,8 @@
 ### Bug fixes
 
 * Handle truthy boolean for `CI` env variable
+* Fix `warn_if_outdated` if package name and app name are different
+* Allow nested maps for `extra` package metadata
 
 ## v2.2.2 (2025-06-27)
 
