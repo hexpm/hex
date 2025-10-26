@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## v2.3.1-dev
+## v2.3.1
+
+### Bug fixes
+
+* Fix repository name verification for organizations and custom repositories
 
 ## v2.3.0
 
