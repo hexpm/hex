@@ -140,6 +140,16 @@ defmodule Hex.RepoTest do
     {:ok, _} = Supervisor.start_child(Hex.Supervisor, Hex.State)
   end
 
+  describe "get_package/3" do
+    test "from public repo" do
+      assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "ex_doc", "")
+    end
+
+    test "from organization repo" do
+      assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm:testorg", "foo", "")
+    end
+  end
+
   describe "automatic API key to OAuth token exchange" do
     test "automatically exchanges API key for OAuth token when making request" do
       auth =
