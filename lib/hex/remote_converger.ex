@@ -151,7 +151,8 @@ defmodule Hex.RemoteConverger do
     Hex.SCM.prefetch(new_lock)
 
     deps_to_warn =
-      for %{repo: repo, name: name, app: app, requirement: requirement, warn_if_outdated: true} <- requests do
+      for %{repo: repo, name: name, app: app, requirement: requirement, warn_if_outdated: true} <-
+            requests do
         {:ok, requirement} = Version.parse_requirement(requirement)
         {:ok, versions} = Registry.versions(repo, name)
 
