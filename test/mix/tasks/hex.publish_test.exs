@@ -542,7 +542,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert_received {:mix_shell, :info, ["Building publish_with_metadata 0.0.3"]}
       assert_received {:mix_shell, :info, ["  Files:"]}
       assert_received {:mix_shell, :info, ["    myfile.txt"]}
-      assert_received {:mix_shell, :info, ["  Extra: \n    c: d"]}
+      assert_received {:mix_shell, :info, ["  Extra: \n    c: \n    d: e"]}
 
       assert_received {:mix_shell, :info, ["Publishing package using http://" <> _]}
 

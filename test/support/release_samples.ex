@@ -87,7 +87,7 @@ defmodule ReleaseMeta.MixProject do
         files: ["myfile.txt", "missing.txt", "missing/*"],
         licenses: ["Apache-2.0"],
         links: %{"a" => "http://a"},
-        extra: %{"c" => "d"}
+        extra: %{"c" => %{"d" => "e"}}
       ]
     ]
   end
