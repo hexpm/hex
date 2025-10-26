@@ -369,38 +369,45 @@ defmodule HexTest.Case do
     Hex.State.put(:repos, repos)
     Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
 
-    package_path = "/api/repos/#{repo}/packages/ecto"
-    release_path = "/api/repos/#{repo}/publish"
-
     Bypass.expect(bypass, fn conn ->
-      case conn do
-        %Plug.Conn{method: "GET", request_path: ^package_path} ->
-          body = %{"meta" => %{"description" => "ecto description"}}
-
-          conn
-          |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-          |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
-
-        %Plug.Conn{method: "POST", request_path: ^release_path} ->
-          body = %{"html_url" => "myrepo html_url"}
-
-          conn
-          |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-          |> Plug.Conn.resp(201, Hex.Utils.safe_serialize_erlang(body))
-
-        %Plug.Conn{method: "GET", request_path: "/api/users/me"} ->
+      case {conn.method, conn.request_path} do
+        {"GET", "/api/users/me"} ->
           body = %{"organizations" => [%{"name" => repo}]}
 
           conn
           |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
           |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
 
-        %Plug.Conn{method: "POST", request_path: "/api/keys"} ->
+        {"POST", "/api/keys"} ->
           body = %{"secret" => "myrepo secret"}
 
           conn
           |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
           |> Plug.Conn.resp(201, Hex.Utils.safe_serialize_erlang(body))
+
+        {"GET", path} ->
+          # Handle GET requests to /api/repos/:repo/packages/:package
+          if String.contains?(path, "/packages/") and not String.contains?(path, "/releases") do
+            body = %{"meta" => %{"description" => "package description"}}
+
+            conn
+            |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+            |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
+          else
+            Plug.Conn.resp(conn, 404, "")
+          end
+
+        {"POST", path} ->
+          # Handle POST requests to /api/repos/:repo/packages/:package/releases
+          if String.contains?(path, "/packages/") and String.ends_with?(path, "/releases") do
+            body = %{"html_url" => "myrepo html_url"}
+
+            conn
+            |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+            |> Plug.Conn.resp(201, Hex.Utils.safe_serialize_erlang(body))
+          else
+            Plug.Conn.resp(conn, 404, "")
+          end
       end
     end)
 
