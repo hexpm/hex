@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## v2.3.2-dev
+
 ## v2.3.1
 
 ### Bug fixes
