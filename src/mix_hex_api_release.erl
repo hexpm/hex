@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.11.0 (a1bf7f7), do not edit manually
+%% Vendored from hex_core v0.12.0 (1cdf3eb), do not edit manually
 
 %% @doc
 %% Hex HTTP API - Releases.
@@ -107,15 +107,26 @@ publish(Config, Tarball) -> publish(Config, Tarball, []).
 publish(Config, Tarball, Params) when
     is_map(Config) andalso is_binary(Tarball) andalso is_list(Params)
 ->
-    QueryString = mix_hex_api:encode_query_string([
-        {replace, proplists:get_value(replace, Params, false)}
-    ]),
-    Path = mix_hex_api:join_path_segments(mix_hex_api:build_repository_path(Config, ["publish"])),
-    PathWithQuery = <<Path/binary, "?", QueryString/binary>>,
-    TarballContentType = "application/octet-stream",
-    Config2 = put_header(<<"content-length">>, integer_to_binary(byte_size(Tarball)), Config),
-    Body = {TarballContentType, Tarball},
-    mix_hex_api:post(Config2, PathWithQuery, Body).
+    case mix_hex_tarball:unpack(Tarball, memory) of
+        {ok, #{metadata := Metadata}} ->
+            PackageName = maps:get(<<"name">>, Metadata),
+            QueryString = mix_hex_api:encode_query_string([
+                {replace, proplists:get_value(replace, Params, false)}
+            ]),
+            Path = mix_hex_api:join_path_segments(
+                mix_hex_api:build_repository_path(Config, ["packages", PackageName, "releases"])
+            ),
+            PathWithQuery = <<Path/binary, "?", QueryString/binary>>,
+            TarballContentType = "application/octet-stream",
+            Config2 = put_header(
+                <<"content-length">>, integer_to_binary(byte_size(Tarball)), Config
+            ),
+            Config3 = maybe_put_expect_header(Config2),
+            Body = {TarballContentType, Tarball},
+            mix_hex_api:post(Config3, PathWithQuery, Body);
+        {error, Reason} ->
+            {error, {tarball, Reason}}
+    end.
 
 %% @doc
 %% Deletes a package release.
@@ -173,3 +184,10 @@ put_header(Name, Value, Config) ->
     Headers = maps:get(http_headers, Config, #{}),
     Headers2 = maps:put(Name, Value, Headers),
     maps:put(http_headers, Headers2, Config).
+
+%% @private
+maybe_put_expect_header(Config) ->
+    case maps:get(send_100_continue, Config, true) of
+        true -> put_header(<<"expect">>, <<"100-continue">>, Config);
+        false -> Config
+    end.

@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.11.0 (a1bf7f7), do not edit manually
+%% Vendored from hex_core v0.12.0 (1cdf3eb), do not edit manually
 
 %% @doc
 %% Repo API.
@@ -256,5 +256,7 @@ set_header(http_etag, ETag, Headers) when is_binary(ETag) ->
     maps:put(<<"if-none-match">>, ETag, Headers);
 set_header(repo_key, Token, Headers) when is_binary(Token) ->
     maps:put(<<"authorization">>, Token, Headers);
+set_header(api_otp, OTP, Headers) when is_binary(OTP) ->
+    maps:put(<<"x-hex-otp">>, OTP, Headers);
 set_header(_, _, Headers) ->
     Headers.
