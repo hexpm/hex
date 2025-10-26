@@ -1,6 +1,23 @@
 # CHANGELOG
 
-## v2.2.3-dev
+## v2.4.0-dev
+
+## v2.3.0
+
+### Enhancements
+
+* Update `mix hex.search` task with full-text documentation search across all your dependencies
+* Add `:only` column and filtering to `mix hex.outdated`
+* Improve registry verification error messages
+* Improve caching of packages across multiple repos
+* Add HTTP request debug logging with `MIX_DEBUG=1`
+* Prevent publishing packages with `:in_umbrella` dependencies
+
+### Bug fixes
+
+* Handle truthy boolean for `CI` env variable
+* Fix `warn_if_outdated` if package name and app name are different
+* Allow nested maps for `extra` package metadata
 
 ## v2.2.2 (2025-06-27)
 
