@@ -453,28 +453,27 @@ defmodule Hex.Registry.Server do
 
       # Permission issue
       status == 403 ->
-        print_permission_error(package_name)
+        auth_status = if has_authentication?(), do: :authenticated, else: :unauthenticated
+        print_permission_error(package_name, auth_status)
 
       true ->
         Hex.Shell.error("Error encounted fetching registry entry for #{package_name}")
     end
   end
 
-  defp print_permission_error(package_name) do
-    has_auth = has_authentication?()
+  defp print_permission_error(package_name, :authenticated) do
+    Hex.Shell.error(
+      "You don't have permission to access #{package_name}. This could be because the package is private " <>
+        "and you don't have the required permissions. Contact the package owner to request access, or " <>
+        "check your permissions at: #{@dashboard_url}"
+    )
+  end
 
-    if has_auth do
-      Hex.Shell.error(
-        "You don't have permission to access #{package_name}. This could be because the package is private " <>
-          "and you don't have the required permissions. Contact the package owner to request access, or " <>
-          "check your permissions at: #{@dashboard_url}"
-      )
-    else
-      Hex.Shell.error(
-        "You don't have permission to access #{package_name}. This could be because the package is private " <>
-          "and requires authentication: run 'mix hex.user auth' to authenticate."
-      )
-    end
+  defp print_permission_error(package_name, :unauthenticated) do
+    Hex.Shell.error(
+      "You don't have permission to access #{package_name}. This could be because the package is private " <>
+        "and requires authentication: run 'mix hex.user auth' to authenticate."
+    )
   end
 
   defp has_authentication? do
