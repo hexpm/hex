@@ -45,16 +45,27 @@ defmodule Hex.OnceCache do
 
   The compute function is only called once, even with concurrent access.
   All callers will receive the same computed value.
-  """
-  def fetch(name, compute_fun) do
-    Agent.get_and_update(name, fn
-      :not_cached ->
-        value = compute_fun.()
-        {value, {:cached, value}}
 
-      {:cached, cached} ->
-        {cached, {:cached, cached}}
-    end)
+  ## Options
+
+    * `:timeout` - The timeout in milliseconds for the fetch operation (default: 5000).
+      Use `:infinity` for operations that may take a long time (e.g., user interaction).
+  """
+  def fetch(name, compute_fun, opts \\ []) do
+    timeout = Keyword.get(opts, :timeout, 5000)
+
+    Agent.get_and_update(
+      name,
+      fn
+        :not_cached ->
+          value = compute_fun.()
+          {value, {:cached, value}}
+
+        {:cached, cached} ->
+          {cached, {:cached, cached}}
+      end,
+      timeout
+    )
   end
 
   @doc """

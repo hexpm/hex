@@ -41,9 +41,12 @@ defmodule Hex.OAuth do
           {:ok, token_data["access_token"]}
         else
           # Token expired, use OnceCache to ensure only one refresh/auth happens
-          Hex.OnceCache.fetch(@refresh_cache, fn ->
-            do_refresh_or_authenticate(token_data, opts)
-          end)
+          # Use infinity timeout because authentication may require user interaction
+          Hex.OnceCache.fetch(
+            @refresh_cache,
+            fn -> do_refresh_or_authenticate(token_data, opts) end,
+            timeout: :infinity
+          )
         end
     end
   end

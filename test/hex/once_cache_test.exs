@@ -168,4 +168,35 @@ defmodule Hex.OnceCacheTest do
       assert :counters.get(counter, 1) == 1
     end
   end
+
+  describe "fetch/3 with timeout" do
+    test "respects custom timeout for long operations", %{cache: cache} do
+      compute_fn = fn ->
+        Process.sleep(100)
+        :long_operation
+      end
+
+      result = Hex.OnceCache.fetch(cache, compute_fn, timeout: 200)
+      assert result == :long_operation
+    end
+
+    test "times out if computation exceeds timeout", %{cache: cache} do
+      compute_fn = fn ->
+        Process.sleep(200)
+        :long_operation
+      end
+
+      assert catch_exit(Hex.OnceCache.fetch(cache, compute_fn, timeout: 50))
+    end
+
+    test "accepts :infinity timeout", %{cache: cache} do
+      compute_fn = fn ->
+        Process.sleep(100)
+        :result
+      end
+
+      result = Hex.OnceCache.fetch(cache, compute_fn, timeout: :infinity)
+      assert result == :result
+    end
+  end
 end
