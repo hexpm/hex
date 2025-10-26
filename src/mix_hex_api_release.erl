@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.11.0 (cdc6d80), do not edit manually
+%% Vendored from hex_core v0.12.0 (1cdf3eb), do not edit manually
 
 %% @doc
 %% Hex HTTP API - Releases.
@@ -118,7 +118,9 @@ publish(Config, Tarball, Params) when
             ),
             PathWithQuery = <<Path/binary, "?", QueryString/binary>>,
             TarballContentType = "application/octet-stream",
-            Config2 = put_header(<<"content-length">>, integer_to_binary(byte_size(Tarball)), Config),
+            Config2 = put_header(
+                <<"content-length">>, integer_to_binary(byte_size(Tarball)), Config
+            ),
             Config3 = maybe_put_expect_header(Config2),
             Body = {TarballContentType, Tarball},
             mix_hex_api:post(Config3, PathWithQuery, Body);

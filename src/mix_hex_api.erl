@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.11.0 (cdc6d80), do not edit manually
+%% Vendored from hex_core v0.12.0 (1cdf3eb), do not edit manually
 
 %% @doc
 %% Hex HTTP API
@@ -103,12 +103,13 @@ request(Config, Method, Path, Body) when is_binary(Path) and is_map(Config) ->
     case mix_hex_http:request(Config, Method, build_url(Path, Config), ReqHeaders2, Body) of
         {ok, {Status, RespHeaders, RespBody}} ->
             ContentType = maps:get(<<"content-type">>, RespHeaders, <<"">>),
-            Response = case binary:match(ContentType, ?ERL_CONTENT_TYPE) of
-                {_, _} ->
-                    {ok, {Status, RespHeaders, binary_to_term(RespBody)}};
-                nomatch ->
-                    {ok, {Status, RespHeaders, nil}}
-            end,
+            Response =
+                case binary:match(ContentType, ?ERL_CONTENT_TYPE) of
+                    {_, _} ->
+                        {ok, {Status, RespHeaders, binary_to_term(RespBody)}};
+                    nomatch ->
+                        {ok, {Status, RespHeaders, nil}}
+                end,
             detect_otp_error(Response);
         Other ->
             Other

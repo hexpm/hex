@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.11.0 (cdc6d80), do not edit manually
+%% Vendored from hex_core v0.12.0 (1cdf3eb), do not edit manually
 
 %% @doc
 %% Hex HTTP API - Users.

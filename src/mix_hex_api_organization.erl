@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.11.0 (cdc6d80), do not edit manually
+%% Vendored from hex_core v0.12.0 (1cdf3eb), do not edit manually
 
 %% @doc
 %% Hex HTTP API - Organizations.
@@ -15,7 +15,7 @@
 %% Examples:
 %%
 %% ```
-%% > mix_hex_api_organization:list(mix_hex_core:default_config(), #{api_organization => <<"acme">>}).
+%% > mix_hex_api_organization:list(mix_hex_core:default_config()).
 %% {ok, {200, ..., [#{
 %%      <<"billing_active">> => true,
 %%      <<"inserted_at">> => <<"2017-08-22T22:19:53Z">>,
@@ -33,7 +33,7 @@ list(Config) when is_map(Config) ->
 %% Examples:
 %%
 %% ```
-%% > mix_hex_api_organization:get(mix_hex_core:default_config(), #{api_organization => <<"acme">>}).
+%% > mix_hex_api_organization:get(mix_hex_core:default_config()).
 %% {ok, {200, ..., #{
 %%      <<"billing_active">> => true,
 %%      <<"inserted_at">> => <<"2017-08-22T22:19:53Z">>,
@@ -53,7 +53,7 @@ get(Config) when is_map(Config) ->
 %% Examples:
 %%
 %% ```
-%% > mix_hex_api_organization:get(mix_hex_core:default_config(), #{api_organization => <<"acme">>}, 42).
+%% > mix_hex_api_organization:get(mix_hex_core:default_config(), 42).
 %% {ok, {200, ..., #{
 %%      <<"billing_active">> => true,
 %%      <<"inserted_at">> => <<"2017-08-22T22:19:53Z">>,
