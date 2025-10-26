@@ -18,13 +18,11 @@ This document simply outlines the release process:
 
 8. Run the `scripts/release_hex.sh` script and set the path to the private key for Elixir `ELIXIR_PEM=path/to/elixir.pem ./scripts/release_hex.sh VERSION` where `VERSION` is the Hex version being released without a `v` prefix
 
-9. Purge "installs" key on Fastly dashboard
+9. Increment version and add `-dev` extension to versions (see below for all files)
 
-10. Increment version and add `-dev` extension to versions (see below for all files)
+10. Commit changes above with title "Bump to vVERSION-dev"
 
-11. Commit changes above with title "Bump to vVERSION-dev"
-
-12. Push main
+11. Push main
 
 ## All builds
 

@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## v2.3.1-dev
+
 ## v2.3.0
 
 ### Enhancements
