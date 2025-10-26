@@ -179,31 +179,31 @@ defmodule Hex.Repo do
   defp merge_values(left, _right), do: left
 
   def get_package(repo, package, etag) do
-    repo = get_repo(repo)
-    config = build_hex_core_config(repo, etag)
+    repo_config = get_repo(repo)
+    config = build_hex_core_config(repo_config, repo, etag)
     :mix_hex_repo.get_package(config, package)
   end
 
   def get_docs(repo, package, version) do
-    repo = get_repo(repo)
-    config = build_hex_core_config(repo)
+    repo_config = get_repo(repo)
+    config = build_hex_core_config(repo_config, repo)
     :mix_hex_repo.get_docs(config, package, version)
   end
 
   def get_tarball(repo, package, version) do
-    repo = get_repo(repo)
-    config = build_hex_core_config(repo)
+    repo_config = get_repo(repo)
+    config = build_hex_core_config(repo_config, repo)
     :mix_hex_repo.get_tarball(config, package, version)
   end
 
   def get_public_key(repo) when is_map(repo) do
-    config = build_hex_core_config(repo)
+    config = build_hex_core_config(repo, "hexpm")
     :mix_hex_repo.get_public_key(config)
   end
 
   def get_public_key(repo) do
-    repo = get_repo(repo)
-    config = build_hex_core_config(repo)
+    repo_config = get_repo(repo)
+    config = build_hex_core_config(repo_config, repo)
     :mix_hex_repo.get_public_key(config)
   end
 
@@ -219,8 +219,8 @@ defmodule Hex.Repo do
   end
 
   def get_installs() do
-    repo = get_repo("hexpm")
-    config = build_hex_core_config(repo)
+    repo_config = get_repo("hexpm")
+    config = build_hex_core_config(repo_config, "hexpm")
 
     :mix_hex_repo.get_hex_installs(config)
   end
@@ -233,8 +233,8 @@ defmodule Hex.Repo do
   end
 
   def tarball_url(repo, package, version) do
-    config = get_repo(repo)
-    config.url <> "/tarballs/#{URI.encode(package)}-#{URI.encode(version)}.tar"
+    repo_config = get_repo(repo)
+    repo_config.url <> "/tarballs/#{URI.encode(package)}-#{URI.encode(version)}.tar"
   end
 
   defp parse_csv(body) do
@@ -347,20 +347,24 @@ defmodule Hex.Repo do
     name |> split_repo_name() |> List.last()
   end
 
-  defp build_hex_core_config(repo, etag \\ nil) do
+  defp build_hex_core_config(repo_config, repo_name, etag \\ nil) do
+    unsafe_registry = Hex.State.fetch!(:unsafe_registry)
+    no_verify_repo_origin = Hex.State.fetch!(:no_verify_repo_origin)
+
     config = %{
       :mix_hex_core.default_config()
       | http_adapter: {Hex.HTTP, %{}},
-        repo_url: repo.url,
-        repo_public_key: Map.get(repo, :public_key),
-        repo_verify: true,
-        repo_verify_origin: true,
+        repo_name: hex_to_actual_repo_name(repo_name),
+        repo_url: repo_config.url,
+        repo_public_key: Map.get(repo_config, :public_key),
+        repo_verify: !unsafe_registry,
+        repo_verify_origin: !no_verify_repo_origin,
         http_user_agent_fragment: Hex.API.Client.user_agent_fragment()
     }
 
     config =
-      if repo.auth_key && Map.get(repo, :trusted, true) do
-        Map.put(config, :repo_key, repo.auth_key)
+      if repo_config.auth_key && Map.get(repo_config, :trusted, true) do
+        Map.put(config, :repo_key, repo_config.auth_key)
       else
         config
       end
@@ -371,4 +375,7 @@ defmodule Hex.Repo do
       config
     end
   end
+
+  defp hex_to_actual_repo_name("hexpm:" <> repo), do: repo
+  defp hex_to_actual_repo_name(repo), do: repo
 end

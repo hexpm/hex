@@ -173,4 +173,8 @@ defmodule Hex.RepoTest do
   after
     {:ok, _} = Supervisor.start_child(Hex.Supervisor, Hex.State)
   end
+
+  test "get_package/3 from organization repo" do
+    assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm:testorg", "foo", "")
+  end
 end
