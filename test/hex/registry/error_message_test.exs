@@ -9,11 +9,6 @@ defmodule Hex.Registry.ErrorMessageTest do
         url: "https://repo.hex.pm",
         public_key: nil,
         auth_key: nil
-      },
-      "hexpm:acme" => %{
-        url: "https://repo.hex.pm/repos/acme",
-        public_key: nil,
-        auth_key: nil
       }
     })
 
@@ -32,16 +27,6 @@ defmodule Hex.Registry.ErrorMessageTest do
 
       assert_received {:mix_shell, :error, [msg]}
       assert msg =~ "The package nonexistent_package does not exist"
-      assert msg =~ "Please verify the package name is spelled correctly"
-    end
-
-    test "displays helpful message with different package name" do
-      result = {:ok, {404, [], %{}}}
-
-      Hex.Registry.Server.print_missing_package_diagnostics("hexpm", "typo_package", result)
-
-      assert_received {:mix_shell, :error, [msg]}
-      assert msg =~ "The package typo_package does not exist"
       assert msg =~ "Please verify the package name is spelled correctly"
     end
   end
