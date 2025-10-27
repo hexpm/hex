@@ -473,7 +473,7 @@ defmodule Hex.Registry.Server do
   defp print_permission_error(package_name, :unauthenticated) do
     Hex.Shell.error(
       "You don't have permission to access #{package_name}. This could be because the package is private " <>
-        "and requires authentication: run 'mix hex.user auth' to authenticate."
+        "and requires authentication, run 'mix hex.user auth' to authenticate."
     )
   end
 
