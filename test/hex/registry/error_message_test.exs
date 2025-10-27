@@ -23,30 +23,25 @@ defmodule Hex.Registry.ErrorMessageTest do
   describe "404 errors (package not found)" do
     test "displays helpful message for non-existent package" do
       result = {:ok, {404, [], %{}}}
-      send_error_message(result, "hexpm", "nonexistent_package", false)
 
-      assert_received {:mix_shell, :error, [msg]}
-      assert msg =~ "Failed to fetch record for nonexistent_package from registry"
+      Hex.Registry.Server.print_missing_package_diagnostics(
+        "hexpm",
+        "nonexistent_package",
+        result
+      )
 
       assert_received {:mix_shell, :error, [msg]}
       assert msg =~ "The package nonexistent_package does not exist"
       assert msg =~ "Please verify the package name is spelled correctly"
     end
 
-    test "displays helpful message for non-existent package with cache" do
-      package_name = "typo_package"
-
+    test "displays helpful message with different package name" do
       result = {:ok, {404, [], %{}}}
-      send_error_message(result, "hexpm", package_name, true)
+
+      Hex.Registry.Server.print_missing_package_diagnostics("hexpm", "typo_package", result)
 
       assert_received {:mix_shell, :error, [msg]}
-
-      assert msg =~
-               "Failed to fetch record for #{package_name} from registry (using cache instead)"
-
-      # Still shows detailed diagnostics to help user understand the issue
-      assert_received {:mix_shell, :error, [msg]}
-      assert msg =~ "The package #{package_name} does not exist"
+      assert msg =~ "The package typo_package does not exist"
       assert msg =~ "Please verify the package name is spelled correctly"
     end
   end
@@ -106,13 +101,5 @@ defmodule Hex.Registry.ErrorMessageTest do
       assert msg =~ "Contact the package owner to request access"
       assert msg =~ "https://hex.pm/dashboard"
     end
-  end
-
-  defp send_error_message(result, repo, package, cached?) do
-    package_name = Hex.Utils.package_name(repo, package)
-    cached_message = if cached?, do: " (using cache instead)", else: ""
-
-    Hex.Shell.error("Failed to fetch record for #{package_name} from registry#{cached_message}")
-    Hex.Registry.Server.print_missing_package_diagnostics(repo, package, result)
   end
 end
