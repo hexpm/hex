@@ -440,7 +440,8 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  defp print_missing_package_diagnostics(repo, package, result) do
+  @doc false
+  def print_missing_package_diagnostics(repo, package, result) do
     {:ok, {status, _headers, _body}} = result
     package_name = Hex.Utils.package_name(repo, package)
 
