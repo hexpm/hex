@@ -18,17 +18,39 @@ defmodule Mix.Tasks.Hex.SearchTest do
       Mix.Project.push(SearchDeps.MixProject)
 
       in_tmp(fn ->
-        set_home_tmp()
-        Mix.Dep.Lock.write(%{foo: {:hex, :foo, "0.1.0"}, bar: {:hex, :bar, "0.1.0"}})
-        Mix.Task.run("deps.get")
-        flush()
-
+        write_search_deps()
         Mix.Tasks.Hex.Search.run([])
+        assert_received {:hex_system_cmd, _, ["https://hexdocs.pm/?packages=" <> packages]}
+
+        vsn = System.version()
+
+        assert packages =~
+                 URI.encode_www_form(
+                   "bar:0.1.0,eex:#{vsn},elixir:#{vsn},ex_unit:#{vsn},foo:0.1.0"
+                 )
+
+        assert String.ends_with?(packages, "&q=")
+      end)
+    end
+
+    test "--no-stdlib" do
+      Mix.Project.push(SearchDeps.MixProject)
+
+      in_tmp(fn ->
+        write_search_deps()
+        Mix.Tasks.Hex.Search.run(["--no-stdlib"])
         assert_received {:hex_system_cmd, _, ["https://hexdocs.pm/?packages=" <> packages]}
 
         assert packages =~ URI.encode_www_form("bar:0.1.0,foo:0.1.0")
         assert String.ends_with?(packages, "&q=")
       end)
+    end
+
+    defp write_search_deps do
+      set_home_tmp()
+      Mix.Dep.Lock.write(%{foo: {:hex, :foo, "0.1.0"}, bar: {:hex, :bar, "0.1.0"}})
+      Mix.Task.run("deps.get")
+      flush()
     end
   end
 
