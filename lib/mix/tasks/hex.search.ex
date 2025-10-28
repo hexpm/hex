@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.Search do
   Open and perform searches.
 
   When invoked without arguments, it opens up a search page on
-  https://hexdocs.pm with all of your dependencies plus standard
+  https://hexdocs.pm with all of your dependencies plus Elixir standard
   library selected:
 
       $ mix hex.search
