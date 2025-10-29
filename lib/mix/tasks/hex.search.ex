@@ -7,9 +7,11 @@ defmodule Mix.Tasks.Hex.Search do
   Open and perform searches.
 
   When invoked without arguments, it opens up a search page on
-  https://hexdocs.pm with all of your dependencies selected:
+  https://hexdocs.pm with all of your dependencies plus Elixir standard
+  library selected:
 
       $ mix hex.search
+      $ mix hex.search --no-stdlib
 
   You may also pass command line flags, to execute searches
   via the command line, according to the modes below.
@@ -30,39 +32,33 @@ defmodule Mix.Tasks.Hex.Search do
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [organization: :string, package: :string]
+  @switches [organization: :string, package: :string, stdlib: :boolean]
 
   @impl true
   def run(args) do
+    {opts, args} = OptionParser.parse!(args, strict: @switches)
+
     case args do
       [] ->
-        hexdocs_search()
-
-      _ ->
-        {opts, args} = OptionParser.parse!(args, strict: @switches)
-
-        case args do
-          [package] ->
-            Mix.shell().error(
-              "mix hex.search PACKAGE is deprecated, use --package PACKAGE instead"
-            )
-
+        cond do
+          package = opts[:package] ->
             package_search(package, opts[:organization])
 
-          _ ->
-            package = opts[:package]
-
-            if is_binary(package) and args == [] do
-              package_search(package, opts[:organization])
-            else
-              Mix.raise("""
-              Invalid arguments, expected:
-
-              mix hex.search
-              mix hex.search --package PACKAGE
-              """)
-            end
+          true ->
+            hexdocs_search(opts)
         end
+
+      [package] ->
+        Mix.shell().error("mix hex.search PACKAGE is deprecated, use --package PACKAGE instead")
+        package_search(package, opts[:organization])
+
+      _ ->
+        Mix.raise("""
+        Invalid arguments, expected:
+
+        mix hex.search
+        mix hex.search --package PACKAGE
+        """)
     end
   end
 
@@ -74,15 +70,26 @@ defmodule Mix.Tasks.Hex.Search do
     ]
   end
 
-  defp hexdocs_search() do
+  defp hexdocs_search(opts) do
     Mix.Tasks.Deps.Loadpaths.run(["--no-compile", "--no-listeners"])
     Hex.start()
 
-    packages =
+    deps =
       for {_app, info} <- Mix.Dep.Lock.read(),
           %{repo: "hexpm", name: name, version: version} <- [Hex.Utils.lock(info)] do
         "#{name}:#{version}"
       end
+
+    stdlib =
+      if Keyword.get(opts, :stdlib, true) do
+        [:elixir, :iex, :logger, :ex_unit, :eex, :mix]
+        |> Enum.map(&"#{&1}:#{System.version()}")
+      else
+        []
+      end
+
+    packages =
+      (deps ++ stdlib)
       |> Enum.sort()
       |> Enum.join(",")
       |> URI.encode_www_form()
