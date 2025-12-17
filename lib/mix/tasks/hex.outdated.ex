@@ -201,15 +201,8 @@ defmodule Mix.Tasks.Hex.Outdated do
       outdated = outdated(versions)
       any_updatable? = any_possible_to_update?(outdated)
 
-      cond do
-        outdated == [] ->
-          nil
-
-        opts[:within_requirements] && not any_updatable? ->
-          nil
-
-        true ->
-          Mix.Tasks.Hex.set_exit_code(1)
+      if outdated != [] && (!opts[:within_requirements] || any_updatable?) do
+        Mix.Tasks.Hex.set_exit_code(1)
       end
     end
   end
