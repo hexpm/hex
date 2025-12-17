@@ -198,21 +198,11 @@ defmodule Mix.Tasks.Hex.Outdated do
       diff_message = maybe_diff_message(diff_links)
       Hex.Shell.info(["\n", base_message, diff_message])
 
-      any_outdated? = any_outdated?(versions)
-      req_met? = any_req_matches?(versions)
+      outdated = outdated(versions)
+      any_updatable? = any_possible_to_update?(outdated)
 
-      cond do
-        any_outdated? && opts[:within_requirements] && req_met? ->
-          Mix.Tasks.Hex.set_exit_code(1)
-
-        any_outdated? && opts[:within_requirements] && not req_met? ->
-          nil
-
-        any_outdated? ->
-          Mix.Tasks.Hex.set_exit_code(1)
-
-        true ->
-          nil
+      if outdated != [] && (!opts[:within_requirements] || any_updatable?) do
+        Mix.Tasks.Hex.set_exit_code(1)
       end
     end
   end
@@ -325,8 +315,8 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp version_match?(_version, nil), do: true
   defp version_match?(version, req), do: Version.match?(version, req)
 
-  defp any_outdated?(versions) do
-    Enum.any?(versions, fn [_package, _dep_only, lock, latest, _requirements] ->
+  defp outdated(versions) do
+    Enum.filter(versions, fn [_package, _dep_only, lock, latest, _requirements] ->
       Version.compare(lock, latest) == :lt
     end)
   end
@@ -355,8 +345,8 @@ defmodule Mix.Tasks.Hex.Outdated do
     end
   end
 
-  defp any_req_matches?(versions) do
-    Enum.any?(versions, fn [_package, _dep_only, _lock, latest, requirements] ->
+  defp any_possible_to_update?(outdated_versions) do
+    Enum.any?(outdated_versions, fn [_package, _dep_only, _lock, latest, requirements] ->
       req_matches?(requirements, latest)
     end)
   end
