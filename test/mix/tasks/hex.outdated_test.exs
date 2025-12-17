@@ -347,7 +347,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       flush()
 
       assert Mix.Task.run("hex.outdated", ["--all", "--within-requirements"]) ==
-        nil
+               nil
 
       bar =
         [
@@ -385,9 +385,9 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         |> IO.ANSI.format()
         |> List.to_string()
 
-        assert_received {:mix_shell, :info, [^bar]}
-        assert_received {:mix_shell, :info, [^baz]}
-        assert_received {:mix_shell, :info, [^foo]}
+      assert_received {:mix_shell, :info, [^bar]}
+      assert_received {:mix_shell, :info, [^baz]}
+      assert_received {:mix_shell, :info, [^foo]}
     end)
   end
 
