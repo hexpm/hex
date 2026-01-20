@@ -9,6 +9,7 @@ defmodule Hex.Registry.Server do
   @timeout 60_000
   @ets_version 3
   @public_keys_html "https://hex.pm/docs/public_keys"
+  @dashboard_url "https://hex.pm/dashboard"
 
   def start_link(opts \\ []) do
     opts = Keyword.put_new(opts, :name, @name)
@@ -410,10 +411,7 @@ defmodule Hex.Registry.Server do
     )
 
     if missing_status?(result) do
-      Hex.Shell.error(
-        "This could be because the package does not exist, it was spelled " <>
-          "incorrectly or you don't have permissions to it"
-      )
+      print_missing_package_diagnostics(repo, package, result)
     end
 
     if not missing_status?(result) or Mix.debug?() do
@@ -440,6 +438,54 @@ defmodule Hex.Registry.Server do
           Hex.Utils.print_error_result(result)
       end
     end
+  end
+
+  @doc false
+  def print_missing_package_diagnostics(repo, package, result) do
+    {:ok, {status, _headers, _body}} = result
+    package_name = Hex.Utils.package_name(repo, package)
+
+    cond do
+      # Package does not exist
+      status == 404 ->
+        Hex.Shell.error(
+          "The package #{package_name} does not exist. Please verify the package name is spelled correctly."
+        )
+
+      # Permission issue
+      status == 403 ->
+        auth_status = if has_authentication?(), do: :authenticated, else: :unauthenticated
+        print_permission_error(package_name, auth_status)
+
+      true ->
+        Hex.Shell.error("Error encounted fetching registry entry for #{package_name}")
+    end
+  end
+
+  defp print_permission_error(package_name, :authenticated) do
+    Hex.Shell.error(
+      "You don't have permission to access #{package_name}. This could be because the package is private " <>
+        "and you don't have the required permissions. Contact the package owner to request access, or " <>
+        "check your permissions at: #{@dashboard_url}"
+    )
+  end
+
+  defp print_permission_error(package_name, :unauthenticated) do
+    Hex.Shell.error(
+      "You don't have permission to access #{package_name}. This could be because the package is private " <>
+        "and requires authentication, run 'mix hex.user auth' to authenticate."
+    )
+  end
+
+  defp has_authentication? do
+    # Check if user has OAuth token
+    has_oauth = Hex.OAuth.has_tokens?()
+
+    # Check for API keys
+    repos_key = Hex.State.get(:repos_key)
+    api_key = Hex.State.get(:api_key)
+
+    has_oauth || repos_key != nil || api_key != nil
   end
 
   defp missing_status?({:ok, {status, _, _}}), do: status in [403, 404]
