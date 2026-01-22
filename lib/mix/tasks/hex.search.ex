@@ -28,11 +28,12 @@ defmodule Mix.Tasks.Hex.Search do
   ### Options
 
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
+    * `--output` - Output the docs URL instead of opening it in the browser
 
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [organization: :string, package: :string, stdlib: :boolean]
+  @switches [organization: :string, package: :string, stdlib: :boolean, output: :boolean]
 
   @impl true
   def run(args) do
@@ -94,7 +95,13 @@ defmodule Mix.Tasks.Hex.Search do
       |> Enum.join(",")
       |> URI.encode_www_form()
 
-    Hex.Utils.system_open("https://hexdocs.pm/?packages=#{packages}&q=")
+    url = "https://hexdocs.pm/?packages=#{packages}&q="
+
+    if opts[:output] do
+      Hex.Shell.info(url)
+    else
+      Hex.Utils.system_open(url)
+    end
   end
 
   defp package_search(package, organization) do
