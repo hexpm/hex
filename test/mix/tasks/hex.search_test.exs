@@ -46,12 +46,12 @@ defmodule Mix.Tasks.Hex.SearchTest do
       end)
     end
 
-    test "--output" do
+    test "--print-url" do
       Mix.Project.push(SearchDeps.MixProject)
 
       in_tmp(fn ->
         write_search_deps()
-        Mix.Tasks.Hex.Search.run(["--output"])
+        Mix.Tasks.Hex.Search.run(["--print-url"])
         assert_received {:mix_shell, :info, ["https://hexdocs.pm/?packages=" <> packages]}
 
         vsn = System.version()
