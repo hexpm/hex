@@ -2,6 +2,8 @@ defmodule Hex.SCM do
   alias Hex.Registry.Server, as: Registry
   @moduledoc false
 
+  import Hex.Utils, only: [safe_binary_to_term!: 1]
+
   @behaviour Mix.SCM
   @packages_dir "packages"
   @request_timeout 60_000
@@ -296,7 +298,7 @@ defmodule Hex.SCM do
   defp ensure_lock(lock, _opts), do: lock
 
   def parse_manifest(file) do
-    case :erlang.binary_to_term(file) do
+    case safe_binary_to_term!(file) do
       {{:hex, 1, _}, map} -> {:ok, add_outer_checksum(map)}
       {{:hex, 2, _}, map} -> {:ok, map}
       _other -> :error
