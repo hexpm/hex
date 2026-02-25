@@ -10,10 +10,10 @@ jobs:
     name: Format
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
       - name: Install OTP and Elixir
-        uses: erlef/setup-beam@v1
+        uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9 # v1.20.4
         with:
           otp-version: 28.1
           elixir-version: 1.18.4
@@ -73,10 +73,10 @@ jobs:
       HEXPM_MIX_ARCHIVES: hexpm_mix
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
       - name: Install OTP and Elixir
-        uses: erlef/setup-beam@v1
+        uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9 # v1.20.4
         with:
           otp-version: ${{matrix.pair.erlang}}
           elixir-version: ${{matrix.pair.elixir}}
