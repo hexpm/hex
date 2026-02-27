@@ -36,6 +36,7 @@ filenames="hex_api_auth.erl \
            hex_pb_versions.erl \
            hex_registry.erl \
            hex_repo.erl \
+           hex_safe_binary_to_term.erl \
            hex_tarball.erl \
            safe_erl_term.xrl"
 
@@ -51,6 +52,7 @@ search_to_replace="hex_core: \
                    hex_pb_versions \
                    hex_registry \
                    hex_tarball \
+                   hex_safe_binary_to_term \
                    hex_http \
                    hex_repo \
                    hex_api \
