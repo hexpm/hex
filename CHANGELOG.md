@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## v2.3.2-dev
+## v2.3.2
+
+### Security fixes
+
+* Fix unsafe deserialization of Erlang terms in API responses (CVE-2026-21619)
 
 ## v2.3.1
 
