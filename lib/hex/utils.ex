@@ -221,28 +221,28 @@ defmodule Hex.Utils do
       do: "https://hexdocs.pm/#{package}"
 
   def hexdocs_url(organization, package),
-    do: "https://#{organization}.hexdocs.pm/#{package}"
+    do: "https://#{organization}.hexorgs.pm/#{package}"
 
   def hexdocs_url(organization, package, version)
       when organization in ["hexpm", nil],
       do: "https://hexdocs.pm/#{package}/#{version}"
 
   def hexdocs_url(organization, package, version),
-    do: "https://#{organization}.hexdocs.pm/#{package}/#{version}"
+    do: "https://#{organization}.hexorgs.pm/#{package}/#{version}"
 
   def hexdocs_module_url(organization, package, module)
       when organization in ["hexpm", nil],
       do: "https://hexdocs.pm/#{package}/#{module}.html"
 
   def hexdocs_module_url(organization, package, module),
-    do: "https://#{organization}.hexdocs.pm/#{package}/#{module}.html"
+    do: "https://#{organization}.hexorgs.pm/#{package}/#{module}.html"
 
   def hexdocs_module_url(organization, package, version, module)
       when organization in ["hexpm", nil],
       do: "https://hexdocs.pm/#{package}/#{version}/#{module}.html"
 
   def hexdocs_module_url(organization, package, version, module),
-    do: "https://#{organization}.hexdocs.pm/#{package}/#{version}/#{module}.html"
+    do: "https://#{organization}.hexorgs.pm/#{package}/#{version}/#{module}.html"
 
   def package_retirement_reason(:RETIRED_OTHER), do: "other"
   def package_retirement_reason(:RETIRED_INVALID), do: "invalid"
