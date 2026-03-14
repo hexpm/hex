@@ -25,6 +25,10 @@ defmodule Hex.RemoteConverger do
   end
 
   def converge(deps, lock) do
+    unless Code.ensure_loaded?(Hex.Mix) do
+      Hex.Stdlib.ensure_application!(:hex)
+    end
+
     Registry.open()
 
     # Check and refresh OAuth token before fetching packages
