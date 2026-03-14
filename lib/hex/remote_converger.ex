@@ -740,10 +740,16 @@ defmodule Hex.RemoteConverger do
         :ok
 
       {:error, :auth_failed} ->
-        Mix.raise("Authentication failed. Unable to access private packages.")
+        Hex.Shell.warn(
+          "Authentication failed. Private packages will not be available. " <>
+            "Run `mix hex.user auth` to authenticate."
+        )
 
       {:error, :auth_declined} ->
-        Mix.raise("Authentication required to access private packages. Run `mix hex.user auth`")
+        Hex.Shell.warn(
+          "Private packages will not be available. " <>
+            "Run `mix hex.user auth` to authenticate."
+        )
 
       {:error, :no_auth} ->
         # No OAuth token - this is OK, user might only be fetching public packages

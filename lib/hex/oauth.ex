@@ -57,32 +57,28 @@ defmodule Hex.OAuth do
         store_token(new_token_data)
         {:ok, new_token_data["access_token"]}
 
-      {:error, :refresh_failed} = error ->
+      {:error, :refresh_failed} ->
         if Keyword.get(opts, :prompt_auth, false) do
-          prompt_and_authenticate("Token refresh failed. Please re-authenticate.")
+          reauthenticate("Token refresh failed. Re-authenticating...")
         else
-          error
+          {:error, :refresh_failed}
         end
 
-      {:error, :no_refresh_token} = error ->
+      {:error, :no_refresh_token} ->
         if Keyword.get(opts, :prompt_auth, false) do
-          prompt_and_authenticate(
-            "Access token expired and could not be refreshed. Please re-authenticate."
-          )
+          reauthenticate("Access token expired and could not be refreshed. Re-authenticating...")
         else
-          error
+          {:error, :no_refresh_token}
         end
     end
   end
 
-  defp prompt_and_authenticate(message) do
+  defp reauthenticate(message) do
     Hex.Shell.info(message)
 
-    if Hex.Shell.yes?("No authenticated user found. Do you want to authenticate now?") do
+    if Hex.Shell.yes?("Do you want to authenticate now?") do
       case Mix.Tasks.Hex.auth() do
         {:ok, token_data} ->
-          # Store the new token (auth() already did this, but be explicit)
-          # Return the access token
           {:ok, token_data["access_token"]}
 
         :error ->
