@@ -1,8 +1,38 @@
 # CHANGELOG
 
-## v2.4.0-dev
+## v2.4.0 (2026-03-14)
 
-## v2.3.0
+### Enhancements
+
+* Replace password based authentication with OAuth device flow
+* Add 2FA support for API write operations
+* Use OAuth tokens for hexpm and custom repositories
+* Add `--print-url` flag to `mix hex.search`
+* Include stdlib packages by default in `mix hex.search`
+* Change private docs URLs from *.hexdocs.pm to *.hexorgs.pm
+* Improve authentication error handling for package fetching
+
+### Bug fixes
+
+* Fix `--within-requirements` option in `mix hex.outdated`
+
+### Security fixes
+
+* Use safe deserialization for parsing package manifests
+
+## v2.3.2 (2026-02-27)
+
+### Security fixes
+
+* Fix unsafe deserialization of Erlang terms in API responses (CVE-2026-21619)
+
+## v2.3.1 (2025-10-26)
+
+### Bug fixes
+
+* Fix repository name verification for organizations and custom repositories
+
+## v2.3.0 (2025-10-26)
 
 ### Enhancements
 

@@ -7,7 +7,11 @@
 #       HEX_FASTLY_BUILDS_SERVICE_ID=... \
 #         release_hex.sh HEX_VERSION
 #
-# Unless ELIXIR_PEM is set, nothing is uploaded. After running, can be locally tested:
+# Pass --dry-run to build archives without uploading:
+#
+#     $ release_hex.sh --dry-run HEX_VERSION
+#
+# After running, can be locally tested:
 #
 #     $ (cd tmp && erl -S httpd)
 #     $ HEX_BUILDS_URL=http://localhost:8000 mix local.hex --force
@@ -15,7 +19,17 @@
 set -e -u -o pipefail
 
 function main {
-  hex_version=$1
+  dry_run=false
+  local args=()
+  for arg in "$@"; do
+    if [ "$arg" = "--dry-run" ]; then
+      dry_run=true
+    else
+      args+=("$arg")
+    fi
+  done
+
+  hex_version=${args[0]}
   installs_dir="$PWD/tmp/installs"
   hex_csv="${installs_dir}/hex.csv"
   hex_1x_csv="${installs_dir}/hex-1.x.csv"
@@ -46,15 +60,22 @@ function main {
   build ${hex_version} 27.3.3    1.17.3 1.17.0 noble-20250404
 
   # Elixir v1.18
-  build ${hex_version} 25.3.2.20 1.18.0 1.18.0 noble-20250404 # need to use exactly 1.18.0 and that requires older otp & ubuntu
-  build ${hex_version} 26.2.5.11 1.18.0 1.18.0 noble-20250404 # ditto
-  build ${hex_version} 27.3.3    1.18.0 1.18.0 noble-20250404 # ditto
+  build ${hex_version} 25.3.2.18 1.18.0 1.18.0 noble-20260210.1 # need to use exactly 1.18.0
+  build ${hex_version} 26.2.5.18 1.18.0 1.18.0 noble-20260210.1 # ditto
+  build ${hex_version} 27.3.4.9  1.18.0 1.18.0 noble-20260210.1 # ditto
+
+  # Elixir v1.19
+  build ${hex_version} 26.2.5.18 1.19.5 1.19.0 noble-20260210.1
+  build ${hex_version} 27.3.4.9  1.19.5 1.19.0 noble-20260210.1
+  build ${hex_version} 28.4.1    1.19.5 1.19.0 noble-20260210.1
 
   rm -rf _build
   rm "${hex_csv}.bak"
   rm "${hex_1x_csv}.bak"
 
-  if [ -n "${ELIXIR_PEM}" ]; then
+  if [ "${dry_run}" = true ]; then
+    echo "Dry run complete, archives in ${installs_dir}"
+  elif [ -n "${ELIXIR_PEM}" ]; then
     openssl dgst -sha512 -sign "${ELIXIR_PEM}" "${hex_csv}" | openssl base64 > "${hex_csv}.signed"
     openssl dgst -sha512 -sign "${ELIXIR_PEM}" "${hex_1x_csv}" | openssl base64 > "${hex_1x_csv}.signed"
 
