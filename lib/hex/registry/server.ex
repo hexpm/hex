@@ -409,14 +409,18 @@ defmodule Hex.Registry.Server do
       "Failed to fetch record for #{Hex.Utils.package_name(repo, package)} from registry#{cached_message}"
     )
 
-    if missing_status?(result) do
+    if missing_or_unauthorized_status?(result) do
       Hex.Shell.error(
         "This could be because the package does not exist, it was spelled " <>
           "incorrectly or you don't have permissions to it"
       )
+
+      if unauthorized_status?(result) and not Hex.OAuth.has_tokens?() do
+        Hex.Shell.error("No authenticated user found. Run `mix hex.user auth` to authenticate")
+      end
     end
 
-    if not missing_status?(result) or Mix.debug?() do
+    if not missing_or_unauthorized_status?(result) or Mix.debug?() do
       case result do
         {:error, :bad_signature} ->
           Hex.Shell.error(
@@ -442,8 +446,11 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  defp missing_status?({:ok, {status, _, _}}), do: status in [403, 404]
-  defp missing_status?(_), do: false
+  defp missing_or_unauthorized_status?({:ok, {status, _, _}}), do: status in [401, 403, 404]
+  defp missing_or_unauthorized_status?(_), do: false
+
+  defp unauthorized_status?({:ok, {status, _, _}}), do: status in [401, 403]
+  defp unauthorized_status?(_), do: false
 
   defp public_key_message("hexpm:" <> _), do: "on our public keys page: #{@public_keys_html}"
   defp public_key_message("hexpm"), do: "on our public keys page: #{@public_keys_html}"
