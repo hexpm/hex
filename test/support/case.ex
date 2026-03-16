@@ -259,6 +259,12 @@ defmodule HexTest.Case do
     Hex.State.update!(:repos, &put_in(&1["hexpm"].public_key, public_key))
     Hex.State.update!(:repos, &put_in(&1["hexpm"].auth_key, nil))
     Hex.State.update!(:repos, &put_in(&1["hexpm"].oauth_exchange, true))
+
+    Hex.State.update!(
+      :repos,
+      &update_in(&1, ["hexpm"], fn repo -> Map.delete(repo, :oauth_token) end)
+    )
+
     Hex.State.put(:repos_key, nil)
     Hex.State.put(:pbkdf2_iters, 10)
     Hex.State.put(:clean_pass, false)

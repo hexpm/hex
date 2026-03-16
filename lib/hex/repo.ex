@@ -293,10 +293,10 @@ defmodule Hex.Repo do
       cond do
         # First priority: explicit repo auth key with OAuth exchange disabled - use API key directly
         repo_config.auth_key && Map.get(repo_config, :trusted, true) &&
-            Map.get(repo_config, :oauth_exchange, true) == false ->
+            Map.get(repo_config, :oauth_exchange, false) == false ->
           %{config | repo_key: repo_config.auth_key}
 
-        # Second priority: Exchange API key for OAuth token if enabled (default)
+        # Second priority: Exchange API key for OAuth token if enabled
         repo_config.auth_key && Map.get(repo_config, :trusted, true) ->
           case exchange_api_key_for_token(repo_config, repo_name) do
             {:ok, access_token} ->

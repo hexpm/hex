@@ -56,6 +56,43 @@ defmodule Hex.RepoTest do
     assert {:ok, {404, _, "not found"}} = Hex.Repo.get_public_key(config)
   end
 
+  test "add repo persists oauth_exchange through config round-trip" do
+    in_tmp(fn ->
+      Hex.State.put(:config_home, File.cwd!())
+
+      Mix.Tasks.Hex.Repo.run(["add", "myrepo", "http://example.com", "--auth-key", "mykey"])
+
+      # Reload config from disk to simulate a fresh session
+      config = Hex.Config.read()
+      repos = Hex.Config.read_repos(config)
+
+      assert repos["myrepo"].auth_key == "mykey"
+      assert repos["myrepo"].oauth_exchange == false
+    end)
+  end
+
+  test "does not attempt oauth exchange when oauth_exchange is not set" do
+    # Simulates a repo configured before v2.4.0 (no oauth_exchange key).
+    # If oauth exchange were attempted with an invalid key it would raise.
+    auth =
+      HexTest.Hexpm.new_user(
+        "no_oauth_key_user",
+        "no_oauth_key@example.com",
+        "password",
+        "no_oauth_key_key"
+      )
+
+    repos = Hex.State.fetch!(:repos)
+    hexpm = Map.delete(repos["hexpm"], :oauth_exchange)
+    hexpm = %{hexpm | auth_key: auth[:key]}
+    Hex.State.put(:repos, %{repos | "hexpm" => hexpm})
+
+    assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
+
+    repos_after = Hex.State.fetch!(:repos)
+    assert Map.get(repos_after["hexpm"], :oauth_token) == nil
+  end
+
   test "fetch_repo/1" do
     assert Hex.Repo.fetch_repo("foo") == :error
 
