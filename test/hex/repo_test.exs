@@ -107,6 +107,7 @@ defmodule Hex.RepoTest do
     assert {:ok,
             %{
               auth_key: nil,
+              oauth_exchange: true,
               public_key: _,
               trusted: true,
               url: "http://localhost:4043/repo/repos/acme"
@@ -126,6 +127,7 @@ defmodule Hex.RepoTest do
     assert {:ok,
             %{
               auth_key: "key",
+              oauth_exchange: true,
               public_key: _,
               trusted: true,
               url: "http://example.com/repos/acme"
@@ -145,6 +147,7 @@ defmodule Hex.RepoTest do
     assert {:ok,
             %{
               auth_key: "key",
+              oauth_exchange: true,
               public_key: _,
               trusted: false,
               url: "http://example.com/repos/acme"
@@ -160,6 +163,7 @@ defmodule Hex.RepoTest do
         url: "http://example.com",
         public_key: "public",
         auth_key: "auth",
+        oauth_exchange: true,
         trusted: true
       },
       "hexpm:acme" => %{}
@@ -168,6 +172,7 @@ defmodule Hex.RepoTest do
     assert %{
              "hexpm:acme" => %{
                auth_key: "auth",
+               oauth_exchange: true,
                public_key: "public",
                trusted: true,
                url: "http://example.com/repos/acme"
@@ -188,6 +193,47 @@ defmodule Hex.RepoTest do
   end
 
   describe "automatic API key to OAuth token exchange" do
+    test "organization repo inherits oauth_exchange from parent" do
+      auth =
+        HexTest.Hexpm.new_user(
+          "org_oauth_user",
+          "org_oauth@example.com",
+          "password",
+          "org_oauth_key"
+        )
+
+      repos = Hex.State.fetch!(:repos)
+      repos = put_in(repos["hexpm"].auth_key, auth[:key])
+      Hex.State.put(:repos, repos)
+
+      assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm:testorg", "foo", "")
+
+      repos_after = Hex.State.fetch!(:repos)
+      token_data = repos_after["hexpm:testorg"].oauth_token
+      assert is_binary(token_data["access_token"])
+    end
+
+    test "organization repo skips oauth_exchange when disabled on parent" do
+      auth =
+        HexTest.Hexpm.new_user(
+          "org_no_oauth_user",
+          "org_no_oauth@example.com",
+          "password",
+          "org_no_oauth_key"
+        )
+
+      repos = Hex.State.fetch!(:repos)
+      repos = put_in(repos["hexpm"].auth_key, auth[:key])
+      repos = put_in(repos["hexpm"], Map.put(repos["hexpm"], :oauth_exchange, false))
+      Hex.State.put(:repos, repos)
+
+      assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm:testorg", "foo", "")
+
+      repos_after = Hex.State.fetch!(:repos)
+      org_repo = Map.get(repos_after, "hexpm:testorg")
+      assert org_repo == nil or Map.get(org_repo, :oauth_token) == nil
+    end
+
     test "automatically exchanges API key for OAuth token when making request" do
       auth =
         HexTest.Hexpm.new_user(
