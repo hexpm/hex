@@ -48,10 +48,18 @@ defmodule Hex.Repo do
     public_key = merge_values(Map.get(repo, :public_key), source.public_key)
     auth_key = merge_values(Map.get(repo, :auth_key), source.auth_key)
 
+    oauth_exchange =
+      merge_values(Map.get(repo, :oauth_exchange), Map.get(source, :oauth_exchange))
+
+    oauth_exchange_url =
+      merge_values(Map.get(repo, :oauth_exchange_url), Map.get(source, :oauth_exchange_url))
+
     repo
     |> Map.put(:url, url)
     |> Map.put(:public_key, public_key)
     |> Map.put(:auth_key, auth_key)
+    |> Map.put(:oauth_exchange, oauth_exchange)
+    |> Map.put(:oauth_exchange_url, oauth_exchange_url)
     |> Map.put(:trusted, Map.has_key?(repo, :auth_key) or source.trusted)
   end
 
