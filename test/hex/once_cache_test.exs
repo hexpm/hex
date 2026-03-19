@@ -169,6 +169,119 @@ defmodule Hex.OnceCacheTest do
     end
   end
 
+  describe "fetch_key/4" do
+    test "computes value on first call for a key", %{cache: cache} do
+      result =
+        Hex.OnceCache.fetch_key(cache, :key1, fn ->
+          :value1
+        end)
+
+      assert result == :value1
+    end
+
+    test "returns cached value on subsequent calls for same key", %{cache: cache} do
+      counter = :counters.new(1, [])
+
+      compute_fn = fn ->
+        :counters.add(counter, 1, 1)
+        :value
+      end
+
+      assert Hex.OnceCache.fetch_key(cache, :key1, compute_fn) == :value
+      assert :counters.get(counter, 1) == 1
+
+      assert Hex.OnceCache.fetch_key(cache, :key1, compute_fn) == :value
+      assert :counters.get(counter, 1) == 1
+    end
+
+    test "computes independently for different keys", %{cache: cache} do
+      assert Hex.OnceCache.fetch_key(cache, :key1, fn -> :value1 end) == :value1
+      assert Hex.OnceCache.fetch_key(cache, :key2, fn -> :value2 end) == :value2
+
+      # Both are cached independently
+      assert Hex.OnceCache.fetch_key(cache, :key1, fn -> :should_not_compute end) == :value1
+      assert Hex.OnceCache.fetch_key(cache, :key2, fn -> :should_not_compute end) == :value2
+    end
+
+    test "handles concurrent calls for the same key", %{cache: cache} do
+      counter = :counters.new(1, [])
+
+      compute_fn = fn ->
+        :counters.add(counter, 1, 1)
+        Process.sleep(50)
+        :result
+      end
+
+      tasks =
+        for _ <- 1..10 do
+          Task.async(fn ->
+            Hex.OnceCache.fetch_key(cache, :key1, compute_fn)
+          end)
+        end
+
+      results = Task.await_many(tasks)
+      assert Enum.all?(results, &(&1 == :result))
+      assert :counters.get(counter, 1) == 1
+    end
+
+    test "computes different keys concurrently", %{cache: cache} do
+      # Both keys start computing at the same time.
+      # If serialized, total time would be >= 200ms.
+      # If concurrent, total time should be ~100ms.
+      compute_fn = fn ->
+        Process.sleep(100)
+        :result
+      end
+
+      task1 = Task.async(fn -> Hex.OnceCache.fetch_key(cache, :key1, compute_fn) end)
+      task2 = Task.async(fn -> Hex.OnceCache.fetch_key(cache, :key2, compute_fn) end)
+
+      {elapsed, results} = :timer.tc(fn -> Task.await_many([task1, task2]) end)
+
+      assert results == [:result, :result]
+      # Should complete in roughly 100ms, not 200ms
+      assert elapsed < 180_000
+    end
+
+    test "hands off to next waiter when computing process crashes", %{cache: cache} do
+      caller = self()
+
+      spawn(fn ->
+        Hex.OnceCache.fetch_key(cache, :key1, fn ->
+          send(caller, :started)
+          Process.sleep(100)
+          raise "crash"
+        end)
+      end)
+
+      assert_receive :started
+
+      task2 =
+        Task.async(fn ->
+          Hex.OnceCache.fetch_key(cache, :key1, fn -> :recovered end)
+        end)
+
+      assert Task.await(task2, 5000) == :recovered
+    end
+
+    test "clear resets all keys", %{cache: cache} do
+      counter = :counters.new(1, [])
+
+      Hex.OnceCache.fetch_key(cache, :key1, fn -> :value1 end)
+      Hex.OnceCache.fetch_key(cache, :key2, fn -> :value2 end)
+
+      Hex.OnceCache.clear(cache)
+
+      compute_fn = fn ->
+        :counters.add(counter, 1, 1)
+        :recomputed
+      end
+
+      assert Hex.OnceCache.fetch_key(cache, :key1, compute_fn) == :recomputed
+      assert :counters.get(counter, 1) == 1
+    end
+  end
+
   describe "fetch/3 with timeout" do
     test "respects custom timeout for long operations", %{cache: cache} do
       compute_fn = fn ->
@@ -180,13 +293,20 @@ defmodule Hex.OnceCacheTest do
       assert result == :long_operation
     end
 
-    test "times out if computation exceeds timeout", %{cache: cache} do
-      compute_fn = fn ->
-        Process.sleep(200)
-        :long_operation
-      end
+    test "waiter times out if computation exceeds timeout", %{cache: cache} do
+      # Start a slow computation in another process
+      Task.async(fn ->
+        Hex.OnceCache.fetch(cache, fn ->
+          Process.sleep(200)
+          :slow_result
+        end)
+      end)
 
-      assert catch_exit(Hex.OnceCache.fetch(cache, compute_fn, timeout: 50))
+      # Give the task time to start computing
+      Process.sleep(10)
+
+      # A waiter with a short timeout should time out
+      assert catch_exit(Hex.OnceCache.fetch(cache, fn -> :unused end, timeout: 50))
     end
 
     test "accepts :infinity timeout", %{cache: cache} do

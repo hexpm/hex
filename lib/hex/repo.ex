@@ -1,6 +1,7 @@
 defmodule Hex.Repo do
   @moduledoc false
 
+  @exchange_cache __MODULE__.ExchangeCache
   @hexpm_url "https://repo.hex.pm"
   @hexpm_public_key """
   -----BEGIN PUBLIC KEY-----
@@ -13,6 +14,21 @@ defmodule Hex.Repo do
   0wIDAQAB
   -----END PUBLIC KEY-----
   """
+
+  def start_link(_args) do
+    Hex.OnceCache.start_link(name: @exchange_cache)
+  end
+
+  def child_spec(arg) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [arg]}
+    }
+  end
+
+  def clear_exchange_cache do
+    Hex.OnceCache.clear(@exchange_cache)
+  end
 
   def fetch_repo(repo) do
     repo = repo || "hexpm"
@@ -343,11 +359,12 @@ defmodule Hex.Repo do
       {:ok, access_token} ->
         {:ok, access_token}
 
-      :expired ->
-        do_exchange_api_key(repo_config, repo_name)
-
-      :not_found ->
-        do_exchange_api_key(repo_config, repo_name)
+      _expired_or_not_found ->
+        Hex.OnceCache.fetch_key(
+          @exchange_cache,
+          {repo_name, repo_config.auth_key},
+          fn -> do_exchange_api_key(repo_config, repo_name) end
+        )
     end
   end
 

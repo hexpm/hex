@@ -50,6 +50,7 @@ defmodule Hex.Application do
       [
         Hex.Netrc.Cache,
         Hex.OAuth,
+        Hex.Repo,
         Hex.State,
         Hex.Server,
         {Hex.Parallel, [:hex_fetcher]}
@@ -60,6 +61,7 @@ defmodule Hex.Application do
       [
         Hex.Netrc.Cache,
         Hex.OAuth,
+        Hex.Repo,
         Hex.State,
         Hex.Server,
         {Hex.Parallel, [:hex_fetcher]},
