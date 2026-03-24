@@ -2,29 +2,31 @@
 
 This document simply outlines the release process:
 
-1. Remove all `-dev` extension from versions (see below for all files)
+1. Run `mix certdata` to update the CA bundle
 
-2. Ensure CHANGELOG is updated and add current date
+2. Remove all `-dev` extension from versions (see below for all files)
 
-3. Update the local `scripts/release_hex.sh` with the Elixir and OTP versions Hex should be built against.
+3. Ensure CHANGELOG is updated and add current date
 
-4. Commit changes above with title "Release vVERSION" and generate new tag
+4. Update the local `scripts/release_hex.sh` with the Elixir and OTP versions Hex should be built against.
 
-5. Set branch latest to the new tag: `git switch latest && git merge --ff-only vVERSION && git switch -`
+5. Commit changes above with title "Release vVERSION" and generate new tag
 
-6. Push main branch, latest branch and the new tag: `git push origin main latest --tags`
+6. Set branch latest to the new tag: `git switch latest && git merge --ff-only vVERSION && git switch -`
 
-7. Create GitHub release
+7. Push main branch, latest branch and the new tag: `git push origin main latest --tags`
 
-8. Run the `scripts/release_hex.sh` script and set the path to the private key for Elixir `ELIXIR_PEM=path/to/elixir.pem ./scripts/release_hex.sh VERSION` where `VERSION` is the Hex version being released without a `v` prefix
+8. Create GitHub release
 
-9. Purge "installs" key on Fastly dashboard
+9. Run the `scripts/release_hex.sh` script and set the path to the private key for Elixir `ELIXIR_PEM=path/to/elixir.pem ./scripts/release_hex.sh VERSION` where `VERSION` is the Hex version being released without a `v` prefix
 
-10. Increment version and add `-dev` extension to versions (see below for all files)
+10. Purge "installs" key on Fastly dashboard
 
-11. Commit changes above with title "Bump to vVERSION-dev"
+11. Increment version and add `-dev` extension to versions (see below for all files)
 
-12. Push main
+12. Commit changes above with title "Bump to vVERSION-dev"
+
+13. Push main
 
 ## All builds
 
