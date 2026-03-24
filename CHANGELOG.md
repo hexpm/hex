@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## v2.4.2-dev
+
 ## v2.4.1 (2026-03-24)
 
 ### Bug fixes
