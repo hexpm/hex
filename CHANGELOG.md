@@ -1,6 +1,13 @@
 # CHANGELOG
 
-## v2.4.1-dev
+## v2.4.1 (2026-03-24)
+
+### Bug fixes
+
+* Fix OAuth exchange attempted for repos configured before v2.4.0
+* Propagate OAuth exchange configuration to organization repos
+* Deduplicate OAuth token exchange during parallel package fetching
+* Restore Hex code paths after compilation pruning
 
 ## v2.4.0 (2026-03-14)
 
