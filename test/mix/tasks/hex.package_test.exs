@@ -1,6 +1,8 @@
 defmodule Mix.Tasks.Hex.PackageTest do
   use HexTest.IntegrationCase
 
+  @git_diff_command "git diff --no-index --no-color --no-ext-diff __PATH1__ __PATH2__"
+
   defp in_diff_fixture(fun) do
     in_fixture("diff", fn ->
       Mix.Project.push(ReleaseDeps.MixProject)
@@ -107,7 +109,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
 
   test "diff: success with version number" do
     in_diff_fixture(fn ->
-      Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
+      Hex.State.put(:diff_command, @git_diff_command)
 
       assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.1.0"])) ==
                {:exit_code, 1}
@@ -152,7 +154,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
 
   test "diff: success with version range" do
     in_diff_fixture(fn ->
-      Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
+      Hex.State.put(:diff_command, @git_diff_command)
 
       assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])) ==
                {:exit_code, 1}
@@ -167,7 +169,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
 
   test "diff: success (variant args)" do
     in_diff_fixture(fn ->
-      Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
+      Hex.State.put(:diff_command, @git_diff_command)
 
       assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1", "0.1.0"])) ==
                {:exit_code, 1}
