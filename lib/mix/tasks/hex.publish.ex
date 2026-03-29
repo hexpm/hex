@@ -438,7 +438,7 @@ defmodule Mix.Tasks.Hex.Publish do
           end
 
         Hex.Shell.info("")
-        Hex.Shell.info(["Docs published to ", location])
+        Hex.Shell.info(["Docs will soon be available at ", location])
         :ok
 
       {:ok, {404, _, _}} ->

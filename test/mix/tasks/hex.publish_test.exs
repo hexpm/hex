@@ -186,7 +186,9 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
 
       assert_received {:mix_shell, :info,
-                       ["Docs published to http://localhost:4043/docs/ex_doc-0.1.0.tar.gz"]}
+                       [
+                         "Docs will soon be available at http://localhost:4043/docs/ex_doc-0.1.0.tar.gz"
+                       ]}
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["docs", "--revert", "0.1.0"])
@@ -234,7 +236,9 @@ defmodule Mix.Tasks.Hex.PublishTest do
         Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
 
         refute_received {:mix_shell, :info,
-                         ["Docs published to https://hexdocs.pm/invalid_filename/0.1.0"]}
+                         [
+                           "Docs will soon be available at https://hexdocs.pm/invalid_filename/0.1.0"
+                         ]}
       end
     end)
   end
@@ -253,7 +257,9 @@ defmodule Mix.Tasks.Hex.PublishTest do
         Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
 
         refute_received {:mix_shell, :info,
-                         ["Docs published to https://hexdocs.pm/invalid_dirname/0.1.0"]}
+                         [
+                           "Docs will soon be available at https://hexdocs.pm/invalid_dirname/0.1.0"
+                         ]}
       end
     end)
   end
@@ -271,7 +277,8 @@ defmodule Mix.Tasks.Hex.PublishTest do
         send(self(), {:mix_shell_input, :prompt, "hunter42"})
         Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
 
-        refute_received {:mix_shell, :info, ["Docs published to https://hexdocs.pm/ex_doc/0.1.0"]}
+        refute_received {:mix_shell, :info,
+                         ["Docs will soon be available at https://hexdocs.pm/ex_doc/0.1.0"]}
       end
     end)
   end
@@ -287,7 +294,9 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
 
       assert_received {:mix_shell, :info,
-                       ["Docs published to http://localhost:4043/docs/ex_doc-0.1.0.tar.gz"]}
+                       [
+                         "Docs will soon be available at http://localhost:4043/docs/ex_doc-0.1.0.tar.gz"
+                       ]}
     end)
   end
 
@@ -302,7 +311,9 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
 
       assert_received {:mix_shell, :info,
-                       ["Docs published to http://localhost:4043/docs/ex_doc-0.1.0.tar.gz"]}
+                       [
+                         "Docs will soon be available at http://localhost:4043/docs/ex_doc-0.1.0.tar.gz"
+                       ]}
     end)
   end
 
@@ -395,7 +406,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["--dry-run", "--yes", "--replace"])
       assert_received {:mix_shell, :info, ["Building publish_package_name_docs_dry_run 0.0.1"]}
       refute_received {:mix_shell, :info, ["Package published to" <> _]}
-      refute_received {:mix_shell, :info, ["Docs published to" <> _]}
+      refute_received {:mix_shell, :info, ["Docs will soon be available at" <> _]}
     end)
   after
     purge([ReleaseName.MixProject])
