@@ -243,6 +243,7 @@ defmodule Hex.OnceCacheTest do
       assert elapsed < 180_000
     end
 
+    @tag :capture_log
     test "hands off to next waiter when computing process crashes", %{cache: cache} do
       caller = self()
 
