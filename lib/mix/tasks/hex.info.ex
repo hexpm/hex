@@ -118,6 +118,7 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Shell.info("Config: " <> package["configs"]["mix.exs"])
     print_locked_package(locked_package)
     Hex.Shell.info(["Releases: "] ++ format_releases(releases, Map.keys(retirements)) ++ ["\n"])
+    print_downloads(package["downloads"])
     print_meta(meta)
   end
 
@@ -129,16 +130,48 @@ defmodule Mix.Tasks.Hex.Info do
     |> add_ellipsis(rest)
   end
 
-  defp format_version(%{"version" => version}, retirements) do
+  defp format_version(%{"version" => version} = release, retirements) do
+    date = format_release_date(release["inserted_at"])
+
     if version in retirements do
-      [:yellow, version, " (retired)", :reset]
+      [:yellow, version, date, " (retired)", :reset]
     else
-      [version]
+      [version, date]
+    end
+  end
+
+  defp format_release_date(nil), do: ""
+
+  defp format_release_date(date_string) do
+    case parse_date(date_string) do
+      {:ok, date} -> " (#{date})"
+      _ -> ""
     end
   end
 
   defp add_ellipsis(output, []), do: output
   defp add_ellipsis(output, _rest), do: output ++ [", ..."]
+
+  defp print_downloads(nil), do: :ok
+
+  defp print_downloads(downloads) do
+    parts =
+      Enum.reject(
+        [
+          format_download_count("Yesterday", downloads["day"]),
+          format_download_count("Last 7 days", downloads["week"]),
+          format_download_count("All time", downloads["all"])
+        ],
+        &is_nil/1
+      )
+
+    if parts != [] do
+      Hex.Shell.info("Downloads:\n  " <> Enum.join(parts, "\n  ") <> "\n")
+    end
+  end
+
+  defp format_download_count(_label, nil), do: nil
+  defp format_download_count(label, count), do: "#{label}: #{count}"
 
   defp print_meta(meta) do
     print_list(meta, "licenses")
@@ -150,9 +183,14 @@ defmodule Mix.Tasks.Hex.Info do
 
     print_retirement(release)
     Hex.Shell.info("Config: " <> release["configs"]["mix.exs"])
+    print_release_published_at(release["inserted_at"])
 
     if release["has_docs"] do
       Hex.Shell.info("Documentation at: #{Hex.Utils.hexdocs_url(organization, package, version)}")
+    end
+
+    if downloads = release["downloads"] do
+      Hex.Shell.info("Downloads: #{downloads}")
     end
 
     if requirements = release["requirements"] do
@@ -167,6 +205,22 @@ defmodule Mix.Tasks.Hex.Info do
     end
 
     print_publisher(release)
+  end
+
+  defp print_release_published_at(nil), do: :ok
+
+  defp print_release_published_at(date_string) do
+    case parse_date(date_string) do
+      {:ok, date} -> Hex.Shell.info("Released: #{date}")
+      _ -> :ok
+    end
+  end
+
+  defp parse_date(date_string) do
+    case DateTime.from_iso8601(date_string) do
+      {:ok, datetime, _offset} -> {:ok, DateTime.to_date(datetime)}
+      _ -> Date.from_iso8601(date_string)
+    end
   end
 
   defp print_locked_package(nil), do: nil
