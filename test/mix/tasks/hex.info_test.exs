@@ -17,7 +17,9 @@ defmodule Mix.Tasks.Hex.InfoTest do
     Mix.Tasks.Hex.Info.run(["ex_doc"])
     assert_received {:mix_shell, :info, ["Some description\n"]}
     assert_received {:mix_shell, :info, ["Config: {:ex_doc, \"~> 0.1.0\"}"]}
-    assert_received {:mix_shell, :info, ["Releases: 0.1.0, 0.1.0-rc1, 0.0.1\n"]}
+    assert_received {:mix_shell, :info, ["Releases: " <> releases]}
+    today = Date.utc_today()
+    assert releases == "0.1.0 (#{today}), 0.1.0-rc1 (#{today}), 0.0.1 (#{today})\n"
 
     assert catch_throw(Mix.Tasks.Hex.Info.run(["no_package"])) == {:exit_code, 1}
     assert_received {:mix_shell, :error, ["No package with name no_package"]}
@@ -38,7 +40,16 @@ defmodule Mix.Tasks.Hex.InfoTest do
       assert_received {:mix_shell, :info, ["Some description\n"]}
       assert_received {:mix_shell, :info, ["Locked version: 0.2.0"]}
       assert_received {:mix_shell, :info, ["Config: {:ecto, \"~> 3.3\"}"]}
-      assert_received {:mix_shell, :info, ["Releases: 3.3.2, 3.3.1, 0.2.1, 0.2.0\n"]}
+      assert_received {:mix_shell, :info, ["Releases: " <> releases]}
+
+
+      today = Date.utc_today()
+      assert String.split(releases, ", ") == [
+               "3.3.2 (#{today})",
+               "3.3.1 (#{today})",
+               "0.2.1 (#{today})",
+               "0.2.0 (#{today})\n"
+             ]
     end)
   after
     purge([
@@ -50,7 +61,9 @@ defmodule Mix.Tasks.Hex.InfoTest do
 
   test "package with retired release" do
     Mix.Tasks.Hex.Info.run(["tired"])
-    assert_received {:mix_shell, :info, ["Releases: 0.2.0, 0.1.0 (retired)\n"]}
+    today = Date.utc_today()
+    assert_received {:mix_shell, :info, ["Releases: " <> releases]}
+    assert releases == "0.2.0 (#{today}), 0.1.0 (#{today}) (retired)\n"
   end
 
   test "package with --organization flag" do
@@ -86,5 +99,11 @@ defmodule Mix.Tasks.Hex.InfoTest do
   test "prints publisher info for releases" do
     Mix.Tasks.Hex.Info.run(["ex_doc", "0.0.1"])
     assert_received {:mix_shell, :info, ["Published by: user (user@mail.com)"]}
+  end
+
+  test "prints release date for releases" do
+    Mix.Tasks.Hex.Info.run(["ex_doc", "0.0.1"])
+    assert_received {:mix_shell, :info, ["Released: " <> date]}
+    assert date == "#{Date.utc_today()}"
   end
 end
