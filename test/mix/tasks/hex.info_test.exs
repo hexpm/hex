@@ -17,9 +17,12 @@ defmodule Mix.Tasks.Hex.InfoTest do
     Mix.Tasks.Hex.Info.run(["ex_doc"])
     assert_received {:mix_shell, :info, ["Some description\n"]}
     assert_received {:mix_shell, :info, ["Config: {:ex_doc, \"~> 0.1.0\"}"]}
-    assert_received {:mix_shell, :info, ["Releases: " <> releases]}
+    assert_received {:mix_shell, :info, ["Recent releases:\n" <> releases]}
+    assert_received {:mix_shell, :info, ["Downloads:\n" <> downloads]}
     today = Date.utc_today()
-    assert releases == "0.1.0 (#{today}), 0.1.0-rc1 (#{today}), 0.0.1 (#{today})\n"
+    assert releases == "  0.1.0 (#{today})\n  0.1.0-rc1 (#{today})\n  0.0.1 (#{today})\n\n"
+
+    assert downloads == "Yesterday: 123\nLast 7 days: 12 345\nAll time: 123 456\n\n"
 
     assert catch_throw(Mix.Tasks.Hex.Info.run(["no_package"])) == {:exit_code, 1}
     assert_received {:mix_shell, :error, ["No package with name no_package"]}
@@ -40,15 +43,17 @@ defmodule Mix.Tasks.Hex.InfoTest do
       assert_received {:mix_shell, :info, ["Some description\n"]}
       assert_received {:mix_shell, :info, ["Locked version: 0.2.0"]}
       assert_received {:mix_shell, :info, ["Config: {:ecto, \"~> 3.3\"}"]}
-      assert_received {:mix_shell, :info, ["Releases: " <> releases]}
-
+      assert_received {:mix_shell, :info, ["Recent releases:\n" <> releases]}
 
       today = Date.utc_today()
-      assert String.split(releases, ", ") == [
-               "3.3.2 (#{today})",
-               "3.3.1 (#{today})",
-               "0.2.1 (#{today})",
-               "0.2.0 (#{today})\n"
+
+      assert String.split(releases, "\n") == [
+               "  3.3.2 (#{today})",
+               "  3.3.1 (#{today})",
+               "  0.2.1 (#{today})",
+               "  0.2.0 (#{today})",
+               "",
+               ""
              ]
     end)
   after
@@ -62,8 +67,8 @@ defmodule Mix.Tasks.Hex.InfoTest do
   test "package with retired release" do
     Mix.Tasks.Hex.Info.run(["tired"])
     today = Date.utc_today()
-    assert_received {:mix_shell, :info, ["Releases: " <> releases]}
-    assert releases == "0.2.0 (#{today}), 0.1.0 (#{today}) (retired)\n"
+    assert_received {:mix_shell, :info, ["Recent releases:\n" <> releases]}
+    assert releases == "  0.2.0 (#{today})\n  yellow 0.1.0 (#{today}) (retired) reset\n\n"
   end
 
   test "package with --organization flag" do

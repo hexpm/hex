@@ -117,7 +117,12 @@ defmodule Mix.Tasks.Hex.Info do
     retirements = package["retirements"] || %{}
     Hex.Shell.info("Config: " <> package["configs"]["mix.exs"])
     print_locked_package(locked_package)
-    Hex.Shell.info(["Releases: "] ++ format_releases(releases, Map.keys(retirements)) ++ ["\n"])
+
+    Hex.Shell.info(
+      ["Recent releases:\n"] ++ format_releases(releases, Map.keys(retirements)) ++ ["\n"]
+    )
+
+    dbg(package["downloads"])
     print_downloads(package["downloads"])
     print_meta(meta)
   end
@@ -125,16 +130,21 @@ defmodule Mix.Tasks.Hex.Info do
   defp format_releases(releases, retirements) do
     {releases, rest} = Enum.split(releases, 8)
 
-    Enum.map(releases, &format_version(&1, retirements))
-    |> Enum.intersperse([", "])
+    releases
+    |> Enum.map(fn release ->
+      release
+      |> format_version(retirements)
+      |> Enum.join(" ")
+    end)
     |> add_ellipsis(rest)
+    |> Enum.map(&"  #{&1}\n")
   end
 
   defp format_version(%{"version" => version} = release, retirements) do
     date = format_release_date(release["inserted_at"])
 
     if version in retirements do
-      [:yellow, version, date, " (retired)", :reset]
+      [:yellow, version, date, "(retired)", :reset]
     else
       [version, date]
     end
@@ -144,13 +154,13 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp format_release_date(date_string) do
     case parse_date(date_string) do
-      {:ok, date} -> " (#{date})"
+      {:ok, date} -> "(#{date})"
       _ -> ""
     end
   end
 
   defp add_ellipsis(output, []), do: output
-  defp add_ellipsis(output, _rest), do: output ++ [", ..."]
+  defp add_ellipsis(output, _rest), do: output ++ ["..."]
 
   defp print_downloads(nil), do: :ok
 
@@ -171,7 +181,17 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp format_download_count(_label, nil), do: nil
-  defp format_download_count(label, count), do: "#{label}: #{count}"
+  defp format_download_count(label, count), do: "#{label}: #{add_thousands_separators(count)}"
+
+  defp add_thousands_separators(count, separator \\ " ") do
+    count
+    |> Integer.to_string()
+    |> String.reverse()
+    |> String.codepoints()
+    |> Enum.chunk_every(3)
+    |> Enum.join(separator)
+    |> String.reverse()
+  end
 
   defp print_meta(meta) do
     print_list(meta, "licenses")
@@ -190,7 +210,7 @@ defmodule Mix.Tasks.Hex.Info do
     end
 
     if downloads = release["downloads"] do
-      Hex.Shell.info("Downloads: #{downloads}")
+      Hex.Shell.info("Downloads: #{add_thousands_separators(downloads)}")
     end
 
     if requirements = release["requirements"] do
