@@ -170,9 +170,14 @@ defmodule Mix.Tasks.Hex.Organization do
         permissions = [%{"domain" => "repository", "resource" => organization}]
         auth = Mix.Tasks.Hex.auth_info(:write)
 
-        case Mix.Tasks.Hex.generate_organization_key(organization, key_name, permissions, auth) do
-          {:ok, key} -> key
-          :error -> nil
+        case Hex.API.Key.new(key_name, permissions, auth) do
+          {:ok, {201, _, body}} ->
+            body["secret"]
+
+          other ->
+            Mix.shell().error("Generation of key failed")
+            Hex.Utils.print_error_result(other)
+            nil
         end
       end
 

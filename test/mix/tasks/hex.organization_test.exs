@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
 
       {:ok, hostname} = :inet.gethostname()
       name = "#{hostname}-repository-myorgauth"
-      assert {:ok, {200, _, body}} = Hex.API.Key.Organization.get("myorgauth", auth)
+      assert {:ok, {200, _, body}} = Hex.API.Key.get(auth)
       assert name in Enum.map(body, & &1["name"])
     end)
   end
@@ -54,7 +54,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       assert myorg.url == "http://localhost:4043/repo/repos/myorgauthwithkeyname"
       assert is_binary(myorg.auth_key)
 
-      assert {:ok, {200, _, body}} = Hex.API.Key.Organization.get("myorgauthwithkeyname", auth)
+      assert {:ok, {200, _, body}} = Hex.API.Key.get(auth)
       assert "orgauthkeyname-repository-myorgauthwithkeyname" in Enum.map(body, & &1["name"])
     end)
   end
