@@ -122,7 +122,6 @@ defmodule Mix.Tasks.Hex.Info do
       ["Recent releases:\n"] ++ format_releases(releases, Map.keys(retirements)) ++ ["\n"]
     )
 
-    dbg(package["downloads"])
     print_downloads(package["downloads"])
     print_meta(meta)
   end
