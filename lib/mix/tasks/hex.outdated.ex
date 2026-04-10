@@ -187,6 +187,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     values = versions |> Enum.map(&format_all_row/1) |> maybe_sort_by(opts[:sort])
 
     diff_links = Enum.map(versions, &build_diff_link/1) |> Enum.reject(&is_nil/1)
+    diff_commands = Enum.map(versions, &build_diff_command/1) |> Enum.reject(&is_nil/1)
 
     if Enum.empty?(values) do
       Hex.Shell.info("No hex dependencies")
@@ -196,7 +197,8 @@ defmodule Mix.Tasks.Hex.Outdated do
 
       base_message = "Run `mix hex.outdated APP` to see requirements for a specific dependency."
       diff_message = maybe_diff_message(diff_links)
-      Hex.Shell.info(["\n", base_message, diff_message])
+      diff_commands_message = maybe_diff_commands_message(diff_commands)
+      Hex.Shell.info(["\n", base_message, diff_message, diff_commands_message])
 
       outdated = outdated(versions)
       any_updatable? = any_possible_to_update?(outdated)
@@ -326,6 +328,19 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp maybe_diff_message(diff_links) do
     "\n\nTo view the diffs in each available update, visit:\n" <>
       diff_link(diff_links)
+  end
+
+  defp build_diff_command([package, _dep_only, lock, latest, _requirements]) do
+    if Version.compare(lock, latest) == :lt do
+      "mix hex.package diff #{package} #{lock}..#{latest}"
+    end
+  end
+
+  defp maybe_diff_commands_message([]), do: ""
+
+  defp maybe_diff_commands_message(diff_commands) do
+    commands = Enum.map_join(diff_commands, "\n", &("  " <> &1))
+    "\n\nTo view the diff of a specific update, run:\n" <> commands
   end
 
   defp diff_link(diff_links) do
