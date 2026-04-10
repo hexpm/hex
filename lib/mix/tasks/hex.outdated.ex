@@ -33,7 +33,9 @@ defmodule Mix.Tasks.Hex.Outdated do
   at the project's current set of dependency requirements and what version
   they are locked to. When `mix deps.update` is called multiple packages may
   be updated that in turn update their own dependencies, which may cause the
-  package you want to update to not be able to update.
+  package you want to update to not be able to update. If you want to force
+  a dependency to be updated to a given version, you can directly update it
+  in your `mix.exs`.
 
   > In a project, this task must be invoked before any other tasks
   > that may load or start your application. Otherwise, you must
