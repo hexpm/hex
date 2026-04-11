@@ -27,7 +27,6 @@ filenames="hex_api_auth.erl \
            hex_core.erl \
            hex_erl_tar.erl \
            hex_erl_tar.hrl \
-           hex_filename.erl \
            hex_http.erl \
            hex_http_httpc.erl \
            hex_licenses.erl \
