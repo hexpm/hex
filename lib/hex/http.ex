@@ -28,6 +28,66 @@ defmodule Hex.HTTP do
 
   @impl :mix_hex_http
   def request(method, url, headers, body, adapter_config) when is_map(adapter_config) do
+    {method, url, request, http_opts, timeout, profile} =
+      prepare_request(method, url, headers, body, adapter_config)
+
+    Hex.Shell.debug("Hex.HTTP.request(#{inspect(method)}, #{inspect(url)})")
+
+    result =
+      retry(method, request, http_opts, @request_retries, profile, fn request, http_opts ->
+        redirect(request, http_opts, @request_redirects, fn request, http_opts ->
+          timeout(request, http_opts, timeout, fn request, http_opts ->
+            :httpc.request(method, request, http_opts, [body_format: :binary], profile)
+            |> handle_response(method, url)
+          end)
+        end)
+      end)
+
+    # Convert to hex_core expected format
+    case result do
+      {:ok, status, headers, body} ->
+        # Convert headers to map with binary keys/values for hex_core
+        headers = Map.new(headers, fn {k, v} -> {to_string(k), to_string(v)} end)
+        {:ok, {status, headers, body}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @impl :mix_hex_http
+  def request_to_file(method, url, headers, body, filename, adapter_config)
+      when is_map(adapter_config) do
+    {method, url, request, http_opts, timeout, profile} =
+      prepare_request(method, url, headers, body, adapter_config)
+
+    Hex.Shell.debug("Hex.HTTP.request_to_file(#{inspect(method)}, #{inspect(url)})")
+
+    filename_charlist = String.to_charlist(filename)
+
+    result =
+      retry(method, request, http_opts, @request_retries, profile, fn request, http_opts ->
+        redirect(request, http_opts, @request_redirects, fn request, http_opts ->
+          timeout(request, http_opts, timeout, fn request, http_opts ->
+            :httpc.request(method, request, http_opts, [{:stream, filename_charlist}], profile)
+            |> handle_response_to_file(method, url)
+          end)
+        end)
+      end)
+
+    # Convert to hex_core expected format
+    case result do
+      {:ok, status, headers} ->
+        # Convert headers to map with binary keys/values for hex_core
+        headers = Map.new(headers, fn {k, v} -> {to_string(k), to_string(v)} end)
+        {:ok, {status, headers}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp prepare_request(method, url, headers, body, adapter_config) do
     # Convert method to atom if it's not already
     method = if is_binary(method), do: String.to_atom(method), else: method
     # Convert URL to string if it's binary
@@ -35,8 +95,6 @@ defmodule Hex.HTTP do
 
     # Convert headers from map to our format
     headers = if is_map(headers), do: headers, else: Map.new(headers)
-
-    Hex.Shell.debug("Hex.HTTP.request(#{inspect(method)}, #{inspect(url)})")
 
     headers = add_basic_auth_via_netrc(headers, url)
 
@@ -61,30 +119,30 @@ defmodule Hex.HTTP do
       end
 
     http_opts = build_http_opts(url, timeout)
-    opts = [body_format: :binary]
     request = build_request(url, headers, body)
     profile = Hex.State.fetch!(:httpc_profile)
 
-    result =
-      retry(method, request, http_opts, @request_retries, profile, fn request, http_opts ->
-        redirect(request, http_opts, @request_redirects, fn request, http_opts ->
-          timeout(request, http_opts, timeout, fn request, http_opts ->
-            :httpc.request(method, request, http_opts, opts, profile)
-            |> handle_response(method, url)
-          end)
-        end)
-      end)
+    {method, url, request, http_opts, timeout, profile}
+  end
 
-    # Convert to hex_core expected format
-    case result do
-      {:ok, status, headers, body} ->
-        # Convert headers to map with binary keys/values for hex_core
-        headers = Map.new(headers, fn {k, v} -> {to_string(k), to_string(v)} end)
-        {:ok, {status, headers, body}}
+  defp handle_response_to_file({:ok, :saved_to_file}, method, url) do
+    Hex.Shell.debug("Hex.HTTP.request_to_file(#{inspect(method)}, #{inspect(url)}) => 200")
+    {:ok, 200, %{}}
+  end
 
-      {:error, reason} ->
-        {:error, reason}
-    end
+  defp handle_response_to_file({:ok, {{_version, code, _reason}, headers, _body}}, method, url) do
+    Hex.Shell.debug("Hex.HTTP.request_to_file(#{inspect(method)}, #{inspect(url)}) => #{code}")
+    headers = Map.new(headers, &decode_header/1)
+    handle_hex_message(headers["x-hex-message"])
+    {:ok, code, headers}
+  end
+
+  defp handle_response_to_file({:error, term}, method, url) do
+    Hex.Shell.debug(
+      "Hex.HTTP.request_to_file(#{inspect(method)}, #{inspect(url)}) => #{inspect(term, limit: :infinity, pretty: true)}"
+    )
+
+    {:error, term}
   end
 
   defp fallback(:inet), do: :inet6
@@ -162,12 +220,7 @@ defmodule Hex.HTTP do
       {:ok, code, headers, body} ->
         case handle_redirect(code, headers) do
           {:ok, location} when times > 0 ->
-            ssl_opts = Hex.HTTP.SSL.ssl_opts(to_string(location))
-            http_opts = Keyword.put(http_opts, :ssl, ssl_opts)
-
-            request
-            |> update_request(location)
-            |> redirect(http_opts, times - 0, fun)
+            do_redirect(request, http_opts, location, times, fun)
 
           {:ok, _location} ->
             Mix.raise("Too many redirects")
@@ -176,9 +229,30 @@ defmodule Hex.HTTP do
             {:ok, code, headers, body}
         end
 
+      {:ok, code, headers} ->
+        case handle_redirect(code, headers) do
+          {:ok, location} when times > 0 ->
+            do_redirect(request, http_opts, location, times, fun)
+
+          {:ok, _location} ->
+            Mix.raise("Too many redirects")
+
+          :error ->
+            {:ok, code, headers}
+        end
+
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp do_redirect(request, http_opts, location, times, fun) do
+    ssl_opts = Hex.HTTP.SSL.ssl_opts(to_string(location))
+    http_opts = Keyword.put(http_opts, :ssl, ssl_opts)
+
+    request
+    |> update_request(location)
+    |> redirect(http_opts, times - 1, fun)
   end
 
   defp handle_redirect(code, headers)
