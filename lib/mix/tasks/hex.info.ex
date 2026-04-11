@@ -208,8 +208,12 @@ defmodule Mix.Tasks.Hex.Info do
       Hex.Shell.info("Documentation at: #{Hex.Utils.hexdocs_url(organization, package, version)}")
     end
 
-    if downloads = release["downloads"] do
-      Hex.Shell.info("Downloads: #{add_thousands_separators(downloads)}")
+    case release["downloads"] do
+      download_count when is_integer(download_count) ->
+        Hex.Shell.info("Downloads: #{add_thousands_separators(download_count)}")
+
+      _ ->
+        :ok
     end
 
     if requirements = release["requirements"] do
