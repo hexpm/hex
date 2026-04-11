@@ -172,4 +172,27 @@ defmodule Hex.HTTPTest do
     assert status == 401
     assert response_body == "unauthorized"
   end
+
+  test "request_to_file downloads to file", %{bypass: bypass} do
+    in_tmp(fn ->
+      Bypass.expect(bypass, fn conn ->
+        Plug.Conn.resp(conn, 200, "file content")
+      end)
+
+      filename = Path.join(File.cwd!(), "downloaded.txt")
+
+      {:ok, {status, _headers}} =
+        Hex.HTTP.request_to_file(
+          :get,
+          "http://localhost:#{bypass.port}/file",
+          %{},
+          nil,
+          filename,
+          %{}
+        )
+
+      assert status == 200
+      assert File.read!(filename) == "file content"
+    end)
+  end
 end
