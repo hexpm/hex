@@ -173,6 +173,37 @@ defmodule Hex.HTTPTest do
     refute Map.has_key?(headers, "link")
   end
 
+  test "streamed body with progress callback fires incrementally and delivers full body",
+       %{bypass: bypass} do
+    # 35_000 bytes = 4 full 10_000-byte chunks + one partial 5_000-byte chunk
+    body = String.duplicate("x", 35_000)
+    me = self()
+
+    Bypass.expect(bypass, fn conn ->
+      {:ok, received, conn} = Plug.Conn.read_body(conn, length: 64_000)
+      send(me, {:received, received})
+      Plug.Conn.resp(conn, 200, "ok")
+    end)
+
+    progress_callback = fn size -> send(me, {:progress, size}) end
+
+    {:ok, {200, _headers, "ok"}} =
+      Hex.HTTP.request(
+        :post,
+        "http://localhost:#{bypass.port}",
+        %{},
+        {"application/octet-stream", body},
+        %{progress_callback: progress_callback}
+      )
+
+    assert_received {:received, ^body}
+    # Progress callback must fire for each chunk, not just once at completion.
+    assert_received {:progress, 10_000}
+    assert_received {:progress, 20_000}
+    assert_received {:progress, 30_000}
+    assert_received {:progress, 35_000}
+  end
+
   test "request with Expect 100-continue stops sending body on error response", %{
     bypass: bypass
   } do

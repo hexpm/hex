@@ -105,26 +105,19 @@ defmodule Hex.HTTP do
         ct = if is_binary(content_type), do: content_type, else: to_string(content_type)
         {[{"content-type", ct} | base_headers], binary}
 
-      {content_type, {fun, _initial} = _streamed} when is_function(fun, 1) ->
-        # Progress-callback streaming: collect chunks eagerly for now.
-        # The pool could support :stream in the future; keeping this simple
-        # since progress is only used for `mix hex.publish`.
+      {content_type, {fun, initial_offset}} when is_function(fun, 1) ->
+        # Progress-callback streaming: send headers first, then feed the
+        # producer function chunk-by-chunk through the pool so the callback
+        # fires as bytes actually go out on the wire (for `mix hex.publish`
+        # progress output).
         ct = if is_binary(content_type), do: content_type, else: to_string(content_type)
-        binary = collect_chunks(fun, 0, [])
-        {[{"content-type", ct} | base_headers], binary}
+        {[{"content-type", ct} | base_headers], {:stream, fun, initial_offset}}
 
       nil ->
         {base_headers, nil}
 
       :undefined ->
         {base_headers, nil}
-    end
-  end
-
-  defp collect_chunks(fun, offset, acc) do
-    case fun.(offset) do
-      :eof -> IO.iodata_to_binary(Enum.reverse(acc))
-      {:ok, chunk, new_offset} -> collect_chunks(fun, new_offset, [chunk | acc])
     end
   end
 
