@@ -3,21 +3,17 @@ defmodule Hex.HTTP.Pool do
 
   # Top-level Mint-based HTTP connection pool.
   #
-  # Responsibilities:
-  #   * Supervises a Registry and a DynamicSupervisor for per-host pools
-  #   * Owns an ETS table caching the protocol (:http1 | :http2) discovered
-  #     via ALPN for each {scheme, host, port} tuple
-  #   * Routes `request/5` to the appropriate HTTP/1 or HTTP/2 pool,
-  #     probing the server the first time we see a host
+  # Owns a Registry and a DynamicSupervisor. Each {scheme, host, port} maps to
+  # one `Hex.HTTP.Pool.Host` child which owns its own pool of
+  # `Hex.HTTP.Pool.Conn` processes. Protocol (HTTP/1 vs HTTP/2) is discovered
+  # inside the Conn on its first connect, so this layer is protocol-agnostic.
 
   use Supervisor
 
-  alias Hex.HTTP.Pool.{HTTP1, HTTP2}
-  alias Hex.Mint.HTTP, as: MintHTTP
+  alias Hex.HTTP.Pool.Host
 
   @registry Hex.HTTP.Pool.Registry
   @dyn_sup Hex.HTTP.Pool.DynamicSupervisor
-  @ets :hex_http_pool_protocol
 
   def start_link(_opts \\ []) do
     Supervisor.start_link(__MODULE__, [], name: __MODULE__)
@@ -25,13 +21,6 @@ defmodule Hex.HTTP.Pool do
 
   @impl true
   def init(_) do
-    _ =
-      try do
-        :ets.new(@ets, [:named_table, :public, :set, read_concurrency: true])
-      rescue
-        ArgumentError -> :ok
-      end
-
     children = [
       {Registry, keys: :unique, name: @registry},
       {DynamicSupervisor, name: @dyn_sup, strategy: :one_for_one}
@@ -54,124 +43,29 @@ defmodule Hex.HTTP.Pool do
   """
   def request(url, method, headers, body, opts) do
     {scheme, host, port, path} = parse_url(url)
+    key = {scheme, host, port}
 
-    do_request({scheme, host, port}, path, method, headers, body, opts)
-  end
-
-  defp do_request(key, path, method, headers, body, opts) do
-    case :ets.lookup(@ets, key) do
-      [{^key, :http1}] ->
-        request_http1(key, path, method, headers, body, opts, nil)
-
-      [{^key, :http2}] ->
-        case request_http2(key, path, method, headers, body, opts, nil) do
-          {:error, :read_only} ->
-            _ = stop_pool(key)
-            do_request(key, path, method, headers, body, opts)
-
-          other ->
-            other
-        end
-
-      [] ->
-        probe_and_dispatch(key, path, method, headers, body, opts)
-    end
-  end
-
-  defp probe_and_dispatch(key, path, method, headers, body, opts) do
-    connect_opts = Keyword.get(opts, :connect_opts, [])
-
-    case probe_connect(key, connect_opts) do
-      {:ok, conn, :http1} ->
-        :ets.insert(@ets, {key, :http1})
-        request_http1(key, path, method, headers, body, opts, conn)
-
-      {:ok, conn, :http2} ->
-        :ets.insert(@ets, {key, :http2})
-        request_http2(key, path, method, headers, body, opts, conn)
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp probe_connect({scheme, host, port}, connect_opts) do
-    opts = Keyword.merge([protocols: [:http1, :http2]], connect_opts)
-
-    case MintHTTP.connect(scheme, host, port, opts) do
-      {:ok, conn} ->
-        {:ok, conn, MintHTTP.protocol(conn)}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp request_http1({scheme, host, port} = key, path, method, headers, body, opts, initial_conn) do
-    connect_opts = Keyword.get(opts, :connect_opts, [])
     timeout = Keyword.get(opts, :timeout, 15_000)
-
-    connect_fun = fn ->
-      MintHTTP.connect(
-        scheme,
-        host,
-        port,
-        Keyword.merge([protocols: [:http1]], connect_opts)
-      )
-    end
-
-    pid = get_or_start_pool(key, :http1, connect_fun, [])
-
-    HTTP1.request(pid, method, path, headers, body,
-      timeout: timeout,
-      initial_conn: initial_conn
-    )
-  end
-
-  defp request_http2({scheme, host, port} = key, path, method, headers, body, opts, initial_conn) do
     connect_opts = Keyword.get(opts, :connect_opts, [])
-    timeout = Keyword.get(opts, :timeout, 15_000)
 
-    connect_fun = fn ->
-      MintHTTP.connect(
-        scheme,
-        host,
-        port,
-        Keyword.merge([protocols: [:http2]], connect_opts)
-      )
-    end
-
-    pid =
-      get_or_start_pool(key, :http2, connect_fun, initial_conn: initial_conn)
-
-    HTTP2.request(pid, method, path, headers, body, timeout)
+    pid = get_or_start_host(key, connect_opts)
+    Host.request(pid, method, path, headers, body, timeout)
   end
 
-  defp get_or_start_pool(key, protocol, connect_fun, extra_opts) do
-    reg_key = {protocol, key}
-
-    case Registry.lookup(@registry, reg_key) do
-      [{pid, _}] ->
-        pid
-
-      [] ->
-        start_pool(reg_key, protocol, key, connect_fun, extra_opts)
+  defp get_or_start_host(key, connect_opts) do
+    case Registry.lookup(@registry, key) do
+      [{pid, _}] -> pid
+      [] -> start_host(key, connect_opts)
     end
   end
 
-  defp start_pool(reg_key, protocol, key, connect_fun, extra_opts) do
-    module =
-      case protocol do
-        :http1 -> HTTP1
-        :http2 -> HTTP2
-      end
-
-    via = {:via, Registry, {@registry, reg_key}}
-    arg = {key, connect_fun, Keyword.put(extra_opts, :name, via)}
+  defp start_host(key, connect_opts) do
+    via = {:via, Registry, {@registry, key}}
+    arg = {key, connect_opts, [name: via]}
 
     spec = %{
-      id: {module, reg_key},
-      start: {module, :start_link, [arg]},
+      id: {Host, key},
+      start: {Host, :start_link, [arg]},
       restart: :temporary
     }
 
@@ -183,22 +77,14 @@ defmodule Hex.HTTP.Pool do
         pid
 
       {:error, reason} ->
-        case Registry.lookup(@registry, reg_key) do
-          [{pid, _}] -> pid
-          [] -> raise "failed to start HTTP pool for #{inspect(reg_key)}: #{inspect(reason)}"
+        case Registry.lookup(@registry, key) do
+          [{pid, _}] ->
+            pid
+
+          [] ->
+            raise "failed to start Hex HTTP host pool for #{inspect(key)}: #{inspect(reason)}"
         end
     end
-  end
-
-  defp stop_pool({_, _, _} = key) do
-    for protocol <- [:http1, :http2] do
-      case Registry.lookup(@registry, {protocol, key}) do
-        [{pid, _}] -> DynamicSupervisor.terminate_child(@dyn_sup, pid)
-        [] -> :ok
-      end
-    end
-
-    :ets.delete(@ets, key)
   end
 
   ## URL parsing
@@ -225,6 +111,4 @@ defmodule Hex.HTTP.Pool do
   # For tests / debugging
   @doc false
   def __registry__, do: @registry
-  @doc false
-  def __ets__, do: @ets
 end
