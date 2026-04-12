@@ -1,4 +1,4 @@
-# Vendored from mint v1.7.1 (f7f0313), do not edit manually
+# Vendored from mint v1.7.1 (74471c9), do not edit manually
 
 defmodule Hex.Mint.HTTP2 do
   _ = """
@@ -178,7 +178,16 @@ defmodule Hex.Mint.HTTP2 do
 
     # Fields of the connection.
     buffer: "",
+    # `window_size` is the client *send* window for the connection — how
+    # much request-body data we're allowed to send to the server before it
+    # refills the window with a WINDOW_UPDATE frame.
     window_size: @default_window_size,
+    # `receive_window_size` is the client *receive* window for the
+    # connection — the peak size we've advertised to the server via
+    # `WINDOW_UPDATE` frames on stream 0 (or the spec default of 65_535
+    # if we've never sent one). Mint auto-refills to maintain this peak
+    # as DATA frames arrive.
+    receive_window_size: @default_window_size,
     encode_table: Hex.Mint.HPAX.new(4096),
     decode_table: Hex.Mint.HPAX.new(4096),
 
@@ -731,11 +740,24 @@ defmodule Hex.Mint.HTTP2 do
   end
 
   @doc """
-  Returns the window size of the connection or of a single request.
+  Returns the client **send** window size for the connection or a request.
 
-  This function is HTTP/2 specific. It returns the window size of
-  either the connection if `connection_or_request` is `:connection` or of a single
-  request if `connection_or_request` is `{:request, request_ref}`.
+  > #### Send vs receive windows {: .warning}
+  >
+  > This function returns the *send* window — how much body data this client
+  > is still permitted to send to the server before being throttled. It is
+  > decremented by `request/5` and `stream_request_body/3` and refilled by
+  > `WINDOW_UPDATE` frames the server sends us, which `stream/2` handles
+  > transparently.
+  >
+  > It does **not** return the client *receive* window (how much the server
+  > is permitted to send us). To influence that, use `set_window_size/3`,
+  > which sends a `WINDOW_UPDATE` frame advertising a larger receive window
+  > to the server.
+
+  This function is HTTP/2 specific. It returns the send window of either the
+  connection if `connection_or_request` is `:connection` or of a single request
+  if `connection_or_request` is `{:request, request_ref}`.
 
   Use this function to check the window size of the connection before sending a
   full request. Also use this function to check the window size of both the
@@ -746,21 +768,24 @@ defmodule Hex.Mint.HTTP2 do
 
   ## HTTP/2 Flow Control
 
-  In HTTP/2, flow control is implemented through a
-  window size. When the client sends data to the server, the window size is decreased
-  and the server needs to "refill" it on the client side. You don't need to take care of
-  the refilling of the client window as it happens behind the scenes in `stream/2`.
+  In HTTP/2, flow control is implemented through a window size. When the client
+  sends data to the server, the window size is decreased and the server needs
+  to "refill" it on the client side via `WINDOW_UPDATE` frames, which `stream/2`
+  handles transparently. Symmetrically, the server's outbound flow toward the
+  client is bounded by a receive window the client advertises and refills — see
+  `set_window_size/3`.
 
-  A window size is kept for the entire connection and all requests affect this window
-  size. A window size is also kept per request.
+  A window size is kept for the entire connection and all requests affect this
+  window size. A window size is also kept per request.
 
-  The only thing that affects the window size is the body of a request, regardless of
-  if it's a full request sent with `request/5` or body chunks sent through
-  `stream_request_body/3`. That means that if we make a request with a body that is
-  five bytes long, like `"hello"`, the window size of the connection and the window size
-  of that particular request will decrease by five bytes.
+  The only thing that affects the send window size is the body of a request,
+  regardless of whether it's a full request sent with `request/5` or body chunks
+  sent through `stream_request_body/3`. That means that if we make a request with
+  a body that is five bytes long, like `"hello"`, the send window size of the
+  connection and the send window size of that particular request will decrease
+  by five bytes.
 
-  If we use all the window size before the server refills it, functions like
+  If we use all the send window size before the server refills it, functions like
   `request/5` will return an error.
 
   ## Examples
@@ -797,6 +822,116 @@ defmodule Hex.Mint.HTTP2 do
         raise ArgumentError,
               "request with request reference #{inspect(request_ref)} was not found"
     end
+  end
+
+  @doc """
+  Advertises a larger client **receive** window to the server.
+
+  > #### Receive vs send windows {: .warning}
+  >
+  > This function sets the *receive* window — the peak amount of body data the
+  > server is permitted to send us before being throttled. It does so by
+  > sending a `WINDOW_UPDATE` frame on stream 0 (for `:connection`) or the
+  > request's stream (for `{:request, request_ref}`) with an increment of
+  > `new_size - current_receive_window_size`.
+  >
+  > It does **not** set the *send* window (how much body data we're permitted
+  > to send to the server) — the server controls that. See `get_window_size/2`
+  > for the send window.
+
+  This function is HTTP/2 specific.
+
+  ## When to use this
+
+  HTTP/2 connections start with a 64 KB per-stream and per-connection receive
+  window (RFC 7540 §5.2.2, §6.9.2). For bulk downloads — multi-MB response
+  bodies, or many parallel downloads sharing a connection — that cap means the
+  server pauses every ~64 KB waiting for an auto-sent `WINDOW_UPDATE` round-trip
+  confirming the client has consumed the data. Raising the window lets the
+  server stream without those pauses.
+
+  The HTTP/2 spec makes the per-stream initial window tunable via
+  `SETTINGS_INITIAL_WINDOW_SIZE` (see the `:initial_window_size` client setting),
+  but deliberately does **not** expose the connection-level window that way — it
+  must be adjusted via `WINDOW_UPDATE` frames on stream 0. This function is the
+  way to do that in Hex.Mint.
+
+  ## Rules
+
+    * `new_size` must be in `1..2_147_483_647`. Per RFC 7540 §6.9, windows
+      cannot exceed `2^31 - 1`.
+    * Windows can only grow; `WINDOW_UPDATE` has no shrink form. If `new_size`
+      is less than the current receive window, this function returns
+      `{:error, conn, %Hex.Mint.HTTPError{reason: :window_size_too_small}}`.
+    * `new_size` equal to the current window is a no-op.
+    * For `{:request, request_ref}`, the stream must exist; call this after
+      `request/5` returns the ref. For `:connection`, stream 0 is implicit and
+      this can be called any time after `connect/4`.
+
+  Returns `{:ok, conn}` on success (or no-op) and
+  `{:error, conn, reason}` if the transport write or validation fails.
+
+  ## Examples
+
+  Bump the connection-level receive window right after connect so the server
+  can stream multi-MB bodies without flow-control pauses:
+
+      {:ok, conn} = Hex.Mint.HTTP2.connect(:https, host, 443)
+      {:ok, conn} = Hex.Mint.HTTP2.set_window_size(conn, :connection, 8_000_000)
+
+  Give one specific request a bigger window than the per-stream default:
+
+      {:ok, conn, ref} = Hex.Mint.HTTP2.request(conn, "GET", "/huge", [], nil)
+      {:ok, conn} = Hex.Mint.HTTP2.set_window_size(conn, {:request, ref}, 16_000_000)
+
+  """
+  @spec set_window_size(t(), :connection | {:request, Types.request_ref()}, pos_integer()) ::
+          {:ok, t()} | {:error, t(), Types.error()}
+  def set_window_size(conn, connection_or_request, new_size)
+
+  def set_window_size(%__MODULE__{} = _conn, _target, new_size)
+      when not (is_integer(new_size) and new_size >= 1 and new_size <= @max_window_size) do
+    raise ArgumentError,
+          "new window size must be an integer in 1..#{@max_window_size}, got: #{inspect(new_size)}"
+  end
+
+  def set_window_size(%__MODULE__{} = conn, :connection, new_size) do
+    do_set_window_size(conn, 0, conn.receive_window_size, new_size, fn conn, size ->
+      put_in(conn.receive_window_size, size)
+    end)
+  catch
+    :throw, {:hex_mint, conn, error} -> {:error, conn, error}
+  end
+
+  def set_window_size(%__MODULE__{} = conn, {:request, request_ref}, new_size) do
+    case Map.fetch(conn.ref_to_stream_id, request_ref) do
+      {:ok, stream_id} ->
+        current = conn.streams[stream_id].receive_window_size
+
+        do_set_window_size(conn, stream_id, current, new_size, fn conn, size ->
+          put_in(conn.streams[stream_id].receive_window_size, size)
+        end)
+
+      :error ->
+        {:error, conn, wrap_error({:unknown_request_to_stream, request_ref})}
+    end
+  catch
+    :throw, {:hex_mint, conn, error} -> {:error, conn, error}
+  end
+
+  defp do_set_window_size(conn, _stream_id, current, new_size, _update) when new_size == current do
+    {:ok, conn}
+  end
+
+  defp do_set_window_size(conn, _stream_id, current, new_size, _update) when new_size < current do
+    {:error, conn, wrap_error({:window_size_too_small, current, new_size})}
+  end
+
+  defp do_set_window_size(conn, stream_id, current, new_size, update) do
+    increment = new_size - current
+    frame = window_update(stream_id: stream_id, window_size_increment: increment)
+    conn = send!(conn, Frame.encode(frame))
+    {:ok, update.(conn, new_size)}
   end
 
   @doc """
@@ -1002,21 +1137,10 @@ defmodule Hex.Mint.HTTP2 do
       log: log?
     }
 
-    # HEX PATCH: allow the caller to bump the HTTP/2 connection-level receive
-    # window beyond the spec default of 65_535 bytes by piggybacking a
-    # WINDOW_UPDATE on the client preface. The per-stream initial window is
-    # already tunable via `:client_settings`; the connection-level window is
-    # not addressable via SETTINGS at all, so without this option large-body
-    # downloads over HTTP/2 stall every ~64 KB waiting for the round-trip of
-    # an auto-sent WINDOW_UPDATE.
-    connection_window_size = Keyword.get(opts, :connection_window_size, @default_window_size)
-
     with :ok <- Util.inet_opts(transport, socket),
          client_settings = settings(stream_id: 0, params: client_settings_params),
          preface = [@connection_preface, Frame.encode(client_settings)],
-         preface = preface ++ connection_window_update_frames(connection_window_size),
          :ok <- transport.send(socket, preface),
-         conn = %{conn | window_size: connection_window_size},
          conn = update_in(conn.client_settings_queue, &:queue.in(client_settings_params, &1)),
          conn = put_in(conn.socket, socket),
          :ok <- if(mode == :active, do: transport.setopts(socket, active: :once), else: :ok) do
@@ -1027,13 +1151,6 @@ defmodule Hex.Mint.HTTP2 do
         error
     end
   end
-
-  defp connection_window_update_frames(target) when target > @default_window_size do
-    increment = target - @default_window_size
-    [Frame.encode(window_update(stream_id: 0, window_size_increment: increment))]
-  end
-
-  defp connection_window_update_frames(_), do: []
 
   @doc """
   See `Hex.Mint.HTTP.get_socket/1`.
@@ -1103,7 +1220,15 @@ defmodule Hex.Mint.HTTP2 do
       id: conn.next_stream_id,
       ref: make_ref(),
       state: :idle,
+      # Client send window — decremented as we send body bytes, refilled
+      # by incoming WINDOW_UPDATE frames from the server. Bounded initially
+      # by the server's SETTINGS_INITIAL_WINDOW_SIZE.
       window_size: conn.server_settings.initial_window_size,
+      # Client receive window — the peak we've advertised to the server
+      # for this stream. Starts at whatever we told the server via our
+      # SETTINGS_INITIAL_WINDOW_SIZE; can be bumped per-stream with
+      # `set_window_size/3`.
+      receive_window_size: conn.client_settings.initial_window_size,
       received_first_headers?: false
     }
 
@@ -1286,7 +1411,7 @@ defmodule Hex.Mint.HTTP2 do
   end
 
   defp split_payload_in_chunks(binary, chunk_size, acc) do
-    {chunk, rest} = :erlang.split_binary(binary, chunk_size)
+    <<chunk::size(^chunk_size)-binary, rest::binary>> = binary
     split_payload_in_chunks(rest, chunk_size, [chunk | acc])
   end
 
@@ -2241,6 +2366,15 @@ defmodule Hex.Mint.HTTP2 do
 
   def format_error(:unknown_request_to_stream) do
     "can't stream chunk of data because the request is unknown"
+  end
+
+  def format_error({:unknown_request_to_stream, ref}) do
+    "request with reference #{inspect(ref)} was not found"
+  end
+
+  def format_error({:window_size_too_small, current, new_size}) do
+    "new window size #{new_size} is smaller than the current window size " <>
+      "#{current}; WINDOW_UPDATE can only grow a window, not shrink it"
   end
 
   def format_error(:request_is_not_streaming) do

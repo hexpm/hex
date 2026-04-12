@@ -1,4 +1,4 @@
-# Vendored from mint v1.7.1 (f7f0313), do not edit manually
+# Vendored from mint v1.7.1 (74471c9), do not edit manually
 
 defmodule Hex.Mint.UnsafeProxy do
   @moduledoc false

@@ -140,45 +140,62 @@ defmodule Hex.HTTP.Pool.Conn do
 
   ## Connect / reconnect
 
+  @receive_window_size 8_000_000
+
   defp do_connect(%{key: {scheme, host, port, _inet}, connect_opts: opts} = state) do
     # Negotiate HTTP/2 via ALPN when the server supports it; fall back to
     # HTTP/1. Benchmarked against real hex.pm + repo.hex.pm — with the HTTP/2
-    # window bumps below, both protocols are equivalent on `mix deps.get`
-    # wall time, and HTTP/2 uses slightly less CPU (fewer TLS handshakes).
-    #
-    # HTTP/2 window tuning: default per-stream and connection-level windows
-    # are only 64 KB (spec minimum), which stalls large-body downloads
-    # (hex tarballs) every 64 KB waiting for a WINDOW_UPDATE RTT. Bump both
-    # to 8 MB. `connection_window_size` is a local Mint patch; see HEX PATCH
-    # in lib/hex/mint/http2.ex.
+    # window bumps applied below, both protocols are equivalent on
+    # `mix deps.get` wall time, and HTTP/2 uses slightly less CPU (fewer
+    # TLS handshakes).
     opts =
       Keyword.merge(
         [
           protocols: [:http1, :http2],
-          client_settings: [initial_window_size: 8_000_000],
-          connection_window_size: 8_000_000
+          # Per-stream initial window (SETTINGS). The connection-level window
+          # is bumped via set_window_size/3 immediately below.
+          client_settings: [initial_window_size: @receive_window_size]
         ],
         opts
       )
 
     case MintHTTP.connect(scheme, host, port, opts) do
       {:ok, conn} ->
-        protocol = MintHTTP.protocol(conn)
-        capacity = compute_capacity(conn, protocol)
-        GenServer.cast(state.host_pid, {:conn_ready, self(), protocol, capacity})
+        case maybe_bump_connection_window(conn) do
+          {:ok, conn} ->
+            protocol = MintHTTP.protocol(conn)
+            capacity = compute_capacity(conn, protocol)
+            GenServer.cast(state.host_pid, {:conn_ready, self(), protocol, capacity})
 
-        {:noreply,
-         %{
-           state
-           | conn: conn,
-             protocol: protocol,
-             capacity: capacity,
-             ready: true,
-             backoff_ms: 0
-         }}
+            {:noreply,
+             %{
+               state
+               | conn: conn,
+                 protocol: protocol,
+                 capacity: capacity,
+                 ready: true,
+                 backoff_ms: 0
+             }}
+
+          {:error, _conn, reason} ->
+            schedule_reconnect(reason, %{state | conn: nil, ready: false})
+        end
 
       {:error, reason} ->
         schedule_reconnect(reason, %{state | conn: nil, ready: false})
+    end
+  end
+
+  # HTTP/2 default per-connection receive window is 64 KB (RFC 7540 §5.2.2),
+  # not tunable via SETTINGS. Hex tarballs are routinely multi-MB and we run
+  # them in parallel sharing one HTTP/2 connection, so without bumping this
+  # the server pauses every ~64 KB waiting for a `WINDOW_UPDATE` round-trip.
+  # HTTP/1 has no concept of a receive window so this is a no-op there —
+  # `set_window_size/3` is only on `Hex.Mint.HTTP2`.
+  defp maybe_bump_connection_window(conn) do
+    case MintHTTP.protocol(conn) do
+      :http2 -> Hex.Mint.HTTP2.set_window_size(conn, :connection, @receive_window_size)
+      :http1 -> {:ok, conn}
     end
   end
 

@@ -1,4 +1,4 @@
-%% Vendored from mint v1.7.1 (f7f0313), do not edit manually
+%% Vendored from mint v1.7.1 (74471c9), do not edit manually
 
 %% Shims for functions introduced in recent Erlang/OTP releases,
 %% to enable use of Mint on older releases. The code in this module

@@ -1,4 +1,4 @@
-# Vendored from mint v1.7.1 (f7f0313), do not edit manually
+# Vendored from mint v1.7.1 (74471c9), do not edit manually
 
 defmodule Hex.Mint.HTTP1 do
   _ = """
@@ -744,9 +744,9 @@ defmodule Hex.Mint.HTTP1 do
     {:ok, conn, responses}
   end
 
-  # HEX PATCH: informational (1xx) response finished parsing — do NOT emit
-  # :done and do NOT pop the request. Reset the response-side fields and
-  # continue parsing; the final response arrives on the same request ref.
+  # Informational (1xx) responses have no body and must not finalize the
+  # request; the final response follows on the same request ref. Reset the
+  # request's response-side fields and continue parsing without popping it.
   defp decode_body(:informational, conn, data, _request_ref, responses) do
     request = %{
       conn.request
@@ -785,7 +785,7 @@ defmodule Hex.Mint.HTTP1 do
         {:ok, conn, responses}
 
       length <= byte_size(data) ->
-        {body, rest} = :erlang.split_binary(data, length)
+        <<body::binary-size(^length), rest::binary>> = data
         {conn, responses} = add_body(conn, body, responses)
         conn = request_done(conn)
         responses = [{:done, request_ref} | responses]
@@ -859,7 +859,7 @@ defmodule Hex.Mint.HTTP1 do
         {:ok, conn, responses}
 
       length <= byte_size(data) ->
-        {body, rest} = :erlang.split_binary(data, length)
+        <<body::binary-size(^length), rest::binary>> = data
         {conn, responses} = add_body(conn, body, responses)
         conn = put_in(conn.request.body, {:chunked, :crlf})
         decode_body({:chunked, :crlf}, conn, rest, request_ref, responses)
@@ -1004,10 +1004,6 @@ defmodule Hex.Mint.HTTP1 do
       status == 101 ->
         {:ok, :single}
 
-      # HEX PATCH: 1xx informational responses don't have a body and must not
-      # finalize the request — the final response follows on the same ref.
-      # Upstream Mint bundles them with HEAD/204/304 (see :none clause below),
-      # which pops the request and breaks the real response. Split 1xx out.
       status in 100..199 ->
         {:ok, :informational}
 
