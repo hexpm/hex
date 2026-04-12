@@ -8,6 +8,8 @@ defmodule Hex.HTTP do
   @request_retries 2
   @chunk_size 10_000
 
+  alias Hex.HTTP.Pool
+
   @spec config() :: :mix_hex_core.config()
   def config do
     %{
@@ -28,12 +30,8 @@ defmodule Hex.HTTP do
 
   @impl :mix_hex_http
   def request(method, url, headers, body, adapter_config) when is_map(adapter_config) do
-    # Convert method to atom if it's not already
     method = if is_binary(method), do: String.to_atom(method), else: method
-    # Convert URL to string if it's binary
     url = if is_binary(url), do: url, else: to_string(url)
-
-    # Convert headers from map to our format
     headers = if is_map(headers), do: headers, else: Map.new(headers)
 
     Hex.Shell.debug("Hex.HTTP.request(#{inspect(method)}, #{inspect(url)})")
@@ -45,296 +43,316 @@ defmodule Hex.HTTP do
         Hex.State.fetch!(:http_timeout, fn val -> if is_integer(val), do: val * 1000 end) ||
         @request_timeout
 
-    # Handle progress callback for uploads
     progress_callback = Map.get(adapter_config, :progress_callback)
     {body, extra_headers} = wrap_body_with_progress(body, progress_callback)
     headers = Map.merge(headers, extra_headers)
 
-    # Work around httpc bug: disable connection reuse when using Expect: 100-continue
-    # httpc doesn't properly handle connection state when receiving final status (401)
-    # instead of 100 Continue response
-    headers =
-      if headers["expect"] == "100-continue" do
-        Map.put(headers, "connection", "close")
-      else
-        headers
-      end
-
-    http_opts = build_http_opts(url, timeout)
-    opts = [body_format: :binary]
-    request = build_request(url, headers, body)
-    profile = Hex.State.fetch!(:httpc_profile)
+    # Start with :inet (IPv4); retry will swap to :inet6 on network failures.
+    inet = :inet
 
     result =
-      retry(method, request, http_opts, @request_retries, profile, fn request, http_opts ->
-        redirect(request, http_opts, @request_redirects, fn request, http_opts ->
-          timeout(request, http_opts, timeout, fn request, http_opts ->
-            :httpc.request(method, request, http_opts, opts, profile)
-            |> handle_response(method, url)
+      retry(method, url, headers, body, timeout, inet, @request_retries, fn url, headers, inet ->
+        redirect(method, url, headers, body, timeout, inet, @request_redirects, fn url,
+                                                                                   headers,
+                                                                                   inet ->
+          timeout(timeout, fn ->
+            do_request(method, url, headers, body, timeout, inet)
           end)
         end)
       end)
 
-    # Convert to hex_core expected format
     case result do
-      {:ok, status, headers, body} ->
-        # Convert headers to map with binary keys/values for hex_core
-        headers = Map.new(headers, fn {k, v} -> {to_string(k), to_string(v)} end)
-        {:ok, {status, headers, body}}
+      {:ok, status, headers_map, body} ->
+        {:ok, {status, headers_map, body}}
 
       {:error, reason} ->
         {:error, reason}
     end
   end
 
-  defp fallback(:inet), do: :inet6
-  defp fallback(:inet6), do: :inet
+  ## Core request via Mint-backed pool
 
-  defp build_http_opts(url, timeout) do
-    [
-      relaxed: true,
-      timeout: timeout,
-      ssl: Hex.HTTP.SSL.ssl_opts(url),
-      autoredirect: false
-    ] ++ proxy_config(url)
+  defp do_request(method, url, headers, body, timeout, inet) do
+    connect_opts = build_connect_opts(url, inet)
+
+    mint_method = method |> Atom.to_string() |> String.upcase()
+
+    {mint_headers, mint_body} = build_mint_request(headers, body)
+
+    pool_opts = [timeout: timeout, connect_opts: connect_opts]
+
+    case Pool.request(url, mint_method, mint_headers, mint_body, pool_opts) do
+      {:ok, status, resp_headers, resp_body} ->
+        headers_map = headers_to_map(resp_headers)
+        handle_hex_message(headers_map["x-hex-message"])
+        Hex.Shell.debug("Hex.HTTP.request(#{inspect(method)}, #{inspect(url)}) => #{status}")
+        {:ok, status, headers_map, unzip(resp_body, headers_map)}
+
+      {:error, reason} ->
+        Hex.Shell.debug(
+          "Hex.HTTP.request(#{inspect(method)}, #{inspect(url)}) => #{inspect(reason, limit: :infinity, pretty: true)}"
+        )
+
+        {:error, reason}
+    end
   end
 
-  defp build_request(url, headers, body) do
-    url = String.to_charlist(url)
-    headers = Enum.map(headers, &encode_header/1)
+  defp build_mint_request(headers, body) do
+    base_headers = Enum.map(headers, fn {k, v} -> {to_string(k), to_string(v)} end)
 
     case body do
-      {content_type, body} ->
-        # content_type might already be a charlist from hex_core
-        content_type =
-          if is_binary(content_type) do
-            String.to_charlist(content_type)
-          else
-            content_type
-          end
+      {content_type, binary} when is_binary(binary) ->
+        ct = if is_binary(content_type), do: content_type, else: to_string(content_type)
+        {[{"content-type", ct} | base_headers], binary}
 
-        {url, headers, content_type, body}
+      {content_type, {fun, _initial} = _streamed} when is_function(fun, 1) ->
+        # Progress-callback streaming: collect chunks eagerly for now.
+        # The pool could support :stream in the future; keeping this simple
+        # since progress is only used for `mix hex.publish`.
+        ct = if is_binary(content_type), do: content_type, else: to_string(content_type)
+        binary = collect_chunks(fun, 0, [])
+        {[{"content-type", ct} | base_headers], binary}
 
       nil ->
-        {url, headers}
+        {base_headers, nil}
 
       :undefined ->
-        {url, headers}
+        {base_headers, nil}
     end
   end
 
-  defp encode_header({name, value}) do
-    {String.to_charlist(name), String.to_charlist(value)}
+  defp collect_chunks(fun, offset, acc) do
+    case fun.(offset) do
+      :eof -> IO.iodata_to_binary(Enum.reverse(acc))
+      {:ok, chunk, new_offset} -> collect_chunks(fun, new_offset, [chunk | acc])
+    end
   end
 
-  defp retry(:get, request, http_opts, times, profile, fun) do
-    result =
-      case fun.(request, http_opts) do
-        {:http_error, _, _} = error ->
-          {:retry, error}
+  defp headers_to_map(headers) when is_list(headers) do
+    Enum.reduce(headers, %{}, fn {name, value}, acc ->
+      name = String.downcase(to_string(name))
+      value = to_string(value)
 
-        {:error, :socket_closed_remotely} = error ->
-          {:retry, error}
+      Map.update(acc, name, value, fn existing -> existing <> ", " <> value end)
+    end)
+  end
 
-        {:error, {:failed_connect, [{:to_address, to_addr}, {inet, inet_l, reason}]}}
-        when inet in [:inet, :inet6] and
-               reason in [:ehostunreach, :enetunreach, :eprotonosupport, :nxdomain] ->
-          :httpc.set_options([ipfamily: fallback(inet)], profile)
-          {:retry, {:error, {:failed_connect, [{:to_address, to_addr}, {inet, inet_l, reason}]}}}
+  defp build_connect_opts(url, inet) do
+    uri = URI.parse(url)
 
-        other ->
-          {:noretry, other}
+    # Convert our :inet / :inet6 marker into Mint's transport flags.
+    inet_opts =
+      case inet do
+        :inet -> [inet4: true, inet6: false]
+        :inet6 -> [inet4: false, inet6: true]
       end
 
-    case result do
-      {:retry, _} when times > 0 ->
-        retry(:get, request, http_opts, times - 1, profile, fun)
+    transport_opts =
+      case uri.scheme do
+        "https" -> inet_opts ++ Hex.HTTP.SSL.ssl_opts(url)
+        _ -> inet_opts
+      end
 
-      {_other, result} ->
-        result
+    [transport_opts: transport_opts] ++ proxy_connect_opts(uri)
+  end
+
+  ## Retry
+
+  defp retry(:get, url, headers, body, timeout, inet, times, fun) do
+    case fun.(url, headers, inet) do
+      {:error, reason} = error ->
+        if retryable?(reason) and times > 0 do
+          new_inet = fallback_inet(reason, inet)
+          retry(:get, url, headers, body, timeout, new_inet, times - 1, fun)
+        else
+          error
+        end
+
+      other ->
+        other
     end
   end
 
-  defp retry(_method, request, http_opts, _times, _profile, fun), do: fun.(request, http_opts)
+  defp retry(_method, url, headers, _body, _timeout, inet, _times, fun) do
+    fun.(url, headers, inet)
+  end
 
-  defp redirect(request, http_opts, times, fun) do
-    case fun.(request, http_opts) do
-      {:ok, code, headers, body} ->
-        case handle_redirect(code, headers) do
+  defp retryable?(%Hex.Mint.TransportError{reason: :closed}), do: true
+  defp retryable?(%Hex.Mint.TransportError{reason: :timeout}), do: true
+  defp retryable?(%Hex.Mint.TransportError{reason: :econnrefused}), do: true
+  defp retryable?(%Hex.Mint.TransportError{reason: :ehostunreach}), do: true
+  defp retryable?(%Hex.Mint.TransportError{reason: :enetunreach}), do: true
+  defp retryable?(%Hex.Mint.TransportError{reason: :eprotonosupport}), do: true
+  defp retryable?(%Hex.Mint.TransportError{reason: :nxdomain}), do: true
+  defp retryable?(:disconnected), do: true
+  defp retryable?(:socket_closed_remotely), do: true
+  defp retryable?(_), do: false
+
+  defp fallback_inet(%Hex.Mint.TransportError{reason: reason}, inet)
+       when reason in [:ehostunreach, :enetunreach, :eprotonosupport, :nxdomain] do
+    case inet do
+      :inet -> :inet6
+      :inet6 -> :inet
+    end
+  end
+
+  defp fallback_inet(_reason, inet), do: inet
+
+  ## Redirect
+
+  defp redirect(method, url, headers, body, timeout, inet, times, fun) do
+    case fun.(url, headers, inet) do
+      {:ok, code, resp_headers, _resp_body} = resp ->
+        case handle_redirect(code, resp_headers) do
           {:ok, location} when times > 0 ->
-            ssl_opts = Hex.HTTP.SSL.ssl_opts(to_string(location))
-            http_opts = Keyword.put(http_opts, :ssl, ssl_opts)
+            location = resolve_location(url, location)
+            redirect(method, location, headers, body, timeout, inet, times - 1, fun)
 
-            request
-            |> update_request(location)
-            |> redirect(http_opts, times - 0, fun)
-
-          {:ok, _location} ->
+          {:ok, _} ->
             Mix.raise("Too many redirects")
 
           :error ->
-            {:ok, code, headers, body}
+            resp
         end
 
-      {:error, reason} ->
-        {:error, reason}
+      other ->
+        other
     end
   end
 
-  defp handle_redirect(code, headers)
-       when code in [301, 302, 303, 307, 308] do
-    if location = headers["location"] do
-      {:ok, location}
-    else
-      :error
+  defp handle_redirect(code, headers) when code in [301, 302, 303, 307, 308] do
+    case headers["location"] do
+      nil -> :error
+      loc -> {:ok, loc}
     end
   end
 
-  defp handle_redirect(_, _) do
-    :error
+  defp handle_redirect(_, _), do: :error
+
+  defp resolve_location(base, location) do
+    case URI.parse(location) do
+      %URI{host: nil} = uri ->
+        %URI{} = base_uri = URI.parse(base)
+        URI.to_string(%{base_uri | path: uri.path, query: uri.query, fragment: uri.fragment})
+
+      _ ->
+        location
+    end
   end
 
-  defp update_request({_url, headers, content_type, body}, new_url) do
-    {new_url, headers, content_type, body}
-  end
+  ## Timeout
 
-  defp update_request({_url, headers}, new_url) do
-    {new_url, headers}
-  end
+  defp timeout(timeout, fun) do
+    task = Task.async(fun)
 
-  defp timeout(request, http_opts, timeout, fun) do
-    Task.async(fn -> fun.(request, http_opts) end)
-    |> task_await(:timeout, timeout)
-  end
-
-  defp task_await(%Task{ref: ref, pid: pid} = task, reason, timeout) do
-    receive do
-      {^ref, result} ->
-        Process.demonitor(ref, [:flush])
-        result
-
-      {:DOWN, ^ref, _, _, _reason} ->
+    try do
+      Task.await(task, timeout)
+    catch
+      :exit, {:timeout, _} ->
+        Process.unlink(task.pid)
+        Process.exit(task.pid, :kill)
         {:error, :timeout}
-    after
-      timeout ->
-        Process.unlink(pid)
-        Process.exit(pid, reason)
-        task_await(task, :kill, timeout)
     end
   end
 
-  defp handle_response({:ok, {{_version, code, _reason}, headers, body}}, method, url) do
-    Hex.Shell.debug("Hex.HTTP.request(#{inspect(method)}, #{inspect(url)}) => #{code}")
-
-    headers = Map.new(headers, &decode_header/1)
-    handle_hex_message(headers["x-hex-message"])
-    {:ok, code, headers, unzip(body, headers)}
-  end
-
-  defp handle_response({:error, term}, method, url) do
-    Hex.Shell.debug(
-      "Hex.HTTP.request(#{inspect(method)}, #{inspect(url)}) => #{inspect(term, limit: :infinity, pretty: true)}"
-    )
-
-    {:error, term}
-  end
-
-  defp decode_header({name, value}) do
-    {List.to_string(name), List.to_string(value)}
-  end
+  ## Response helpers
 
   defp unzip(body, headers) do
-    content_encoding = headers["content-encoding"] || ""
+    encoding = headers["content-encoding"] || ""
 
-    if String.contains?(content_encoding, "gzip") do
+    if String.contains?(encoding, "gzip") do
       :zlib.gunzip(body)
     else
       body
     end
   end
 
+  ## Proxy
+
   def proxy_config(url) do
-    {http_proxy, https_proxy} = proxy_setup()
-    proxy_auth(URI.parse(url), http_proxy, https_proxy)
+    uri = URI.parse(url)
+    proxy_connect_opts(uri)
   end
 
-  defp proxy_setup do
+  defp proxy_connect_opts(%URI{host: host, scheme: scheme} = uri) do
     no_proxy = no_proxy()
-    http_proxy = (proxy = Hex.State.fetch!(:http_proxy)) && proxy(:http, proxy, no_proxy)
-    https_proxy = (proxy = Hex.State.fetch!(:https_proxy)) && proxy(:https, proxy, no_proxy)
-    {http_proxy, https_proxy}
-  end
 
-  defp proxy(scheme, proxy, no_proxy) do
-    uri = URI.parse(proxy)
+    if host_in_no_proxy?(host, no_proxy) do
+      []
+    else
+      case proxy_uri_for(scheme) do
+        nil -> []
+        %URI{host: phost, port: pport} = proxy when not is_nil(phost) and not is_nil(pport) ->
+          proxy_opts =
+            case proxy.userinfo do
+              nil ->
+                []
 
-    if uri.host && uri.port do
-      host = String.to_charlist(uri.host)
-      :httpc.set_options([{proxy_scheme(scheme), {{host, uri.port}, no_proxy}}], :hex)
+              userinfo ->
+                encoded = Base.encode64(userinfo)
+                [proxy_headers: [{"proxy-authorization", "Basic #{encoded}"}]]
+            end
+
+          [proxy: {:http, to_charlist(phost), pport, proxy_opts}]
+
+        _ ->
+          []
+      end
+      |> Kernel.++(maybe_proxy_ignored(uri))
     end
-
-    uri
   end
 
-  defp proxy_scheme(scheme) do
-    case scheme do
-      :http -> :proxy
-      :https -> :https_proxy
+  defp proxy_connect_opts(_), do: []
+
+  defp maybe_proxy_ignored(_), do: []
+
+  defp proxy_uri_for("http") do
+    case Hex.State.fetch!(:http_proxy) do
+      nil -> nil
+      str -> URI.parse(str)
     end
   end
 
-  defp proxy_auth(%URI{scheme: "http"}, http_proxy, _https_proxy) do
-    proxy_auth(http_proxy)
+  defp proxy_uri_for("https") do
+    case Hex.State.fetch!(:https_proxy) do
+      nil -> nil
+      str -> URI.parse(str)
+    end
   end
 
-  defp proxy_auth(%URI{scheme: "https"}, _http_proxy, https_proxy) do
-    proxy_auth(https_proxy)
-  end
+  defp proxy_uri_for(_), do: nil
 
-  defp proxy_auth(nil) do
-    []
-  end
-
-  defp proxy_auth(%URI{userinfo: nil}) do
-    []
-  end
-
-  defp proxy_auth(%URI{userinfo: auth}) do
-    destructure [user, pass], String.split(auth, ":", parts: 2)
-
-    user = String.to_charlist(user)
-    pass = String.to_charlist(pass || "")
-    [proxy_auth: {user, pass}]
-  end
-
-  defp no_proxy() do
+  defp no_proxy do
     (Hex.State.fetch!(:no_proxy) || "")
     |> String.split(",", trim: true)
     |> Enum.map(&String.trim/1)
-    |> Enum.map(&normalize_no_proxy_domain_desc/1)
-    |> Enum.map(&String.to_charlist/1)
   end
 
-  defp normalize_no_proxy_domain_desc(<<".", rest::binary>>) do
-    "*." <> rest
+  defp host_in_no_proxy?(_host, []), do: false
+
+  defp host_in_no_proxy?(host, patterns) do
+    Enum.any?(patterns, fn pattern ->
+      pattern = String.trim_leading(pattern, ".")
+      host == pattern or String.ends_with?(host, "." <> pattern)
+    end)
   end
 
-  defp normalize_no_proxy_domain_desc(host) do
-    host
-  end
+  ## Hex messages
 
-  def handle_hex_message(nil) do
-    :ok
-  end
+  def handle_hex_message(nil), do: :ok
 
-  def handle_hex_message(header) do
-    {message, level} = :binary.list_to_bin(header) |> parse_hex_message
+  def handle_hex_message(header) when is_binary(header) do
+    {message, level} = parse_hex_message(header)
 
     case level do
       "warn" -> Hex.Shell.info("API warning: " <> message)
       "fatal" -> Hex.Shell.error("API error: " <> message)
       _ -> :ok
     end
+  end
+
+  def handle_hex_message(header) when is_list(header) do
+    handle_hex_message(:binary.list_to_bin(header))
   end
 
   @space [?\s, ?\t]
@@ -356,9 +374,7 @@ defmodule Hex.HTTP do
     skip_trail_ws(rest, <<str::binary, ws::binary, char>>, "")
   end
 
-  defp skip_trail_ws("", str, _ws) do
-    str
-  end
+  defp skip_trail_ws("", str, _ws), do: str
 
   defp quoted("\"" <> rest), do: do_quoted(rest, "")
 
@@ -377,6 +393,8 @@ defmodule Hex.HTTP do
     |> skip_trail_ws("", "")
   end
 
+  ## Auth
+
   defp add_basic_auth_via_netrc(%{"authorization" => _} = headers, _url), do: headers
 
   defp add_basic_auth_via_netrc(%{} = headers, url) do
@@ -391,6 +409,8 @@ defmodule Hex.HTTP do
         headers
     end
   end
+
+  ## Progress callback
 
   defp wrap_body_with_progress(body, progress_callback) do
     case body do
