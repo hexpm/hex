@@ -130,14 +130,11 @@ defmodule Hex.HTTPTest do
   end
 
   test "request with Expect 100-continue receives body after 100 response", %{bypass: bypass} do
-    # Test that httpc handles 100-continue flow correctly
     body_content = "test request body"
 
     Bypass.expect(bypass, fn conn ->
-      # Verify the Expect header is present
       assert ["100-continue"] = Plug.Conn.get_req_header(conn, "expect")
 
-      # Send 100 Continue informational response
       conn = Plug.Conn.inform(conn, 100, [])
 
       {:ok, body, conn} = Plug.Conn.read_body(conn)
@@ -158,19 +155,29 @@ defmodule Hex.HTTPTest do
     assert response_body == "success"
   end
 
+  test "informational (1xx) response with headers does not leak into final response", %{
+    bypass: bypass
+  } do
+    Bypass.expect(bypass, fn conn ->
+      # 103 Early Hints carries real headers that must NOT appear on the final
+      # 200 response.
+      conn = Plug.Conn.inform(conn, 103, [{"link", "</style.css>; rel=preload"}])
+      Plug.Conn.resp(conn, 200, "body")
+    end)
+
+    {:ok, {status, headers, body}} =
+      Hex.HTTP.request(:get, "http://localhost:#{bypass.port}", %{}, nil)
+
+    assert status == 200
+    assert body == "body"
+    refute Map.has_key?(headers, "link")
+  end
+
   test "request with Expect 100-continue stops sending body on error response", %{
     bypass: bypass
   } do
-    # Test that when server responds with error before 100, body is not sent
-    # Note: This is handled by httpc automatically - if server responds with
-    # error status instead of 100 Continue, httpc won't send the body
-
     Bypass.expect(bypass, fn conn ->
-      # Verify the Expect header is present
       assert ["100-continue"] = Plug.Conn.get_req_header(conn, "expect")
-
-      # Immediately respond with 401 Unauthorized without reading body
-      # httpc should NOT send the body when it receives this error
       Plug.Conn.resp(conn, 401, "unauthorized")
     end)
 
