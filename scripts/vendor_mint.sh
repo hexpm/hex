@@ -1,6 +1,26 @@
 #!/bin/bash
 set -e
 
+# Pending upstream Mint PRs that must be present in the source tree passed
+# to this script. If re-vendoring from upstream `main` or a Mint release that
+# does not yet include these, either wait for them to merge or point this
+# script at a branch that has them applied:
+#
+#   * elixir-mint/mint#478 - "Support Elixir ~> 1.12". Removes the
+#     `^length` binary-size pin (Elixir 1.14+) and drops `Mint.Application`
+#     so the persistent_term cacertfile cache works without the app starting.
+#     Hex supports `~> 1.12` so these changes are required.
+#     https://github.com/elixir-mint/mint/pull/478
+#     Fork branch: https://github.com/elixir-mint/mint/tree/ericmj/support-elixir-1.12
+#
+#   * elixir-mint/mint#479 - "Fix HTTP/1 handling of 1xx informational
+#     responses". Without this, a 100 Continue / 103 Early Hints / any
+#     unsolicited 1xx causes Mint to emit `:done` prematurely and close
+#     the connection on the real final response. See also the HEX PATCH
+#     comments in lib/hex/mint/http1.ex.
+#     https://github.com/elixir-mint/mint/pull/479
+#     Fork branch: https://github.com/elixir-mint/mint/tree/ericmj/fix-1xx-informational-response
+
 if [[ -z "$1" ]]; then
   echo "Usage: vendor_mint.sh PATH_TO_MINT"
   exit 1

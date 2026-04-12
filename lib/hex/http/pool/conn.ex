@@ -45,6 +45,26 @@ defmodule Hex.HTTP.Pool.Conn do
   def handle_continue(:connect, state), do: do_connect(state)
 
   @impl true
+  def handle_cast({:request, from, method, path, headers, {:stream, fun, offset}}, %{ready: true} = state) do
+    case MintHTTP.request(state.conn, method, path, headers, :stream) do
+      {:ok, conn, ref} ->
+        case stream_body(conn, ref, fun, offset) do
+          {:ok, conn} ->
+            req = %{from: from, status: nil, headers: [], data: []}
+            state = %{state | conn: conn, requests: Map.put(state.requests, ref, req)}
+            {:noreply, state}
+
+          {:error, conn, reason} ->
+            GenServer.reply(from, {:error, reason})
+            GenServer.cast(state.host_pid, {:req_done, self()})
+            close_and_reconnect(%{state | conn: conn})
+        end
+
+      {:error, conn, reason} ->
+        request_error(from, reason, %{state | conn: conn})
+    end
+  end
+
   def handle_cast({:request, from, method, path, headers, body}, %{ready: true} = state) do
     case MintHTTP.request(state.conn, method, path, headers, body) do
       {:ok, conn, ref} ->
@@ -53,14 +73,7 @@ defmodule Hex.HTTP.Pool.Conn do
         {:noreply, state}
 
       {:error, conn, reason} ->
-        GenServer.reply(from, {:error, reason})
-        GenServer.cast(state.host_pid, {:req_done, self()})
-
-        if MintHTTP.open?(conn, :write) do
-          {:noreply, %{state | conn: conn}}
-        else
-          close_and_reconnect(%{state | conn: conn})
-        end
+        request_error(from, reason, %{state | conn: conn})
     end
   end
 
@@ -101,9 +114,33 @@ defmodule Hex.HTTP.Pool.Conn do
     :ok
   end
 
+  defp stream_body(conn, ref, fun, offset) do
+    case fun.(offset) do
+      :eof ->
+        MintHTTP.stream_request_body(conn, ref, :eof)
+
+      {:ok, chunk, next_offset} ->
+        case MintHTTP.stream_request_body(conn, ref, chunk) do
+          {:ok, conn} -> stream_body(conn, ref, fun, next_offset)
+          {:error, _conn, _reason} = err -> err
+        end
+    end
+  end
+
+  defp request_error(from, reason, state) do
+    GenServer.reply(from, {:error, reason})
+    GenServer.cast(state.host_pid, {:req_done, self()})
+
+    if MintHTTP.open?(state.conn, :write) do
+      {:noreply, state}
+    else
+      close_and_reconnect(state)
+    end
+  end
+
   ## Connect / reconnect
 
-  defp do_connect(%{key: {scheme, host, port}, connect_opts: opts} = state) do
+  defp do_connect(%{key: {scheme, host, port, _inet}, connect_opts: opts} = state) do
     opts = Keyword.merge([protocols: [:http1, :http2]], opts)
 
     case MintHTTP.connect(scheme, host, port, opts) do

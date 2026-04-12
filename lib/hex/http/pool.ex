@@ -40,16 +40,34 @@ defmodule Hex.HTTP.Pool do
     * `opts` - keyword list, supports:
         * `:timeout` - total timeout ms (default 15_000)
         * `:connect_opts` - keyword list passed to `Hex.Mint.HTTP.connect/4`
+
+  The pool key includes the IPv4/IPv6 variant (derived from `connect_opts`'
+  `:inet4`/`:inet6` transport flags) so `Hex.HTTP`'s IPv4↔IPv6 retry fallback
+  actually takes effect: a retry with the opposite inet variant gets its own
+  Host pool and connects with the new flags, rather than being routed to the
+  existing pool that still carries the original variant's connect_opts.
   """
   def request(url, method, headers, body, opts) do
     {scheme, host, port, path} = parse_url(url)
-    key = {scheme, host, port}
+    connect_opts = Keyword.get(opts, :connect_opts, [])
+    inet = inet_variant(connect_opts)
+    key = {scheme, host, port, inet}
 
     timeout = Keyword.get(opts, :timeout, 15_000)
-    connect_opts = Keyword.get(opts, :connect_opts, [])
 
     pid = get_or_start_host(key, connect_opts)
     Host.request(pid, method, path, headers, body, timeout)
+  end
+
+  defp inet_variant(connect_opts) do
+    transport_opts = Keyword.get(connect_opts, :transport_opts, [])
+
+    case {Keyword.get(transport_opts, :inet4, true),
+          Keyword.get(transport_opts, :inet6, false)} do
+      {true, false} -> :inet
+      {false, true} -> :inet6
+      _ -> :default
+    end
   end
 
   defp get_or_start_host(key, connect_opts) do
