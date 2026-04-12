@@ -6,10 +6,14 @@ defmodule Hex.HTTP.Pool.Host do
   # On start we spawn two probe `Conn` processes. When the first probe reports
   # back with the negotiated protocol we decide the target pool size:
   #
-  #   * `:http2` → stay at 2 conns (HTTP/2 multiplexes, and a second conn gives
-  #     us redundancy while one is draining under GOAWAY).
   #   * `:http1` → scale up to 8 conns to match the previous `:httpc`
-  #     `max_sessions` behaviour (one in-flight request per conn).
+  #     `max_sessions` behaviour (one in-flight request per conn). This is
+  #     hex's default and what benchmarks show to be fastest for its workload.
+  #   * `:http2` → stay at 2 conns (HTTP/2 multiplexes, and a second conn
+  #     gives us redundancy while one is draining under GOAWAY). Kept for
+  #     completeness; `Conn` currently pins `protocols: [:http1]` so HTTP/2
+  #     is not negotiated, but the capacity logic still handles it if a caller
+  #     overrides `:protocols` in `:connect_opts`.
   #
   # Dispatch picks the conn with the fewest in-flight requests that still has
   # free capacity (capacity is 1 for HTTP/1 and the server's advertised
