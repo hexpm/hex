@@ -1,4 +1,4 @@
-# Vendored from mint v1.7.1 (f7f0313), do not edit manually
+# Vendored from mint v1.7.1 (74471c9), do not edit manually
 
 defmodule Hex.Mint.HTTP2.Frame do
   @moduledoc false
@@ -273,7 +273,7 @@ defmodule Hex.Mint.HTTP2.Frame do
     else
       # 1 byte is for the space taken by pad_length
       data_length = byte_size(payload) - pad_length - 1
-      {data, padding} = :erlang.split_binary(rest, data_length)
+      <<data::size(^data_length)-binary, padding::size(^pad_length)-binary>> = rest
       {data, padding}
     end
   end

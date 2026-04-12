@@ -4,31 +4,35 @@ set -e
 # Pending upstream Mint PRs that must be present in the source tree passed
 # to this script. If re-vendoring from upstream `main` or a Mint release that
 # does not yet include these, either wait for them to merge or point this
-# script at a branch that has them applied:
+# script at a branch that has them applied. The easy path: use the
+# integration branch below which has all of them cherry-picked.
+#
+# Integration branch:
+#   https://github.com/elixir-mint/mint/tree/ericmj/hex-vendor-integration
+#
+# Included (or to-be-submitted) upstream PRs:
 #
 #   * elixir-mint/mint#478 - "Support Elixir ~> 1.12". Removes the
 #     `^length` binary-size pin (Elixir 1.14+) and drops `Mint.Application`
 #     so the persistent_term cacertfile cache works without the app starting.
 #     Hex supports `~> 1.12` so these changes are required.
 #     https://github.com/elixir-mint/mint/pull/478
-#     Fork branch: https://github.com/elixir-mint/mint/tree/ericmj/support-elixir-1.12
+#     Branch: https://github.com/elixir-mint/mint/tree/ericmj/support-elixir-1.12
 #
 #   * elixir-mint/mint#479 - "Fix HTTP/1 handling of 1xx informational
 #     responses". Without this, a 100 Continue / 103 Early Hints / any
 #     unsolicited 1xx causes Mint to emit `:done` prematurely and close
-#     the connection on the real final response. See also the HEX PATCH
-#     comments in lib/hex/mint/http1.ex.
+#     the connection on the real final response.
 #     https://github.com/elixir-mint/mint/pull/479
-#     Fork branch: https://github.com/elixir-mint/mint/tree/ericmj/fix-1xx-informational-response
+#     Branch: https://github.com/elixir-mint/mint/tree/ericmj/fix-1xx-informational-response
 #
-#   * `:connection_window_size` option on HTTP/2 connect - local patch,
-#     not yet upstreamed. Allows the caller to bump the HTTP/2
-#     connection-level receive window beyond the spec-mandated 64 KB
-#     default. Without this, any multi-MB download stalls every ~64 KB
-#     waiting for an auto WINDOW_UPDATE round-trip, making HTTP/2
-#     throughput much worse than HTTP/1 for hex's tarball workload.
-#     See HEX PATCH in lib/hex/mint/http2.ex `initiate/5`.
-#     TODO: upstream as a Mint PR.
+#   * `Mint.HTTP2.set_window_size/3` — not yet submitted upstream. Adds a
+#     public API to advertise a larger HTTP/2 receive window to the server
+#     (connection-level or per-stream) via a `WINDOW_UPDATE` frame. Without
+#     this, multi-MB downloads over HTTP/2 stall every ~64 KB waiting for
+#     the auto WINDOW_UPDATE round-trip, since the spec gives no way to
+#     raise the connection-level initial window via SETTINGS.
+#     Branch: https://github.com/elixir-mint/mint/tree/ericmj/http2-connection-window-size
 
 if [[ -z "$1" ]]; then
   echo "Usage: vendor_mint.sh PATH_TO_MINT"

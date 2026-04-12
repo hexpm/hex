@@ -1,4 +1,4 @@
-# Vendored from mint v1.7.1 (f7f0313), do not edit manually
+# Vendored from mint v1.7.1 (74471c9), do not edit manually
 
 defmodule Hex.Mint.Core.Transport.SSL do
   @moduledoc false
@@ -603,14 +603,18 @@ defmodule Hex.Mint.Core.Transport.SSL do
   end
 
   defp get_cacertfile(path) do
-    case :persistent_term.get({:hex_mint, {:cacertfile, path}}, :error) do
-      {:ok, cacerts} ->
-        cacerts
+    if Application.get_env(:mint, :persistent_term) do
+      case :persistent_term.get({:hex_mint, {:cacertfile, path}}, :error) do
+        {:ok, cacerts} ->
+          cacerts
 
-      :error ->
-        cacerts = decode_cacertfile(path)
-        :persistent_term.put({:hex_mint, {:cacertfile, path}}, {:ok, cacerts})
-        cacerts
+        :error ->
+          cacerts = decode_cacertfile(path)
+          :persistent_term.put({:hex_mint, {:cacertfile, path}}, {:ok, cacerts})
+          cacerts
+      end
+    else
+      decode_cacertfile(path)
     end
   end
 
