@@ -3,12 +3,7 @@ defmodule Hex.HTTPTest do
 
   setup do
     on_exit(fn ->
-      Enum.map([:http_proxy, :https_proxy], &Hex.State.put(&1, nil))
-
-      Enum.map([:proxy, :https_proxy], fn opt ->
-        :httpc.set_options([{opt, {{~c"localhost", 80}, [~c"localhost"]}}], :hex)
-      end)
-
+      Enum.each([:http_proxy, :https_proxy, :no_proxy], &Hex.State.put(&1, nil))
       System.delete_env("NETRC")
     end)
 
@@ -16,32 +11,50 @@ defmodule Hex.HTTPTest do
     {:ok, bypass: bypass}
   end
 
-  test "proxy_config returns no credentials when no proxy supplied" do
+  defp proxy_auth_header(opts) do
+    case Keyword.get(opts, :proxy) do
+      {:http, _host, _port, proxy_opts} ->
+        case Keyword.get(proxy_opts, :proxy_headers, []) do
+          [{"proxy-authorization", "Basic " <> creds}] -> creds
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  test "proxy_config returns no proxy when none is supplied" do
     assert Hex.HTTP.proxy_config("http://hex.pm") == []
   end
 
-  test "proxy_config returns http_proxy credentials when supplied" do
+  test "proxy_config encodes http_proxy credentials when supplied" do
     Hex.State.put(:http_proxy, "http://hex:test@example.com")
 
-    assert Hex.HTTP.proxy_config("http://hex.pm") == [proxy_auth: {~c"hex", ~c"test"}]
+    opts = Hex.HTTP.proxy_config("http://hex.pm")
+    assert proxy_auth_header(opts) == Base.encode64("hex:test")
   end
 
-  test "proxy_config returns http_proxy credentials when only username supplied" do
+  test "proxy_config encodes http_proxy credentials when only username supplied" do
     Hex.State.put(:http_proxy, "http://nopass@example.com")
 
-    assert Hex.HTTP.proxy_config("http://hex.pm") == [proxy_auth: {~c"nopass", ~c""}]
+    opts = Hex.HTTP.proxy_config("http://hex.pm")
+    assert proxy_auth_header(opts) == Base.encode64("nopass")
   end
 
-  test "proxy_config returns credentials when the protocol is https" do
+  test "proxy_config encodes credentials when the protocol is https" do
     Hex.State.put(:https_proxy, "https://test:hex@example.com")
 
-    assert Hex.HTTP.proxy_config("https://hex.pm") == [proxy_auth: {~c"test", ~c"hex"}]
+    opts = Hex.HTTP.proxy_config("https://hex.pm")
+    assert proxy_auth_header(opts) == Base.encode64("test:hex")
   end
 
-  test "proxy_config returns empty list when no credentials supplied" do
+  test "proxy_config returns proxy with no auth when no credentials supplied" do
     Hex.State.put(:http_proxy, "http://example.com")
 
-    assert Hex.HTTP.proxy_config("http://hex.pm") == []
+    opts = Hex.HTTP.proxy_config("http://hex.pm")
+    assert {:http, ~c"example.com", 80, proxy_opts} = Keyword.fetch!(opts, :proxy)
+    assert Keyword.get(proxy_opts, :proxy_headers, []) == []
   end
 
   test "x-hex-message" do
