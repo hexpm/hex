@@ -1002,10 +1002,21 @@ defmodule Hex.Mint.HTTP2 do
       log: log?
     }
 
+    # HEX PATCH: allow the caller to bump the HTTP/2 connection-level receive
+    # window beyond the spec default of 65_535 bytes by piggybacking a
+    # WINDOW_UPDATE on the client preface. The per-stream initial window is
+    # already tunable via `:client_settings`; the connection-level window is
+    # not addressable via SETTINGS at all, so without this option large-body
+    # downloads over HTTP/2 stall every ~64 KB waiting for the round-trip of
+    # an auto-sent WINDOW_UPDATE.
+    connection_window_size = Keyword.get(opts, :connection_window_size, @default_window_size)
+
     with :ok <- Util.inet_opts(transport, socket),
          client_settings = settings(stream_id: 0, params: client_settings_params),
          preface = [@connection_preface, Frame.encode(client_settings)],
+         preface = preface ++ connection_window_update_frames(connection_window_size),
          :ok <- transport.send(socket, preface),
+         conn = %{conn | window_size: connection_window_size},
          conn = update_in(conn.client_settings_queue, &:queue.in(client_settings_params, &1)),
          conn = put_in(conn.socket, socket),
          :ok <- if(mode == :active, do: transport.setopts(socket, active: :once), else: :ok) do
@@ -1016,6 +1027,13 @@ defmodule Hex.Mint.HTTP2 do
         error
     end
   end
+
+  defp connection_window_update_frames(target) when target > @default_window_size do
+    increment = target - @default_window_size
+    [Frame.encode(window_update(stream_id: 0, window_size_increment: increment))]
+  end
+
+  defp connection_window_update_frames(_), do: []
 
   @doc """
   See `Hex.Mint.HTTP.get_socket/1`.

@@ -141,11 +141,26 @@ defmodule Hex.HTTP.Pool.Conn do
   ## Connect / reconnect
 
   defp do_connect(%{key: {scheme, host, port, _inet}, connect_opts: opts} = state) do
-    # Force HTTP/1 only. Benchmarks show HTTP/1 with 8 parallel Conn processes
-    # is ~13% faster than HTTP/2 via Mint for hex's workload (many small GETs
-    # of tarballs); Mint's HTTP/2 per-stream processing overhead outweighs the
-    # multiplexing win. Matches the historical httpc behaviour too.
-    opts = Keyword.merge([protocols: [:http1]], opts)
+    # Default to HTTP/1 only. Benchmarks on `mix deps.get` with real hex.pm +
+    # repo.hex.pm (both HTTP/2-capable) show HTTP/1 with 8 parallel Conn
+    # processes at 27.8s vs HTTP/2 at 29.2s (even with the Mint window patch
+    # applied). Mint's pure-Elixir HPACK + frame parsing costs more per
+    # request than HTTP/1 line parsing, and the multiplexing win doesn't
+    # recover that cost for hex's many-small-GETs workload.
+    #
+    # The HTTP/2 window options below are still passed through so a caller
+    # that overrides `:protocols` with `[:http2]` or `[:http1, :http2]` gets
+    # sensible defaults and doesn't stall on the 64 KB per-stream /
+    # connection receive windows.
+    opts =
+      Keyword.merge(
+        [
+          protocols: [:http1],
+          client_settings: [initial_window_size: 8_000_000],
+          connection_window_size: 8_000_000
+        ],
+        opts
+      )
 
     case MintHTTP.connect(scheme, host, port, opts) do
       {:ok, conn} ->

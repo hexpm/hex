@@ -20,6 +20,15 @@ set -e
 #     comments in lib/hex/mint/http1.ex.
 #     https://github.com/elixir-mint/mint/pull/479
 #     Fork branch: https://github.com/elixir-mint/mint/tree/ericmj/fix-1xx-informational-response
+#
+#   * `:connection_window_size` option on HTTP/2 connect - local patch,
+#     not yet upstreamed. Allows the caller to bump the HTTP/2
+#     connection-level receive window beyond the spec-mandated 64 KB
+#     default. Without this, any multi-MB download stalls every ~64 KB
+#     waiting for an auto WINDOW_UPDATE round-trip, making HTTP/2
+#     throughput much worse than HTTP/1 for hex's tarball workload.
+#     See HEX PATCH in lib/hex/mint/http2.ex `initiate/5`.
+#     TODO: upstream as a Mint PR.
 
 if [[ -z "$1" ]]; then
   echo "Usage: vendor_mint.sh PATH_TO_MINT"
