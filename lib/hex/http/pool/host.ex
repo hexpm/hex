@@ -19,6 +19,11 @@ defmodule Hex.HTTP.Pool.Host do
   # Requests are forwarded to the chosen `Conn` via cast with the caller's
   # `from` tuple; the Conn replies directly to the caller and casts `:req_done`
   # back here so we can decrement its in-flight count.
+  #
+  # Conns stay alive for the life of the BEAM. Hex runs as a CLI that exits
+  # at the end of the Mix task, at which point the supervisor terminates the
+  # pool and each Conn closes its socket in terminate/2 — so an idle-timeout
+  # reap path would only add complexity without saving real resources.
 
   use GenServer
 
