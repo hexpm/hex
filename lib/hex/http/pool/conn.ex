@@ -141,21 +141,20 @@ defmodule Hex.HTTP.Pool.Conn do
   ## Connect / reconnect
 
   defp do_connect(%{key: {scheme, host, port, _inet}, connect_opts: opts} = state) do
-    # Default to HTTP/1 only. Benchmarks on `mix deps.get` with real hex.pm +
-    # repo.hex.pm (both HTTP/2-capable) show HTTP/1 with 8 parallel Conn
-    # processes at 27.8s vs HTTP/2 at 29.2s (even with the Mint window patch
-    # applied). Mint's pure-Elixir HPACK + frame parsing costs more per
-    # request than HTTP/1 line parsing, and the multiplexing win doesn't
-    # recover that cost for hex's many-small-GETs workload.
+    # Negotiate HTTP/2 via ALPN when the server supports it; fall back to
+    # HTTP/1. Benchmarked against real hex.pm + repo.hex.pm — with the HTTP/2
+    # window bumps below, both protocols are equivalent on `mix deps.get`
+    # wall time, and HTTP/2 uses slightly less CPU (fewer TLS handshakes).
     #
-    # The HTTP/2 window options below are still passed through so a caller
-    # that overrides `:protocols` with `[:http2]` or `[:http1, :http2]` gets
-    # sensible defaults and doesn't stall on the 64 KB per-stream /
-    # connection receive windows.
+    # HTTP/2 window tuning: default per-stream and connection-level windows
+    # are only 64 KB (spec minimum), which stalls large-body downloads
+    # (hex tarballs) every 64 KB waiting for a WINDOW_UPDATE RTT. Bump both
+    # to 8 MB. `connection_window_size` is a local Mint patch; see HEX PATCH
+    # in lib/hex/mint/http2.ex.
     opts =
       Keyword.merge(
         [
-          protocols: [:http1],
+          protocols: [:http1, :http2],
           client_settings: [initial_window_size: 8_000_000],
           connection_window_size: 8_000_000
         ],
