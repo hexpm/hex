@@ -157,7 +157,6 @@ defmodule Hex.State do
 
     Map.merge(state, %{
       clean_pass: {:computed, true},
-      httpc_profile: {:computed, :hex},
       pbkdf2_iters: {:computed, @pbkdf2_iters},
       repos: {:computed, Hex.Config.read_repos(global_config)},
       ssl_version: {:computed, ssl_version()},
