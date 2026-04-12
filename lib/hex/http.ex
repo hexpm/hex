@@ -286,7 +286,7 @@ defmodule Hex.HTTP do
                 [proxy_headers: [{"proxy-authorization", "Basic #{encoded}"}]]
             end
 
-          [proxy: {:http, to_charlist(phost), pport, proxy_opts}]
+          [proxy: {:http, phost, pport, proxy_opts}]
 
         _ ->
           []
