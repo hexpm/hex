@@ -61,9 +61,9 @@ defmodule Hex.RepoTest do
     hexpm = Hex.Repo.default_hexpm_repo()
 
     Hex.OAuth.store_token(%{
-      "access_token" => "device_flow_token",
-      "refresh_token" => "device_refresh",
-      "expires_at" => System.system_time(:second) + 3600
+      access_token: "device_flow_token",
+      refresh_token: "device_refresh",
+      expires_at: System.system_time(:second) + 3600
     })
 
     Hex.State.put(:mirror_url, "http://localhost:#{bypass.port}")
@@ -240,7 +240,7 @@ defmodule Hex.RepoTest do
               oauth_exchange: true,
               public_key: _,
               trusted: true,
-              url: "http://localhost:4043/repo/repos/acme"
+              url: "http://localhost:4043/repo"
             }} = Hex.Repo.fetch_repo("hexpm:acme")
 
     Hex.State.put(:trusted_mirror_url, "http://example.com")
@@ -260,7 +260,7 @@ defmodule Hex.RepoTest do
               oauth_exchange: true,
               public_key: _,
               trusted: true,
-              url: "http://example.com/repos/acme"
+              url: "http://example.com"
             }} = Hex.Repo.fetch_repo("hexpm:acme")
 
     Hex.State.put(:trusted_mirror_url, nil)
@@ -280,7 +280,7 @@ defmodule Hex.RepoTest do
               oauth_exchange: true,
               public_key: _,
               trusted: false,
-              url: "http://example.com/repos/acme"
+              url: "http://example.com"
             }} = Hex.Repo.fetch_repo("hexpm:acme")
   end
 
@@ -305,11 +305,52 @@ defmodule Hex.RepoTest do
                oauth_exchange: true,
                public_key: "public",
                trusted: true,
-               url: "http://example.com/repos/acme"
+               url: "http://example.com"
              }
            } = Hex.Repo.update_organizations(repos)
   after
     {:ok, _} = Supervisor.start_child(Hex.Supervisor, Hex.State)
+  end
+
+  test "update_organizations/1 normalizes a legacy baked-in org URL" do
+    repos = Hex.State.fetch!(:repos)
+    source_url = repos["hexpm"].url
+    repos = Map.put(repos, "hexpm:acme", %{url: source_url <> "/repos/acme"})
+
+    updated = Hex.Repo.update_organizations(repos)
+
+    # build_url appends /repos/acme, so the stored URL must be the bare source URL
+    assert updated["hexpm:acme"].url == source_url
+    assert updated["hexpm:acme"].repo_organization == "acme"
+  end
+
+  test "update_organizations/1 keeps a custom org URL without repo_organization" do
+    repos = Hex.State.fetch!(:repos)
+    repos = Map.put(repos, "hexpm:acme", %{url: "http://custom.example/mirror"})
+
+    updated = Hex.Repo.update_organizations(repos)
+
+    assert updated["hexpm:acme"].url == "http://custom.example/mirror"
+    refute Map.has_key?(updated["hexpm:acme"], :repo_organization)
+  end
+
+  test "clean_organizations/1 round-trips derived and custom org URLs" do
+    repos = Hex.State.fetch!(:repos)
+    source_url = repos["hexpm"].url
+
+    repos =
+      repos
+      |> Map.put("hexpm:derived", %{url: source_url <> "/repos/derived"})
+      |> Map.put("hexpm:custom", %{url: "http://custom.example/mirror"})
+
+    cleaned = repos |> Hex.Repo.update_organizations() |> Hex.Repo.clean_organizations()
+
+    # Derived URL is rebuilt on read, so it is not persisted
+    refute Map.has_key?(cleaned["hexpm:derived"], :url)
+    refute Map.has_key?(cleaned["hexpm:derived"], :repo_organization)
+
+    # Custom URL is persisted verbatim
+    assert cleaned["hexpm:custom"].url == "http://custom.example/mirror"
   end
 
   describe "get_package/3" do
@@ -340,7 +381,7 @@ defmodule Hex.RepoTest do
 
       repos_after = Hex.State.fetch!(:repos)
       token_data = repos_after["hexpm:testorg"].oauth_token
-      assert is_binary(token_data["access_token"])
+      assert is_binary(token_data[:access_token])
     end
 
     test "organization repo skips oauth_exchange when disabled on parent" do
@@ -398,14 +439,14 @@ defmodule Hex.RepoTest do
       repos_after = Hex.State.fetch!(:repos)
       token_data = repos_after["hexpm"].oauth_token
       assert is_map(token_data)
-      assert is_binary(token_data["access_token"])
-      assert is_integer(token_data["expires_at"])
-      first_token = token_data["access_token"]
+      assert is_binary(token_data[:access_token])
+      assert is_integer(token_data[:expires_at])
+      first_token = token_data[:access_token]
 
       assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
 
       repos_after_2 = Hex.State.fetch!(:repos)
-      reused_token = repos_after_2["hexpm"].oauth_token["access_token"]
+      reused_token = repos_after_2["hexpm"].oauth_token[:access_token]
       assert reused_token == first_token
     end
 
@@ -414,8 +455,8 @@ defmodule Hex.RepoTest do
       api_key = auth[:key]
 
       expired_token_data = %{
-        "access_token" => "expired_token",
-        "expires_at" => System.system_time(:second) - 100
+        access_token: "expired_token",
+        expires_at: System.system_time(:second) - 100
       }
 
       repos = Hex.State.fetch!(:repos)
@@ -426,7 +467,7 @@ defmodule Hex.RepoTest do
       assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
 
       repos_after = Hex.State.fetch!(:repos)
-      new_token = repos_after["hexpm"].oauth_token["access_token"]
+      new_token = repos_after["hexpm"].oauth_token[:access_token]
       assert new_token != "expired_token"
       assert is_binary(new_token)
     end
@@ -470,7 +511,7 @@ defmodule Hex.RepoTest do
       assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
 
       repos_after1 = Hex.State.fetch!(:repos)
-      token1 = repos_after1["hexpm"].oauth_token["access_token"]
+      token1 = repos_after1["hexpm"].oauth_token[:access_token]
 
       repos = Hex.State.fetch!(:repos)
       repos = put_in(repos["hexpm"].auth_key, api_key2)
@@ -480,7 +521,7 @@ defmodule Hex.RepoTest do
       assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
 
       repos_after2 = Hex.State.fetch!(:repos)
-      token2 = repos_after2["hexpm"].oauth_token["access_token"]
+      token2 = repos_after2["hexpm"].oauth_token[:access_token]
 
       assert token1 != token2
     end
@@ -500,8 +541,8 @@ defmodule Hex.RepoTest do
       api_key = auth[:key]
 
       almost_expired_token = %{
-        "access_token" => "almost_expired",
-        "expires_at" => System.system_time(:second) + 30
+        access_token: "almost_expired",
+        expires_at: System.system_time(:second) + 30
       }
 
       repos = Hex.State.fetch!(:repos)
@@ -512,7 +553,7 @@ defmodule Hex.RepoTest do
       assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
 
       repos_after = Hex.State.fetch!(:repos)
-      new_token = repos_after["hexpm"].oauth_token["access_token"]
+      new_token = repos_after["hexpm"].oauth_token[:access_token]
       assert new_token != "almost_expired"
     end
   end
@@ -522,9 +563,9 @@ defmodule Hex.RepoTest do
       future_time = System.system_time(:second) + 3600
 
       token_data = %{
-        "access_token" => "device_flow_token",
-        "refresh_token" => "device_refresh",
-        "expires_at" => future_time
+        access_token: "device_flow_token",
+        refresh_token: "device_refresh",
+        expires_at: future_time
       }
 
       Hex.OAuth.store_token(token_data)
@@ -560,9 +601,9 @@ defmodule Hex.RepoTest do
       future_time = System.system_time(:second) + 3600
 
       token_data = %{
-        "access_token" => "device_flow_token",
-        "refresh_token" => "device_refresh",
-        "expires_at" => future_time
+        access_token: "device_flow_token",
+        refresh_token: "device_refresh",
+        expires_at: future_time
       }
 
       Hex.OAuth.store_token(token_data)
@@ -575,16 +616,16 @@ defmodule Hex.RepoTest do
 
       repos_after = Hex.State.fetch!(:repos)
       assert repos_after["hexpm"].oauth_token != nil
-      assert repos_after["hexpm"].oauth_token["access_token"] != "device_flow_token"
+      assert repos_after["hexpm"].oauth_token[:access_token] != "device_flow_token"
     end
 
     test "raises error when configured API key exchange fails (no fallback to device flow)" do
       future_time = System.system_time(:second) + 3600
 
       token_data = %{
-        "access_token" => "device_flow_token",
-        "refresh_token" => "device_refresh",
-        "expires_at" => future_time
+        access_token: "device_flow_token",
+        refresh_token: "device_refresh",
+        expires_at: future_time
       }
 
       Hex.OAuth.store_token(token_data)

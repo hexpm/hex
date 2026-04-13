@@ -6,18 +6,59 @@ defmodule Hex.Config do
       {:ok, binary} ->
         case decode_term(binary) do
           {:ok, term} ->
-            term
+            migrate(term)
 
           {:error, _} ->
             config = decode_elixir(binary)
             write(config)
-            config
+            migrate(config)
         end
 
       {:error, _} ->
         []
     end
   end
+
+  # OAuth token maps were historically persisted with string keys. We now use
+  # atom keys consistently (matching the :mix_hex_cli_auth border), so migrate
+  # any string-keyed token maps from older configs on read.
+  defp migrate(config) do
+    Enum.map(config, fn
+      {:"$oauth_token", token} ->
+        {:"$oauth_token", migrate_oauth_token(token)}
+
+      {:"$repos", repos} when is_map(repos) ->
+        repos =
+          Map.new(repos, fn {name, repo} ->
+            {name, migrate_repo_oauth_token(repo)}
+          end)
+
+        {:"$repos", repos}
+
+      pair ->
+        pair
+    end)
+  end
+
+  defp migrate_repo_oauth_token(repo) when is_map(repo) do
+    case repo do
+      %{oauth_token: token} -> %{repo | oauth_token: migrate_oauth_token(token)}
+      _ -> repo
+    end
+  end
+
+  defp migrate_repo_oauth_token(repo), do: repo
+
+  defp migrate_oauth_token(token) when is_map(token) do
+    Map.new(token, fn
+      {"access_token", value} -> {:access_token, value}
+      {"refresh_token", value} -> {:refresh_token, value}
+      {"expires_at", value} -> {:expires_at, value}
+      pair -> pair
+    end)
+  end
+
+  defp migrate_oauth_token(token), do: token
 
   def update(config) do
     read()
