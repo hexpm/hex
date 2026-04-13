@@ -62,8 +62,7 @@ defmodule Hex.HTTP.Pool do
   defp inet_variant(connect_opts) do
     transport_opts = Keyword.get(connect_opts, :transport_opts, [])
 
-    case {Keyword.get(transport_opts, :inet4, true),
-          Keyword.get(transport_opts, :inet6, false)} do
+    case {Keyword.get(transport_opts, :inet4, true), Keyword.get(transport_opts, :inet6, false)} do
       {true, false} -> :inet
       {false, true} -> :inet6
       _ -> :default
