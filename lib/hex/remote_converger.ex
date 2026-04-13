@@ -48,10 +48,7 @@ defmodule Hex.RemoteConverger do
       |> Enum.concat()
       |> verify_prefetches()
 
-    # Only preflight user OAuth when one of the relevant repos would
-    # actually rely on the stored OAuth token. Public-only deps.get
-    # should not prompt just because an unrelated token expired.
-    check_and_refresh_auth(prefetches)
+    check_and_refresh_auth()
     Registry.prefetch(prefetches)
 
     locked = prepare_locked(lock, old_lock, deps)
@@ -750,62 +747,30 @@ defmodule Hex.RemoteConverger do
     version1.major == 0 and version2.major == 0 and version1.minor != version2.minor
   end
 
-  defp check_and_refresh_auth(prefetches) do
-    if auth_preflight_required?(prefetches) do
-      # Try to get token with authentication prompting enabled
-      # The OnceCache ensures only one process prompts even if multiple processes
-      # detect the expired token concurrently
-      case Hex.OAuth.get_token(prompt_auth: true) do
-        {:ok, _access_token} ->
-          # Token is valid, was successfully refreshed, or user authenticated
-          :ok
+  defp check_and_refresh_auth do
+    config = Hex.API.Client.config([])
 
-        {:error, :auth_failed} ->
-          Hex.Shell.warn(
-            "Authentication failed. Private packages will not be available. " <>
-              "Run `mix hex.user auth` to authenticate."
-          )
+    auth_result =
+      Hex.Auth.with_api(
+        :read,
+        config,
+        fn
+          %{api_key: api_key} when is_binary(api_key) -> :ok
+          %{} -> {:error, :no_auth}
+        end,
+        optional: true,
+        auth_inline: false
+      )
 
-        {:error, :auth_declined} ->
-          Hex.Shell.warn(
-            "Private packages will not be available. " <>
-              "Run `mix hex.user auth` to authenticate."
-          )
+    case auth_result do
+      :ok ->
+        :ok
 
-        {:error, :no_auth} ->
-          # No stored OAuth token to preflight; continue unauthenticated
-          # and let the repo fetch fail normally if authentication is required.
-          :ok
+      {:error, :no_auth} ->
+        :ok
 
-        {:error, _other} ->
-          # Do not fail dependency resolution during OAuth preflight; continue
-          # unauthenticated and let the repo fetch surface any auth error.
-          :ok
-      end
-    else
-      :ok
+      {:error, reason} ->
+        Mix.raise("Failed to check authentication: #{inspect(reason)}")
     end
-  end
-
-  @doc false
-  def auth_preflight_required?(prefetches) do
-    prefetches
-    |> Enum.map(fn {repo, _package} -> repo end)
-    |> Enum.uniq()
-    |> Enum.any?(&repo_requires_user_oauth?/1)
-  end
-
-  defp repo_requires_user_oauth?("hexpm:" <> _ = repo) do
-    repo
-    |> Hex.Repo.get_repo()
-    |> repo_uses_user_oauth?()
-  end
-
-  defp repo_requires_user_oauth?(_repo) do
-    false
-  end
-
-  defp repo_uses_user_oauth?(repo_config) do
-    Map.get(repo_config, :trusted, true) && !repo_config.auth_key
   end
 end

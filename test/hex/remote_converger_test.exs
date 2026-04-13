@@ -96,8 +96,6 @@ defmodule Hex.RemoteConvergerTest do
   end
 
   defp store_expired_oauth_token do
-    Hex.OnceCache.clear(Hex.OAuth.RefreshCache)
-
     Hex.OAuth.store_token(%{
       "access_token" => "expired_access_token",
       "refresh_token" => "invalid_refresh_token",
@@ -135,47 +133,6 @@ defmodule Hex.RemoteConvergerTest do
       end)
 
       refute_received {:mix_shell, :yes?, _}
-    end)
-  end
-
-  test "auth preflight is skipped for public repos" do
-    assert Hex.RemoteConverger.auth_preflight_required?([{"hexpm", "postgrex"}]) == false
-  end
-
-  test "auth preflight is required for organization repos without repo auth" do
-    in_tmp(fn ->
-      set_home_cwd()
-
-      assert Hex.RemoteConverger.auth_preflight_required?([
-               {"hexpm:remote_converger_org", "private_prompt_pkg"}
-             ])
-    end)
-  end
-
-  test "auth preflight is skipped when repo auth is already available" do
-    in_tmp(fn ->
-      set_home_cwd()
-
-      auth = new_repo_auth_user("remote_converger_repo_auth_preflight")
-
-      repos = Hex.State.fetch!(:repos)
-      repos = put_in(repos["hexpm"].auth_key, auth[:key])
-      Hex.State.put(:repos, repos)
-
-      assert Hex.RemoteConverger.auth_preflight_required?([
-               {"hexpm:remote_converger_org", "private_prompt_pkg"}
-             ]) == false
-    end)
-  end
-
-  test "auth preflight is skipped for untrusted org repos" do
-    in_tmp(fn ->
-      set_home_cwd()
-      Hex.State.put(:mirror_url, "http://example.com")
-
-      assert Hex.RemoteConverger.auth_preflight_required?([
-               {"hexpm:remote_converger_org", "private_prompt_pkg"}
-             ]) == false
     end)
   end
 

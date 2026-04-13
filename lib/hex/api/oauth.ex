@@ -66,36 +66,22 @@ defmodule Hex.API.OAuth do
   end
 
   @doc """
-  Exchanges an API key for a short-lived OAuth access token using the client credentials grant.
+  Runs the complete OAuth device authorization flow.
 
-  Optionally accepts a custom API URL for the OAuth exchange endpoint.
+  See `:mix_hex_api_oauth.device_auth_flow/5` for more details.
 
   ## Examples
 
-      iex> Hex.API.OAuth.exchange_api_key(api_key, "api")
-      {:ok, {200, _headers, %{
-        "access_token" => "...",
-        "token_type" => "bearer",
-        "expires_in" => 1800,
-        "scope" => "api"
-      }}}
+      iex> prompt_fn = fn uri, code -> IO.puts("Visit \#{uri} and enter: \#{code}") end
+      iex> Hex.API.OAuth.device_auth_flow("api", prompt_fn)
+      {:ok, %{access_token: "...", refresh_token: "...", expires_at: 1234567890}}
 
-      iex> Hex.API.OAuth.exchange_api_key(api_key, "api", nil, "https://custom.hex.pm")
-      {:ok, {200, _headers, %{...}}}
+      iex> Hex.API.OAuth.device_auth_flow("api", prompt_fn, open_browser: true)
+      {:ok, %{access_token: "...", refresh_token: "...", expires_at: 1234567890}}
   """
-  def exchange_api_key(api_key, scopes, name \\ nil, api_url \\ nil) do
+  def device_auth_flow(scopes, prompt_user, opts \\ []) do
     config = Client.config()
-
-    config =
-      if api_url do
-        Map.put(config, :api_url, api_url)
-      else
-        config
-      end
-
-    scope_string = if is_list(scopes), do: Enum.join(scopes, " "), else: scopes
-    opts = if name, do: [name: name], else: []
-    :mix_hex_api_oauth.client_credentials_token(config, @client_id, api_key, scope_string, opts)
+    :mix_hex_api_oauth.device_auth_flow(config, @client_id, scopes, prompt_user, opts)
   end
 
   @doc """

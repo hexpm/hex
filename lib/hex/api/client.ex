@@ -26,9 +26,8 @@ defmodule Hex.API.Client do
       opts[:user] && opts[:pass] ->
         # For basic auth, add it as an HTTP header
         base64 = Base.encode64("#{opts[:user]}:#{opts[:pass]}")
-        headers = Map.get(config, :http_headers, %{})
-        headers = Map.put(headers, "authorization", "Basic #{base64}")
-        Map.put(config, :http_headers, headers)
+        token = "Basic #{base64}"
+        Map.put(config, :api_key, token)
 
       true ->
         config
