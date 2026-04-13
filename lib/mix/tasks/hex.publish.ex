@@ -82,25 +82,21 @@ defmodule Mix.Tasks.Hex.Publish do
 
     case args do
       ["package"] when revert ->
-        auth = Mix.Tasks.Hex.auth_info(:write)
-        revert_package(build, organization, revert_version, auth)
+        revert_package(build, organization, revert_version)
 
       ["docs"] when revert ->
-        auth = Mix.Tasks.Hex.auth_info(:write)
-        revert_docs(build, organization, revert_version, auth)
+        revert_docs(build, organization, revert_version)
 
       [] when revert ->
-        auth = Mix.Tasks.Hex.auth_info(:write)
-        revert_package(build, organization, revert_version, auth)
+        revert_package(build, organization, revert_version)
 
       ["package"] ->
         case proceed_with_owner(build, organization, opts) do
           {:ok, owner} ->
-            auth = Mix.Tasks.Hex.auth_info(:write)
             Hex.Shell.info("Publishing package...")
 
-            case create_release(build, organization, auth, opts) do
-              :ok -> transfer_owner(build, owner, auth, opts)
+            case create_release(build, organization, opts) do
+              :ok -> transfer_owner(build, owner, opts)
               _ -> Mix.Tasks.Hex.set_exit_code(1)
             end
 
@@ -110,8 +106,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
       ["docs"] ->
         docs_task()
-        auth = Mix.Tasks.Hex.auth_info(:write)
-        create_docs(build, organization, auth, opts)
+        create_docs(build, organization, opts)
 
       [] ->
         create(build, organization, opts)
@@ -144,16 +139,13 @@ defmodule Mix.Tasks.Hex.Publish do
       {:ok, owner} ->
         Hex.Shell.info("Building docs...")
         docs_task()
-        auth = Mix.Tasks.Hex.auth_info(:write)
         Hex.Shell.info("Publishing package...")
 
-        case create_release(build, organization, auth, opts) do
+        case create_release(build, organization, opts) do
           :ok ->
             Hex.Shell.info("Publishing docs...")
-            # Refresh auth to pick up cached OTP from package publish
-            auth = Mix.Tasks.Hex.auth_info(:write)
-            create_docs(build, organization, auth, opts)
-            transfer_owner(build, owner, auth, opts)
+            create_docs(build, organization, opts)
+            transfer_owner(build, owner, opts)
 
           _ ->
             Mix.Tasks.Hex.set_exit_code(1)
@@ -164,7 +156,7 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp create_docs(build, organization, auth, opts) do
+  defp create_docs(build, organization, opts) do
     directory = docs_dir()
     name = build.meta.name
     version = build.meta.version
@@ -180,7 +172,7 @@ defmodule Mix.Tasks.Hex.Publish do
     if dry_run? do
       :ok
     else
-      send_tarball(organization, name, version, tarball, auth, progress?)
+      send_tarball(organization, name, version, tarball, progress?)
     end
   end
 
@@ -254,8 +246,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp print_owner_prompt(build, organization, opts) do
-    auth = Mix.Tasks.Hex.auth_info(:read)
-    organizations = user_organizations(auth)
+    organizations = user_organizations()
 
     owner_prompt? =
       public_organization?(organization) and
@@ -325,10 +316,13 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp user_organizations(auth) do
-    case Hex.API.User.me(auth) do
+  defp user_organizations do
+    case Hex.API.User.me() do
       {:ok, {200, _header, body}} ->
         Enum.map(body["organizations"], & &1["name"])
+
+      {:error, {:auth_error, :no_credentials}} ->
+        Mix.raise("No authenticated user found. Run `mix hex.user auth`")
 
       other ->
         Hex.Utils.print_error_result(other)
@@ -338,18 +332,18 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp public_organization?(organization), do: organization in [nil, "hexpm"]
 
-  defp transfer_owner(_build, nil, _auth, _opts) do
+  defp transfer_owner(_build, nil, _opts) do
     :ok
   end
 
-  defp transfer_owner(build, owner, auth, opts) do
+  defp transfer_owner(build, owner, opts) do
     Hex.Shell.info("Transferring ownership to #{owner}...")
     dry_run? = Keyword.get(opts, :dry_run, false)
 
     if dry_run? do
       :ok
     else
-      case Hex.API.Package.Owner.add("hexpm", build.meta.name, owner, "full", true, auth) do
+      case Hex.API.Package.Owner.add("hexpm", build.meta.name, owner, "full", true) do
         {:ok, {status, _header, _body}} when status in 200..299 ->
           :ok
 
@@ -367,10 +361,10 @@ defmodule Mix.Tasks.Hex.Publish do
     )
   end
 
-  defp revert_package(build, organization, version, auth) do
+  defp revert_package(build, organization, version) do
     name = build.meta.name
 
-    case Hex.API.Release.delete(organization, name, version, auth) do
+    case Hex.API.Release.delete(organization, name, version) do
       {:ok, {code, _, _}} when code in 200..299 ->
         Hex.Shell.info("Reverted #{name} #{version}")
 
@@ -380,10 +374,10 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp revert_docs(build, organization, version, auth) do
+  defp revert_docs(build, organization, version) do
     name = build.meta.name
 
-    case Hex.API.ReleaseDocs.delete(organization, name, version, auth) do
+    case Hex.API.ReleaseDocs.delete(organization, name, version) do
       {:ok, {code, _, _}} when code in 200..299 ->
         Hex.Shell.info("Reverted docs for #{name} #{version}")
 
@@ -422,10 +416,10 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp send_tarball(organization, name, version, tarball, auth, progress?) do
+  defp send_tarball(organization, name, version, tarball, progress?) do
     progress = progress_fun(progress?, byte_size(tarball))
 
-    case Hex.API.ReleaseDocs.publish(organization, name, version, tarball, auth, progress) do
+    case Hex.API.ReleaseDocs.publish(organization, name, version, tarball, [], progress) do
       {:ok, {code, headers, _body}} when code in 200..299 ->
         api_url = Hex.State.fetch!(:api_url)
         default_api_url? = api_url == Hex.State.default_api_url()
@@ -495,7 +489,7 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp create_release(build, organization, auth, opts) do
+  defp create_release(build, organization, opts) do
     meta = build.meta
     %{tarball: tarball, outer_checksum: checksum} = Hex.Tar.create!(meta, meta.files, :memory)
     dry_run? = Keyword.get(opts, :dry_run, false)
@@ -504,17 +498,17 @@ defmodule Mix.Tasks.Hex.Publish do
     if dry_run? do
       :ok
     else
-      send_release(tarball, checksum, organization, auth, opts)
+      send_release(tarball, checksum, organization, opts)
     end
   end
 
-  defp send_release(tarball, checksum, organization, auth, opts) do
+  defp send_release(tarball, checksum, organization, opts) do
     progress? = Keyword.get(opts, :progress, true)
     progress = progress_fun(progress?, byte_size(tarball))
 
     replace? = Keyword.get(opts, :replace, false)
 
-    case Hex.API.Release.publish(organization, tarball, auth, progress, replace?) do
+    case Hex.API.Release.publish(organization, tarball, [], progress, replace?) do
       {:ok, {code, _, body}} when code in 200..299 ->
         location = body["html_url"] || body["url"]
         checksum = String.downcase(Base.encode16(checksum, case: :lower))
@@ -527,7 +521,7 @@ defmodule Mix.Tasks.Hex.Publish do
         Hex.Shell.error("Publishing failed")
         package = Keyword.fetch!(opts, :name)
 
-        case Hex.API.Package.get(organization, package, auth) do
+        case Hex.API.Package.get(organization, package) do
           {:ok, {code, _, _}} when code in 200..299 ->
             Hex.Shell.error("""
             Package with name #{Keyword.fetch!(opts, :name)} already exists. \

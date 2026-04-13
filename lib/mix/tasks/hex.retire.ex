@@ -73,10 +73,9 @@ defmodule Mix.Tasks.Hex.Retire do
   end
 
   defp retire(organization, package, version, reason, opts) do
-    auth = Mix.Tasks.Hex.auth_info(:write)
     body = %{reason: reason, message: message_option(opts[:message])}
 
-    case Hex.API.Release.retire(organization, package, version, body, auth) do
+    case Hex.API.Release.retire(organization, package, version, body) do
       {:ok, {code, _headers, _body}} when code in 200..299 ->
         Hex.Shell.info("#{package} #{version} has been retired\n")
 
@@ -87,9 +86,7 @@ defmodule Mix.Tasks.Hex.Retire do
   end
 
   defp unretire(organization, package, version) do
-    auth = Mix.Tasks.Hex.auth_info(:write)
-
-    case Hex.API.Release.unretire(organization, package, version, auth) do
+    case Hex.API.Release.unretire(organization, package, version) do
       {:ok, {code, _headers, _body}} when code in 200..299 ->
         Hex.Shell.info("#{package} #{version} has been unretired")
         :ok

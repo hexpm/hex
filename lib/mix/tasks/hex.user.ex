@@ -66,9 +66,7 @@ defmodule Mix.Tasks.Hex.User do
   end
 
   defp whoami() do
-    auth = Mix.Tasks.Hex.auth_info(:read)
-
-    case Hex.API.User.me(auth) do
+    case Hex.API.User.me() do
       {:ok, {code, _, body}} when code in 200..299 ->
         Hex.Shell.info(body["username"])
 

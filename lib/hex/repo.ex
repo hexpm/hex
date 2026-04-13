@@ -1,8 +1,6 @@
 defmodule Hex.Repo do
   @moduledoc false
 
-  @exchange_cache __MODULE__.ExchangeCache
-  @exchange_timeout 60_000
   @hexpm_url "https://repo.hex.pm"
   @hexpm_public_key """
   -----BEGIN PUBLIC KEY-----
@@ -15,21 +13,6 @@ defmodule Hex.Repo do
   0wIDAQAB
   -----END PUBLIC KEY-----
   """
-
-  def start_link(_args) do
-    Hex.OnceCache.start_link(name: @exchange_cache)
-  end
-
-  def child_spec(arg) do
-    %{
-      id: __MODULE__,
-      start: {__MODULE__, :start_link, [arg]}
-    }
-  end
-
-  def clear_exchange_cache do
-    Hex.OnceCache.clear(@exchange_cache)
-  end
 
   def fetch_repo(repo) do
     repo = repo || "hexpm"
@@ -61,7 +44,7 @@ defmodule Hex.Repo do
   end
 
   defp default_organization(repo, source, name) do
-    url = merge_values(Map.get(repo, :url), source.url <> "/repos/#{name}")
+    url = merge_values(Map.get(repo, :url), source.url)
     public_key = merge_values(Map.get(repo, :public_key), source.public_key)
     auth_key = merge_values(Map.get(repo, :auth_key), source.auth_key)
 
@@ -73,6 +56,7 @@ defmodule Hex.Repo do
 
     repo
     |> Map.put(:url, url)
+    |> Map.put(:repo_organization, name)
     |> Map.put(:public_key, public_key)
     |> Map.put(:auth_key, auth_key)
     |> Map.put(:oauth_exchange, oauth_exchange)
@@ -225,31 +209,38 @@ defmodule Hex.Repo do
   def get_package(repo, package, etag) do
     repo_config = get_repo(repo)
     config = build_hex_core_config(repo_config, repo, etag)
-    :mix_hex_repo.get_package(config, package)
+
+    Hex.Auth.with_repo(config, &:mix_hex_repo.get_package(&1, package))
   end
 
   def get_docs(repo, package, version) do
     repo_config = get_repo(repo)
     config = build_hex_core_config(repo_config, repo)
-    :mix_hex_repo.get_docs(config, package, version)
+
+    Hex.Auth.with_repo(config, &:mix_hex_repo.get_docs(&1, package, version))
   end
 
   def get_tarball(repo, package, version) do
     repo_config = get_repo(repo)
     config = build_hex_core_config(repo_config, repo)
-    :mix_hex_repo.get_tarball(config, package, version)
+
+    Hex.Auth.with_repo(config, &:mix_hex_repo.get_tarball(&1, package, version))
   end
 
   def get_public_key(repo_config) when is_map(repo_config) do
     config = build_hex_core_config(repo_config, "")
-    :mix_hex_repo.get_public_key(config)
+
+    Hex.Auth.with_preemptive_auth(repo_config, config, &:mix_hex_repo.get_public_key/1,
+      auth_inline: false,
+      optional: true
+    )
   end
 
   def get_installs() do
     repo = get_repo("hexpm")
     config = build_hex_core_config(repo, "")
 
-    :mix_hex_repo.get_hex_installs(config)
+    Hex.Auth.with_repo(config, &:mix_hex_repo.get_hex_installs/1)
   end
 
   def find_new_version_from_csv(body) do
@@ -303,46 +294,28 @@ defmodule Hex.Repo do
     unsafe_registry = Hex.State.fetch!(:unsafe_registry)
     no_verify_repo_origin = Hex.State.fetch!(:no_verify_repo_origin)
 
+    {repo_name, organization} =
+      case split_repo_name(repo_name) do
+        [source, organization] -> {source, organization}
+        [name] -> {name, :undefined}
+      end
+
     config = %{
-      :mix_hex_core.default_config()
-      | http_adapter: {Hex.HTTP, %{}},
-        repo_name: hex_to_actual_repo_name(repo_name),
+      Hex.API.Client.config()
+      | repo_name: repo_name,
+        repo_organization: organization,
         repo_url: repo_config.url,
         repo_public_key: Map.get(repo_config, :public_key),
         repo_verify: !unsafe_registry,
         repo_verify_origin: !no_verify_repo_origin,
-        http_user_agent_fragment: Hex.API.Client.user_agent_fragment()
+        trusted: Map.get(repo_config, :trusted, false),
+        oauth_exchange: Map.get(repo_config, :oauth_exchange, false)
     }
 
     config =
-      cond do
-        # First priority: explicit repo auth key with OAuth exchange disabled - use API key directly
-        repo_config.auth_key && Map.get(repo_config, :trusted, true) &&
-            Map.get(repo_config, :oauth_exchange, false) == false ->
-          %{config | repo_key: repo_config.auth_key}
-
-        # Second priority: Exchange API key for OAuth token if enabled
-        repo_config.auth_key && Map.get(repo_config, :trusted, true) ->
-          case exchange_api_key_for_token(repo_config, repo_name) do
-            {:ok, access_token} ->
-              %{config | repo_key: "Bearer #{access_token}"}
-
-            {:error, reason} ->
-              raise "Failed to exchange API key for OAuth token: #{inspect(reason)}"
-          end
-
-        # Third priority: fallback to OAuth token if available (from device flow or other sources)
-        true ->
-          case Hex.OAuth.get_token() do
-            {:ok, access_token} ->
-              # Format as Bearer token for OAuth authentication
-              %{config | repo_key: "Bearer #{access_token}"}
-
-            {:error, _reason} ->
-              # No authentication available - continue without auth
-              # Server will return 401/403 if authentication is required
-              config
-          end
+      case Map.fetch(repo_config, :oath_exchange_url) do
+        {:ok, oauth_exchange_url} -> Map.put(config, :oauth_exchange_url, oauth_exchange_url)
+        :error -> Map.put(config, :oauth_exchange_url, config.api_url)
       end
 
     if etag do
@@ -350,83 +323,5 @@ defmodule Hex.Repo do
     else
       config
     end
-  end
-
-  defp hex_to_actual_repo_name("hexpm:" <> repo), do: repo
-  defp hex_to_actual_repo_name(repo), do: repo
-
-  defp exchange_api_key_for_token(repo_config, repo_name) do
-    case get_cached_token(repo_config) do
-      {:ok, access_token} ->
-        {:ok, access_token}
-
-      _expired_or_not_found ->
-        Hex.OnceCache.fetch_key(
-          @exchange_cache,
-          {repo_name, repo_config.auth_key},
-          fn -> do_exchange_api_key(repo_config, repo_name) end,
-          timeout: @exchange_timeout
-        )
-    end
-  end
-
-  defp get_cached_token(repo_config) do
-    case Map.get(repo_config, :oauth_token) do
-      %{"access_token" => token, "expires_at" => expires_at} ->
-        current_time = System.system_time(:second)
-
-        if expires_at > current_time + 300 do
-          {:ok, token}
-        else
-          :expired
-        end
-
-      _ ->
-        :not_found
-    end
-  end
-
-  defp do_exchange_api_key(repo_config, repo_name) do
-    api_key = repo_config.auth_key
-    scopes = "repositories"
-    oauth_url = Map.get(repo_config, :oauth_exchange_url)
-    name = get_hostname()
-
-    case Hex.API.OAuth.exchange_api_key(api_key, scopes, name, oauth_url) do
-      {:ok, {200, _, response}} when is_map(response) ->
-        access_token = response["access_token"]
-        expires_in = response["expires_in"] || 1800
-
-        cache_token(repo_config, repo_name, access_token, expires_in)
-
-        {:ok, access_token}
-
-      {:ok, {status, _, _}} when status >= 400 ->
-        {:error, :exchange_failed}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp get_hostname do
-    case :inet.gethostname() do
-      {:ok, hostname} -> to_string(hostname)
-      {:error, _} -> nil
-    end
-  end
-
-  defp cache_token(repo_config, repo_name, access_token, expires_in) do
-    expires_at = System.system_time(:second) + expires_in
-
-    token_data = %{
-      "access_token" => access_token,
-      "expires_at" => expires_at
-    }
-
-    repos = Hex.State.fetch!(:repos)
-    updated_repo = Map.put(repo_config, :oauth_token, token_data)
-    updated_repos = Map.put(repos, repo_name, updated_repo)
-    Hex.Config.update_repos(updated_repos)
   end
 end

@@ -735,33 +735,31 @@ defmodule Hex.RemoteConverger do
   end
 
   defp check_and_refresh_auth do
-    # Try to get token with authentication prompting enabled
-    # The OnceCache ensures only one process prompts even if multiple processes
-    # detect the expired token concurrently
-    case Hex.OAuth.get_token(prompt_auth: true) do
-      {:ok, _access_token} ->
+    config = Hex.API.Client.config([])
+
+    auth_result =
+      Hex.Auth.with_api(
+        :read,
+        config,
+        fn
+          %{api_key: api_key} when is_binary(api_key) -> :ok
+          %{} -> {:error, :no_auth}
+        end,
+        optional: true,
+        auth_inline: false
+      )
+
+    case auth_result do
+      :ok ->
         # Token is valid, was successfully refreshed, or user authenticated
         :ok
-
-      {:error, :auth_failed} ->
-        Hex.Shell.warn(
-          "Authentication failed. Private packages will not be available. " <>
-            "Run `mix hex.user auth` to authenticate."
-        )
-
-      {:error, :auth_declined} ->
-        Hex.Shell.warn(
-          "Private packages will not be available. " <>
-            "Run `mix hex.user auth` to authenticate."
-        )
 
       {:error, :no_auth} ->
         # No OAuth token - this is OK, user might only be fetching public packages
         :ok
 
-      {:error, _other} ->
-        # Other errors (shouldn't happen with prompt_auth: true, but handle gracefully)
-        :ok
+      {:error, reason} ->
+        Mix.raise("Failed to check authentication: #{inspect(reason)}")
     end
   end
 end

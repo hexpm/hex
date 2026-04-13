@@ -16,7 +16,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       hexpm = Hex.Repo.get_repo("hexpm")
 
       assert myorg.public_key == hexpm.public_key
-      assert myorg.url == "http://localhost:4043/repo/repos/myorgauth"
+      assert myorg.url == "http://localhost:4043/repo"
       assert is_binary(myorg.auth_key)
 
       {:ok, hostname} = :inet.gethostname()
@@ -51,7 +51,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       hexpm = Hex.Repo.get_repo("hexpm")
 
       assert myorg.public_key == hexpm.public_key
-      assert myorg.url == "http://localhost:4043/repo/repos/myorgauthwithkeyname"
+      assert myorg.url == "http://localhost:4043/repo"
       assert is_binary(myorg.auth_key)
 
       assert {:ok, {200, _, body}} = Hex.API.Key.get(auth)
@@ -74,14 +74,14 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       hexpm = Hex.Repo.get_repo("hexpm")
 
       assert myorg.public_key == hexpm.public_key
-      assert myorg.url == "http://localhost:4043/repo/repos/myorgauthkey"
+      assert myorg.url == "http://localhost:4043/repo"
       assert myorg.auth_key == body["secret"]
 
       repos = Hex.Config.read_repos(Hex.Config.read())
       assert repo = repos["hexpm:myorgauthkey"]
       assert repo[:auth_key]
       assert repo[:trusted]
-      assert repo[:url] == "http://localhost:4043/repo/repos/myorgauthkey"
+      assert repo[:url] == "http://localhost:4043/repo"
 
       refute Map.has_key?(Hex.Config.read()[:"$repos"]["hexpm:myorgauthkey"], :trusted)
     end)
