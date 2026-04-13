@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Hex.Package do
 
   @shortdoc "Fetches or diffs packages"
 
-  @default_diff_command "git diff --no-index __PATH1__ __PATH2__"
+  @default_diff_command "git diff --no-index --no-prefix __PATH1__ __PATH2__"
 
   @doc false
   def default_diff_command(), do: @default_diff_command
@@ -257,16 +257,19 @@ defmodule Mix.Tasks.Hex.Package do
   end
 
   defp diff(repo, package, {version1, version2}) do
-    path1 = tmp_path("#{package}-#{version1}-")
-    path2 = tmp_path("#{package}-#{version2}-")
+    parent = tmp_path("hex-diff-")
+    name1 = "#{package}-#{version1}"
+    name2 = "#{package}-#{version2}"
+    path1 = Path.join(parent, name1)
+    path2 = Path.join(parent, name2)
 
     try do
+      File.mkdir_p!(parent)
       fetch_and_unpack!(repo, package, [{path1, version1}, {path2, version2}])
-      code = run_diff_path!(path1, path2)
+      code = run_diff_path!(name1, name2, cd: parent)
       Mix.Tasks.Hex.set_exit_code(code)
     after
-      File.rm_rf!(path1)
-      File.rm_rf!(path2)
+      File.rm_rf!(parent)
     end
   end
 
@@ -289,13 +292,13 @@ defmodule Mix.Tasks.Hex.Package do
     end
   end
 
-  defp run_diff_path!(path1, path2) do
+  defp run_diff_path!(path1, path2, opts \\ []) do
     cmd =
       Hex.State.fetch!(:diff_command)
       |> String.replace("__PATH1__", escape_and_quote_path(path1))
       |> String.replace("__PATH2__", escape_and_quote_path(path2))
 
-    Mix.shell().cmd(cmd)
+    Mix.shell().cmd(cmd, opts)
   end
 
   defp escape_and_quote_path(path) do
