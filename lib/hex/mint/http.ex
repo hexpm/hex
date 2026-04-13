@@ -1,4 +1,4 @@
-# Vendored from mint v1.7.1 (74471c9), do not edit manually
+# Vendored from mint v1.7.1 (d30d2cf), do not edit manually
 
 defmodule Hex.Mint.HTTP do
   _ = """
@@ -239,6 +239,17 @@ defmodule Hex.Mint.HTTP do
     * `:client_settings` - (keyword) a list of client HTTP/2 settings to send to the
       server. See `Hex.Mint.HTTP2.put_settings/2` for more information. This is only used
       in HTTP/2 connections.
+
+    * `:connection_window_size` - (integer) the initial size of the connection-level
+      HTTP/2 receive window, in bytes. Sent to the server as a `WINDOW_UPDATE` frame
+      on stream 0 as part of the connection preface. Defaults to 16 MB. Can be
+      raised later with `Hex.Mint.HTTP2.set_window_size/3`.
+
+    * `:receive_window_update_threshold` - (integer) the minimum number of bytes of receive
+      window that must remain on a connection or stream before a `WINDOW_UPDATE`
+      frame is sent to refill it. Lower values send more frequent, smaller updates;
+      higher values batch updates into fewer, larger ones. Defaults to 160_000
+      (approximately 10× the default max frame size).
 
   There may be further protocol specific options that only take effect when the corresponding
   connection is established. Check `Hex.Mint.HTTP1.connect/4` and `Hex.Mint.HTTP2.connect/4` for

@@ -26,13 +26,15 @@ set -e
 #     https://github.com/elixir-mint/mint/pull/479
 #     Branch: https://github.com/elixir-mint/mint/tree/ericmj/fix-1xx-informational-response
 #
-#   * `Mint.HTTP2.set_window_size/3` — not yet submitted upstream. Adds a
-#     public API to advertise a larger HTTP/2 receive window to the server
-#     (connection-level or per-stream) via a `WINDOW_UPDATE` frame. Without
-#     this, multi-MB downloads over HTTP/2 stall every ~64 KB waiting for
-#     the auto WINDOW_UPDATE round-trip, since the spec gives no way to
-#     raise the connection-level initial window via SETTINGS.
+#   * `Mint.HTTP2.set_window_size/3`. Adds a public API to advertise a larger
+#     HTTP/2 receive window to the server (connection-level or per-stream) via
+#     a `WINDOW_UPDATE` frame.
 #     Branch: https://github.com/elixir-mint/mint/tree/ericmj/http2-connection-window-size
+#
+#   * Larger default HTTP/2 receive windows (4 MB per stream, 16 MB per
+#     connection) plus threshold-gated `WINDOW_UPDATE` batching to mitigate
+#     the amplification-DoS shape of refilling on every DATA frame.
+#     Branch: https://github.com/elixir-mint/mint/tree/ericmj/http2-larger-default-windows
 
 if [[ -z "$1" ]]; then
   echo "Usage: vendor_mint.sh PATH_TO_MINT"
