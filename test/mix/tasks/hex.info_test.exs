@@ -54,7 +54,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
         "day" => 21_494,
         "recent" => 1_421_136,
         "week" => 124_095
-      },
+      }
     }
 
     Bypass.expect(bypass, "GET", "/api/packages/ex_doc", fn conn ->
@@ -65,6 +65,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
 
     Mix.Tasks.Hex.Info.run(["ex_doc"])
     assert_received {:mix_shell, :info, ["Downloads:\n" <> downloads]}
+
     assert String.split(downloads, "\n") == [
              "  Yesterday: 21 494",
              "  Last 7 days: 124 095",
@@ -110,7 +111,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
     Mix.Tasks.Hex.Info.run(["tired"])
     today = Date.utc_today()
     assert_received {:mix_shell, :info, ["Recent releases:\n" <> releases]}
-    assert releases == "  0.2.0 (#{today})\n  yellow 0.1.0 (#{today}) (retired) reset\n\n"
+    assert releases == "  0.2.0 (#{today})\n  0.1.0 (#{today}) (retired)\n\n"
   end
 
   test "package with --organization flag" do
@@ -158,7 +159,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
       "retirement" => nil,
       "publisher" => nil,
       "downloads" => 26_208,
-      "configs": %{
+      "configs" => %{
         "erlang.mk" => "dep_jason = hex 1.5.0-alpha.2",
         "mix.exs" => "{:jason, \"~\u003E 1.5.0-alpha.2\"}",
         "rebar.config" => "{jason, \"1.5.0-alpha.2\"}"

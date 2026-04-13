@@ -130,20 +130,15 @@ defmodule Mix.Tasks.Hex.Info do
     {releases, rest} = Enum.split(releases, 8)
 
     releases
-    |> Enum.map(fn release ->
-      release
-      |> format_version(retirements)
-      |> Enum.join(" ")
-    end)
+    |> Enum.map(&["  ", format_version(&1, retirements), "\n"])
     |> add_ellipsis(rest)
-    |> Enum.map(&"  #{&1}\n")
   end
 
   defp format_version(%{"version" => version} = release, retirements) do
     date = format_release_date(release["inserted_at"])
 
     if version in retirements do
-      [:yellow, version, date, "(retired)", :reset]
+      [:yellow, version, date, " (retired)", :reset]
     else
       [version, date]
     end
@@ -153,13 +148,13 @@ defmodule Mix.Tasks.Hex.Info do
 
   defp format_release_date(date_string) do
     case parse_date(date_string) do
-      {:ok, date} -> "(#{date})"
+      {:ok, date} -> " (#{date})"
       _ -> ""
     end
   end
 
   defp add_ellipsis(output, []), do: output
-  defp add_ellipsis(output, _rest), do: output ++ ["..."]
+  defp add_ellipsis(output, _rest), do: output ++ ["  ...\n"]
 
   defp print_downloads(nil), do: :ok
 
@@ -208,13 +203,7 @@ defmodule Mix.Tasks.Hex.Info do
       Hex.Shell.info("Documentation at: #{Hex.Utils.hexdocs_url(organization, package, version)}")
     end
 
-    case release["downloads"] do
-      download_count when is_integer(download_count) ->
-        Hex.Shell.info("Downloads: #{add_thousands_separators(download_count)}")
-
-      _ ->
-        :ok
-    end
+    print_release_downloads(release["downloads"])
 
     if requirements = release["requirements"] do
       Hex.Shell.info("Dependencies:")
@@ -229,6 +218,12 @@ defmodule Mix.Tasks.Hex.Info do
 
     print_publisher(release)
   end
+
+  defp print_release_downloads(count) when is_integer(count) do
+    Hex.Shell.info("Downloads: #{add_thousands_separators(count)}")
+  end
+
+  defp print_release_downloads(_), do: :ok
 
   defp print_release_published_at(nil), do: :ok
 
