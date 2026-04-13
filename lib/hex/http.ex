@@ -35,7 +35,7 @@ defmodule Hex.HTTP do
 
     Hex.Shell.debug("Hex.HTTP.request(#{inspect(method)}, #{inspect(url)})")
 
-    case run_request(method, url, headers, body, timeout) do
+    case run_request(method, url, headers, body, timeout, nil) do
       {:ok, status, headers_map, resp_body} ->
         {:ok, {status, headers_map, resp_body}}
 
@@ -52,14 +52,12 @@ defmodule Hex.HTTP do
 
     Hex.Shell.debug("Hex.HTTP.request_to_file(#{inspect(method)}, #{inspect(url)})")
 
-    case run_request(method, url, headers, body, timeout) do
-      {:ok, status, headers_map, resp_body} ->
-        case File.write(filename, resp_body) do
-          :ok -> {:ok, {status, headers_map}}
-          {:error, reason} -> {:error, reason}
-        end
+    case run_request(method, url, headers, body, timeout, filename) do
+      {:ok, status, headers_map, _nil} ->
+        {:ok, {status, headers_map}}
 
       {:error, reason} ->
+        _ = File.rm(filename)
         {:error, reason}
     end
   end
@@ -83,7 +81,7 @@ defmodule Hex.HTTP do
     {method, url, headers, body, timeout}
   end
 
-  defp run_request(method, url, headers, body, timeout) do
+  defp run_request(method, url, headers, body, timeout, filename) do
     # Start with :inet (IPv4); retry will swap to :inet6 on network failures.
     inet = :inet
 
@@ -92,7 +90,7 @@ defmodule Hex.HTTP do
                                                                                  headers,
                                                                                  inet ->
         timeout(timeout, fn ->
-          do_request(method, url, headers, body, timeout, inet)
+          do_request(method, url, headers, body, timeout, inet, filename)
         end)
       end)
     end)
@@ -100,7 +98,7 @@ defmodule Hex.HTTP do
 
   ## Core request via Mint-backed pool
 
-  defp do_request(method, url, headers, body, timeout, inet) do
+  defp do_request(method, url, headers, body, timeout, inet, filename) do
     connect_opts = build_connect_opts(url, inet)
 
     mint_method = method |> Atom.to_string() |> String.upcase()
@@ -109,12 +107,21 @@ defmodule Hex.HTTP do
 
     pool_opts = [timeout: timeout, connect_opts: connect_opts]
 
-    case Pool.request(url, mint_method, mint_headers, mint_body, pool_opts) do
+    pool_result =
+      case filename do
+        nil ->
+          Pool.request(url, mint_method, mint_headers, mint_body, pool_opts)
+
+        filename when is_binary(filename) ->
+          Pool.request_to_file(url, mint_method, mint_headers, mint_body, filename, pool_opts)
+      end
+
+    case pool_result do
       {:ok, status, resp_headers, resp_body} ->
         headers_map = headers_to_map(resp_headers)
         handle_hex_message(headers_map["x-hex-message"])
         Hex.Shell.debug("Hex.HTTP.request(#{inspect(method)}, #{inspect(url)}) => #{status}")
-        {:ok, status, headers_map, unzip(resp_body, headers_map)}
+        {:ok, status, headers_map, maybe_unzip(resp_body, headers_map)}
 
       {:error, reason} ->
         Hex.Shell.debug(
@@ -124,6 +131,9 @@ defmodule Hex.HTTP do
         {:error, reason}
     end
   end
+
+  defp maybe_unzip(nil, _headers), do: nil
+  defp maybe_unzip(body, headers) when is_binary(body), do: unzip(body, headers)
 
   defp build_mint_request(headers, body) do
     base_headers = Enum.map(headers, fn {k, v} -> {to_string(k), to_string(v)} end)

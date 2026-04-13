@@ -50,6 +50,13 @@ defmodule Hex.HTTP.Pool.Host do
     :exit, {reason, _} -> {:error, reason}
   end
 
+  def request_to_file(pid, method, path, headers, body, filename, timeout) do
+    GenServer.call(pid, {:request_to_file, method, path, headers, body, filename}, timeout)
+  catch
+    :exit, {:timeout, _} -> {:error, :timeout}
+    :exit, {reason, _} -> {:error, reason}
+  end
+
   @impl true
   def init({key, connect_opts}) do
     Process.flag(:trap_exit, true)
@@ -69,15 +76,11 @@ defmodule Hex.HTTP.Pool.Host do
 
   @impl true
   def handle_call({:request, method, path, headers, body}, from, state) do
-    case pick_conn(state) do
-      {:ok, conn_pid, state} ->
-        GenServer.cast(conn_pid, {:request, from, method, path, headers, body})
-        {:noreply, state}
+    dispatch(state, from, {:request, from, method, path, headers, body})
+  end
 
-      :no_capacity ->
-        waiters = :queue.in({from, method, path, headers, body}, state.waiters)
-        {:noreply, %{state | waiters: waiters}}
-    end
+  def handle_call({:request_to_file, method, path, headers, body, filename}, from, state) do
+    dispatch(state, from, {:request_to_file, from, method, path, headers, body, filename})
   end
 
   @impl true
@@ -185,16 +188,26 @@ defmodule Hex.HTTP.Pool.Host do
     end
   end
 
+  defp dispatch(state, from, cast_msg) do
+    case pick_conn(state) do
+      {:ok, conn_pid, state} ->
+        GenServer.cast(conn_pid, cast_msg)
+        {:noreply, state}
+
+      :no_capacity ->
+        waiters = :queue.in({from, cast_msg}, state.waiters)
+        {:noreply, %{state | waiters: waiters}}
+    end
+  end
+
   defp drain_waiters(state) do
     if :queue.is_empty(state.waiters) do
       state
     else
       case pick_conn(state) do
         {:ok, conn_pid, state} ->
-          {{:value, {from, method, path, headers, body}}, waiters} =
-            :queue.out(state.waiters)
-
-          GenServer.cast(conn_pid, {:request, from, method, path, headers, body})
+          {{:value, {_from, cast_msg}}, waiters} = :queue.out(state.waiters)
+          GenServer.cast(conn_pid, cast_msg)
           drain_waiters(%{state | waiters: waiters})
 
         :no_capacity ->
