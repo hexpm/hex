@@ -118,9 +118,7 @@ defmodule Mix.Tasks.Hex.Info do
     Hex.Shell.info("Config: " <> package["configs"]["mix.exs"])
     print_locked_package(locked_package)
 
-    Hex.Shell.info(
-      ["Recent releases:\n"] ++ format_releases(releases, Map.keys(retirements)) ++ ["\n"]
-    )
+    Hex.Shell.info(["\nRecent releases:\n" | format_releases(releases, Map.keys(retirements))])
 
     print_downloads(package["downloads"])
     print_meta(meta)

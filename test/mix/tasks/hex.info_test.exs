@@ -17,9 +17,9 @@ defmodule Mix.Tasks.Hex.InfoTest do
     Mix.Tasks.Hex.Info.run(["ex_doc"])
     assert_received {:mix_shell, :info, ["Some description\n"]}
     assert_received {:mix_shell, :info, ["Config: {:ex_doc, \"~> 0.1.0\"}"]}
-    assert_received {:mix_shell, :info, ["Recent releases:\n" <> releases]}
+    assert_received {:mix_shell, :info, ["\nRecent releases:\n" <> releases]}
     today = Date.utc_today()
-    assert releases == "  0.1.0 (#{today})\n  0.1.0-rc1 (#{today})\n  0.0.1 (#{today})\n\n"
+    assert releases == "  0.1.0 (#{today})\n  0.1.0-rc1 (#{today})\n  0.0.1 (#{today})\n"
 
     assert catch_throw(Mix.Tasks.Hex.Info.run(["no_package"])) == {:exit_code, 1}
     assert_received {:mix_shell, :error, ["No package with name no_package"]}
@@ -86,7 +86,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
       assert_received {:mix_shell, :info, ["Some description\n"]}
       assert_received {:mix_shell, :info, ["Locked version: 0.2.0"]}
       assert_received {:mix_shell, :info, ["Config: {:ecto, \"~> 3.3\"}"]}
-      assert_received {:mix_shell, :info, ["Recent releases:\n" <> releases]}
+      assert_received {:mix_shell, :info, ["\nRecent releases:\n" <> releases]}
 
       today = Date.utc_today()
 
@@ -95,7 +95,6 @@ defmodule Mix.Tasks.Hex.InfoTest do
                "  3.3.1 (#{today})",
                "  0.2.1 (#{today})",
                "  0.2.0 (#{today})",
-               "",
                ""
              ]
     end)
@@ -110,8 +109,8 @@ defmodule Mix.Tasks.Hex.InfoTest do
   test "package with retired release" do
     Mix.Tasks.Hex.Info.run(["tired"])
     today = Date.utc_today()
-    assert_received {:mix_shell, :info, ["Recent releases:\n" <> releases]}
-    assert releases == "  0.2.0 (#{today})\n  0.1.0 (#{today}) (retired)\n\n"
+    assert_received {:mix_shell, :info, ["\nRecent releases:\n" <> releases]}
+    assert releases == "  0.2.0 (#{today})\n  0.1.0 (#{today}) (retired)\n"
   end
 
   test "package with --organization flag" do
