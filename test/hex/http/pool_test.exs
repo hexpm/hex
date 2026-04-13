@@ -119,6 +119,84 @@ defmodule Hex.HTTP.PoolTest do
     {:ok, 200, _, "ok"} = Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts)
   end
 
+  test "request_to_file streams response body to disk without buffering", %{bypass: bypass} do
+    # 5 MB body split into 64 KB chunks — bigger than any reasonable in-memory
+    # budget we'd want to pay twice (once in the accumulator, once in File.write).
+    chunk = :binary.copy(<<0xAB>>, 65_536)
+    chunks = 80
+    expected_size = byte_size(chunk) * chunks
+
+    Bypass.expect(bypass, fn conn ->
+      conn = Plug.Conn.send_chunked(conn, 200)
+
+      Enum.reduce(1..chunks, conn, fn _, conn ->
+        {:ok, conn} = Plug.Conn.chunk(conn, chunk)
+        conn
+      end)
+    end)
+
+    url = "http://localhost:#{bypass.port}/big"
+    pool_opts = [timeout: 10_000]
+
+    tmp =
+      Path.join(System.tmp_dir!(), "hex-http-pool-stream-#{System.unique_integer([:positive])}")
+
+    try do
+      assert {:ok, 200, _headers, nil} =
+               Hex.HTTP.Pool.request_to_file(url, "GET", [], nil, tmp, pool_opts)
+
+      assert File.exists?(tmp)
+      %File.Stat{size: size} = File.stat!(tmp)
+      assert size == expected_size
+
+      # Spot-check a few random offsets to verify bytes round-tripped intact
+      # without re-reading the whole file into memory.
+      fd = File.open!(tmp, [:read, :raw, :binary])
+
+      try do
+        for offset <- [0, div(expected_size, 2), expected_size - 1] do
+          {:ok, <<byte>>} = :file.pread(fd, offset, 1)
+          assert byte == 0xAB
+        end
+      after
+        File.close(fd)
+      end
+    after
+      _ = File.rm(tmp)
+    end
+  end
+
+  test "request_to_file truncates prior content on redirect", %{bypass: bypass} do
+    # First hit the /redir path, which 302s to /final. The file should contain
+    # /final's body only — no trace of any body the redirect response might
+    # have had (and the sink must have been reset between iterations).
+    Bypass.expect(bypass, fn conn ->
+      case conn.request_path do
+        "/redir" ->
+          conn
+          |> Plug.Conn.put_resp_header("location", "/final")
+          |> Plug.Conn.resp(302, String.duplicate("X", 4096))
+
+        "/final" ->
+          Plug.Conn.resp(conn, 200, "final-body")
+      end
+    end)
+
+    url = "http://localhost:#{bypass.port}/redir"
+
+    tmp =
+      Path.join(System.tmp_dir!(), "hex-http-pool-redirect-#{System.unique_integer([:positive])}")
+
+    try do
+      assert {:ok, {200, _headers}} =
+               Hex.HTTP.request_to_file("GET", url, %{}, nil, tmp, %{})
+
+      assert File.read!(tmp) == "final-body"
+    after
+      _ = File.rm(tmp)
+    end
+  end
+
   test "requests queue when all Conns are busy and drain as they finish", %{bypass: bypass} do
     # Slow every response so we can saturate a small pool.
     test_pid = self()

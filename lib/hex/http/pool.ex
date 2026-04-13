@@ -59,6 +59,25 @@ defmodule Hex.HTTP.Pool do
     Host.request(pid, method, path, headers, body, timeout)
   end
 
+  @doc """
+  Like `request/5` but streams the response body directly to `filename`.
+
+  Returns `{:ok, status, headers, nil}` on success (body already on disk),
+  `{:error, reason}` on failure. On error or redirect the partial file is
+  truncated/removed so the caller never sees a half-written payload.
+  """
+  def request_to_file(url, method, headers, body, filename, opts) do
+    {scheme, host, port, path} = parse_url(url)
+    connect_opts = Keyword.get(opts, :connect_opts, [])
+    inet = inet_variant(connect_opts)
+    key = {scheme, host, port, inet}
+
+    timeout = Keyword.get(opts, :timeout, 15_000)
+
+    pid = get_or_start_host(key, connect_opts)
+    Host.request_to_file(pid, method, path, headers, body, filename, timeout)
+  end
+
   defp inet_variant(connect_opts) do
     transport_opts = Keyword.get(connect_opts, :transport_opts, [])
 

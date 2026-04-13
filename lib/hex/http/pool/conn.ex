@@ -71,7 +71,7 @@ defmodule Hex.HTTP.Pool.Conn do
   def handle_cast({:request, from, method, path, headers, body}, %{ready: true} = state) do
     case MintHTTP.request(state.conn, method, path, headers, body) do
       {:ok, conn, ref} ->
-        req = %{from: from, status: nil, headers: [], data: []}
+        req = %{from: from, status: nil, headers: [], data: [], sink: nil}
         state = %{state | conn: conn, requests: Map.put(state.requests, ref, req)}
         {:noreply, state}
 
@@ -82,6 +82,44 @@ defmodule Hex.HTTP.Pool.Conn do
 
   def handle_cast({:request, from, _method, _path, _headers, _body}, state) do
     # Host shouldn't dispatch to a non-ready conn; reply defensively.
+    GenServer.reply(from, {:error, :disconnected})
+    GenServer.cast(state.host_pid, {:req_done, self()})
+    {:noreply, state}
+  end
+
+  def handle_cast(
+        {:request_to_file, from, method, path, headers, body, filename},
+        %{ready: true} = state
+      ) do
+    case File.open(filename, [:write, :raw, :binary]) do
+      {:ok, fd} ->
+        case MintHTTP.request(state.conn, method, path, headers, body) do
+          {:ok, conn, ref} ->
+            req = %{
+              from: from,
+              status: nil,
+              headers: [],
+              data: [],
+              sink: %{fd: fd, filename: filename}
+            }
+
+            state = %{state | conn: conn, requests: Map.put(state.requests, ref, req)}
+            {:noreply, state}
+
+          {:error, conn, reason} ->
+            _ = File.close(fd)
+            _ = File.rm(filename)
+            request_error(from, reason, %{state | conn: conn})
+        end
+
+      {:error, reason} ->
+        GenServer.reply(from, {:error, reason})
+        GenServer.cast(state.host_pid, {:req_done, self()})
+        {:noreply, state}
+    end
+  end
+
+  def handle_cast({:request_to_file, from, _method, _path, _headers, _body, _filename}, state) do
     GenServer.reply(from, {:error, :disconnected})
     GenServer.cast(state.host_pid, {:req_done, self()})
     {:noreply, state}
@@ -225,8 +263,19 @@ defmodule Hex.HTTP.Pool.Conn do
     # A new status line starts a new response. Reset accumulated headers/data
     # so that 1xx informational responses (100 Continue, 103 Early Hints) don't
     # bleed headers into the final response that follows on the same ref.
-    update_in(state.requests[ref], fn req ->
-      req && %{req | status: status, headers: [], data: []}
+    # When streaming to a file, rewind the sink so any partial writes from a
+    # prior response on this ref are discarded.
+    update_in(state.requests[ref], fn
+      nil ->
+        nil
+
+      %{sink: %{fd: fd}} = req ->
+        _ = :file.position(fd, 0)
+        _ = :file.truncate(fd)
+        %{req | status: status, headers: [], data: []}
+
+      req ->
+        %{req | status: status, headers: [], data: []}
     end)
   end
 
@@ -237,13 +286,31 @@ defmodule Hex.HTTP.Pool.Conn do
   end
 
   defp process_response({:data, ref, chunk}, state) do
-    update_in(state.requests[ref], fn req -> req && %{req | data: [req.data | chunk]} end)
+    case state.requests[ref] do
+      %{sink: %{fd: fd}} ->
+        case :file.write(fd, chunk) do
+          :ok -> state
+          {:error, reason} -> abort_request(state, ref, reason)
+        end
+
+      %{} = _req ->
+        update_in(state.requests[ref], fn req -> %{req | data: [req.data | chunk]} end)
+
+      nil ->
+        state
+    end
   end
 
   defp process_response({:done, ref}, state) do
     case Map.pop(state.requests, ref) do
       {nil, _} ->
         state
+
+      {%{sink: %{fd: fd}} = req, requests} ->
+        _ = File.close(fd)
+        GenServer.reply(req.from, {:ok, req.status, req.headers, nil})
+        GenServer.cast(state.host_pid, {:req_done, self()})
+        %{state | requests: requests}
 
       {req, requests} ->
         body = IO.iodata_to_binary(req.data)
@@ -259,6 +326,7 @@ defmodule Hex.HTTP.Pool.Conn do
         state
 
       {req, requests} ->
+        close_sink(req)
         GenServer.reply(req.from, {:error, reason})
         GenServer.cast(state.host_pid, {:req_done, self()})
         %{state | requests: requests}
@@ -267,8 +335,30 @@ defmodule Hex.HTTP.Pool.Conn do
 
   defp process_response(_other, state), do: state
 
+  defp abort_request(state, ref, reason) do
+    case Map.pop(state.requests, ref) do
+      {nil, _} ->
+        state
+
+      {req, requests} ->
+        close_sink(req)
+        GenServer.reply(req.from, {:error, reason})
+        GenServer.cast(state.host_pid, {:req_done, self()})
+        %{state | requests: requests}
+    end
+  end
+
+  defp close_sink(%{sink: %{fd: fd, filename: filename}}) do
+    _ = File.close(fd)
+    _ = File.rm(filename)
+    :ok
+  end
+
+  defp close_sink(_), do: :ok
+
   defp fail_in_flight(state, reason) do
     Enum.each(state.requests, fn {_ref, req} ->
+      close_sink(req)
       GenServer.reply(req.from, {:error, reason})
       GenServer.cast(state.host_pid, {:req_done, self()})
     end)
