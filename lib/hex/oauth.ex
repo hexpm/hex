@@ -4,6 +4,7 @@ defmodule Hex.OAuth do
   alias Hex.API.OAuth
 
   @refresh_cache __MODULE__.RefreshCache
+  @refresh_timeout 60_000
 
   def start_link(_args) do
     Hex.OnceCache.start_link(name: @refresh_cache)
@@ -41,11 +42,10 @@ defmodule Hex.OAuth do
           {:ok, token_data["access_token"]}
         else
           # Token expired, use OnceCache to ensure only one refresh/auth happens
-          # Use infinity timeout because authentication may require user interaction
           Hex.OnceCache.fetch(
             @refresh_cache,
             fn -> do_refresh_or_authenticate(token_data, opts) end,
-            timeout: :infinity
+            timeout: @refresh_timeout
           )
         end
     end

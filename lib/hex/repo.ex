@@ -2,6 +2,7 @@ defmodule Hex.Repo do
   @moduledoc false
 
   @exchange_cache __MODULE__.ExchangeCache
+  @exchange_timeout 60_000
   @hexpm_url "https://repo.hex.pm"
   @hexpm_public_key """
   -----BEGIN PUBLIC KEY-----
@@ -363,7 +364,8 @@ defmodule Hex.Repo do
         Hex.OnceCache.fetch_key(
           @exchange_cache,
           {repo_name, repo_config.auth_key},
-          fn -> do_exchange_api_key(repo_config, repo_name) end
+          fn -> do_exchange_api_key(repo_config, repo_name) end,
+          timeout: @exchange_timeout
         )
     end
   end
