@@ -668,6 +668,28 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end)
   end
 
+  test "outdated shows diff commands for outdated packages" do
+    Mix.Project.push(OutdatedDeps.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+      lines = flush()
+      output = Enum.map_join(lines, "\n", fn {_, _, [line]} -> line end)
+
+      assert output =~ "To view the diff of a specific update, run:"
+      assert output =~ "mix hex.package diff ex_doc 0.0.1..0.1.0"
+      assert output =~ "mix hex.package diff foo 0.1.0..0.1.1"
+      refute output =~ "mix hex.package diff bar"
+    end)
+  end
+
   defp extract_statuses(lines) do
     Enum.flat_map(lines, fn {_, _, [line]} ->
       ~r/Up-to-date|Update not possible|Update possible/
