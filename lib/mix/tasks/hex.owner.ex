@@ -105,10 +105,9 @@ defmodule Mix.Tasks.Hex.Owner do
   end
 
   defp add_owner(organization, package, owner, level) when level in ~w[full maintainer] do
-    auth = Mix.Tasks.Hex.auth_info(:write)
     Hex.Shell.info("Adding owner #{owner} with ownership level #{level} to #{package}")
 
-    case Hex.API.Package.Owner.add(organization, package, owner, level, false, auth) do
+    case Hex.API.Package.Owner.add(organization, package, owner, level, false) do
       {:ok, {code, _headers, _body}} when code in 200..299 ->
         :ok
 
@@ -123,10 +122,9 @@ defmodule Mix.Tasks.Hex.Owner do
   end
 
   defp transfer_owner(organization, package, owner) do
-    auth = Mix.Tasks.Hex.auth_info(:write)
     Hex.Shell.info("Transferring ownership to #{owner} for #{package}")
 
-    case Hex.API.Package.Owner.add(organization, package, owner, "full", true, auth) do
+    case Hex.API.Package.Owner.add(organization, package, owner, "full", true) do
       {:ok, {code, _headers, _body}} when code in 200..299 ->
         :ok
 
@@ -137,10 +135,9 @@ defmodule Mix.Tasks.Hex.Owner do
   end
 
   defp remove_owner(organization, package, owner) do
-    auth = Mix.Tasks.Hex.auth_info(:write)
     Hex.Shell.info("Removing owner #{owner} from #{package}")
 
-    case Hex.API.Package.Owner.delete(organization, package, owner, auth) do
+    case Hex.API.Package.Owner.delete(organization, package, owner) do
       {:ok, {code, _headers, _body}} when code in 200..299 ->
         :ok
 
@@ -151,9 +148,7 @@ defmodule Mix.Tasks.Hex.Owner do
   end
 
   defp list_owners(organization, package) do
-    auth = Mix.Tasks.Hex.auth_info(:read)
-
-    case Hex.API.Package.Owner.get(organization, package, auth) do
+    case Hex.API.Package.Owner.get(organization, package) do
       {:ok, {code, _headers, body}} when code in 200..299 ->
         header = ["Email", "Level"]
         owners = Enum.map(body, &[&1["email"], &1["level"]])
@@ -166,9 +161,7 @@ defmodule Mix.Tasks.Hex.Owner do
   end
 
   defp list_owned_packages() do
-    auth = Mix.Tasks.Hex.auth_info(:read)
-
-    case Hex.API.User.me(auth) do
+    case Hex.API.User.me() do
       {:ok, {code, _headers, body}} when code in 200..299 ->
         Enum.each(body["packages"], fn package ->
           name = package_name(package["repository"], package["name"])

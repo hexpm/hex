@@ -1,91 +1,16 @@
 defmodule Hex.OAuth do
   @moduledoc false
 
-  alias Hex.API.OAuth
-
-  @refresh_cache __MODULE__.RefreshCache
-  @refresh_timeout 60_000
-
-  def start_link(_args) do
-    Hex.OnceCache.start_link(name: @refresh_cache)
-  end
-
-  def child_spec(arg) do
-    %{
-      id: __MODULE__,
-      start: {__MODULE__, :start_link, [arg]}
-    }
-  end
-
   @doc """
-  Retrieves a valid access token.
+  Gets the current access token from state.
 
-  Automatically refreshes the token if it's expired.
-  Returns {:error, :no_auth} if no tokens are available.
-
-  Since we now use 2FA for write operations, we use a single token for both read and write.
-
-  Uses Hex.OnceCache to ensure only one refresh happens per CLI invocation when multiple
-  concurrent requests detect an expired token.
-
-  Options:
-    * :prompt_auth - if true, prompts for authentication when refresh fails (default: false)
+  Returns `{:ok, token}` if a valid token exists, or `{:error, reason}` otherwise.
   """
-  def get_token(opts \\ []) do
-    # First, check if we have a valid token (read-only, fast path)
-    case get_stored_token() do
-      nil ->
-        {:error, :no_auth}
-
-      token_data ->
-        if valid_token?(token_data) do
-          {:ok, token_data["access_token"]}
-        else
-          # Token expired, use OnceCache to ensure only one refresh/auth happens
-          Hex.OnceCache.fetch(
-            @refresh_cache,
-            fn -> do_refresh_or_authenticate(token_data, opts) end,
-            timeout: @refresh_timeout
-          )
-        end
-    end
-  end
-
-  defp do_refresh_or_authenticate(token_data, opts) do
-    case do_refresh_token(token_data) do
-      {:ok, new_token_data} ->
-        store_token(new_token_data)
-        {:ok, new_token_data["access_token"]}
-
-      {:error, :refresh_failed} ->
-        if Keyword.get(opts, :prompt_auth, false) do
-          reauthenticate("Token refresh failed. Re-authenticating...")
-        else
-          {:error, :refresh_failed}
-        end
-
-      {:error, :no_refresh_token} ->
-        if Keyword.get(opts, :prompt_auth, false) do
-          reauthenticate("Access token expired and could not be refreshed. Re-authenticating...")
-        else
-          {:error, :no_refresh_token}
-        end
-    end
-  end
-
-  defp reauthenticate(message) do
-    Hex.Shell.info(message)
-
-    if Hex.Shell.yes?("Do you want to authenticate now?") do
-      case Mix.Tasks.Hex.auth() do
-        {:ok, token_data} ->
-          {:ok, token_data["access_token"]}
-
-        :error ->
-          {:error, :auth_failed}
-      end
-    else
-      {:error, :auth_declined}
+  def get_token do
+    case Hex.State.get(:oauth_token) do
+      nil -> {:error, :no_token}
+      %{"access_token" => token} -> {:ok, token}
+      _ -> {:error, :invalid_token}
     end
   end
 
@@ -107,43 +32,18 @@ defmodule Hex.OAuth do
   end
 
   @doc """
-  Clears all stored OAuth tokens and the refresh cache.
+  Clears all stored OAuth tokens.
   """
   def clear_tokens do
     Hex.Config.remove([:"$oauth_token"])
     Hex.State.put(:oauth_token, nil)
-    Hex.OnceCache.clear(@refresh_cache)
   end
 
   @doc """
   Checks if we have any OAuth tokens stored.
   """
   def has_tokens? do
-    get_stored_token() != nil
-  end
-
-  @doc """
-  Refreshes the stored OAuth token.
-
-  This is primarily for manual refresh operations. Most code should use get_token/0
-  which automatically refreshes when needed.
-  """
-  def refresh_token do
-    case get_stored_token() do
-      nil ->
-        {:error, :no_auth}
-
-      token_data ->
-        case do_refresh_token(token_data) do
-          {:ok, new_token_data} ->
-            # Update the token in state
-            store_token(new_token_data)
-            {:ok, new_token_data["access_token"]}
-
-          error ->
-            error
-        end
-    end
+    Hex.State.get(:oauth_token) != nil
   end
 
   @doc """
@@ -155,47 +55,5 @@ defmodule Hex.OAuth do
     oauth_response
     |> Map.put("expires_at", expires_at)
     |> Map.take(["access_token", "refresh_token", "expires_at"])
-  end
-
-  defp get_stored_token do
-    Hex.State.get(:oauth_token)
-  end
-
-  defp valid_token?(token_data) do
-    case token_data do
-      %{"access_token" => token, "expires_at" => expires_at} when is_binary(token) ->
-        current_time = System.system_time(:second)
-        # Consider token expired if it expires within the next 5 minutes
-        expires_at > current_time + 300
-
-      _ ->
-        false
-    end
-  end
-
-  defp do_refresh_token(token_data) do
-    if token_data["refresh_token"] do
-      case OAuth.refresh_token(token_data["refresh_token"]) do
-        {:ok, {200, _, new_token_data}} ->
-          # Update the token data with new values
-          expires_at = System.system_time(:second) + new_token_data["expires_in"]
-
-          new_token_data =
-            new_token_data
-            |> Map.put("expires_at", expires_at)
-            |> Map.take(["access_token", "refresh_token", "expires_at"])
-
-          {:ok, new_token_data}
-
-        {:ok, {status, _, _error}} when status >= 400 ->
-          {:error, :refresh_failed}
-
-        {:error, _reason} ->
-          {:error, :refresh_failed}
-      end
-    else
-      # No refresh token available, return error
-      {:error, :no_refresh_token}
-    end
   end
 end

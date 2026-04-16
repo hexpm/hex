@@ -106,9 +106,8 @@ defmodule Mix.Tasks.Hex.Search do
 
   defp package_search(package, organization) do
     Hex.start()
-    auth = Mix.Tasks.Hex.auth_info(:read, auth_inline: false)
 
-    Hex.API.Package.search(organization, package, auth)
+    Hex.API.Package.search(organization, package)
     |> lookup_packages()
   end
 
