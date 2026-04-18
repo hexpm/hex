@@ -789,6 +789,6 @@ defmodule Hex.RemoteConverger do
   end
 
   defp repo_uses_user_oauth?(repo_config) do
-    !(repo_config.auth_key && Map.get(repo_config, :trusted, true))
+    Map.get(repo_config, :trusted, true) && !repo_config.auth_key
   end
 end

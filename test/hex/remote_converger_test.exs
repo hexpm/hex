@@ -168,6 +168,17 @@ defmodule Hex.RemoteConvergerTest do
     end)
   end
 
+  test "auth preflight is skipped for untrusted org repos" do
+    in_tmp(fn ->
+      set_home_cwd()
+      Hex.State.put(:mirror_url, "http://example.com")
+
+      assert Hex.RemoteConverger.auth_preflight_required?([
+               {"hexpm:remote_converger_org", "private_prompt_pkg"}
+             ]) == false
+    end)
+  end
+
   test "deps.get does not prompt when repo auth is already available" do
     in_tmp(fn ->
       set_home_cwd()
