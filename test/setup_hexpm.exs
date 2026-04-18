@@ -89,6 +89,9 @@ Hexpm.new_repo("testorg", auth)
 Hexpm.new_package("testorg", "foo", "0.1.0", [], pkg_meta, auth)
 Hexpm.new_package("testorg", "bar", "0.1.0", [foo: "~> 0.1.0"], pkg_meta, auth)
 
+Hexpm.new_repo("remote_converger_org", auth)
+Hexpm.new_package("remote_converger_org", "private_prompt_pkg", "0.1.0", [], pkg_meta, auth)
+
 Hexpm.new_package("hexpm", "ecto_sql", "3.3.2", [ecto: "~> 3.3.1"], pkg_meta, auth, [
   {"mix.exs", File.read!(Case.fixture_path("ecto_sql_3_3_2/mix.exs"))}
 ])
