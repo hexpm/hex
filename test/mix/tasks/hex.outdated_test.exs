@@ -668,7 +668,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end)
   end
 
-  test "outdated shows diff commands for outdated packages" do
+  test "outdated shows a generic diff command hint when updates are available" do
     Mix.Project.push(OutdatedDeps.MixProject)
 
     in_tmp(fn ->
@@ -683,10 +683,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       lines = flush()
       output = Enum.map_join(lines, "\n", fn {_, _, [line]} -> line end)
 
-      assert output =~ "To view the diff of a specific update, run:"
-      assert output =~ "mix hex.package diff ex_doc 0.0.1..0.1.0"
-      assert output =~ "mix hex.package diff foo 0.1.0..0.1.1"
-      refute output =~ "mix hex.package diff bar"
+      assert output =~
+               "To view the diff of a specific update, run `mix hex.package diff APP FROM..TO`."
     end)
   end
 
