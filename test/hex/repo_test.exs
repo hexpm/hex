@@ -117,6 +117,61 @@ defmodule Hex.RepoTest do
     assert Map.get(repos_after["hexpm"], :oauth_token) == nil
   end
 
+  test "non-hexpm repo with oauth_exchange: false uses API key directly and does not exchange" do
+    bypass = Bypass.open()
+
+    Bypass.expect(bypass, fn %Plug.Conn{request_path: path} = conn ->
+      case path do
+        "/public_key" ->
+          assert Plug.Conn.get_req_header(conn, "authorization") == ["rawkey"]
+          Plug.Conn.resp(conn, 200, "fake_public_key_body")
+
+        "/oauth/token" ->
+          flunk("OAuth exchange must not be attempted when oauth_exchange is false")
+      end
+    end)
+
+    myrepo_config = %{
+      url: "http://localhost:#{bypass.port}",
+      public_key: nil,
+      auth_key: "rawkey",
+      trusted: true,
+      oauth_exchange: false,
+      oauth_exchange_url: "http://localhost:#{bypass.port}"
+    }
+
+    assert {:ok, {200, _, "fake_public_key_body"}} = Hex.Repo.get_public_key(myrepo_config)
+  end
+
+  test "non-hexpm repo with oauth_exchange not true does not attempt API key exchange" do
+    bypass = Bypass.open()
+    test_pid = self()
+
+    Bypass.expect(bypass, fn %Plug.Conn{request_path: path} = conn ->
+      case path do
+        "/public_key" ->
+          Plug.Conn.resp(conn, 200, "fake_public_key_body")
+
+        "/oauth/token" ->
+          send(test_pid, :exchange_attempted)
+          Plug.Conn.resp(conn, 500, "")
+      end
+    end)
+
+    myrepo_config = %{
+      url: "http://localhost:#{bypass.port}",
+      public_key: nil,
+      auth_key: "rawkey",
+      trusted: true,
+      oauth_exchange: nil,
+      oauth_exchange_url: "http://localhost:#{bypass.port}"
+    }
+
+    assert {:ok, {200, _, _}} = Hex.Repo.get_public_key(myrepo_config)
+
+    refute_received :exchange_attempted
+  end
+
   test "fetch_repo/1" do
     assert Hex.Repo.fetch_repo("foo") == :error
 

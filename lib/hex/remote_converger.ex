@@ -758,11 +758,13 @@ defmodule Hex.RemoteConverger do
           )
 
         {:error, :no_auth} ->
-          # No OAuth token - this is OK, user might only be fetching public packages
+          # No stored OAuth token to preflight; continue unauthenticated
+          # and let the repo fetch fail normally if authentication is required.
           :ok
 
         {:error, _other} ->
-          # Other errors (shouldn't happen with prompt_auth: true, but handle gracefully)
+          # Do not fail dependency resolution during OAuth preflight; continue
+          # unauthenticated and let the repo fetch surface any auth error.
           :ok
       end
     else
