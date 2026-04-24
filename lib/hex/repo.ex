@@ -331,8 +331,10 @@ defmodule Hex.Repo do
               raise "Failed to exchange API key for OAuth token: #{inspect(reason)}"
           end
 
-        # Third priority: fallback to OAuth token if available (from device flow or other sources)
-        true ->
+        # Third priority: fallback to OAuth token if available, but only for
+        # trusted repos. Untrusted mirrors/custom repos must not receive the
+        # user bearer token.
+        Map.get(repo_config, :trusted, true) ->
           case Hex.OAuth.get_token() do
             {:ok, access_token} ->
               # Format as Bearer token for OAuth authentication
@@ -343,6 +345,9 @@ defmodule Hex.Repo do
               # Server will return 401/403 if authentication is required
               config
           end
+
+        true ->
+          config
       end
 
     if etag do

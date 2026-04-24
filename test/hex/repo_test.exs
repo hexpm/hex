@@ -56,6 +56,30 @@ defmodule Hex.RepoTest do
     assert {:ok, {404, _, "not found"}} = Hex.Repo.get_public_key(config)
   end
 
+  test "does not send OAuth token fallback to untrusted hexpm mirror" do
+    bypass = Bypass.open()
+    hexpm = Hex.Repo.default_hexpm_repo()
+
+    Hex.OAuth.store_token(%{
+      "access_token" => "device_flow_token",
+      "refresh_token" => "device_refresh",
+      "expires_at" => System.system_time(:second) + 3600
+    })
+
+    Hex.State.put(:mirror_url, "http://localhost:#{bypass.port}")
+
+    Bypass.expect(bypass, fn %Plug.Conn{request_path: "/public_key"} = conn ->
+      assert Plug.Conn.get_req_header(conn, "authorization") == []
+      Plug.Conn.resp(conn, 200, hexpm.public_key)
+    end)
+
+    repo = Hex.Repo.get_repo("hexpm")
+    assert repo.trusted == false
+
+    assert {:ok, {200, _, public_key}} = Hex.Repo.get_public_key(repo)
+    assert public_key == hexpm.public_key
+  end
+
   test "add repo persists oauth_exchange through config round-trip" do
     in_tmp(fn ->
       Hex.State.put(:config_home, File.cwd!())

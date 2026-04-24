@@ -31,11 +31,6 @@ defmodule Hex.RemoteConverger do
 
     Registry.open()
 
-    # Check and refresh OAuth token before fetching packages
-    # This ensures we only prompt once for authentication instead of
-    # getting multiple prompts during concurrent package fetches
-    check_and_refresh_auth()
-
     # We cannot use given lock here, because all deps that are being
     # converged have been removed from the lock by Mix
     # We need the old lock to get the children of Hex packages
@@ -44,14 +39,20 @@ defmodule Hex.RemoteConverger do
     overridden = Hex.Mix.overridden_deps(deps)
     requests = Hex.Mix.deps_to_requests(deps)
 
-    [
-      Hex.Mix.packages_from_lock(lock),
-      Hex.Mix.packages_from_lock(old_lock),
-      packages_from_requests(requests)
-    ]
-    |> Enum.concat()
-    |> verify_prefetches()
-    |> Registry.prefetch()
+    prefetches =
+      [
+        Hex.Mix.packages_from_lock(lock),
+        Hex.Mix.packages_from_lock(old_lock),
+        packages_from_requests(requests)
+      ]
+      |> Enum.concat()
+      |> verify_prefetches()
+
+    # Only preflight user OAuth when one of the relevant repos would
+    # actually rely on the stored OAuth token. Public-only deps.get
+    # should not prompt just because an unrelated token expired.
+    check_and_refresh_auth(prefetches)
+    Registry.prefetch(prefetches)
 
     locked = prepare_locked(lock, old_lock, deps)
 
@@ -734,34 +735,60 @@ defmodule Hex.RemoteConverger do
     version1.major == 0 and version2.major == 0 and version1.minor != version2.minor
   end
 
-  defp check_and_refresh_auth do
-    # Try to get token with authentication prompting enabled
-    # The OnceCache ensures only one process prompts even if multiple processes
-    # detect the expired token concurrently
-    case Hex.OAuth.get_token(prompt_auth: true) do
-      {:ok, _access_token} ->
-        # Token is valid, was successfully refreshed, or user authenticated
-        :ok
+  defp check_and_refresh_auth(prefetches) do
+    if auth_preflight_required?(prefetches) do
+      # Try to get token with authentication prompting enabled
+      # The OnceCache ensures only one process prompts even if multiple processes
+      # detect the expired token concurrently
+      case Hex.OAuth.get_token(prompt_auth: true) do
+        {:ok, _access_token} ->
+          # Token is valid, was successfully refreshed, or user authenticated
+          :ok
 
-      {:error, :auth_failed} ->
-        Hex.Shell.warn(
-          "Authentication failed. Private packages will not be available. " <>
-            "Run `mix hex.user auth` to authenticate."
-        )
+        {:error, :auth_failed} ->
+          Hex.Shell.warn(
+            "Authentication failed. Private packages will not be available. " <>
+              "Run `mix hex.user auth` to authenticate."
+          )
 
-      {:error, :auth_declined} ->
-        Hex.Shell.warn(
-          "Private packages will not be available. " <>
-            "Run `mix hex.user auth` to authenticate."
-        )
+        {:error, :auth_declined} ->
+          Hex.Shell.warn(
+            "Private packages will not be available. " <>
+              "Run `mix hex.user auth` to authenticate."
+          )
 
-      {:error, :no_auth} ->
-        # No OAuth token - this is OK, user might only be fetching public packages
-        :ok
+        {:error, :no_auth} ->
+          # No OAuth token - this is OK, user might only be fetching public packages
+          :ok
 
-      {:error, _other} ->
-        # Other errors (shouldn't happen with prompt_auth: true, but handle gracefully)
-        :ok
+        {:error, _other} ->
+          # Other errors (shouldn't happen with prompt_auth: true, but handle gracefully)
+          :ok
+      end
+    else
+      :ok
     end
+  end
+
+  @doc false
+  def auth_preflight_required?(prefetches) do
+    prefetches
+    |> Enum.map(fn {repo, _package} -> repo end)
+    |> Enum.uniq()
+    |> Enum.any?(&repo_requires_user_oauth?/1)
+  end
+
+  defp repo_requires_user_oauth?("hexpm:" <> _ = repo) do
+    repo
+    |> Hex.Repo.get_repo()
+    |> repo_uses_user_oauth?()
+  end
+
+  defp repo_requires_user_oauth?(_repo) do
+    false
+  end
+
+  defp repo_uses_user_oauth?(repo_config) do
+    Map.get(repo_config, :trusted, true) && !repo_config.auth_key
   end
 end
