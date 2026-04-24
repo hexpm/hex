@@ -46,12 +46,6 @@ defmodule Hex.RepoTest do
     assert {:ok, {200, _, public_key}} = Hex.Repo.get_public_key(config)
     assert public_key == hexpm.public_key
 
-    Hex.OAuth.store_token(%{
-      "access_token" => "device_flow_token",
-      "refresh_token" => "device_refresh",
-      "expires_at" => System.system_time(:second) + 3600
-    })
-
     config = %{
       url: "http://localhost:#{bypass.port}/not_found",
       auth_key: "key",
