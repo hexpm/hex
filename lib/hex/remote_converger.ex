@@ -569,10 +569,8 @@ defmodule Hex.RemoteConverger do
 
   defp verify_resolved(resolved, lock) do
     Enum.each(resolved, fn {repo, name, app, version} ->
-      atom_name = String.to_atom(name)
-
       case Hex.Utils.lock(lock[String.to_atom(app)]) do
-        %{name: ^atom_name, version: ^version, repo: ^repo} = lock ->
+        %{name: ^name, version: ^version, repo: ^repo} = lock ->
           verify_inner_checksum(repo, name, version, lock.inner_checksum)
           verify_outer_checksum(repo, name, version, lock.outer_checksum)
           verify_deps(repo, name, version, lock.deps)
@@ -599,14 +597,16 @@ defmodule Hex.RemoteConverger do
     end
   end
 
+  defp verify_deps(repo, name, version, deps)
   defp verify_deps(nil, _name, _version, _deps), do: :ok
+  defp verify_deps(_repo, _name, _version, nil), do: []
 
   defp verify_deps(repo, name, version, deps) do
     # TODO: Use requests?
     deps =
       Enum.map(deps, fn {app, req, opts} ->
         %{
-          repo: opts[:repo],
+          repo: if(opts[:repo] != "hexpm", do: opts[:repo]),
           name: opts[:hex],
           constraint: Hex.Solver.parse_constraint!(req),
           optional: !!opts[:optional],

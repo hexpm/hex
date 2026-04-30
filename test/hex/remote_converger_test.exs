@@ -198,4 +198,54 @@ defmodule Hex.RemoteConvergerTest do
       refute_received {:mix_shell, :yes?, _}
     end)
   end
+
+  defmodule ChecksumIntegrity.MixProject do
+    def project do
+      [
+        app: :checksum_integrity,
+        version: "0.1.0",
+        deps: [
+          {:ex_doc, "~> 0.1.0"}
+        ]
+      ]
+    end
+  end
+
+  test "raises on checksum mismatch in mix.lock" do
+    in_tmp(fn ->
+      Mix.Project.push(ChecksumIntegrity.MixProject)
+
+      # First, get dependencies normally to create a valid lock file
+      :ok = Mix.Tasks.Deps.Get.run([])
+
+      # Read the lock file
+      lock = Mix.Dep.Lock.read()
+      {:hex, name, version, inner_checksum, managers, deps, repo, outer_checksum} = lock[:ex_doc]
+
+      assert_checksum_mismatch(%{
+        ex_doc:
+          {:hex, name, version, invalid_checksum(inner_checksum), managers, deps, repo,
+           outer_checksum}
+      })
+
+      assert_checksum_mismatch(%{
+        ex_doc:
+          {:hex, name, version, inner_checksum, managers, deps, repo,
+           invalid_checksum(outer_checksum)}
+      })
+    end)
+  end
+
+  defp assert_checksum_mismatch(lock) do
+    File.write!("mix.lock", inspect(lock, limit: :infinity, pretty: true))
+    Mix.Task.clear()
+
+    # The bug causes this to silently pass and rewrite the lock file with correct checksums
+    assert_raise Mix.Error, ~r/Registry checksum mismatch against lock/, fn ->
+      Mix.Tasks.Deps.Get.run([])
+    end
+  end
+
+  defp invalid_checksum("0" <> rest), do: "1" <> rest
+  defp invalid_checksum(<<_::binary-size(1), rest::binary>>), do: "0" <> rest
 end
