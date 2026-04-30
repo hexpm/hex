@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## v2.4.3-dev
+
 ## v2.4.2 (2026-04-30)
 
 ### Enhancements
