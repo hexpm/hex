@@ -20,7 +20,13 @@ This document simply outlines the release process:
 
 9. Run the `scripts/release_hex.sh` script and set the path to the private key for Elixir `ELIXIR_PEM=path/to/elixir.pem ./scripts/release_hex.sh VERSION` where `VERSION` is the Hex version being released without a `v` prefix
 
-10. Purge "installs" key on Fastly dashboard
+10. Purge the `installs` surrogate key on the "Hex Builds Compute prod" Fastly service:
+
+    ```
+    fastly purge --service-id GbeDoh1ZO7MEM3zut4K2fR --key installs
+    sleep 5
+    fastly purge --service-id GbeDoh1ZO7MEM3zut4K2fR --key installs
+    ```
 
 11. Increment version and add `-dev` extension to versions (see below for all files)
 
