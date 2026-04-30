@@ -1,6 +1,26 @@
 # CHANGELOG
 
-## v2.4.2-dev
+## v2.4.2 (2026-04-30)
+
+### Enhancements
+
+* Add download stats and release dates to `mix hex.info`
+* Show `mix hex.package diff` commands in `mix hex.outdated` output
+* Update docs published message to indicate docs may not be immediately available
+
+### Bug fixes
+
+* Clean up paths in `mix hex.package diff` output
+* Fix organization auth to create user key instead of organization key
+* Fix registry cache purging
+* Fix `mix deps.get` timing out when fetching private packages in parallel
+* Skip auth prompts in `mix deps.get` when only public packages are needed
+* Restrict user OAuth fallback to trusted repositories
+* Only exchange API keys for OAuth tokens on repositories that opted in
+
+### Security fixes
+
+* Raise on `mix.lock` checksum mismatches instead of silently rewriting them (CVE-2026-32148)
 
 ## v2.4.1 (2026-03-24)
 
