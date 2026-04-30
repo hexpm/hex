@@ -3,8 +3,7 @@
 # Usage:
 #
 #     $ ELIXIR_PEM=/path/to/elixir.pem \
-#       HEX_FASTLY_KEY=... \
-#       HEX_FASTLY_BUILDS_SERVICE_ID=... \
+#       FASTLY_API_TOKEN=... \
 #         release_hex.sh HEX_VERSION
 #
 # Pass --dry-run to build archives without uploading:
@@ -86,9 +85,9 @@ function main {
       s3up "${path}" "${path}"
     done
 
-    purge_key "${HEX_FASTLY_BUILDS_SERVICE_ID}" "installs"
+    fastly service purge --service-id GbeDoh1ZO7MEM3zut4K2fR --key installs
     sleep 5
-    purge_key "${HEX_FASTLY_BUILDS_SERVICE_ID}" "installs"
+    fastly service purge --service-id GbeDoh1ZO7MEM3zut4K2fR --key installs
   else
     echo "ELIXIR_PEM is empty, skipping"
     exit 1
@@ -160,18 +159,6 @@ function s3up {
 # $2 = target
 function s3down {
   aws s3 cp "s3://s3.hex.pm/installs/${1}" "${2}"
-}
-
-# $1 = service
-# $2 = key
-function purge_key() {
-  curl \
-    --fail \
-    -X POST \
-    -H "Fastly-Key: ${HEX_FASTLY_KEY}" \
-    -H "Accept: application/json" \
-    -H "Content-Length: 0" \
-    "https://api.fastly.com/service/$1/purge/$2"
 }
 
 main $*
