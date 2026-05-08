@@ -480,8 +480,11 @@ defmodule Hex.RemoteConverger do
 
   defp print_dependency_group(deps, mod) do
     Enum.each(deps, fn {name, repo, previous_version, version, warning} ->
+      advisories = Registry.advisories(repo, name, version) || []
+
       print_status(
         Registry.retired(repo, name, version),
+        advisories,
         mod,
         name,
         previous_version,
@@ -491,7 +494,7 @@ defmodule Hex.RemoteConverger do
     end)
   end
 
-  defp print_status(nil, mod, name, previous_version, version, warning) do
+  defp print_status(nil, advisories, mod, name, previous_version, version, warning) do
     case mod do
       :new ->
         Hex.Shell.info(Hex.Shell.format([:green, "  #{name} #{version}", :red, "#{warning}"]))
@@ -519,18 +522,36 @@ defmodule Hex.RemoteConverger do
           ])
         )
     end
+
+    Enum.each(advisories, fn advisory ->
+      version_string = version_string(mod, name, previous_version, version)
+
+      Hex.Shell.info(
+        Hex.Shell.format([:yellow, "#{version_string} has a security advisory!", :reset])
+      )
+
+      Hex.Shell.info(Hex.Shell.format(["    " | Hex.Utils.format_advisory_ansi(advisory)]))
+    end)
   end
 
-  defp print_status(retired, mod, name, previous_version, version, _warning) do
-    case mod do
-      mod when mod in [:eq, :new] ->
-        Hex.Shell.warn("  #{name} #{version} RETIRED!")
-        Hex.Shell.warn("    #{Hex.Utils.package_retirement_message(retired)}")
+  defp print_status(retired, advisories, mod, name, previous_version, version, _warning) do
+    version_string = version_string(mod, name, previous_version, version)
 
-      _ ->
-        Hex.Shell.warn("  #{name} #{previous_version} => #{version} RETIRED!")
-        Hex.Shell.warn("    #{Hex.Utils.package_retirement_message(retired)}")
-    end
+    Hex.Shell.warn("#{version_string} RETIRED!")
+    Hex.Shell.warn("    #{Hex.Utils.package_retirement_message(retired)}")
+
+    Enum.each(advisories, fn advisory ->
+      Hex.Shell.warn("#{version_string} has a security advisory!")
+      Hex.Shell.warn("    #{Hex.Utils.format_advisory(advisory)}")
+    end)
+  end
+
+  defp version_string(mod, name, _previous_version, version) when mod in [:eq, :new] do
+    "  #{name} #{version}"
+  end
+
+  defp version_string(_mod, name, previous_version, version) do
+    "  #{name} #{previous_version} => #{version}"
   end
 
   defp verify_prefetches(prefetches) do
