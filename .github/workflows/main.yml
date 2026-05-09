@@ -54,22 +54,10 @@ jobs:
             elixir: 1.13.4
           - erlang: 24.3
             elixir: 1.12.3
-          - erlang: 23.3
-            elixir: 1.11.3
-          - erlang: 23.3
-            elixir: 1.10.4
-          - erlang: 22.3
-            elixir: 1.9.4
-          - erlang: 21.3
-            elixir: 1.8.1
-          - erlang: 21.3
-            elixir: 1.7.2
-          - erlang: 21.3
-            elixir: 1.6.6
 
     env:
-      HEXPM_OTP: OTP-26.2
-      HEXPM_ELIXIR: v1.16.1
+      HEXPM_OTP: OTP-27.3
+      HEXPM_ELIXIR: v1.18.3
       HEXPM_PATH: hexpm
       HEXPM_ELIXIR_PATH: hexpm_elixir
       HEXPM_OTP_PATH: hexpm_otp
