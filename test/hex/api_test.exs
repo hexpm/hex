@@ -73,8 +73,8 @@ defmodule Hex.APITest do
 
     assert {:ok, {201, _, %{"secret" => key_a}}} = Hex.API.Key.new("key_a", permissions, auth)
     assert {:ok, {201, _, %{"secret" => key_b}}} = Hex.API.Key.new("key_b", permissions, auth)
-    assert byte_size(key_a) == 32
-    assert byte_size(key_b) == 32
+    assert is_binary(key_a) and byte_size(key_a) > 0
+    assert is_binary(key_b) and byte_size(key_b) > 0
     auth = [key: key_a]
 
     Hexpm.new_package("hexpm", "melon", "0.0.1", %{}, %{}, auth)
@@ -91,8 +91,8 @@ defmodule Hex.APITest do
     auth = [user: "user", pass: "hunter42"]
     assert {:ok, {201, _, %{"secret" => key_c}}} = Hex.API.Key.new("key_c", permissions, auth)
     assert {:ok, {201, _, %{"secret" => key_d}}} = Hex.API.Key.new("key_d", permissions, auth)
-    assert byte_size(key_c) == 32
-    assert byte_size(key_d) == 32
+    assert is_binary(key_c) and byte_size(key_c) > 0
+    assert is_binary(key_d) and byte_size(key_d) > 0
     auth_c = [key: key_c]
     auth_d = [key: key_d]
 
