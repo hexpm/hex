@@ -68,6 +68,7 @@ create(Metadata, Files, Config) ->
         tarball_max_size := TarballMaxSize,
         tarball_max_uncompressed_size := TarballMaxUncompressedSize
     } = Config,
+    FilesRoot = maps:get(tarball_files_root, Config, undefined),
 
     MetadataBinary = encode_metadata(Metadata),
 
@@ -75,7 +76,7 @@ create(Metadata, Files, Config) ->
         false ->
             {error, {tarball, {file_too_big, "metadata.config"}}};
         true ->
-            case validate_create_files(Files) of
+            case validate_create_files(Files, FilesRoot) of
                 ok ->
                     ContentsTarball = create_memory_tarball(Files),
                     ContentsTarballCompressed = gzip(ContentsTarball),
@@ -139,8 +140,9 @@ create_docs(Files, Config) ->
         docs_tarball_max_size := TarballMaxSize,
         docs_tarball_max_uncompressed_size := TarballMaxUncompressedSize
     } = Config,
+    FilesRoot = maps:get(tarball_files_root, Config, undefined),
 
-    case validate_create_files(Files) of
+    case validate_create_files(Files, FilesRoot) of
         ok ->
             UncompressedTarball = create_memory_tarball(Files),
 
@@ -648,23 +650,23 @@ guess_build_tools(Metadata) ->
 %%====================================================================
 
 %% @private
-validate_create_files(Files) when is_list(Files) ->
-    validate_create_files(Files, ok).
+validate_create_files(Files, FilesRoot) when is_list(Files) ->
+    validate_create_files(Files, FilesRoot, ok).
 
-validate_create_files(_Files, {error, _} = Error) ->
+validate_create_files(_Files, _FilesRoot, {error, _} = Error) ->
     Error;
-validate_create_files([], ok) ->
+validate_create_files([], _FilesRoot, ok) ->
     ok;
-validate_create_files([File | Rest], ok) ->
-    validate_create_files(Rest, validate_create_file(File)).
+validate_create_files([File | Rest], FilesRoot, ok) ->
+    validate_create_files(Rest, FilesRoot, validate_create_file(File, FilesRoot)).
 
-validate_create_file({Filename, Contents}) when is_list(Filename), is_binary(Contents) ->
+validate_create_file({Filename, Contents}, _FilesRoot) when is_list(Filename), is_binary(Contents) ->
     validate_archive_path(Filename);
-validate_create_file(Filename) when is_list(Filename) ->
-    validate_create_file({Filename, Filename});
-validate_create_file({Filename, AbsFilename}) when is_list(Filename), is_list(AbsFilename) ->
+validate_create_file(Filename, FilesRoot) when is_list(Filename) ->
+    validate_create_file({Filename, Filename}, FilesRoot);
+validate_create_file({Filename, AbsFilename}, FilesRoot) when is_list(Filename), is_list(AbsFilename) ->
     case validate_archive_path(Filename) of
-        ok -> validate_source_file(Filename, AbsFilename);
+        ok -> validate_source_file(Filename, AbsFilename, FilesRoot);
         {error, _} = Error -> Error
     end.
 
@@ -674,13 +676,13 @@ validate_archive_path(Filename) ->
         true -> ok
     end.
 
-validate_source_file(ArchiveName, SourcePath) ->
+validate_source_file(ArchiveName, SourcePath, FilesRoot) ->
     case file:read_link_info(SourcePath, []) of
         {ok, #file_info{type = Type}} when Type =:= regular; Type =:= directory ->
-            ok;
+            validate_source_root(ArchiveName, SourcePath, FilesRoot);
         {ok, #file_info{type = symlink}} ->
             {ok, LinkTarget} = file:read_link(SourcePath),
-            ResolvedTarget = filename:join(filename:dirname(ArchiveName), LinkTarget),
+            ResolvedTarget = archive_join(archive_dirname(ArchiveName), LinkTarget),
             case safe_relative_archive_path(ResolvedTarget) of
                 false -> {error, {tarball, {unsafe_symlink, ArchiveName, LinkTarget}}};
                 true -> ok
@@ -691,10 +693,18 @@ validate_source_file(ArchiveName, SourcePath) ->
             ok
     end.
 
+validate_source_root(_ArchiveName, _SourcePath, undefined) ->
+    ok;
+validate_source_root(ArchiveName, SourcePath, FilesRoot) ->
+    case filelib:safe_relative_path(SourcePath, filename:absname(FilesRoot)) of
+        unsafe -> {error, {tarball, {unsafe_path, ArchiveName}}};
+        _ -> ok
+    end.
+
 safe_relative_archive_path(Path) ->
-    case filename:pathtype(Path) of
-        relative -> safe_relative_archive_path(filename:split(Path), []);
-        _ -> false
+    case archive_path_absolute(Path) orelse archive_path_drive(Path) of
+        true -> false;
+        false -> safe_relative_archive_path(archive_path_split(Path), [])
     end.
 
 safe_relative_archive_path([], _Acc) ->
@@ -707,6 +717,47 @@ safe_relative_archive_path([".." | Rest], [_ | Acc]) ->
     safe_relative_archive_path(Rest, Acc);
 safe_relative_archive_path([_Part | Rest], Acc) ->
     safe_relative_archive_path(Rest, [ok | Acc]).
+
+archive_path_absolute([$/ | _Rest]) ->
+    true;
+archive_path_absolute([$\\ | _Rest]) ->
+    true;
+archive_path_absolute(_Path) ->
+    false.
+
+archive_path_drive([Drive, $: | _Rest]) when
+    Drive >= $a, Drive =< $z;
+    Drive >= $A, Drive =< $Z
+->
+    true;
+archive_path_drive(_Path) ->
+    false.
+
+archive_path_split(Path) ->
+    string:tokens(Path, "/\\").
+
+archive_dirname(Path) ->
+    case archive_path_split(Path) of
+        [] -> ".";
+        [_Name] -> ".";
+        Parts -> string:join(lists:droplast(Parts), "/")
+    end.
+
+archive_join(_Dir, Path) when Path =:= [] ->
+    Path;
+archive_join(_Dir, Path = [$/ | _Rest]) ->
+    Path;
+archive_join(_Dir, Path = [$\\ | _Rest]) ->
+    Path;
+archive_join(_Dir, Path = [Drive, $: | _Rest]) when
+    Drive >= $a, Drive =< $z;
+    Drive >= $A, Drive =< $Z
+->
+    Path;
+archive_join(".", Path) ->
+    Path;
+archive_join(Dir, Path) ->
+    Dir ++ "/" ++ Path.
 
 %% @private
 unpack_tarball(Source, memory, MaxSize) ->

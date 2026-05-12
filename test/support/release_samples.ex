@@ -223,6 +223,21 @@ defmodule ReleaseEscapingSymlink.MixProject do
   end
 end
 
+defmodule ReleaseEscapingSymlinkDirectory.MixProject do
+  def project do
+    [
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
+      version: "0.0.1",
+      description: "foo",
+      package: [
+        files: ["link/**/*"],
+        licenses: ["MIT"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
 defmodule ReleaseInternalSymlink.MixProject do
   def project do
     [

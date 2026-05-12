@@ -213,7 +213,7 @@ defmodule Mix.Tasks.Hex.Publish do
     package = build.package
 
     Hex.Shell.info("Building #{meta.name} #{meta.version}")
-    Build.print_info(meta, organization, exclude_deps, package[:files], build.file_errors)
+    Build.print_info(meta, organization, exclude_deps, package[:files])
 
     print_link_to_coc()
     print_public_private(organization)

@@ -55,7 +55,7 @@ defmodule Mix.Tasks.Hex.Build do
     exclude_deps = build.exclude_deps
 
     Hex.Shell.info("Building #{meta.name} #{meta.version}")
-    print_info(meta, organization, exclude_deps, package[:files], build.file_errors)
+    print_info(meta, organization, exclude_deps, package[:files])
 
     if opts[:unpack] do
       output = Keyword.get(opts, :output, "#{meta.name}-#{meta.version}")
@@ -100,21 +100,20 @@ defmodule Mix.Tasks.Hex.Build do
     check_misspellings!(package)
     {organization, package} = Map.pop(package, :organization)
     {deps, exclude_deps} = dependencies()
-    {meta, file_errors} = meta_for(config, package, deps)
+    meta = meta_for(config, package, deps)
 
     %{
       config: config,
       package: package,
       deps: deps,
       exclude_deps: exclude_deps,
-      file_errors: file_errors,
       meta: meta,
       organization: organization
     }
   end
 
   @doc false
-  def print_info(meta, organization, exclude_deps, package_files, file_errors \\ []) do
+  def print_info(meta, organization, exclude_deps, package_files) do
     if meta[:requirements] != [] do
       Hex.Shell.info("  Dependencies:")
 
@@ -138,7 +137,6 @@ defmodule Mix.Tasks.Hex.Build do
       Enum.concat([
         check_missing_fields(meta, organization),
         check_description_length(meta),
-        file_errors,
         check_missing_files(package_files || []),
         check_reserved_files(package_files || []),
         check_excluded_deps(exclude_deps)
@@ -180,14 +178,12 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   defp meta_for(config, package, deps) do
-    {package, file_errors} =
-      config
-      |> Keyword.take(@root_fields)
-      |> Map.new()
-      |> Map.merge(package)
-      |> package_with_file_errors(config)
-
-    {Map.put(package, :requirements, deps), file_errors}
+    config
+    |> Keyword.take(@root_fields)
+    |> Map.new()
+    |> Map.merge(package)
+    |> package(config)
+    |> Map.put(:requirements, deps)
   end
 
   defp dependencies() do
@@ -254,36 +250,22 @@ defmodule Mix.Tasks.Hex.Build do
 
   @doc false
   def package(package, config) do
-    {package, _file_errors} = package_with_file_errors(package, config)
-    package
-  end
-
-  defp package_with_file_errors(package, config) do
     files = package[:files] || Hex.Package.default_files()
     exclude_patterns = (package[:exclude_patterns] || []) ++ [~r/\W\.DS_Store$/]
-    root = File.cwd!()
-
-    {files, path_errors} =
-      files
-      |> expand_paths(root)
 
     files =
       files
+      |> expand_paths(File.cwd!())
       |> Enum.reject(fn path ->
         Enum.any?(exclude_patterns, &(path =~ &1))
       end)
 
-    file_errors = path_errors ++ check_symlinks(files, root)
-
-    package =
-      package
-      |> Map.put(:files, files)
-      |> maybe_put(:description, package[:description], &String.trim/1)
-      |> maybe_put(:name, package[:name] || config[:app], &to_string(&1))
-      |> maybe_put(:build_tools, !package[:build_tools] && guess_build_tools(files), & &1)
-      |> Map.take(@meta_fields)
-
-    {package, file_errors}
+    package
+    |> Map.put(:files, files)
+    |> maybe_put(:description, package[:description], &String.trim/1)
+    |> maybe_put(:name, package[:name] || config[:app], &to_string(&1))
+    |> maybe_put(:build_tools, !package[:build_tools] && guess_build_tools(files), & &1)
+    |> Map.take(@meta_fields)
   end
 
   defp maybe_put(map, key, value, transform) do
@@ -335,56 +317,13 @@ defmodule Mix.Tasks.Hex.Build do
   defp expand_paths(paths, dir) do
     expand_dir = Path.expand(dir)
 
-    paths =
-      paths
-      |> Enum.flat_map(fn pattern ->
-        dir
-        |> Path.join(pattern)
-        |> Path.wildcard()
-        |> Enum.flat_map(&dir_files/1)
-        |> Enum.map(&{pattern, Path.expand(&1)})
-      end)
-      |> Enum.uniq_by(fn {_pattern, path} -> path end)
-
-    path_errors =
-      paths
-      |> Enum.reject(fn {_pattern, path} -> in_path?(path, expand_dir) end)
-      |> Enum.map(fn {pattern, _path} -> "Path escapes package root: #{pattern}" end)
-      |> Enum.uniq()
-
-    files =
-      paths
-      |> Enum.filter(fn {_pattern, path} -> in_path?(path, expand_dir) end)
-      |> Enum.map(fn {_pattern, path} -> Path.relative_to(path, expand_dir) end)
-
-    {files, path_errors}
-  end
-
-  defp check_symlinks(files, root) do
-    Enum.flat_map(files, fn file ->
-      path = Path.join(root, file)
-
-      case File.lstat(path) do
-        {:ok, %File.Stat{type: :symlink}} ->
-          link_target = File.read_link!(path)
-          resolved_target = Path.expand(link_target, Path.dirname(path))
-
-          if in_path?(resolved_target, root) do
-            []
-          else
-            ["Symlink points outside package root: #{file} -> #{link_target}"]
-          end
-
-        _ ->
-          []
-      end
-    end)
-  end
-
-  defp in_path?(path, root) do
-    path = Path.expand(path)
-    root = Path.expand(root)
-    path == root or String.starts_with?(path, root <> "/")
+    paths
+    |> Enum.map(&Path.join(dir, &1))
+    |> Enum.flat_map(&Path.wildcard/1)
+    |> Enum.flat_map(&dir_files/1)
+    |> Enum.map(&Path.expand/1)
+    |> Enum.uniq()
+    |> Enum.map(&Path.relative_to(&1, expand_dir))
   end
 
   defp dir_files(path) do
