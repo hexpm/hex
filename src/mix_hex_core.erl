@@ -68,8 +68,10 @@
 %% * `tarball_max_uncompressed_size' - Maximum size of uncompressed package tarball, defaults to
 %%   `134_217_728' (128 MiB). Set to `infinity' to not enforce the limit.
 %%
-%% * `tarball_files_root' - Root directory source files must resolve inside when creating tarballs.
-%%   Set to `undefined' to skip source root validation (default: `undefined').
+%% * `tarball_files_root' - Root directory for source files when creating tarballs.
+%%   Required for filesystem source paths, which must be relative and must resolve inside
+%%   this root after following symlinks. Set to `undefined' when all tarball contents are
+%%   provided as binaries and no filesystem source paths are used (default: `undefined').
 %%
 %% * `docs_tarball_max_size' - Maximum size of docs tarball, defaults to
 %%   `16_777_216' (16 MiB). Set to `infinity' to not enforce the limit.

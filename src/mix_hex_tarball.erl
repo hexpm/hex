@@ -77,8 +77,8 @@ create(Metadata, Files, Config) ->
             {error, {tarball, {file_too_big, "metadata.config"}}};
         true ->
             case validate_create_files(Files, FilesRoot) of
-                ok ->
-                    ContentsTarball = create_memory_tarball(Files),
+                {ok, ValidatedFiles} ->
+                    ContentsTarball = create_memory_tarball(ValidatedFiles),
                     ContentsTarballCompressed = gzip(ContentsTarball),
                     InnerChecksum = inner_checksum(?VERSION, MetadataBinary, ContentsTarballCompressed),
                     InnerChecksumBase16 = encode_base16(InnerChecksum),
@@ -143,8 +143,8 @@ create_docs(Files, Config) ->
     FilesRoot = maps:get(tarball_files_root, Config, undefined),
 
     case validate_create_files(Files, FilesRoot) of
-        ok ->
-            UncompressedTarball = create_memory_tarball(Files),
+        {ok, ValidatedFiles} ->
+            UncompressedTarball = create_memory_tarball(ValidatedFiles),
 
             case valid_size(UncompressedTarball, TarballMaxUncompressedSize) of
                 true ->
@@ -353,6 +353,8 @@ format_error({tarball, {too_big_compressed, Size}}) ->
     io_lib:format("package exceeds max compressed size ~w ~s", [format_byte_size(Size), "MB"]);
 format_error({tarball, {missing_files, Files}}) ->
     io_lib:format("missing files: ~p", [Files]);
+format_error({tarball, missing_files_root}) ->
+    "tarball files root is required when creating tarballs from filesystem paths";
 format_error({tarball, {bad_version, Vsn}}) ->
     io_lib:format("unsupported version: ~p", [Vsn]);
 format_error({tarball, invalid_checksum}) ->
@@ -651,17 +653,21 @@ guess_build_tools(Metadata) ->
 
 %% @private
 validate_create_files(Files, FilesRoot) when is_list(Files) ->
-    validate_create_files(Files, FilesRoot, ok).
+    validate_create_files(Files, FilesRoot, []).
 
-validate_create_files(_Files, _FilesRoot, {error, _} = Error) ->
-    Error;
-validate_create_files([], _FilesRoot, ok) ->
-    ok;
-validate_create_files([File | Rest], FilesRoot, ok) ->
-    validate_create_files(Rest, FilesRoot, validate_create_file(File, FilesRoot)).
+validate_create_files([], _FilesRoot, Acc) ->
+    {ok, lists:reverse(Acc)};
+validate_create_files([File | Rest], FilesRoot, Acc) ->
+    case validate_create_file(File, FilesRoot) of
+        {ok, ValidatedFile} -> validate_create_files(Rest, FilesRoot, [ValidatedFile | Acc]);
+        {error, _} = Error -> Error
+    end.
 
 validate_create_file({Filename, Contents}, _FilesRoot) when is_list(Filename), is_binary(Contents) ->
-    validate_archive_path(Filename);
+    case validate_archive_path(Filename) of
+        ok -> {ok, {Filename, Contents}};
+        {error, _} = Error -> Error
+    end;
 validate_create_file(Filename, FilesRoot) when is_list(Filename) ->
     validate_create_file({Filename, Filename}, FilesRoot);
 validate_create_file({Filename, AbsFilename}, FilesRoot) when is_list(Filename), is_list(AbsFilename) ->
@@ -677,26 +683,47 @@ validate_archive_path(Filename) ->
     end.
 
 validate_source_file(ArchiveName, SourcePath, FilesRoot) ->
-    case file:read_link_info(SourcePath, []) of
+    case validate_source_path(SourcePath) of
+        ok -> validate_source_file_root(ArchiveName, SourcePath, FilesRoot);
+        {error, _} = Error -> Error
+    end.
+
+validate_source_path(SourcePath) ->
+    case safe_relative_archive_path(SourcePath) of
+        false -> {error, {tarball, {unsafe_path, SourcePath}}};
+        true -> ok
+    end.
+
+validate_source_file_root(_ArchiveName, _SourcePath, undefined) ->
+    {error, {tarball, missing_files_root}};
+validate_source_file_root(ArchiveName, SourcePath, FilesRoot) ->
+    Root = filename:absname(FilesRoot),
+    DiskPath = filename:join(Root, SourcePath),
+    case file:read_link_info(DiskPath, []) of
         {ok, #file_info{type = Type}} when Type =:= regular; Type =:= directory ->
-            validate_source_root(ArchiveName, SourcePath, FilesRoot);
+            case validate_source_root(ArchiveName, SourcePath, Root) of
+                ok -> {ok, {ArchiveName, DiskPath}};
+                {error, _} = Error -> Error
+            end;
         {ok, #file_info{type = symlink}} ->
-            {ok, LinkTarget} = file:read_link(SourcePath),
+            {ok, LinkTarget} = file:read_link(DiskPath),
             ResolvedTarget = archive_join(archive_dirname(ArchiveName), LinkTarget),
             case safe_relative_archive_path(ResolvedTarget) of
                 false -> {error, {tarball, {unsafe_symlink, ArchiveName, LinkTarget}}};
-                true -> ok
+                true ->
+                    case validate_source_root(ArchiveName, SourcePath, Root) of
+                        ok -> {ok, {ArchiveName, DiskPath}};
+                        {error, _} = Error -> Error
+                    end
             end;
         {ok, #file_info{type = Type}} ->
             {error, {tarball, {unsupported_file_type, ArchiveName, Type}}};
         _ ->
-            ok
+            {ok, {ArchiveName, DiskPath}}
     end.
 
-validate_source_root(_ArchiveName, _SourcePath, undefined) ->
-    ok;
 validate_source_root(ArchiveName, SourcePath, FilesRoot) ->
-    case filelib:safe_relative_path(SourcePath, filename:absname(FilesRoot)) of
+    case filelib:safe_relative_path(SourcePath, FilesRoot) of
         unsafe -> {error, {tarball, {unsafe_path, ArchiveName}}};
         _ -> ok
     end.
