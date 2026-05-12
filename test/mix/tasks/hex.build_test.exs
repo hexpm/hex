@@ -177,6 +177,67 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge([ReleaseExcludePatterns.MixProject])
   end
 
+  test "errors when package file escapes project root" do
+    Process.put(:hex_test_app_name, :build_with_escaping_files)
+    Mix.Project.push(ReleaseEscapingFiles.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      File.write!("../../README.md", "outside")
+
+      error_msg =
+        "Stopping package build due to errors.\n" <>
+          "Path escapes package root: ../../README.md"
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+      end
+    end)
+  after
+    purge([ReleaseEscapingFiles.MixProject])
+  end
+
+  test "errors when package symlink escapes project root" do
+    Process.put(:hex_test_app_name, :build_with_escaping_symlink)
+    Mix.Project.push(ReleaseEscapingSymlink.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      File.write!("../../README.md", "outside")
+      File.ln_s!("../../README.md", "README.md")
+
+      error_msg =
+        "Stopping package build due to errors.\n" <>
+          "Symlink points outside package root: README.md -> ../../README.md"
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+      end
+    end)
+  after
+    purge([ReleaseEscapingSymlink.MixProject])
+  end
+
+  test "preserves package symlink resolving inside project root" do
+    Process.put(:hex_test_app_name, :build_with_internal_symlink)
+    Mix.Project.push(ReleaseInternalSymlink.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      File.write!("README.md", "inside")
+      File.mkdir!("dir")
+      File.ln_s!("../README.md", "dir/link")
+
+      Mix.Tasks.Hex.Build.run([])
+      extract("build_with_internal_symlink-0.0.1.tar", "unzip")
+
+      assert File.lstat!("unzip/dir/link").type == :symlink
+      assert File.read_link!("unzip/dir/link") == "../README.md"
+    end)
+  after
+    purge([ReleaseInternalSymlink.MixProject])
+  end
+
   test "create with custom output path" do
     Process.put(:hex_test_app_name, :build_custom_output_path)
     Mix.Project.push(Sample.MixProject)
