@@ -13,6 +13,14 @@ defmodule Mix.Tasks.Hex.BuildTest do
       :mix_hex_erl_tar.extract({:binary, files[~c"contents.tar.gz"]}, [:compressed, cwd: path])
   end
 
+  test "vendored licenses accept custom LicenseRef identifiers" do
+    assert :mix_hex_licenses.valid("LicenseRef-Journey")
+    assert :mix_hex_licenses.valid("LicenseRef-acme.1-2")
+    refute :mix_hex_licenses.valid("LicenseRef-")
+    refute :mix_hex_licenses.valid("LicenseRef-Journey License")
+    refute :mix_hex_licenses.valid("LicenseRef-Journey_License")
+  end
+
   test "create" do
     Process.put(:hex_test_app_name, :build_app_name)
     Mix.Project.push(ReleaseSimple.MixProject)
@@ -64,6 +72,22 @@ defmodule Mix.Tasks.Hex.BuildTest do
     end)
   after
     purge([ReleaseInvalidLicenses.MixProject])
+  end
+
+  test "create with custom LicenseRef license" do
+    Process.put(:hex_test_app_name, :release_license_ref)
+    Mix.Project.push(ReleaseLicenseRef.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      File.write!("myfile.txt", "hello")
+      File.write!("LICENSE", "Journey License")
+      Mix.Tasks.Hex.Build.run([])
+
+      assert package_created?("release_license_ref-0.0.1")
+    end)
+  after
+    purge([ReleaseLicenseRef.MixProject])
   end
 
   test "create private package with invalid licenses" do
