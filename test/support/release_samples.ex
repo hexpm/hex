@@ -337,6 +337,21 @@ defmodule ReleaseInvalidLicenses.MixProject do
   end
 end
 
+defmodule ReleaseLicenseRef.MixProject do
+  def project do
+    [
+      app: :release_license_ref,
+      description: "Package with a custom license reference",
+      version: "0.0.1",
+      package: [
+        licenses: ["LicenseRef-Journey"],
+        files: ["myfile.txt", "LICENSE"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
 defmodule ReleaseAppFalseDep.MixProject do
   def project do
     [

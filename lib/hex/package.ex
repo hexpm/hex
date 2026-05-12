@@ -44,7 +44,9 @@ defmodule Hex.Package do
         can include wildcards. Defaults to `#{inspect(default_files())}`.
       * `:exclude_patterns` - List of patterns matching files and directories to
         exclude from the package.
-      * `:licenses` - List of licenses used by the package.
+      * `:licenses` - List of licenses used by the package. Use SPDX license
+        identifiers or `LicenseRef-<idstring>` for custom licenses included in
+        the package.
       * `:links` - Map of links relevant to the package.
       * `:build_tools` - List of build tools that can build the package. Hex will
         try to automatically detect the build tools based on the files in the
