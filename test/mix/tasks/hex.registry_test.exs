@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       refute_received _
 
       config = %{
-        :mix_hex_core.default_config()
+        Hex.HTTP.config()
         | repo_url: "http://localhost:#{bypass.port}",
           repo_verify: false,
           repo_verify_origin: false
