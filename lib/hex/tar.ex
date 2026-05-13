@@ -14,7 +14,11 @@ defmodule Hex.Tar do
         filename -> String.to_charlist(filename)
       end)
 
-    case :mix_hex_tarball.create(metadata, files) do
+    config =
+      :mix_hex_core.default_config()
+      |> Map.put(:tarball_files_root, File.cwd!() |> String.to_charlist())
+
+    case :mix_hex_tarball.create(metadata, files, config) do
       {:ok, %{tarball: tarball} = result} ->
         if output != :memory, do: File.write!(output, tarball)
         result

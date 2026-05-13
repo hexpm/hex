@@ -201,6 +201,85 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge([ReleaseExcludePatterns.MixProject])
   end
 
+  test "errors when package file escapes project root" do
+    Process.put(:hex_test_app_name, :build_with_escaping_files)
+    Mix.Project.push(ReleaseEscapingFiles.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      File.write!("../../README.md", "outside")
+      outside_readme = Path.expand("../../README.md")
+
+      error_msg = "Creating tarball failed: unsafe path in tarball: #{outside_readme}"
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+      end
+    end)
+  after
+    purge([ReleaseEscapingFiles.MixProject])
+  end
+
+  test "errors when package symlink escapes project root" do
+    Process.put(:hex_test_app_name, :build_with_escaping_symlink)
+    Mix.Project.push(ReleaseEscapingSymlink.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      File.write!("../../README.md", "outside")
+      File.ln_s!("../../README.md", "README.md")
+
+      error_msg =
+        "Creating tarball failed: unsafe symlink in tarball: README.md -> ../../README.md"
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+      end
+    end)
+  after
+    purge([ReleaseEscapingSymlink.MixProject])
+  end
+
+  test "errors when package file resolves through escaping symlink directory" do
+    Process.put(:hex_test_app_name, :build_with_escaping_symlink_directory)
+    Mix.Project.push(ReleaseEscapingSymlinkDirectory.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      File.mkdir!("../outside")
+      File.write!("../outside/secret.txt", "outside")
+      File.ln_s!("../outside", "link")
+
+      error_msg = "Creating tarball failed: unsafe path in tarball: link/secret.txt"
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+      end
+    end)
+  after
+    purge([ReleaseEscapingSymlinkDirectory.MixProject])
+  end
+
+  test "preserves package symlink resolving inside project root" do
+    Process.put(:hex_test_app_name, :build_with_internal_symlink)
+    Mix.Project.push(ReleaseInternalSymlink.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      File.write!("README.md", "inside")
+      File.mkdir!("dir")
+      File.ln_s!("../README.md", "dir/link")
+
+      Mix.Tasks.Hex.Build.run([])
+      extract("build_with_internal_symlink-0.0.1.tar", "unzip")
+
+      assert File.lstat!("unzip/dir/link").type == :symlink
+      assert File.read_link!("unzip/dir/link") == "../README.md"
+    end)
+  after
+    purge([ReleaseInternalSymlink.MixProject])
+  end
+
   test "create with custom output path" do
     Process.put(:hex_test_app_name, :build_custom_output_path)
     Mix.Project.push(Sample.MixProject)
