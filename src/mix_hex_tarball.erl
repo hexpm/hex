@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.15.0 (4a6a1e9), do not edit manually
+%% Vendored from hex_core v0.16.0 (0e332e5), do not edit manually
 
 %% @doc
 %% Functions for creating and unpacking Hex tarballs.
@@ -69,7 +69,7 @@ create(Metadata, Files, Config) ->
         tarball_max_size := TarballMaxSize,
         tarball_max_uncompressed_size := TarballMaxUncompressedSize
     } = Config,
-    FilesRoot = maps:get(tarball_files_root, Config, undefined),
+    FilesRoot = maps:get(tarball_files_root, Config, "."),
 
     MetadataBinary = encode_metadata(Metadata),
 
@@ -143,7 +143,7 @@ create_docs(Files, Config) ->
         docs_tarball_max_size := TarballMaxSize,
         docs_tarball_max_uncompressed_size := TarballMaxUncompressedSize
     } = Config,
-    FilesRoot = maps:get(tarball_files_root, Config, undefined),
+    FilesRoot = maps:get(tarball_files_root, Config, "."),
 
     case validate_create_files(Files, FilesRoot) of
         {ok, ValidatedFiles} ->
@@ -356,8 +356,6 @@ format_error({tarball, {too_big_compressed, Size}}) ->
     io_lib:format("package exceeds max compressed size ~w ~s", [format_byte_size(Size), "MB"]);
 format_error({tarball, {missing_files, Files}}) ->
     io_lib:format("missing files: ~p", [Files]);
-format_error({tarball, missing_files_root}) ->
-    "tarball files root is required when creating tarballs from filesystem paths";
 format_error({tarball, {bad_version, Vsn}}) ->
     io_lib:format("unsupported version: ~p", [Vsn]);
 format_error({tarball, invalid_checksum}) ->
@@ -581,7 +579,6 @@ decode_metadata(#{files := #{"metadata.config" := Binary}, config := Config} = S
     end.
 
 -ifdef(TEST).
-%% @private
 do_decode_metadata(Binary) ->
     do_decode_metadata(Binary, all).
 -endif.
@@ -941,25 +938,69 @@ validate_archive_path(Filename) ->
     end.
 
 validate_source_file(ArchiveName, SourcePath, FilesRoot) ->
-    case validate_source_path(SourcePath) of
-        ok -> validate_source_file_root(ArchiveName, SourcePath, FilesRoot);
-        {error, _} = Error -> Error
+    case source_file_paths(SourcePath, FilesRoot) of
+        {ok, DiskPath, RelativePath, Root} ->
+            validate_source_file_root(ArchiveName, DiskPath, RelativePath, Root);
+        outside_root ->
+            {error, {tarball, {unsafe_path, ArchiveName}}}
     end.
 
-validate_source_path(SourcePath) ->
-    case safe_relative_archive_path(SourcePath) of
-        false -> {error, {tarball, {unsafe_path, SourcePath}}};
-        true -> ok
+source_file_paths(SourcePath, FilesRoot) ->
+    Root = normalize_root(filename:absname(FilesRoot)),
+    case source_relative_path(SourcePath, Root) of
+        {ok, RelativePath} ->
+            {ok, source_disk_path(SourcePath, Root), RelativePath, Root};
+        outside_root ->
+            outside_root
     end.
 
-validate_source_file_root(_ArchiveName, _SourcePath, undefined) ->
-    {error, {tarball, missing_files_root}};
-validate_source_file_root(ArchiveName, SourcePath, FilesRoot) ->
-    Root = filename:absname(FilesRoot),
-    DiskPath = filename:join(Root, SourcePath),
+normalize_root(Path) ->
+    filename:join(normalize_root_parts(filename:split(Path), [])).
+
+normalize_root_parts([], Acc) ->
+    lists:reverse(Acc);
+normalize_root_parts(["." | Parts], Acc) ->
+    normalize_root_parts(Parts, Acc);
+normalize_root_parts([".." | Parts], Acc) ->
+    normalize_root_parent(Parts, Acc);
+normalize_root_parts([Part | Parts], Acc) ->
+    normalize_root_parts(Parts, [Part | Acc]).
+
+normalize_root_parent(Parts, [Root] = Acc) ->
+    case filename:pathtype(Root) of
+        relative -> normalize_root_parts(Parts, []);
+        _ -> normalize_root_parts(Parts, Acc)
+    end;
+normalize_root_parent(Parts, [_Part | Acc]) ->
+    normalize_root_parts(Parts, Acc);
+normalize_root_parent(Parts, []) ->
+    normalize_root_parts(Parts, []).
+
+source_disk_path(SourcePath, Root) ->
+    case filename:pathtype(SourcePath) of
+        absolute -> SourcePath;
+        _ -> filename:join(Root, SourcePath)
+    end.
+
+source_relative_path(SourcePath, Root) ->
+    case filename:pathtype(SourcePath) of
+        absolute -> strip_root_path(filename:split(SourcePath), filename:split(Root));
+        _ -> {ok, SourcePath}
+    end.
+
+strip_root_path([], []) ->
+    {ok, "."};
+strip_root_path(PathParts, []) ->
+    {ok, filename:join(PathParts)};
+strip_root_path([Part | PathParts], [Part | RootParts]) ->
+    strip_root_path(PathParts, RootParts);
+strip_root_path(_PathParts, _RootParts) ->
+    outside_root.
+
+validate_source_file_root(ArchiveName, DiskPath, RelativePath, Root) ->
     case file:read_link_info(DiskPath, []) of
         {ok, #file_info{type = Type}} when Type =:= regular; Type =:= directory ->
-            case validate_source_root(ArchiveName, SourcePath, Root) of
+            case validate_source_root(ArchiveName, RelativePath, Root) of
                 ok -> {ok, {ArchiveName, DiskPath}};
                 {error, _} = Error -> Error
             end;
@@ -970,7 +1011,7 @@ validate_source_file_root(ArchiveName, SourcePath, FilesRoot) ->
                 false ->
                     {error, {tarball, {unsafe_symlink, ArchiveName, LinkTarget}}};
                 true ->
-                    case validate_source_root(ArchiveName, SourcePath, Root) of
+                    case validate_source_root(ArchiveName, RelativePath, Root) of
                         ok -> {ok, {ArchiveName, DiskPath}};
                         {error, _} = Error -> Error
                     end
@@ -978,7 +1019,10 @@ validate_source_file_root(ArchiveName, SourcePath, FilesRoot) ->
         {ok, #file_info{type = Type}} ->
             {error, {tarball, {unsupported_file_type, ArchiveName, Type}}};
         _ ->
-            {ok, {ArchiveName, DiskPath}}
+            case validate_source_root(ArchiveName, RelativePath, Root) of
+                ok -> {ok, {ArchiveName, DiskPath}};
+                {error, _} = Error -> Error
+            end
     end.
 
 validate_source_root(ArchiveName, SourcePath, FilesRoot) ->

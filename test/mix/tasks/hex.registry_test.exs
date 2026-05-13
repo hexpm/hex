@@ -56,7 +56,7 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       assert {:ok, {200, _, versions}} = :mix_hex_repo.get_versions(config)
 
       assert versions == %{
-               packages: [%{name: "foo", retired: [], versions: ["0.10.0"]}],
+               packages: [%{name: "foo", retired: [], versions: ["0.10.0"], with_advisories: []}],
                repository: "acme"
              }
 
@@ -87,7 +87,9 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       assert {:ok, {200, _, versions}} = :mix_hex_repo.get_versions(config)
 
       assert versions == %{
-               packages: [%{name: "foo", retired: [], versions: ["0.9.0", "0.10.0"]}],
+               packages: [
+                 %{name: "foo", retired: [], versions: ["0.9.0", "0.10.0"], with_advisories: []}
+               ],
                repository: "acme"
              }
 
@@ -114,7 +116,14 @@ defmodule Mix.Tasks.Hex.RegistryTest do
       assert {:ok, {200, _, versions}} = :mix_hex_repo.get_versions(config)
 
       assert versions == %{
-               packages: [%{name: "foo", retired: [], versions: ["0.9.0", "0.10.0", "1.0.0-rc"]}],
+               packages: [
+                 %{
+                   name: "foo",
+                   retired: [],
+                   versions: ["0.9.0", "0.10.0", "1.0.0-rc"],
+                   with_advisories: []
+                 }
+               ],
                repository: "acme"
              }
 
