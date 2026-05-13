@@ -136,14 +136,15 @@ function build {
 
   echo "Building ${elixir_version} ${otp_version} ${ubuntu_version}"
   rm -rf _build src/mix_safe_erl_term.erl
+  archive_ez=hex-${hex_version}.ez
   hex_ez=hex-${hex_version}-otp-${otp_release}.ez
 
   mkdir -p "$installs_dir/${saved_elixir_version}"
   docker run -v $(pwd):/hex hexpm/elixir:${elixir_version}-erlang-${otp_version}-ubuntu-${ubuntu_version} sh -c " \
     cd /hex && \
-    MIX_ENV=prod mix archive.build -o ${hex_ez}"
+    MIX_ENV=prod mix archive.build -o ${archive_ez}"
 
-  mv "${hex_ez}" "${installs_dir}/${saved_elixir_version}/${hex_ez}"
+  mv "${archive_ez}" "${installs_dir}/${saved_elixir_version}/${hex_ez}"
   sha=$(shasum -a 512 "${installs_dir}/${saved_elixir_version}/${hex_ez}")
   sha=($sha)
   echo "${hex_version},${sha},${saved_elixir_version},${otp_release}" >> "${hex_csv}"
