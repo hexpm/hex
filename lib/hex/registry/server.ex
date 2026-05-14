@@ -7,7 +7,7 @@ defmodule Hex.Registry.Server do
   @name __MODULE__
   @filename "cache.ets"
   @timeout 60_000
-  @ets_version 3
+  @ets_version 4
   @public_keys_html "https://hex.pm/docs/public_keys"
 
   def start_link(opts \\ []) do
@@ -28,7 +28,10 @@ defmodule Hex.Registry.Server do
   end
 
   def prefetch(packages) do
-    :ok = GenServer.call(@name, {:prefetch, packages}, @timeout)
+    case GenServer.call(@name, {:prefetch, packages}, @timeout) do
+      :ok -> :ok
+      {:error, message} -> Mix.raise(message)
+    end
   end
 
   def versions(repo, package) do
@@ -49,6 +52,10 @@ defmodule Hex.Registry.Server do
 
   def retired(repo, package, version) do
     GenServer.call(@name, {:retired, repo, package, version}, @timeout)
+  end
+
+  def advisories(repo, package, version) do
+    GenServer.call(@name, {:advisories, repo, package, version}, @timeout)
   end
 
   def last_update() do
@@ -203,6 +210,12 @@ defmodule Hex.Registry.Server do
     end)
   end
 
+  def handle_call({:advisories, repo, package, version}, from, state) do
+    maybe_wait({repo, package}, from, state, fn ->
+      lookup(state.ets, {:advisories, repo || "hexpm", package, version})
+    end)
+  end
+
   def handle_call(:last_update, _from, state) do
     time = lookup(state.ets, :last_update)
     {:reply, time, state}
@@ -299,6 +312,7 @@ defmodule Hex.Registry.Server do
   #   {{:inner_checksum, ^repo, _package, _version}, _} -> true
   #   {{:outer_checksum, ^repo, _package, _version}, _} -> true
   #   {{:retired, ^repo, _package, _version}, _} -> true
+  #   {{:advisories, ^repo, _package, _version}, _} -> true
   #   {{:registry_etag, ^repo, _package}, _} -> true
   #   {{:timestamp, ^repo, _package}, _} -> true
   #   {{:timestamp, ^repo, _package, _version}, _} -> true
@@ -312,6 +326,7 @@ defmodule Hex.Registry.Server do
       {{{:inner_checksum, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:outer_checksum, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:retired, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:advisories, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:registry_etag, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:timestamp, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:timestamp, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
@@ -359,16 +374,26 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  defp write_result({:ok, {code, headers, %{releases: releases}}}, repo, package, %{ets: tid})
+  defp write_result({:ok, {code, headers, %{releases: releases} = result}}, repo, package, %{
+         ets: tid
+       })
        when code in 200..299 do
     delete_package(repo, package, tid)
     now = :calendar.universal_time()
+    pkg_advisories = result[:advisories] || []
 
     Enum.each(releases, fn %{version: version} = release ->
       :ets.insert(tid, {{:timestamp, repo, package, version}, now})
       :ets.insert(tid, {{:inner_checksum, repo, package, version}, release[:inner_checksum]})
       :ets.insert(tid, {{:outer_checksum, repo, package, version}, release[:outer_checksum]})
       :ets.insert(tid, {{:retired, repo, package, version}, release[:retired]})
+
+      release_advisories =
+        (release[:advisory_indexes] || [])
+        |> Enum.map(&Enum.at(pkg_advisories, &1))
+        |> Enum.reject(&is_nil/1)
+
+      :ets.insert(tid, {{:advisories, repo, package, version}, release_advisories})
 
       deps =
         Enum.map(release[:dependencies], fn dep ->
@@ -511,6 +536,7 @@ defmodule Hex.Registry.Server do
     Enum.each(versions, fn version ->
       :ets.delete(tid, {:checksum, repo, package, version})
       :ets.delete(tid, {:retired, repo, package, version})
+      :ets.delete(tid, {:advisories, repo, package, version})
       :ets.delete(tid, {:deps, repo, package, version})
     end)
   end

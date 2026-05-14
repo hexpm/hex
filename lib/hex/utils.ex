@@ -259,6 +259,38 @@ defmodule Hex.Utils do
     "(#{package_retirement_reason(reason_code)})"
   end
 
+  def advisory_severity(:SEVERITY_NONE), do: "NONE"
+  def advisory_severity(:SEVERITY_LOW), do: "LOW"
+  def advisory_severity(:SEVERITY_MEDIUM), do: "MEDIUM"
+  def advisory_severity(:SEVERITY_HIGH), do: "HIGH"
+  def advisory_severity(:SEVERITY_CRITICAL), do: "CRITICAL"
+  def advisory_severity(other), do: other
+
+  def advisory_severity_color(:SEVERITY_LOW), do: :yellow
+  def advisory_severity_color(:SEVERITY_MEDIUM), do: :yellow
+  def advisory_severity_color(:SEVERITY_HIGH), do: :red
+  def advisory_severity_color(:SEVERITY_CRITICAL), do: [:bright, :red]
+  def advisory_severity_color(_), do: []
+
+  def format_advisory_ansi(%{id: id, summary: summary} = advisory, line_prefix \\ "") do
+    severity =
+      case advisory do
+        %{severity: s} ->
+          [" ", advisory_severity_color(s), "(#{advisory_severity(s)})", :reset]
+
+        _ ->
+          []
+      end
+
+    url =
+      case advisory do
+        %{html_url: url} -> ["\n", line_prefix, :underline, url, :reset]
+        _ -> []
+      end
+
+    [id, severity, "\n", line_prefix, summary, url]
+  end
+
   # From https://github.com/fishcakez/dialyze/blob/6698ae582c77940ee10b4babe4adeff22f1b7779/lib/mix/tasks/dialyze.ex#L168
   def otp_version do
     major = :erlang.system_info(:otp_release) |> List.to_string()

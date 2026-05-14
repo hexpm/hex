@@ -407,13 +407,40 @@ defmodule Hex.RemoteConverger do
   defp print_success(resolved, old_lock) do
     if resolved != [] do
       previously_locked_versions = dep_info_from_lock(old_lock)
-      dep_changes = group_dependency_changes(resolved, previously_locked_versions)
+
+      dep_changes =
+        resolved
+        |> group_dependency_changes(previously_locked_versions)
+        |> annotate_dependency_changes()
 
       Enum.each(dep_changes, fn {mod, deps} ->
-        unless length(deps) == 0, do: print_category(mod)
+        unless deps == [], do: print_category(mod)
         print_dependency_group(deps, mod)
       end)
+
+      all_deps = Enum.flat_map(dep_changes, fn {_mod, deps} -> deps end)
+      has_retired = Enum.any?(all_deps, fn {_dep, retired, _adv} -> retired != nil end)
+      has_advisory = Enum.any?(all_deps, fn {_dep, _retired, adv} -> adv != [] end)
+
+      if has_retired or has_advisory do
+        Hex.Shell.info("")
+        if has_retired, do: Hex.Shell.error("Found retired packages")
+        if has_advisory, do: Hex.Shell.error("Found packages with security advisories")
+      end
     end
+  end
+
+  defp annotate_dependency_changes(dep_changes) do
+    Enum.map(dep_changes, fn {mod, deps} ->
+      annotated =
+        Enum.map(deps, fn {name, repo, _prev, version, _warning} = dep ->
+          retired = Registry.retired(repo, name, version)
+          advisories = Registry.advisories(repo, name, version) || []
+          {dep, retired, advisories}
+        end)
+
+      {mod, annotated}
+    end)
   end
 
   defp group_dependency_changes(resolved, previously_locked_versions) do
@@ -479,58 +506,46 @@ defmodule Hex.RemoteConverger do
   end
 
   defp print_dependency_group(deps, mod) do
-    Enum.each(deps, fn {name, repo, previous_version, version, warning} ->
-      print_status(
-        Registry.retired(repo, name, version),
-        mod,
-        name,
-        previous_version,
-        version,
-        warning
+    Enum.each(deps, fn {{name, _repo, previous_version, version, warning}, retired, advisories} ->
+      print_status(retired, advisories, mod, name, previous_version, version, warning)
+    end)
+  end
+
+  defp print_status(retired, advisories, mod, name, previous_version, version, warning) do
+    version_str = version_string(mod, name, previous_version, version)
+    retired_tag = if retired, do: [:yellow, " RETIRED!", :reset], else: []
+    vulnerable_tag = if advisories != [], do: [:red, " VULNERABLE!", :reset], else: []
+    warning_tag = if warning, do: [:red, warning, :reset], else: []
+
+    line = [version_color(mod), version_str, :reset, retired_tag, vulnerable_tag, warning_tag]
+    Hex.Shell.info(Hex.Shell.format(line))
+
+    if retired do
+      Hex.Shell.warn("    #{Hex.Utils.package_retirement_message(retired)}")
+    end
+
+    advisories
+    |> Enum.with_index()
+    |> Enum.each(fn {advisory, index} ->
+      if retired || index > 0, do: Hex.Shell.info("")
+
+      Hex.Shell.info(
+        Hex.Shell.format(["    " | Hex.Utils.format_advisory_ansi(advisory, "    ")])
       )
     end)
   end
 
-  defp print_status(nil, mod, name, previous_version, version, warning) do
-    case mod do
-      :new ->
-        Hex.Shell.info(Hex.Shell.format([:green, "  #{name} #{version}", :red, "#{warning}"]))
+  defp version_color(:new), do: :green
+  defp version_color(:gt), do: :green
+  defp version_color(:lt), do: :yellow
+  defp version_color(:eq), do: []
 
-      :eq ->
-        Hex.Shell.info("  #{name} #{version}")
-
-      :lt ->
-        Hex.Shell.info(
-          Hex.Shell.format([
-            :yellow,
-            "  #{name} #{previous_version} => #{version}",
-            :red,
-            "#{warning}"
-          ])
-        )
-
-      :gt ->
-        Hex.Shell.info(
-          Hex.Shell.format([
-            :green,
-            "  #{name} #{previous_version} => #{version}",
-            :red,
-            "#{warning}"
-          ])
-        )
-    end
+  defp version_string(mod, name, _previous_version, version) when mod in [:eq, :new] do
+    "  #{name} #{version}"
   end
 
-  defp print_status(retired, mod, name, previous_version, version, _warning) do
-    case mod do
-      mod when mod in [:eq, :new] ->
-        Hex.Shell.warn("  #{name} #{version} RETIRED!")
-        Hex.Shell.warn("    #{Hex.Utils.package_retirement_message(retired)}")
-
-      _ ->
-        Hex.Shell.warn("  #{name} #{previous_version} => #{version} RETIRED!")
-        Hex.Shell.warn("    #{Hex.Utils.package_retirement_message(retired)}")
-    end
+  defp version_string(_mod, name, previous_version, version) do
+    "  #{name} #{previous_version} => #{version}"
   end
 
   defp verify_prefetches(prefetches) do

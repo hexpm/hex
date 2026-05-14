@@ -119,7 +119,7 @@ defmodule HexTest.Case do
 
   @ets_table :hex_index
 
-  def create_test_registry(path, registry) do
+  def create_test_registry(path, registry, advisories \\ []) do
     registry = Enum.sort(registry)
 
     versions =
@@ -143,10 +143,10 @@ defmodule HexTest.Case do
         {{Atom.to_string(outer_repo), Atom.to_string(name), vsn}, deps}
       end)
 
-    create_registry(path, versions, deps)
+    create_registry(path, versions, deps, advisories)
   end
 
-  defp create_registry(path, versions, deps) do
+  defp create_registry(path, versions, deps, advisories) do
     tid = :ets.new(@ets_table, [])
 
     versions =
@@ -159,7 +159,12 @@ defmodule HexTest.Case do
         {{:deps, repo, pkg, vsn}, deps}
       end)
 
-    :ets.insert(tid, versions ++ deps ++ [{:version, 3}])
+    advisories =
+      Enum.map(advisories, fn {{repo, pkg, vsn}, adv} ->
+        {{:advisories, repo, pkg, vsn}, adv}
+      end)
+
+    :ets.insert(tid, versions ++ deps ++ advisories ++ [{:version, 4}])
     File.mkdir_p!(Path.dirname(path))
     :ok = :ets.tab2file(tid, String.to_charlist(path))
     :ets.delete(tid)

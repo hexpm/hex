@@ -199,6 +199,80 @@ defmodule Hex.RemoteConvergerTest do
     end)
   end
 
+  @advisory %{
+    id: "GHSA-rc-0001",
+    summary: "Remote code execution via crafted input",
+    html_url: "https://github.com/advisories/GHSA-rc-0001",
+    severity: :SEVERITY_HIGH,
+    api_url: "https://hex.pm/api/advisories/GHSA-rc-0001"
+  }
+
+  defmodule AdvisoryDeps.MixProject do
+    def project do
+      [
+        app: :advisory_deps,
+        version: "0.1.0",
+        deps: [{:rc_advisory_package, "0.1.0"}]
+      ]
+    end
+  end
+
+  test "deps.get prints security advisory warning for resolved version" do
+    auth =
+      Hexpm.new_user(
+        "rc_advisory_user",
+        "rc_advisory@mail.com",
+        "passpass",
+        "rc_advisory_key"
+      )
+
+    Hexpm.new_package("hexpm", "rc_advisory_package", "0.1.0", [], %{}, auth)
+
+    with_project(AdvisoryDeps.MixProject, fn ->
+      in_tmp(fn ->
+        Hex.State.put(:cache_home, tmp_path())
+        Hex.State.put(:api_key, auth[:key])
+        Mix.Dep.Lock.write(%{rc_advisory_package: {:hex, :rc_advisory_package, "0.1.0"}})
+
+        :ok = Mix.Tasks.Deps.Get.run([])
+        flush()
+
+        :sys.replace_state(Hex.Registry.Server, fn %{ets: tid} = state ->
+          :ets.insert(
+            tid,
+            {{:advisories, "hexpm", "rc_advisory_package", "0.1.0"}, [@advisory]}
+          )
+
+          state
+        end)
+
+        File.rm!("mix.lock")
+        Mix.Task.clear()
+
+        :ok = Mix.Tasks.Deps.Get.run([])
+
+        info_messages = collect_info_messages([])
+
+        assert Enum.any?(info_messages, fn msg ->
+                 msg =~ "rc_advisory_package 0.1.0" and msg =~ "VULNERABLE!"
+               end)
+
+        assert Enum.any?(info_messages, fn msg ->
+                 msg =~ "GHSA-rc-0001" and msg =~ "(HIGH)" and
+                   msg =~ "Remote code execution via crafted input"
+               end)
+      end)
+    end)
+  end
+
+  defp collect_info_messages(acc) do
+    receive do
+      {:mix_shell, :info, [msg]} -> collect_info_messages([msg | acc])
+    after
+      0 -> Enum.reverse(acc)
+    end
+  end
+
   defmodule ChecksumIntegrity.MixProject do
     def project do
       [

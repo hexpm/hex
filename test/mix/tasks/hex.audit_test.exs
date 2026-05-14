@@ -4,6 +4,14 @@ defmodule Mix.Tasks.Hex.AuditTest do
   @package :test_package
   @package_name Atom.to_string(@package)
 
+  @advisory %{
+    id: "GHSA-test-0001",
+    summary: "Remote code execution via crafted input",
+    html_url: "https://github.com/advisories/GHSA-test-0001",
+    severity: :SEVERITY_HIGH,
+    api_url: "https://hex.pm/api/advisories/GHSA-test-0001"
+  }
+
   defmodule RetiredDeps.MixProject do
     def project do
       [app: :test_app, version: "0.0.1", deps: [{:test_package, ">= 0.1.0"}]]
@@ -20,7 +28,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
       retire_test_package("0.1.0", "security")
 
       assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
-      assert_output_row(@package_name, "0.1.0", "(security)")
+      assert_retired_section(@package_name, "0.1.0", "(security)")
       assert_received {:mix_shell, :error, ["Found retired packages"]}
     end)
   end
@@ -30,7 +38,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
       retire_test_package("0.2.0", "invalid", "Superseded by v1.0.0")
 
       assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
-      assert_output_row(@package_name, "0.2.0", "(invalid) Superseded by v1.0.0")
+      assert_retired_section(@package_name, "0.2.0", "(invalid) Superseded by v1.0.0")
       assert_received {:mix_shell, :error, ["Found retired packages"]}
     end)
   end
@@ -38,7 +46,58 @@ defmodule Mix.Tasks.Hex.AuditTest do
   test "audit (no retired packages)", context do
     with_test_package("1.0.0", context, fn ->
       Mix.Task.run("hex.audit")
-      assert_received {:mix_shell, :info, ["No retired packages found"]}
+      assert_received {:mix_shell, :info, ["No retired or security advisory packages found"]}
+    end)
+  end
+
+  test "audit (package with a security advisory)", context do
+    with_test_package("1.1.0", context, fn ->
+      inject_advisory(@package_name, "1.1.0", [@advisory])
+
+      assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
+
+      assert_advisory_section(@package_name, "1.1.0", @advisory)
+      assert_received {:mix_shell, :error, ["Found packages with security advisories"]}
+      refute_received {:mix_shell, :error, ["Found retired packages"]}
+    end)
+  end
+
+  test "audit (package with both retirement and security advisory)", context do
+    with_test_package("1.2.0", context, fn ->
+      :sys.replace_state(Hex.Registry.Server, fn %{ets: tid} = state ->
+        :ets.insert(
+          tid,
+          {{:retired, "hexpm", @package_name, "1.2.0"}, %{reason: :RETIRED_SECURITY}}
+        )
+
+        :ets.insert(tid, {{:advisories, "hexpm", @package_name, "1.2.0"}, [@advisory]})
+        state
+      end)
+
+      assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
+
+      assert_retired_section(@package_name, "1.2.0", "(security)")
+      assert_advisory_section(@package_name, "1.2.0", @advisory)
+      assert_received {:mix_shell, :error, ["Found retired packages"]}
+      assert_received {:mix_shell, :error, ["Found packages with security advisories"]}
+    end)
+  end
+
+  test "audit (package with multiple advisories)", context do
+    other_advisory = %{
+      id: "GHSA-test-0002",
+      summary: "Another vulnerability",
+      html_url: "https://github.com/advisories/GHSA-test-0002",
+      severity: :SEVERITY_MEDIUM
+    }
+
+    with_test_package("1.3.0", context, fn ->
+      inject_advisory(@package_name, "1.3.0", [@advisory, other_advisory])
+
+      assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
+
+      assert_advisory_section(@package_name, "1.3.0", @advisory)
+      assert_advisory_section(@package_name, "1.3.0", other_advisory)
     end)
   end
 
@@ -66,19 +125,31 @@ defmodule Mix.Tasks.Hex.AuditTest do
     Hex.Registry.Server.close()
   end
 
-  defp assert_output_row(package, version, message) do
-    whitespace_length = String.length("Retirement reason  ") - String.length(message)
-    whitespace_length = if whitespace_length < 2, do: 2, else: whitespace_length
+  defp inject_advisory(package, version, advisories) do
+    :sys.replace_state(Hex.Registry.Server, fn %{ets: tid} = state ->
+      :ets.insert(tid, {{:advisories, "hexpm", package, version}, advisories})
+      state
+    end)
+  end
 
-    output =
-      [
-        [package, :reset, "  "],
-        [version, :reset, "    "],
-        [message, :reset, String.duplicate(" ", whitespace_length)]
-      ]
-      |> IO.ANSI.format()
-      |> List.to_string()
+  defp assert_retired_section(package, version, message) do
+    header = render([:bright, "Retired:", :reset])
+    row = render(["  #{package} #{version} - ", :yellow, message, :reset])
 
-    assert_received {:mix_shell, :info, [^output]}
+    assert_received {:mix_shell, :info, [^header]}
+    assert_received {:mix_shell, :info, [^row]}
+  end
+
+  defp assert_advisory_section(package, version, advisory) do
+    block =
+      render([
+        "  #{package} #{version} - " | Hex.Utils.format_advisory_ansi(advisory, "    ")
+      ])
+
+    assert_received {:mix_shell, :info, [^block]}
+  end
+
+  defp render(message) do
+    message |> Hex.Shell.format() |> IO.iodata_to_binary()
   end
 end
