@@ -28,7 +28,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
       retire_test_package("0.1.0", "security")
 
       assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
-      assert_output_row(@package_name, "0.1.0", "(security)")
+      assert_retired_section(@package_name, "0.1.0", "(security)")
       assert_received {:mix_shell, :error, ["Found retired packages"]}
     end)
   end
@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
       retire_test_package("0.2.0", "invalid", "Superseded by v1.0.0")
 
       assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
-      assert_output_row(@package_name, "0.2.0", "(invalid) Superseded by v1.0.0")
+      assert_retired_section(@package_name, "0.2.0", "(invalid) Superseded by v1.0.0")
       assert_received {:mix_shell, :error, ["Found retired packages"]}
     end)
   end
@@ -56,7 +56,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
 
       assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
 
-      assert_advisory_output_row(@package_name, "1.1.0", @advisory)
+      assert_advisory_section(@package_name, "1.1.0", @advisory)
       assert_received {:mix_shell, :error, ["Found packages with security advisories"]}
       refute_received {:mix_shell, :error, ["Found retired packages"]}
     end)
@@ -75,8 +75,29 @@ defmodule Mix.Tasks.Hex.AuditTest do
       end)
 
       assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
+
+      assert_retired_section(@package_name, "1.2.0", "(security)")
+      assert_advisory_section(@package_name, "1.2.0", @advisory)
       assert_received {:mix_shell, :error, ["Found retired packages"]}
       assert_received {:mix_shell, :error, ["Found packages with security advisories"]}
+    end)
+  end
+
+  test "audit (package with multiple advisories)", context do
+    other_advisory = %{
+      id: "GHSA-test-0002",
+      summary: "Another vulnerability",
+      html_url: "https://github.com/advisories/GHSA-test-0002",
+      severity: :SEVERITY_MEDIUM
+    }
+
+    with_test_package("1.3.0", context, fn ->
+      inject_advisory(@package_name, "1.3.0", [@advisory, other_advisory])
+
+      assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
+
+      assert_advisory_section(@package_name, "1.3.0", @advisory)
+      assert_advisory_section(@package_name, "1.3.0", other_advisory)
     end)
   end
 
@@ -111,36 +132,24 @@ defmodule Mix.Tasks.Hex.AuditTest do
     end)
   end
 
-  defp assert_output_row(package, version, message) do
-    whitespace_length = String.length("Retirement reason  ") - String.length(message)
-    whitespace_length = if whitespace_length < 2, do: 2, else: whitespace_length
+  defp assert_retired_section(package, version, message) do
+    header = render([:bright, "Retired:", :reset])
+    row = render(["  #{package} #{version} - ", :yellow, message, :reset])
 
-    output =
-      [
-        [package, :reset, "  "],
-        [version, :reset, "    "],
-        [message, :reset, String.duplicate(" ", whitespace_length)]
-      ]
-      |> IO.ANSI.format()
-      |> List.to_string()
-
-    assert_received {:mix_shell, :info, [^output]}
+    assert_received {:mix_shell, :info, [^header]}
+    assert_received {:mix_shell, :info, [^row]}
   end
 
-  defp assert_advisory_output_row(package, version, advisory) do
-    col1_width = max(String.length("Dependency"), String.length(package))
-    col2_width = max(String.length("Version"), String.length(version))
-    url_prefix = String.duplicate(" ", col1_width + 2 + col2_width + 2)
+  defp assert_advisory_section(package, version, advisory) do
+    block =
+      render([
+        "  #{package} #{version} - " | Hex.Utils.format_advisory_ansi(advisory, "    ")
+      ])
 
-    output =
-      [
-        [package, :reset, String.duplicate(" ", col1_width - String.length(package) + 2)],
-        [version, :reset, String.duplicate(" ", col2_width - String.length(version) + 2)],
-        Hex.Utils.format_advisory_ansi(advisory, url_prefix)
-      ]
-      |> IO.ANSI.format()
-      |> List.to_string()
+    assert_received {:mix_shell, :info, [^block]}
+  end
 
-    assert_received {:mix_shell, :info, [^output]}
+  defp render(message) do
+    message |> Hex.Shell.format() |> IO.iodata_to_binary()
   end
 end

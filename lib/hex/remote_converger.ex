@@ -407,24 +407,20 @@ defmodule Hex.RemoteConverger do
   defp print_success(resolved, old_lock) do
     if resolved != [] do
       previously_locked_versions = dep_info_from_lock(old_lock)
-      dep_changes = group_dependency_changes(resolved, previously_locked_versions)
+
+      dep_changes =
+        resolved
+        |> group_dependency_changes(previously_locked_versions)
+        |> annotate_dependency_changes()
 
       Enum.each(dep_changes, fn {mod, deps} ->
-        unless length(deps) == 0, do: print_category(mod)
+        unless deps == [], do: print_category(mod)
         print_dependency_group(deps, mod)
       end)
 
       all_deps = Enum.flat_map(dep_changes, fn {_mod, deps} -> deps end)
-
-      has_retired =
-        Enum.any?(all_deps, fn {name, repo, _prev, version, _warning} ->
-          Registry.retired(repo, name, version) != nil
-        end)
-
-      has_advisory =
-        Enum.any?(all_deps, fn {name, repo, _prev, version, _warning} ->
-          (Registry.advisories(repo, name, version) || []) != []
-        end)
+      has_retired = Enum.any?(all_deps, fn {_dep, retired, _adv} -> retired != nil end)
+      has_advisory = Enum.any?(all_deps, fn {_dep, _retired, adv} -> adv != [] end)
 
       if has_retired or has_advisory do
         Hex.Shell.info("")
@@ -432,6 +428,19 @@ defmodule Hex.RemoteConverger do
         if has_advisory, do: Hex.Shell.error("Found packages with security advisories")
       end
     end
+  end
+
+  defp annotate_dependency_changes(dep_changes) do
+    Enum.map(dep_changes, fn {mod, deps} ->
+      annotated =
+        Enum.map(deps, fn {name, repo, _prev, version, _warning} = dep ->
+          retired = Registry.retired(repo, name, version)
+          advisories = Registry.advisories(repo, name, version) || []
+          {dep, retired, advisories}
+        end)
+
+      {mod, annotated}
+    end)
   end
 
   defp group_dependency_changes(resolved, previously_locked_versions) do
@@ -497,52 +506,39 @@ defmodule Hex.RemoteConverger do
   end
 
   defp print_dependency_group(deps, mod) do
-    Enum.each(deps, fn {name, repo, previous_version, version, warning} ->
-      advisories = Registry.advisories(repo, name, version) || []
-
-      print_status(
-        Registry.retired(repo, name, version),
-        advisories,
-        mod,
-        name,
-        previous_version,
-        version,
-        warning
-      )
+    Enum.each(deps, fn {{name, _repo, previous_version, version, warning}, retired, advisories} ->
+      print_status(retired, advisories, mod, name, previous_version, version, warning)
     end)
   end
 
   defp print_status(retired, advisories, mod, name, previous_version, version, warning) do
     version_str = version_string(mod, name, previous_version, version)
-    version_color = if mod in [:new, :gt], do: :green, else: if(mod == :lt, do: :yellow, else: [])
+    retired_tag = if retired, do: [:yellow, " RETIRED!", :reset], else: []
+    vulnerable_tag = if advisories != [], do: [:red, " VULNERABLE!", :reset], else: []
+    warning_tag = if warning, do: [:red, warning, :reset], else: []
 
-    line =
-      [version_color, version_str, :reset]
-      |> then(fn
-        acc when is_nil(retired) -> acc
-        acc -> [acc, :yellow, " RETIRED!", :reset]
-      end)
-      |> then(fn
-        acc when advisories == [] -> acc
-        acc -> [acc, :red, " VULNERABLE!", :reset]
-      end)
-      |> then(fn
-        acc when is_nil(warning) -> acc
-        acc -> [acc, :red, warning, :reset]
-      end)
-
+    line = [version_color(mod), version_str, :reset, retired_tag, vulnerable_tag, warning_tag]
     Hex.Shell.info(Hex.Shell.format(line))
 
     if retired do
       Hex.Shell.warn("    #{Hex.Utils.package_retirement_message(retired)}")
     end
 
-    Enum.each(advisories, fn advisory ->
+    advisories
+    |> Enum.with_index()
+    |> Enum.each(fn {advisory, index} ->
+      if retired || index > 0, do: Hex.Shell.info("")
+
       Hex.Shell.info(
         Hex.Shell.format(["    " | Hex.Utils.format_advisory_ansi(advisory, "    ")])
       )
     end)
   end
+
+  defp version_color(:new), do: :green
+  defp version_color(:gt), do: :green
+  defp version_color(:lt), do: :yellow
+  defp version_color(:eq), do: []
 
   defp version_string(mod, name, _previous_version, version) when mod in [:eq, :new] do
     "  #{name} #{version}"

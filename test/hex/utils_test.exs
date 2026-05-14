@@ -23,24 +23,43 @@ defmodule Hex.UtilsTest do
     end
   end
 
-  describe "format_advisory/1" do
+  describe "format_advisory_ansi/2" do
     test "includes id, severity and url" do
-      assert Hex.Utils.format_advisory(@advisory) ==
-               "GHSA-test-0001 (HIGH): Remote code execution via crafted input - https://github.com/advisories/GHSA-test-0001"
+      assert render(@advisory) ==
+               "GHSA-test-0001 (HIGH)\nRemote code execution via crafted input\nhttps://github.com/advisories/GHSA-test-0001"
     end
 
     test "without severity omits severity" do
       advisory = Map.delete(@advisory, :severity)
 
-      assert Hex.Utils.format_advisory(advisory) ==
-               "GHSA-test-0001: Remote code execution via crafted input - https://github.com/advisories/GHSA-test-0001"
+      assert render(advisory) ==
+               "GHSA-test-0001\nRemote code execution via crafted input\nhttps://github.com/advisories/GHSA-test-0001"
     end
 
     test "without url omits url" do
       advisory = Map.delete(@advisory, :html_url)
 
-      assert Hex.Utils.format_advisory(advisory) ==
-               "GHSA-test-0001 (HIGH): Remote code execution via crafted input"
+      assert render(advisory) ==
+               "GHSA-test-0001 (HIGH)\nRemote code execution via crafted input"
     end
+
+    test "applies line prefix to wrapped lines" do
+      assert render(@advisory, "    ") ==
+               "GHSA-test-0001 (HIGH)\n    Remote code execution via crafted input\n    https://github.com/advisories/GHSA-test-0001"
+    end
+
+    test "emits ANSI color for severity when enabled" do
+      iodata = Hex.Utils.format_advisory_ansi(@advisory)
+      rendered = iodata |> IO.ANSI.format(true) |> IO.iodata_to_binary()
+      assert rendered =~ "\e[31m"
+      assert rendered =~ "(HIGH)"
+    end
+  end
+
+  defp render(advisory, line_prefix \\ "") do
+    advisory
+    |> Hex.Utils.format_advisory_ansi(line_prefix)
+    |> IO.ANSI.format(false)
+    |> IO.iodata_to_binary()
   end
 end

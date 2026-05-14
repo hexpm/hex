@@ -266,50 +266,29 @@ defmodule Hex.Utils do
   def advisory_severity(:SEVERITY_CRITICAL), do: "CRITICAL"
   def advisory_severity(other), do: other
 
-  def advisory_severity_color(:SEVERITY_NONE), do: :normal
   def advisory_severity_color(:SEVERITY_LOW), do: :yellow
   def advisory_severity_color(:SEVERITY_MEDIUM), do: :yellow
   def advisory_severity_color(:SEVERITY_HIGH), do: :red
   def advisory_severity_color(:SEVERITY_CRITICAL), do: [:bright, :red]
-  def advisory_severity_color(_), do: :normal
+  def advisory_severity_color(_), do: []
 
-  def format_advisory(%{id: id, summary: summary} = advisory) do
-    id
-    |> then(fn acc ->
-      case advisory do
-        %{severity: s} -> "#{acc} (#{advisory_severity(s)})"
-        _ -> acc
-      end
-    end)
-    |> then(&"#{&1}: #{summary}")
-    |> then(fn acc ->
-      case advisory do
-        %{html_url: url} -> "#{acc} - #{url}"
-        _ -> acc
-      end
-    end)
-  end
-
-  def format_advisory_ansi(advisory, line_prefix \\ "")
-
-  def format_advisory_ansi(%{id: id, summary: summary} = advisory, line_prefix) do
-    [id]
-    |> then(fn acc ->
+  def format_advisory_ansi(%{id: id, summary: summary} = advisory, line_prefix \\ "") do
+    severity =
       case advisory do
         %{severity: s} ->
-          [acc, " ", advisory_severity_color(s), "(#{advisory_severity(s)})", :reset]
+          [" ", advisory_severity_color(s), "(#{advisory_severity(s)})", :reset]
 
         _ ->
-          acc
+          []
       end
-    end)
-    |> then(&[&1, "\n", line_prefix, summary])
-    |> then(fn acc ->
+
+    url =
       case advisory do
-        %{html_url: url} -> [acc, "\n", line_prefix, url]
-        _ -> acc
+        %{html_url: url} -> ["\n", line_prefix, :underline, url, :reset]
+        _ -> []
       end
-    end)
+
+    [id, severity, "\n", line_prefix, summary, url]
   end
 
   # From https://github.com/fishcakez/dialyze/blob/6698ae582c77940ee10b4babe4adeff22f1b7779/lib/mix/tasks/dialyze.ex#L168
