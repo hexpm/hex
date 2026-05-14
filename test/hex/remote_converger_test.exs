@@ -254,11 +254,12 @@ defmodule Hex.RemoteConvergerTest do
         info_messages = collect_info_messages([])
 
         assert Enum.any?(info_messages, fn msg ->
-                 msg =~ "rc_advisory_package 0.1.0 has a security advisory!"
+                 msg =~ "rc_advisory_package 0.1.0" and msg =~ "VULNERABLE!"
                end)
 
         assert Enum.any?(info_messages, fn msg ->
-                 msg =~ "(HIGH) Remote code execution via crafted input"
+                 msg =~ "GHSA-rc-0001" and msg =~ "(HIGH)" and
+                   msg =~ "Remote code execution via crafted input"
                end)
       end)
     end)

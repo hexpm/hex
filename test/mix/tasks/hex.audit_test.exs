@@ -57,7 +57,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
       assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
 
       expected =
-        "(HIGH) Remote code execution via crafted input - https://github.com/advisories/GHSA-test-0001"
+        "GHSA-test-0001 (HIGH): Remote code execution via crafted input - https://github.com/advisories/GHSA-test-0001"
 
       assert_advisory_output_row(@package_name, "1.1.0", expected)
       assert_received {:mix_shell, :error, ["Found packages with security advisories"]}

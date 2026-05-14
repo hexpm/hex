@@ -24,23 +24,23 @@ defmodule Hex.UtilsTest do
   end
 
   describe "format_advisory/1" do
-    test "includes severity and url" do
+    test "includes id, severity and url" do
       assert Hex.Utils.format_advisory(@advisory) ==
-               "(HIGH) Remote code execution via crafted input - https://github.com/advisories/GHSA-test-0001"
+               "GHSA-test-0001 (HIGH): Remote code execution via crafted input - https://github.com/advisories/GHSA-test-0001"
     end
 
-    test "without severity omits severity prefix" do
+    test "without severity omits severity" do
       advisory = Map.delete(@advisory, :severity)
 
       assert Hex.Utils.format_advisory(advisory) ==
-               "Remote code execution via crafted input - https://github.com/advisories/GHSA-test-0001"
+               "GHSA-test-0001: Remote code execution via crafted input - https://github.com/advisories/GHSA-test-0001"
     end
 
-    test "without url omits url suffix" do
+    test "without url omits url" do
       advisory = Map.delete(@advisory, :html_url)
 
       assert Hex.Utils.format_advisory(advisory) ==
-               "(HIGH) Remote code execution via crafted input"
+               "GHSA-test-0001 (HIGH): Remote code execution via crafted input"
     end
   end
 end

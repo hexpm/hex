@@ -494,54 +494,35 @@ defmodule Hex.RemoteConverger do
     end)
   end
 
-  defp print_status(nil, advisories, mod, name, previous_version, version, warning) do
-    case mod do
-      :new ->
-        Hex.Shell.info(Hex.Shell.format([:green, "  #{name} #{version}", :red, "#{warning}"]))
+  defp print_status(retired, advisories, mod, name, previous_version, version, warning) do
+    version_str = version_string(mod, name, previous_version, version)
+    version_color = if mod in [:new, :gt], do: :green, else: if(mod == :lt, do: :yellow, else: [])
 
-      :eq ->
-        Hex.Shell.info("  #{name} #{version}")
+    line =
+      [version_color, version_str, :reset]
+      |> then(fn
+        acc when is_nil(retired) -> acc
+        acc -> [acc, :yellow, " RETIRED!", :reset]
+      end)
+      |> then(fn
+        acc when advisories == [] -> acc
+        acc -> [acc, :red, " VULNERABLE!", :reset]
+      end)
+      |> then(fn
+        acc when is_nil(warning) -> acc
+        acc -> [acc, :red, warning, :reset]
+      end)
 
-      :lt ->
-        Hex.Shell.info(
-          Hex.Shell.format([
-            :yellow,
-            "  #{name} #{previous_version} => #{version}",
-            :red,
-            "#{warning}"
-          ])
-        )
+    Hex.Shell.info(Hex.Shell.format(line))
 
-      :gt ->
-        Hex.Shell.info(
-          Hex.Shell.format([
-            :green,
-            "  #{name} #{previous_version} => #{version}",
-            :red,
-            "#{warning}"
-          ])
-        )
+    if retired do
+      Hex.Shell.warn("    #{Hex.Utils.package_retirement_message(retired)}")
     end
 
-    print_advisories(version_string(mod, name, previous_version, version), advisories)
-  end
-
-  defp print_status(retired, advisories, mod, name, previous_version, version, _warning) do
-    version_string = version_string(mod, name, previous_version, version)
-
-    Hex.Shell.warn("#{version_string} RETIRED!")
-    Hex.Shell.warn("    #{Hex.Utils.package_retirement_message(retired)}")
-
-    print_advisories(version_string, advisories)
-  end
-
-  defp print_advisories(version_string, advisories) do
     Enum.each(advisories, fn advisory ->
       Hex.Shell.info(
-        Hex.Shell.format([:yellow, "#{version_string} has a security advisory!", :reset])
+        Hex.Shell.format(["    " | Hex.Utils.format_advisory_ansi(advisory, "    ")])
       )
-
-      Hex.Shell.info(Hex.Shell.format(["    " | Hex.Utils.format_advisory_ansi(advisory)]))
     end)
   end
 
