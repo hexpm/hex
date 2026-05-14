@@ -102,10 +102,13 @@ defmodule Mix.Tasks.Hex.Audit do
 
   defp print_advisories(advisories) do
     col_widths =
-      Enum.reduce(advisories, [String.length("Dependency"), String.length("Version")],
+      Enum.reduce(
+        advisories,
+        [String.length("Dependency"), String.length("Version")],
         fn {package, version, _adv}, [pw, vw] ->
           [max(pw, byte_size(package)), max(vw, byte_size(version))]
-        end)
+        end
+      )
 
     [pw, vw] = col_widths
     url_prefix = String.duplicate(" ", pw + 2 + vw + 2)

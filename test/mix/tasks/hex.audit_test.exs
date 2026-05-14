@@ -56,10 +56,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
 
       assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
 
-      expected =
-        "GHSA-test-0001 (HIGH): Remote code execution via crafted input - https://github.com/advisories/GHSA-test-0001"
-
-      assert_advisory_output_row(@package_name, "1.1.0", expected)
+      assert_advisory_output_row(@package_name, "1.1.0", @advisory)
       assert_received {:mix_shell, :error, ["Found packages with security advisories"]}
       refute_received {:mix_shell, :error, ["Found retired packages"]}
     end)
@@ -130,20 +127,16 @@ defmodule Mix.Tasks.Hex.AuditTest do
     assert_received {:mix_shell, :info, [^output]}
   end
 
-  defp assert_advisory_output_row(package, version, advisory_text) do
+  defp assert_advisory_output_row(package, version, advisory) do
     col1_width = max(String.length("Dependency"), String.length(package))
     col2_width = max(String.length("Version"), String.length(version))
-    col3_width = max(String.length("Advisory"), String.length(advisory_text))
+    url_prefix = String.duplicate(" ", col1_width + 2 + col2_width + 2)
 
     output =
       [
         [package, :reset, String.duplicate(" ", col1_width - String.length(package) + 2)],
         [version, :reset, String.duplicate(" ", col2_width - String.length(version) + 2)],
-        [
-          advisory_text,
-          :reset,
-          String.duplicate(" ", col3_width - String.length(advisory_text) + 2)
-        ]
+        Hex.Utils.format_advisory_ansi(advisory, url_prefix)
       ]
       |> IO.ANSI.format()
       |> List.to_string()
