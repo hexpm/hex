@@ -293,11 +293,11 @@ defmodule Hex.Utils do
   def format_advisory_ansi(advisory, line_prefix \\ "")
 
   def format_advisory_ansi(%{id: id, summary: summary} = advisory, line_prefix) do
-    [:red, id]
+    [id]
     |> then(fn acc ->
       case advisory do
         %{severity: s} ->
-          [acc, " ", advisory_severity_color(s), "(#{advisory_severity(s)})", :red]
+          [acc, " ", advisory_severity_color(s), "(#{advisory_severity(s)})", :reset]
 
         _ ->
           acc
@@ -306,8 +306,8 @@ defmodule Hex.Utils do
     |> then(&[&1, ": #{summary}"])
     |> then(fn acc ->
       case advisory do
-        %{html_url: url} -> [acc, :reset, "\n", line_prefix, "  ", url]
-        _ -> [acc, :reset]
+        %{html_url: url} -> [acc, "\n", line_prefix, "  ", url]
+        _ -> acc
       end
     end)
   end
