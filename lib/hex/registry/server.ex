@@ -28,7 +28,10 @@ defmodule Hex.Registry.Server do
   end
 
   def prefetch(packages) do
-    :ok = GenServer.call(@name, {:prefetch, packages}, @timeout)
+    case GenServer.call(@name, {:prefetch, packages}, @timeout) do
+      :ok -> :ok
+      {:error, message} -> Mix.raise(message)
+    end
   end
 
   def versions(repo, package) do
