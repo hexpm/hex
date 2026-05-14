@@ -5,7 +5,7 @@ if Mix.env() == :dev do
     @ets_name __MODULE__
     @registry_filename "cache.ets"
     @repo "hexpm"
-    @ets_version 3
+    @ets_version 4
 
     def extract_registry(packages, new_path) do
       {:ok, original_ets} = :ets.file2tab(String.to_charlist(ets_path()))

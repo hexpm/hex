@@ -523,15 +523,7 @@ defmodule Hex.RemoteConverger do
         )
     end
 
-    Enum.each(advisories, fn advisory ->
-      version_string = version_string(mod, name, previous_version, version)
-
-      Hex.Shell.info(
-        Hex.Shell.format([:yellow, "#{version_string} has a security advisory!", :reset])
-      )
-
-      Hex.Shell.info(Hex.Shell.format(["    " | Hex.Utils.format_advisory_ansi(advisory)]))
-    end)
+    print_advisories(version_string(mod, name, previous_version, version), advisories)
   end
 
   defp print_status(retired, advisories, mod, name, previous_version, version, _warning) do
@@ -540,9 +532,16 @@ defmodule Hex.RemoteConverger do
     Hex.Shell.warn("#{version_string} RETIRED!")
     Hex.Shell.warn("    #{Hex.Utils.package_retirement_message(retired)}")
 
+    print_advisories(version_string, advisories)
+  end
+
+  defp print_advisories(version_string, advisories) do
     Enum.each(advisories, fn advisory ->
-      Hex.Shell.warn("#{version_string} has a security advisory!")
-      Hex.Shell.warn("    #{Hex.Utils.format_advisory(advisory)}")
+      Hex.Shell.info(
+        Hex.Shell.format([:yellow, "#{version_string} has a security advisory!", :reset])
+      )
+
+      Hex.Shell.info(Hex.Shell.format(["    " | Hex.Utils.format_advisory_ansi(advisory)]))
     end)
   end
 
