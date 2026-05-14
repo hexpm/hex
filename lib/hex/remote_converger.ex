@@ -413,6 +413,24 @@ defmodule Hex.RemoteConverger do
         unless length(deps) == 0, do: print_category(mod)
         print_dependency_group(deps, mod)
       end)
+
+      all_deps = Enum.flat_map(dep_changes, fn {_mod, deps} -> deps end)
+
+      has_retired =
+        Enum.any?(all_deps, fn {name, repo, _prev, version, _warning} ->
+          Registry.retired(repo, name, version) != nil
+        end)
+
+      has_advisory =
+        Enum.any?(all_deps, fn {name, repo, _prev, version, _warning} ->
+          (Registry.advisories(repo, name, version) || []) != []
+        end)
+
+      if has_retired or has_advisory do
+        Hex.Shell.info("")
+        if has_retired, do: Hex.Shell.error("Found retired packages")
+        if has_advisory, do: Hex.Shell.error("Found packages with security advisories")
+      end
     end
   end
 
