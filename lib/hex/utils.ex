@@ -303,10 +303,10 @@ defmodule Hex.Utils do
           acc
       end
     end)
-    |> then(&[&1, ": #{summary}"])
+    |> then(&[&1, "\n", line_prefix, summary])
     |> then(fn acc ->
       case advisory do
-        %{html_url: url} -> [acc, "\n", line_prefix, "  ", url]
+        %{html_url: url} -> [acc, "\n", line_prefix, url]
         _ -> acc
       end
     end)

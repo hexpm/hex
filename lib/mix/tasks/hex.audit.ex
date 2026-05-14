@@ -45,14 +45,16 @@ defmodule Mix.Tasks.Hex.Audit do
       unless retired == [] do
         header = ["Dependency", "Version", "Retirement reason"]
         Mix.Tasks.Hex.print_table(header, retired)
-        Hex.Shell.error("Found retired packages")
       end
 
       unless advisory == [] do
-        header = ["Dependency", "Version", "Advisory"]
-        Mix.Tasks.Hex.print_table(header, advisory)
-        Hex.Shell.error("Found packages with security advisories")
+        unless retired == [], do: Hex.Shell.info("")
+        print_advisories(advisory)
       end
+
+      Hex.Shell.info("")
+      unless retired == [], do: Hex.Shell.error("Found retired packages")
+      unless advisory == [], do: Hex.Shell.error("Found packages with security advisories")
 
       Mix.Tasks.Hex.set_exit_code(1)
     end
@@ -90,11 +92,45 @@ defmodule Mix.Tasks.Hex.Audit do
     advisories = Registry.advisories(repo, package, version) || []
 
     Enum.map(advisories, fn advisory ->
-      [package, version, Hex.Utils.format_advisory(advisory)]
+      {package, version, advisory}
     end)
   end
 
   defp advisory_status(nil) do
     []
   end
+
+  defp print_advisories(advisories) do
+    col_widths =
+      Enum.reduce(advisories, [String.length("Dependency"), String.length("Version")],
+        fn {package, version, _adv}, [pw, vw] ->
+          [max(pw, byte_size(package)), max(vw, byte_size(version))]
+        end)
+
+    [pw, vw] = col_widths
+    url_prefix = String.duplicate(" ", pw + 2 + vw + 2)
+
+    [[:underline, "Dependency"], [:underline, "Version"], [:underline, "Advisory"]]
+    |> print_advisory_row(col_widths)
+
+    Enum.each(advisories, fn {package, version, advisory} ->
+      [package, version, Hex.Utils.format_advisory_ansi(advisory, url_prefix)]
+      |> print_advisory_row(col_widths)
+    end)
+  end
+
+  defp print_advisory_row([dep, version, advisory], [pw, vw]) do
+    pad = fn str, width ->
+      pad_size = width - ansi_length(str) + 2
+      [str, :reset, :lists.duplicate(pad_size, ?\s)]
+    end
+
+    [pad.(dep, pw), pad.(version, vw), advisory]
+    |> IO.ANSI.format()
+    |> Hex.Shell.info()
+  end
+
+  defp ansi_length(binary) when is_binary(binary), do: byte_size(binary)
+  defp ansi_length(list) when is_list(list), do: Enum.reduce(list, 0, &(ansi_length(&1) + &2))
+  defp ansi_length(atom) when is_atom(atom), do: 0
 end
