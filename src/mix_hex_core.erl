@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.16.0 (0e332e5), do not edit manually
+%% Vendored from hex_core v0.16.0 (c4c38cc), do not edit manually
 
 %% @doc
 %% `hex_core' entrypoint module.
@@ -125,7 +125,10 @@
     tarball_max_uncompressed_size => pos_integer() | infinity,
     docs_tarball_max_size => pos_integer() | infinity,
     docs_tarball_max_uncompressed_size => pos_integer() | infinity,
-    metadata_fields => all | [binary()]
+    metadata_fields => all | [binary()],
+    trusted => boolean(),
+    oauth_exchange => boolean(),
+    oauth_exchange_url => binary() | undefined
 }.
 
 -spec default_config() -> config().
@@ -153,5 +156,8 @@ default_config() ->
         tarball_max_uncompressed_size => 128 * 1024 * 1024,
         docs_tarball_max_size => 16 * 1024 * 1024,
         docs_tarball_max_uncompressed_size => 128 * 1024 * 1024,
-        metadata_fields => all
+        metadata_fields => all,
+        trusted => true,
+        oauth_exchange => true,
+        oauth_exchange_url => undefined
     }.

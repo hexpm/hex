@@ -125,98 +125,43 @@ defmodule Mix.Tasks.Hex do
     auth_device(opts)
   end
 
-  defp get_hostname() do
-    case :inet.gethostname() do
-      {:ok, hostname} -> to_string(hostname)
-      {:error, _} -> nil
-    end
-  end
-
   @doc false
   def auth_device(_opts \\ []) do
     # Clean up any existing authentication
     revoke_existing_oauth_tokens()
     revoke_and_cleanup_old_api_keys()
 
-    name = get_hostname()
-
-    case Hex.API.OAuth.device_authorization("api repositories", name) do
-      {:ok, {200, _, device_response}} ->
-        perform_device_flow(device_response)
-
-      {:ok, {status, _, error}} ->
-        Hex.Shell.error("Device authorization failed (#{status}): #{inspect(error)}")
-        :error
-
-      {:error, reason} ->
-        Hex.Shell.error("Device authorization error: #{inspect(reason)}")
-        :error
+    prompt_user = fn verification_uri, user_code ->
+      Hex.Shell.info("To authenticate, visit: #{verification_uri}")
+      Hex.Shell.info("")
+      Hex.Shell.info("Your verification code:")
+      Hex.Shell.info("")
+      Hex.Shell.info("  #{format_user_code(user_code)}")
+      Hex.Shell.info("")
+      Hex.Shell.info("Verify this code matches what is shown in your browser.")
+      Hex.Shell.info("")
+      Hex.Shell.info("Waiting for authentication...")
+      :ok
     end
-  end
 
-  defp perform_device_flow(device_response) do
-    device_code = device_response["device_code"]
-    user_code = device_response["user_code"]
-    verification_uri = device_response["verification_uri"]
-    verification_uri_complete = device_response["verification_uri_complete"]
-    interval = device_response["interval"] || 5
+    case Hex.API.OAuth.device_auth_flow("api repositories", prompt_user, open_browser: true) do
+      {:ok, tokens} ->
+        store_token(tokens)
 
-    # Use the complete URI if available (has user code pre-filled), otherwise fall back to basic URI
-    uri_to_open = verification_uri_complete || verification_uri
-
-    Hex.Shell.info("To authenticate, visit: #{uri_to_open}")
-    Hex.Shell.info("")
-    Hex.Shell.info("Your verification code:")
-    Hex.Shell.info("")
-    Hex.Shell.info("  #{format_user_code(user_code)}")
-    Hex.Shell.info("")
-    Hex.Shell.info("Verify this code matches what is shown in your browser.")
-    Hex.Shell.info("")
-
-    # Automatically open the browser
-    Hex.Utils.system_open(uri_to_open)
-
-    Hex.Shell.info("Waiting for authentication...")
-
-    case poll_for_token(device_code, interval) do
-      {:ok, token} ->
-        store_token(token)
-
-      :error ->
-        :error
-    end
-  end
-
-  defp poll_for_token(device_code, interval, attempt \\ 1) do
-    case Hex.API.OAuth.poll_device_token(device_code) do
-      {:ok, {200, _, token_response}} ->
-        {:ok, token_response}
-
-      {:ok, {400, _, %{"error" => "authorization_pending"}}} ->
-        if attempt > 120 do
-          Hex.Shell.error("Authentication timed out. Please try again.")
-          :error
-        else
-          Process.sleep(interval * 1000)
-          poll_for_token(device_code, interval, attempt + 1)
-        end
-
-      {:ok, {400, _, %{"error" => "slow_down"}}} ->
-        # Increase polling interval
-        new_interval = min(interval * 2, 30)
-        Process.sleep(new_interval * 1000)
-        poll_for_token(device_code, new_interval, attempt + 1)
-
-      {:ok, {400, _, %{"error" => "expired_token"}}} ->
+      {:error, :timeout} ->
         Hex.Shell.error("Device code expired. Please try again.")
         :error
 
-      {:ok, {403, _, %{"error" => "access_denied"}}} ->
+      {:error, {:access_denied, _status, _body}} ->
         Hex.Shell.error("Authentication was denied.")
         :error
 
-      {:ok, {status, _, error}} ->
-        Hex.Shell.error("Authentication failed (#{status}): #{inspect(error)}")
+      {:error, {:device_auth_failed, status, body}} ->
+        Hex.Shell.error("Device authorization failed (#{status}): #{inspect(body)}")
+        :error
+
+      {:error, {:poll_failed, status, body}} ->
+        Hex.Shell.error("Authentication failed (#{status}): #{inspect(body)}")
         :error
 
       {:error, reason} ->
@@ -232,24 +177,21 @@ defmodule Mix.Tasks.Hex do
       "-" <> String.slice(user_code, mid, String.length(user_code))
   end
 
-  defp store_token(token) do
-    # Create token data with expiration time
-    token_data = Hex.OAuth.create_token_data(token)
-
-    # Store a single token for both read and write operations
-    # With 2FA now required for write operations, we don't need separate tokens
-    Hex.OAuth.store_token(token_data)
+  defp store_token(tokens) do
+    Hex.OAuth.store_token(tokens)
     Hex.Shell.info("You are authenticated!")
-    {:ok, token_data}
+    {:ok, tokens}
   end
 
   @doc false
-  def generate_organization_key(organization_name, key_name, permissions, auth \\ nil) do
-    auth = auth || auth_info(:write)
-
-    case Hex.API.Key.Organization.new(organization_name, key_name, permissions, auth) do
+  def generate_organization_key(organization_name, key_name, permissions) do
+    case Hex.API.Key.Organization.new(organization_name, key_name, permissions) do
       {:ok, {201, _, body}} ->
         {:ok, body["secret"]}
+
+      {:error, {:auth_error, _}} ->
+        Mix.shell().error("Generation of key failed: authentication required")
+        :error
 
       other ->
         Mix.shell().error("Generation of key failed")
@@ -342,167 +284,6 @@ defmodule Mix.Tasks.Hex do
     Hex.State.fetch!(:repos)
     |> Map.put(name, repo)
     |> Hex.Config.update_repos()
-  end
-
-  defp prompt_otp() do
-    Hex.Shell.info("")
-
-    Hex.Shell.prompt("Enter your 2FA code:")
-    |> String.trim()
-  end
-
-  @doc """
-  Returns authentication info for the given operation type.
-
-  The permission parameter determines whether to include OTP for 2FA:
-  - :write - includes OTP if available (required for write operations with 2FA)
-  - :read - does not include OTP
-
-  Both read and write operations use the same OAuth token.
-  """
-  def auth_info(permission, opts \\ [])
-
-  def auth_info(:write, opts) do
-    # Try OAuth tokens first
-    case Hex.OAuth.get_token() do
-      {:ok, access_token} ->
-        # Don't prompt for OTP upfront - will be prompted if server requires it
-        otp = Hex.State.fetch!(:api_otp)
-
-        if otp do
-          [key: access_token, oauth: true, otp: otp]
-        else
-          [key: access_token, oauth: true]
-        end
-
-      {:error, :refresh_failed} ->
-        Hex.Shell.info("Token refresh failed. Please re-authenticate.")
-
-        if Keyword.get(opts, :auth_inline, true) do
-          authenticate_inline()
-        else
-          []
-        end
-
-      {:error, :no_refresh_token} ->
-        Hex.Shell.info("Access token expired and could not be refreshed. Please re-authenticate.")
-
-        if Keyword.get(opts, :auth_inline, true) do
-          authenticate_inline()
-        else
-          []
-        end
-
-      {:error, :no_auth} ->
-        # Fall back to API key from config/env
-        case Hex.State.fetch!(:api_key) do
-          nil ->
-            if Keyword.get(opts, :auth_inline, true) do
-              authenticate_inline()
-            else
-              []
-            end
-
-          api_key ->
-            [key: api_key]
-        end
-    end
-  end
-
-  def auth_info(:read, opts) do
-    # Try OAuth tokens first
-    case Hex.OAuth.get_token() do
-      {:ok, access_token} ->
-        [key: access_token, oauth: true]
-
-      {:error, :refresh_failed} ->
-        Hex.Shell.info("Token refresh failed. Please re-authenticate.")
-
-        if Keyword.get(opts, :auth_inline, true) do
-          authenticate_inline()
-        else
-          []
-        end
-
-      {:error, :no_refresh_token} ->
-        Hex.Shell.info("Access token expired and could not be refreshed. Please re-authenticate.")
-
-        if Keyword.get(opts, :auth_inline, true) do
-          authenticate_inline()
-        else
-          []
-        end
-
-      {:error, :no_auth} ->
-        # Fall back to API key from config/env (write key can be used for read)
-        case Hex.State.fetch!(:api_key) do
-          nil ->
-            if Keyword.get(opts, :auth_inline, true) do
-              authenticate_inline()
-            else
-              []
-            end
-
-          api_key ->
-            [key: api_key]
-        end
-    end
-  end
-
-  defp authenticate_inline() do
-    authenticate? =
-      Hex.Shell.yes?("No authenticated user found. Do you want to authenticate now?")
-
-    if authenticate? do
-      case auth() do
-        {:ok, _tokens} ->
-          # Auth succeeded, try to get token
-          case Hex.OAuth.get_token() do
-            {:ok, access_token} ->
-              # Don't prompt for OTP upfront - will be prompted if server requires it
-              otp = Hex.State.fetch!(:api_otp)
-
-              if otp do
-                [key: access_token, oauth: true, otp: otp]
-              else
-                [key: access_token, oauth: true]
-              end
-
-            {:error, _} ->
-              no_auth_error()
-          end
-
-        :error ->
-          no_auth_error()
-      end
-    else
-      no_auth_error()
-    end
-  end
-
-  defp no_auth_error() do
-    Mix.raise("No authenticated user found. Run `mix hex.user auth`")
-  end
-
-  @doc false
-  def with_otp_retry(auth, fun) when is_function(fun, 1) do
-    case fun.(auth) do
-      {:error, :otp_required} ->
-        otp = prompt_otp()
-        Hex.State.put(:api_otp, otp)
-        auth_with_otp = Keyword.put(auth, :otp, otp)
-        with_otp_retry(auth_with_otp, fun)
-
-      {:error, :invalid_totp} ->
-        Hex.Shell.error("Invalid two-factor authentication code")
-        otp = prompt_otp()
-        Hex.State.put(:api_otp, otp)
-        auth_with_otp = Keyword.put(auth, :otp, otp)
-        with_otp_retry(auth_with_otp, fun)
-
-      result ->
-        result
-    end
   end
 
   @doc false

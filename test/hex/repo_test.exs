@@ -189,7 +189,7 @@ defmodule Hex.RepoTest do
               oauth_exchange: true,
               public_key: _,
               trusted: true,
-              url: "http://localhost:4043/repo/repos/acme"
+              url: "http://localhost:4043/repo"
             }} = Hex.Repo.fetch_repo("hexpm:acme")
 
     Hex.State.put(:trusted_mirror_url, "http://example.com")
@@ -209,7 +209,7 @@ defmodule Hex.RepoTest do
               oauth_exchange: true,
               public_key: _,
               trusted: true,
-              url: "http://example.com/repos/acme"
+              url: "http://example.com"
             }} = Hex.Repo.fetch_repo("hexpm:acme")
 
     Hex.State.put(:trusted_mirror_url, nil)
@@ -229,7 +229,7 @@ defmodule Hex.RepoTest do
               oauth_exchange: true,
               public_key: _,
               trusted: false,
-              url: "http://example.com/repos/acme"
+              url: "http://example.com"
             }} = Hex.Repo.fetch_repo("hexpm:acme")
   end
 
@@ -254,7 +254,7 @@ defmodule Hex.RepoTest do
                oauth_exchange: true,
                public_key: "public",
                trusted: true,
-               url: "http://example.com/repos/acme"
+               url: "http://example.com"
              }
            } = Hex.Repo.update_organizations(repos)
   after
@@ -289,7 +289,7 @@ defmodule Hex.RepoTest do
 
       repos_after = Hex.State.fetch!(:repos)
       token_data = repos_after["hexpm:testorg"].oauth_token
-      assert is_binary(token_data["access_token"])
+      assert is_binary(token_data[:access_token])
     end
 
     test "organization repo skips oauth_exchange when disabled on parent" do
@@ -347,14 +347,14 @@ defmodule Hex.RepoTest do
       repos_after = Hex.State.fetch!(:repos)
       token_data = repos_after["hexpm"].oauth_token
       assert is_map(token_data)
-      assert is_binary(token_data["access_token"])
-      assert is_integer(token_data["expires_at"])
-      first_token = token_data["access_token"]
+      assert is_binary(token_data[:access_token])
+      assert is_integer(token_data[:expires_at])
+      first_token = token_data[:access_token]
 
       assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
 
       repos_after_2 = Hex.State.fetch!(:repos)
-      reused_token = repos_after_2["hexpm"].oauth_token["access_token"]
+      reused_token = repos_after_2["hexpm"].oauth_token[:access_token]
       assert reused_token == first_token
     end
 
@@ -363,8 +363,8 @@ defmodule Hex.RepoTest do
       api_key = auth[:key]
 
       expired_token_data = %{
-        "access_token" => "expired_token",
-        "expires_at" => System.system_time(:second) - 100
+        access_token: "expired_token",
+        expires_at: System.system_time(:second) - 100
       }
 
       repos = Hex.State.fetch!(:repos)
@@ -375,7 +375,7 @@ defmodule Hex.RepoTest do
       assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
 
       repos_after = Hex.State.fetch!(:repos)
-      new_token = repos_after["hexpm"].oauth_token["access_token"]
+      new_token = repos_after["hexpm"].oauth_token[:access_token]
       assert new_token != "expired_token"
       assert is_binary(new_token)
     end
@@ -419,7 +419,7 @@ defmodule Hex.RepoTest do
       assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
 
       repos_after1 = Hex.State.fetch!(:repos)
-      token1 = repos_after1["hexpm"].oauth_token["access_token"]
+      token1 = repos_after1["hexpm"].oauth_token[:access_token]
 
       repos = Hex.State.fetch!(:repos)
       repos = put_in(repos["hexpm"].auth_key, api_key2)
@@ -429,7 +429,7 @@ defmodule Hex.RepoTest do
       assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
 
       repos_after2 = Hex.State.fetch!(:repos)
-      token2 = repos_after2["hexpm"].oauth_token["access_token"]
+      token2 = repos_after2["hexpm"].oauth_token[:access_token]
 
       assert token1 != token2
     end
@@ -449,8 +449,8 @@ defmodule Hex.RepoTest do
       api_key = auth[:key]
 
       almost_expired_token = %{
-        "access_token" => "almost_expired",
-        "expires_at" => System.system_time(:second) + 30
+        access_token: "almost_expired",
+        expires_at: System.system_time(:second) + 30
       }
 
       repos = Hex.State.fetch!(:repos)
@@ -461,7 +461,7 @@ defmodule Hex.RepoTest do
       assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm", "postgrex", "")
 
       repos_after = Hex.State.fetch!(:repos)
-      new_token = repos_after["hexpm"].oauth_token["access_token"]
+      new_token = repos_after["hexpm"].oauth_token[:access_token]
       assert new_token != "almost_expired"
     end
   end

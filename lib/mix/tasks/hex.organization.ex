@@ -168,9 +168,8 @@ defmodule Mix.Tasks.Hex.Organization do
       else
         key_name = Mix.Tasks.Hex.repository_key_name(organization, opts[:key_name])
         permissions = [%{"domain" => "repository", "resource" => organization}]
-        auth = Mix.Tasks.Hex.auth_info(:write)
 
-        case Hex.API.Key.new(key_name, permissions, auth) do
+        case Hex.API.Key.new(key_name, permissions) do
           {:ok, {201, _, body}} ->
             body["secret"]
 
@@ -193,11 +192,9 @@ defmodule Mix.Tasks.Hex.Organization do
   end
 
   defp key_revoke_all(organization) do
-    auth = Mix.Tasks.Hex.auth_info(:write)
-
     Hex.Shell.info("Revoking all keys...")
 
-    case Hex.API.Key.Organization.delete_all(organization, auth) do
+    case Hex.API.Key.Organization.delete_all(organization) do
       {:ok, {code, _headers, _body}} when code in 200..299 ->
         :ok
 
@@ -208,11 +205,9 @@ defmodule Mix.Tasks.Hex.Organization do
   end
 
   defp key_revoke(organization, key) do
-    auth = Mix.Tasks.Hex.auth_info(:write)
-
     Hex.Shell.info("Revoking key #{key}...")
 
-    case Hex.API.Key.Organization.delete(organization, key, auth) do
+    case Hex.API.Key.Organization.delete(organization, key) do
       {:ok, {code, _headers, _body}} when code in 200..299 ->
         :ok
 
@@ -224,9 +219,7 @@ defmodule Mix.Tasks.Hex.Organization do
 
   # TODO: print permissions
   defp key_list(organization) do
-    auth = Mix.Tasks.Hex.auth_info(:read)
-
-    case Hex.API.Key.Organization.get(organization, auth) do
+    case Hex.API.Key.Organization.get(organization) do
       {:ok, {code, _headers, body}} when code in 200..299 ->
         values =
           Enum.map(body, fn %{"name" => name, "inserted_at" => time} ->
