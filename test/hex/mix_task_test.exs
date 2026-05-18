@@ -1128,4 +1128,113 @@ defmodule Hex.MixTaskTest do
       EctoOverride.Fixture.MixProject
     ])
   end
+
+  describe "cooldown" do
+    # All registry packages in the integration suite were just published by
+    # setup_hexpm.exs, so any non-zero cooldown filters them out. The unit
+    # tests cover env / project / global precedence and the empty-env
+    # fallthrough; this layer covers the end-to-end resolution behavior.
+
+    test "non-zero cooldown raises a pre-flight error when all candidates are filtered" do
+      Mix.Project.push(Simple)
+
+      in_tmp(fn ->
+        Hex.State.put(:cache_home, File.cwd!())
+        Hex.State.put(:cooldown, "1d")
+
+        message =
+          assert_raise Mix.Error, fn ->
+            Mix.Task.run("deps.get")
+          end
+
+        assert message.message =~ ~r/cooldown/i
+        assert message.message =~ "ecto"
+      end)
+    after
+      Hex.State.put(:cooldown, "0d")
+
+      purge([
+        Ecto.NoConflict.MixProject,
+        Postgrex.NoConflict.MixProject,
+        Ex_doc.NoConflict.MixProject
+      ])
+    end
+
+    test "cooldown 0d (default) resolves normally" do
+      Mix.Project.push(Simple)
+
+      in_tmp(fn ->
+        Hex.State.put(:cache_home, File.cwd!())
+        Hex.State.put(:cooldown, "0d")
+
+        Mix.Task.run("deps.get")
+
+        assert_received {:mix_shell, :info, ["* Getting ecto (Hex package)"]}
+      end)
+    after
+      purge([
+        Ecto.NoConflict.MixProject,
+        Postgrex.NoConflict.MixProject,
+        Ex_doc.NoConflict.MixProject
+      ])
+    end
+
+    defmodule TiredPin do
+      def project do
+        [
+          app: :tired_app,
+          version: "0.1.0",
+          consolidate_protocols: false,
+          deps: [{:tired, "0.1.0"}]
+        ]
+      end
+    end
+
+    defmodule TiredRange do
+      def project do
+        [
+          app: :tired_app,
+          version: "0.1.0",
+          consolidate_protocols: false,
+          deps: [{:tired, "~> 0.1"}]
+        ]
+      end
+    end
+
+    test "retired locked version escapes cooldown via bypass on deps.update" do
+      # setup_hexpm.exs publishes the `tired` package with versions 0.1.0
+      # (retired) and 0.2.0. Both were published in the test session, so a
+      # 1-day cooldown filters BOTH from the candidate set. Without the
+      # unsafe-locked-version bypass, `mix deps.update tired` would
+      # pre-flight error because every matching version is in cooldown.
+      # The bypass detects the locked 0.1.0 is retired and lets the
+      # resolver see the full set, so it picks 0.2.0.
+      Mix.Project.push(TiredPin)
+
+      in_tmp(fn ->
+        Hex.State.put(:cache_home, File.cwd!())
+
+        # Lock at the retired 0.1.0 — cooldown off so this resolves cleanly.
+        Mix.Task.run("deps.get")
+        assert %{tired: {:hex, :tired, "0.1.0", _, _, _, _, _}} = Mix.Dep.Lock.read()
+
+        purge([Tired.NoConflict.MixProject])
+        Mix.State.clear_cache()
+        Mix.Project.pop()
+        Mix.Project.push(TiredRange)
+        Mix.Task.clear()
+
+        # Now turn on cooldown that would filter every version of tired —
+        # only the retirement bypass can let the upgrade succeed.
+        Hex.State.put(:cooldown, "1d")
+
+        Mix.Task.run("deps.update", ["tired"])
+
+        assert %{tired: {:hex, :tired, "0.2.0", _, _, _, _, _}} = Mix.Dep.Lock.read()
+      end)
+    after
+      Hex.State.put(:cooldown, "0d")
+      purge([Tired.NoConflict.MixProject])
+    end
+  end
 end

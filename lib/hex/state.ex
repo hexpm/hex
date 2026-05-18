@@ -128,6 +128,20 @@ defmodule Hex.State do
       env: ["CI"],
       default: false,
       fun: {__MODULE__, :to_truthy_boolean}
+    },
+    cooldown: %{
+      env: ["HEX_COOLDOWN"],
+      config: [:cooldown],
+      default: "0d",
+      skip_env_if_empty: true,
+      fun: {Hex.Cooldown, :parse_config}
+    },
+    cooldown_exclude_repos: %{
+      env: ["HEX_COOLDOWN_EXCLUDE_REPOS"],
+      config: [:cooldown_exclude_repos],
+      default: [],
+      skip_env_if_empty: true,
+      fun: {Hex.Cooldown, :parse_exclude_repos}
     }
   }
 
@@ -234,7 +248,7 @@ defmodule Hex.State do
     env = System.get_env()
 
     result =
-      load_env(spec[:env], env) ||
+      load_env(spec[:env], env, spec[:skip_env_if_empty]) ||
         load_project_config(project_config, spec[:config]) ||
         load_global_config(global_config, spec[:config])
 
@@ -279,9 +293,10 @@ defmodule Hex.State do
     |> Path.join("hex.config")
   end
 
-  defp load_env(keys, env) do
+  defp load_env(keys, env, skip_if_empty) do
     Enum.find_value(keys || [], fn key ->
       case Map.fetch(env, key) do
+        {:ok, ""} when skip_if_empty == true -> nil
         {:ok, value} -> {{:env, key}, value}
         :error -> nil
       end

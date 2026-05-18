@@ -5,7 +5,7 @@ if Mix.env() == :dev do
     @ets_name __MODULE__
     @registry_filename "cache.ets"
     @repo "hexpm"
-    @ets_version 4
+    @ets_version 5
 
     def extract_registry(packages, new_path) do
       {:ok, original_ets} = :ets.file2tab(String.to_charlist(ets_path()))
@@ -42,6 +42,7 @@ if Mix.env() == :dev do
               copy(original_ets, new_ets, {:outer_checksum, @repo, package, version})
               copy(original_ets, new_ets, {:retired, @repo, package, version})
               copy(original_ets, new_ets, {:advisories, @repo, package, version})
+              copy(original_ets, new_ets, {:published_at, @repo, package, version})
               copy(original_ets, new_ets, {:timestamp, @repo, package, version})
 
               [{_, dep_tuples}] = :ets.lookup(original_ets, {:deps, @repo, package, version})

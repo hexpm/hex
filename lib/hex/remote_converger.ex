@@ -67,9 +67,12 @@ defmodule Hex.RemoteConverger do
   defp run_solver(lock, old_lock, requests, locked, overridden) do
     start_time = System.monotonic_time(:millisecond)
     dependencies = Enum.map(requests, &request_to_dependency/1)
+    setup_cooldown(old_lock, locked)
     locked = Enum.map(locked, &request_to_locked/1)
     overridden = Enum.map(overridden, &Atom.to_string/1)
     verify_otp_app_names(dependencies)
+
+    cooldown_preflight(requests)
 
     level = Logger.level()
     Logger.configure(level: if(Hex.State.fetch!(:debug_solver), do: :debug, else: :info))
@@ -77,7 +80,7 @@ defmodule Hex.RemoteConverger do
     solution =
       try do
         Hex.Solver.run(
-          Registry,
+          Hex.Registry.Cooldown,
           dependencies,
           locked,
           overridden,
@@ -98,7 +101,117 @@ defmodule Hex.RemoteConverger do
 
       {:error, message} ->
         Hex.Shell.info(message)
+        maybe_print_cooldown_hint()
         Mix.raise("Hex dependency resolution failed")
+    end
+  end
+
+  defp setup_cooldown(old_lock, locked) do
+    cutoff = Hex.Cooldown.build_cutoff()
+    Hex.State.put(:cooldown_cutoff, cutoff)
+
+    bypass = build_cooldown_bypass(old_lock, locked, cutoff)
+    Hex.State.put(:cooldown_bypass_packages, bypass)
+  end
+
+  @doc false
+  def build_cooldown_bypass(_old_lock, _locked, :disabled), do: MapSet.new()
+
+  def build_cooldown_bypass(old_lock, locked, _cutoff) do
+    # The bypass set has two sources:
+    #
+    # 1. Packages in `locked` (the post-`prepare_locked/3` set): the lockfile
+    #    entry survived requirement checking and dep unlocking, so this
+    #    package is being installed from the lock — no re-resolution, no
+    #    cooldown. Matches the design's "cooldown does not apply when
+    #    proceeding from the lockfile" promise.
+    #
+    # 2. Packages in `old_lock` whose locked version is known-unsafe (retired
+    #    or carrying a security advisory): the user re-resolving is trying
+    #    to escape that version; cooldown must not block the escape. Walks
+    #    `old_lock` rather than `locked` because `mix deps.update foo` to
+    #    escape an unsafe foo removes foo from `locked`.
+    lock_satisfied = for %{name: name} <- locked, into: MapSet.new(), do: name
+
+    unsafe =
+      for %{repo: repo, name: name, version: version} <- Hex.Mix.from_lock(old_lock),
+          locked_version_unsafe?(repo || "hexpm", name, to_string(version)),
+          into: MapSet.new(),
+          do: name
+
+    MapSet.union(lock_satisfied, unsafe)
+  end
+
+  defp locked_version_unsafe?(repo, name, version) do
+    Registry.retired(repo, name, version) != nil or
+      Registry.advisories(repo, name, version) not in [nil, []]
+  end
+
+  defp cooldown_preflight(requests) do
+    cutoff = Hex.State.fetch!(:cooldown_cutoff)
+    bypass = Hex.State.fetch!(:cooldown_bypass_packages)
+
+    if cutoff != :disabled do
+      walk_preflight(requests, cutoff, bypass)
+    end
+  end
+
+  defp walk_preflight(requests, cutoff, bypass) do
+    # Both Hex and non-Hex requests carry :requirement (nil for non-Hex
+    # parents). check_request_cooldown is a no-op for nil-requirement
+    # requests, so the walk uniformly visits every node and recurses into
+    # nested deps under non-Hex (path / git) parents.
+    Enum.each(requests, fn request ->
+      cond do
+        MapSet.member?(bypass, request.name) -> :ok
+        Hex.Cooldown.repo_excluded?(request[:repo]) -> :ok
+        true -> check_request_cooldown(request, cutoff)
+      end
+
+      walk_preflight(Map.get(request, :dependencies, []), cutoff, bypass)
+    end)
+  end
+
+  defp check_request_cooldown(%{requirement: nil}, _cutoff), do: :ok
+
+  defp check_request_cooldown(%{repo: repo, name: name, requirement: requirement}, cutoff) do
+    with {:ok, parsed} <- Version.parse_requirement(requirement),
+         {:ok, versions} <- Registry.versions(repo, name) do
+      matching =
+        versions
+        |> Enum.filter(&Version.match?(&1, parsed))
+        |> Enum.map(&to_string/1)
+
+      filtered =
+        Enum.flat_map(matching, fn version ->
+          case Registry.published_at(repo, name, version) do
+            nil ->
+              []
+
+            published_at ->
+              if Hex.Cooldown.eligible?(published_at, cutoff) do
+                []
+              else
+                [{version, published_at}]
+              end
+          end
+        end)
+
+      if matching != [] and length(filtered) == length(matching) do
+        Mix.raise(Hex.Cooldown.preflight_error(name, requirement, filtered, cutoff))
+      end
+    else
+      _ -> :ok
+    end
+  end
+
+  defp check_request_cooldown(_, _), do: :ok
+
+  defp maybe_print_cooldown_hint() do
+    cutoff = Hex.State.fetch!(:cooldown_cutoff)
+
+    if note = Hex.Cooldown.solver_failure_note(cutoff) do
+      Hex.Shell.info(note)
     end
   end
 

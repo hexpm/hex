@@ -7,7 +7,7 @@ defmodule Hex.Registry.Server do
   @name __MODULE__
   @filename "cache.ets"
   @timeout 60_000
-  @ets_version 4
+  @ets_version 5
   @public_keys_html "https://hex.pm/docs/public_keys"
 
   def start_link(opts \\ []) do
@@ -56,6 +56,10 @@ defmodule Hex.Registry.Server do
 
   def advisories(repo, package, version) do
     GenServer.call(@name, {:advisories, repo, package, version}, @timeout)
+  end
+
+  def published_at(repo, package, version) do
+    GenServer.call(@name, {:published_at, repo, package, version}, @timeout)
   end
 
   def last_update() do
@@ -216,6 +220,12 @@ defmodule Hex.Registry.Server do
     end)
   end
 
+  def handle_call({:published_at, repo, package, version}, from, state) do
+    maybe_wait({repo, package}, from, state, fn ->
+      lookup(state.ets, {:published_at, repo || "hexpm", package, version})
+    end)
+  end
+
   def handle_call(:last_update, _from, state) do
     time = lookup(state.ets, :last_update)
     {:reply, time, state}
@@ -313,6 +323,7 @@ defmodule Hex.Registry.Server do
   #   {{:outer_checksum, ^repo, _package, _version}, _} -> true
   #   {{:retired, ^repo, _package, _version}, _} -> true
   #   {{:advisories, ^repo, _package, _version}, _} -> true
+  #   {{:published_at, ^repo, _package, _version}, _} -> true
   #   {{:registry_etag, ^repo, _package}, _} -> true
   #   {{:timestamp, ^repo, _package}, _} -> true
   #   {{:timestamp, ^repo, _package, _version}, _} -> true
@@ -327,6 +338,7 @@ defmodule Hex.Registry.Server do
       {{{:outer_checksum, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:retired, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:advisories, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:published_at, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:registry_etag, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:timestamp, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:timestamp, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
@@ -387,6 +399,14 @@ defmodule Hex.Registry.Server do
       :ets.insert(tid, {{:inner_checksum, repo, package, version}, release[:inner_checksum]})
       :ets.insert(tid, {{:outer_checksum, repo, package, version}, release[:outer_checksum]})
       :ets.insert(tid, {{:retired, repo, package, version}, release[:retired]})
+
+      # The registry encodes published_at as a {seconds, nanos} Timestamp
+      # map. Cooldown only needs second granularity, so store the integer
+      # to keep the consumers simple.
+      :ets.insert(
+        tid,
+        {{:published_at, repo, package, version}, timestamp_seconds(release[:published_at])}
+      )
 
       release_advisories =
         (release[:advisory_indexes] || [])
@@ -537,6 +557,7 @@ defmodule Hex.Registry.Server do
       :ets.delete(tid, {:checksum, repo, package, version})
       :ets.delete(tid, {:retired, repo, package, version})
       :ets.delete(tid, {:advisories, repo, package, version})
+      :ets.delete(tid, {:published_at, repo, package, version})
       :ets.delete(tid, {:deps, repo, package, version})
     end)
   end
@@ -547,4 +568,7 @@ defmodule Hex.Registry.Server do
       [] -> nil
     end
   end
+
+  defp timestamp_seconds(nil), do: nil
+  defp timestamp_seconds(%{seconds: seconds}), do: seconds
 end
