@@ -364,5 +364,39 @@ defmodule Mix.Tasks.Hex.DocsTest do
         assert Enum.fetch!(browser_open_cmd, -1) == "https://hexdocs.pm/docs_package"
       end)
     end
+
+    test "open a specific page online using the page option" do
+      Mix.Tasks.Hex.Docs.run(["online", "ecto", "--page", "Ecto.Repo"])
+      assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
+      assert Enum.fetch!(browser_open_cmd, -1) == "https://hexdocs.pm/ecto/Ecto.Repo.html"
+    end
+  end
+
+  describe "--module deprecation" do
+    test "online --module is treated as --page with a deprecation warning" do
+      Mix.Tasks.Hex.Docs.run(["online", "ecto", "--module", "Ecto.Repo"])
+      assert_received {:mix_shell, :error, ["--module is deprecated, use --page instead"]}
+      assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
+      assert Enum.fetch!(browser_open_cmd, -1) == "https://hexdocs.pm/ecto/Ecto.Repo.html"
+    end
+
+    @tag mirror: true
+    test "offline --module is treated as --page with a deprecation warning", %{
+      docs_home: docs_home
+    } do
+      package = "docs_package"
+      latest_version = "1.1.2"
+
+      in_tmp("docs", fn ->
+        Mix.Tasks.Hex.Docs.run(["offline", package, "--module", "Some.Module"])
+        assert_received {:mix_shell, :error, ["--module is deprecated, use --page instead"]}
+
+        browser_open_msg =
+          "#{docs_home}/#{@org_dir}/#{package}/#{latest_version}/Some.Module.html"
+
+        assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
+        assert Enum.fetch!(browser_open_cmd, -1) == browser_open_msg
+      end)
+    end
   end
 end

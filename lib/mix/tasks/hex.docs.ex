@@ -52,7 +52,7 @@ defmodule Mix.Tasks.Hex.Docs do
   def run(args) do
     Hex.start()
     {opts, args} = OptionParser.parse!(args, strict: @switches)
-    opts = Keyword.put(opts, :mix_project, !!Mix.Project.get())
+    opts = opts |> normalize_module_opt() |> Keyword.put(:mix_project, !!Mix.Project.get())
 
     case args do
       ["fetch" | remaining] ->
@@ -244,14 +244,7 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp docs_location(organization, name, version, opts) do
     format = Keyword.get(opts, :format, "html")
-
-    page =
-      if module = Keyword.get(opts, :module) do
-        Mix.shell().error("--module is deprecated, use --page instead")
-        module
-      else
-        Keyword.get(opts, :page)
-      end
+    page = Keyword.get(opts, :page)
 
     default_path = Path.join([docs_dir(), org_to_path(organization), name, version])
     fallback_path = Path.join([docs_dir(), name, version])
@@ -305,18 +298,30 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp get_docs_url([name], opts) do
-    if module = opts[:module] do
-      Hex.Utils.hexdocs_module_url(opts[:organization], name, module)
+    if page = opts[:page] do
+      Hex.Utils.hexdocs_module_url(opts[:organization], name, page)
     else
       Hex.Utils.hexdocs_url(opts[:organization], name)
     end
   end
 
   defp get_docs_url([name, version], opts) do
-    if module = opts[:module] do
-      Hex.Utils.hexdocs_module_url(opts[:organization], name, version, module)
+    if page = opts[:page] do
+      Hex.Utils.hexdocs_module_url(opts[:organization], name, version, page)
     else
       Hex.Utils.hexdocs_url(opts[:organization], name, version)
+    end
+  end
+
+  # TODO: Remove :module support
+  defp normalize_module_opt(opts) do
+    case Keyword.pop(opts, :module) do
+      {nil, opts} ->
+        opts
+
+      {module, opts} ->
+        Hex.Shell.error("--module is deprecated, use --page instead")
+        Keyword.put_new(opts, :page, module)
     end
   end
 
