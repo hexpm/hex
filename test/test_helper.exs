@@ -1,4 +1,7 @@
-ExUnit.configure(exclude: [:skip | ExUnit.configuration()[:exclude]])
+exclude =
+  [:skip] ++ if(Code.ensure_loaded?(:json), do: [], else: [:requires_json])
+
+ExUnit.configure(exclude: exclude ++ ExUnit.configuration()[:exclude])
 ExUnit.start()
 Application.ensure_all_started(:bypass)
 
