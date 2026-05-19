@@ -537,6 +537,7 @@ defmodule Hex.RemoteConverger do
     end
 
     advisories
+    |> :mix_hex_advisory.group_for_display()
     |> Enum.with_index()
     |> Enum.each(fn {advisory, index} ->
       if retired || index > 0, do: Hex.Shell.info("")
