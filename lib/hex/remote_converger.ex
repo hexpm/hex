@@ -8,6 +8,11 @@ defmodule Hex.RemoteConverger do
   def post_converge() do
     Hex.UpdateChecker.check()
 
+    if Hex.State.get(:print_retired_warning) do
+      Hex.Shell.error("Found retired packages, see above for details")
+      Hex.State.put(:print_retired_warning, false)
+    end
+
     if Hex.State.get(:print_advisory_warning) do
       Hex.Shell.error("Found packages with security advisories, see above for details")
       Hex.State.put(:print_advisory_warning, false)
@@ -428,8 +433,7 @@ defmodule Hex.RemoteConverger do
       has_advisory = Enum.any?(all_deps, fn {_dep, _retired, adv} -> adv != [] end)
 
       if has_retired do
-        Hex.Shell.info("")
-        Hex.Shell.error("Found retired packages")
+        Hex.State.put(:print_retired_warning, true)
       end
 
       if has_advisory do
