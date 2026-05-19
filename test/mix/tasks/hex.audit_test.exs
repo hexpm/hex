@@ -134,7 +134,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
         severity: :SEVERITY_HIGH,
         api_url: "https://api.osv.dev/v1/vulns/EEF-CVE-2026-32689",
         aliases: [
-          %{id: "CVE-2026-32689", url: nil},
+          %{id: "CVE-2026-32689", url: :undefined},
           %{
             id: "GHSA-628h-q48j-jr6q",
             url: "https://osv.dev/vulnerability/GHSA-628h-q48j-jr6q"

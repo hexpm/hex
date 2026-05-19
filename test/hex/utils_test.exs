@@ -58,7 +58,7 @@ defmodule Hex.UtilsTest do
     test "renders aliases on an aka: line when present" do
       advisory =
         Map.put(@advisory, :aliases, [
-          %{id: "CVE-2026-0001", url: nil},
+          %{id: "CVE-2026-0001", url: :undefined},
           %{id: "GHSA-other-0002", url: "https://osv.dev/vulnerability/GHSA-other-0002"}
         ])
 
@@ -74,7 +74,7 @@ defmodule Hex.UtilsTest do
     end
 
     test "aka: line respects line prefix" do
-      advisory = Map.put(@advisory, :aliases, [%{id: "CVE-2026-0001", url: nil}])
+      advisory = Map.put(@advisory, :aliases, [%{id: "CVE-2026-0001", url: :undefined}])
 
       assert render(advisory, "    ") ==
                "GHSA-test-0001 (HIGH)\n    aka: CVE-2026-0001\n    Remote code execution via crafted input\n    https://github.com/advisories/GHSA-test-0001"
