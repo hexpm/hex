@@ -1,13 +1,13 @@
-%% Vendored from hex_core v0.17.0 (bcbaeaa), do not edit manually
+%% Vendored from hex_core v0.17.0 (d8f5f87), do not edit manually
 
 %% @doc
 %% Display-time deduplication of security advisories.
 %%
 %% Multiple advisory sources (EEF, GHSA, NVD, ...) can publish the same
 %% vulnerability under different identifiers and cross-reference each other
-%% via the `aliases' field. `group_for_display/1' groups such advisories,
-%% picks a deterministic primary, and merges references and timestamps so
-%% callers can render one entry per vulnerability.
+%% via the `aliases' field. `group_for_display/1' groups such advisories
+%% and picks a deterministic primary so callers can render one entry per
+%% vulnerability.
 -module(mix_hex_advisory).
 -export([group_for_display/1]).
 
@@ -56,13 +56,7 @@ is_cve(_) -> false.
 merge_group(Advisories) ->
     Primary = pick_primary(Advisories),
     Rest = [A || A <- Advisories, maps:get(id, A) =/= maps:get(id, Primary)],
-    Ordered = [Primary | Rest],
-    Primary#{
-        aliases => display_aliases(Primary, Ordered),
-        published_at => min_timestamp(Ordered),
-        modified_at => max_timestamp(Ordered),
-        references => merge_references(Ordered)
-    }.
+    Primary#{aliases => display_aliases(Primary, [Primary | Rest])}.
 
 pick_primary(Advisories) ->
     [Primary | _] = lists:sort(
@@ -106,64 +100,6 @@ alias_url(Id, AdvisoryIds) ->
         false ->
             undefined
     end.
-
-%%====================================================================
-%% Timestamps
-%%====================================================================
-
-min_timestamp(Advisories) ->
-    aggregate_timestamp(Advisories, published_at, fun erlang:'<'/2).
-
-max_timestamp(Advisories) ->
-    aggregate_timestamp(Advisories, modified_at, fun erlang:'>'/2).
-
-aggregate_timestamp(Advisories, Field, Cmp) ->
-    Stamps = [T || A <- Advisories, (T = maps:get(Field, A, undefined)) =/= undefined],
-    case Stamps of
-        [] ->
-            undefined;
-        [First | Rest] ->
-            lists:foldl(
-                fun(T, Acc) ->
-                    case Cmp(ts_tuple(T), ts_tuple(Acc)) of
-                        true -> T;
-                        false -> Acc
-                    end
-                end,
-                First,
-                Rest
-            )
-    end.
-
-ts_tuple(#{seconds := S, nanos := N}) -> {S, N};
-ts_tuple(#{seconds := S}) -> {S, 0}.
-
-%%====================================================================
-%% References
-%%====================================================================
-
-merge_references(Advisories) ->
-    AllRefs = lists:flatmap(fun(A) -> maps:get(references, A, []) end, Advisories),
-    {UrlOrder, ByUrl} =
-        lists:foldl(
-            fun(#{url := Url, type := Type}, {Order, Map}) ->
-                case maps:is_key(Url, Map) of
-                    true ->
-                        Existing = maps:get(Url, Map),
-                        Map2 = Map#{Url := uniq(Existing ++ [Type])},
-                        {Order, Map2};
-                    false ->
-                        {Order ++ [Url], Map#{Url => [Type]}}
-                end
-            end,
-            {[], #{}},
-            AllRefs
-        ),
-    [#{url => Url, types => maps:get(Url, ByUrl)} || Url <- UrlOrder].
-
-%%====================================================================
-%% Misc
-%%====================================================================
 
 uniq(List) ->
     {_, Out} =

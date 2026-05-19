@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.17.0 (bcbaeaa), do not edit manually
+%% Vendored from hex_core v0.17.0 (d8f5f87), do not edit manually
 
 %% @doc
 %% httpc-based implementation of {@link mix_hex_http} contract.
