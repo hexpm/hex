@@ -89,6 +89,14 @@ defmodule Mix.Tasks.Hex.SearchTest do
   end
 
   describe "docs query" do
+    setup do
+      if System.otp_release() >= "27" do
+        :ok
+      else
+        {:skip, "docs query tests require OTP 27 or later"}
+      end
+    end
+
     test "prints formatted results for project dependencies" do
       Mix.Project.push(SearchDeps.MixProject)
 
@@ -118,7 +126,7 @@ defmodule Mix.Tasks.Hex.SearchTest do
         assert_received {:mix_shell, :info, [message]}
 
         assert message =~
-                 "# cast/4 - https://hexdocs.pm/ecto/3.13.4/Ecto.Changeset.html#cast/4 (1)\n\nCast changesets.\n\n"
+                 "# cast/4 (1/1)\nhttps://hexdocs.pm/ecto/3.13.4/Ecto.Changeset.html#cast/4\n\nCast changesets.\n\n"
       end)
     end
 
@@ -154,7 +162,30 @@ defmodule Mix.Tasks.Hex.SearchTest do
         assert_received {:mix_shell, :info, [message]}
 
         assert message =~
-                 "# Examples - mix deps.tree - https://hexdocs.pm/mix/1.20.0-rc.5/Mix.Tasks.Deps.Tree.html#module-examples (1)\n\nTree docs.\n\n"
+                 "# Examples - mix deps.tree (1/1)\nhttps://hexdocs.pm/mix/1.20.0-rc.5/Mix.Tasks.Deps.Tree.html#module-examples\n\nTree docs.\n\n"
+      end)
+    end
+
+    test "includes the total result count in the heading" do
+      in_tmp(fn ->
+        set_home_tmp()
+
+        mock_search_http(fn _url ->
+          {:ok,
+           {200, %{},
+            ~s({"found":2,"hits":[{"document":{"doc":"First","package":"ecto-3.13.4","ref":"Ecto.Changeset.html#cast/4","title":"cast/4"}},{"document":{"doc":"Second","package":"ecto-3.13.4","ref":"Ecto.Changeset.html#change/2","title":"change/2"}}]})}}
+        end)
+
+        Mix.Tasks.Hex.Search.run(["query", "--packages", "foo"])
+
+        assert_received {:mix_shell, :info, [first]}
+        assert_received {:mix_shell, :info, [second]}
+
+        assert first =~
+                 "# cast/4 (1/2)\nhttps://hexdocs.pm/ecto/3.13.4/Ecto.Changeset.html#cast/4\n\nFirst\n\n"
+
+        assert second =~
+                 "# change/2 (2/2)\nhttps://hexdocs.pm/ecto/3.13.4/Ecto.Changeset.html#change/2\n\nSecond\n\n"
       end)
     end
 
@@ -218,6 +249,20 @@ defmodule Mix.Tasks.Hex.SearchTest do
         end)
 
         assert_raise Mix.Error, ~r/Docs search request failed: :econnrefused/, fn ->
+          Mix.Tasks.Hex.Search.run(["query", "--packages", "foo"])
+        end
+      end)
+    end
+
+    test "raises on invalid json" do
+      in_tmp(fn ->
+        set_home_tmp()
+
+        mock_search_http(fn _url ->
+          {:ok, {200, %{}, "{"}}
+        end)
+
+        assert_raise Mix.Error, ~r/Docs search returned invalid JSON: :unexpected_end/, fn ->
           Mix.Tasks.Hex.Search.run(["query", "--packages", "foo"])
         end
       end)

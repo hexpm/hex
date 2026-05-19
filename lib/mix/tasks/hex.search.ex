@@ -207,16 +207,15 @@ defmodule Mix.Tasks.Hex.Search do
   end
 
   defp decode_json!(body) do
-    if Code.ensure_loaded?(JSON) do
-      case JSON.decode(body) do
-        {:ok, decoded} ->
-          decoded
-
-        {:error, reason} ->
-          Mix.raise("Docs search returned invalid JSON: #{inspect(reason)}")
+    if Code.ensure_loaded?(:json) do
+      try do
+        :json.decode(body)
+      rescue
+        error in ErlangError ->
+          Mix.raise("Docs search returned invalid JSON: #{inspect(error.original)}")
       end
     else
-      Mix.raise("JSON module is not available, upgrade Elixir to use this feature")
+      Mix.raise(":json module is not available, upgrade OTP to use this feature")
     end
   end
 
@@ -225,6 +224,8 @@ defmodule Mix.Tasks.Hex.Search do
   end
 
   defp print_results(%{"found" => _found, "hits" => hits}) do
+    total = Integer.to_string(length(hits))
+
     hits
     |> Enum.with_index(1)
     |> Enum.each(fn {hit, index} ->
@@ -237,22 +238,13 @@ defmodule Mix.Tasks.Hex.Search do
         }
       } = hit
 
-      Hex.Shell.info(
-        Hex.Shell.format([
-          :bright,
-          "# ",
-          title,
-          " - ",
-          document_url(package, ref),
-          " (",
-          Integer.to_string(index),
-          ")",
-          :reset,
-          "\n\n",
-          strip_html_comments(doc),
-          "\n\n"
-        ])
-      )
+      Hex.Shell.info([
+        :bright,
+        ["# ", title, " (", Integer.to_string(index), "/", total, ")"],
+        :reset,
+        ["\n", document_url(package, ref), "\n\n"],
+        [strip_html_comments(doc), "\n\n"]
+      ])
     end)
   end
 
