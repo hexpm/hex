@@ -82,7 +82,10 @@ defmodule Mix.Tasks.Hex.Audit do
   end
 
   defp advisory_status(%{repo: repo, name: package, version: version}) do
-    advisories = Registry.advisories(repo, package, version) || []
+    advisories =
+      (Registry.advisories(repo, package, version) || [])
+      |> :mix_hex_advisory.group_for_display()
+
     Enum.map(advisories, fn advisory -> {package, version, advisory} end)
   end
 

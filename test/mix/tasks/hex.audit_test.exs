@@ -101,6 +101,54 @@ defmodule Mix.Tasks.Hex.AuditTest do
     end)
   end
 
+  test "audit (advisories sharing a CVE alias are deduplicated)", context do
+    eef_advisory = %{
+      id: "EEF-CVE-2026-32689",
+      summary: "EEF source",
+      html_url: "https://osv.dev/vulnerability/EEF-CVE-2026-32689",
+      severity: :SEVERITY_HIGH,
+      api_url: "https://api.osv.dev/v1/vulns/EEF-CVE-2026-32689",
+      aliases: ["CVE-2026-32689", "GHSA-628h-q48j-jr6q"],
+      references: []
+    }
+
+    ghsa_advisory = %{
+      id: "GHSA-628h-q48j-jr6q",
+      summary: "GHSA source",
+      html_url: "https://osv.dev/vulnerability/GHSA-628h-q48j-jr6q",
+      severity: :SEVERITY_HIGH,
+      api_url: "https://api.osv.dev/v1/vulns/GHSA-628h-q48j-jr6q",
+      aliases: ["CVE-2026-32689"],
+      references: []
+    }
+
+    with_test_package("1.4.0", context, fn ->
+      inject_advisory(@package_name, "1.4.0", [eef_advisory, ghsa_advisory])
+
+      assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
+
+      grouped_advisory = %{
+        id: "EEF-CVE-2026-32689",
+        summary: "EEF source",
+        html_url: "https://osv.dev/vulnerability/EEF-CVE-2026-32689",
+        severity: :SEVERITY_HIGH,
+        api_url: "https://api.osv.dev/v1/vulns/EEF-CVE-2026-32689",
+        aliases: [
+          %{id: "CVE-2026-32689", url: nil},
+          %{
+            id: "GHSA-628h-q48j-jr6q",
+            url: "https://osv.dev/vulnerability/GHSA-628h-q48j-jr6q"
+          }
+        ]
+      }
+
+      assert_advisory_section(@package_name, "1.4.0", grouped_advisory)
+
+      refute_received {:mix_shell, :info,
+                       ["  " <> @package_name <> " 1.4.0 - GHSA-628h-q48j-jr6q" <> _]}
+    end)
+  end
+
   def with_test_package(version, %{auth: auth}, fun) do
     Mix.Project.push(RetiredDeps.MixProject)
 
