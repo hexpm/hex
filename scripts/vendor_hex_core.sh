@@ -12,11 +12,21 @@ prefix=mix_
 version=`cat $source_dir/hex_core.hrl | grep HEX_CORE_VERSION | cut -d'"' -f2`
 shortref=`cd $source_dir && git rev-parse --short HEAD`
 
-filenames="hex_core.hrl \
+filenames="hex_api_auth.erl \
+           hex_api_key.erl \
+           hex_api_oauth.erl \
+           hex_api_organization_member.erl \
+           hex_api_organization.erl \
+           hex_api_package_owner.erl \
+           hex_api_package.erl \
+           hex_api_release.erl \
+           hex_api_short_url.erl \
+           hex_api_user.erl \
+           hex_api.erl \
+           hex_core.hrl \
            hex_core.erl \
            hex_erl_tar.erl \
            hex_erl_tar.hrl \
-           hex_filename.erl \
            hex_http.erl \
            hex_http_httpc.erl \
            hex_licenses.erl \
@@ -26,6 +36,7 @@ filenames="hex_core.hrl \
            hex_pb_versions.erl \
            hex_registry.erl \
            hex_repo.erl \
+           hex_safe_binary_to_term.erl \
            hex_tarball.erl \
            safe_erl_term.xrl"
 
@@ -41,6 +52,7 @@ search_to_replace="hex_core: \
                    hex_pb_versions \
                    hex_registry \
                    hex_tarball \
+                   hex_safe_binary_to_term \
                    hex_http \
                    hex_repo \
                    hex_api \

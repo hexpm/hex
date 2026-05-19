@@ -1,12 +1,129 @@
 # CHANGELOG
 
-## v2.1.2-dev
+## v2.4.3-dev
+
+## v2.4.2 (2026-04-30)
+
+### Enhancements
+
+* Add download stats and release dates to `mix hex.info`
+* Show `mix hex.package diff` commands in `mix hex.outdated` output
+* Update docs published message to indicate docs may not be immediately available
+
+### Bug fixes
+
+* Clean up paths in `mix hex.package diff` output
+* Fix organization auth to create user key instead of organization key
+* Fix registry cache purging
+* Fix `mix deps.get` timing out when fetching private packages in parallel
+* Skip auth prompts in `mix deps.get` when only public packages are needed
+* Restrict user OAuth fallback to trusted repositories
+* Only exchange API keys for OAuth tokens on repositories that opted in
+
+### Security fixes
+
+* Raise on `mix.lock` checksum mismatches instead of silently rewriting them (CVE-2026-32148)
+
+## v2.4.1 (2026-03-24)
+
+### Bug fixes
+
+* Fix OAuth exchange attempted for repos configured before v2.4.0
+* Propagate OAuth exchange configuration to organization repos
+* Deduplicate OAuth token exchange during parallel package fetching
+* Restore Hex code paths after compilation pruning
+
+## v2.4.0 (2026-03-14)
+
+### Enhancements
+
+* Replace password based authentication with OAuth device flow
+* Add 2FA support for API write operations
+* Use OAuth tokens for hexpm and custom repositories
+* Add `--print-url` flag to `mix hex.search`
+* Include stdlib packages by default in `mix hex.search`
+* Change private docs URLs from *.hexdocs.pm to *.hexorgs.pm
+* Improve authentication error handling for package fetching
+
+### Bug fixes
+
+* Fix `--within-requirements` option in `mix hex.outdated`
+
+### Security fixes
+
+* Use safe deserialization for parsing package manifests
+
+## v2.3.2 (2026-02-27)
+
+### Security fixes
+
+* Fix unsafe deserialization of Erlang terms in API responses (CVE-2026-21619)
+
+## v2.3.1 (2025-10-26)
+
+### Bug fixes
+
+* Fix repository name verification for organizations and custom repositories
+
+## v2.3.0 (2025-10-26)
+
+### Enhancements
+
+* Update `mix hex.search` task with full-text documentation search across all your dependencies
+* Add `:only` column and filtering to `mix hex.outdated`
+* Improve registry verification error messages
+* Improve caching of packages across multiple repos
+* Add HTTP request debug logging with `MIX_DEBUG=1`
+* Prevent publishing packages with `:in_umbrella` dependencies
+
+### Bug fixes
+
+* Handle truthy boolean for `CI` env variable
+* Fix `warn_if_outdated` if package name and app name are different
+* Allow nested maps for `extra` package metadata
+
+## v2.2.2 (2025-06-27)
+
+### Bug fixes
+
+* `mix hex.publish`: Pass `--no-listeners` to `deps.loadpaths`
+
+## v2.2.1 (2025-05-09)
+
+### Bug fixes
+
+* Precompile Hex for Elixir 1.18 using Elixir 1.18.0
+
+## v2.2.0 (2025-05-09)
 
 ### Enhancements
 
 * Add verifications of the registry cache ets table (`~/.cache/hex/cache.ets`)
+
 * Add help when docs download times out
+
 * Support `:warn_if_outdated` in deps
+
+  Let's say you have the following in `mix.exs`:
+
+  ```elixir
+  {:ex_doc, ">= 0.0.0", warn_if_outdated: true, only: :dev}
+  ```
+
+  and ExDoc is at version v0.37.2 in `mix.lock`, and v0.37.3 was released.
+
+  You will now see:
+
+  ```sh
+  $ mix deps.get
+  Resolving Hex dependencies...
+  Resolution completed in 0.054s
+  Unchanged:
+    ex_doc 0.37.2
+  warning: the following deps are outdated and set "warn_if_outdated: true":
+
+   * ex_doc 0.37.3 is available
+  ```
 
 ## v2.1.1 (2024-05-22)
 

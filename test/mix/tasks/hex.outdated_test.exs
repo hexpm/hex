@@ -52,6 +52,19 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
+  defmodule UpdateNotPossibleApp.MixProject do
+    def project do
+      [
+        app: :outdated_app,
+        version: "0.0.1",
+        deps: [
+          {:baz, "0.1.0"},
+          {:bar, "0.1.0"}
+        ]
+      ]
+    end
+  end
+
   defmodule WithoutHexDeps.MixProject do
     def project do
       [
@@ -75,6 +88,21 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
+  defmodule OutdatedDepsWithTypes.MixProject do
+    def project do
+      [
+        app: :outdated_app,
+        version: "0.0.2",
+        deps: [
+          {:ex_doc, "0.0.1"},
+          {:beta, "1.0.0", only: :dev},
+          {:tired, "0.1.0", only: :test},
+          {:foo, "0.1.0", only: [:dev, :test]}
+        ]
+      ]
+    end
+  end
+
   test "outdated" do
     Mix.Project.push(OutdatedDeps.MixProject)
 
@@ -90,7 +118,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       bar =
         [
           [:bright, "bar", :reset],
-          ["         ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
           ["   ", :green, "Up-to-date", :reset],
           "           "
@@ -118,7 +147,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       bar =
         [
           [:bright, "bar", :reset],
-          ["         ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
           ["   ", :green, "Up-to-date", :reset],
           "           "
@@ -129,7 +159,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       foo =
         [
           [:bright, "foo", :reset],
-          ["         ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
           ["   ", :yellow, "Update possible", :reset],
           "      "
@@ -140,6 +171,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       ex_doc =
         [
           [:bright, "ex_doc", :reset],
+          ["      ", :reset],
           ["      ", "0.0.1", :reset],
           ["    ", :red, "0.1.0", :reset],
           ["   ", :red, "Update not possible", :reset],
@@ -170,7 +202,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       _bar =
         [
           [:bright, "bar", :reset],
-          ["         ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
           ["   ", :green, "Up-to-date", :reset],
           "           "
@@ -181,7 +214,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       _foo =
         [
           [:bright, "foo", :reset],
-          ["         ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
           ["   ", :yellow, "Update possible", :reset],
           "      "
@@ -192,6 +226,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       _ex_doc =
         [
           [:bright, "ex_doc", :reset],
+          ["      ", :reset],
           ["      ", "0.0.1", :reset],
           ["    ", :red, "0.1.0", :reset],
           ["   ", :red, "Update not possible", :reset],
@@ -233,7 +268,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       foo =
         [
           [:bright, "foo", :reset],
-          ["         ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
           ["   ", :red, "Update not possible", :reset],
           "  "
@@ -261,7 +297,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       bar =
         [
           [:bright, "bar", :reset],
-          ["         ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :green, "0.1.0", :reset],
           ["   ", :green, "Up-to-date", :reset],
           "           "
@@ -272,7 +309,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       foo =
         [
           [:bright, "foo", :reset],
-          ["         ", "0.1.0", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
           ["    ", :red, "0.1.1", :reset],
           ["   ", :yellow, "Update possible", :reset],
           "      "
@@ -283,6 +321,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       ex_doc =
         [
           [:bright, "ex_doc", :reset],
+          ["      ", :reset],
           ["      ", "0.0.1", :reset],
           ["    ", :red, "0.1.0", :reset],
           ["   ", :red, "Update not possible", :reset],
@@ -294,6 +333,61 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       assert_received {:mix_shell, :info, [^bar]}
       assert_received {:mix_shell, :info, [^foo]}
       assert_received {:mix_shell, :info, [^ex_doc]}
+    end)
+  end
+
+  test "outdated --all --within-requirements (update not possible)" do
+    Mix.Project.push(UpdateNotPossibleApp.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      Mix.Dep.Lock.write(%{foo: {:hex, :foo, "0.1.0"}})
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      assert Mix.Task.run("hex.outdated", ["--all", "--within-requirements"]) ==
+               nil
+
+      bar =
+        [
+          [:bright, "bar", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
+          ["    ", :green, "0.1.0", :reset],
+          ["   ", :green, "Up-to-date", :reset],
+          "           "
+        ]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      baz =
+        [
+          [:bright, "baz", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
+          ["    ", :green, "0.1.0", :reset],
+          ["   ", :green, "Up-to-date", :reset],
+          "           "
+        ]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      foo =
+        [
+          [:bright, "foo", :reset],
+          ["         ", :reset],
+          ["      ", "0.1.0", :reset],
+          ["    ", :red, "0.1.1", :reset],
+          ["   ", :red, "Update not possible", :reset],
+          "  "
+        ]
+        |> IO.ANSI.format()
+        |> List.to_string()
+
+      assert_received {:mix_shell, :info, [^bar]}
+      assert_received {:mix_shell, :info, [^baz]}
+      assert_received {:mix_shell, :info, [^foo]}
     end)
   end
 
@@ -333,7 +427,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       beta =
         [
           [:bright, "beta", :reset],
-          ["        ", "1.0.0", :reset],
+          ["        ", :reset],
+          ["      ", "1.0.0", :reset],
           ["    ", :green, "1.0.0", :reset],
           ["   ", :green, "Up-to-date", :reset],
           ["  "]
@@ -349,7 +444,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       beta =
         [
           [:bright, "beta", :reset],
-          ["        ", "1.0.0", :reset],
+          ["        ", :reset],
+          ["      ", "1.0.0", :reset],
           ["    ", :red, "1.1.0-beta", :reset],
           ["  ", :yellow, "Update possible", :reset],
           "  "
@@ -445,6 +541,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end)
   end
 
+  @tag :requires_json
   test "outdated app --json" do
     Mix.Project.push(OutdatedApp.MixProject)
 
@@ -457,31 +554,25 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
 
       assert catch_throw(Mix.Task.run("hex.outdated", ["ex_doc", "--json"])) == {:exit_code, 1}
 
-      msg = Jason.encode!([%{
-        outdated: true,
-        requirements: [
+      expected =
+        [
           %{
-            source: "mix.exs",
-            requirement: ">= 0.0.0",
-            up_to_date: true
-          },
-          %{
-            source: "ecto",
-            requirement: "~> 0.0.1",
-            up_to_date: false
-          },
-          %{
-            source: "postgrex",
-            requirement: "0.0.1",
-            up_to_date: false
+            package: "ex_doc",
+            only: "",
+            lock_version: "0.0.1",
+            latest_version: "0.1.0",
+            requirements: [
+              %{source: "mix.exs", requirement: ">= 0.0.0", up_to_date: true},
+              %{source: "ecto", requirement: "~> 0.0.1", up_to_date: false},
+              %{source: "postgrex", requirement: "0.0.1", up_to_date: false}
+            ],
+            outdated: true
           }
-        ],
-        package: "ex_doc",
-        lock_version: "0.0.1",
-        latest_version: "0.1.0"
-      }])
+        ]
+        |> :json.encode()
+        |> IO.iodata_to_binary()
 
-      assert_received {:mix_shell, :info, [^msg]}
+      assert_received {:mix_shell, :info, [^expected]}
     end)
   end
 
@@ -566,6 +657,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         ex_doc =
           [
             [:bright, "ex_doc", :reset],
+            ["      ", :reset],
             ["      ", "0.0.1", :reset],
             ["    ", :red, "0.1.0", :reset],
             ["   ", :red, "Update not possible", :reset],
@@ -577,7 +669,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         bar =
           [
             [:bright, "bar", :reset],
-            ["         ", "0.1.0", :reset],
+            ["         ", :reset],
+            ["      ", "0.1.0", :reset],
             ["    ", :green, "0.1.0", :reset],
             ["   ", :green, "Up-to-date", :reset],
             "           "
@@ -588,7 +681,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         foo =
           [
             [:bright, "foo", :reset],
-            ["         ", "0.1.1", :reset],
+            ["         ", :reset],
+            ["      ", "0.1.1", :reset],
             ["    ", :green, "0.1.1", :reset],
             ["   ", :green, "Up-to-date", :reset],
             "           "
@@ -609,11 +703,154 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end)
   end
 
+  test "outdated shows a generic diff command hint when updates are available" do
+    Mix.Project.push(OutdatedDeps.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+      lines = flush()
+      output = Enum.map_join(lines, "\n", fn {_, _, [line]} -> line end)
+
+      assert output =~
+               "To view the diff of a specific update, run `mix hex.package diff APP FROM..TO`."
+    end)
+  end
+
   defp extract_statuses(lines) do
     Enum.flat_map(lines, fn {_, _, [line]} ->
       ~r/Up-to-date|Update not possible|Update possible/
       |> Regex.scan(line)
       |> List.flatten()
+    end)
+  end
+
+  test "outdated with dependency types displays only column" do
+    Mix.Project.push(OutdatedDepsWithTypes.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+
+      Mix.Dep.Lock.write(%{
+        ex_doc: {:hex, :ex_doc, "0.0.1"},
+        beta: {:hex, :beta, "1.0.0"},
+        tired: {:hex, :tired, "0.1.0"},
+        foo: {:hex, :foo, "0.1.0"}
+      })
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      catch_throw(Mix.Task.run("hex.outdated"))
+
+      # Check that the Only column is present in the header
+      assert_received {:mix_shell, :info, [header_line]}
+      assert header_line =~ "Dependency"
+      assert header_line =~ "Only"
+      assert header_line =~ "Current"
+      assert header_line =~ "Latest"
+      assert header_line =~ "Status"
+
+      # Check that dependencies show their correct only values
+      # Note: dependencies without :only show empty string in the Only column
+      output_lines =
+        Enum.map(1..10, fn _ ->
+          receive do
+            {:mix_shell, :info, [line]} -> line
+          after
+            100 -> nil
+          end
+        end)
+        |> Enum.filter(&(&1 != nil))
+
+      combined_output = Enum.join(output_lines, "\n")
+      assert combined_output =~ "foo" and combined_output =~ "dev,test"
+      assert combined_output =~ "beta" and combined_output =~ "dev"
+      assert combined_output =~ "tired" and combined_output =~ "test"
+    end)
+  end
+
+  test "outdated --only dev filters to only dev dependencies" do
+    Mix.Project.push(OutdatedDepsWithTypes.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+
+      Mix.Dep.Lock.write(%{
+        ex_doc: {:hex, :ex_doc, "0.0.1"},
+        beta: {:hex, :beta, "1.0.0"},
+        tired: {:hex, :tired, "0.1.0"},
+        foo: {:hex, :foo, "0.1.0"}
+      })
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      catch_throw(Mix.Task.run("hex.outdated", ["--only", "dev"]))
+
+      # Should show only dependencies with :only set to :dev
+      # Since we filtered to only "dev", the output should contain only ex_doc
+      output_lines =
+        Enum.map(1..10, fn _ ->
+          receive do
+            {:mix_shell, :info, [line]} -> line
+          after
+            100 -> nil
+          end
+        end)
+        |> Enum.filter(&(&1 != nil))
+
+      combined_output = Enum.join(output_lines, "\n")
+      assert combined_output =~ "beta"
+      # foo has [:dev, :test] not just :dev, but beta only has :dev so both should show
+      assert combined_output =~ "foo"
+      refute combined_output =~ "ex_doc"
+    end)
+  end
+
+  test "outdated --only dev,test filters to dev and test dependencies" do
+    Mix.Project.push(OutdatedDepsWithTypes.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+
+      Mix.Dep.Lock.write(%{
+        ex_doc: {:hex, :ex_doc, "0.0.1"},
+        beta: {:hex, :beta, "1.0.0"},
+        tired: {:hex, :tired, "0.1.0"},
+        foo: {:hex, :foo, "0.1.0"}
+      })
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      catch_throw(Mix.Task.run("hex.outdated", ["--only", "dev,test"]))
+
+      # Should show dependencies with :only set to :dev or :test
+      # This should include ex_doc (dev) and plug (test)
+      # bypass has [:dev, :test] which displays as "dev,test" but should match both "dev" and "test" individually
+      output_lines =
+        Enum.map(1..10, fn _ ->
+          receive do
+            {:mix_shell, :info, [line]} -> line
+          after
+            100 -> nil
+          end
+        end)
+        |> Enum.filter(&(&1 != nil))
+
+      combined_output = Enum.join(output_lines, "\n")
+      assert combined_output =~ "tired"
+      assert combined_output =~ "beta"
+      # foo should be included since it has dev and test
+      assert combined_output =~ "foo"
+      refute combined_output =~ "ex_doc"
     end)
   end
 end

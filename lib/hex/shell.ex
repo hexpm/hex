@@ -55,6 +55,12 @@ defmodule Hex.Shell do
         []
       end
 
+    args =
+      case Keyword.fetch(options, :cd) do
+        {:ok, cd} -> [{:cd, cd} | args]
+        :error -> args
+      end
+
     opts = [:stream, :binary, :exit_status, :hide, :use_stdio, {:env, env} | args]
     port = Port.open({:spawn, shell_command(command)}, opts)
     port_read(port, callback)

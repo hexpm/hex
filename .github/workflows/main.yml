@@ -2,18 +2,23 @@ name: CI
 
 on: [push, pull_request]
 
+permissions:
+  contents: read
+
 jobs:
   format:
     name: Format
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Install OTP and Elixir
-        uses: erlef/setup-beam@v1
+        uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93 # v1.24.0
         with:
-          otp-version: 27.2
-          elixir-version: 1.17.3
+          otp-version: 28.1
+          elixir-version: 1.18.4
           version-type: strict
 
       - name: Install dependencies
@@ -24,7 +29,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     services:
       postgres:
@@ -41,9 +46,11 @@ jobs:
       fail-fast: false
       matrix:
         pair:
-          # - erlang: master
+          # - erlang: maint
           #   elixir: main
 
+          - erlang: 28.1
+            elixir: 1.18.4
           - erlang: 27.2
             elixir: 1.17.3
           - erlang: 26.2
@@ -56,22 +63,11 @@ jobs:
             elixir: 1.13.4
           - erlang: 24.3
             elixir: 1.12.3
-          - erlang: 23.3
-            elixir: 1.11.3
-          - erlang: 23.3
-            elixir: 1.10.4
-          - erlang: 22.3
-            elixir: 1.9.4
-          - erlang: 21.3
-            elixir: 1.8.1
-          - erlang: 21.3
-            elixir: 1.7.2
-          - erlang: 21.3
-            elixir: 1.6.6
 
     env:
-      HEXPM_OTP: OTP-27.2
-      HEXPM_ELIXIR: v1.18.1
+      HEXPM_OTP: OTP-28.1
+      HEXPM_ELIXIR: v1.18.4
+      HEXPM_BRANCH: main
       HEXPM_PATH: hexpm
       HEXPM_ELIXIR_PATH: hexpm_elixir
       HEXPM_OTP_PATH: hexpm_otp
@@ -79,10 +75,12 @@ jobs:
       HEXPM_MIX_ARCHIVES: hexpm_mix
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Install OTP and Elixir
-        uses: erlef/setup-beam@v1
+        uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93 # v1.24.0
         with:
           otp-version: ${{matrix.pair.erlang}}
           elixir-version: ${{matrix.pair.elixir}}
@@ -90,7 +88,7 @@ jobs:
 
       - name: Install OTP and Elixir for hexpm
         run: |
-          wget https://repo.hex.pm/builds/otp/ubuntu-20.04/${HEXPM_OTP}.tar.gz
+          wget https://repo.hex.pm/builds/otp/ubuntu-22.04/${HEXPM_OTP}.tar.gz
           mkdir -p ${HEXPM_OTP_PATH}
           tar -xf ${HEXPM_OTP}.tar.gz -C ${HEXPM_OTP_PATH} --strip-components=1
           ${HEXPM_OTP_PATH}/Install -minimal $(pwd)/${HEXPM_OTP_PATH}
@@ -102,7 +100,7 @@ jobs:
 
       - name: Set up hexpm
         run: |
-          git clone https://github.com/hexpm/hexpm.git hexpm
+          git clone -b ${HEXPM_BRANCH} https://github.com/hexpm/hexpm.git hexpm
           cd hexpm; PATH=$(pwd)/../${HEXPM_ELIXIR_PATH}/bin:$(pwd)/../${HEXPM_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/../${HEXPM_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXPM_MIX_HOME} MIX_ENV=hex ../${HEXPM_ELIXIR_PATH}/bin/mix deps.get; cd ..
           cd hexpm; PATH=$(pwd)/../${HEXPM_ELIXIR_PATH}/bin:$(pwd)/../${HEXPM_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/../${HEXPM_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXPM_MIX_HOME} MIX_ENV=hex ../${HEXPM_ELIXIR_PATH}/bin/mix compile; cd ..
 

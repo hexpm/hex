@@ -13,6 +13,14 @@ defmodule Mix.Tasks.Hex.BuildTest do
       :mix_hex_erl_tar.extract({:binary, files[~c"contents.tar.gz"]}, [:compressed, cwd: path])
   end
 
+  test "vendored licenses accept custom LicenseRef identifiers" do
+    assert :mix_hex_licenses.valid("LicenseRef-Journey")
+    assert :mix_hex_licenses.valid("LicenseRef-acme.1-2")
+    refute :mix_hex_licenses.valid("LicenseRef-")
+    refute :mix_hex_licenses.valid("LicenseRef-Journey License")
+    refute :mix_hex_licenses.valid("LicenseRef-Journey_License")
+  end
+
   test "create" do
     Process.put(:hex_test_app_name, :build_app_name)
     Mix.Project.push(ReleaseSimple.MixProject)
@@ -64,6 +72,22 @@ defmodule Mix.Tasks.Hex.BuildTest do
     end)
   after
     purge([ReleaseInvalidLicenses.MixProject])
+  end
+
+  test "create with custom LicenseRef license" do
+    Process.put(:hex_test_app_name, :release_license_ref)
+    Mix.Project.push(ReleaseLicenseRef.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      File.write!("myfile.txt", "hello")
+      File.write!("LICENSE", "Journey License")
+      Mix.Tasks.Hex.Build.run([])
+
+      assert package_created?("release_license_ref-0.0.1")
+    end)
+  after
+    purge([ReleaseLicenseRef.MixProject])
   end
 
   test "create private package with invalid licenses" do
@@ -175,6 +199,85 @@ defmodule Mix.Tasks.Hex.BuildTest do
     end)
   after
     purge([ReleaseExcludePatterns.MixProject])
+  end
+
+  test "errors when package file escapes project root" do
+    Process.put(:hex_test_app_name, :build_with_escaping_files)
+    Mix.Project.push(ReleaseEscapingFiles.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      File.write!("../../README.md", "outside")
+      outside_readme = Path.expand("../../README.md")
+
+      error_msg = "Creating tarball failed: unsafe path in tarball: #{outside_readme}"
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+      end
+    end)
+  after
+    purge([ReleaseEscapingFiles.MixProject])
+  end
+
+  test "errors when package symlink escapes project root" do
+    Process.put(:hex_test_app_name, :build_with_escaping_symlink)
+    Mix.Project.push(ReleaseEscapingSymlink.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      File.write!("../../README.md", "outside")
+      File.ln_s!("../../README.md", "README.md")
+
+      error_msg =
+        "Creating tarball failed: unsafe symlink in tarball: README.md -> ../../README.md"
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+      end
+    end)
+  after
+    purge([ReleaseEscapingSymlink.MixProject])
+  end
+
+  test "errors when package file resolves through escaping symlink directory" do
+    Process.put(:hex_test_app_name, :build_with_escaping_symlink_directory)
+    Mix.Project.push(ReleaseEscapingSymlinkDirectory.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      File.mkdir!("../outside")
+      File.write!("../outside/secret.txt", "outside")
+      File.ln_s!("../outside", "link")
+
+      error_msg = "Creating tarball failed: unsafe path in tarball: link/secret.txt"
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+      end
+    end)
+  after
+    purge([ReleaseEscapingSymlinkDirectory.MixProject])
+  end
+
+  test "preserves package symlink resolving inside project root" do
+    Process.put(:hex_test_app_name, :build_with_internal_symlink)
+    Mix.Project.push(ReleaseInternalSymlink.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      File.write!("README.md", "inside")
+      File.mkdir!("dir")
+      File.ln_s!("../README.md", "dir/link")
+
+      Mix.Tasks.Hex.Build.run([])
+      extract("build_with_internal_symlink-0.0.1.tar", "unzip")
+
+      assert File.lstat!("unzip/dir/link").type == :symlink
+      assert File.read_link!("unzip/dir/link") == "../README.md"
+    end)
+  after
+    purge([ReleaseInternalSymlink.MixProject])
   end
 
   test "create with custom output path" do
@@ -399,6 +502,27 @@ defmodule Mix.Tasks.Hex.BuildTest do
     end)
   after
     purge([ReleaseIncludeReservedFile.MixProject])
+  end
+
+  test "errors with umbrella deps" do
+    Process.put(:hex_test_app_name, :includes_umbrella_deps)
+    Mix.Project.push(ReleaseInUmbrellaDeps.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+
+      File.write!("myfile.txt", "hello")
+      File.chmod!("myfile.txt", 0o100644)
+
+      error_msg =
+        "Stopping package build due to errors.\nDependencies excluded from the package (only Hex packages can be dependencies): ecto"
+
+      assert_raise Mix.Error, error_msg, fn ->
+        Mix.Tasks.Hex.Build.run([])
+      end
+    end)
+  after
+    purge([ReleaseInUmbrellaDeps.MixProject])
   end
 
   test "build and unpack" do

@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.10.1 (8a53ac8), do not edit manually
+%% Vendored from hex_core v0.16.0 (0e332e5), do not edit manually
 
 %%% Author  : Robert Virding
 %%% Purpose : Token definitions for Erlang.
@@ -19,7 +19,9 @@ Rules.
 {D}+                : {token, {integer, TokenLine, list_to_integer(TokenChars)}}.
 [\#\[\]}{,+-]       : {token, {list_to_atom(TokenChars), TokenLine}}.
 (<<|>>|=>)          : {token, {list_to_atom(TokenChars), TokenLine}}.
-\.                  : {token, {dot, TokenLine}}.
+% end_token (not token) lets mix_hex_tarball stream-decode metadata.config
+% one form at a time via mix_safe_erl_term:tokens/2.
+\.                  : {end_token, {dot, TokenLine}}.
 /                   : {token, {'/', TokenLine}}.
 {WS}+               : skip_token.
 

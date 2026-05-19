@@ -41,11 +41,23 @@ defmodule Mix.Tasks.Hex.Repo do
 
     * `--fetch-public-key FINGERPRINT` - Download public key from the repository and verify against the fingerprint (optional).
 
+    * `--oauth-exchange` - Enable OAuth token exchange for API keys. Exchange the API key for a short-lived OAuth token
+      instead of using the API key directly. Defaults to enabled for hexpm, disabled for other repositories.
+      In the future, this will default to enabled for all repositories (optional).
+
+    * `--no-oauth-exchange` - Disable OAuth token exchange for API keys. Use the API key directly instead of exchanging
+      it for a short-lived OAuth token. Currently a no-op, but will disable OAuth token exchange  in the future (optional).
+
+    * `--oauth-exchange-url URL` - Custom URL for OAuth token exchange. By default, the API URL is used (optional).
+
   ## Set config for repo
 
       $ mix hex.repo set NAME --url URL
       $ mix hex.repo set NAME --public-key PATH
       $ mix hex.repo set NAME --auth-key KEY
+      $ mix hex.repo set NAME --oauth-exchange
+      $ mix hex.repo set NAME --no-oauth-exchange
+      $ mix hex.repo set NAME --oauth-exchange-url URL
 
   ## Remove repo
 
@@ -62,9 +74,27 @@ defmodule Mix.Tasks.Hex.Repo do
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @add_switches [public_key: :string, auth_key: :string, fetch_public_key: :string]
-  @set_switches [url: :string, public_key: :string, auth_key: :string]
-  @show_switches [url: :boolean, public_key: :boolean, auth_key: :boolean]
+  @add_switches [
+    public_key: :string,
+    auth_key: :string,
+    fetch_public_key: :string,
+    oauth_exchange: :boolean,
+    oauth_exchange_url: :string
+  ]
+  @set_switches [
+    url: :string,
+    public_key: :string,
+    auth_key: :string,
+    oauth_exchange: :boolean,
+    oauth_exchange_url: :string
+  ]
+  @show_switches [
+    url: :boolean,
+    public_key: :boolean,
+    auth_key: :boolean,
+    oauth_exchange: :boolean,
+    oauth_exchange_url: :boolean
+  ]
 
   @impl true
   def run(all_args) do
@@ -119,9 +149,18 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp add(name, url, opts) do
+    # Default oauth_exchange to true for hexpm/repo.hex.pm, false for others
+    default_oauth_exchange = name == "hexpm"
+    oauth_exchange = Keyword.get(opts, :oauth_exchange, default_oauth_exchange)
+
     public_key =
       read_public_key(opts[:public_key]) ||
-        fetch_public_key(opts[:fetch_public_key], url, opts[:auth_key])
+        fetch_public_key(
+          opts[:fetch_public_key],
+          url,
+          opts[:auth_key],
+          oauth_exchange
+        )
 
     repo =
       %{
@@ -129,6 +168,8 @@ defmodule Mix.Tasks.Hex.Repo do
         public_key: nil,
         fetch_public_key: nil,
         auth_key: nil,
+        oauth_exchange: oauth_exchange,
+        oauth_exchange_url: nil,
         trusted: true
       }
       |> Map.merge(Map.new(opts))
@@ -212,13 +253,18 @@ defmodule Mix.Tasks.Hex.Repo do
     |> List.to_string()
   end
 
-  defp fetch_public_key(nil, _, _), do: nil
+  defp fetch_public_key(nil, _, _, _), do: nil
 
-  defp fetch_public_key(fingerprint, repo_url, auth_key) do
-    repo_config = %{url: repo_url, auth_key: auth_key, trusted: true}
+  defp fetch_public_key(fingerprint, repo_url, auth_key, oauth_exchange) do
+    repo_config = %{
+      url: repo_url,
+      auth_key: auth_key,
+      trusted: true,
+      oauth_exchange: oauth_exchange
+    }
 
     case Hex.Repo.get_public_key(repo_config) do
-      {:ok, {200, key, _}} ->
+      {:ok, {200, _, key}} ->
         if show_public_key(key) == fingerprint do
           key
         else
@@ -239,7 +285,9 @@ defmodule Mix.Tasks.Hex.Repo do
   defp show(name, [{key, _} | _]) do
     case Map.fetch(Hex.State.fetch!(:repos), name) do
       {:ok, config} ->
-        Hex.Shell.info(Map.get(config, key, ""))
+        value = Map.get(config, key, "")
+        value = if is_boolean(value), do: to_string(value), else: value
+        Hex.Shell.info(value)
 
       :error ->
         Mix.raise("Config does not contain repo #{name}")

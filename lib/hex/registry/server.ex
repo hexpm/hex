@@ -7,7 +7,8 @@ defmodule Hex.Registry.Server do
   @name __MODULE__
   @filename "cache.ets"
   @timeout 60_000
-  @ets_version 3
+  @ets_version 4
+  @public_keys_html "https://hex.pm/docs/public_keys"
 
   def start_link(opts \\ []) do
     opts = Keyword.put_new(opts, :name, @name)
@@ -27,7 +28,10 @@ defmodule Hex.Registry.Server do
   end
 
   def prefetch(packages) do
-    :ok = GenServer.call(@name, {:prefetch, packages}, @timeout)
+    case GenServer.call(@name, {:prefetch, packages}, @timeout) do
+      :ok -> :ok
+      {:error, message} -> Mix.raise(message)
+    end
   end
 
   def versions(repo, package) do
@@ -48,6 +52,10 @@ defmodule Hex.Registry.Server do
 
   def retired(repo, package, version) do
     GenServer.call(@name, {:retired, repo, package, version}, @timeout)
+  end
+
+  def advisories(repo, package, version) do
+    GenServer.call(@name, {:advisories, repo, package, version}, @timeout)
   end
 
   def last_update() do
@@ -202,6 +210,12 @@ defmodule Hex.Registry.Server do
     end)
   end
 
+  def handle_call({:advisories, repo, package, version}, from, state) do
+    maybe_wait({repo, package}, from, state, fn ->
+      lookup(state.ets, {:advisories, repo || "hexpm", package, version})
+    end)
+  end
+
   def handle_call(:last_update, _from, state) do
     time = lookup(state.ets, :last_update)
     {:reply, time, state}
@@ -298,6 +312,7 @@ defmodule Hex.Registry.Server do
   #   {{:inner_checksum, ^repo, _package, _version}, _} -> true
   #   {{:outer_checksum, ^repo, _package, _version}, _} -> true
   #   {{:retired, ^repo, _package, _version}, _} -> true
+  #   {{:advisories, ^repo, _package, _version}, _} -> true
   #   {{:registry_etag, ^repo, _package}, _} -> true
   #   {{:timestamp, ^repo, _package}, _} -> true
   #   {{:timestamp, ^repo, _package, _version}, _} -> true
@@ -311,9 +326,10 @@ defmodule Hex.Registry.Server do
       {{{:inner_checksum, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:outer_checksum, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:retired, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:advisories, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:registry_etag, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
-      {{{:timetamp, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
-      {{{:timetamp, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:timestamp, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:timestamp, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {:_, [], [false]}
     ]
   end
@@ -358,22 +374,26 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  defp write_result({:ok, {code, body, headers}}, repo, package, %{ets: tid})
+  defp write_result({:ok, {code, headers, %{releases: releases} = result}}, repo, package, %{
+         ets: tid
+       })
        when code in 200..299 do
-    releases =
-      body
-      |> :zlib.gunzip()
-      |> Hex.Repo.verify(repo)
-      |> Hex.Repo.decode_package(repo, package)
-
     delete_package(repo, package, tid)
     now = :calendar.universal_time()
+    pkg_advisories = result[:advisories] || []
 
     Enum.each(releases, fn %{version: version} = release ->
       :ets.insert(tid, {{:timestamp, repo, package, version}, now})
       :ets.insert(tid, {{:inner_checksum, repo, package, version}, release[:inner_checksum]})
       :ets.insert(tid, {{:outer_checksum, repo, package, version}, release[:outer_checksum]})
       :ets.insert(tid, {{:retired, repo, package, version}, release[:retired]})
+
+      release_advisories =
+        (release[:advisory_indexes] || [])
+        |> Enum.map(&Enum.at(pkg_advisories, &1))
+        |> Enum.reject(&is_nil/1)
+
+      :ets.insert(tid, {{:advisories, repo, package, version}, release_advisories})
 
       deps =
         Enum.map(release[:dependencies], fn dep ->
@@ -399,7 +419,7 @@ defmodule Hex.Registry.Server do
   end
 
   defp write_result(other, repo, package, %{ets: tid}) do
-    cached? = !!:ets.lookup(tid, {:versions, package})
+    cached? = !!:ets.lookup(tid, {:versions, repo, package})
     print_error(other, repo, package, cached?)
 
     unless cached? do
@@ -414,20 +434,55 @@ defmodule Hex.Registry.Server do
       "Failed to fetch record for #{Hex.Utils.package_name(repo, package)} from registry#{cached_message}"
     )
 
-    if missing_status?(result) do
+    missing? = missing_status?(result)
+    unauthorized? = unauthorized_status?(result)
+
+    if missing? or unauthorized? do
       Hex.Shell.error(
         "This could be because the package does not exist, it was spelled " <>
           "incorrectly or you don't have permissions to it"
       )
+
+      if unauthorized? and not Hex.OAuth.has_tokens?() do
+        Hex.Shell.error("No authenticated user found. Run `mix hex.user auth` to authenticate")
+      end
     end
 
-    if not missing_status?(result) or Mix.debug?() do
-      Hex.Utils.print_error_result(result)
+    if not (missing? or unauthorized?) or Mix.debug?() do
+      case result do
+        {:error, :bad_signature} ->
+          Hex.Shell.error(
+            "Could not verify authenticity of fetched registry file because signature verification failed. " <>
+              "This may happen because a proxy or some entity is " <>
+              "interfering with the download or because you don't have a " <>
+              "public key to verify the registry.\n\nYou may try again " <>
+              "later or check if a new public key has been released #{public_key_message(repo)}. " <>
+              "Set HEX_UNSAFE_REGISTRY=1 to disable this check and allow insecure package downloads."
+          )
+
+        {:error, :bad_repo_name} ->
+          Hex.Shell.error(
+            "The configured repository name for your dependency #{Hex.Utils.package_name(repo, package)} does not " <>
+              "match the repository name in the registry. This could be because the repository name is incorrect or " <>
+              "because the registry has not been updated to the latest registry format. " <>
+              "Set HEX_NO_VERIFY_REPO_ORIGIN=1 to disable this check and allow insecure package downloads."
+          )
+
+        _other ->
+          Hex.Utils.print_error_result(result)
+      end
     end
   end
 
-  defp missing_status?({:ok, {status, _, _}}), do: status in [403, 404]
+  defp missing_status?({:ok, {status, _, _}}), do: status in [404]
   defp missing_status?(_), do: false
+
+  defp unauthorized_status?({:ok, {status, _, _}}), do: status in [401, 403]
+  defp unauthorized_status?(_), do: false
+
+  defp public_key_message("hexpm:" <> _), do: "on our public keys page: #{@public_keys_html}"
+  defp public_key_message("hexpm"), do: "on our public keys page: #{@public_keys_html}"
+  defp public_key_message(repo), do: "for repo #{repo}"
 
   defp maybe_wait({repo, package}, from, state, fun) do
     repo = repo || "hexpm"
@@ -443,8 +498,7 @@ defmodule Hex.Registry.Server do
         {:noreply, state}
 
       true ->
-        repo = if repo, do: "#{repo}/"
-        Mix.raise("Package #{repo}#{package} not prefetched, please report this issue")
+        Mix.raise("Package #{repo}/#{package} not prefetched, please report this issue")
     end
   end
 
@@ -484,6 +538,7 @@ defmodule Hex.Registry.Server do
     Enum.each(versions, fn version ->
       :ets.delete(tid, {:checksum, repo, package, version})
       :ets.delete(tid, {:retired, repo, package, version})
+      :ets.delete(tid, {:advisories, repo, package, version})
       :ets.delete(tid, {:deps, repo, package, version})
     end)
   end

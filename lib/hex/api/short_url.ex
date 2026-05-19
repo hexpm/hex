@@ -1,12 +1,17 @@
 defmodule Hex.API.ShortURL do
   @moduledoc false
 
-  alias Hex.API
+  alias Hex.API.Client
 
   def create(url) do
-    case API.erlang_post_request(nil, "short_url", %{url: url}) do
-      {:ok, {201, %{"url" => short_url}, _resp_headers}} -> {:ok, short_url}
-      _error -> :error
+    config = Client.config()
+
+    case :mix_hex_api_short_url.create(config, to_string(url)) do
+      {:ok, {201, _headers, %{"url" => short_url}}} ->
+        {:ok, short_url}
+
+      _error ->
+        :error
     end
   end
 end

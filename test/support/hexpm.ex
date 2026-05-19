@@ -199,38 +199,40 @@ defmodule HexTest.Hexpm do
   end
 
   def new_repo(repository, auth) do
-    Hex.API.erlang_post_request(nil, "repo", %{"name" => repository}, auth)
+    config = Hex.API.Client.config(auth)
+    body = %{"name" => to_string(repository)}
+    :mix_hex_api.post(config, ["repo"], body)
   end
 
   def new_user(username, email, password, key) do
-    permissions = [%{"domain" => "api"}]
+    permissions = [%{"domain" => "api"}, %{"domain" => "repositories"}]
     {:ok, {201, _, _}} = Hex.API.User.new(username, email, password)
 
-    {:ok, {201, %{"secret" => secret}, _}} =
+    {:ok, {201, _, %{"secret" => secret}}} =
       Hex.API.Key.new(key, permissions, user: username, pass: password)
 
-    [key: secret, "$write_key": Mix.Tasks.Hex.encrypt_key(password, secret), "$read_key": secret]
+    [key: secret, "$write_key": secret, "$read_key": secret]
   end
 
   def new_key(auth) do
     permissions = [%{"domain" => "api"}]
-    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new("key", permissions, auth)
+    {:ok, {201, _, %{"secret" => secret}}} = Hex.API.Key.new("key", permissions, auth)
     [key: secret]
   end
 
   def new_key(username, password, key) do
     permissions = [%{"domain" => "api"}]
 
-    {:ok, {201, %{"secret" => secret}, _}} =
+    {:ok, {201, _, %{"secret" => secret}}} =
       Hex.API.Key.new(key, permissions, user: username, pass: password)
 
-    [key: secret, "$write_key": Mix.Tasks.Hex.encrypt_key(password, secret), "$read_key": secret]
+    [key: secret, "$write_key": secret, "$read_key": secret]
   end
 
   def new_organization_key(organization, key, auth) do
     permissions = [%{"domain" => "api"}]
 
-    {:ok, {201, %{"secret" => secret}, _}} =
+    {:ok, {201, _, %{"secret" => secret}}} =
       Hex.API.Key.Organization.new(organization, key, permissions, auth)
 
     [key: secret]
@@ -270,9 +272,137 @@ defmodule HexTest.Hexpm do
     files = files || [{"mix.exs", List.to_string(mix_exs)}]
     %{tarball: tarball} = Hex.Tar.create!(meta, files, :memory)
 
-    {:ok, {result, %{"version" => ^version}, _}} =
+    {:ok, {result, _, %{"version" => ^version}}} =
       Hex.API.Release.publish(organization, tarball, auth)
 
     assert result in [200, 201]
+  end
+
+  @doc """
+  Creates OAuth tokens for testing using the real OAuth server endpoints.
+  Returns the same format that would be stored after OAuth authentication.
+  """
+  def new_oauth_user(username, email, password) do
+    # Add timestamp and random bytes to make usernames and emails unique across test runs
+    timestamp = System.system_time(:millisecond)
+    random_suffix = Base.encode16(:crypto.strong_rand_bytes(4), case: :lower)
+    unique_username = "#{username}_#{timestamp}_#{random_suffix}"
+    unique_email = "#{timestamp}_#{random_suffix}_#{email}"
+
+    # Create user account
+    {:ok, {201, _, _}} = Hex.API.User.new(unique_username, unique_email, password)
+
+    # Create real OAuth tokens through the test server endpoints
+    config = Hex.API.Client.config()
+
+    # Create OAuth token
+    case :mix_hex_api.post(config, ["oauth_token"], %{
+           "username" => unique_username,
+           "scope" => "api repositories"
+         }) do
+      {:ok, {200, _, token_response}} ->
+        # Success case - continue with token creation
+        create_oauth_token(token_response, unique_username)
+
+      error ->
+        # If we can't create OAuth token, fall back to API key approach
+        IO.warn(
+          "Failed to create OAuth token: #{inspect(error, limit: :infinity)}, falling back to API key approach"
+        )
+
+        fallback_to_api_key(unique_username, unique_email, password)
+    end
+  end
+
+  defp create_oauth_token(token_response, unique_username) do
+    # Calculate expires_at from expires_in
+    expires_at = System.system_time(:second) + token_response["expires_in"]
+
+    token_data = %{
+      "access_token" => token_response["access_token"],
+      "refresh_token" => token_response["refresh_token"],
+      "expires_at" => expires_at
+    }
+
+    # Store OAuth token
+    Hex.OAuth.store_token(token_data)
+
+    # Return auth format for API calls
+    [
+      access_token: token_response["access_token"],
+      refresh_token: token_response["refresh_token"],
+      key: token_response["access_token"],
+      "$oauth_token": token_data,
+      username: unique_username
+    ]
+  end
+
+  defp fallback_to_api_key(unique_username, unique_email, password) do
+    # Create API key instead of OAuth tokens
+    key_name = "test_key_#{Base.encode16(:crypto.strong_rand_bytes(4), case: :lower)}"
+    auth = new_user(unique_username, unique_email, password, key_name)
+
+    # Create minimal OAuth-like structure for backward compatibility
+    access_token = auth[:key]
+    refresh_token = "refresh_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+
+    expires_at = System.system_time(:second) + 3600
+
+    token_data = %{
+      "access_token" => access_token,
+      "refresh_token" => refresh_token,
+      "expires_at" => expires_at
+    }
+
+    # Store OAuth token
+    Hex.OAuth.store_token(token_data)
+
+    # Return auth format for API calls
+    [
+      access_token: access_token,
+      refresh_token: refresh_token,
+      key: access_token,
+      "$oauth_token": token_data,
+      username: unique_username
+    ]
+  end
+
+  @doc """
+  Creates OAuth token for a user that already exists.
+  """
+  def new_oauth_tokens() do
+    access_token = "oauth_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+    refresh_token = "refresh_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+
+    expires_at = System.system_time(:second) + 3600
+
+    token_data = %{
+      "access_token" => access_token,
+      "refresh_token" => refresh_token,
+      "expires_at" => expires_at
+    }
+
+    Hex.OAuth.store_token(token_data)
+    [key: access_token, "$oauth_token": token_data]
+  end
+
+  @doc """
+  Creates expired OAuth token for testing refresh logic.
+  """
+  def new_expired_oauth_tokens() do
+    access_token = "oauth_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+    refresh_token = "refresh_" <> Base.encode16(:crypto.strong_rand_bytes(16))
+
+    # Set expiration in the past
+    expires_at = System.system_time(:second) - 100
+
+    token_data = %{
+      "access_token" => access_token,
+      "refresh_token" => refresh_token,
+      "expires_at" => expires_at
+    }
+
+    Hex.OAuth.store_token(token_data)
+    [key: access_token, "$oauth_token": token_data]
   end
 end

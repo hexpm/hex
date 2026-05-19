@@ -33,7 +33,9 @@ defmodule Mix.Tasks.Hex.Outdated do
   at the project's current set of dependency requirements and what version
   they are locked to. When `mix deps.update` is called multiple packages may
   be updated that in turn update their own dependencies, which may cause the
-  package you want to update to not be able to update.
+  package you want to update to not be able to update. If you want to force
+  a dependency to be updated to a given version, you can directly update it
+  in your `mix.exs`.
 
   > In a project, this task must be invoked before any other tasks
   > that may load or start your application. Otherwise, you must
@@ -45,14 +47,23 @@ defmodule Mix.Tasks.Hex.Outdated do
     * `--pre` - include pre-releases when checking for newer versions
     * `--within-requirements` - exit with non-zero code only if requirements specified in `mix.exs` is met.
     * `--sort <column>` - sort results by the given column. Currently supports `status`.
+    * `--only ANYVALUE` - show only dependencies with the given only value (comma-separated for multiple values)
+    * `--json` - output the result as JSON instead of a human readable table. Requires OTP 27 or later.
   """
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [all: :boolean, pre: :boolean, within_requirements: :boolean, sort: :string, json: :boolean]
+  @switches [
+    all: :boolean,
+    pre: :boolean,
+    within_requirements: :boolean,
+    sort: :string,
+    only: :string,
+    json: :boolean
+  ]
 
   @impl true
   def run(args) do
-    Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
+    Mix.Tasks.Deps.Loadpaths.run(["--no-compile", "--no-listeners"])
     Hex.start()
     {opts, args} = OptionParser.parse!(args, strict: @switches)
     Registry.open()
@@ -61,7 +72,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     lock
     |> Hex.Mix.packages_from_lock()
-    |> Registry.prefetch()
+    |> Hex.Registry.Server.prefetch()
 
     lock
     |> process_lockfile(args, opts)
@@ -80,11 +91,11 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp process_lockfile(lock, args, opts) do
     deps = Hex.Mix.top_level_deps()
 
-    dep_names = requested_dep_names(deps, lock, args, opts)
-
-    dep_names
+    deps
+    |> requested_dep_names(lock, args, opts)
     |> Enum.sort()
     |> get_versions(deps, lock, opts[:pre])
+    |> filter_by_only(opts)
   end
 
   defp requested_dep_names(_deps, lock, [app], _opts) do
@@ -113,7 +124,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     if opts[:json] do
       versions
       |> Enum.map(&cast_version_map/1)
-      |> Jason.encode!()
+      |> encode_json!()
       |> Hex.Shell.info()
     else
       display_table(versions, args, opts)
@@ -122,7 +133,11 @@ defmodule Mix.Tasks.Hex.Outdated do
     versions
   end
 
-  defp display_table([{_package, current, latest, requirements, outdated?}], [_app], _opts) do
+  defp display_table(
+         [{_package, _dep_only, current, latest, requirements, outdated?}],
+         [_app],
+         _opts
+       ) do
     if outdated? do
       [
         "There is newer version of the dependency available ",
@@ -142,7 +157,6 @@ defmodule Mix.Tasks.Hex.Outdated do
     Mix.Tasks.Hex.print_table(header, values)
 
     message = "Up-to-date indicates if the requirement matches the latest version."
-
     Hex.Shell.info(["\n", message])
   end
 
@@ -154,31 +168,26 @@ defmodule Mix.Tasks.Hex.Outdated do
     if Enum.empty?(values) do
       Hex.Shell.info("No hex dependencies")
     else
-      header = ["Dependency", "Current", "Latest", "Status"]
+      header = ["Dependency", "Only", "Current", "Latest", "Status"]
       Mix.Tasks.Hex.print_table(header, values)
 
       base_message = "Run `mix hex.outdated APP` to see requirements for a specific dependency."
       diff_message = maybe_diff_message(diff_links)
-      Hex.Shell.info(["\n", base_message, diff_message])
+      diff_command_message = maybe_diff_command_message(diff_links)
+      Hex.Shell.info(["\n", base_message, diff_message, diff_command_message])
     end
   end
 
   defp set_exit_code(versions, opts) do
-    any_outdated? = any_outdated?(versions)
-    req_met? = any_req_matches?(versions)
+    outdated_versions =
+      Enum.filter(versions, fn {_p, _o, _l, _la, _r, outdated?} -> outdated? end)
 
-    cond do
-      any_outdated? && opts[:within_requirements] && req_met? ->
+    if outdated_versions != [] do
+      any_updatable? = any_possible_to_update?(outdated_versions)
+
+      if !opts[:within_requirements] || any_updatable? do
         Mix.Tasks.Hex.set_exit_code(1)
-
-      any_outdated? && opts[:within_requirements] && not req_met? ->
-        nil
-
-      any_outdated? ->
-        Mix.Tasks.Hex.set_exit_code(1)
-
-      true ->
-        nil
+      end
     end
   end
 
@@ -225,13 +234,29 @@ defmodule Mix.Tasks.Hex.Outdated do
       "Update possible" => 3
     }
 
-    Enum.sort_by(values, fn [_package, _lock, _latest, [_color, status]] ->
+    Enum.sort_by(values, fn [_package, _dep_only, _lock, _latest, [_color, status]] ->
       Map.fetch!(status_order, status)
     end)
   end
 
   defp maybe_sort_by(values, nil) do
     values
+  end
+
+  defp filter_by_only(versions, opts) do
+    case opts[:only] do
+      nil ->
+        versions
+
+      only_value ->
+        # deps can have multiple `only` values, so we separate by `,`
+        only_values = String.split(only_value, ",", trim: true)
+
+        Enum.filter(versions, fn {_package, dep_only, _lock, _latest, _reqs, _outdated?} ->
+          dep_only_parts = String.split(dep_only, ",")
+          Enum.any?(dep_only_parts, &(&1 in only_values))
+        end)
+    end
   end
 
   defp get_versions(dep_names, deps, lock, pre?) do
@@ -244,10 +269,13 @@ defmodule Mix.Tasks.Hex.Outdated do
           deps_requirements = get_requirements_from_deps(name, deps)
 
           outdated? = Version.compare(lock_version, latest_version) == :lt
-
           requirements = deps_requirements ++ lock_requirements
+          dep_only = get_dep_only(deps, name)
 
-          [{Atom.to_string(name), lock_version, latest_version, requirements, outdated?}]
+          [
+            {Atom.to_string(name), dep_only, lock_version, latest_version, requirements,
+             outdated?}
+          ]
 
         _ ->
           []
@@ -274,7 +302,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     List.last(versions)
   end
 
-  defp format_all_row({package, lock, latest, requirements, outdated?}) do
+  defp format_all_row({package, dep_only, lock, latest, requirements, outdated?}) do
     latest_color = if outdated?, do: :red, else: :green
     req_matches? = req_matches?(requirements, latest)
 
@@ -287,13 +315,14 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     [
       [:bright, package],
+      dep_only,
       lock,
       [latest_color, latest],
       status
     ]
   end
 
-  defp build_diff_link({package, lock, latest, requirements, outdated?}) do
+  defp build_diff_link({package, _dep_only, lock, latest, requirements, outdated?}) do
     req_matches? = req_matches?(requirements, latest)
 
     case {outdated?, req_matches?} do
@@ -305,15 +334,17 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp version_match?(_version, nil), do: true
   defp version_match?(version, req), do: Version.match?(version, req)
 
-  defp any_outdated?(versions) do
-    Enum.any?(versions, fn {_package, _lock, _latest, _requirements, outdated?} -> outdated? end)
-  end
-
   defp maybe_diff_message([]), do: ""
 
   defp maybe_diff_message(diff_links) do
     "\n\nTo view the diffs in each available update, visit:\n" <>
       diff_link(diff_links)
+  end
+
+  defp maybe_diff_command_message([]), do: ""
+
+  defp maybe_diff_command_message(_diff_links) do
+    "\n\nTo view the diff of a specific update, run `mix hex.package diff APP FROM..TO`."
   end
 
   defp diff_link(diff_links) do
@@ -333,8 +364,8 @@ defmodule Mix.Tasks.Hex.Outdated do
     end
   end
 
-  defp any_req_matches?(versions) do
-    Enum.any?(versions, fn {_package, _lock, latest, requirements, _outdated?} ->
+  defp any_possible_to_update?(outdated_versions) do
+    Enum.any?(outdated_versions, fn {_package, _dep_only, _lock, latest, requirements, _outdated?} ->
       req_matches?(requirements, latest)
     end)
   end
@@ -343,15 +374,45 @@ defmodule Mix.Tasks.Hex.Outdated do
     Enum.all?(requirements, fn [_source, req_version] -> version_match?(latest, req_version) end)
   end
 
-  defp cast_version_map({package, current, latest, requirements, outdated?}) do
+  defp get_dep_only(deps, dep_name) do
+    dep_configs = Map.get(deps, dep_name, [])
+    # Get the opts from the first (main project) dependency config
+    case List.first(dep_configs) do
+      {_src, _req, opts} -> dep_only_from_opts(opts)
+      _ -> ""
+    end
+  end
+
+  defp dep_only_from_opts(opts) do
+    Keyword.get(opts, :only, [])
+    |> List.wrap()
+    |> Enum.map(&to_string/1)
+    |> Enum.join(",")
+  end
+
+  defp cast_version_map({package, dep_only, lock, latest, requirements, outdated?}) do
     %{
       package: package,
-      lock_version: current,
+      only: dep_only,
+      lock_version: lock,
       latest_version: latest,
-      requirements: Enum.map(requirements, fn [source, req_version] ->
-        %{source: source, requirement: req_version, up_to_date: version_match?(latest, req_version)}
-      end),
+      requirements:
+        Enum.map(requirements, fn [source, req_version] ->
+          %{
+            source: source,
+            requirement: req_version,
+            up_to_date: version_match?(latest, req_version)
+          }
+        end),
       outdated: outdated?
     }
+  end
+
+  defp encode_json!(term) do
+    if Code.ensure_loaded?(:json) do
+      term |> :json.encode() |> IO.iodata_to_binary()
+    else
+      Mix.raise(":json module is not available, upgrade OTP to use this feature")
+    end
   end
 end

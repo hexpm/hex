@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+
+# Usage:
+#
+#     $ ELIXIR_PEM=/path/to/elixir.pem \
+#       FASTLY_API_TOKEN=... \
+#         release_hex.sh HEX_VERSION
+#
+# Pass --dry-run to build archives without uploading:
+#
+#     $ release_hex.sh --dry-run HEX_VERSION
+#
+# After running, can be locally tested:
+#
+#     $ (cd tmp && erl -S httpd)
+#     $ HEX_BUILDS_URL=http://localhost:8000 mix local.hex --force
+
+set -e -u -o pipefail
+
+function main {
+  dry_run=false
+  local args=()
+  for arg in "$@"; do
+    if [ "$arg" = "--dry-run" ]; then
+      dry_run=true
+    else
+      args+=("$arg")
+    fi
+  done
+
+  hex_version=${args[0]}
+  installs_dir="$PWD/tmp/installs"
+  hex_csv="${installs_dir}/hex.csv"
+  hex_1x_csv="${installs_dir}/hex-1.x.csv"
+
+  rm -rf "${installs_dir}"
+  mkdir "${installs_dir}"
+
+  s3down hex.csv "${hex_csv}"
+  touch "${hex_csv}"
+  sed -i.bak "/^${hex_version},/d" "${hex_csv}"
+
+  s3down hex-1.x.csv "${hex_1x_csv}" || true
+  touch "${hex_1x_csv}"
+  sed -i.bak "/^${hex_version},/d" "${hex_1x_csv}"
+
+  # UPDATE THIS FOR EVERY RELEASE, ORDER MATTERS
+
+  # Elixir v1.12-v1.16 (old CSV format)
+  build_old ${hex_version} 22.3      1.12.3 1.12.0 xenial-20200212
+  build_old ${hex_version} 22.3      1.13.4 1.13.0 xenial-20200212
+  build_old ${hex_version} 23.3      1.14.2 1.14.0 xenial-20210114
+  build_old ${hex_version} 24.3.4.17 1.15.8 1.15.0 focal-20240427
+  build_old ${hex_version} 24.3.4.17 1.16.3 1.16.0 focal-20240427
+
+  # Elixir v1.17
+  build ${hex_version} 25.3.2.20 1.17.3 1.17.0 noble-20250404
+  build ${hex_version} 26.2.5.11 1.17.3 1.17.0 noble-20250404
+  build ${hex_version} 27.3.3    1.17.3 1.17.0 noble-20250404
+
+  # Elixir v1.18
+  build ${hex_version} 25.3.2.18 1.18.0 1.18.0 noble-20260210.1 # need to use exactly 1.18.0
+  build ${hex_version} 26.2.5.18 1.18.0 1.18.0 noble-20260210.1 # ditto
+  build ${hex_version} 27.3.4.9  1.18.0 1.18.0 noble-20260210.1 # ditto
+
+  # Elixir v1.19
+  build ${hex_version} 26.2.5.18 1.19.5 1.19.0 noble-20260210.1
+  build ${hex_version} 27.3.4.9  1.19.5 1.19.0 noble-20260210.1
+  build ${hex_version} 28.4.1    1.19.5 1.19.0 noble-20260210.1
+
+  rm -rf _build
+  rm "${hex_csv}.bak"
+  rm "${hex_1x_csv}.bak"
+
+  if [ "${dry_run}" = true ]; then
+    echo "Dry run complete, archives in ${installs_dir}"
+  elif [ -n "${ELIXIR_PEM}" ]; then
+    openssl dgst -sha512 -sign "${ELIXIR_PEM}" "${hex_csv}" | openssl base64 > "${hex_csv}.signed"
+    openssl dgst -sha512 -sign "${ELIXIR_PEM}" "${hex_1x_csv}" | openssl base64 > "${hex_1x_csv}.signed"
+
+    cd $installs_dir
+    for path in $(find . -type f | sort); do
+      path="${path#./}"
+      echo "uploading ${path}..."
+      s3up "${path}" "${path}"
+    done
+
+    fastly service purge --service-id GbeDoh1ZO7MEM3zut4K2fR --key installs
+    sleep 5
+    fastly service purge --service-id GbeDoh1ZO7MEM3zut4K2fR --key installs
+  else
+    echo "ELIXIR_PEM is empty, skipping"
+    exit 1
+  fi
+}
+
+# $1 = hex version
+# $2 = erlang version
+# $3 = elixir version
+# $4 = saved elixir version
+# $5 = ubuntu version
+function build_old {
+  hex_version=$1
+  otp_version=$2
+  elixir_version=$3
+  saved_elixir_version=$4
+  ubuntu_version=$5
+
+  echo "Building ${elixir_version} ${otp_version} ${ubuntu_version} (old format)"
+  rm -rf _build src/mix_safe_erl_term.erl
+  hex_ez=hex-${hex_version}.ez
+
+  mkdir -p "$installs_dir/${saved_elixir_version}"
+  docker run -v $(pwd):/hex hexpm/elixir:${elixir_version}-erlang-${otp_version}-ubuntu-${ubuntu_version} sh -c " \
+    cd /hex && \
+    MIX_ENV=prod mix archive.build -o ${hex_ez}"
+
+  mv "${hex_ez}" "${installs_dir}/${saved_elixir_version}/${hex_ez}"
+  sha=$(shasum -a 512 "${installs_dir}/${saved_elixir_version}/${hex_ez}")
+  sha=($sha)
+  echo "${hex_version},${sha},${saved_elixir_version}" >> "${hex_1x_csv}"
+}
+
+# $1 = hex version
+# $2 = erlang version
+# $3 = elixir version
+# $4 = saved elixir version
+# $5 = ubuntu version
+function build {
+  hex_version=$1
+  otp_version=$2
+  otp_release=${otp_version%%.*}
+  elixir_version=$3
+  saved_elixir_version=$4
+  ubuntu_version=$5
+
+  echo "Building ${elixir_version} ${otp_version} ${ubuntu_version}"
+  rm -rf _build src/mix_safe_erl_term.erl
+  archive_ez=hex-${hex_version}.ez
+  hex_ez=hex-${hex_version}-otp-${otp_release}.ez
+
+  mkdir -p "$installs_dir/${saved_elixir_version}"
+  docker run -v $(pwd):/hex hexpm/elixir:${elixir_version}-erlang-${otp_version}-ubuntu-${ubuntu_version} sh -c " \
+    cd /hex && \
+    MIX_ENV=prod mix archive.build -o ${archive_ez}"
+
+  mv "${archive_ez}" "${installs_dir}/${saved_elixir_version}/${hex_ez}"
+  sha=$(shasum -a 512 "${installs_dir}/${saved_elixir_version}/${hex_ez}")
+  sha=($sha)
+  echo "${hex_version},${sha},${saved_elixir_version},${otp_release}" >> "${hex_csv}"
+}
+
+# $1 = source
+# $2 = target
+function s3up {
+  aws s3 cp "${1}" "s3://s3.hex.pm/installs/${2}" --acl public-read --cache-control "public, max-age=604800" --metadata "surrogate-key=installs"
+}
+
+# $1 = source
+# $2 = target
+function s3down {
+  aws s3 cp "s3://s3.hex.pm/installs/${1}" "${2}"
+}
+
+main $*

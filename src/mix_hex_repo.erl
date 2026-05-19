@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.10.1 (8a53ac8), do not edit manually
+%% Vendored from hex_core v0.16.0 (0e332e5), do not edit manually
 
 %% @doc
 %% Repo API.
@@ -8,8 +8,13 @@
     get_versions/1,
     get_package/2,
     get_tarball/3,
+    get_tarball_to_file/4,
     get_docs/3,
-    get_public_key/1
+    get_docs_to_file/4,
+    get_public_key/1,
+    get_hex_installs/1,
+    fingerprint/1,
+    fingerprint_equal/2
 ]).
 
 %%====================================================================
@@ -23,11 +28,11 @@
 %%
 %% ```
 %% > mix_hex_repo:get_names(mix_hex_core:default_config()).
-%% {ok, {200, ...,
-%%     [
-%%         #{name => <<"package1">>},
-%%         #{name => <<"package2">>},
-%%     ]}}
+%% {ok,{200, ...,
+%%      #{packages => [
+%%            #{name => <<"package1">>},
+%%            #{name => <<"package2">>},
+%%            ...]}}}
 %% '''
 %% @end
 get_names(Config) when is_map(Config) ->
@@ -44,12 +49,12 @@ get_names(Config) when is_map(Config) ->
 %% ```
 %% > mix_hex_repo:get_versions(Config).
 %% {ok, {200, ...,
-%%     [
-%%         #{name => <<"package1">>, retired => [],
-%%           versions => [<<"1.0.0">>]},
-%%         #{name => <<"package2">>, retired => [<<"0.5.0>>"],
-%%           versions => [<<"0.5.0">>, <<"1.0.0">>]},
-%%     ]}}
+%%       #{packages => [
+%%             #{name => <<"package1">>, retired => [],
+%%               versions => [<<"1.0.0">>]},
+%%             #{name => <<"package2">>, retired => [<<"0.5.0>>"],
+%%               versions => [<<"0.5.0">>, <<"1.0.0">>]},
+%%             ...]}}}
 %% '''
 %% @end
 get_versions(Config) when is_map(Config) ->
@@ -66,12 +71,13 @@ get_versions(Config) when is_map(Config) ->
 %% ```
 %% > mix_hex_repo:get_package(mix_hex_core:default_config(), <<"package1">>).
 %% {ok, {200, ...,
-%%     {
-%%         #{checksum => ..., version => <<"0.5.0">>, dependencies => []},
-%%         #{checksum => ..., version => <<"1.0.0">>, dependencies => [
-%%             #{package => <<"package2">>, optional => true, requirement => <<"~> 0.1">>}
-%%         ]},
-%%     ]}}
+%%       #{name => <<"package1">>,
+%%         releases => [
+%%             #{checksum => ..., version => <<"0.5.0">>, dependencies => []},
+%%             #{checksum => ..., version => <<"1.0.0">>, dependencies => [
+%%                   #{package => <<"package2">>, optional => true, requirement => <<"~> 0.1">>}
+%%             ]},
+%%     ]}}}
 %% '''
 %% @end
 get_package(Config, Name) when is_binary(Name) and is_map(Config) ->
@@ -91,7 +97,7 @@ get_package(Config, Name) when is_binary(Name) and is_map(Config) ->
 %%
 %% ```
 %% > {ok, {200, _, Tarball}} = mix_hex_repo:get_tarball(mix_hex_core:default_config(), <<"package1">>, <<"1.0.0">>),
-%% > {ok, #{metadata := Metadata}} = mix_hex_tarball:unpack(Tarball, memory).
+%% > {ok, #{metadata := Metadata}} = mix_hex_tarball:unpack(Tarball, "/tmp/package").
 %% '''
 %% @end
 get_tarball(Config, Name, Version) ->
@@ -105,14 +111,34 @@ get_tarball(Config, Name, Version) ->
     end.
 
 %% @doc
+%% Gets tarball from the repository and writes it to a file.
+%%
+%% Examples:
+%%
+%% ```
+%% > {ok, {200, _}} = mix_hex_repo:get_tarball_to_file(mix_hex_core:default_config(), <<"package1">>, <<"1.0.0">>, "/tmp/package.tar"),
+%% > {ok, #{metadata := Metadata}} = mix_hex_tarball:unpack({file, "/tmp/package.tar"}, "/tmp/package").
+%% '''
+%% @end
+get_tarball_to_file(Config, Name, Version, Filename) ->
+    ReqHeaders = make_headers(Config),
+
+    case get_to_file(Config, tarball_url(Config, Name, Version), ReqHeaders, Filename) of
+        {ok, {200, RespHeaders}} ->
+            {ok, {200, RespHeaders}};
+        Other ->
+            Other
+    end.
+
+%% @doc
 %% Gets docs tarball from the repository.
 %%
 %% Examples:
 %%
 %% ```
 %% > {ok, {200, _, Docs}} = mix_hex_repo:get_docs(mix_hex_core:default_config(), <<"package1">>, <<"1.0.0">>),
-%% > mix_hex_tarball:unpack_docs(Docs, memory)
-%% {ok, [{"index.html", <<"<!doctype>">>}, ...]}
+%% > mix_hex_tarball:unpack_docs(Docs, "/tmp/docs")
+%% ok
 %% '''
 get_docs(Config, Name, Version) ->
     ReqHeaders = make_headers(Config),
@@ -120,6 +146,25 @@ get_docs(Config, Name, Version) ->
     case get(Config, docs_url(Config, Name, Version), ReqHeaders) of
         {ok, {200, RespHeaders, Docs}} ->
             {ok, {200, RespHeaders, Docs}};
+        Other ->
+            Other
+    end.
+
+%% @doc
+%% Gets docs tarball from the repository and writes it to a file.
+%%
+%% Examples:
+%%
+%% ```
+%% > {ok, {200, _}} = mix_hex_repo:get_docs_to_file(mix_hex_core:default_config(), <<"package1">>, <<"1.0.0">>, "/tmp/docs.tar.gz"),
+%% > ok = mix_hex_tarball:unpack_docs({file, "/tmp/docs.tar.gz"}, "/tmp/docs").
+%% '''
+get_docs_to_file(Config, Name, Version, Filename) ->
+    ReqHeaders = make_headers(Config),
+
+    case get_to_file(Config, docs_url(Config, Name, Version), ReqHeaders, Filename) of
+        {ok, {200, RespHeaders}} ->
+            {ok, {200, RespHeaders}};
         Other ->
             Other
     end.
@@ -144,6 +189,87 @@ get_public_key(Config) ->
             Other
     end.
 
+%% @doc
+%% Gets Hex installation versions CSV from repository.
+%%
+%% Examples:
+%%
+%% ```
+%% > mix_hex_repo:get_hex_installs(mix_hex_core:default_config()).
+%% {ok, {200, ..., <<"1.0.0,abc123,1.13.0\n1.1.0,def456,1.14.0\n...">>}}
+%% '''
+%% @end
+get_hex_installs(Config) ->
+    ReqHeaders = make_headers(Config),
+    URI = build_url(Config, <<"installs/hex-1.x.csv">>),
+
+    case get(Config, URI, ReqHeaders) of
+        {ok, {200, RespHeaders, CSV}} ->
+            {ok, {200, RespHeaders, CSV}};
+        Other ->
+            Other
+    end.
+
+%% @doc
+%% Computes a SHA256 fingerprint of a PEM-encoded public key.
+%%
+%% Returns a string in the format "SHA256:" followed by base64, which can be used
+%% to verify public keys out-of-band.
+%%
+%% Examples:
+%%
+%% ```
+%% > mix_hex_repo:fingerprint(PublicKeyPem).
+%% "SHA256:abc123..."
+%% '''
+%% @end
+-spec fingerprint(binary()) -> string().
+fingerprint(PublicKeyPem) when is_binary(PublicKeyPem) ->
+    [PemEntry] = public_key:pem_decode(PublicKeyPem),
+    PublicKey = public_key:pem_entry_decode(PemEntry),
+    application:ensure_all_started(ssh),
+    ssh:hostkey_fingerprint(sha256, PublicKey).
+
+%% @doc
+%% Compares a PEM-encoded public key against an expected fingerprint.
+%%
+%% Uses constant-time comparison to prevent timing attacks.
+%%
+%% Examples:
+%%
+%% ```
+%% > mix_hex_repo:fingerprint_equal(PublicKeyPem, "SHA256:abc123...").
+%% true
+%% '''
+%% @end
+-spec fingerprint_equal(binary(), iodata()) -> boolean().
+fingerprint_equal(PublicKeyPem, ExpectedFingerprint) when is_binary(PublicKeyPem) ->
+    ActualFingerprint = fingerprint(PublicKeyPem),
+    constant_time_compare(
+        list_to_binary(ActualFingerprint),
+        iolist_to_binary(ExpectedFingerprint)
+    ).
+
+%% @private
+%% Constant-time comparison to prevent timing attacks.
+%% Uses crypto:hash_equals/2 on OTP 25+, falls back to manual comparison on older versions.
+-if(?OTP_RELEASE >= 25).
+constant_time_compare(A, B) when byte_size(A) =/= byte_size(B) ->
+    false;
+constant_time_compare(A, B) ->
+    crypto:hash_equals(A, B).
+-else.
+constant_time_compare(A, B) when byte_size(A) =:= byte_size(B) ->
+    constant_time_compare(A, B, 0);
+constant_time_compare(_, _) ->
+    false.
+
+constant_time_compare(<<X, RestA/binary>>, <<Y, RestB/binary>>, Acc) ->
+    constant_time_compare(RestA, RestB, Acc bor (X bxor Y));
+constant_time_compare(<<>>, <<>>, Acc) ->
+    Acc =:= 0.
+-endif.
+
 %%====================================================================
 %% Internal functions
 %%====================================================================
@@ -151,6 +277,10 @@ get_public_key(Config) ->
 %% @private
 get(Config, URI, Headers) ->
     mix_hex_http:request(Config, get, URI, Headers, undefined).
+
+%% @private
+get_to_file(Config, URI, Headers, Filename) ->
+    mix_hex_http:request_to_file(Config, get, URI, Headers, undefined, Filename).
 
 %% @private
 get_protobuf(Config, Path, Decoder) ->
@@ -233,5 +363,7 @@ set_header(http_etag, ETag, Headers) when is_binary(ETag) ->
     maps:put(<<"if-none-match">>, ETag, Headers);
 set_header(repo_key, Token, Headers) when is_binary(Token) ->
     maps:put(<<"authorization">>, Token, Headers);
+set_header(api_otp, OTP, Headers) when is_binary(OTP) ->
+    maps:put(<<"x-hex-otp">>, OTP, Headers);
 set_header(_, _, Headers) ->
     Headers.

@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", "owner_package1", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
+    Hex.State.put(:api_key, auth[:key])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
     Mix.Tasks.Hex.Owner.run(["add", "owner_package1", "owner_user2@mail.com"])
@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
                        "Adding owner owner_user2@mail.com with ownership level full to owner_package1"
                      ]}
 
-    assert {:ok, {200, %{"owned_packages" => %{"owner_package1" => _}}, _}} =
+    assert {:ok, {200, _, %{"owned_packages" => %{"owner_package1" => _}}}} =
              Hex.API.User.get("owner_user2")
   end
 
@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", "owner_package1a", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
+    Hex.State.put(:api_key, auth[:key])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
 
@@ -44,7 +44,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
                        "Adding owner owner_user2a@mail.com with ownership level maintainer to owner_package1a"
                      ]}
 
-    assert {:ok, {200, %{"owned_packages" => %{"owner_package1a" => _}}, _}} =
+    assert {:ok, {200, _, %{"owned_packages" => %{"owner_package1a" => _}}}} =
              Hex.API.User.get("owner_user2a")
   end
 
@@ -54,7 +54,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", "owner_package1b", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
+    Hex.State.put(:api_key, auth[:key])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
 
@@ -75,7 +75,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", "owner_package1c", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
+    Hex.State.put(:api_key, auth[:key])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
     Mix.Tasks.Hex.Owner.run(["add", "owner_package1c", "owner_user2c"])
@@ -85,7 +85,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
                        "Adding owner owner_user2c with ownership level full to owner_package1c"
                      ]}
 
-    assert {:ok, {200, %{"owned_packages" => %{"owner_package1c" => _}}, _}} =
+    assert {:ok, {200, _, %{"owned_packages" => %{"owner_package1c" => _}}}} =
              Hex.API.User.get("owner_user2c")
   end
 
@@ -95,7 +95,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", "owner_package2", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
+    Hex.State.put(:api_key, auth[:key])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
     send(self(), {:mix_shell_input, :prompt, "passpass"})
@@ -105,7 +105,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     assert_received {:mix_shell, :info,
                      ["Removing owner owner_user3@mail.com from owner_package2"]}
 
-    assert {:ok, {200, %{"owned_packages" => owned}, _}} = Hex.API.User.get("owner_user3")
+    assert {:ok, {200, _, %{"owned_packages" => owned}}} = Hex.API.User.get("owner_user3")
     assert owned == %{}
   end
 
@@ -114,7 +114,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", "owner_package3", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
+    Hex.State.put(:api_key, auth[:key])
 
     Mix.Tasks.Hex.Owner.run(["list", "owner_package3"])
 
@@ -138,7 +138,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", package2, "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
+    Hex.State.put(:api_key, auth[:key])
 
     Mix.Tasks.Hex.Owner.run(["packages"])
     owner_package4_msg = "#{package1} - http://localhost:4043/packages/#{package1}"
@@ -153,7 +153,7 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     Hexpm.new_package("hexpm", "owner_package6", "0.0.1", [], %{}, auth)
 
     set_home_tmp()
-    Mix.Tasks.Hex.update_keys(auth[:"$write_key"], auth[:"$read_key"])
+    Hex.State.put(:api_key, auth[:key])
 
     send(self(), {:mix_shell_input, :prompt, "passpass"})
     Mix.Tasks.Hex.Owner.run(["transfer", "owner_package6", "owner_user7b"])
@@ -163,8 +163,8 @@ defmodule Mix.Tasks.Hex.OwnerTest do
                        "Transferring ownership to owner_user7b for owner_package6"
                      ]}
 
-    assert {:ok, {200, %{"owned_packages" => packages_a}, _}} = Hex.API.User.get("owner_user7a")
-    assert {:ok, {200, %{"owned_packages" => packages_b}, _}} = Hex.API.User.get("owner_user7b")
+    assert {:ok, {200, _, %{"owned_packages" => packages_a}}} = Hex.API.User.get("owner_user7a")
+    assert {:ok, {200, _, %{"owned_packages" => packages_b}}} = Hex.API.User.get("owner_user7b")
 
     assert Map.keys(packages_a) == []
     assert Map.keys(packages_b) == ["owner_package6"]

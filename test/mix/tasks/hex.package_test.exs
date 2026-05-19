@@ -1,6 +1,8 @@
 defmodule Mix.Tasks.Hex.PackageTest do
   use HexTest.IntegrationCase
 
+  @git_diff_command "git diff --no-index --no-color --no-ext-diff __PATH1__ __PATH2__"
+
   defp in_diff_fixture(fun) do
     in_fixture("diff", fn ->
       Mix.Project.push(ReleaseDeps.MixProject)
@@ -107,7 +109,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
 
   test "diff: success with version number" do
     in_diff_fixture(fn ->
-      Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
+      Hex.State.put(:diff_command, @git_diff_command)
 
       assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.1.0"])) ==
                {:exit_code, 1}
@@ -152,7 +154,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
 
   test "diff: success with version range" do
     in_diff_fixture(fn ->
-      Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
+      Hex.State.put(:diff_command, @git_diff_command)
 
       assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])) ==
                {:exit_code, 1}
@@ -167,7 +169,7 @@ defmodule Mix.Tasks.Hex.PackageTest do
 
   test "diff: success (variant args)" do
     in_diff_fixture(fn ->
-      Hex.State.put(:diff_command, "git diff --no-index --no-color __PATH1__ __PATH2__")
+      Hex.State.put(:diff_command, @git_diff_command)
 
       assert catch_throw(Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1", "0.1.0"])) ==
                {:exit_code, 1}
@@ -212,5 +214,50 @@ defmodule Mix.Tasks.Hex.PackageTest do
     end)
   after
     purge([ReleaseDeps.MixProject])
+  end
+
+  describe "search" do
+    test "no results" do
+      Mix.Tasks.Hex.Package.run(["search", "bloopdoopbloop"])
+      assert_received {:mix_shell, :info, ["No packages found"]}
+    end
+
+    test "public packages" do
+      Mix.Tasks.Hex.Package.run(["search", "doc"])
+      assert_received {:mix_shell, :info, ["ex_doc" <> ex_doc]}
+      assert_received {:mix_shell, :info, ["only_doc" <> only_doc]}
+      assert ex_doc =~ ~r"\w*0\.1\.0.*http://localhost:4043/packages/ex_doc"
+      assert only_doc =~ ~r"\w*0\.1\.0.*http://localhost:4043/packages/only_doc"
+    end
+
+    test "all private packages" do
+      in_tmp(fn ->
+        set_home_tmp()
+        auth = Hexpm.new_user("searchuser1", "searchuser1@mail.com", "password", "searchuser1")
+        Hexpm.new_repo("searchrepo1", auth)
+        Hex.State.put(:api_key, auth[:key])
+
+        Mix.Tasks.Hex.Package.run(["search", "doc"])
+
+        assert_received {:mix_shell, :info, ["ex_doc" <> ex_doc]}
+        assert_received {:mix_shell, :info, ["only_doc" <> only_doc]}
+        assert ex_doc =~ ~r"\w*0\.1\.0.*http://localhost:4043/packages/ex_doc"
+        assert only_doc =~ ~r"\w*0\.1\.0.*http://localhost:4043/packages/only_doc"
+      end)
+    end
+
+    test "org packages" do
+      in_tmp(fn ->
+        set_home_tmp()
+        auth = Hexpm.new_user("searchuser2", "searchuser2@mail.com", "password", "searchuser2")
+        Hexpm.new_repo("searchrepo2", auth)
+        Hex.State.put(:api_key, auth[:key])
+
+        Mix.Tasks.Hex.Package.run(["search", "doc", "--organization", "searchrepo2"])
+
+        refute_received {:mix_shell, :info, ["ex_doc" <> _]}
+        refute_received {:mix_shell, :info, ["only_doc" <> _]}
+      end)
+    end
   end
 end

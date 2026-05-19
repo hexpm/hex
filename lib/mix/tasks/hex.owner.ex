@@ -109,7 +109,7 @@ defmodule Mix.Tasks.Hex.Owner do
     Hex.Shell.info("Adding owner #{owner} with ownership level #{level} to #{package}")
 
     case Hex.API.Package.Owner.add(organization, package, owner, level, false, auth) do
-      {:ok, {code, _body, _headers}} when code in 200..299 ->
+      {:ok, {code, _headers, _body}} when code in 200..299 ->
         :ok
 
       other ->
@@ -127,7 +127,7 @@ defmodule Mix.Tasks.Hex.Owner do
     Hex.Shell.info("Transferring ownership to #{owner} for #{package}")
 
     case Hex.API.Package.Owner.add(organization, package, owner, "full", true, auth) do
-      {:ok, {code, _body, _headers}} when code in 200..299 ->
+      {:ok, {code, _headers, _body}} when code in 200..299 ->
         :ok
 
       other ->
@@ -141,7 +141,7 @@ defmodule Mix.Tasks.Hex.Owner do
     Hex.Shell.info("Removing owner #{owner} from #{package}")
 
     case Hex.API.Package.Owner.delete(organization, package, owner, auth) do
-      {:ok, {code, _body, _headers}} when code in 200..299 ->
+      {:ok, {code, _headers, _body}} when code in 200..299 ->
         :ok
 
       other ->
@@ -154,7 +154,7 @@ defmodule Mix.Tasks.Hex.Owner do
     auth = Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.Package.Owner.get(organization, package, auth) do
-      {:ok, {code, body, _headers}} when code in 200..299 ->
+      {:ok, {code, _headers, body}} when code in 200..299 ->
         header = ["Email", "Level"]
         owners = Enum.map(body, &[&1["email"], &1["level"]])
         Mix.Tasks.Hex.print_table(header, owners)
@@ -169,7 +169,7 @@ defmodule Mix.Tasks.Hex.Owner do
     auth = Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.User.me(auth) do
-      {:ok, {code, body, _headers}} when code in 200..299 ->
+      {:ok, {code, _headers, body}} when code in 200..299 ->
         Enum.each(body["packages"], fn package ->
           name = package_name(package["repository"], package["name"])
           Hex.Shell.info("#{name} - #{package["html_url"]}")

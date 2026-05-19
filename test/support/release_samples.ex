@@ -87,7 +87,7 @@ defmodule ReleaseMeta.MixProject do
         files: ["myfile.txt", "missing.txt", "missing/*"],
         licenses: ["Apache-2.0"],
         links: %{"a" => "http://a"},
-        extra: %{"c" => "d"}
+        extra: %{"c" => %{"d" => "e"}}
       ]
     ]
   end
@@ -186,6 +186,66 @@ defmodule ReleaseExcludePatterns.MixProject do
       package: [
         files: ["myfile.txt"],
         exclude_patterns: ["exclude.*"],
+        licenses: ["MIT"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
+defmodule ReleaseEscapingFiles.MixProject do
+  def project do
+    [
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
+      version: "0.0.1",
+      description: "foo",
+      package: [
+        files: ["../../README.md"],
+        licenses: ["MIT"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
+defmodule ReleaseEscapingSymlink.MixProject do
+  def project do
+    [
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
+      version: "0.0.1",
+      description: "foo",
+      package: [
+        files: ["README.md"],
+        licenses: ["MIT"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
+defmodule ReleaseEscapingSymlinkDirectory.MixProject do
+  def project do
+    [
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
+      version: "0.0.1",
+      description: "foo",
+      package: [
+        files: ["link/**/*"],
+        licenses: ["MIT"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
+defmodule ReleaseInternalSymlink.MixProject do
+  def project do
+    [
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
+      version: "0.0.1",
+      description: "foo",
+      package: [
+        files: ["README.md", "dir/link"],
         licenses: ["MIT"],
         links: %{"a" => "http://a"}
       ]
@@ -337,6 +397,21 @@ defmodule ReleaseInvalidLicenses.MixProject do
   end
 end
 
+defmodule ReleaseLicenseRef.MixProject do
+  def project do
+    [
+      app: :release_license_ref,
+      description: "Package with a custom license reference",
+      version: "0.0.1",
+      package: [
+        licenses: ["LicenseRef-Journey"],
+        files: ["myfile.txt", "LICENSE"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
 defmodule ReleaseAppFalseDep.MixProject do
   def project do
     [
@@ -348,6 +423,25 @@ defmodule ReleaseAppFalseDep.MixProject do
       ],
       package: [
         licenses: [],
+        files: ["myfile.txt"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
+defmodule ReleaseInUmbrellaDeps.MixProject do
+  def project do
+    [
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
+      description: "includes umbrella",
+      version: "0.2.1",
+      deps: [
+        {:ecto, "3.3.2", in_umbrella: true},
+        {:postgrex, "0.2.1"}
+      ],
+      package: [
+        licenses: ["MIT"],
         files: ["myfile.txt"],
         links: %{"a" => "http://a"}
       ]

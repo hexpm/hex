@@ -63,7 +63,7 @@ defmodule Hex.UpdateChecker do
   def handle_info({_ref, {:installs, result}}, state) do
     result =
       case result do
-        {:ok, {code, body, _headers}} when code in 200..299 ->
+        {:ok, {code, _headers, body}} when code in 200..299 ->
           Hex.Repo.find_new_version_from_csv(body)
 
         other ->

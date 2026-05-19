@@ -177,4 +177,213 @@ defmodule Mix.Tasks.Hex.RepoTest do
       end
     end)
   end
+
+  describe "OAuth exchange configuration" do
+    test "add with --oauth-exchange enables OAuth token exchange" do
+      in_tmp(fn ->
+        Hex.State.put(:config_home, File.cwd!())
+
+        Mix.Tasks.Hex.Repo.run([
+          "add",
+          "reponame",
+          "http://example.com",
+          "--oauth-exchange"
+        ])
+
+        config = Hex.Config.read()
+        repo = config[:"$repos"]["reponame"]
+        assert repo.oauth_exchange == true
+      end)
+    end
+
+    test "add without --oauth-exchange disables OAuth token exchange by default for non-hexpm repos" do
+      in_tmp(fn ->
+        Hex.State.put(:config_home, File.cwd!())
+
+        Mix.Tasks.Hex.Repo.run([
+          "add",
+          "reponame",
+          "http://example.com"
+        ])
+
+        config = Hex.Config.read()
+        repo = config[:"$repos"]["reponame"]
+        assert repo.oauth_exchange == false
+      end)
+    end
+
+    test "add with --oauth-exchange-url sets custom OAuth exchange URL" do
+      in_tmp(fn ->
+        Hex.State.put(:config_home, File.cwd!())
+
+        Mix.Tasks.Hex.Repo.run([
+          "add",
+          "reponame",
+          "http://example.com",
+          "--oauth-exchange-url",
+          "http://custom-oauth.com"
+        ])
+
+        config = Hex.Config.read()
+        repo = config[:"$repos"]["reponame"]
+        assert repo.oauth_exchange_url == "http://custom-oauth.com"
+      end)
+    end
+
+    test "add with both --oauth-exchange and --oauth-exchange-url" do
+      in_tmp(fn ->
+        Hex.State.put(:config_home, File.cwd!())
+
+        Mix.Tasks.Hex.Repo.run([
+          "add",
+          "reponame",
+          "http://example.com",
+          "--oauth-exchange",
+          "--oauth-exchange-url",
+          "http://custom-oauth.com"
+        ])
+
+        config = Hex.Config.read()
+        repo = config[:"$repos"]["reponame"]
+        assert repo.oauth_exchange == true
+        assert repo.oauth_exchange_url == "http://custom-oauth.com"
+      end)
+    end
+
+    test "set with --oauth-exchange enables OAuth token exchange" do
+      in_tmp(fn ->
+        Hex.State.put(:config_home, File.cwd!())
+
+        Mix.Tasks.Hex.Repo.run(["add", "reponame", "http://example.com"])
+        Mix.Tasks.Hex.Repo.run(["set", "reponame", "--oauth-exchange"])
+
+        config = Hex.Config.read()
+        repo = config[:"$repos"]["reponame"]
+        assert repo.oauth_exchange == true
+      end)
+    end
+
+    test "set with --oauth-exchange-url updates custom OAuth exchange URL" do
+      in_tmp(fn ->
+        Hex.State.put(:config_home, File.cwd!())
+
+        Mix.Tasks.Hex.Repo.run(["add", "reponame", "http://example.com"])
+
+        Mix.Tasks.Hex.Repo.run([
+          "set",
+          "reponame",
+          "--oauth-exchange-url",
+          "http://new-oauth.com"
+        ])
+
+        config = Hex.Config.read()
+        repo = config[:"$repos"]["reponame"]
+        assert repo.oauth_exchange_url == "http://new-oauth.com"
+      end)
+    end
+
+    test "show with --oauth-exchange displays oauth_exchange setting" do
+      in_tmp(fn ->
+        Hex.State.put(:config_home, File.cwd!())
+
+        Mix.Tasks.Hex.Repo.run([
+          "add",
+          "reponame",
+          "http://example.com"
+        ])
+
+        Mix.Tasks.Hex.Repo.run(["show", "reponame", "--oauth-exchange"])
+
+        assert_received {:mix_shell, :info, ["false"]}
+      end)
+    end
+
+    test "show with --oauth-exchange-url displays custom OAuth URL" do
+      in_tmp(fn ->
+        Hex.State.put(:config_home, File.cwd!())
+
+        Mix.Tasks.Hex.Repo.run([
+          "add",
+          "reponame",
+          "http://example.com",
+          "--oauth-exchange-url",
+          "http://custom-oauth.com"
+        ])
+
+        Mix.Tasks.Hex.Repo.run(["show", "reponame", "--oauth-exchange-url"])
+
+        assert_received {:mix_shell, :info, ["http://custom-oauth.com"]}
+      end)
+    end
+
+    test "add with auth key defaults to no oauth exchange for non-hexpm repos" do
+      in_tmp(fn ->
+        Hex.State.put(:config_home, File.cwd!())
+
+        Mix.Tasks.Hex.Repo.run([
+          "add",
+          "reponame",
+          "http://example.com",
+          "--auth-key",
+          "my-api-key"
+        ])
+
+        config = Hex.Config.read()
+        repo = config[:"$repos"]["reponame"]
+        assert repo.auth_key == "my-api-key"
+        assert repo.oauth_exchange == false
+      end)
+    end
+
+    test "list displays repos with different OAuth exchange settings" do
+      in_tmp(fn ->
+        Hex.State.put(:config_home, File.cwd!())
+
+        Mix.Tasks.Hex.Repo.run([
+          "add",
+          "repo1",
+          "http://example1.com",
+          "--oauth-exchange"
+        ])
+
+        Mix.Tasks.Hex.Repo.run(["add", "repo2", "http://example2.com"])
+
+        Mix.Tasks.Hex.Repo.run(["list"])
+
+        assert_received {:mix_shell, :info, [header]}
+        assert header =~ "Name"
+
+        messages =
+          Stream.unfold(nil, fn _ ->
+            receive do
+              {:mix_shell, :info, [msg]} -> {msg, nil}
+            after
+              0 -> nil
+            end
+          end)
+          |> Enum.to_list()
+
+        all_output = Enum.join([header | messages], "\n")
+        assert all_output =~ "repo1"
+        assert all_output =~ "repo2"
+      end)
+    end
+
+    test "add repo named 'hexpm' defaults to oauth_exchange enabled" do
+      in_tmp(fn ->
+        Hex.State.put(:config_home, File.cwd!())
+
+        Mix.Tasks.Hex.Repo.run([
+          "add",
+          "hexpm",
+          "http://example.com"
+        ])
+
+        # Check the actual repo state (after merging with defaults)
+        # not the raw config (which may have oauth_exchange removed if it matches default)
+        repo = Hex.State.fetch!(:repos)["hexpm"]
+        assert repo.oauth_exchange == true
+      end)
+    end
+  end
 end

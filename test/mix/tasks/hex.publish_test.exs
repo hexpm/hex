@@ -186,7 +186,9 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
 
       assert_received {:mix_shell, :info,
-                       ["Docs published to http://localhost:4043/docs/ex_doc-0.1.0.tar.gz"]}
+                       [
+                         "Docs will soon be available at http://localhost:4043/docs/ex_doc-0.1.0.tar.gz"
+                       ]}
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["docs", "--revert", "0.1.0"])
@@ -234,7 +236,9 @@ defmodule Mix.Tasks.Hex.PublishTest do
         Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
 
         refute_received {:mix_shell, :info,
-                         ["Docs published to https://hexdocs.pm/invalid_filename/0.1.0"]}
+                         [
+                           "Docs will soon be available at https://hexdocs.pm/invalid_filename/0.1.0"
+                         ]}
       end
     end)
   end
@@ -253,7 +257,9 @@ defmodule Mix.Tasks.Hex.PublishTest do
         Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
 
         refute_received {:mix_shell, :info,
-                         ["Docs published to https://hexdocs.pm/invalid_dirname/0.1.0"]}
+                         [
+                           "Docs will soon be available at https://hexdocs.pm/invalid_dirname/0.1.0"
+                         ]}
       end
     end)
   end
@@ -271,7 +277,8 @@ defmodule Mix.Tasks.Hex.PublishTest do
         send(self(), {:mix_shell_input, :prompt, "hunter42"})
         Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
 
-        refute_received {:mix_shell, :info, ["Docs published to https://hexdocs.pm/ex_doc/0.1.0"]}
+        refute_received {:mix_shell, :info,
+                         ["Docs will soon be available at https://hexdocs.pm/ex_doc/0.1.0"]}
       end
     end)
   end
@@ -287,7 +294,9 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
 
       assert_received {:mix_shell, :info,
-                       ["Docs published to http://localhost:4043/docs/ex_doc-0.1.0.tar.gz"]}
+                       [
+                         "Docs will soon be available at http://localhost:4043/docs/ex_doc-0.1.0.tar.gz"
+                       ]}
     end)
   end
 
@@ -302,7 +311,9 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
 
       assert_received {:mix_shell, :info,
-                       ["Docs published to http://localhost:4043/docs/ex_doc-0.1.0.tar.gz"]}
+                       [
+                         "Docs will soon be available at http://localhost:4043/docs/ex_doc-0.1.0.tar.gz"
+                       ]}
     end)
   end
 
@@ -350,7 +361,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--replace"])
 
-      assert {:ok, {200, body, _}} = Hex.API.Release.get("hexpm", "publish_package_name", "0.0.1")
+      assert {:ok, {200, _, body}} = Hex.API.Release.get("hexpm", "publish_package_name", "0.0.1")
       assert body["meta"]["app"] == "release_d"
     end)
   after
@@ -372,7 +383,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["--no-progress", "--replace", "--yes"])
       assert_received {:mix_shell, :info, ["Building publish_package_name_no_confirm 0.0.1"]}
 
-      assert {:ok, {200, body, _}} =
+      assert {:ok, {200, _, body}} =
                Hex.API.Release.get("hexpm", "publish_package_name_no_confirm", "0.0.1")
 
       assert body["meta"]["app"] == "release_d"
@@ -395,7 +406,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       Mix.Tasks.Hex.Publish.run(["--dry-run", "--yes", "--replace"])
       assert_received {:mix_shell, :info, ["Building publish_package_name_docs_dry_run 0.0.1"]}
       refute_received {:mix_shell, :info, ["Package published to" <> _]}
-      refute_received {:mix_shell, :info, ["Docs published to" <> _]}
+      refute_received {:mix_shell, :info, ["Docs will soon be available at" <> _]}
     end)
   after
     purge([ReleaseName.MixProject])
@@ -429,13 +440,11 @@ defmodule Mix.Tasks.Hex.PublishTest do
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
 
-      send(self(), {:mix_shell_input, :prompt, "user2"})
-      send(self(), {:mix_shell_input, :prompt, "hunter42"})
-      Mix.Tasks.Hex.User.run(["key", "generate"])
-      assert_received {:mix_shell, :info, ["Generating key..."]}
-      assert_received {:mix_shell, :info, [key]}
+      # Set up a test API key for HEX_API_KEY testing
+      auth = Hexpm.new_user("hex_api_key_user", "hex_api_key_user@mail.com", "hunter42", "key")
+      key = auth[:key]
 
-      Hex.State.put(:api_key_write_unencrypted, key)
+      Hex.State.put(:api_key, key)
       Mix.Tasks.Hex.Publish.run(["package", "--yes", "--no-progress", "--replace"])
 
       assert_received {:mix_shell, :info, ["Building publish_with_hex_api_key 0.0.1"]}
@@ -456,7 +465,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
 
-      Hex.State.put(:api_key_write_unencrypted, "invalid hex api key")
+      Hex.State.put(:api_key, "invalid hex api key")
 
       assert {:exit_code, 1} =
                ["package", "--yes", "--no-progress", "--replace"]
@@ -542,7 +551,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert_received {:mix_shell, :info, ["Building publish_with_metadata 0.0.3"]}
       assert_received {:mix_shell, :info, ["  Files:"]}
       assert_received {:mix_shell, :info, ["    myfile.txt"]}
-      assert_received {:mix_shell, :info, ["  Extra: \n    c: d"]}
+      assert_received {:mix_shell, :info, ["  Extra: \n    c: \n    d: e"]}
 
       assert_received {:mix_shell, :info, ["Publishing package using http://" <> _]}
 
@@ -573,7 +582,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       assert_received {:mix_shell, :info, ["Publishing package using http://" <> _]}
       assert_received {:mix_shell, :info, ["Transferring ownership to testorg..."]}
 
-      assert {:ok, {200, body, _headers}} =
+      assert {:ok, {200, _headers, body}} =
                Hex.API.Package.get("hexpm", "publish_with_organization_prompt")
 
       assert "testorg" in Enum.map(body["owners"], & &1["username"])

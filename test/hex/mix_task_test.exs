@@ -399,7 +399,7 @@ defmodule Hex.MixTaskTest do
         Ex_doc.NoConflict.MixProject
       ])
 
-      HexTest.Case.clear_cache()
+      Mix.State.clear_cache()
       Mix.Project.pop()
       Mix.Project.push(SimpleOld)
 
@@ -1026,10 +1026,6 @@ defmodule Hex.MixTaskTest do
       Postgrex.NoConflict.MixProject,
       Ex_doc.NoConflict.MixProject
     ])
-  end
-
-  if Version.match?(System.version(), "< 1.12.0-dev") do
-    @tag :skip
   end
 
   test "do not raise :divergedreq when parent changes requirement and child changes version" do

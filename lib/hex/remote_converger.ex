@@ -25,6 +25,10 @@ defmodule Hex.RemoteConverger do
   end
 
   def converge(deps, lock) do
+    unless Code.ensure_loaded?(Hex.Mix) do
+      Hex.Stdlib.ensure_application!(:hex)
+    end
+
     Registry.open()
 
     # We cannot use given lock here, because all deps that are being
@@ -35,14 +39,20 @@ defmodule Hex.RemoteConverger do
     overridden = Hex.Mix.overridden_deps(deps)
     requests = Hex.Mix.deps_to_requests(deps)
 
-    [
-      Hex.Mix.packages_from_lock(lock),
-      Hex.Mix.packages_from_lock(old_lock),
-      packages_from_requests(requests)
-    ]
-    |> Enum.concat()
-    |> verify_prefetches()
-    |> Registry.prefetch()
+    prefetches =
+      [
+        Hex.Mix.packages_from_lock(lock),
+        Hex.Mix.packages_from_lock(old_lock),
+        packages_from_requests(requests)
+      ]
+      |> Enum.concat()
+      |> verify_prefetches()
+
+    # Only preflight user OAuth when one of the relevant repos would
+    # actually rely on the stored OAuth token. Public-only deps.get
+    # should not prompt just because an unrelated token expired.
+    check_and_refresh_auth(prefetches)
+    Registry.prefetch(prefetches)
 
     locked = prepare_locked(lock, old_lock, deps)
 
@@ -146,7 +156,8 @@ defmodule Hex.RemoteConverger do
     Hex.SCM.prefetch(new_lock)
 
     deps_to_warn =
-      for %{repo: repo, name: name, requirement: requirement, warn_if_outdated: true} <- requests do
+      for %{repo: repo, name: name, app: app, requirement: requirement, warn_if_outdated: true} <-
+            requests do
         {:ok, requirement} = Version.parse_requirement(requirement)
         {:ok, versions} = Registry.versions(repo, name)
 
@@ -157,7 +168,7 @@ defmodule Hex.RemoteConverger do
 
         with [latest_version | _] <- versions,
              {:hex, _name, version, _checksum1, _managers, _, ^repo, _checksum2} <-
-               Map.fetch!(new_lock, String.to_atom(name)),
+               Map.fetch!(new_lock, String.to_atom(app)),
              :gt <- Version.compare(latest_version, version) do
           {name, latest_version}
         else
@@ -396,13 +407,40 @@ defmodule Hex.RemoteConverger do
   defp print_success(resolved, old_lock) do
     if resolved != [] do
       previously_locked_versions = dep_info_from_lock(old_lock)
-      dep_changes = group_dependency_changes(resolved, previously_locked_versions)
+
+      dep_changes =
+        resolved
+        |> group_dependency_changes(previously_locked_versions)
+        |> annotate_dependency_changes()
 
       Enum.each(dep_changes, fn {mod, deps} ->
-        unless length(deps) == 0, do: print_category(mod)
+        unless deps == [], do: print_category(mod)
         print_dependency_group(deps, mod)
       end)
+
+      all_deps = Enum.flat_map(dep_changes, fn {_mod, deps} -> deps end)
+      has_retired = Enum.any?(all_deps, fn {_dep, retired, _adv} -> retired != nil end)
+      has_advisory = Enum.any?(all_deps, fn {_dep, _retired, adv} -> adv != [] end)
+
+      if has_retired or has_advisory do
+        Hex.Shell.info("")
+        if has_retired, do: Hex.Shell.error("Found retired packages")
+        if has_advisory, do: Hex.Shell.error("Found packages with security advisories")
+      end
     end
+  end
+
+  defp annotate_dependency_changes(dep_changes) do
+    Enum.map(dep_changes, fn {mod, deps} ->
+      annotated =
+        Enum.map(deps, fn {name, repo, _prev, version, _warning} = dep ->
+          retired = Registry.retired(repo, name, version)
+          advisories = Registry.advisories(repo, name, version) || []
+          {dep, retired, advisories}
+        end)
+
+      {mod, annotated}
+    end)
   end
 
   defp group_dependency_changes(resolved, previously_locked_versions) do
@@ -468,58 +506,46 @@ defmodule Hex.RemoteConverger do
   end
 
   defp print_dependency_group(deps, mod) do
-    Enum.each(deps, fn {name, repo, previous_version, version, warning} ->
-      print_status(
-        Registry.retired(repo, name, version),
-        mod,
-        name,
-        previous_version,
-        version,
-        warning
+    Enum.each(deps, fn {{name, _repo, previous_version, version, warning}, retired, advisories} ->
+      print_status(retired, advisories, mod, name, previous_version, version, warning)
+    end)
+  end
+
+  defp print_status(retired, advisories, mod, name, previous_version, version, warning) do
+    version_str = version_string(mod, name, previous_version, version)
+    retired_tag = if retired, do: [:yellow, " RETIRED!", :reset], else: []
+    vulnerable_tag = if advisories != [], do: [:red, " VULNERABLE!", :reset], else: []
+    warning_tag = if warning, do: [:red, warning, :reset], else: []
+
+    line = [version_color(mod), version_str, :reset, retired_tag, vulnerable_tag, warning_tag]
+    Hex.Shell.info(Hex.Shell.format(line))
+
+    if retired do
+      Hex.Shell.warn("    #{Hex.Utils.package_retirement_message(retired)}")
+    end
+
+    advisories
+    |> Enum.with_index()
+    |> Enum.each(fn {advisory, index} ->
+      if retired || index > 0, do: Hex.Shell.info("")
+
+      Hex.Shell.info(
+        Hex.Shell.format(["    " | Hex.Utils.format_advisory_ansi(advisory, "    ")])
       )
     end)
   end
 
-  defp print_status(nil, mod, name, previous_version, version, warning) do
-    case mod do
-      :new ->
-        Hex.Shell.info(Hex.Shell.format([:green, "  #{name} #{version}", :red, "#{warning}"]))
+  defp version_color(:new), do: :green
+  defp version_color(:gt), do: :green
+  defp version_color(:lt), do: :yellow
+  defp version_color(:eq), do: []
 
-      :eq ->
-        Hex.Shell.info("  #{name} #{version}")
-
-      :lt ->
-        Hex.Shell.info(
-          Hex.Shell.format([
-            :yellow,
-            "  #{name} #{previous_version} => #{version}",
-            :red,
-            "#{warning}"
-          ])
-        )
-
-      :gt ->
-        Hex.Shell.info(
-          Hex.Shell.format([
-            :green,
-            "  #{name} #{previous_version} => #{version}",
-            :red,
-            "#{warning}"
-          ])
-        )
-    end
+  defp version_string(mod, name, _previous_version, version) when mod in [:eq, :new] do
+    "  #{name} #{version}"
   end
 
-  defp print_status(retired, mod, name, previous_version, version, _warning) do
-    case mod do
-      mod when mod in [:eq, :new] ->
-        Hex.Shell.warn("  #{name} #{version} RETIRED!")
-        Hex.Shell.warn("    #{Hex.Utils.package_retirement_message(retired)}")
-
-      _ ->
-        Hex.Shell.warn("  #{name} #{previous_version} => #{version} RETIRED!")
-        Hex.Shell.warn("    #{Hex.Utils.package_retirement_message(retired)}")
-    end
+  defp version_string(_mod, name, previous_version, version) do
+    "  #{name} #{previous_version} => #{version}"
   end
 
   defp verify_prefetches(prefetches) do
@@ -558,10 +584,8 @@ defmodule Hex.RemoteConverger do
 
   defp verify_resolved(resolved, lock) do
     Enum.each(resolved, fn {repo, name, app, version} ->
-      atom_name = String.to_atom(name)
-
       case Hex.Utils.lock(lock[String.to_atom(app)]) do
-        %{name: ^atom_name, version: ^version, repo: ^repo} = lock ->
+        %{name: ^name, version: ^version, repo: ^repo} = lock ->
           verify_inner_checksum(repo, name, version, lock.inner_checksum)
           verify_outer_checksum(repo, name, version, lock.outer_checksum)
           verify_deps(repo, name, version, lock.deps)
@@ -588,14 +612,15 @@ defmodule Hex.RemoteConverger do
     end
   end
 
-  defp verify_deps(nil, _name, _version, _deps), do: :ok
+  defp verify_deps(repo, name, version, deps)
+  defp verify_deps(_repo, _name, _version, nil), do: []
 
   defp verify_deps(repo, name, version, deps) do
     # TODO: Use requests?
     deps =
       Enum.map(deps, fn {app, req, opts} ->
         %{
-          repo: opts[:repo],
+          repo: if(opts[:repo] != "hexpm", do: opts[:repo]),
           name: opts[:hex],
           constraint: Hex.Solver.parse_constraint!(req),
           optional: !!opts[:optional],
@@ -722,5 +747,64 @@ defmodule Hex.RemoteConverger do
 
   defp breaking_minor_version_change?(%Version{} = version1, %Version{} = version2) do
     version1.major == 0 and version2.major == 0 and version1.minor != version2.minor
+  end
+
+  defp check_and_refresh_auth(prefetches) do
+    if auth_preflight_required?(prefetches) do
+      # Try to get token with authentication prompting enabled
+      # The OnceCache ensures only one process prompts even if multiple processes
+      # detect the expired token concurrently
+      case Hex.OAuth.get_token(prompt_auth: true) do
+        {:ok, _access_token} ->
+          # Token is valid, was successfully refreshed, or user authenticated
+          :ok
+
+        {:error, :auth_failed} ->
+          Hex.Shell.warn(
+            "Authentication failed. Private packages will not be available. " <>
+              "Run `mix hex.user auth` to authenticate."
+          )
+
+        {:error, :auth_declined} ->
+          Hex.Shell.warn(
+            "Private packages will not be available. " <>
+              "Run `mix hex.user auth` to authenticate."
+          )
+
+        {:error, :no_auth} ->
+          # No stored OAuth token to preflight; continue unauthenticated
+          # and let the repo fetch fail normally if authentication is required.
+          :ok
+
+        {:error, _other} ->
+          # Do not fail dependency resolution during OAuth preflight; continue
+          # unauthenticated and let the repo fetch surface any auth error.
+          :ok
+      end
+    else
+      :ok
+    end
+  end
+
+  @doc false
+  def auth_preflight_required?(prefetches) do
+    prefetches
+    |> Enum.map(fn {repo, _package} -> repo end)
+    |> Enum.uniq()
+    |> Enum.any?(&repo_requires_user_oauth?/1)
+  end
+
+  defp repo_requires_user_oauth?("hexpm:" <> _ = repo) do
+    repo
+    |> Hex.Repo.get_repo()
+    |> repo_uses_user_oauth?()
+  end
+
+  defp repo_requires_user_oauth?(_repo) do
+    false
+  end
+
+  defp repo_uses_user_oauth?(repo_config) do
+    Map.get(repo_config, :trusted, true) && !repo_config.auth_key
   end
 end

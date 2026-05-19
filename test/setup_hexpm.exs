@@ -3,6 +3,17 @@ alias HexTest.Hexpm
 Hexpm.init()
 Hexpm.start()
 
+# Create OAuth client for testing
+config = Hex.API.Client.config()
+
+body = %{
+  "client_id" => "78ea6566-89fd-481e-a1d6-7d9d78eacca8",
+  "client_type" => "public",
+  "name" => "Hex CLI"
+}
+
+:mix_hex_api.post(config, ["oauth_client"], body)
+
 pkg_meta = %{
   "licenses" => ["GPL-2.0", "MIT", "Apache-2.0"],
   "links" => %{"docs" => "http://docs", "repo" => "http://repo"},
@@ -77,6 +88,9 @@ Hexpm.new_package(
 Hexpm.new_repo("testorg", auth)
 Hexpm.new_package("testorg", "foo", "0.1.0", [], pkg_meta, auth)
 Hexpm.new_package("testorg", "bar", "0.1.0", [foo: "~> 0.1.0"], pkg_meta, auth)
+
+Hexpm.new_repo("remote_converger_org", auth)
+Hexpm.new_package("remote_converger_org", "private_prompt_pkg", "0.1.0", [], pkg_meta, auth)
 
 Hexpm.new_package("hexpm", "ecto_sql", "3.3.2", [ecto: "~> 3.3.1"], pkg_meta, auth, [
   {"mix.exs", File.read!(Case.fixture_path("ecto_sql_3_3_2/mix.exs"))}

@@ -33,9 +33,9 @@ defmodule Mix.Tasks.Hex.Publish do
 
   ## Reverting a package
 
-  A new package can be reverted or updated within 24 hours of it's initial publish,
-  a new version of an existing package can be reverted or updated within one hour.
-  Documentation have no limitations on when it can be updated.
+  A new package can be reverted or updated within 24 hours of its initial publish.
+  A new version of an existing package can be reverted or updated within one hour.
+  Documentation has no limitations on when it can be updated.
 
   To update the package simply run the `mix hex.publish` task again. To revert run
   `mix hex.publish --revert VERSION` or to only revert the documentation run
@@ -71,7 +71,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   @impl true
   def run(args) do
-    Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
+    Mix.Tasks.Deps.Loadpaths.run(["--no-compile", "--no-listeners"])
     Hex.start()
     {opts, args} = OptionParser.parse!(args, strict: @switches)
 
@@ -150,6 +150,8 @@ defmodule Mix.Tasks.Hex.Publish do
         case create_release(build, organization, auth, opts) do
           :ok ->
             Hex.Shell.info("Publishing docs...")
+            # Refresh auth to pick up cached OTP from package publish
+            auth = Mix.Tasks.Hex.auth_info(:write)
             create_docs(build, organization, auth, opts)
             transfer_owner(build, owner, auth, opts)
 
@@ -191,9 +193,6 @@ defmodule Mix.Tasks.Hex.Publish do
       Mix.Task.run("docs", [])
     rescue
       ex in [Mix.NoTaskError] ->
-        require Hex.Stdlib
-        stacktrace = Hex.Stdlib.stacktrace()
-
         Mix.shell().error("""
         Publication failed because the "docs" task is unavailable. You may resolve this by:
 
@@ -202,7 +201,7 @@ defmodule Mix.Tasks.Hex.Publish do
           3. Publishing the package without docs by running "mix hex.publish package" (not recommended)
         """)
 
-        reraise ex, stacktrace
+        reraise ex, __STACKTRACE__
     after
       :code.add_pathsz(path)
     end
@@ -314,10 +313,10 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp package_exists?(build) do
     case Hex.API.Package.get("hexpm", build.meta.name) do
-      {:ok, {200, _body, _headers}} ->
+      {:ok, {200, _headers, _body}} ->
         true
 
-      {:ok, {404, _body, _headers}} ->
+      {:ok, {404, _headers, _body}} ->
         false
 
       other ->
@@ -328,7 +327,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp user_organizations(auth) do
     case Hex.API.User.me(auth) do
-      {:ok, {200, body, _header}} ->
+      {:ok, {200, _header, body}} ->
         Enum.map(body["organizations"], & &1["name"])
 
       other ->
@@ -351,7 +350,7 @@ defmodule Mix.Tasks.Hex.Publish do
       :ok
     else
       case Hex.API.Package.Owner.add("hexpm", build.meta.name, owner, "full", true, auth) do
-        {:ok, {status, _body, _header}} when status in 200..299 ->
+        {:ok, {status, _header, _body}} when status in 200..299 ->
           :ok
 
         other ->
@@ -427,7 +426,7 @@ defmodule Mix.Tasks.Hex.Publish do
     progress = progress_fun(progress?, byte_size(tarball))
 
     case Hex.API.ReleaseDocs.publish(organization, name, version, tarball, auth, progress) do
-      {:ok, {code, _body, headers}} when code in 200..299 ->
+      {:ok, {code, headers, _body}} when code in 200..299 ->
         api_url = Hex.State.fetch!(:api_url)
         default_api_url? = api_url == Hex.State.default_api_url()
 
@@ -439,7 +438,7 @@ defmodule Mix.Tasks.Hex.Publish do
           end
 
         Hex.Shell.info("")
-        Hex.Shell.info(["Docs published to ", location])
+        Hex.Shell.info(["Docs will soon be available at ", location])
         :ok
 
       {:ok, {404, _, _}} ->
@@ -516,7 +515,7 @@ defmodule Mix.Tasks.Hex.Publish do
     replace? = Keyword.get(opts, :replace, false)
 
     case Hex.API.Release.publish(organization, tarball, auth, progress, replace?) do
-      {:ok, {code, body, _}} when code in 200..299 ->
+      {:ok, {code, _, body}} when code in 200..299 ->
         location = body["html_url"] || body["url"]
         checksum = String.downcase(Base.encode16(checksum, case: :lower))
         Hex.Shell.info("")

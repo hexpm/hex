@@ -31,21 +31,28 @@ defmodule Mix.Tasks.Hex.Docs do
 
   ## Command line options
 
-    * `--module Some.Module` - Open a specified module documentation page inside desired package
+    * `--page "Some.Module"`, `--page guide` - Open a specified documentation page inside desired package
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
     * `--latest` - Looks for the latest release of a package
-    * `--format epub` - When opening documentation offline, use this flag to open the epub formatted version
+    * `--format epub`, `--format md` - When opening documentation offline, use this flag to open the epub/md formatted version
   """
   @behaviour Hex.Mix.TaskDescription
 
   @elixir_apps ~w(eex elixir ex_unit iex logger mix)
-  @switches [module: :string, organization: :string, latest: :boolean, format: :string]
+  # TODO: Remove :module switch
+  @switches [
+    module: :string,
+    page: :string,
+    organization: :string,
+    latest: :boolean,
+    format: :string
+  ]
 
   @impl true
   def run(args) do
     Hex.start()
     {opts, args} = OptionParser.parse!(args, strict: @switches)
-    opts = Keyword.put(opts, :mix_project, !!Mix.Project.get())
+    opts = opts |> normalize_module_opt() |> Keyword.put(:mix_project, !!Mix.Project.get())
 
     case args do
       ["fetch" | remaining] ->
@@ -152,7 +159,7 @@ defmodule Mix.Tasks.Hex.Docs do
     auth = if organization, do: Mix.Tasks.Hex.auth_info(:read)
 
     case Hex.API.Package.get(organization, name, auth) do
-      {:ok, {code, body, _}} when code in 200..299 ->
+      {:ok, {code, _, body}} when code in 200..299 ->
         body
 
       {:ok, {404, _, _}} ->
@@ -237,20 +244,29 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp docs_location(organization, name, version, opts) do
     format = Keyword.get(opts, :format, "html")
-    module = Keyword.get(opts, :module, "index")
+    page = Keyword.get(opts, :page)
 
     default_path = Path.join([docs_dir(), org_to_path(organization), name, version])
     fallback_path = Path.join([docs_dir(), name, version])
 
     case format do
-      "epub" -> epub_file_location(default_path, fallback_path, organization)
-      "html" -> html_file_location(default_path, fallback_path, module, organization)
+      "epub" ->
+        epub_file_location(default_path, fallback_path, organization)
+
+      "html" ->
+        file_location(default_path, fallback_path, "#{page || "index"}.html", organization)
+
+      "md" when page == nil ->
+        file_location(default_path, fallback_path, "llms.txt", organization)
+
+      "md" ->
+        file_location(default_path, fallback_path, "#{page}.md", organization)
     end
   end
 
-  defp html_file_location(default_path, fallback_path, module, organization) do
-    default_path = Path.join([default_path, module <> ".html"])
-    fallback_path = Path.join([fallback_path, module <> ".html"])
+  defp file_location(default_path, fallback_path, page, organization) do
+    default_path = Path.join([default_path, page])
+    fallback_path = Path.join([fallback_path, page])
 
     cond do
       File.exists?(default_path) -> default_path
@@ -282,50 +298,35 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp get_docs_url([name], opts) do
-    if module = opts[:module] do
-      Hex.Utils.hexdocs_module_url(opts[:organization], name, module)
+    if page = opts[:page] do
+      Hex.Utils.hexdocs_module_url(opts[:organization], name, page)
     else
       Hex.Utils.hexdocs_url(opts[:organization], name)
     end
   end
 
   defp get_docs_url([name, version], opts) do
-    if module = opts[:module] do
-      Hex.Utils.hexdocs_module_url(opts[:organization], name, version, module)
+    if page = opts[:page] do
+      Hex.Utils.hexdocs_module_url(opts[:organization], name, version, page)
     else
       Hex.Utils.hexdocs_url(opts[:organization], name, version)
     end
   end
 
+  # TODO: Remove :module support
+  defp normalize_module_opt(opts) do
+    case Keyword.pop(opts, :module) do
+      {nil, opts} ->
+        opts
+
+      {module, opts} ->
+        Hex.Shell.error("--module is deprecated, use --page instead")
+        Keyword.put_new(opts, :page, module)
+    end
+  end
+
   defp browser_open(path) do
-    path
-    |> open_cmd()
-    |> system_cmd()
-  end
-
-  defp open_cmd(path) do
-    case :os.type() do
-      {:win32, _} ->
-        dirname = Path.dirname(path)
-        basename = Path.basename(path)
-        {"cmd", ["/c", "start", basename], [cd: dirname]}
-
-      {:unix, :darwin} ->
-        {"open", [path], []}
-
-      {:unix, _} ->
-        {"xdg-open", [path], []}
-    end
-  end
-
-  if Mix.env() == :test do
-    defp system_cmd({cmd, args, options}) do
-      send(self(), {:hex_system_cmd, cmd, args, options})
-    end
-  else
-    defp system_cmd({cmd, args, options}) do
-      System.cmd(cmd, args, options)
-    end
+    Hex.Utils.system_open(path)
   end
 
   defp open_file(path) do
@@ -359,7 +360,7 @@ defmodule Mix.Tasks.Hex.Docs do
     repo = org_to_repo(organization)
 
     case Hex.Repo.get_docs(repo, package, version) do
-      {:ok, {200, body, _}} ->
+      {:ok, {200, _, body}} ->
         File.mkdir_p!(Path.dirname(target))
         File.write!(target, body)
         true
@@ -384,8 +385,7 @@ defmodule Mix.Tasks.Hex.Docs do
 
   defp extract_docs(target, target_dir) do
     File.mkdir_p!(target_dir)
-    fd = File.open!(target, [:read, :compressed])
-    :ok = :mix_hex_erl_tar.extract({:file, fd}, [:compressed, cwd: Path.dirname(target)])
+    :ok = :mix_hex_erl_tar.extract(target, [:compressed, cwd: Path.dirname(target)])
     Hex.Shell.info("Docs fetched: #{target_dir}")
   end
 

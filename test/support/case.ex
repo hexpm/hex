@@ -13,12 +13,6 @@ defmodule HexTest.Case do
     flush([])
   end
 
-  if Version.compare(System.version(), "1.10.0-rc.0") == :lt do
-    def clear_cache(), do: Mix.ProjectStack.clear_cache()
-  else
-    def clear_cache(), do: Mix.State.clear_cache()
-  end
-
   defp flush(acc) do
     receive do
       any -> flush([any | acc])
@@ -45,28 +39,28 @@ defmodule HexTest.Case do
 
   defp escape_path(path) do
     case :os.type() do
-      {:win32, _} -> String.replace(path, ~R'[~#%&*{}\\:<>?/+|"]', "_")
+      {:win32, _} -> String.replace(path, ~r'[~#%&*{}\\:<>?/+|"]', "_")
       _ -> path
     end
   end
 
   defmacro test_tmp() do
     module = escape_path("#{__CALLER__.module}")
-    function = escape_path("#{elem(__CALLER__.function, 0)}")
+    function = escape_path("#{elem(__CALLER__.function || {nil}, 0)}")
 
     Path.join([HexTest.Case.tmp_path(), module, function])
   end
 
   defmacro test_name() do
     module = escape_path("#{__CALLER__.module}")
-    function = escape_path("#{elem(__CALLER__.function, 0)}")
+    function = escape_path("#{elem(__CALLER__.function || {nil}, 0)}")
 
     Path.join([module, function])
   end
 
   defmacro in_tmp(fun) do
     module = escape_path("#{__CALLER__.module}")
-    function = escape_path("#{elem(__CALLER__.function, 0)}")
+    function = escape_path("#{elem(__CALLER__.function || {nil}, 0)}")
 
     path = Path.join([module, function])
 
@@ -84,7 +78,7 @@ defmodule HexTest.Case do
 
   defmacro in_fixture(which, block) do
     module = inspect(__CALLER__.module)
-    function = Atom.to_string(elem(__CALLER__.function, 0))
+    function = Atom.to_string(elem(__CALLER__.function || {nil}, 0))
     tmp = Path.join(module, function)
 
     quote do
@@ -125,7 +119,7 @@ defmodule HexTest.Case do
 
   @ets_table :hex_index
 
-  def create_test_registry(path, registry) do
+  def create_test_registry(path, registry, advisories \\ []) do
     registry = Enum.sort(registry)
 
     versions =
@@ -149,10 +143,10 @@ defmodule HexTest.Case do
         {{Atom.to_string(outer_repo), Atom.to_string(name), vsn}, deps}
       end)
 
-    create_registry(path, versions, deps)
+    create_registry(path, versions, deps, advisories)
   end
 
-  defp create_registry(path, versions, deps) do
+  defp create_registry(path, versions, deps, advisories) do
     tid = :ets.new(@ets_table, [])
 
     versions =
@@ -165,7 +159,12 @@ defmodule HexTest.Case do
         {{:deps, repo, pkg, vsn}, deps}
       end)
 
-    :ets.insert(tid, versions ++ deps ++ [{:version, 3}])
+    advisories =
+      Enum.map(advisories, fn {{repo, pkg, vsn}, adv} ->
+        {{:advisories, repo, pkg, vsn}, adv}
+      end)
+
+    :ets.insert(tid, versions ++ deps ++ advisories ++ [{:version, 4}])
     File.mkdir_p!(Path.dirname(path))
     :ok = :ets.tab2file(tid, String.to_charlist(path))
     :ets.delete(tid)
@@ -221,6 +220,7 @@ defmodule HexTest.Case do
       {:hexpm, :phoenix_live_reload, "1.0.3", [phoenix: "~> 0.16 or ~> 1.0"]},
       {:hexpm, :postgrex, "0.2.0", [ex_doc: "0.0.1"]},
       {:hexpm, :postgrex, "0.2.1", [ex_doc: "~> 0.1.0"]},
+      {:hexpm, :umb, "0.2.1", [ex_doc: "~> 0.1.0"]},
       {:repo2, :hexpm_deps, "0.1.0", [{:poison, ">= 0.0.0", false, :poison, :hexpm}]},
       {:repo2, :poison, "2.0.0", []},
       {:repo2, :repo2_deps, "0.1.0", [poison: ">= 0.0.0"]}
@@ -231,22 +231,21 @@ defmodule HexTest.Case do
     write_permissions = [%{"domain" => "api"}]
     read_permissions = [%{"domain" => "api", "resource" => "read"}]
 
-    {:ok, {201, write_body, _}} =
+    {:ok, {201, _, write_body}} =
       Hex.API.Key.new("setup_auth_write", write_permissions, user: username, pass: password)
 
-    {:ok, {201, read_body, _}} =
+    {:ok, {201, _, _read_body}} =
       Hex.API.Key.new("setup_auth_read", read_permissions, user: username, pass: password)
 
-    write_key = Mix.Tasks.Hex.encrypt_key(password, write_body["secret"])
-    read_key = read_body["secret"]
-    Mix.Tasks.Hex.update_keys(write_key, read_key)
+    write_key = write_body["secret"]
+    Hex.State.put(:api_key, write_key)
     [key: write_key]
   end
 
   def get_auth(username, password) do
     permissions = [%{"domain" => "api"}]
 
-    {:ok, {201, body, _}} =
+    {:ok, {201, _, body}} =
       Hex.API.Key.new("setup_auth", permissions, user: username, pass: password)
 
     [key: body["secret"]]
@@ -259,12 +258,18 @@ defmodule HexTest.Case do
     Hex.State.put(:cache_home, Path.expand("../../tmp/hex_cache_home", __DIR__))
     Hex.State.put(:data_home, Path.expand("../../tmp/hex_data_home", __DIR__))
     Hex.State.put(:api_url, "http://localhost:4043/api")
-    Hex.State.put(:api_key_write, nil)
-    Hex.State.put(:api_key_read, nil)
-    Hex.State.put(:api_key_write_unencrypted, nil)
+    Hex.State.put(:api_key, nil)
+    Hex.State.put(:oauth_token, nil)
     Hex.State.update!(:repos, &put_in(&1["hexpm"].url, "http://localhost:4043/repo"))
     Hex.State.update!(:repos, &put_in(&1["hexpm"].public_key, public_key))
     Hex.State.update!(:repos, &put_in(&1["hexpm"].auth_key, nil))
+    Hex.State.update!(:repos, &put_in(&1["hexpm"].oauth_exchange, true))
+
+    Hex.State.update!(
+      :repos,
+      &update_in(&1, ["hexpm"], fn repo -> Map.delete(repo, :oauth_token) end)
+    )
+
     Hex.State.put(:repos_key, nil)
     Hex.State.put(:pbkdf2_iters, 10)
     Hex.State.put(:clean_pass, false)
@@ -273,6 +278,8 @@ defmodule HexTest.Case do
 
   def reset_state do
     Hex.State.put_all(Application.get_env(:hex, :reset_state))
+    Hex.OAuth.clear_tokens()
+    Hex.Repo.clear_exchange_cache()
   end
 
   def set_home_cwd() do
@@ -321,7 +328,7 @@ defmodule HexTest.Case do
       Mix.shell(Hex.Shell.Process)
       Mix.Task.clear()
       Hex.Shell.Process.flush()
-      clear_cache()
+      Mix.State.clear_cache()
       Mix.ProjectStack.clear_stack()
     end
 
@@ -339,8 +346,23 @@ defmodule HexTest.Case do
         %Plug.Conn{request_path: "/docs/docs_package-1.1.2.tar.gz"} ->
           tar_file = tmp_path("docs_package-1.1.2.tar.gz")
           index_file = String.to_charlist("index.html")
+          module_file = String.to_charlist("Some.Module.html")
+          guide_file = String.to_charlist("guide.md")
+          llms_file = String.to_charlist("llms.txt")
           epub_file = String.to_charlist("docs_package.epub")
-          :mix_hex_erl_tar.create(tar_file, [{index_file, ""}, {epub_file, ""}], [:compressed])
+
+          :mix_hex_erl_tar.create(
+            tar_file,
+            [
+              {index_file, ""},
+              {module_file, ""},
+              {guide_file, ""},
+              {llms_file, ""},
+              {epub_file, ""}
+            ],
+            [:compressed]
+          )
+
           package = File.read!(tar_file)
           Plug.Conn.resp(conn, 200, package)
 
@@ -375,7 +397,6 @@ defmodule HexTest.Case do
     Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
 
     package_path = "/api/repos/#{repo}/packages/ecto"
-    release_path = "/api/repos/#{repo}/publish"
 
     Bypass.expect(bypass, fn conn ->
       case conn do
@@ -386,7 +407,10 @@ defmodule HexTest.Case do
           |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
           |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
 
-        %Plug.Conn{method: "POST", request_path: ^release_path} ->
+        %Plug.Conn{
+          method: "POST",
+          path_info: ["api", "repos", ^repo, "packages", _name, "releases"]
+        } ->
           body = %{"html_url" => "myrepo html_url"}
 
           conn

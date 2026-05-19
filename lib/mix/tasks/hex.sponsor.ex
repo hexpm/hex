@@ -32,7 +32,7 @@ defmodule Mix.Tasks.Hex.Sponsor do
             )
     end
 
-    Mix.Tasks.Deps.Loadpaths.run(["--no-compile"])
+    Mix.Tasks.Deps.Loadpaths.run(["--no-compile", "--no-listeners"])
 
     sponsor_links =
       Mix.Dep.Lock.read()
