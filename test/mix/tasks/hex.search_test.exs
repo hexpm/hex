@@ -118,15 +118,20 @@ defmodule Mix.Tasks.Hex.SearchTest do
 
           {:ok,
            {200, %{},
-            ~s({"found":1,"hits":[{"document":{"doc":"Cast changesets.","package":"ecto-3.13.4","ref":"Ecto.Changeset.html#cast/4","title":"cast/4"}}]})}}
+            ~s({"found":2,"hits":[{"document":{"doc":"Cast changesets.","package":"ecto-3.13.4","ref":"Ecto.Changeset.html#cast/4","title":"cast/4"}},{"document":{"doc":"Tree docs.","package":"mix-1.20.0-rc.5","ref":"Mix.Tasks.Deps.Tree.html#module-examples","title":"Examples - mix deps.tree"}}]})}}
         end)
 
         Mix.Tasks.Hex.Search.run(["ecto changeset"])
 
-        assert_received {:mix_shell, :info, [message]}
+        assert_received {:mix_shell, :info,
+                         [
+                           "# cast/4 (1/2)\nhttps://hexdocs.pm/ecto/3.13.4/Ecto.Changeset.html#cast/4\n\nCast changesets.\n\n"
+                         ]}
 
-        assert message =~
-                 "# cast/4 (1/1)\nhttps://hexdocs.pm/ecto/3.13.4/Ecto.Changeset.html#cast/4\n\nCast changesets.\n\n"
+        assert_received {:mix_shell, :info,
+                         [
+                           "# Examples - mix deps.tree (2/2)\nhttps://hexdocs.pm/mix/1.20.0-rc.5/Mix.Tasks.Deps.Tree.html#module-examples\n\nTree docs.\n\n"
+                         ]}
       end)
     end
 
@@ -144,48 +149,6 @@ defmodule Mix.Tasks.Hex.SearchTest do
         Mix.Tasks.Hex.Search.run(["query", "--packages", "foo,bar"])
 
         assert_received {:mix_shell, :info, ["No results found"]}
-      end)
-    end
-
-    test "builds urls by splitting package on the first dash" do
-      in_tmp(fn ->
-        set_home_tmp()
-
-        mock_search_http(fn _url ->
-          {:ok,
-           {200, %{},
-            ~s({"found":1,"hits":[{"document":{"doc":"Tree docs.","package":"mix-1.20.0-rc.5","ref":"Mix.Tasks.Deps.Tree.html#module-examples","title":"Examples - mix deps.tree"}}]})}}
-        end)
-
-        Mix.Tasks.Hex.Search.run(["deps tree", "--packages", "mix"])
-
-        assert_received {:mix_shell, :info, [message]}
-
-        assert message =~
-                 "# Examples - mix deps.tree (1/1)\nhttps://hexdocs.pm/mix/1.20.0-rc.5/Mix.Tasks.Deps.Tree.html#module-examples\n\nTree docs.\n\n"
-      end)
-    end
-
-    test "includes the total result count in the heading" do
-      in_tmp(fn ->
-        set_home_tmp()
-
-        mock_search_http(fn _url ->
-          {:ok,
-           {200, %{},
-            ~s({"found":2,"hits":[{"document":{"doc":"First","package":"ecto-3.13.4","ref":"Ecto.Changeset.html#cast/4","title":"cast/4"}},{"document":{"doc":"Second","package":"ecto-3.13.4","ref":"Ecto.Changeset.html#change/2","title":"change/2"}}]})}}
-        end)
-
-        Mix.Tasks.Hex.Search.run(["query", "--packages", "foo"])
-
-        assert_received {:mix_shell, :info, [first]}
-        assert_received {:mix_shell, :info, [second]}
-
-        assert first =~
-                 "# cast/4 (1/2)\nhttps://hexdocs.pm/ecto/3.13.4/Ecto.Changeset.html#cast/4\n\nFirst\n\n"
-
-        assert second =~
-                 "# change/2 (2/2)\nhttps://hexdocs.pm/ecto/3.13.4/Ecto.Changeset.html#change/2\n\nSecond\n\n"
       end)
     end
 
