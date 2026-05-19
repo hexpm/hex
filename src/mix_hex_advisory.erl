@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.17.0 (d8f5f87), do not edit manually
+%% Vendored from hex_core v0.17.0 (cadf1b8), do not edit manually
 
 %% @doc
 %% Display-time deduplication of security advisories.
@@ -94,11 +94,8 @@ identifiers(Advisory) ->
 
 alias_url(Id, AdvisoryIds) ->
     case sets:is_element(Id, AdvisoryIds) of
-        true ->
-            Encoded = uri_string:quote(Id),
-            <<"https://osv.dev/vulnerability/", Encoded/binary>>;
-        false ->
-            undefined
+        true -> <<"https://osv.dev/vulnerability/", Id/binary>>;
+        false -> undefined
     end.
 
 uniq(List) ->
