@@ -89,14 +89,7 @@ defmodule Mix.Tasks.Hex.SearchTest do
   end
 
   describe "docs query" do
-    setup do
-      if System.otp_release() >= "27" do
-        :ok
-      else
-        {:skip, "docs query tests require OTP 27 or later"}
-      end
-    end
-
+    @tag :requires_json
     test "prints formatted results for project dependencies" do
       Mix.Project.push(SearchDeps.MixProject)
 
@@ -135,6 +128,7 @@ defmodule Mix.Tasks.Hex.SearchTest do
       end)
     end
 
+    @tag :requires_json
     test "uses explicit package filters" do
       in_tmp(fn ->
         set_home_tmp()
@@ -152,6 +146,7 @@ defmodule Mix.Tasks.Hex.SearchTest do
       end)
     end
 
+    @tag :requires_json
     test "strips html comments from results" do
       in_tmp(fn ->
         set_home_tmp()
@@ -172,6 +167,7 @@ defmodule Mix.Tasks.Hex.SearchTest do
       end)
     end
 
+    @tag :requires_json
     test "uses configurable limit" do
       in_tmp(fn ->
         set_home_tmp()
@@ -217,6 +213,7 @@ defmodule Mix.Tasks.Hex.SearchTest do
       end)
     end
 
+    @tag :requires_json
     test "raises on invalid json" do
       in_tmp(fn ->
         set_home_tmp()
