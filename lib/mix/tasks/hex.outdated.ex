@@ -77,7 +77,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     lock
     |> process_lockfile(args, opts)
     |> display_outdated(args, opts)
-    |> set_exit_code(opts)
+    |> set_exit_code(args, opts)
   end
 
   @impl true
@@ -95,7 +95,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     |> requested_dep_names(lock, args, opts)
     |> Enum.sort()
     |> get_versions(deps, lock, opts[:pre])
-    |> filter_by_only(opts)
+    |> filter_by_only(args, opts)
   end
 
   defp requested_dep_names(_deps, lock, [app], _opts) do
@@ -178,17 +178,19 @@ defmodule Mix.Tasks.Hex.Outdated do
     end
   end
 
-  defp set_exit_code(versions, opts) do
+  defp set_exit_code(versions, args, opts) do
     outdated_versions =
       Enum.filter(versions, fn {_p, _o, _l, _la, _r, outdated?} -> outdated? end)
 
-    if outdated_versions != [] do
-      any_updatable? = any_possible_to_update?(outdated_versions)
-
-      if !opts[:within_requirements] || any_updatable? do
-        Mix.Tasks.Hex.set_exit_code(1)
-      end
+    if outdated_versions != [] and exit_with_error?(outdated_versions, args, opts) do
+      Mix.Tasks.Hex.set_exit_code(1)
     end
+  end
+
+  defp exit_with_error?(_outdated, [_app], _opts), do: true
+
+  defp exit_with_error?(outdated, [], opts) do
+    !opts[:within_requirements] || any_possible_to_update?(outdated)
   end
 
   defp get_requirements_from_lock(app, lock) do
@@ -243,7 +245,9 @@ defmodule Mix.Tasks.Hex.Outdated do
     values
   end
 
-  defp filter_by_only(versions, opts) do
+  defp filter_by_only(versions, [_app], _opts), do: versions
+
+  defp filter_by_only(versions, [], opts) do
     case opts[:only] do
       nil ->
         versions

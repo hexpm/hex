@@ -541,6 +541,48 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end)
   end
 
+  test "outdated app --within-requirements still exits when latest does not match" do
+    Mix.Project.push(OutdatedApp.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      Mix.Dep.Lock.write(%{ex_doc: {:hex, :ex_doc, "0.0.1"}})
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      assert catch_throw(Mix.Task.run("hex.outdated", ["postgrex", "--within-requirements"])) ==
+               {:exit_code, 1}
+    end)
+  end
+
+  test "outdated app --only does not filter out the requested dependency" do
+    Mix.Project.push(OutdatedDepsWithTypes.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+
+      Mix.Dep.Lock.write(%{
+        ex_doc: {:hex, :ex_doc, "0.0.1"},
+        beta: {:hex, :beta, "1.0.0"},
+        tired: {:hex, :tired, "0.1.0"},
+        foo: {:hex, :foo, "0.1.0"}
+      })
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      Mix.Task.run("hex.outdated", ["beta", "--only", "test"])
+
+      msg =
+        ["Current version ", :bright, "1.0.0", :reset, " of dependency is up to date!"]
+        |> IO.ANSI.format_fragment()
+        |> List.to_string()
+
+      assert_received {:mix_shell, :info, [^msg]}
+    end)
+  end
+
   @tag :requires_json
   test "outdated app --json" do
     Mix.Project.push(OutdatedApp.MixProject)
