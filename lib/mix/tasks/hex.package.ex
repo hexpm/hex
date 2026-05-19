@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Hex.Package do
   use Mix.Task
   alias Hex.Registry.Server, as: Registry
 
-  @shortdoc "Fetches or diffs packages"
+  @shortdoc "Fetches, diffs, or searches packages"
 
   @default_diff_command "git diff --no-index --no-prefix __PATH1__ __PATH2__"
 
@@ -38,6 +38,15 @@ defmodule Mix.Tasks.Hex.Package do
   This command fetches package tarballs for both versions,
   unpacks them into temporary directories and runs a diff command.
   Afterwards, the temporary directories are automatically deleted.
+
+  ## Search packages
+
+      $ mix hex.package search PACKAGE
+
+  Search for package names.
+
+  If you are authenticated, it will additionally search all organizations
+  you are member of.
 
   Note, similarly to when tarballs are fetched with `mix deps.get`,
   a `hex_metadata.config` is placed in each unpacked directory.
@@ -99,6 +108,9 @@ defmodule Mix.Tasks.Hex.Package do
     output = Keyword.get(opts, :output, nil)
 
     case args do
+      ["search", package] ->
+        package_search(package, opts)
+
       ["fetch", package] ->
         fetch(repo(opts), package, nil, unpack, output)
 
@@ -115,6 +127,7 @@ defmodule Mix.Tasks.Hex.Package do
         Mix.raise("""
           Invalid arguments, expected one of:
 
+          mix hex.package search PACKAGE
           mix hex.package fetch PACKAGE [VERSION] [--unpack]
           mix hex.package diff APP VERSION
           mix hex.package diff PACKAGE VERSION1 VERSION2
@@ -126,6 +139,7 @@ defmodule Mix.Tasks.Hex.Package do
   @impl true
   def tasks() do
     [
+      {"search PACKAGE", "Search package names"},
       {"fetch PACKAGE [VERSION] [--unpack]", "Fetch the package"},
       {"diff APP VERSION", "Diff dependency against version"},
       {"diff PACKAGE VERSION1 VERSION2", "Diff package versions"},
@@ -348,6 +362,93 @@ defmodule Mix.Tasks.Hex.Package do
     latest_stable_version
   end
 
+  defp package_search(package, opts) do
+    Hex.start()
+    auth = Mix.Tasks.Hex.auth_info(:read, auth_inline: false)
+
+    opts
+    |> search_repo()
+    |> Hex.API.Package.search(package, auth)
+    |> lookup_packages()
+  end
+
+  defp search_repo(opts) do
+    cond do
+      organization = opts[:organization] ->
+        organization
+
+      repo = opts[:repo] ->
+        repo
+
+      true ->
+        nil
+    end
+  end
+
+  defp lookup_packages({:ok, {200, _headers, []}}) do
+    Hex.Shell.info("No packages found")
+  end
+
+  defp lookup_packages({:ok, {200, _headers, packages}}) do
+    include_organizations? = Enum.any?(packages, &(&1["repository"] != "hexpm"))
+
+    if include_organizations? do
+      print_with_organizations(packages)
+    else
+      print_without_organizations(packages)
+    end
+  end
+
+  defp lookup_packages({:ok, {_status, _headers, _body}}) do
+    Hex.Shell.info("No packages found")
+  end
+
+  defp print_with_organizations(packages) do
+    values =
+      Enum.map(packages, fn package ->
+        [
+          if(package["repository"] != "hexpm", do: package["repository"]),
+          package["name"],
+          package["meta"]["description"] |> trim_heredoc() |> Hex.Utils.truncate(),
+          latest_stable_release(package["releases"]),
+          package["html_url"] || package["url"]
+        ]
+      end)
+
+    Mix.Tasks.Hex.print_table(
+      ["Organization", "Package", "Description", "Version", "URL"],
+      values
+    )
+  end
+
+  defp print_without_organizations(packages) do
+    values =
+      Enum.map(packages, fn package ->
+        [
+          package["name"],
+          package["meta"]["description"] |> trim_heredoc() |> Hex.Utils.truncate(),
+          latest_stable_release(package["releases"]),
+          package["html_url"] || package["url"]
+        ]
+      end)
+
+    Mix.Tasks.Hex.print_table(
+      ["Package", "Description", "Version", "URL"],
+      values
+    )
+  end
+
+  defp latest_stable_release(releases) do
+    %{"version" => version} =
+      Enum.find(
+        releases,
+        %{"version" => nil},
+        &(Version.parse!(&1["version"]).pre == [])
+      )
+
+    version
+  end
+
   defp retrieve_package_info(organization, name) do
     case Hex.API.Package.get(organization, name) do
       {:ok, {code, _, body}} when code in 200..299 ->
@@ -360,5 +461,13 @@ defmodule Mix.Tasks.Hex.Package do
         Hex.Shell.error("Failed to retrieve package information")
         Hex.Utils.print_error_result(other)
     end
+  end
+
+  defp trim_heredoc(nil), do: ""
+
+  defp trim_heredoc(string) do
+    string
+    |> String.split("\n", trim: true)
+    |> Enum.map_join(" ", &String.trim/1)
   end
 end
