@@ -613,7 +613,6 @@ defmodule Hex.RemoteConverger do
   end
 
   defp verify_deps(repo, name, version, deps)
-  defp verify_deps(nil, _name, _version, _deps), do: :ok
   defp verify_deps(_repo, _name, _version, nil), do: []
 
   defp verify_deps(repo, name, version, deps) do
