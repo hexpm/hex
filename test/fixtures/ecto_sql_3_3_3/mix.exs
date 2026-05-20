@@ -1,4 +1,4 @@
-defmodule Ecto.SQL_3_3_2.Fixture.MixProject do
+defmodule Ecto.SQL_3_3_3.Fixture.MixProject do
   use Mix.Project
 
   def project do
