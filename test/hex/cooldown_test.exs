@@ -89,7 +89,6 @@ defmodule Hex.CooldownTest do
     end
   end
 
-
   describe "HEX_COOLDOWN= env handling" do
     test "empty HEX_COOLDOWN= falls through to next source, not env" do
       original = System.get_env("HEX_COOLDOWN")
