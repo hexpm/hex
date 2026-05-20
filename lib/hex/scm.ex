@@ -196,6 +196,15 @@ defmodule Hex.SCM do
       raise("Checksum mismatch against registry (outer)")
     end
 
+    # Delete stale build artifact so Mix's dep loader does not read an outdated
+    # .app version and incorrectly mark the dependency as :divergedreq.  This
+    # situation arises on Elixir >= 1.20 which removed the `recently_fetched?`
+    # guard from Mix.Dep.Loader.validate_app (previously the guard prevented the
+    # loader from reading a stale .app file after a fetch).
+    if build = opts[:build] do
+      Path.join([build, "ebin", "#{name}.app"]) |> File.rm()
+    end
+
     build_tools = guess_build_tools(meta)
 
     managers =
