@@ -124,6 +124,43 @@ defmodule Hex.RemoteConvergerCooldownTest do
     end
   end
 
+  describe "print_cooldown_summary/0" do
+    test "prints the summary when filtered versions were recorded" do
+      now = System.system_time(:second)
+      Hex.State.put(:cooldown, "7d")
+      Hex.State.put(:cooldown_cutoff, Hex.Cooldown.build_cutoff())
+
+      Hex.State.put(:cooldown_filtered_versions, [
+        {"hexpm", "castore", "1.0.19", now - 6 * 86_400}
+      ])
+
+      RemoteConverger.print_cooldown_summary()
+
+      assert_received {:mix_shell, :info, [output]}
+      assert output =~ "Versions filtered by cooldown:"
+      assert output =~ "castore 1.0.19"
+    end
+
+    test "prints nothing when nothing was filtered" do
+      Hex.State.put(:cooldown, "7d")
+      Hex.State.put(:cooldown_cutoff, Hex.Cooldown.build_cutoff())
+      Hex.State.put(:cooldown_filtered_versions, [])
+
+      RemoteConverger.print_cooldown_summary()
+
+      refute_received {:mix_shell, :info, _}
+    end
+
+    test "prints nothing when cooldown is disabled" do
+      Hex.State.put(:cooldown_cutoff, :disabled)
+      Hex.State.put(:cooldown_filtered_versions, [])
+
+      RemoteConverger.print_cooldown_summary()
+
+      refute_received {:mix_shell, :info, _}
+    end
+  end
+
   describe "end-to-end advisory bypass" do
     # Wires the bypass set into the wrapper to confirm that an
     # advisory-flagged locked version actually unblocks the upgrade path
@@ -137,6 +174,8 @@ defmodule Hex.RemoteConvergerCooldownTest do
       bypass = RemoteConverger.build_cooldown_bypass(old_lock, locked, @cutoff)
       Hex.State.put(:cooldown_cutoff, @cutoff)
       Hex.State.put(:cooldown_bypass_packages, bypass)
+      Hex.State.put(:cooldown_locked_versions, %{})
+      Hex.State.put(:cooldown_filtered_versions, [])
 
       # Without bypass the wrapper would filter every version (no published_at
       # in the fixture means eligible, but if we'd populated young
@@ -153,6 +192,8 @@ defmodule Hex.RemoteConvergerCooldownTest do
       bypass = RemoteConverger.build_cooldown_bypass(old_lock, locked, @cutoff)
       Hex.State.put(:cooldown_cutoff, @cutoff)
       Hex.State.put(:cooldown_bypass_packages, bypass)
+      Hex.State.put(:cooldown_locked_versions, %{})
+      Hex.State.put(:cooldown_filtered_versions, [])
 
       {:ok, versions} = Hex.Registry.Cooldown.versions("hexpm", "retired_dep")
       assert Enum.map(versions, &to_string/1) == ["1.0.0", "2.0.0"]

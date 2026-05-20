@@ -1,6 +1,15 @@
 defmodule Hex.MixTaskTest do
   use HexTest.IntegrationCase
 
+  defp drain_shell_info_matching(substring) do
+    receive do
+      {:mix_shell, :info, [text]} ->
+        if text =~ substring, do: text, else: drain_shell_info_matching(substring)
+    after
+      0 -> nil
+    end
+  end
+
   defmodule Simple do
     def project do
       [
@@ -1135,20 +1144,22 @@ defmodule Hex.MixTaskTest do
     # tests cover env / project / global precedence and the empty-env
     # fallthrough; this layer covers the end-to-end resolution behavior.
 
-    test "non-zero cooldown raises a pre-flight error when all candidates are filtered" do
+    test "non-zero cooldown lets the solver fail and prints a filtered-versions summary" do
       Mix.Project.push(Simple)
 
       in_tmp(fn ->
         Hex.State.put(:cache_home, File.cwd!())
         Hex.State.put(:cooldown, "1d")
 
-        message =
-          assert_raise Mix.Error, fn ->
-            Mix.Task.run("deps.get")
-          end
+        assert_raise Mix.Error, "Hex dependency resolution failed", fn ->
+          Mix.Task.run("deps.get")
+        end
 
-        assert message.message =~ ~r/cooldown/i
-        assert message.message =~ "ecto"
+        # Solver prints its own "no matching versions" message; Hex appends a
+        # post-solver summary naming the ecto versions filtered by cooldown.
+        summary = drain_shell_info_matching("Versions filtered by cooldown:")
+        assert summary
+        assert summary =~ "ecto"
       end)
     after
       Hex.State.put(:cooldown, "0d")

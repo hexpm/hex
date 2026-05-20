@@ -89,13 +89,6 @@ defmodule Hex.CooldownTest do
     end
   end
 
-  describe "describe_source/0" do
-    test "reflects HEX_COOLDOWN env var" do
-      Hex.State.put(:cooldown, "7d")
-      # Hex.State sources are set during init; force via direct setter
-      assert is_binary(Cooldown.describe_source())
-    end
-  end
 
   describe "HEX_COOLDOWN= env handling" do
     test "empty HEX_COOLDOWN= falls through to next source, not env" do
@@ -219,41 +212,77 @@ defmodule Hex.CooldownTest do
     end
   end
 
-  describe "preflight_error/4" do
-    test "includes package, requirement, source, and per-version eligibility lines" do
+  describe "format_summary/2" do
+    test "returns nil for an empty list" do
+      Hex.State.put(:cooldown, "7d")
+      cutoff = Cooldown.build_cutoff()
+      assert Cooldown.format_summary([], cutoff) == nil
+    end
+
+    test "returns nil when cutoff is :disabled" do
+      now = System.system_time(:second)
+      assert Cooldown.format_summary([{"hexpm", "foo", "1.0.0", now}], :disabled) == nil
+    end
+
+    test "renders a single entry with days ago and eligible date" do
       Hex.State.put(:cooldown, "7d")
       cutoff = Cooldown.build_cutoff()
       now = System.system_time(:second)
       published_at = now - 3 * 86_400
 
-      message =
-        Cooldown.preflight_error("phoenix", "~> 1.7", [{"1.7.14", published_at}], cutoff)
+      summary = Cooldown.format_summary([{"hexpm", "castore", "1.0.19", published_at}], cutoff)
 
-      assert message =~ "phoenix"
-      assert message =~ "~> 1.7"
-      assert message =~ "1.7.14"
-      assert message =~ "HEX_COOLDOWN=0"
-      assert message =~ ~r/eligible \d{4}-/
+      assert summary =~ "Versions filtered by cooldown:"
+      assert summary =~ "castore 1.0.19"
+      assert summary =~ "3 days ago"
+      assert summary =~ "eligible #{Cooldown.eligible_on(published_at, cutoff)}"
     end
 
-    test "Wait until shows earliest eligible date across the filtered set" do
+    test "sorts by package then version and dedupes identical entries" do
       Hex.State.put(:cooldown, "7d")
       cutoff = Cooldown.build_cutoff()
       now = System.system_time(:second)
-      # Two filtered versions; the one published earlier becomes eligible earlier.
-      older = now - 5 * 86_400
-      newer = now - 1 * 86_400
+      young = now - 1 * 86_400
 
-      message =
-        Cooldown.preflight_error(
-          "phoenix",
-          "~> 1.7",
-          [{"1.7.14", newer}, {"1.7.13", older}],
-          cutoff
-        )
+      entries = [
+        {"hexpm", "plug", "1.16.5", young},
+        {"hexpm", "castore", "1.0.19", young},
+        {"hexpm", "castore", "1.0.19", young},
+        {"hexpm", "castore", "1.0.18", young}
+      ]
 
-      expected_earliest = Cooldown.eligible_on(older, cutoff)
-      assert message =~ "Wait until #{expected_earliest} and re-run"
+      summary = Cooldown.format_summary(entries, cutoff)
+
+      # Ordering: castore 1.0.18, castore 1.0.19, plug 1.16.5; dedup keeps one castore 1.0.19.
+      [_header, line1, line2, line3 | _] = String.split(summary, "\n", trim: true)
+      assert line1 =~ "castore 1.0.18"
+      assert line2 =~ "castore 1.0.19"
+      assert line3 =~ "plug 1.16.5"
+
+      occurrences = summary |> String.split("castore 1.0.19") |> length()
+      assert occurrences == 2
+    end
+
+    test "omits entries with nil published_at" do
+      Hex.State.put(:cooldown, "7d")
+      cutoff = Cooldown.build_cutoff()
+      now = System.system_time(:second)
+
+      entries = [
+        {"hexpm", "legacy", "1.0.0", nil},
+        {"hexpm", "castore", "1.0.19", now - 1 * 86_400}
+      ]
+
+      summary = Cooldown.format_summary(entries, cutoff)
+
+      assert summary =~ "castore 1.0.19"
+      refute summary =~ "legacy"
+    end
+
+    test "returns nil when every entry has nil published_at" do
+      Hex.State.put(:cooldown, "7d")
+      cutoff = Cooldown.build_cutoff()
+      assert Cooldown.format_summary([{"hexpm", "legacy", "1.0.0", nil}], cutoff) == nil
     end
   end
 end

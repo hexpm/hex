@@ -32,6 +32,8 @@ defmodule Hex.Registry.CooldownTest do
   test "passes through versions when cooldown disabled" do
     Hex.State.put(:cooldown_cutoff, :disabled)
     Hex.State.put(:cooldown_bypass_packages, MapSet.new())
+    Hex.State.put(:cooldown_locked_versions, %{})
+    Hex.State.put(:cooldown_filtered_versions, [])
 
     {:ok, versions} = Cooldown.versions("hexpm", "foo")
     assert Enum.map(versions, &to_string/1) == ["1.0.0", "1.1.0", "1.2.0"]
@@ -42,6 +44,8 @@ defmodule Hex.Registry.CooldownTest do
     cutoff = Hex.Cooldown.build_cutoff()
     Hex.State.put(:cooldown_cutoff, cutoff)
     Hex.State.put(:cooldown_bypass_packages, MapSet.new())
+    Hex.State.put(:cooldown_locked_versions, %{})
+    Hex.State.put(:cooldown_filtered_versions, [])
 
     {:ok, versions} = Cooldown.versions("hexpm", "foo")
     # 1.2.0 published 2 days ago should be filtered
@@ -63,6 +67,8 @@ defmodule Hex.Registry.CooldownTest do
     cutoff = Hex.Cooldown.build_cutoff()
     Hex.State.put(:cooldown_cutoff, cutoff)
     Hex.State.put(:cooldown_bypass_packages, MapSet.new())
+    Hex.State.put(:cooldown_locked_versions, %{})
+    Hex.State.put(:cooldown_filtered_versions, [])
     Hex.State.put(:cooldown_exclude_repos, ["hexpm"])
 
     {:ok, versions} = Cooldown.versions("hexpm", "foo")
@@ -76,6 +82,8 @@ defmodule Hex.Registry.CooldownTest do
     cutoff = Hex.Cooldown.build_cutoff()
     Hex.State.put(:cooldown_cutoff, cutoff)
     Hex.State.put(:cooldown_bypass_packages, MapSet.new())
+    Hex.State.put(:cooldown_locked_versions, %{})
+    Hex.State.put(:cooldown_filtered_versions, [])
     Hex.State.put(:cooldown_exclude_repos, ["hexpm:other"])
 
     # hexpm is not in the exclude list — cooldown still applies, filtering
@@ -111,6 +119,8 @@ defmodule Hex.Registry.CooldownTest do
     cutoff = Hex.Cooldown.build_cutoff()
     Hex.State.put(:cooldown_cutoff, cutoff)
     Hex.State.put(:cooldown_bypass_packages, MapSet.new())
+    Hex.State.put(:cooldown_locked_versions, %{})
+    Hex.State.put(:cooldown_filtered_versions, [])
 
     {:ok, versions} = Cooldown.versions("hexpm", "legacy")
     # 1.0.0 has nil published_at -> eligible; 1.1.0 is too fresh -> filtered
@@ -121,5 +131,78 @@ defmodule Hex.Registry.CooldownTest do
     Code.ensure_loaded!(Cooldown)
     assert function_exported?(Cooldown, :prefetch, 1)
     assert function_exported?(Cooldown, :dependencies, 3)
+  end
+
+  test "version present in :cooldown_locked_versions survives the filter" do
+    # An in-cooldown version that is currently in the lockfile must remain
+    # a solver candidate so re-resolution can fall back to it when no newer
+    # eligible version exists.
+    Hex.State.put(:cooldown, "7d")
+    cutoff = Hex.Cooldown.build_cutoff()
+    Hex.State.put(:cooldown_cutoff, cutoff)
+    Hex.State.put(:cooldown_bypass_packages, MapSet.new())
+    Hex.State.put(:cooldown_locked_versions, %{})
+    Hex.State.put(:cooldown_filtered_versions, [])
+    Hex.State.put(:cooldown_locked_versions, %{{"hexpm", "foo"} => ["1.2.0"]})
+
+    {:ok, versions} = Cooldown.versions("hexpm", "foo")
+    assert Enum.map(versions, &to_string/1) == ["1.0.0", "1.1.0", "1.2.0"]
+  end
+
+  test "locked-version exemption only applies to the matching repo+package+version" do
+    Hex.State.put(:cooldown, "7d")
+    cutoff = Hex.Cooldown.build_cutoff()
+    Hex.State.put(:cooldown_cutoff, cutoff)
+    Hex.State.put(:cooldown_bypass_packages, MapSet.new())
+    Hex.State.put(:cooldown_locked_versions, %{})
+    Hex.State.put(:cooldown_filtered_versions, [])
+    # Stale entry naming a different version — does not save 1.2.0.
+    Hex.State.put(:cooldown_locked_versions, %{{"hexpm", "foo"} => ["1.1.0"]})
+
+    {:ok, versions} = Cooldown.versions("hexpm", "foo")
+    assert Enum.map(versions, &to_string/1) == ["1.0.0", "1.1.0"]
+  end
+
+  describe "filtered-versions recording" do
+    test "records each filtered version with its published_at", %{now: now} do
+      Hex.State.put(:cooldown, "7d")
+      cutoff = Hex.Cooldown.build_cutoff()
+      Hex.State.put(:cooldown_cutoff, cutoff)
+      Hex.State.put(:cooldown_bypass_packages, MapSet.new())
+      Hex.State.put(:cooldown_locked_versions, %{})
+      Hex.State.put(:cooldown_filtered_versions, [])
+      Hex.State.put(:cooldown_filtered_versions, [])
+
+      {:ok, _} = Cooldown.versions("hexpm", "foo")
+
+      filtered = Hex.State.fetch!(:cooldown_filtered_versions)
+      assert [{"hexpm", "foo", "1.2.0", published_at}] = filtered
+      assert_in_delta published_at, now - 2 * 86_400, 2
+    end
+
+    test "does not record versions that survive via the locked exemption" do
+      Hex.State.put(:cooldown, "7d")
+      cutoff = Hex.Cooldown.build_cutoff()
+      Hex.State.put(:cooldown_cutoff, cutoff)
+      Hex.State.put(:cooldown_bypass_packages, MapSet.new())
+      Hex.State.put(:cooldown_locked_versions, %{{"hexpm", "foo"} => ["1.2.0"]})
+      Hex.State.put(:cooldown_filtered_versions, [])
+
+      {:ok, _} = Cooldown.versions("hexpm", "foo")
+
+      assert Hex.State.fetch!(:cooldown_filtered_versions) == []
+    end
+
+    test "records nothing when cooldown is disabled" do
+      Hex.State.put(:cooldown_cutoff, :disabled)
+      Hex.State.put(:cooldown_bypass_packages, MapSet.new())
+      Hex.State.put(:cooldown_locked_versions, %{})
+      Hex.State.put(:cooldown_filtered_versions, [])
+      Hex.State.put(:cooldown_filtered_versions, [])
+
+      {:ok, _} = Cooldown.versions("hexpm", "foo")
+
+      assert Hex.State.fetch!(:cooldown_filtered_versions) == []
+    end
   end
 end

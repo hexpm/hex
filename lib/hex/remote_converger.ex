@@ -72,8 +72,6 @@ defmodule Hex.RemoteConverger do
     overridden = Enum.map(overridden, &Atom.to_string/1)
     verify_otp_app_names(dependencies)
 
-    cooldown_preflight(requests)
-
     level = Logger.level()
     Logger.configure(level: if(Hex.State.fetch!(:debug_solver), do: :debug, else: :info))
 
@@ -97,11 +95,12 @@ defmodule Hex.RemoteConverger do
     case solution do
       {:ok, resolved} ->
         resolved = normalize_resolved(resolved)
+        print_cooldown_summary()
         solver_success(resolved, requests, lock, old_lock)
 
       {:error, message} ->
         Hex.Shell.info(message)
-        maybe_print_cooldown_hint()
+        print_cooldown_summary()
         Mix.raise("Hex dependency resolution failed")
     end
   end
@@ -112,6 +111,22 @@ defmodule Hex.RemoteConverger do
 
     bypass = build_cooldown_bypass(old_lock, locked, cutoff)
     Hex.State.put(:cooldown_bypass_packages, bypass)
+
+    Hex.State.put(:cooldown_locked_versions, build_cooldown_locked_versions(old_lock))
+    Hex.State.put(:cooldown_filtered_versions, [])
+  end
+
+  @doc false
+  def build_cooldown_locked_versions(old_lock) do
+    # Maps {repo, package} to the list of versions currently in the lockfile
+    # for that package. The cooldown filter treats these as exempt: a version
+    # the user is already running is trusted, even if cooldown would otherwise
+    # filter it. This lets re-resolution fall back to the locked version when
+    # no newer eligible candidate exists, instead of failing.
+    for %{repo: repo, name: name, version: version} <- Hex.Mix.from_lock(old_lock),
+        into: %{} do
+      {{repo || "hexpm", name}, [to_string(version)]}
+    end
   end
 
   @doc false
@@ -147,71 +162,13 @@ defmodule Hex.RemoteConverger do
       Registry.advisories(repo, name, version) not in [nil, []]
   end
 
-  defp cooldown_preflight(requests) do
+  @doc false
+  def print_cooldown_summary() do
     cutoff = Hex.State.fetch!(:cooldown_cutoff)
-    bypass = Hex.State.fetch!(:cooldown_bypass_packages)
+    entries = Hex.State.fetch!(:cooldown_filtered_versions)
 
-    if cutoff != :disabled do
-      walk_preflight(requests, cutoff, bypass)
-    end
-  end
-
-  defp walk_preflight(requests, cutoff, bypass) do
-    # Both Hex and non-Hex requests carry :requirement (nil for non-Hex
-    # parents). check_request_cooldown is a no-op for nil-requirement
-    # requests, so the walk uniformly visits every node and recurses into
-    # nested deps under non-Hex (path / git) parents.
-    Enum.each(requests, fn request ->
-      cond do
-        MapSet.member?(bypass, request.name) -> :ok
-        Hex.Cooldown.repo_excluded?(request[:repo]) -> :ok
-        true -> check_request_cooldown(request, cutoff)
-      end
-
-      walk_preflight(Map.get(request, :dependencies, []), cutoff, bypass)
-    end)
-  end
-
-  defp check_request_cooldown(%{requirement: nil}, _cutoff), do: :ok
-
-  defp check_request_cooldown(%{repo: repo, name: name, requirement: requirement}, cutoff) do
-    with {:ok, parsed} <- Version.parse_requirement(requirement),
-         {:ok, versions} <- Registry.versions(repo, name) do
-      matching =
-        versions
-        |> Enum.filter(&Version.match?(&1, parsed))
-        |> Enum.map(&to_string/1)
-
-      filtered =
-        Enum.flat_map(matching, fn version ->
-          case Registry.published_at(repo, name, version) do
-            nil ->
-              []
-
-            published_at ->
-              if Hex.Cooldown.eligible?(published_at, cutoff) do
-                []
-              else
-                [{version, published_at}]
-              end
-          end
-        end)
-
-      if matching != [] and length(filtered) == length(matching) do
-        Mix.raise(Hex.Cooldown.preflight_error(name, requirement, filtered, cutoff))
-      end
-    else
-      _ -> :ok
-    end
-  end
-
-  defp check_request_cooldown(_, _), do: :ok
-
-  defp maybe_print_cooldown_hint() do
-    cutoff = Hex.State.fetch!(:cooldown_cutoff)
-
-    if note = Hex.Cooldown.solver_failure_note(cutoff) do
-      Hex.Shell.info(note)
+    if summary = Hex.Cooldown.format_summary(entries, cutoff) do
+      Hex.Shell.info(summary)
     end
   end
 

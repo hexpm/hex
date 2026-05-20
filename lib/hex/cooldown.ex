@@ -130,85 +130,43 @@ defmodule Hex.Cooldown do
   end
 
   @doc """
-  Returns the effective duration string for the configured cutoff.
-  """
-  @spec describe_duration(cutoff()) :: String.t()
-  def describe_duration(:disabled), do: "0"
+  Formats the post-solver summary of versions skipped by cooldown.
 
-  def describe_duration({:cutoff, _, window_seconds}) do
-    cond do
-      rem(window_seconds, 86_400 * 7) == 0 -> "#{div(window_seconds, 86_400 * 7)} weeks"
-      true -> "#{div(window_seconds, 86_400)} days"
+  Takes a list of `{repo, package, version, published_at}` tuples accumulated
+  during the solve. Returns `nil` when nothing eligible to report — empty
+  input, disabled cutoff, or every entry missing a `published_at`.
+
+  Entries are deduplicated and sorted by package then version. Repo is used
+  for keying only; it is not rendered.
+  """
+  @spec format_summary([{String.t(), String.t(), String.t(), integer() | nil}], cutoff()) ::
+          String.t() | nil
+  def format_summary(_entries, :disabled), do: nil
+  def format_summary([], _cutoff), do: nil
+
+  def format_summary(entries, cutoff) do
+    entries =
+      entries
+      |> Enum.reject(fn {_repo, _pkg, _vsn, published_at} -> is_nil(published_at) end)
+      |> Enum.uniq()
+      |> Enum.sort_by(fn {repo, pkg, vsn, _} -> {repo, pkg, vsn} end)
+
+    case entries do
+      [] ->
+        nil
+
+      entries ->
+        today = Date.utc_today()
+
+        lines =
+          Enum.map(entries, fn {_repo, pkg, vsn, published_at} ->
+            published_date = published_at |> DateTime.from_unix!() |> DateTime.to_date()
+            days_ago = Date.diff(today, published_date)
+            eligible_date = eligible_on(published_at, cutoff)
+            "  #{pkg} #{vsn} — published #{days_ago} days ago, eligible #{eligible_date}"
+          end)
+
+        "\nVersions filtered by cooldown:\n" <> Enum.join(lines, "\n") <> "\n"
     end
-  end
-
-  @doc """
-  Describes the configuration source that contributed the local cooldown.
-  Used in error messages.
-  """
-  @spec describe_source() :: String.t()
-  def describe_source() do
-    case Hex.State.fetch_source!(:cooldown) do
-      {:env, var} -> "#{var}"
-      {:project_config, key} -> "mix.exs (#{key})"
-      {:global_config, key} -> "~/.hex/hex.config (#{key})"
-      :default -> "default"
-      :computed -> "runtime"
-    end
-  end
-
-  @doc """
-  Builds the pre-flight error message for a direct dependency whose entire
-  matching version set has been filtered by cooldown.
-  """
-  @spec preflight_error(String.t(), String.t(), [{String.t(), integer()}], cutoff()) :: String.t()
-  def preflight_error(package, requirement, filtered, cutoff) do
-    today = Date.utc_today()
-
-    lines =
-      Enum.map(filtered, fn {version, published_at} ->
-        published_date = published_at |> DateTime.from_unix!() |> DateTime.to_date()
-        days_ago = Date.diff(today, published_date)
-        eligible_date = eligible_on(published_at, cutoff)
-
-        "  #{version} published #{published_date} (#{days_ago} days ago), eligible #{eligible_date}"
-      end)
-
-    earliest_eligible =
-      filtered
-      |> Enum.map(fn {_version, published_at} -> eligible_on(published_at, cutoff) end)
-      |> Enum.min(Date)
-
-    duration = describe_duration(cutoff)
-    source = describe_source()
-
-    """
-    All versions of "#{package}" matching "#{requirement}" are in cooldown:
-
-    #{Enum.join(lines, "\n")}
-
-    Effective cooldown is #{duration} (#{source}).
-
-    To proceed:
-      * Wait until #{earliest_eligible} and re-run
-      * Bypass for this run: HEX_COOLDOWN=0 mix deps.get
-    """
-  end
-
-  @doc """
-  Note appended to solver failures when cooldown is active and a transitive
-  dependency may have been filtered out.
-  """
-  @spec solver_failure_note(cutoff()) :: String.t() | nil
-  def solver_failure_note(:disabled), do: nil
-
-  def solver_failure_note(cutoff) do
-    duration = describe_duration(cutoff)
-
-    """
-
-    Note: cooldown is set to #{duration}. If a dependency was filtered because
-    it was too recently published, re-run with HEX_COOLDOWN=0 to bypass.
-    """
   end
 end
