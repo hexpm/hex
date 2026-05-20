@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.16.1 (f0f6762), do not edit manually
+%% Vendored from hex_core v0.17.0 (cadf1b8), do not edit manually
 
 %% -*- coding: utf-8 -*-
 %% % this file is @generated
@@ -86,7 +86,8 @@
         html_url                => unicode:chardata(), % = 3, required
         severity                => 'SEVERITY_NONE' | 'SEVERITY_LOW' | 'SEVERITY_MEDIUM' | 'SEVERITY_HIGH' | 'SEVERITY_CRITICAL' | integer(), % = 4, optional, enum AdvisorySeverity
         cvss_score              => float() | integer() | infinity | '-infinity' | nan, % = 5, optional
-        api_url                 => unicode:chardata() % = 6, required
+        api_url                 => unicode:chardata(), % = 6, required
+        aliases                 => [unicode:chardata()] % = 7, repeated
        }.
 
 -type 'Dependency'() ::
@@ -207,7 +208,15 @@ encode_msg_SecurityAdvisory(#{id := F1, summary := F2, html_url := F3, api_url :
              #{cvss_score := F5} -> begin TrF5 = id(F5, TrUserData), e_type_float(TrF5, <<B4/binary, 45>>, TrUserData) end;
              _ -> B4
          end,
-    begin TrF6 = id(F6, TrUserData), e_type_string(TrF6, <<B5/binary, 50>>, TrUserData) end.
+    B6 = begin TrF6 = id(F6, TrUserData), e_type_string(TrF6, <<B5/binary, 50>>, TrUserData) end,
+    case M of
+        #{aliases := F7} ->
+            TrF7 = id(F7, TrUserData),
+            if TrF7 == [] -> B6;
+               true -> e_field_SecurityAdvisory_aliases(TrF7, B6, TrUserData)
+            end;
+        _ -> B6
+    end.
 
 encode_msg_Dependency(Msg, TrUserData) -> encode_msg_Dependency(Msg, <<>>, TrUserData).
 
@@ -283,6 +292,12 @@ e_mfield_Release_published_at(Msg, Bin, TrUserData) ->
     SubBin = encode_msg_Timestamp(Msg, <<>>, TrUserData),
     Bin2 = e_varint(byte_size(SubBin), Bin),
     <<Bin2/binary, SubBin/binary>>.
+
+e_field_SecurityAdvisory_aliases([Elem | Rest], Bin, TrUserData) ->
+    Bin2 = <<Bin/binary, 58>>,
+    Bin3 = e_type_string(id(Elem, TrUserData), Bin2, TrUserData),
+    e_field_SecurityAdvisory_aliases(Rest, Bin3, TrUserData);
+e_field_SecurityAdvisory_aliases([], Bin, _TrUserData) -> Bin.
 
 e_enum_RetirementReason('RETIRED_OTHER', Bin, _TrUserData) -> <<Bin/binary, 0>>;
 e_enum_RetirementReason('RETIRED_INVALID', Bin, _TrUserData) -> <<Bin/binary, 1>>;
@@ -727,46 +742,48 @@ skip_32_RetirementStatus(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, TrUserDat
 skip_64_RetirementStatus(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, TrUserData) -> dfp_read_field_def_RetirementStatus(Rest, Z1, Z2, F, F@_1, F@_2, TrUserData).
 
 decode_msg_SecurityAdvisory(Bin, TrUserData) ->
-    dfp_read_field_def_SecurityAdvisory(Bin, 0, 0, 0, id('$undef', TrUserData), id('$undef', TrUserData), id('$undef', TrUserData), id('$undef', TrUserData), id('$undef', TrUserData), id('$undef', TrUserData), TrUserData).
+    dfp_read_field_def_SecurityAdvisory(Bin, 0, 0, 0, id('$undef', TrUserData), id('$undef', TrUserData), id('$undef', TrUserData), id('$undef', TrUserData), id('$undef', TrUserData), id('$undef', TrUserData), id([], TrUserData), TrUserData).
 
-dfp_read_field_def_SecurityAdvisory(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_SecurityAdvisory_id(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-dfp_read_field_def_SecurityAdvisory(<<18, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_SecurityAdvisory_summary(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-dfp_read_field_def_SecurityAdvisory(<<26, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_SecurityAdvisory_html_url(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-dfp_read_field_def_SecurityAdvisory(<<32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_SecurityAdvisory_severity(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-dfp_read_field_def_SecurityAdvisory(<<45, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_SecurityAdvisory_cvss_score(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-dfp_read_field_def_SecurityAdvisory(<<50, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> d_field_SecurityAdvisory_api_url(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-dfp_read_field_def_SecurityAdvisory(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, _) ->
-    S1 = #{id => F@_1, summary => F@_2, html_url => F@_3, api_url => F@_6},
+dfp_read_field_def_SecurityAdvisory(<<10, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) -> d_field_SecurityAdvisory_id(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+dfp_read_field_def_SecurityAdvisory(<<18, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) -> d_field_SecurityAdvisory_summary(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+dfp_read_field_def_SecurityAdvisory(<<26, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) -> d_field_SecurityAdvisory_html_url(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+dfp_read_field_def_SecurityAdvisory(<<32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) -> d_field_SecurityAdvisory_severity(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+dfp_read_field_def_SecurityAdvisory(<<45, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) -> d_field_SecurityAdvisory_cvss_score(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+dfp_read_field_def_SecurityAdvisory(<<50, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) -> d_field_SecurityAdvisory_api_url(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+dfp_read_field_def_SecurityAdvisory(<<58, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) -> d_field_SecurityAdvisory_aliases(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+dfp_read_field_def_SecurityAdvisory(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, R1, TrUserData) ->
+    S1 = #{id => F@_1, summary => F@_2, html_url => F@_3, api_url => F@_6, aliases => lists_reverse(R1, TrUserData)},
     S2 = if F@_4 == '$undef' -> S1;
             true -> S1#{severity => F@_4}
          end,
     if F@_5 == '$undef' -> S2;
        true -> S2#{cvss_score => F@_5}
     end;
-dfp_read_field_def_SecurityAdvisory(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dg_read_field_def_SecurityAdvisory(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+dfp_read_field_def_SecurityAdvisory(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) -> dg_read_field_def_SecurityAdvisory(Other, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData).
 
-dg_read_field_def_SecurityAdvisory(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 32 - 7 ->
-    dg_read_field_def_SecurityAdvisory(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-dg_read_field_def_SecurityAdvisory(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+dg_read_field_def_SecurityAdvisory(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) when N < 32 - 7 ->
+    dg_read_field_def_SecurityAdvisory(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+dg_read_field_def_SecurityAdvisory(<<0:1, X:7, Rest/binary>>, N, Acc, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) ->
     Key = X bsl N + Acc,
     case Key of
-        10 -> d_field_SecurityAdvisory_id(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-        18 -> d_field_SecurityAdvisory_summary(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-        26 -> d_field_SecurityAdvisory_html_url(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-        32 -> d_field_SecurityAdvisory_severity(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-        45 -> d_field_SecurityAdvisory_cvss_score(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-        50 -> d_field_SecurityAdvisory_api_url(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
+        10 -> d_field_SecurityAdvisory_id(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+        18 -> d_field_SecurityAdvisory_summary(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+        26 -> d_field_SecurityAdvisory_html_url(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+        32 -> d_field_SecurityAdvisory_severity(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+        45 -> d_field_SecurityAdvisory_cvss_score(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+        50 -> d_field_SecurityAdvisory_api_url(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+        58 -> d_field_SecurityAdvisory_aliases(Rest, 0, 0, 0, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
         _ ->
             case Key band 7 of
-                0 -> skip_varint_SecurityAdvisory(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-                1 -> skip_64_SecurityAdvisory(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-                2 -> skip_length_delimited_SecurityAdvisory(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-                3 -> skip_group_SecurityAdvisory(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-                5 -> skip_32_SecurityAdvisory(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData)
+                0 -> skip_varint_SecurityAdvisory(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+                1 -> skip_64_SecurityAdvisory(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+                2 -> skip_length_delimited_SecurityAdvisory(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+                3 -> skip_group_SecurityAdvisory(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+                5 -> skip_32_SecurityAdvisory(Rest, 0, 0, Key bsr 3, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData)
             end
     end;
-dg_read_field_def_SecurityAdvisory(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, _) ->
-    S1 = #{id => F@_1, summary => F@_2, html_url => F@_3, api_url => F@_6},
+dg_read_field_def_SecurityAdvisory(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, R1, TrUserData) ->
+    S1 = #{id => F@_1, summary => F@_2, html_url => F@_3, api_url => F@_6, aliases => lists_reverse(R1, TrUserData)},
     S2 = if F@_4 == '$undef' -> S1;
             true -> S1#{severity => F@_4}
          end,
@@ -774,56 +791,67 @@ dg_read_field_def_SecurityAdvisory(<<>>, 0, 0, _, F@_1, F@_2, F@_3, F@_4, F@_5, 
        true -> S2#{cvss_score => F@_5}
     end.
 
-d_field_SecurityAdvisory_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_SecurityAdvisory_id(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-d_field_SecurityAdvisory_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+d_field_SecurityAdvisory_id(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) when N < 57 -> d_field_SecurityAdvisory_id(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+d_field_SecurityAdvisory_id(<<0:1, X:7, Rest/binary>>, N, Acc, F, _, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_SecurityAdvisory(RestF, 0, 0, F, NewFValue, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+    dfp_read_field_def_SecurityAdvisory(RestF, 0, 0, F, NewFValue, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData).
 
-d_field_SecurityAdvisory_summary(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_SecurityAdvisory_summary(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-d_field_SecurityAdvisory_summary(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, _, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+d_field_SecurityAdvisory_summary(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) when N < 57 ->
+    d_field_SecurityAdvisory_summary(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+d_field_SecurityAdvisory_summary(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, _, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_SecurityAdvisory(RestF, 0, 0, F, F@_1, NewFValue, F@_3, F@_4, F@_5, F@_6, TrUserData).
+    dfp_read_field_def_SecurityAdvisory(RestF, 0, 0, F, F@_1, NewFValue, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData).
 
-d_field_SecurityAdvisory_html_url(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_SecurityAdvisory_html_url(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-d_field_SecurityAdvisory_html_url(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, _, F@_4, F@_5, F@_6, TrUserData) ->
+d_field_SecurityAdvisory_html_url(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) when N < 57 ->
+    d_field_SecurityAdvisory_html_url(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+d_field_SecurityAdvisory_html_url(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, _, F@_4, F@_5, F@_6, F@_7, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_SecurityAdvisory(RestF, 0, 0, F, F@_1, F@_2, NewFValue, F@_4, F@_5, F@_6, TrUserData).
+    dfp_read_field_def_SecurityAdvisory(RestF, 0, 0, F, F@_1, F@_2, NewFValue, F@_4, F@_5, F@_6, F@_7, TrUserData).
 
-d_field_SecurityAdvisory_severity(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_SecurityAdvisory_severity(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-d_field_SecurityAdvisory_severity(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, _, F@_5, F@_6, TrUserData) ->
+d_field_SecurityAdvisory_severity(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) when N < 57 ->
+    d_field_SecurityAdvisory_severity(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+d_field_SecurityAdvisory_severity(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, _, F@_5, F@_6, F@_7, TrUserData) ->
     {NewFValue, RestF} = {id(d_enum_AdvisorySeverity(begin <<Res:32/signed-native>> = <<(X bsl N + Acc):32/unsigned-native>>, id(Res, TrUserData) end), TrUserData), Rest},
-    dfp_read_field_def_SecurityAdvisory(RestF, 0, 0, F, F@_1, F@_2, F@_3, NewFValue, F@_5, F@_6, TrUserData).
+    dfp_read_field_def_SecurityAdvisory(RestF, 0, 0, F, F@_1, F@_2, F@_3, NewFValue, F@_5, F@_6, F@_7, TrUserData).
 
-d_field_SecurityAdvisory_cvss_score(<<0:16, 128, 127, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, _, F@_6, TrUserData) -> dfp_read_field_def_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, id(infinity, TrUserData), F@_6, TrUserData);
-d_field_SecurityAdvisory_cvss_score(<<0:16, 128, 255, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, _, F@_6, TrUserData) ->
-    dfp_read_field_def_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, id('-infinity', TrUserData), F@_6, TrUserData);
-d_field_SecurityAdvisory_cvss_score(<<_:16, 1:1, _:7, _:1, 127:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, _, F@_6, TrUserData) ->
-    dfp_read_field_def_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, id(nan, TrUserData), F@_6, TrUserData);
-d_field_SecurityAdvisory_cvss_score(<<Value:32/little-float, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, _, F@_6, TrUserData) ->
-    dfp_read_field_def_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, id(Value, TrUserData), F@_6, TrUserData).
+d_field_SecurityAdvisory_cvss_score(<<0:16, 128, 127, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, _, F@_6, F@_7, TrUserData) ->
+    dfp_read_field_def_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, id(infinity, TrUserData), F@_6, F@_7, TrUserData);
+d_field_SecurityAdvisory_cvss_score(<<0:16, 128, 255, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, _, F@_6, F@_7, TrUserData) ->
+    dfp_read_field_def_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, id('-infinity', TrUserData), F@_6, F@_7, TrUserData);
+d_field_SecurityAdvisory_cvss_score(<<_:16, 1:1, _:7, _:1, 127:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, _, F@_6, F@_7, TrUserData) ->
+    dfp_read_field_def_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, id(nan, TrUserData), F@_6, F@_7, TrUserData);
+d_field_SecurityAdvisory_cvss_score(<<Value:32/little-float, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, _, F@_6, F@_7, TrUserData) ->
+    dfp_read_field_def_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, id(Value, TrUserData), F@_6, F@_7, TrUserData).
 
-d_field_SecurityAdvisory_api_url(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 -> d_field_SecurityAdvisory_api_url(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-d_field_SecurityAdvisory_api_url(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, _, TrUserData) ->
+d_field_SecurityAdvisory_api_url(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) when N < 57 ->
+    d_field_SecurityAdvisory_api_url(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+d_field_SecurityAdvisory_api_url(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, _, F@_7, TrUserData) ->
     {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
-    dfp_read_field_def_SecurityAdvisory(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, NewFValue, TrUserData).
+    dfp_read_field_def_SecurityAdvisory(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, NewFValue, F@_7, TrUserData).
 
-skip_varint_SecurityAdvisory(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> skip_varint_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-skip_varint_SecurityAdvisory(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+d_field_SecurityAdvisory_aliases(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) when N < 57 ->
+    d_field_SecurityAdvisory_aliases(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+d_field_SecurityAdvisory_aliases(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, Prev, TrUserData) ->
+    {NewFValue, RestF} = begin Len = X bsl N + Acc, <<Bytes:Len/binary, Rest2/binary>> = Rest, Bytes2 = binary:copy(Bytes), {id(Bytes2, TrUserData), Rest2} end,
+    dfp_read_field_def_SecurityAdvisory(RestF, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, cons(NewFValue, Prev, TrUserData), TrUserData).
 
-skip_length_delimited_SecurityAdvisory(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) when N < 57 ->
-    skip_length_delimited_SecurityAdvisory(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData);
-skip_length_delimited_SecurityAdvisory(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+skip_varint_SecurityAdvisory(<<1:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) -> skip_varint_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+skip_varint_SecurityAdvisory(<<0:1, _:7, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) -> dfp_read_field_def_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData).
+
+skip_length_delimited_SecurityAdvisory(<<1:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) when N < 57 ->
+    skip_length_delimited_SecurityAdvisory(Rest, N + 7, X bsl N + Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData);
+skip_length_delimited_SecurityAdvisory(<<0:1, X:7, Rest/binary>>, N, Acc, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) ->
     Length = X bsl N + Acc,
     <<_:Length/binary, Rest2/binary>> = Rest,
-    dfp_read_field_def_SecurityAdvisory(Rest2, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+    dfp_read_field_def_SecurityAdvisory(Rest2, 0, 0, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData).
 
-skip_group_SecurityAdvisory(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) ->
+skip_group_SecurityAdvisory(Bin, _, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) ->
     {_, Rest} = read_group(Bin, FNum),
-    dfp_read_field_def_SecurityAdvisory(Rest, 0, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+    dfp_read_field_def_SecurityAdvisory(Rest, 0, Z2, FNum, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData).
 
-skip_32_SecurityAdvisory(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+skip_32_SecurityAdvisory(<<_:32, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) -> dfp_read_field_def_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData).
 
-skip_64_SecurityAdvisory(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData) -> dfp_read_field_def_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, TrUserData).
+skip_64_SecurityAdvisory(<<_:64, Rest/binary>>, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData) -> dfp_read_field_def_SecurityAdvisory(Rest, Z1, Z2, F, F@_1, F@_2, F@_3, F@_4, F@_5, F@_6, F@_7, TrUserData).
 
 decode_msg_Dependency(Bin, TrUserData) -> dfp_read_field_def_Dependency(Bin, 0, 0, 0, id('$undef', TrUserData), id('$undef', TrUserData), id('$undef', TrUserData), id('$undef', TrUserData), id('$undef', TrUserData), TrUserData).
 
@@ -1112,17 +1140,23 @@ merge_msg_RetirementStatus(#{} = PMsg, #{reason := NFreason} = NMsg, _) ->
     end.
 
 -compile({nowarn_unused_function,merge_msg_SecurityAdvisory/3}).
-merge_msg_SecurityAdvisory(#{} = PMsg, #{id := NFid, summary := NFsummary, html_url := NFhtml_url, api_url := NFapi_url} = NMsg, _) ->
+merge_msg_SecurityAdvisory(#{} = PMsg, #{id := NFid, summary := NFsummary, html_url := NFhtml_url, api_url := NFapi_url} = NMsg, TrUserData) ->
     S1 = #{id => NFid, summary => NFsummary, html_url => NFhtml_url, api_url => NFapi_url},
     S2 = case {PMsg, NMsg} of
              {_, #{severity := NFseverity}} -> S1#{severity => NFseverity};
              {#{severity := PFseverity}, _} -> S1#{severity => PFseverity};
              _ -> S1
          end,
+    S3 = case {PMsg, NMsg} of
+             {_, #{cvss_score := NFcvss_score}} -> S2#{cvss_score => NFcvss_score};
+             {#{cvss_score := PFcvss_score}, _} -> S2#{cvss_score => PFcvss_score};
+             _ -> S2
+         end,
     case {PMsg, NMsg} of
-        {_, #{cvss_score := NFcvss_score}} -> S2#{cvss_score => NFcvss_score};
-        {#{cvss_score := PFcvss_score}, _} -> S2#{cvss_score => PFcvss_score};
-        _ -> S2
+        {#{aliases := PFaliases}, #{aliases := NFaliases}} -> S3#{aliases => 'erlang_++'(PFaliases, NFaliases, TrUserData)};
+        {_, #{aliases := NFaliases}} -> S3#{aliases => NFaliases};
+        {#{aliases := PFaliases}, _} -> S3#{aliases => PFaliases};
+        {_, _} -> S3
     end.
 
 -compile({nowarn_unused_function,merge_msg_Dependency/3}).
@@ -1283,12 +1317,22 @@ v_msg_SecurityAdvisory(#{id := F1, summary := F2, html_url := F3, api_url := F6}
         _ -> ok
     end,
     v_type_string(F6, [api_url | Path], TrUserData),
+    case M of
+        #{aliases := F7} ->
+            if is_list(F7) ->
+                   _ = [v_type_string(Elem, [aliases | Path], TrUserData) || Elem <- F7],
+                   ok;
+               true -> mk_type_error({invalid_list_of, string}, F7, [aliases | Path])
+            end;
+        _ -> ok
+    end,
     lists:foreach(fun (id) -> ok;
                       (summary) -> ok;
                       (html_url) -> ok;
                       (severity) -> ok;
                       (cvss_score) -> ok;
                       (api_url) -> ok;
+                      (aliases) -> ok;
                       (OtherKey) -> mk_type_error({extraneous_key, OtherKey}, M, Path)
                   end,
                   maps:keys(M)),
@@ -1465,7 +1509,8 @@ get_msg_defs() ->
        #{name => html_url, fnum => 3, rnum => 4, type => string, occurrence => required, opts => []},
        #{name => severity, fnum => 4, rnum => 5, type => {enum, 'AdvisorySeverity'}, occurrence => optional, opts => []},
        #{name => cvss_score, fnum => 5, rnum => 6, type => float, occurrence => optional, opts => []},
-       #{name => api_url, fnum => 6, rnum => 7, type => string, occurrence => required, opts => []}]},
+       #{name => api_url, fnum => 6, rnum => 7, type => string, occurrence => required, opts => []},
+       #{name => aliases, fnum => 7, rnum => 8, type => string, occurrence => repeated, opts => []}]},
      {{msg, 'Dependency'},
       [#{name => package, fnum => 1, rnum => 2, type => string, occurrence => required, opts => []},
        #{name => requirement, fnum => 2, rnum => 3, type => string, occurrence => required, opts => []},
@@ -1521,7 +1566,8 @@ find_msg_def('SecurityAdvisory') ->
      #{name => html_url, fnum => 3, rnum => 4, type => string, occurrence => required, opts => []},
      #{name => severity, fnum => 4, rnum => 5, type => {enum, 'AdvisorySeverity'}, occurrence => optional, opts => []},
      #{name => cvss_score, fnum => 5, rnum => 6, type => float, occurrence => optional, opts => []},
-     #{name => api_url, fnum => 6, rnum => 7, type => string, occurrence => required, opts => []}];
+     #{name => api_url, fnum => 6, rnum => 7, type => string, occurrence => required, opts => []},
+     #{name => aliases, fnum => 7, rnum => 8, type => string, occurrence => repeated, opts => []}];
 find_msg_def('Dependency') ->
     [#{name => package, fnum => 1, rnum => 2, type => string, occurrence => required, opts => []},
      #{name => requirement, fnum => 2, rnum => 3, type => string, occurrence => required, opts => []},
