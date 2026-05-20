@@ -1053,6 +1053,47 @@ defmodule Hex.MixTaskTest do
     ])
   end
 
+  test "updating a dependency removes its stale compiled .app file" do
+    Mix.Project.push(DependsOnEctoSQL)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+
+      Mix.Dep.Lock.write(%{
+        ecto_sql: {:hex, :ecto_sql, "3.3.2"},
+        ecto: {:hex, :ecto, "3.3.1"}
+      })
+
+      Mix.Task.run("deps.get")
+      compile()
+
+      ecto_app = Path.join([Mix.Project.build_path(), "lib", "ecto", "ebin", "ecto.app"])
+
+      # Precondition: ecto 3.3.1 has been compiled and its .app reports 3.3.1.
+      assert {:ok, [{:application, :ecto, props}]} =
+               :file.consult(String.to_charlist(ecto_app))
+
+      assert props[:vsn] == ~c"3.3.1"
+
+      Mix.Task.run("deps.update", ["ecto_sql"])
+
+      # When ecto is updated 3.3.1 -> 3.3.2 the SCM must remove the stale
+      # compiled .app. Otherwise Mix's dep loader (on Elixir >= 1.20, which
+      # dropped the recently_fetched? guard) reads the stale 3.3.1 version and
+      # incorrectly marks ecto as :divergedreq against ecto_sql 3.3.3's
+      # `~> 3.3.2` requirement.
+      refute File.exists?(ecto_app)
+    end)
+  after
+    purge([
+      Ecto.SQL_3_3_2.Fixture.MixProject,
+      Ecto.SQL_3_3_3.Fixture.MixProject,
+      Ecto.Enum_1_4_0.Fixture.MixProject,
+      Ecto_3_3_1.Fixture.MixProject,
+      Ecto_3_3_2.Fixture.MixProject
+    ])
+  end
+
   test "prints a sponsors tip when updating or adding a package with sponsor link" do
     Mix.Project.push(DependsOnSponsored)
 
