@@ -63,6 +63,18 @@ defmodule Mix.Tasks.Hex.Config do
     * `no_short_urls` - If set to true Hex will not
       shorten any links. Can be overridden by setting the environment variable
       `HEX_NO_SHORT_URLS` (Default: `false`)
+    * `cooldown` - Minimum age a package release must have to be considered
+      during dependency resolution, e.g. `"7d"`, `"2w"`, `"1mo"`. Releases
+      published more recently are filtered out of the candidate set when
+      resolving dependencies. Does not apply to installs from an existing
+      lockfile. Can be overridden by setting the environment variable
+      `HEX_COOLDOWN` (Default: `"0d"` — no cooldown)
+    * `cooldown_exclude_repos` - List of repository names for which
+      `cooldown` does not apply, e.g. `["hexpm:myorg"]`. Useful when an
+      organization publishes hotfixes to its own repository and wants to
+      consume them without cooldown delay. Can be overridden by setting
+      the environment variable `HEX_COOLDOWN_EXCLUDE_REPOS` to a
+      comma-separated list (Default: `[]`)
 
   Hex responds to these additional environment variables:
 

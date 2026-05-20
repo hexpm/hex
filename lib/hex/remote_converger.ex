@@ -77,6 +77,7 @@ defmodule Hex.RemoteConverger do
   defp run_solver(lock, old_lock, requests, locked, overridden) do
     start_time = System.monotonic_time(:millisecond)
     dependencies = Enum.map(requests, &request_to_dependency/1)
+    setup_cooldown(old_lock, locked)
     locked = Enum.map(locked, &request_to_locked/1)
     overridden = Enum.map(overridden, &Atom.to_string/1)
     verify_otp_app_names(dependencies)
@@ -87,7 +88,7 @@ defmodule Hex.RemoteConverger do
     solution =
       try do
         Hex.Solver.run(
-          Registry,
+          Hex.Registry.Cooldown,
           dependencies,
           locked,
           overridden,
@@ -104,11 +105,80 @@ defmodule Hex.RemoteConverger do
     case solution do
       {:ok, resolved} ->
         resolved = normalize_resolved(resolved)
+        print_cooldown_summary()
         solver_success(resolved, requests, lock, old_lock)
 
       {:error, message} ->
         Hex.Shell.info(message)
+        print_cooldown_summary()
         Mix.raise("Hex dependency resolution failed")
+    end
+  end
+
+  defp setup_cooldown(old_lock, locked) do
+    cutoff = Hex.Cooldown.build_cutoff()
+    Hex.State.put(:cooldown_cutoff, cutoff)
+
+    bypass = build_cooldown_bypass(old_lock, locked, cutoff)
+    Hex.State.put(:cooldown_bypass_packages, bypass)
+
+    Hex.State.put(:cooldown_locked_versions, build_cooldown_locked_versions(old_lock))
+    Hex.State.put(:cooldown_filtered_versions, [])
+  end
+
+  @doc false
+  def build_cooldown_locked_versions(old_lock) do
+    # Maps {repo, package} to the list of versions currently in the lockfile
+    # for that package. The cooldown filter treats these as exempt: a version
+    # the user is already running is trusted, even if cooldown would otherwise
+    # filter it. This lets re-resolution fall back to the locked version when
+    # no newer eligible candidate exists, instead of failing.
+    for %{repo: repo, name: name, version: version} <- Hex.Mix.from_lock(old_lock),
+        into: %{} do
+      {{repo || "hexpm", name}, [to_string(version)]}
+    end
+  end
+
+  @doc false
+  def build_cooldown_bypass(_old_lock, _locked, :disabled), do: MapSet.new()
+
+  def build_cooldown_bypass(old_lock, locked, _cutoff) do
+    # The bypass set has two sources:
+    #
+    # 1. Packages in `locked` (the post-`prepare_locked/3` set): the lockfile
+    #    entry survived requirement checking and dep unlocking, so this
+    #    package is being installed from the lock — no re-resolution, no
+    #    cooldown. Matches the design's "cooldown does not apply when
+    #    proceeding from the lockfile" promise.
+    #
+    # 2. Packages in `old_lock` whose locked version is known-unsafe (retired
+    #    or carrying a security advisory): the user re-resolving is trying
+    #    to escape that version; cooldown must not block the escape. Walks
+    #    `old_lock` rather than `locked` because `mix deps.update foo` to
+    #    escape an unsafe foo removes foo from `locked`.
+    lock_satisfied = for %{name: name} <- locked, into: MapSet.new(), do: name
+
+    unsafe =
+      for %{repo: repo, name: name, version: version} <- Hex.Mix.from_lock(old_lock),
+          locked_version_unsafe?(repo || "hexpm", name, to_string(version)),
+          into: MapSet.new(),
+          do: name
+
+    MapSet.union(lock_satisfied, unsafe)
+  end
+
+  defp locked_version_unsafe?(repo, name, version) do
+    Registry.retired(repo, name, version) != nil or
+      Registry.advisories(repo, name, version) not in [nil, []]
+  end
+
+  @doc false
+  def print_cooldown_summary() do
+    cutoff = Hex.State.fetch!(:cooldown_cutoff)
+    entries = Hex.State.fetch!(:cooldown_filtered_versions)
+
+    if summary = Hex.Cooldown.format_summary(entries, cutoff) do
+      Hex.Shell.info(summary)
     end
   end
 

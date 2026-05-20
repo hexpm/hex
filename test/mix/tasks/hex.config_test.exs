@@ -25,9 +25,28 @@ defmodule Mix.Tasks.Hex.ConfigTest do
       assert_received {:mix_shell, :info, ["trusted_mirror_url: nil (default)"]}
       assert_received {:mix_shell, :info, ["config_home:" <> _]}
       assert_received {:mix_shell, :info, ["no_short_urls: false (default)"]}
+      assert_received {:mix_shell, :info, ["cooldown: \"0d\" (default)"]}
     end)
   after
     purge([ReleaseCustomApiUrl.MixProject])
+  end
+
+  test "cooldown config key" do
+    in_tmp(fn ->
+      System.put_env("HEX_HOME", File.cwd!())
+      Hex.State.refresh()
+
+      Mix.Tasks.Hex.Config.run(["cooldown"])
+      assert_received {:mix_shell, :info, ["\"0d\""]}
+
+      System.put_env("HEX_COOLDOWN", "7d")
+      Hex.State.refresh()
+      Mix.Tasks.Hex.Config.run(["cooldown"])
+      assert_received {:mix_shell, :info, ["\"7d\""]}
+
+      System.delete_env("HEX_COOLDOWN")
+      Hex.State.refresh()
+    end)
   end
 
   test "config key" do
