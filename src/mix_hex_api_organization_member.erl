@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.16.0 (0e332e5), do not edit manually
+%% Vendored from hex_core v0.17.0 (cadf1b8), do not edit manually
 
 %% @doc
 %% Hex HTTP API - Organization Members.

@@ -282,14 +282,27 @@ defmodule Hex.Utils do
           []
       end
 
+    aliases =
+      case advisory do
+        %{aliases: [_ | _] = aliases} ->
+          ids = Enum.map_join(aliases, ", ", &alias_id/1)
+          ["\n", line_prefix, "aka: ", ids]
+
+        _ ->
+          []
+      end
+
     url =
       case advisory do
         %{html_url: url} -> ["\n", line_prefix, :underline, url, :reset]
         _ -> []
       end
 
-    [id, severity, "\n", line_prefix, summary, url]
+    [id, severity, aliases, "\n", line_prefix, summary, url]
   end
+
+  defp alias_id(%{id: id}), do: id
+  defp alias_id(id) when is_binary(id), do: id
 
   # From https://github.com/fishcakez/dialyze/blob/6698ae582c77940ee10b4babe4adeff22f1b7779/lib/mix/tasks/dialyze.ex#L168
   def otp_version do

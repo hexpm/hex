@@ -54,6 +54,31 @@ defmodule Hex.UtilsTest do
       assert rendered =~ "\e[31m"
       assert rendered =~ "(HIGH)"
     end
+
+    test "renders aliases on an aka: line when present" do
+      advisory =
+        Map.put(@advisory, :aliases, [
+          %{id: "CVE-2026-0001", url: :undefined},
+          %{id: "GHSA-other-0002", url: "https://osv.dev/vulnerability/GHSA-other-0002"}
+        ])
+
+      assert render(advisory) ==
+               "GHSA-test-0001 (HIGH)\naka: CVE-2026-0001, GHSA-other-0002\nRemote code execution via crafted input\nhttps://github.com/advisories/GHSA-test-0001"
+    end
+
+    test "omits aka: line when aliases are empty" do
+      advisory = Map.put(@advisory, :aliases, [])
+
+      assert render(advisory) ==
+               "GHSA-test-0001 (HIGH)\nRemote code execution via crafted input\nhttps://github.com/advisories/GHSA-test-0001"
+    end
+
+    test "aka: line respects line prefix" do
+      advisory = Map.put(@advisory, :aliases, [%{id: "CVE-2026-0001", url: :undefined}])
+
+      assert render(advisory, "    ") ==
+               "GHSA-test-0001 (HIGH)\n    aka: CVE-2026-0001\n    Remote code execution via crafted input\n    https://github.com/advisories/GHSA-test-0001"
+    end
   end
 
   defp render(advisory, line_prefix \\ "") do
