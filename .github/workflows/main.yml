@@ -17,8 +17,8 @@ jobs:
       - name: Install OTP and Elixir
         uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93 # v1.24.0
         with:
-          otp-version: 28.1
-          elixir-version: 1.18.4
+          otp-version: 28.5
+          elixir-version: 1.19.5
           version-type: strict
 
       - name: Install dependencies
@@ -48,10 +48,11 @@ jobs:
         pair:
           # - erlang: maint
           #   elixir: main
-
-          - erlang: 28.1
-            elixir: 1.18.4
-          - erlang: 27.2
+          - erlang: "29.0"
+            elixir: 1.20.0-rc.6
+          - erlang: 28.5
+            elixir: 1.19.5
+          - erlang: 27.3
             elixir: 1.17.3
           - erlang: 26.2
             elixir: 1.16.1
@@ -65,8 +66,8 @@ jobs:
             elixir: 1.12.3
 
     env:
-      HEXPM_OTP: OTP-28.1
-      HEXPM_ELIXIR: v1.18.4
+      HEXPM_OTP: OTP-28.5
+      HEXPM_ELIXIR: v1.19.5
       HEXPM_BRANCH: main
       HEXPM_PATH: hexpm
       HEXPM_ELIXIR_PATH: hexpm_elixir
