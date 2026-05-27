@@ -18,6 +18,12 @@ defmodule Mix.Tasks.Hex.Outdated do
   as specified in your `mix.exs` file, with the `--within-requirements` command line option,
   so it only exits with non-zero exit code if the update is possible.
 
+  If a `:cooldown` is configured (see `mix hex.config`) and the latest version of a
+  dependency falls within the cooldown window, the row is annotated with `(cooldown)`
+  and the version is listed under "Versions in cooldown". The exit code still treats
+  such dependencies as outdated; cooldown only affects what `mix deps.update` would
+  resolve to.
+
   For example, if your version requirement is "~> 2.0" but the latest version is `3.0`,
   with `--within-requirements` it will exit successfully, but if the latest version
   is `2.8`, then `--within-requirements` will exit with non-zero exit code (1).
@@ -134,7 +140,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp display_table(
-         [{_package, _dep_only, current, latest, requirements, outdated?}],
+         [{_package, _dep_only, current, latest, requirements, outdated?, cooldown}],
          [_app],
          _opts
        ) do
@@ -158,6 +164,8 @@ defmodule Mix.Tasks.Hex.Outdated do
 
     message = "Up-to-date indicates if the requirement matches the latest version."
     Hex.Shell.info(["\n", message])
+
+    maybe_print_single_cooldown(latest, cooldown)
   end
 
   defp display_table(versions, _args, opts) do
@@ -171,6 +179,8 @@ defmodule Mix.Tasks.Hex.Outdated do
       header = ["Dependency", "Only", "Current", "Latest", "Status"]
       Mix.Tasks.Hex.print_table(header, values)
 
+      maybe_print_cooldown_legend(versions)
+
       base_message = "Run `mix hex.outdated APP` to see requirements for a specific dependency."
       diff_message = maybe_diff_message(diff_links)
       diff_command_message = maybe_diff_command_message(diff_links)
@@ -178,9 +188,42 @@ defmodule Mix.Tasks.Hex.Outdated do
     end
   end
 
+  defp maybe_print_single_cooldown(_latest, nil), do: :ok
+
+  defp maybe_print_single_cooldown(latest, %{eligible_on: eligible_on}) do
+    days = Date.diff(eligible_on, Date.utc_today())
+    Hex.Shell.info("\nVersion #{latest} is in cooldown — eligible #{eligible_on} (#{days} days)")
+  end
+
+  defp maybe_print_cooldown_legend(versions) do
+    entries =
+      Enum.flat_map(versions, fn
+        {package, _, _, latest, _, _, %{eligible_on: eligible_on}} ->
+          [{package, latest, eligible_on}]
+
+        _ ->
+          []
+      end)
+
+    case entries do
+      [] ->
+        :ok
+
+      entries ->
+        today = Date.utc_today()
+        Hex.Shell.info("")
+        Hex.Shell.info("Versions in cooldown:")
+
+        Enum.each(entries, fn {package, version, eligible_on} ->
+          days = Date.diff(eligible_on, today)
+          Hex.Shell.info("  #{package} #{version} — eligible #{eligible_on} (#{days} days)")
+        end)
+    end
+  end
+
   defp set_exit_code(versions, args, opts) do
     outdated_versions =
-      Enum.filter(versions, fn {_p, _o, _l, _la, _r, outdated?} -> outdated? end)
+      Enum.filter(versions, fn {_p, _o, _l, _la, _r, outdated?, _c} -> outdated? end)
 
     if outdated_versions != [] and exit_with_error?(outdated_versions, args, opts) do
       Mix.Tasks.Hex.set_exit_code(1)
@@ -236,7 +279,7 @@ defmodule Mix.Tasks.Hex.Outdated do
       "Update possible" => 3
     }
 
-    Enum.sort_by(values, fn [_package, _dep_only, _lock, _latest, [_color, status]] ->
+    Enum.sort_by(values, fn [_package, _dep_only, _lock, _latest, [_color, status | _]] ->
       Map.fetch!(status_order, status)
     end)
   end
@@ -256,7 +299,7 @@ defmodule Mix.Tasks.Hex.Outdated do
         # deps can have multiple `only` values, so we separate by `,`
         only_values = String.split(only_value, ",", trim: true)
 
-        Enum.filter(versions, fn {_package, dep_only, _lock, _latest, _reqs, _outdated?} ->
+        Enum.filter(versions, fn {_package, dep_only, _lock, _latest, _reqs, _outdated?, _c} ->
           dep_only_parts = String.split(dep_only, ",")
           Enum.any?(dep_only_parts, &(&1 in only_values))
         end)
@@ -264,6 +307,8 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp get_versions(dep_names, deps, lock, pre?) do
+    cutoff = Hex.Cooldown.build_cutoff()
+
     Enum.flat_map(dep_names, fn name ->
       case Hex.Utils.lock(lock[name]) do
         %{repo: repo, name: package, version: lock_version} ->
@@ -276,15 +321,37 @@ defmodule Mix.Tasks.Hex.Outdated do
           requirements = deps_requirements ++ lock_requirements
           dep_only = get_dep_only(deps, name)
 
+          cooldown =
+            if outdated?, do: cooldown_info(repo, package, latest_version, cutoff), else: nil
+
           [
             {Atom.to_string(name), dep_only, lock_version, latest_version, requirements,
-             outdated?}
+             outdated?, cooldown}
           ]
 
         _ ->
           []
       end
     end)
+  end
+
+  defp cooldown_info(_repo, _package, _version, :disabled), do: nil
+
+  defp cooldown_info(repo, package, version, cutoff) do
+    if Hex.Cooldown.repo_excluded?(repo) do
+      nil
+    else
+      published_at = Registry.published_at(repo, package, version)
+
+      if Hex.Cooldown.eligible?(published_at, cutoff) do
+        nil
+      else
+        %{
+          published_at: published_at,
+          eligible_on: Hex.Cooldown.eligible_on(published_at, cutoff)
+        }
+      end
+    end
   end
 
   defp latest_version(repo, package, default, pre?) do
@@ -306,16 +373,18 @@ defmodule Mix.Tasks.Hex.Outdated do
     List.last(versions)
   end
 
-  defp format_all_row({package, dep_only, lock, latest, requirements, outdated?}) do
+  defp format_all_row({package, dep_only, lock, latest, requirements, outdated?, cooldown}) do
     latest_color = if outdated?, do: :red, else: :green
     req_matches? = req_matches?(requirements, latest)
 
-    status =
+    base_status =
       case {outdated?, req_matches?} do
         {true, true} -> [:yellow, "Update possible"]
         {true, false} -> [:red, "Update not possible"]
         {false, _} -> [:green, "Up-to-date"]
       end
+
+    status = if cooldown, do: base_status ++ [" (cooldown)"], else: base_status
 
     [
       [:bright, package],
@@ -326,7 +395,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     ]
   end
 
-  defp build_diff_link({package, _dep_only, lock, latest, requirements, outdated?}) do
+  defp build_diff_link({package, _dep_only, lock, latest, requirements, outdated?, _cooldown}) do
     req_matches? = req_matches?(requirements, latest)
 
     case {outdated?, req_matches?} do
@@ -369,7 +438,8 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp any_possible_to_update?(outdated_versions) do
-    Enum.any?(outdated_versions, fn {_package, _dep_only, _lock, latest, requirements, _outdated?} ->
+    Enum.any?(outdated_versions, fn {_package, _dep_only, _lock, latest, requirements, _outdated?,
+                                     _cooldown} ->
       req_matches?(requirements, latest)
     end)
   end
@@ -394,7 +464,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     |> Enum.join(",")
   end
 
-  defp cast_version_map({package, dep_only, lock, latest, requirements, outdated?}) do
+  defp cast_version_map({package, dep_only, lock, latest, requirements, outdated?, cooldown}) do
     %{
       package: package,
       only: dep_only,
@@ -408,7 +478,17 @@ defmodule Mix.Tasks.Hex.Outdated do
             up_to_date: version_match?(latest, req_version)
           }
         end),
-      outdated: outdated?
+      outdated: outdated?,
+      cooldown: cast_cooldown_map(cooldown)
+    }
+  end
+
+  defp cast_cooldown_map(nil), do: nil
+
+  defp cast_cooldown_map(%{published_at: published_at, eligible_on: eligible_on}) do
+    %{
+      published_at: published_at |> DateTime.from_unix!() |> DateTime.to_iso8601(),
+      eligible_on: Date.to_iso8601(eligible_on)
     }
   end
 
