@@ -88,6 +88,29 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
+  defmodule SingleDep.MixProject do
+    def project do
+      [
+        app: :outdated_app,
+        version: "0.0.1",
+        deps: [{:foo, ">= 0.0.0"}]
+      ]
+    end
+  end
+
+  defmodule UnsafeLockedDeps.MixProject do
+    def project do
+      [
+        app: :outdated_app,
+        version: "0.0.1",
+        deps: [
+          {:tired, ">= 0.0.0"},
+          {:foo, ">= 0.0.0"}
+        ]
+      ]
+    end
+  end
+
   defmodule OutdatedDepsWithTypes.MixProject do
     def project do
       [
@@ -608,7 +631,8 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
               %{source: "ecto", requirement: "~> 0.0.1", up_to_date: false},
               %{source: "postgrex", requirement: "0.0.1", up_to_date: false}
             ],
-            outdated: true
+            outdated: true,
+            cooldown: nil
           }
         ]
         |> :json.encode()
@@ -894,5 +918,295 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       assert combined_output =~ "foo"
       refute combined_output =~ "ex_doc"
     end)
+  end
+
+  describe "cooldown" do
+    defp inject_published_at(repo, package, version, published_at) do
+      :sys.replace_state(Hex.Registry.Server, fn state ->
+        :ets.insert(state.ets, {{:published_at, repo, package, version}, published_at})
+        state
+      end)
+    end
+
+    defp clear_all_published_at do
+      :sys.replace_state(Hex.Registry.Server, fn state ->
+        :ets.match_delete(state.ets, {{:published_at, :_, :_, :_}, :_})
+        state
+      end)
+    end
+
+    defp collect_shell_lines do
+      for {:mix_shell, :info, [line]} <- flush(), is_binary(line), do: line
+    end
+
+    test "annotates row when latest version is within the cooldown window" do
+      Mix.Project.push(OutdatedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        clear_all_published_at()
+        inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
+        Hex.State.put(:cooldown, "7d")
+
+        assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+        lines = collect_shell_lines()
+
+        assert Enum.any?(lines, &(&1 =~ "foo" and &1 =~ "Update possible" and &1 =~ "(cooldown)"))
+        assert Enum.any?(lines, &(&1 == "Versions in cooldown:"))
+        assert Enum.any?(lines, &(&1 =~ "foo 0.1.1" and &1 =~ "eligible"))
+      end)
+    end
+
+    test "does not annotate when latest version is older than the cooldown window" do
+      Mix.Project.push(OutdatedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        clear_all_published_at()
+        inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 30 * 86_400)
+        Hex.State.put(:cooldown, "7d")
+
+        assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+        lines = collect_shell_lines()
+        refute Enum.any?(lines, &(&1 =~ "(cooldown)"))
+        refute Enum.any?(lines, &(&1 == "Versions in cooldown:"))
+      end)
+    end
+
+    test "does not annotate when cooldown is disabled" do
+      Mix.Project.push(OutdatedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        clear_all_published_at()
+        inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
+        Hex.State.put(:cooldown, "0d")
+
+        assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+        lines = collect_shell_lines()
+        refute Enum.any?(lines, &(&1 =~ "(cooldown)"))
+        refute Enum.any?(lines, &(&1 == "Versions in cooldown:"))
+      end)
+    end
+
+    test "treats missing published_at as eligible" do
+      Mix.Project.push(OutdatedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        clear_all_published_at()
+        Hex.State.put(:cooldown, "1mo")
+
+        assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+        lines = collect_shell_lines()
+        refute Enum.any?(lines, &(&1 =~ "(cooldown)"))
+        refute Enum.any?(lines, &(&1 == "Versions in cooldown:"))
+      end)
+    end
+
+    test "does not annotate up-to-date dependencies even when fresh" do
+      Mix.Project.push(OutdatedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        clear_all_published_at()
+        inject_published_at("hexpm", "bar", "0.1.0", System.system_time(:second) - 86_400)
+        Hex.State.put(:cooldown, "7d")
+
+        assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+        lines = collect_shell_lines()
+        refute Enum.any?(lines, &(&1 =~ "bar" and &1 =~ "(cooldown)"))
+      end)
+    end
+
+    test "single-package mode annotates output and does not exit with error when latest is in cooldown" do
+      Mix.Project.push(OutdatedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        clear_all_published_at()
+        inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
+        Hex.State.put(:cooldown, "7d")
+
+        assert Mix.Task.run("hex.outdated", ["foo"]) == nil
+
+        lines = collect_shell_lines()
+        assert Enum.any?(lines, &(&1 =~ "Version 0.1.1 is in cooldown" and &1 =~ "eligible"))
+      end)
+    end
+
+    test "does not exit with error when every outdated dep is cooldown-held" do
+      Mix.Project.push(SingleDep.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        Mix.Dep.Lock.write(%{foo: {:hex, :foo, "0.1.0"}})
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        clear_all_published_at()
+        inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
+        Hex.State.put(:cooldown, "7d")
+
+        assert Mix.Task.run("hex.outdated") == nil
+      end)
+    end
+
+    test "still exits with error when at least one outdated dep is not cooldown-held" do
+      Mix.Project.push(OutdatedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        clear_all_published_at()
+        inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
+        Hex.State.put(:cooldown, "7d")
+
+        assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+      end)
+    end
+
+    test "--sort status orders cooldown-annotated rows by their base status" do
+      Mix.Project.push(OutdatedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        clear_all_published_at()
+        inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
+        Hex.State.put(:cooldown, "7d")
+
+        assert catch_throw(Mix.Task.run("hex.outdated", ["--all", "--sort", "status"])) ==
+                 {:exit_code, 1}
+
+        assert extract_statuses(flush()) == [
+                 "Up-to-date",
+                 "Update not possible",
+                 "Update possible"
+               ]
+      end)
+    end
+
+    test "does not annotate when locked version is retired (unsafe-lock bypass)" do
+      Mix.Project.push(UnsafeLockedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        # tired 0.1.0 is retired in setup_hexpm.exs; foo 0.1.0 is not.
+        Mix.Dep.Lock.write(%{
+          tired: {:hex, :tired, "0.1.0"},
+          foo: {:hex, :foo, "0.1.0"}
+        })
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        clear_all_published_at()
+        inject_published_at("hexpm", "tired", "0.2.0", System.system_time(:second) - 86_400)
+        inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
+        Hex.State.put(:cooldown, "7d")
+
+        assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+        lines = collect_shell_lines()
+
+        refute Enum.any?(lines, &(&1 =~ "tired" and &1 =~ "(cooldown)"))
+        assert Enum.any?(lines, &(&1 =~ "foo" and &1 =~ "(cooldown)"))
+      end)
+    end
+
+    test "does not annotate when the update is not possible due to requirements" do
+      Mix.Project.push(OutdatedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        # ex_doc's locked version is 0.0.1; OutdatedDeps requires ~> 0.0.1,
+        # which doesn't match the latest 0.1.0. Even with cooldown set on
+        # the latest, the user can't take the upgrade — don't annotate.
+        Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        clear_all_published_at()
+        inject_published_at("hexpm", "ex_doc", "0.1.0", System.system_time(:second) - 86_400)
+        Hex.State.put(:cooldown, "7d")
+
+        assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+        lines = collect_shell_lines()
+
+        assert Enum.any?(lines, &(&1 =~ "ex_doc" and &1 =~ "Update not possible"))
+        refute Enum.any?(lines, &(&1 =~ "ex_doc" and &1 =~ "(cooldown)"))
+        refute Enum.any?(lines, &(&1 =~ "ex_doc 0.1.0" and &1 =~ "eligible"))
+      end)
+    end
+
+    @tag :requires_json
+    test "JSON output exposes published_at and eligible_on when latest is in cooldown" do
+      Mix.Project.push(OutdatedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        clear_all_published_at()
+        inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
+        Hex.State.put(:cooldown, "7d")
+
+        Mix.Task.run("hex.outdated", ["foo", "--json"])
+
+        [json] = collect_shell_lines()
+        [decoded] = :json.decode(json)
+        assert %{"published_at" => _, "eligible_on" => _} = decoded["cooldown"]
+      end)
+    end
   end
 end

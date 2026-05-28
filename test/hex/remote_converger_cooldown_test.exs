@@ -43,6 +43,15 @@ defmodule Hex.RemoteConvergerCooldownTest do
     {:hex, String.to_atom(name), version, "checksum", [:mix], [], repo, "outer_checksum"}
   end
 
+  defp lock_tuple_with_deps(name, version, child_names, repo \\ "hexpm") do
+    deps =
+      Enum.map(child_names, fn child ->
+        {String.to_atom(child), "~> 0.0.0", [hex: child, repo: "hexpm", optional: false]}
+      end)
+
+    {:hex, String.to_atom(name), version, "checksum", [:mix], deps, repo, "outer_checksum"}
+  end
+
   defp locked_request(name, version, repo \\ "hexpm") do
     %{repo: repo, name: name, app: name, version: version}
   end
@@ -88,6 +97,31 @@ defmodule Hex.RemoteConvergerCooldownTest do
 
     test "locked versions with empty advisory list are not bypassed via unsafe-set" do
       old_lock = %{advised_dep: lock_tuple("advised_dep", "2.0.0")}
+      assert MapSet.new() == RemoteConverger.build_cooldown_bypass(old_lock, [], @cutoff)
+    end
+
+    test "lock-children of unsafe parent are also bypassed" do
+      # Escaping an unsafe parent typically requires re-resolving its
+      # dependency subtree, and the new parent version usually wants newer
+      # versions of those children. Mirror `mix deps.update`'s behavior of
+      # unlocking the children alongside the explicit target.
+      old_lock = %{
+        retired_dep: lock_tuple_with_deps("retired_dep", "1.0.0", ["good", "advised_dep"]),
+        good: lock_tuple("good", "1.0.0")
+      }
+
+      bypass = RemoteConverger.build_cooldown_bypass(old_lock, [], @cutoff)
+
+      assert MapSet.member?(bypass, "retired_dep")
+      assert MapSet.member?(bypass, "good")
+      assert MapSet.member?(bypass, "advised_dep")
+    end
+
+    test "children of safe parents are not bypassed" do
+      old_lock = %{
+        good: lock_tuple_with_deps("good", "1.0.0", ["advised_dep"])
+      }
+
       assert MapSet.new() == RemoteConverger.build_cooldown_bypass(old_lock, [], @cutoff)
     end
   end

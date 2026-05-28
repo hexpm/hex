@@ -143,7 +143,7 @@ defmodule Hex.RemoteConverger do
   def build_cooldown_bypass(_old_lock, _locked, :disabled), do: MapSet.new()
 
   def build_cooldown_bypass(old_lock, locked, _cutoff) do
-    # The bypass set has two sources:
+    # The bypass set has three sources:
     #
     # 1. Packages in `locked` (the post-`prepare_locked/3` set): the lockfile
     #    entry survived requirement checking and dep unlocking, so this
@@ -156,15 +156,37 @@ defmodule Hex.RemoteConverger do
     #    to escape that version; cooldown must not block the escape. Walks
     #    `old_lock` rather than `locked` because `mix deps.update foo` to
     #    escape an unsafe foo removes foo from `locked`.
+    #
+    # 3. The currently-locked children of any package in (2): escaping an
+    #    unsafe parent typically requires re-resolving its dependency
+    #    subtree, and the new parent version usually wants newer versions of
+    #    those children. Mirroring `mix deps.update`'s behavior of unlocking
+    #    the children alongside the explicit target, we lift cooldown on the
+    #    same set.
     lock_satisfied = for %{name: name} <- locked, into: MapSet.new(), do: name
+    MapSet.union(lock_satisfied, unsafe_lock_bypass(old_lock))
+  end
 
-    unsafe =
-      for %{repo: repo, name: name, version: version} <- Hex.Mix.from_lock(old_lock),
-          locked_version_unsafe?(repo || "hexpm", name, to_string(version)),
-          into: MapSet.new(),
-          do: name
+  @doc """
+  Set of package names whose cooldown should be lifted because the lock
+  currently points at an unsafe version of that package, plus the names
+  of that package's lock-children.
+  """
+  def unsafe_lock_bypass(lock) do
+    Enum.reduce(lock, MapSet.new(), fn {_app, lock_entry}, acc ->
+      case Hex.Utils.lock(lock_entry) do
+        %{repo: repo, name: name, version: version, deps: deps} ->
+          if locked_version_unsafe?(repo || "hexpm", name, to_string(version)) do
+            children = for {_app, _req, opts} <- deps || [], do: opts[:hex]
+            acc |> MapSet.put(name) |> MapSet.union(MapSet.new(children))
+          else
+            acc
+          end
 
-    MapSet.union(lock_satisfied, unsafe)
+        nil ->
+          acc
+      end
+    end)
   end
 
   defp locked_version_unsafe?(repo, name, version) do
