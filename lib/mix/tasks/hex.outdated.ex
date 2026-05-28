@@ -20,9 +20,9 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   If a `:cooldown` is configured (see `mix hex.config`) and the latest version of a
   dependency falls within the cooldown window, the row is annotated with `(cooldown)`
-  and the version is listed under "Versions in cooldown". The exit code still treats
-  such dependencies as outdated; cooldown only affects what `mix deps.update` would
-  resolve to.
+  and the version is listed under "Versions in cooldown". Cooldown-held updates do
+  not contribute to the non-zero exit code — `mix deps.update` would not pick them
+  up until they age out of the window.
 
   For example, if your version requirement is "~> 2.0" but the latest version is `3.0`,
   with `--within-requirements` it will exit successfully, but if the latest version
@@ -223,7 +223,9 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   defp set_exit_code(versions, args, opts) do
     outdated_versions =
-      Enum.filter(versions, fn {_p, _o, _l, _la, _r, outdated?, _c} -> outdated? end)
+      Enum.filter(versions, fn {_p, _o, _l, _la, _r, outdated?, cooldown} ->
+        outdated? and is_nil(cooldown)
+      end)
 
     if outdated_versions != [] and exit_with_error?(outdated_versions, args, opts) do
       Mix.Tasks.Hex.set_exit_code(1)

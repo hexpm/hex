@@ -1026,7 +1026,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       end)
     end
 
-    test "annotates single-package output when latest is in cooldown" do
+    test "single-package mode annotates output and does not exit with error when latest is in cooldown" do
       Mix.Project.push(OutdatedDeps.MixProject)
 
       in_tmp(fn ->
@@ -1040,10 +1040,48 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
         Hex.State.put(:cooldown, "7d")
 
-        catch_throw(Mix.Task.run("hex.outdated", ["foo"]))
+        assert Mix.Task.run("hex.outdated", ["foo"]) == nil
 
         lines = collect_shell_lines()
         assert Enum.any?(lines, &(&1 =~ "Version 0.1.1 is in cooldown" and &1 =~ "eligible"))
+      end)
+    end
+
+    test "does not exit with error when every outdated dep is cooldown-held" do
+      Mix.Project.push(OutdatedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        now = System.system_time(:second)
+        clear_all_published_at()
+        inject_published_at("hexpm", "foo", "0.1.1", now - 86_400)
+        inject_published_at("hexpm", "ex_doc", "0.1.0", now - 86_400)
+        Hex.State.put(:cooldown, "7d")
+
+        assert Mix.Task.run("hex.outdated", ["--all"]) == nil
+      end)
+    end
+
+    test "still exits with error when at least one outdated dep is not cooldown-held" do
+      Mix.Project.push(OutdatedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        clear_all_published_at()
+        inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
+        Hex.State.put(:cooldown, "7d")
+
+        assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
       end)
     end
 
@@ -1087,7 +1125,7 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         inject_published_at("hexpm", "ex_doc", "0.1.0", System.system_time(:second) - 86_400)
         Hex.State.put(:cooldown, "7d")
 
-        catch_throw(Mix.Task.run("hex.outdated", ["ex_doc", "--json"]))
+        Mix.Task.run("hex.outdated", ["ex_doc", "--json"])
 
         [json] = collect_shell_lines()
         [decoded] = :json.decode(json)
