@@ -311,6 +311,11 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp get_versions(dep_names, deps, lock, pre?) do
     cutoff = Hex.Cooldown.build_cutoff()
 
+    bypass =
+      if cutoff == :disabled,
+        do: MapSet.new(),
+        else: Hex.RemoteConverger.unsafe_lock_bypass(lock)
+
     Enum.flat_map(dep_names, fn name ->
       case Hex.Utils.lock(lock[name]) do
         %{repo: repo, name: package, version: lock_version} ->
@@ -324,7 +329,11 @@ defmodule Mix.Tasks.Hex.Outdated do
           dep_only = get_dep_only(deps, name)
 
           cooldown =
-            if outdated?, do: cooldown_info(repo, package, latest_version, cutoff), else: nil
+            cond do
+              not outdated? -> nil
+              MapSet.member?(bypass, package) -> nil
+              true -> cooldown_info(repo, package, latest_version, cutoff)
+            end
 
           [
             {Atom.to_string(name), dep_only, lock_version, latest_version, requirements,
