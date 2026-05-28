@@ -331,6 +331,7 @@ defmodule Mix.Tasks.Hex.Outdated do
           cooldown =
             cond do
               not outdated? -> nil
+              not req_matches?(requirements, latest_version) -> nil
               MapSet.member?(bypass, package) -> nil
               true -> cooldown_info(repo, package, latest_version, cutoff)
             end

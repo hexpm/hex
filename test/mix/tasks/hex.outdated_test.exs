@@ -88,6 +88,16 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
+  defmodule SingleDep.MixProject do
+    def project do
+      [
+        app: :outdated_app,
+        version: "0.0.1",
+        deps: [{:foo, ">= 0.0.0"}]
+      ]
+    end
+  end
+
   defmodule UnsafeLockedDeps.MixProject do
     def project do
       [
@@ -1061,22 +1071,20 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
 
     test "does not exit with error when every outdated dep is cooldown-held" do
-      Mix.Project.push(OutdatedDeps.MixProject)
+      Mix.Project.push(SingleDep.MixProject)
 
       in_tmp(fn ->
         set_home_tmp()
-        Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+        Mix.Dep.Lock.write(%{foo: {:hex, :foo, "0.1.0"}})
 
         Mix.Task.run("deps.get")
         flush()
 
-        now = System.system_time(:second)
         clear_all_published_at()
-        inject_published_at("hexpm", "foo", "0.1.1", now - 86_400)
-        inject_published_at("hexpm", "ex_doc", "0.1.0", now - 86_400)
+        inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
         Hex.State.put(:cooldown, "7d")
 
-        assert Mix.Task.run("hex.outdated", ["--all"]) == nil
+        assert Mix.Task.run("hex.outdated") == nil
       end)
     end
 
@@ -1151,13 +1159,15 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       end)
     end
 
-    @tag :requires_json
-    test "JSON output exposes published_at and eligible_on when latest is in cooldown" do
-      Mix.Project.push(OutdatedApp.MixProject)
+    test "does not annotate when the update is not possible due to requirements" do
+      Mix.Project.push(OutdatedDeps.MixProject)
 
       in_tmp(fn ->
         set_home_tmp()
-        Mix.Dep.Lock.write(%{ex_doc: {:hex, :ex_doc, "0.0.1"}})
+        # ex_doc's locked version is 0.0.1; OutdatedDeps requires ~> 0.0.1,
+        # which doesn't match the latest 0.1.0. Even with cooldown set on
+        # the latest, the user can't take the upgrade — don't annotate.
+        Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
 
         Mix.Task.run("deps.get")
         flush()
@@ -1166,7 +1176,32 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         inject_published_at("hexpm", "ex_doc", "0.1.0", System.system_time(:second) - 86_400)
         Hex.State.put(:cooldown, "7d")
 
-        Mix.Task.run("hex.outdated", ["ex_doc", "--json"])
+        assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+        lines = collect_shell_lines()
+
+        assert Enum.any?(lines, &(&1 =~ "ex_doc" and &1 =~ "Update not possible"))
+        refute Enum.any?(lines, &(&1 =~ "ex_doc" and &1 =~ "(cooldown)"))
+        refute Enum.any?(lines, &(&1 =~ "ex_doc 0.1.0" and &1 =~ "eligible"))
+      end)
+    end
+
+    @tag :requires_json
+    test "JSON output exposes published_at and eligible_on when latest is in cooldown" do
+      Mix.Project.push(OutdatedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        clear_all_published_at()
+        inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
+        Hex.State.put(:cooldown, "7d")
+
+        Mix.Task.run("hex.outdated", ["foo", "--json"])
 
         [json] = collect_shell_lines()
         [decoded] = :json.decode(json)
