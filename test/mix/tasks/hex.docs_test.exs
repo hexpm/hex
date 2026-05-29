@@ -350,7 +350,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
         Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.1"}})
         Mix.Tasks.Hex.Docs.run(["online", "docs_package"])
         assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
-        assert Enum.fetch!(browser_open_cmd, -1) == "https://docs_package.hexdocs.pm/1.1.1"
+        assert Enum.fetch!(browser_open_cmd, -1) == "https://docs-package.hexdocs.pm/1.1.1"
       end)
     end
 
@@ -361,7 +361,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
         Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.1"}})
         Mix.Tasks.Hex.Docs.run(["online", "docs_package", "--latest"])
         assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
-        assert Enum.fetch!(browser_open_cmd, -1) == "https://docs_package.hexdocs.pm"
+        assert Enum.fetch!(browser_open_cmd, -1) == "https://docs-package.hexdocs.pm"
       end)
     end
 
