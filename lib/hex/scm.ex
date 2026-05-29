@@ -118,7 +118,7 @@ defmodule Hex.SCM do
     end
   end
 
-  # https://hexdocs.pm/mix/Mix.Tasks.Deps.html#module-dependency-definition-options
+  # https://mix.hexdocs.pm/Mix.Tasks.Deps.html#module-dependency-definition-options
   mix_keys = ~w[app env compile optional only targets override manager runtime system_env]a
 
   # https://hex.pm/docs/usage#options

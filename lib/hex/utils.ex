@@ -218,31 +218,37 @@ defmodule Hex.Utils do
 
   def hexdocs_url(organization, package)
       when organization in ["hexpm", nil],
-      do: "https://hexdocs.pm/#{package}"
+      do: "https://#{package_subdomain(package)}.hexdocs.pm"
 
   def hexdocs_url(organization, package),
     do: "https://#{organization}.hexorgs.pm/#{package}"
 
   def hexdocs_url(organization, package, version)
       when organization in ["hexpm", nil],
-      do: "https://hexdocs.pm/#{package}/#{version}"
+      do: "https://#{package_subdomain(package)}.hexdocs.pm/#{version}"
 
   def hexdocs_url(organization, package, version),
     do: "https://#{organization}.hexorgs.pm/#{package}/#{version}"
 
   def hexdocs_module_url(organization, package, module)
       when organization in ["hexpm", nil],
-      do: "https://hexdocs.pm/#{package}/#{module}.html"
+      do: "https://#{package_subdomain(package)}.hexdocs.pm/#{module}.html"
 
   def hexdocs_module_url(organization, package, module),
     do: "https://#{organization}.hexorgs.pm/#{package}/#{module}.html"
 
   def hexdocs_module_url(organization, package, version, module)
       when organization in ["hexpm", nil],
-      do: "https://hexdocs.pm/#{package}/#{version}/#{module}.html"
+      do: "https://#{package_subdomain(package)}.hexdocs.pm/#{version}/#{module}.html"
 
   def hexdocs_module_url(organization, package, version, module),
     do: "https://#{organization}.hexorgs.pm/#{package}/#{version}/#{module}.html"
+
+  # Hex package names allow underscores. RFC 1123 hostname labels and
+  # RFC 6125 wildcard SAN matching don't, so Fastly returns 421 for
+  # underscore subdomains under *.hexdocs.pm. Map `_` -> `-` here; the
+  # Fastly Compute subdomain handler reverses it for the bucket lookup.
+  defp package_subdomain(package), do: String.replace(package, "_", "-")
 
   def package_retirement_reason(:RETIRED_OTHER), do: "other"
   def package_retirement_reason(:RETIRED_INVALID), do: "invalid"

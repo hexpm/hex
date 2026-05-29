@@ -340,7 +340,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
     test "open docs online" do
       Mix.Tasks.Hex.Docs.run(["online", "ecto"])
       assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
-      assert Enum.fetch!(browser_open_cmd, -1) == "https://hexdocs.pm/ecto"
+      assert Enum.fetch!(browser_open_cmd, -1) == "https://ecto.hexdocs.pm"
     end
 
     test "open the version of a package this app uses online" do
@@ -350,7 +350,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
         Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.1"}})
         Mix.Tasks.Hex.Docs.run(["online", "docs_package"])
         assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
-        assert Enum.fetch!(browser_open_cmd, -1) == "https://hexdocs.pm/docs_package/1.1.1"
+        assert Enum.fetch!(browser_open_cmd, -1) == "https://docs-package.hexdocs.pm/1.1.1"
       end)
     end
 
@@ -361,14 +361,14 @@ defmodule Mix.Tasks.Hex.DocsTest do
         Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.1"}})
         Mix.Tasks.Hex.Docs.run(["online", "docs_package", "--latest"])
         assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
-        assert Enum.fetch!(browser_open_cmd, -1) == "https://hexdocs.pm/docs_package"
+        assert Enum.fetch!(browser_open_cmd, -1) == "https://docs-package.hexdocs.pm"
       end)
     end
 
     test "open a specific page online using the page option" do
       Mix.Tasks.Hex.Docs.run(["online", "ecto", "--page", "Ecto.Repo"])
       assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
-      assert Enum.fetch!(browser_open_cmd, -1) == "https://hexdocs.pm/ecto/Ecto.Repo.html"
+      assert Enum.fetch!(browser_open_cmd, -1) == "https://ecto.hexdocs.pm/Ecto.Repo.html"
     end
   end
 
@@ -377,7 +377,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
       Mix.Tasks.Hex.Docs.run(["online", "ecto", "--module", "Ecto.Repo"])
       assert_received {:mix_shell, :error, ["--module is deprecated, use --page instead"]}
       assert_received {:hex_system_cmd, _cmd, browser_open_cmd}
-      assert Enum.fetch!(browser_open_cmd, -1) == "https://hexdocs.pm/ecto/Ecto.Repo.html"
+      assert Enum.fetch!(browser_open_cmd, -1) == "https://ecto.hexdocs.pm/Ecto.Repo.html"
     end
 
     @tag mirror: true
