@@ -23,8 +23,8 @@ defmodule Mix.Tasks.Hex.Publish do
   is the generated documentation located in the `doc/` directory with an
   `index.html` file.
 
-  The documentation will be accessible at `https://hexdocs.pm/my_package/1.0.0`,
-  `https://hexdocs.pm/my_package` will always redirect to the latest published
+  The documentation will be accessible at `https://my_package.hexdocs.pm/1.0.0`,
+  `https://my_package.hexdocs.pm` will always redirect to the latest published
   version.
 
   Documentation will be built and published automatically. To publish a package

@@ -118,12 +118,12 @@ defmodule Mix.Tasks.Hex.SearchTest do
 
         assert_received {:mix_shell, :info,
                          [
-                           "# cast/4 (1/2)\nhttps://hexdocs.pm/ecto/3.13.4/Ecto.Changeset.html#cast/4\n\nCast changesets.\n\n"
+                           "# cast/4 (1/2)\nhttps://ecto.hexdocs.pm/3.13.4/Ecto.Changeset.html#cast/4\n\nCast changesets.\n\n"
                          ]}
 
         assert_received {:mix_shell, :info,
                          [
-                           "# Examples - mix deps.tree (2/2)\nhttps://hexdocs.pm/mix/1.20.0-rc.5/Mix.Tasks.Deps.Tree.html#module-examples\n\nTree docs.\n\n"
+                           "# Examples - mix deps.tree (2/2)\nhttps://mix.hexdocs.pm/1.20.0-rc.5/Mix.Tasks.Deps.Tree.html#module-examples\n\nTree docs.\n\n"
                          ]}
       end)
     end

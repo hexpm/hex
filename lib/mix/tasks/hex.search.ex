@@ -251,7 +251,7 @@ defmodule Mix.Tasks.Hex.Search do
   defp document_url(package, ref) do
     case :binary.split(package, "-") do
       [name, version] ->
-        "https://hexdocs.pm/#{Enum.join([name, version, ref], "/")}"
+        "https://#{name}.hexdocs.pm/#{version}/#{ref}"
 
       _ ->
         Mix.raise("Unexpected package search result format: #{inspect(package)}")

@@ -237,7 +237,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
         refute_received {:mix_shell, :info,
                          [
-                           "Docs will soon be available at https://hexdocs.pm/invalid_filename/0.1.0"
+                           "Docs will soon be available at https://invalid_filename.hexdocs.pm/0.1.0"
                          ]}
       end
     end)
@@ -258,7 +258,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
         refute_received {:mix_shell, :info,
                          [
-                           "Docs will soon be available at https://hexdocs.pm/invalid_dirname/0.1.0"
+                           "Docs will soon be available at https://invalid_dirname.hexdocs.pm/0.1.0"
                          ]}
       end
     end)
@@ -278,7 +278,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
         Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
 
         refute_received {:mix_shell, :info,
-                         ["Docs will soon be available at https://hexdocs.pm/ex_doc/0.1.0"]}
+                         ["Docs will soon be available at https://ex_doc.hexdocs.pm/0.1.0"]}
       end
     end)
   end
