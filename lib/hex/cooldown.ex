@@ -84,13 +84,50 @@ defmodule Hex.Cooldown do
   defp unit_seconds("mo"), do: 86_400 * 30
 
   @doc """
+  Picks the strictest (longest) duration from a list of `{tag, duration}`
+  candidates. `nil` and `""` durations are treated as `"0d"`.
+
+  Returns the chosen `{tag, duration}` so callers can attribute the
+  decision to its source (e.g. `:local` vs `{repo, name}`).
+  """
+  @spec strictest([{tag, String.t() | nil}]) :: {tag, String.t()} when tag: term()
+  def strictest(candidates) do
+    candidates
+    |> Enum.map(fn {tag, dur} -> {tag, normalize(dur), seconds(dur)} end)
+    |> Enum.max_by(&elem(&1, 2))
+    |> then(fn {tag, dur, _} -> {tag, dur} end)
+  end
+
+  defp normalize(nil), do: "0d"
+  defp normalize(""), do: "0d"
+  defp normalize(dur), do: dur
+
+  defp seconds(nil), do: 0
+  defp seconds(""), do: 0
+
+  defp seconds(dur) do
+    case duration_to_seconds(dur) do
+      {:ok, n} -> n
+      :error -> 0
+    end
+  end
+
+  @doc """
   Builds a resolution cutoff from the local cooldown configuration.
 
   Returns `:disabled` when the effective duration is zero.
   """
   @spec build_cutoff() :: cutoff()
-  def build_cutoff() do
-    case duration_to_seconds(Hex.State.fetch!(:cooldown)) do
+  def build_cutoff(), do: build_cutoff(Hex.State.fetch!(:cooldown))
+
+  @doc """
+  Builds a resolution cutoff from a duration string.
+
+  `build_cutoff/0` is equivalent to `build_cutoff(Hex.State.fetch!(:cooldown))`.
+  """
+  @spec build_cutoff(String.t() | nil) :: cutoff()
+  def build_cutoff(duration) do
+    case duration_to_seconds(duration || "0d") do
       {:ok, 0} ->
         :disabled
 

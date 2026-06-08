@@ -211,6 +211,60 @@ defmodule Hex.CooldownTest do
     end
   end
 
+  describe "strictest/1" do
+    test "picks the candidate with the longest duration" do
+      assert {{"myorg", "p"}, "14d"} ==
+               Cooldown.strictest([
+                 {:local, "7d"},
+                 {{"myorg", "p"}, "14d"},
+                 {{"myorg", "q"}, "3d"}
+               ])
+    end
+
+    test "treats nil and empty as zero" do
+      assert {:local, "7d"} ==
+               Cooldown.strictest([
+                 {:local, "7d"},
+                 {{"myorg", "p"}, nil},
+                 {{"myorg", "q"}, ""}
+               ])
+    end
+
+    test "uses policy when local is 0d" do
+      assert {{"myorg", "p"}, "14d"} ==
+               Cooldown.strictest([
+                 {:local, "0d"},
+                 {{"myorg", "p"}, "14d"}
+               ])
+    end
+
+    test "returns 0d when nothing is set" do
+      assert {:local, "0d"} ==
+               Cooldown.strictest([
+                 {:local, "0d"},
+                 {{"myorg", "p"}, nil}
+               ])
+    end
+
+    test "returns :local when nothing else contributes" do
+      assert {:local, "7d"} == Cooldown.strictest([{:local, "7d"}])
+    end
+
+    test "normalizes nil/empty local to 0d" do
+      assert {{"myorg", "p"}, "14d"} ==
+               Cooldown.strictest([
+                 {:local, nil},
+                 {{"myorg", "p"}, "14d"}
+               ])
+
+      assert {{"myorg", "p"}, "14d"} ==
+               Cooldown.strictest([
+                 {:local, ""},
+                 {{"myorg", "p"}, "14d"}
+               ])
+    end
+  end
+
   describe "format_summary/2" do
     test "returns nil for an empty list" do
       Hex.State.put(:cooldown, "7d")

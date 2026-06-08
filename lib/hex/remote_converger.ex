@@ -41,6 +41,14 @@ defmodule Hex.RemoteConverger do
 
     Registry.open()
 
+    case Hex.Policy.load_all() do
+      {:ok, policies} ->
+        Hex.State.put(:policies, policies)
+
+      {:error, reason} ->
+        Mix.raise(Hex.Policy.Diagnostics.format_load_error(reason))
+    end
+
     # We cannot use given lock here, because all deps that are being
     # converged have been removed from the lock by Mix
     # We need the old lock to get the children of Hex packages
@@ -88,7 +96,7 @@ defmodule Hex.RemoteConverger do
     solution =
       try do
         Hex.Solver.run(
-          Hex.Registry.Cooldown,
+          Hex.Registry.Policy,
           dependencies,
           locked,
           overridden,
@@ -106,24 +114,39 @@ defmodule Hex.RemoteConverger do
       {:ok, resolved} ->
         resolved = normalize_resolved(resolved)
         print_cooldown_summary()
+        print_policy_summary()
         solver_success(resolved, requests, lock, old_lock)
 
       {:error, message} ->
         Hex.Shell.info(message)
+
+        if note = Hex.Policy.Diagnostics.failure_note(Hex.State.fetch!(:policy_filtered_versions)) do
+          Hex.Shell.info("\n" <> note)
+        end
+
         print_cooldown_summary()
+        print_policy_summary()
         Mix.raise("Hex dependency resolution failed")
     end
   end
 
   defp setup_cooldown(old_lock, locked) do
-    cutoff = Hex.Cooldown.build_cutoff()
+    # The global cutoff covers only the local cooldown configuration. Policy
+    # cooldowns are per-repository restrictions enforced in Hex.Policy.Filter,
+    # so they are not folded into this cutoff; AND composition across the two
+    # filters yields the strictest minimum age per repository.
+    local = Hex.State.fetch!(:cooldown)
+    cutoff = Hex.Cooldown.build_cutoff(local)
     Hex.State.put(:cooldown_cutoff, cutoff)
 
     bypass = build_cooldown_bypass(old_lock, locked, cutoff)
     Hex.State.put(:cooldown_bypass_packages, bypass)
 
-    Hex.State.put(:cooldown_locked_versions, build_cooldown_locked_versions(old_lock))
+    locked_versions = build_cooldown_locked_versions(old_lock)
+    Hex.State.put(:cooldown_locked_versions, locked_versions)
+    Hex.State.put(:policy_locked_versions, locked_versions)
     Hex.State.put(:cooldown_filtered_versions, [])
+    Hex.State.put(:policy_filtered_versions, [])
   end
 
   @doc false
@@ -911,5 +934,18 @@ defmodule Hex.RemoteConverger do
 
   defp repo_uses_user_oauth?(repo_config) do
     Map.get(repo_config, :trusted, true) && !repo_config.auth_key
+  end
+
+  defp print_policy_summary() do
+    policies = Map.values(Hex.State.fetch!(:policies))
+
+    if policies != [] do
+      filtered = Hex.State.fetch!(:policy_filtered_versions)
+      local_cooldown = Hex.State.fetch!(:cooldown)
+
+      if summary = Hex.Policy.Diagnostics.resolution_summary(policies, filtered, local_cooldown) do
+        Hex.Shell.info(summary)
+      end
+    end
   end
 end

@@ -68,13 +68,29 @@ defmodule Mix.Tasks.Hex.Config do
       published more recently are filtered out of the candidate set when
       resolving dependencies. Does not apply to installs from an existing
       lockfile. Can be overridden by setting the environment variable
-      `HEX_COOLDOWN` (Default: `"0d"` — no cooldown)
+      `HEX_COOLDOWN` (Default: `"0d"` — no cooldown). See
+      https://hex.pm/docs/dependency-policies for the full guide.
     * `cooldown_exclude_repos` - List of repository names for which
       `cooldown` does not apply, e.g. `["hexpm:myorg"]`. Useful when an
       organization publishes hotfixes to its own repository and wants to
       consume them without cooldown delay. Can be overridden by setting
       the environment variable `HEX_COOLDOWN_EXCLUDE_REPOS` to a
-      comma-separated list (Default: `[]`)
+      comma-separated list (Default: `[]`). See
+      https://hex.pm/docs/dependency-policies for the full guide.
+    * `policy` - One or more policy references this Hex client should
+      honor at resolution time. The simplest way to set it is via
+      `mix hex.config policy <org>/<name>` (multiple policies are
+      comma-separated). The `mix.exs` `:hex` block accepts a richer
+      form: `policy: [repo: "<org>", name: "<name>"]` or a list of
+      such keyword lists. All three sources (`mix.exs`, `HEX_POLICY`,
+      and `~/.hex/hex.config`) are read independently and unioned —
+      every policy contributed by any source must pass for a release
+      to be allowed (AND composition; no source can subtract another).
+      See `mix hex.policy show` for a summary of the active set, or
+      https://hex.pm/docs/dependency-policies for the full guide.
+    * `HEX_POLICY` - Comma-separated `org/name` pairs that contribute
+      additional policies to the active set for this invocation. Example:
+      `HEX_POLICY=myorg/strict-prod,acme/baseline`.
 
   Hex responds to these additional environment variables:
 
@@ -177,23 +193,42 @@ defmodule Mix.Tasks.Hex.Config do
     Enum.each(valid_read_keys(), fn {config, _internal} ->
       read(config, true)
     end)
+
+    read(:policy, true)
   end
 
   defp read(key, verbose \\ false)
 
+  defp read(:policy, verbose), do: print_policy(verbose)
+
   defp read(key, verbose) when is_binary(key) do
-    key = String.to_atom(key)
+    case String.to_atom(key) do
+      :policy ->
+        print_policy(verbose)
 
-    case Keyword.fetch(valid_read_keys(), key) do
-      {:ok, internal} ->
-        fetch_current_value_and_print(internal, key, verbose)
+      atom ->
+        case Keyword.fetch(valid_read_keys(), atom) do
+          {:ok, internal} ->
+            fetch_current_value_and_print(internal, atom, verbose)
 
-      _error ->
-        Mix.raise("The key #{key} is not valid")
+          _error ->
+            Mix.raise("The key #{key} is not valid")
+        end
     end
   end
 
   defp read(key, verbose) when is_atom(key), do: read(to_string(key), verbose)
+
+  defp print_policy(verbose) do
+    case Hex.Policy.Sources.load_all() do
+      {:ok, refs} ->
+        rendered = Enum.map_join(refs, ",", fn {repo, name} -> "#{repo}/#{name}" end)
+        print_value(:policy, rendered, verbose, "(composed from all sources)")
+
+      :error ->
+        Mix.raise("Invalid policy configuration in one or more sources")
+    end
+  end
 
   defp fetch_current_value_and_print(internal, key, verbose) do
     case Map.fetch(Hex.State.get_all(), internal) do
@@ -222,18 +257,33 @@ defmodule Mix.Tasks.Hex.Config do
   defp delete(key) do
     key = String.to_atom(key)
 
-    if Keyword.has_key?(valid_write_keys(), key) do
-      Hex.Config.remove([key])
+    cond do
+      key == :policy ->
+        Hex.Config.remove([:policy])
+
+      Keyword.has_key?(valid_write_keys(), key) ->
+        Hex.Config.remove([key])
+
+      true ->
+        :ok
     end
   end
 
   defp set(key, value) do
     key = String.to_atom(key)
 
-    if Keyword.has_key?(valid_write_keys(), key) do
-      Hex.Config.update([{key, value}])
-    else
-      Mix.raise("Invalid key #{key}")
+    cond do
+      key == :policy ->
+        case Hex.Policy.Sources.parse_config(value) do
+          {:ok, _refs} -> Hex.Config.update(policy: value)
+          :error -> Mix.raise("Invalid policy value: #{inspect(value)}")
+        end
+
+      Keyword.has_key?(valid_write_keys(), key) ->
+        Hex.Config.update([{key, value}])
+
+      true ->
+        Mix.raise("Invalid key #{key}")
     end
   end
 

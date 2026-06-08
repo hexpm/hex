@@ -78,6 +78,7 @@ defmodule Hex.Repo do
     |> Map.put(:oauth_exchange, oauth_exchange)
     |> Map.put(:oauth_exchange_url, oauth_exchange_url)
     |> Map.put(:trusted, Map.has_key?(repo, :auth_key) or source.trusted)
+    |> Map.put(:organization, name)
   end
 
   def hexpm_repo() do
@@ -197,7 +198,7 @@ defmodule Hex.Repo do
   defp clean_repo(repo, default) do
     repo
     |> clean_expired_oauth_token()
-    |> Map.delete(:trusted)
+    |> Map.drop([:trusted, :organization])
     |> Enum.reject(fn {key, value} -> value in [nil, Map.get(default, key)] end)
     |> Map.new()
   end
@@ -226,6 +227,32 @@ defmodule Hex.Repo do
     repo_config = get_repo(repo)
     config = build_hex_core_config(repo_config, repo, etag)
     :mix_hex_repo.get_package(config, package)
+  end
+
+  @doc """
+  Fetches a policy resource from the given repo.
+
+  Requires the repo to be an organization-scoped config (`hexpm:myorg`
+  on hex.pm). The underlying `:mix_hex_repo.get_policy/2` returns
+  `{:error, :missing_repo_organization}` if `repo_organization` is unset.
+  """
+  def get_policy(repo, name, etag) do
+    repo_config = get_repo(repo)
+    config = build_hex_core_config(repo_config, repo, etag)
+    config = put_repo_organization(config, repo_config)
+    :mix_hex_repo.get_policy(config, name)
+  end
+
+  defp put_repo_organization(config, repo_config) do
+    case Map.get(repo_config, :organization) do
+      nil ->
+        config
+
+      organization ->
+        suffix = "/repos/#{organization}"
+        base_url = String.replace_suffix(repo_config.url, suffix, "")
+        %{config | repo_url: base_url, repo_organization: organization}
+    end
   end
 
   def get_docs(repo, package, version) do

@@ -142,6 +142,24 @@ defmodule Hex.State do
       default: [],
       skip_env_if_empty: true,
       fun: {Hex.Cooldown, :parse_exclude_repos}
+    },
+    policy_project: %{
+      config: [:policy],
+      config_scope: :project,
+      default: [],
+      fun: {Hex.Policy.Sources, :parse_config}
+    },
+    policy_env: %{
+      env: ["HEX_POLICY"],
+      skip_env_if_empty: true,
+      default: [],
+      fun: {Hex.Policy.Sources, :parse_config}
+    },
+    policy_global: %{
+      config: [:policy],
+      config_scope: :global,
+      default: [],
+      fun: {Hex.Policy.Sources, :parse_config}
     }
   }
 
@@ -175,7 +193,10 @@ defmodule Hex.State do
       pbkdf2_iters: {:computed, @pbkdf2_iters},
       repos: {:computed, Hex.Config.read_repos(global_config)},
       ssl_version: {:computed, ssl_version()},
-      shell_process: {:computed, nil}
+      shell_process: {:computed, nil},
+      policies: {:computed, %{}},
+      policy_filtered_versions: {:computed, []},
+      policy_locked_versions: {:computed, %{}}
     })
   end
 
@@ -249,8 +270,8 @@ defmodule Hex.State do
 
     result =
       load_env(spec[:env], env, spec[:skip_env_if_empty]) ||
-        load_project_config(project_config, spec[:config]) ||
-        load_global_config(global_config, spec[:config])
+        maybe_load_project(project_config, spec) ||
+        maybe_load_global(global_config, spec)
 
     {module, func} = spec[:fun] || {__MODULE__, :ok_wrap}
 
@@ -292,6 +313,12 @@ defmodule Hex.State do
     |> Hex.State.fetch!()
     |> Path.join("hex.config")
   end
+
+  defp maybe_load_project(_config, %{config_scope: :global}), do: nil
+  defp maybe_load_project(config, spec), do: load_project_config(config, spec[:config])
+
+  defp maybe_load_global(_config, %{config_scope: :project}), do: nil
+  defp maybe_load_global(config, spec), do: load_global_config(config, spec[:config])
 
   defp load_env(keys, env, skip_if_empty) do
     Enum.find_value(keys || [], fn key ->
