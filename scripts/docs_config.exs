@@ -19,7 +19,7 @@ nodes =
   |> Enum.filter(&(Version.compare(&1, min_version) in [:gt, :eq]))
   |> Enum.sort({:desc, Version})
   |> Enum.map_join(", ", fn version ->
-    ~s({"version":"v#{version}", "url":"https://hexdocs.pm/#{project}/#{version}"})
+    ~s({"version":"v#{version}", "url":"https://#{String.replace(project, "_", "-")}.hexdocs.pm/#{version}"})
   end)
 
 IO.puts("var versionNodes = [#{nodes}];")

@@ -20,7 +20,7 @@ This document simply outlines the release process:
 
 9. Run the `scripts/release_hex.sh` script and set the path to the private key for Elixir `ELIXIR_PEM=path/to/elixir.pem ./scripts/release_hex.sh VERSION` where `VERSION` is the Hex version being released without a `v` prefix
 
-10. Publish the documentation to https://hexdocs.pm/hex: `./scripts/release_docs.sh VERSION`
+10. Publish the documentation to https://hex.hexdocs.pm: `./scripts/release_docs.sh VERSION`
 
 11. Increment version and add `-dev` extension to versions (see below for all files)
 

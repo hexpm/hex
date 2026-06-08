@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Build and publish Hex's own documentation to https://hexdocs.pm/hex.
+# Build and publish Hex's own documentation to https://hex.hexdocs.pm.
 #
 # Hex is distributed as an archive rather than a registry package, so its docs
 # can't be published with `mix hex.publish docs`. Instead they are built with
@@ -68,7 +68,7 @@ function main {
 
   purge "${surrogate_key}"
 
-  echo "Published https://hexdocs.pm/hex/${version}"
+  echo "Published https://hex.hexdocs.pm/${version}"
 }
 
 # Build hex's docs for $ref into ./doc using ExDoc inside a pinned container.
