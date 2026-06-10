@@ -3,10 +3,10 @@ defmodule Mix.Tasks.Hex.Policy do
 
   alias Hex.Policy.{Diagnostics, Filter}
 
-  @shortdoc "Inspects active Hex dependency policies"
+  @shortdoc "Inspects the active Hex dependency policy"
 
   @moduledoc """
-  Shows the active Hex policy set and explains why specific versions
+  Shows the active Hex policy and explains why specific versions
   are blocked.
 
       $ mix hex.policy [show]
@@ -14,20 +14,18 @@ defmodule Mix.Tasks.Hex.Policy do
 
   ## Commands
 
-    * `show` (default) — Summarize the active policy set: per-policy
-      visibility, source, and the per-repository restrictions (cooldown,
-      advisory, retirement) and override counts, plus the effective
-      cooldown.
+    * `show` (default) — Summarize the active policy: visibility and the
+      per-repository restrictions (cooldown, advisory, retirement) and
+      override counts, plus the effective cooldown.
     * `why PACKAGE` — Walk every version of the named package in the
-      registry, classify each against every active policy, and print a
-      per-version table of status and responsible policies.
+      registry, classify each against the active policy, and print a
+      per-version table of status and the reasons it is blocked.
 
   ## Opting in
 
-  Three configuration sources contribute to the active policy set.
-  All three are read independently and unioned — every policy
-  contributed by any source must pass for a release to be allowed
-  (AND composition; no source can subtract from another):
+  A project opts into a single policy. It is configured like any other
+  Hex setting, with the usual precedence (`HEX_POLICY` env var, then
+  `mix.exs`, then `mix hex.config`):
 
     * `mix.exs` `:hex` block:
 
@@ -35,9 +33,9 @@ defmodule Mix.Tasks.Hex.Policy do
             [hex: [policy: [repo: "myorg", name: "strict-prod"]]]
           end
 
-    * `HEX_POLICY` env var (comma-separated `org/name` pairs):
+    * `HEX_POLICY` env var (an `org/name` pair):
 
-          $ HEX_POLICY=myorg/strict-prod,acme/baseline mix deps.get
+          $ HEX_POLICY=myorg/strict-prod mix deps.get
 
     * `mix hex.config`:
 
@@ -64,38 +62,33 @@ defmodule Mix.Tasks.Hex.Policy do
   @impl true
   def tasks() do
     [
-      {"", "Shows the active policy set"},
-      {"show", "Shows the active policy set"},
-      {"why PACKAGE", "Shows which versions of PACKAGE are blocked by active policies"}
+      {"", "Shows the active policy"},
+      {"show", "Shows the active policy"},
+      {"why PACKAGE", "Shows which versions of PACKAGE are blocked by the active policy"}
     ]
   end
 
   defp show() do
     case Hex.Policy.active() do
-      {:ok, policies_map} when map_size(policies_map) > 0 ->
-        render_show(policies_map)
+      {:ok, nil} ->
+        Hex.Shell.info("No active policy configured.")
 
-      {:ok, _} ->
-        Hex.Shell.info("No active policies configured.")
-
-      {:error, reason} ->
-        Mix.raise(Diagnostics.format_load_error(reason))
+      {:ok, policy} ->
+        render_show(policy)
     end
   end
 
-  defp render_show(policies_map) do
-    policies = Map.values(policies_map)
-    Hex.Shell.info("Active policies (#{length(policies)}):\n")
+  defp render_show(policy) do
+    Hex.Shell.info(
+      "Active policy: #{policy.repository}/#{policy.name} [#{visibility_label(policy.visibility)}]\n"
+    )
 
-    Enum.each(policies, fn p ->
-      Hex.Shell.info("  #{p.repository}/#{p.name} [#{visibility_label(p.visibility)}]")
-      render_repositories(p)
-      Hex.Shell.info("")
-    end)
+    render_repositories(policy)
+    Hex.Shell.info("")
 
     local = Hex.State.fetch!(:cooldown)
 
-    case Diagnostics.effective_cooldown(policies, local) do
+    case Diagnostics.effective_cooldown(policy, local) do
       nil ->
         :ok
 
@@ -129,23 +122,20 @@ defmodule Mix.Tasks.Hex.Policy do
     {repo, package} = parse_package_arg(arg)
 
     case Hex.Policy.active() do
-      {:ok, policies_map} when map_size(policies_map) > 0 ->
+      {:ok, nil} ->
+        Hex.Shell.info("No active policy configured.")
+
+      {:ok, policy} ->
         Hex.Registry.Server.open()
         Hex.Registry.Server.prefetch([{repo, package}])
 
         case Hex.Registry.Server.versions(repo, package) do
           {:ok, versions} ->
-            render_why(repo, package, versions, Map.values(policies_map))
+            render_why(repo, package, versions, policy)
 
           :error ->
             Mix.raise("No package with name #{package} in registry")
         end
-
-      {:ok, _} ->
-        Hex.Shell.info("No active policies configured.")
-
-      {:error, reason} ->
-        Mix.raise(Diagnostics.format_load_error(reason))
     end
   end
 
@@ -162,7 +152,7 @@ defmodule Mix.Tasks.Hex.Policy do
     end
   end
 
-  defp render_why(repo, package, versions, policies) do
+  defp render_why(repo, package, versions, policy) do
     Hex.Shell.info("Versions of #{inspect(package)} (#{length(versions)}):")
     Hex.Shell.info("")
 
@@ -171,18 +161,18 @@ defmodule Mix.Tasks.Hex.Policy do
         version = to_string(v)
         candidate = Filter.candidate_from_registry(repo, package, version)
 
-        case Filter.classify_set(policies, candidate) do
+        case Filter.classify(policy, candidate) do
           :allowed ->
             [version, "ALLOWED", ""]
 
-          {:blocked, blockers} ->
-            blocker_text =
-              blockers
-              |> Enum.map(&Diagnostics.format_blocker/1)
+          {:blocked, reasons} ->
+            reason_text =
+              reasons
+              |> Enum.map(&Diagnostics.format_reason/1)
               |> Enum.uniq()
               |> Enum.join(", ")
 
-            [version, "BLOCKED", blocker_text]
+            [version, "BLOCKED", reason_text]
         end
       end)
 

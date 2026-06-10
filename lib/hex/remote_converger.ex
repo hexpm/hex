@@ -41,13 +41,8 @@ defmodule Hex.RemoteConverger do
 
     Registry.open()
 
-    case Hex.Policy.load_all() do
-      {:ok, policies} ->
-        Hex.State.put(:policies, policies)
-
-      {:error, reason} ->
-        Mix.raise(Hex.Policy.Diagnostics.format_load_error(reason))
-    end
+    {:ok, policy} = Hex.Policy.load()
+    Hex.State.put(:active_policy, policy)
 
     # We cannot use given lock here, because all deps that are being
     # converged have been removed from the lock by Mix
@@ -937,15 +932,17 @@ defmodule Hex.RemoteConverger do
   end
 
   defp print_policy_summary() do
-    policies = Map.values(Hex.State.fetch!(:policies))
+    case Hex.State.fetch!(:active_policy) do
+      nil ->
+        :ok
 
-    if policies != [] do
-      filtered = Hex.State.fetch!(:policy_filtered_versions)
-      local_cooldown = Hex.State.fetch!(:cooldown)
+      policy ->
+        filtered = Hex.State.fetch!(:policy_filtered_versions)
+        local_cooldown = Hex.State.fetch!(:cooldown)
 
-      if summary = Hex.Policy.Diagnostics.resolution_summary(policies, filtered, local_cooldown) do
-        Hex.Shell.info(summary)
-      end
+        if summary = Hex.Policy.Diagnostics.resolution_summary(policy, filtered, local_cooldown) do
+          Hex.Shell.info(summary)
+        end
     end
   end
 end

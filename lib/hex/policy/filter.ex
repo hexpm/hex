@@ -19,7 +19,6 @@ defmodule Hex.Policy.Filter do
           | {:retirement, atom()}
           | {:cooldown, String.t(), Date.t() | nil}
           | :override_deny
-  @type blocker :: %{policy: policy(), reason: reason()}
 
   @doc """
   Classifies a single candidate release against a single policy.
@@ -47,27 +46,9 @@ defmodule Hex.Policy.Filter do
   end
 
   @doc """
-  Classifies a candidate against the active set of policies, ANDing across.
-
-  Returns `:allowed` (no policy blocks) or `{:blocked, [blocker]}` where
-  each blocker names the responsible policy and the reason it fired.
-  """
-  @spec classify_set([policy()], candidate(), keyword()) ::
-          :allowed | {:blocked, [blocker()]}
-  def classify_set(policies, candidate, opts \\ []) do
-    blockers =
-      for policy <- policies,
-          {:blocked, reasons} <- [classify(policy, candidate, opts)],
-          reason <- reasons,
-          do: %{policy: policy, reason: reason}
-
-    if blockers == [], do: :allowed, else: {:blocked, blockers}
-  end
-
-  @doc """
-  Builds a candidate map for `classify/3` and `classify_set/3` from the
-  registry. Carries the metadata the restriction reads: advisories,
-  retirement status, and publish time.
+  Builds a candidate map for `classify/3` from the registry. Carries the
+  metadata the restriction reads: advisories, retirement status, and publish
+  time.
   """
   @spec candidate_from_registry(String.t() | nil, String.t(), term()) :: candidate()
   def candidate_from_registry(repo, package, version) do

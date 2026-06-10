@@ -16,12 +16,9 @@ defmodule Hex.Registry.Policy do
   def versions(repo, package) do
     case Cooldown.versions(repo, package) do
       {:ok, versions} ->
-        policies = Map.values(Hex.State.fetch!(:policies))
-
-        if policies == [] do
-          {:ok, versions}
-        else
-          {:ok, filter(versions, repo, package, policies)}
+        case Hex.State.fetch!(:active_policy) do
+          nil -> {:ok, versions}
+          policy -> {:ok, filter(versions, repo, package, policy)}
         end
 
       :error ->
@@ -29,7 +26,7 @@ defmodule Hex.Registry.Policy do
     end
   end
 
-  defp filter(versions, repo, package, policies) do
+  defp filter(versions, repo, package, policy) do
     locked = locked_versions(repo, package)
 
     Enum.filter(versions, fn version ->
@@ -38,12 +35,12 @@ defmodule Hex.Registry.Policy do
       else
         candidate = Filter.candidate_from_registry(repo, package, version)
 
-        case Filter.classify_set(policies, candidate) do
+        case Filter.classify(policy, candidate) do
           :allowed ->
             true
 
-          {:blocked, blockers} ->
-            record_block(repo, package, version, blockers)
+          {:blocked, reasons} ->
+            record_block(repo, package, version, reasons)
             false
         end
       end
@@ -57,12 +54,12 @@ defmodule Hex.Registry.Policy do
     |> Map.get({repo || "hexpm", package}, [])
   end
 
-  defp record_block(repo, package, version, blockers) do
+  defp record_block(repo, package, version, reasons) do
     entry = %{
       repo: repo || "hexpm",
       package: package,
       version: to_string(version),
-      blockers: blockers
+      reasons: reasons
     }
 
     Hex.State.update!(:policy_filtered_versions, &[entry | &1])

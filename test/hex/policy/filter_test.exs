@@ -161,42 +161,4 @@ defmodule Hex.Policy.FilterTest do
       assert {:blocked, _} = Filter.classify(p, c)
     end
   end
-
-  describe "classify_set/3" do
-    defp set_policy(name, severity) do
-      policy(tab(restriction: %{advisory_min_severity: severity}), name: name)
-    end
-
-    test "blocks if any policy blocks" do
-      p1 = set_policy("a", :SEVERITY_HIGH)
-      p2 = set_policy("b", :SEVERITY_CRITICAL)
-      c = candidate(advisories: [%{severity: :SEVERITY_HIGH}])
-
-      assert {:blocked, blockers} = Filter.classify_set([p1, p2], c)
-      assert length(blockers) == 1
-      assert hd(blockers).policy.name == "a"
-    end
-
-    test "lists every blocking policy when multiple block" do
-      p1 = set_policy("a", :SEVERITY_HIGH)
-      p2 = set_policy("b", :SEVERITY_MEDIUM)
-      c = candidate(advisories: [%{severity: :SEVERITY_HIGH}])
-
-      assert {:blocked, blockers} = Filter.classify_set([p1, p2], c)
-      assert length(blockers) == 2
-      assert Enum.any?(blockers, &(&1.policy.name == "a"))
-      assert Enum.any?(blockers, &(&1.policy.name == "b"))
-    end
-
-    test "allows when all policies allow" do
-      p1 = set_policy("a", :SEVERITY_CRITICAL)
-      p2 = set_policy("b", :SEVERITY_CRITICAL)
-      c = candidate(advisories: [%{severity: :SEVERITY_HIGH}])
-      assert :allowed == Filter.classify_set([p1, p2], c)
-    end
-
-    test "allows with no policies" do
-      assert :allowed == Filter.classify_set([], candidate())
-    end
-  end
 end

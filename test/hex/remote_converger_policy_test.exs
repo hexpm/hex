@@ -1,7 +1,7 @@
 defmodule Hex.RemoteConvergerPolicyTest do
   use HexTest.Case
 
-  test "with no policies configured, Hex.Policy.load_all returns empty" do
+  test "with no policy configured, Hex.Policy.load returns nil" do
     in_tmp("remote_converger_no_policy", fn ->
       Hex.State.put(:config_home, File.cwd!())
       original = System.get_env("HEX_POLICY")
@@ -9,7 +9,7 @@ defmodule Hex.RemoteConvergerPolicyTest do
 
       try do
         Hex.State.refresh()
-        assert {:ok, %{}} = Hex.Policy.load_all()
+        assert {:ok, nil} = Hex.Policy.load()
       after
         case original do
           nil -> System.delete_env("HEX_POLICY")

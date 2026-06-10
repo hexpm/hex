@@ -1,80 +1,103 @@
 defmodule Hex.Policy do
   @moduledoc false
 
-  alias Hex.Policy.Sources
   alias Hex.Registry.Server, as: Registry
 
+  @type ref :: {repo :: String.t(), name :: String.t()}
+
   @doc """
-  Reads the configured policy refs from all sources (project, env,
-  global), unions them, fetches each policy through the registry,
-  and returns the active set as a `%{ref => policy}` map.
+  Parses a `policy` configuration value into a `{repo, name}` ref.
 
-  Returns `{:error, :invalid_policy_config}` if any source has a
-  malformed value. Fetch failures with no usable cache raise through
-  the registry's standard fetch error path.
+  Accepts:
+    * a keyword list `[repo: "myorg", name: "strict-prod"]` (mix.exs form)
+    * a `"repo/name"` string (env-var / `mix hex.config` form)
+    * `nil` or `""` (no policy)
+
+  Returns `{:ok, ref}`, `{:ok, nil}`, or `:error`. The bare `"hexpm"` repo is
+  rejected because the global hexpm has no organization-scoped policies;
+  policies live under `hexpm:<org>` (or any non-`hexpm` repo for self-hosted
+  setups).
   """
-  @spec load_all() :: {:ok, %{Sources.ref() => map()}} | {:error, term()}
-  def load_all() do
-    case Sources.load_all() do
-      {:ok, []} ->
-        {:ok, %{}}
+  @spec parse_config(term()) :: {:ok, ref() | nil} | :error
+  def parse_config(nil), do: {:ok, nil}
+  def parse_config(""), do: {:ok, nil}
+  def parse_config([]), do: {:ok, nil}
 
-      {:ok, refs} ->
-        Registry.open()
-        Registry.prefetch_policies(refs)
+  def parse_config(string) when is_binary(string) do
+    case String.split(String.trim(string), "/") do
+      [repo, name]
+      when byte_size(repo) > 0 and byte_size(name) > 0 and repo != "hexpm" ->
+        {:ok, {repo, name}}
 
-        policies =
-          Enum.reduce(refs, %{}, fn {repo, name} = ref, acc ->
-            case Registry.policy(repo, name) do
-              {:ok, decoded} -> Map.put(acc, ref, decoded)
-              :error -> acc
-            end
-          end)
-
-        {:ok, policies}
-
-      :error ->
-        {:error, :invalid_policy_config}
+      _ ->
+        :error
     end
   end
 
+  def parse_config([{key, _} | _] = kw) when is_atom(key) do
+    case {Keyword.get(kw, :repo), Keyword.get(kw, :name)} do
+      {"hexpm", _name} ->
+        :error
+
+      {repo, name} when is_binary(repo) and is_binary(name) and repo != "" and name != "" ->
+        {:ok, {repo, name}}
+
+      _ ->
+        :error
+    end
+  end
+
+  def parse_config(_), do: :error
+
   @doc """
-  Returns the active policy set, lazy-loading and caching it in
-  `Hex.State` on first call.
+  Reads the configured policy ref from `Hex.State`, fetches it through the
+  registry, and returns the decoded policy (or `nil` when none is configured
+  or the fetch yields nothing).
 
-  When the remote converger has already populated `:policies` (the
-  normal `mix deps.get` path) this is a cheap state read. When called
-  standalone (e.g. from `mix hex.policy show`) and the configured
-  source list is non-empty it triggers the registry fetch and stores
-  the result for subsequent calls.
+  Fetch failures with no usable cache raise through the registry's standard
+  fetch error path.
   """
-  @spec active() :: {:ok, %{Sources.ref() => map()}} | {:error, term()}
-  def active() do
-    loaded = Hex.State.fetch!(:policies)
+  @spec load() :: {:ok, map() | nil}
+  def load() do
+    case Hex.State.fetch!(:policy) do
+      nil ->
+        {:ok, nil}
 
-    cond do
-      loaded != %{} ->
-        {:ok, loaded}
+      {repo, name} = ref ->
+        Registry.open()
+        Registry.prefetch_policies([ref])
 
-      configured_refs() == [] ->
-        {:ok, %{}}
-
-      true ->
-        case load_all() do
-          {:ok, policies_map} ->
-            Hex.State.put(:policies, policies_map)
-            {:ok, policies_map}
-
-          {:error, _} = err ->
-            err
+        case Registry.policy(repo, name) do
+          {:ok, decoded} -> {:ok, decoded}
+          :error -> {:ok, nil}
         end
     end
   end
 
-  defp configured_refs() do
-    case Sources.load_all() do
-      {:ok, refs} -> refs
-      :error -> []
+  @doc """
+  Returns the active policy, lazy-loading and caching it in `Hex.State` on
+  first call.
+
+  When the remote converger has already populated `:active_policy` (the normal
+  `mix deps.get` path) this is a cheap state read. When called standalone (e.g.
+  from `mix hex.policy show`) and a policy is configured it triggers the
+  registry fetch and stores the result for subsequent calls.
+  """
+  @spec active() :: {:ok, map() | nil}
+  def active() do
+    loaded = Hex.State.fetch!(:active_policy)
+
+    cond do
+      loaded != nil ->
+        {:ok, loaded}
+
+      Hex.State.fetch!(:policy) == nil ->
+        {:ok, nil}
+
+      true ->
+        {:ok, policy} = load()
+        Hex.State.put(:active_policy, policy)
+        {:ok, policy}
     end
   end
 end

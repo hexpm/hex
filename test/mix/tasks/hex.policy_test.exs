@@ -3,40 +3,38 @@ defmodule Mix.Tasks.Hex.PolicyTest do
   import ExUnit.CaptureIO
 
   setup do
-    Hex.State.put(:policies, %{})
+    Hex.State.put(:active_policy, nil)
     Mix.shell(Mix.Shell.IO)
     on_exit(fn -> Mix.shell(Hex.Shell.Process) end)
     :ok
   end
 
   describe "show" do
-    test "prints 'no active policies' message when empty" do
+    test "prints 'no active policy' message when empty" do
       out = capture_io(fn -> Mix.Tasks.Hex.Policy.run(["show"]) end)
-      assert out =~ "No active policies"
+      assert out =~ "No active policy"
     end
 
-    test "prints active set with key fields" do
-      Hex.State.put(:policies, %{
-        {"hexpm:myorg", "strict-prod"} => %{
-          repository: "myorg",
-          name: "strict-prod",
-          visibility: :VISIBILITY_PUBLIC,
-          repositories: [
-            %{
-              repository: "hexpm",
-              restriction: %{
-                cooldown: "14d",
-                advisory_min_severity: :SEVERITY_HIGH,
-                retirement_reasons: [:RETIRED_INVALID, :RETIRED_SECURITY]
-              },
-              overrides: []
-            }
-          ]
-        }
+    test "prints the active policy with key fields" do
+      Hex.State.put(:active_policy, %{
+        repository: "myorg",
+        name: "strict-prod",
+        visibility: :VISIBILITY_PUBLIC,
+        repositories: [
+          %{
+            repository: "hexpm",
+            restriction: %{
+              cooldown: "14d",
+              advisory_min_severity: :SEVERITY_HIGH,
+              retirement_reasons: [:RETIRED_INVALID, :RETIRED_SECURITY]
+            },
+            overrides: []
+          }
+        ]
       })
 
       out = capture_io(fn -> Mix.Tasks.Hex.Policy.run(["show"]) end)
-      assert out =~ "Active policies"
+      assert out =~ "Active policy"
       assert out =~ "myorg/strict-prod"
       assert out =~ "public"
       assert out =~ "14d"
@@ -45,7 +43,7 @@ defmodule Mix.Tasks.Hex.PolicyTest do
 
     test "default (no subcommand) is show" do
       out = capture_io(fn -> Mix.Tasks.Hex.Policy.run([]) end)
-      assert out =~ "No active policies" || out =~ "Active policies"
+      assert out =~ "No active policy" || out =~ "Active policy"
     end
   end
 
@@ -57,12 +55,10 @@ defmodule Mix.Tasks.Hex.PolicyTest do
     end
 
     test "rejects empty halves like myorg/ or /pkg" do
-      Hex.State.put(:policies, %{
-        {"hexpm:myorg", "strict-prod"} => %{
-          repository: "myorg",
-          name: "strict-prod",
-          visibility: :VISIBILITY_PUBLIC
-        }
+      Hex.State.put(:active_policy, %{
+        repository: "myorg",
+        name: "strict-prod",
+        visibility: :VISIBILITY_PUBLIC
       })
 
       assert_raise Mix.Error, ~r/Invalid package argument/, fn ->

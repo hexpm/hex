@@ -143,23 +143,12 @@ defmodule Hex.State do
       skip_env_if_empty: true,
       fun: {Hex.Cooldown, :parse_exclude_repos}
     },
-    policy_project: %{
-      config: [:policy],
-      config_scope: :project,
-      default: [],
-      fun: {Hex.Policy.Sources, :parse_config}
-    },
-    policy_env: %{
+    policy: %{
       env: ["HEX_POLICY"],
-      skip_env_if_empty: true,
-      default: [],
-      fun: {Hex.Policy.Sources, :parse_config}
-    },
-    policy_global: %{
       config: [:policy],
-      config_scope: :global,
-      default: [],
-      fun: {Hex.Policy.Sources, :parse_config}
+      skip_env_if_empty: true,
+      default: nil,
+      fun: {Hex.Policy, :parse_config}
     }
   }
 
@@ -194,7 +183,7 @@ defmodule Hex.State do
       repos: {:computed, Hex.Config.read_repos(global_config)},
       ssl_version: {:computed, ssl_version()},
       shell_process: {:computed, nil},
-      policies: {:computed, %{}},
+      active_policy: {:computed, nil},
       policy_filtered_versions: {:computed, []},
       policy_locked_versions: {:computed, %{}}
     })

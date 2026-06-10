@@ -220,15 +220,21 @@ defmodule Mix.Tasks.Hex.Config do
   defp read(key, verbose) when is_atom(key), do: read(to_string(key), verbose)
 
   defp print_policy(verbose) do
-    case Hex.Policy.Sources.load_all() do
-      {:ok, refs} ->
-        rendered = Enum.map_join(refs, ",", fn {repo, name} -> "#{repo}/#{name}" end)
-        print_value(:policy, rendered, verbose, "(composed from all sources)")
+    {source, ref} = Map.fetch!(Hex.State.get_all(), :policy)
 
-      :error ->
-        Mix.raise("Invalid policy configuration in one or more sources")
-    end
+    rendered =
+      case ref do
+        nil -> nil
+        {repo, name} -> "#{repo}/#{name}"
+      end
+
+    print_value(:policy, rendered, verbose, policy_source(source))
   end
+
+  defp policy_source({:env, env_var}), do: "(using `#{env_var}`)"
+  defp policy_source({:global_config, _key}), do: "(using `#{config_path()}`)"
+  defp policy_source({:project_config, _key}), do: "(using `mix.exs`)"
+  defp policy_source(kind) when kind in [:default, :computed], do: "(default)"
 
   defp fetch_current_value_and_print(internal, key, verbose) do
     case Map.fetch(Hex.State.get_all(), internal) do
@@ -274,8 +280,8 @@ defmodule Mix.Tasks.Hex.Config do
 
     cond do
       key == :policy ->
-        case Hex.Policy.Sources.parse_config(value) do
-          {:ok, _refs} -> Hex.Config.update(policy: value)
+        case Hex.Policy.parse_config(value) do
+          {:ok, _ref} -> Hex.Config.update(policy: value)
           :error -> Mix.raise("Invalid policy value: #{inspect(value)}")
         end
 

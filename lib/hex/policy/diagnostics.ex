@@ -7,83 +7,85 @@ defmodule Hex.Policy.Diagnostics do
           repo: String.t(),
           package: String.t(),
           version: String.t(),
-          blockers: [%{policy: map(), reason: term()}]
+          reasons: [term()]
         }
 
   @doc """
-  Builds the resolution summary block. Returns `nil` when no policies
-  are loaded or nothing was filtered.
+  Builds the resolution summary block. Returns `nil` when no policy is loaded
+  or nothing was filtered.
 
-  `policies` is a list of decoded policy maps; `filtered` is the
-  list of `%{repo, package, version, blockers}` entries recorded by
-  Hex.Registry.Policy.
+  `policy` is the decoded policy map (or `nil`); `filtered` is the list of
+  `%{repo, package, version, reasons}` entries recorded by Hex.Registry.Policy.
   """
-  @spec resolution_summary([map()], [filtered_entry()], String.t() | nil) ::
+  @spec resolution_summary(map() | nil, [filtered_entry()], String.t() | nil) ::
           String.t() | nil
-  def resolution_summary([], _filtered, _local_cooldown), do: nil
+  def resolution_summary(nil, _filtered, _local_cooldown), do: nil
 
-  def resolution_summary(policies, filtered, local_cooldown) do
-    refs =
-      policies
-      |> Enum.map(fn p -> "#{p.repository}/#{p.name}" end)
-      |> Enum.sort()
+  def resolution_summary(policy, filtered, local_cooldown) do
+    ref = "#{policy.repository}/#{policy.name}"
+    header = "Active policy: #{ref}"
 
-    header = "Active policies: #{Enum.join(refs, ", ")} (#{length(policies)})"
-
-    cooldown_line = effective_cooldown_line(policies, local_cooldown)
+    cooldown_line = effective_cooldown_line(policy, local_cooldown)
 
     hidden_line =
       if filtered != [] do
-        "Policies hid #{length(filtered)} candidate versions"
+        "Policy hid #{length(filtered)} candidate versions"
       end
 
-    per_policy_lines = per_policy_breakdown(filtered, policies)
+    breakdown_line =
+      if filtered != [] do
+        reasons = for entry <- filtered, reason <- entry.reasons, do: reason
+        "  #{ref}: #{length(reasons)} (#{reason_breakdown(reasons)})"
+      end
 
-    [header, cooldown_line, hidden_line | per_policy_lines]
+    [header, cooldown_line, hidden_line, breakdown_line]
     |> Enum.reject(&is_nil/1)
     |> Enum.join("\n")
   end
 
   @doc """
-  Computes the effective cooldown across the local configuration and every
-  active policy, returning `{source, duration}` or `nil` when zero.
+  Computes the effective cooldown across the local configuration and the active
+  policy, returning `{source, duration}` or `nil` when zero.
 
-  Each policy contributes the strictest cooldown across its repository tabs.
+  The policy contributes the strictest cooldown across its repository tabs.
   """
-  @spec effective_cooldown([map()], String.t() | nil) ::
+  @spec effective_cooldown(map() | nil, String.t() | nil) ::
           {:local | {String.t(), String.t()}, String.t()} | nil
-  def effective_cooldown(policies, local_cooldown) do
-    case Cooldown.strictest([{:local, local_cooldown} | policy_cooldowns(policies)]) do
+  def effective_cooldown(policy, local_cooldown) do
+    case Cooldown.strictest([{:local, local_cooldown} | policy_cooldown(policy)]) do
       {_source, "0d"} -> nil
       result -> result
     end
   end
 
-  @doc """
-  Returns `{tag, duration}` cooldown candidates from each policy, where the
-  duration is the strictest across that policy's repository tabs and the tag
-  is `{repository, name}`.
-  """
-  @spec policy_cooldowns([map()]) :: [{{String.t(), String.t()}, String.t()}]
-  def policy_cooldowns(policies) do
-    Enum.map(policies, fn p ->
-      durations =
-        for rp <- Map.get(p, :repositories, []),
-            restriction = Map.get(rp, :restriction),
-            restriction != nil,
-            duration = Map.get(restriction, :cooldown),
-            is_binary(duration),
-            do: duration
+  # Returns a single `{{repo, name}, duration}` cooldown candidate for the
+  # policy, where the duration is the strictest across its repository tabs, or
+  # an empty list when the policy sets no cooldown.
+  defp policy_cooldown(nil), do: []
 
-      {_tag, strictest} =
-        Cooldown.strictest([{nil, "0d"} | Enum.map(durations, &{nil, &1})])
+  defp policy_cooldown(policy) do
+    durations =
+      for rp <- Map.get(policy, :repositories, []),
+          restriction = Map.get(rp, :restriction),
+          restriction != nil,
+          duration = Map.get(restriction, :cooldown),
+          is_binary(duration),
+          do: duration
 
-      {{p.repository, p.name}, strictest}
-    end)
+    case durations do
+      [] ->
+        []
+
+      _ ->
+        {_tag, strictest} =
+          Cooldown.strictest([{nil, "0d"} | Enum.map(durations, &{nil, &1})])
+
+        [{{policy.repository, policy.name}, strictest}]
+    end
   end
 
-  defp effective_cooldown_line(policies, local_cooldown) do
-    case effective_cooldown(policies, local_cooldown) do
+  defp effective_cooldown_line(policy, local_cooldown) do
+    case effective_cooldown(policy, local_cooldown) do
       nil ->
         nil
 
@@ -94,21 +96,6 @@ defmodule Hex.Policy.Diagnostics do
 
   defp cooldown_source(:local), do: "local"
   defp cooldown_source({repo, name}), do: "#{repo}/#{name}"
-
-  defp per_policy_breakdown(filtered, policies) do
-    for p <- policies do
-      reasons =
-        for entry <- filtered,
-            blocker <- entry.blockers,
-            blocker.policy.repository == p.repository and blocker.policy.name == p.name,
-            do: blocker.reason
-
-      if reasons != [] do
-        "  #{p.repository}/#{p.name}: #{length(reasons)} (#{reason_breakdown(reasons)})"
-      end
-    end
-    |> Enum.reject(&is_nil/1)
-  end
 
   defp reason_breakdown(reasons) do
     reasons
@@ -124,8 +111,8 @@ defmodule Hex.Policy.Diagnostics do
   defp reason_category(:override_deny), do: "override deny"
 
   @doc """
-  Renders a Note: block to append to a solver failure when active
-  policies hid candidate versions.
+  Renders a Note: block to append to a solver failure when the active policy
+  hid candidate versions.
 
   Returns `nil` if there's nothing relevant to say.
   """
@@ -139,11 +126,11 @@ defmodule Hex.Policy.Diagnostics do
       Enum.map(by_package, fn {{_repo, package}, entries} ->
         lines =
           Enum.map(entries, fn entry ->
-            attribution = entry.blockers |> Enum.map(&format_blocker/1) |> Enum.join(", ")
+            attribution = entry.reasons |> Enum.map(&format_reason/1) |> Enum.join(", ")
             "  #{package} #{entry.version} — #{attribution}"
           end)
 
-        "Note: active policies hide #{length(entries)} versions of \"#{package}\":\n" <>
+        "Note: active policy hides #{length(entries)} versions of \"#{package}\":\n" <>
           Enum.join(lines, "\n")
       end)
 
@@ -151,26 +138,7 @@ defmodule Hex.Policy.Diagnostics do
   end
 
   @doc """
-  Formats a `Hex.Policy.load_all/0` error for `Mix.raise/1`.
-  """
-  @spec format_load_error(term()) :: String.t()
-  def format_load_error(:invalid_policy_config) do
-    "Policy configuration is invalid. Check the `:policy` key in mix.exs, " <>
-      "the HEX_POLICY env var, and `mix hex.config policy`."
-  end
-
-  def format_load_error(other), do: "Policy loading failed: #{inspect(other)}"
-
-  @doc """
-  Formats a single blocker's reason with its responsible policy.
-  """
-  @spec format_blocker(%{policy: map(), reason: term()}) :: String.t()
-  def format_blocker(%{policy: p, reason: reason}) do
-    "#{p.repository}/#{p.name} (#{format_reason(reason)})"
-  end
-
-  @doc """
-  Formats a blocker reason without policy attribution.
+  Formats a blocker reason.
   """
   @spec format_reason(term()) :: String.t()
   def format_reason({:advisory, sev}), do: "advisory ≥ #{Hex.Utils.advisory_severity(sev)}"

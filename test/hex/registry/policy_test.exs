@@ -33,7 +33,7 @@ defmodule Hex.Registry.PolicyTest do
 
     # Reset diagnostics for each test
     Hex.State.put(:policy_filtered_versions, [])
-    Hex.State.put(:policies, %{})
+    Hex.State.put(:active_policy, nil)
     Hex.State.put(:policy_locked_versions, %{})
 
     # Disable cooldown so Hex.Registry.Cooldown is a no-op pass-through
@@ -47,14 +47,12 @@ defmodule Hex.Registry.PolicyTest do
 
   defp policy(name, tab_fields) do
     %{
-      {"hexpm:myorg", name} => %{
-        repository: "myorg",
-        name: name,
-        visibility: :VISIBILITY_PUBLIC,
-        repositories: [
-          Map.merge(%{repository: "hexpm", overrides: []}, Map.new(tab_fields))
-        ]
-      }
+      repository: "myorg",
+      name: name,
+      visibility: :VISIBILITY_PUBLIC,
+      repositories: [
+        Map.merge(%{repository: "hexpm", overrides: []}, Map.new(tab_fields))
+      ]
     }
   end
 
@@ -72,7 +70,7 @@ defmodule Hex.Registry.PolicyTest do
 
   test "filters versions that an advisory rule blocks" do
     Hex.State.put(
-      :policies,
+      :active_policy,
       policy("strict", restriction: %{advisory_min_severity: :SEVERITY_HIGH})
     )
 
@@ -84,13 +82,12 @@ defmodule Hex.Registry.PolicyTest do
     assert entry.package == "advised"
     assert entry.version == "1.0.0"
 
-    assert [%{policy: %{name: "strict"}, reason: {:advisory, :SEVERITY_HIGH}}] =
-             entry.blockers
+    assert entry.reasons == [{:advisory, :SEVERITY_HIGH}]
   end
 
   test "filters versions that a retirement rule blocks" do
     Hex.State.put(
-      :policies,
+      :active_policy,
       policy("no-security-retired", restriction: %{retirement_reasons: [:RETIRED_SECURITY]})
     )
 
@@ -101,14 +98,12 @@ defmodule Hex.Registry.PolicyTest do
     assert entry.package == "retired"
     assert entry.version == "1.0.0"
 
-    assert [
-             %{policy: %{name: "no-security-retired"}, reason: {:retirement, :RETIRED_SECURITY}}
-           ] = entry.blockers
+    assert entry.reasons == [{:retirement, :RETIRED_SECURITY}]
   end
 
   test "a deny override blocks all versions of a package" do
     Hex.State.put(
-      :policies,
+      :active_policy,
       policy("blocklist",
         overrides: [%{action: :OVERRIDE_ACTION_DENY, ref: %{package: "clean"}}]
       )
@@ -123,7 +118,7 @@ defmodule Hex.Registry.PolicyTest do
 
   test "an allow override bypasses the restriction" do
     Hex.State.put(
-      :policies,
+      :active_policy,
       policy("vetted",
         restriction: %{advisory_min_severity: :SEVERITY_HIGH},
         overrides: [%{action: :OVERRIDE_ACTION_ALLOW, ref: %{package: "advised"}}]
@@ -137,7 +132,7 @@ defmodule Hex.Registry.PolicyTest do
 
   test "a locked version is exempt from policy filtering" do
     Hex.State.put(
-      :policies,
+      :active_policy,
       policy("strict", restriction: %{advisory_min_severity: :SEVERITY_HIGH})
     )
 
@@ -150,7 +145,7 @@ defmodule Hex.Registry.PolicyTest do
 
   test "no diagnostics recorded when nothing is blocked" do
     Hex.State.put(
-      :policies,
+      :active_policy,
       policy("strict", restriction: %{advisory_min_severity: :SEVERITY_HIGH})
     )
 

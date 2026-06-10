@@ -20,46 +20,47 @@ defmodule Hex.Policy.DiagnosticsTest do
   end
 
   describe "resolution_summary/3" do
-    test "returns nil when no policies are loaded" do
-      assert Diagnostics.resolution_summary([], [], "0d") == nil
+    test "returns nil when no policy is loaded" do
+      assert Diagnostics.resolution_summary(nil, [], "0d") == nil
     end
 
-    test "returns a header + cooldown line + per-policy counts" do
-      policies = [
-        policy(name: "strict-prod", cooldown: "14d"),
-        policy(name: "baseline")
-      ]
+    test "returns a header + cooldown line + reason breakdown" do
+      p = policy(name: "strict-prod", cooldown: "14d")
 
       filtered = [
         %{
           repo: "hexpm",
           package: "phoenix",
           version: "1.7.18",
-          blockers: [%{policy: hd(policies), reason: {:advisory, :SEVERITY_HIGH}}]
+          reasons: [{:advisory, :SEVERITY_HIGH}]
         }
       ]
 
-      out = Diagnostics.resolution_summary(policies, filtered, "0d")
-      assert out =~ "Active policies: myorg/baseline, myorg/strict-prod (2)"
+      out = Diagnostics.resolution_summary(p, filtered, "0d")
+      assert out =~ "Active policy: myorg/strict-prod"
       assert out =~ "Effective cooldown: 14d (myorg/strict-prod)"
-      assert out =~ "Policies hid 1 candidate versions"
+      assert out =~ "Policy hid 1 candidate versions"
       assert out =~ "myorg/strict-prod: 1 (1 advisory)"
     end
   end
 
   describe "effective_cooldown/2" do
     test "is nil when nothing sets a cooldown" do
-      assert Diagnostics.effective_cooldown([policy(name: "a")], "0d") == nil
+      assert Diagnostics.effective_cooldown(policy(name: "a"), "0d") == nil
     end
 
     test "picks the strictest across local and policy tabs" do
-      policies = [policy(name: "a", cooldown: "7d"), policy(name: "b", cooldown: "14d")]
-      assert {{"myorg", "b"}, "14d"} = Diagnostics.effective_cooldown(policies, "2d")
+      assert {{"myorg", "b"}, "14d"} =
+               Diagnostics.effective_cooldown(policy(name: "b", cooldown: "14d"), "2d")
     end
 
     test "local config can be the strictest" do
       assert {:local, "1mo"} =
-               Diagnostics.effective_cooldown([policy(name: "a", cooldown: "7d")], "1mo")
+               Diagnostics.effective_cooldown(policy(name: "a", cooldown: "7d"), "1mo")
+    end
+
+    test "handles a nil policy" do
+      assert {:local, "7d"} = Diagnostics.effective_cooldown(nil, "7d")
     end
   end
 
@@ -68,26 +69,24 @@ defmodule Hex.Policy.DiagnosticsTest do
       assert Diagnostics.failure_note([]) == nil
     end
 
-    test "groups by package and lists blockers" do
-      pol = policy(name: "strict-prod")
-
+    test "groups by package and lists reasons" do
       out =
         Diagnostics.failure_note([
           %{
             repo: "hexpm",
             package: "decimal",
             version: "2.0.0",
-            blockers: [%{policy: pol, reason: {:retirement, :RETIRED_SECURITY}}]
+            reasons: [{:retirement, :RETIRED_SECURITY}]
           },
           %{
             repo: "hexpm",
             package: "decimal",
             version: "2.0.1",
-            blockers: [%{policy: pol, reason: {:advisory, :SEVERITY_HIGH}}]
+            reasons: [{:advisory, :SEVERITY_HIGH}]
           }
         ])
 
-      assert out =~ "Note: active policies hide 2 versions of \"decimal\""
+      assert out =~ "Note: active policy hides 2 versions of \"decimal\""
       assert out =~ "decimal 2.0.0"
       assert out =~ "decimal 2.0.1"
       assert out =~ "advisory ≥ HIGH"
@@ -95,37 +94,24 @@ defmodule Hex.Policy.DiagnosticsTest do
     end
 
     test "formats cooldown and override reasons" do
-      pol = policy(name: "strict-prod")
-
       out =
         Diagnostics.failure_note([
           %{
             repo: "hexpm",
             package: "phoenix",
             version: "1.7.19",
-            blockers: [%{policy: pol, reason: {:cooldown, "14d", ~D[2026-05-20]}}]
+            reasons: [{:cooldown, "14d", ~D[2026-05-20]}]
           },
           %{
             repo: "hexpm",
             package: "compromised",
             version: "1.0.0",
-            blockers: [%{policy: pol, reason: :override_deny}]
+            reasons: [:override_deny]
           }
         ])
 
       assert out =~ "cooldown 14d; eligible 2026-05-20"
       assert out =~ "override deny"
-    end
-  end
-
-  describe "format_load_error/1" do
-    test "invalid_policy_config" do
-      assert Diagnostics.format_load_error(:invalid_policy_config) =~
-               "Policy configuration is invalid"
-    end
-
-    test "fallback" do
-      assert Diagnostics.format_load_error(:something) =~ "Policy loading failed"
     end
   end
 end
