@@ -931,7 +931,8 @@ defmodule Hex.RemoteConverger do
     Map.get(repo_config, :trusted, true) && !repo_config.auth_key
   end
 
-  defp print_policy_summary() do
+  @doc false
+  def print_policy_summary() do
     case Hex.State.fetch!(:active_policy) do
       nil ->
         :ok

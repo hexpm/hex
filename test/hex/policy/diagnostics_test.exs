@@ -39,8 +39,27 @@ defmodule Hex.Policy.DiagnosticsTest do
       out = Diagnostics.resolution_summary(p, filtered, "0d")
       assert out =~ "Active policy: myorg/strict-prod"
       assert out =~ "Effective cooldown: 14d (myorg/strict-prod)"
-      assert out =~ "Policy hid 1 candidate versions"
+      assert out =~ "Policy hid 1 candidate version\n"
       assert out =~ "myorg/strict-prod: 1 (1 advisory)"
+    end
+
+    test "pluralizes the hidden count" do
+      p = policy(name: "strict-prod")
+
+      filtered = [
+        %{repo: "hexpm", package: "phoenix", version: "1.7.18", reasons: [:override_deny]},
+        %{repo: "hexpm", package: "phoenix", version: "1.7.19", reasons: [:override_deny]}
+      ]
+
+      out = Diagnostics.resolution_summary(p, filtered, "0d")
+      assert out =~ "Policy hid 2 candidate versions"
+    end
+
+    test "omits the cooldown line when the strictest cooldown is local" do
+      p = policy(name: "strict-prod", cooldown: "7d")
+
+      out = Diagnostics.resolution_summary(p, [], "1mo")
+      assert out == "Active policy: myorg/strict-prod"
     end
   end
 
@@ -110,6 +129,7 @@ defmodule Hex.Policy.DiagnosticsTest do
           }
         ])
 
+      assert out =~ "hides 1 version of \"phoenix\""
       assert out =~ "cooldown 14d; eligible 2026-05-20"
       assert out =~ "override deny"
     end

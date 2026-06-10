@@ -51,11 +51,12 @@ defmodule Hex.Policy do
 
   @doc """
   Reads the configured policy ref from `Hex.State`, fetches it through the
-  registry, and returns the decoded policy (or `nil` when none is configured
-  or the fetch yields nothing).
+  registry, and returns the decoded policy (or `nil` when none is configured).
 
-  Fetch failures with no usable cache raise through the registry's standard
-  fetch error path.
+  A policy is an enforcement feature, so anything short of materializing the
+  configured policy fails closed: a malformed configuration value or a fetch
+  that yields nothing raises instead of resolving unenforced. Fetch failures
+  with no usable cache raise through the registry's standard fetch error path.
   """
   @spec load() :: {:ok, map() | nil}
   def load() do
@@ -63,13 +64,20 @@ defmodule Hex.Policy do
       nil ->
         {:ok, nil}
 
+      {:invalid, value} ->
+        Mix.raise(
+          "Invalid policy configuration: #{inspect(value)}. Expected \"ORG/NAME\" " <>
+            "(e.g. \"myorg/strict-prod\") or [repo: \"ORG\", name: \"NAME\"] in mix.exs, " <>
+            "where ORG is not the bare \"hexpm\" repo"
+        )
+
       {repo, name} = ref ->
         Registry.open()
         Registry.prefetch_policies([ref])
 
         case Registry.policy(repo, name) do
           {:ok, decoded} -> {:ok, decoded}
-          :error -> {:ok, nil}
+          :error -> Mix.raise("Failed to load policy #{repo}/#{name}")
         end
     end
   end

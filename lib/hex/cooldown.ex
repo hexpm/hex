@@ -85,7 +85,7 @@ defmodule Hex.Cooldown do
 
   @doc """
   Picks the strictest (longest) duration from a list of `{tag, duration}`
-  candidates. `nil` and `""` durations are treated as `"0d"`.
+  candidates. `nil`, `""`, and unparseable durations are treated as `"0d"`.
 
   Returns the chosen `{tag, duration}` so callers can attribute the
   decision to its source (e.g. `:local` vs `{repo, name}`).
@@ -93,23 +93,15 @@ defmodule Hex.Cooldown do
   @spec strictest([{tag, String.t() | nil}]) :: {tag, String.t()} when tag: term()
   def strictest(candidates) do
     candidates
-    |> Enum.map(fn {tag, dur} -> {tag, normalize(dur), seconds(dur)} end)
+    |> Enum.map(fn {tag, dur} ->
+      case is_binary(dur) && duration_to_seconds(dur) do
+        {:ok, 0} -> {tag, "0d", 0}
+        {:ok, seconds} -> {tag, dur, seconds}
+        _ -> {tag, "0d", 0}
+      end
+    end)
     |> Enum.max_by(&elem(&1, 2))
     |> then(fn {tag, dur, _} -> {tag, dur} end)
-  end
-
-  defp normalize(nil), do: "0d"
-  defp normalize(""), do: "0d"
-  defp normalize(dur), do: dur
-
-  defp seconds(nil), do: 0
-  defp seconds(""), do: 0
-
-  defp seconds(dur) do
-    case duration_to_seconds(dur) do
-      {:ok, n} -> n
-      :error -> 0
-    end
   end
 
   @doc """

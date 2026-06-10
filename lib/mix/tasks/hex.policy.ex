@@ -51,11 +51,23 @@ defmodule Mix.Tasks.Hex.Policy do
     Hex.start()
 
     case args do
-      [] -> show()
-      ["show"] -> show()
-      ["why", package] -> why(package)
-      ["why"] -> Mix.raise("Usage: mix hex.policy why PACKAGE")
-      _ -> Mix.raise(@moduledoc)
+      [] ->
+        show()
+
+      ["show"] ->
+        show()
+
+      ["why", package] ->
+        why(package)
+
+      _ ->
+        Mix.raise("""
+        Invalid arguments, expected one of:
+
+        mix hex.policy
+        mix hex.policy show
+        mix hex.policy why PACKAGE
+        """)
     end
   end
 
@@ -93,7 +105,7 @@ defmodule Mix.Tasks.Hex.Policy do
         :ok
 
       {source, duration} ->
-        Hex.Shell.info("Effective cooldown: #{duration} (from #{cooldown_source(source)})")
+        Hex.Shell.info("Effective cooldown: #{duration} (#{cooldown_source(source)})")
     end
   end
 

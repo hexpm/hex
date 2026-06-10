@@ -49,8 +49,14 @@ defmodule Mix.Tasks.Hex.PolicyTest do
 
   describe "why" do
     test "complains when package name is missing" do
-      assert_raise Mix.Error, ~r/Usage|usage|why/, fn ->
+      assert_raise Mix.Error, ~r/Invalid arguments, expected one of:/, fn ->
         Mix.Tasks.Hex.Policy.run(["why"])
+      end
+    end
+
+    test "raises a short usage message on unknown arguments" do
+      assert_raise Mix.Error, ~r/Invalid arguments, expected one of:/, fn ->
+        Mix.Tasks.Hex.Policy.run(["bogus"])
       end
     end
 

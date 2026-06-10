@@ -49,6 +49,17 @@ defmodule Hex.Policy.FilterTest do
       assert :allowed == Filter.classify(p, candidate())
     end
 
+    test "blocks unknown severities instead of letting them slip under the threshold" do
+      p = policy(tab(restriction: %{advisory_min_severity: :SEVERITY_HIGH}))
+
+      c = candidate(advisories: [%{severity: 99}])
+      assert {:blocked, reasons} = Filter.classify(p, c)
+      assert {:advisory, :SEVERITY_HIGH} in reasons
+
+      c = candidate(advisories: [%{}])
+      assert {:blocked, _reasons} = Filter.classify(p, c)
+    end
+
     test "allows when the tab has no restriction" do
       p = policy(tab(%{}))
       c = candidate(advisories: [%{severity: :SEVERITY_CRITICAL}])

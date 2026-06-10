@@ -239,19 +239,30 @@ defmodule Hex.Repo do
   def get_policy(repo, name, etag) do
     repo_config = get_repo(repo)
     config = build_hex_core_config(repo_config, repo, etag)
-    config = put_repo_organization(config, repo_config)
-    :mix_hex_repo.get_policy(config, name)
+
+    case put_repo_organization(config, repo_config) do
+      {:ok, config} -> :mix_hex_repo.get_policy(config, name)
+      {:error, reason} -> {:error, reason}
+    end
   end
 
+  # Policies live one level above the organization repo, so the base URL is
+  # derived by stripping the `/repos/<org>` suffix. A custom :url that doesn't
+  # follow that layout gives no base to derive the policy URL from.
   defp put_repo_organization(config, repo_config) do
     case Map.get(repo_config, :organization) do
       nil ->
-        config
+        {:ok, config}
 
       organization ->
         suffix = "/repos/#{organization}"
-        base_url = String.replace_suffix(repo_config.url, suffix, "")
-        %{config | repo_url: base_url, repo_organization: organization}
+
+        if String.ends_with?(repo_config.url, suffix) do
+          base_url = String.replace_suffix(repo_config.url, suffix, "")
+          {:ok, %{config | repo_url: base_url, repo_organization: organization}}
+        else
+          {:error, {:unsupported_repo_url, repo_config.url}}
+        end
     end
   end
 

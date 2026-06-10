@@ -11,8 +11,9 @@ defmodule Hex.Policy.Diagnostics do
         }
 
   @doc """
-  Builds the resolution summary block. Returns `nil` when no policy is loaded
-  or nothing was filtered.
+  Builds the resolution summary block. Returns `nil` when no policy is loaded;
+  with an active policy the block always includes the header line, plus the
+  cooldown and hidden-version lines when relevant.
 
   `policy` is the decoded policy map (or `nil`); `filtered` is the list of
   `%{repo, package, version, reasons}` entries recorded by Hex.Registry.Policy.
@@ -25,11 +26,11 @@ defmodule Hex.Policy.Diagnostics do
     ref = "#{policy.repository}/#{policy.name}"
     header = "Active policy: #{ref}"
 
-    cooldown_line = effective_cooldown_line(policy, local_cooldown)
+    cooldown_line = policy_cooldown_line(policy, local_cooldown)
 
     hidden_line =
       if filtered != [] do
-        "Policy hid #{length(filtered)} candidate versions"
+        "Policy hid #{count(length(filtered), "candidate version")}"
       end
 
     breakdown_line =
@@ -84,18 +85,18 @@ defmodule Hex.Policy.Diagnostics do
     end
   end
 
-  defp effective_cooldown_line(policy, local_cooldown) do
+  # A locally configured cooldown gets its own "Versions filtered by cooldown"
+  # report after resolution, so the policy summary only calls out a cooldown
+  # the policy itself imposes.
+  defp policy_cooldown_line(policy, local_cooldown) do
     case effective_cooldown(policy, local_cooldown) do
-      nil ->
-        nil
+      {{repo, name}, duration} ->
+        "Effective cooldown: #{duration} (#{repo}/#{name})"
 
-      {source, duration} ->
-        "Effective cooldown: #{duration} (#{cooldown_source(source)})"
+      _ ->
+        nil
     end
   end
-
-  defp cooldown_source(:local), do: "local"
-  defp cooldown_source({repo, name}), do: "#{repo}/#{name}"
 
   defp reason_breakdown(reasons) do
     reasons
@@ -130,7 +131,7 @@ defmodule Hex.Policy.Diagnostics do
             "  #{package} #{entry.version} — #{attribution}"
           end)
 
-        "Note: active policy hides #{length(entries)} versions of \"#{package}\":\n" <>
+        "Note: active policy hides #{count(length(entries), "version")} of \"#{package}\":\n" <>
           Enum.join(lines, "\n")
       end)
 
@@ -152,4 +153,7 @@ defmodule Hex.Policy.Diagnostics do
   def format_reason(:override_deny), do: "override deny"
 
   def format_reason(other), do: inspect(other)
+
+  defp count(1, noun), do: "1 #{noun}"
+  defp count(n, noun), do: "#{n} #{noun}s"
 end

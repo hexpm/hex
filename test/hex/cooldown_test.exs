@@ -263,6 +263,17 @@ defmodule Hex.CooldownTest do
                  {{"myorg", "p"}, "14d"}
                ])
     end
+
+    test "normalizes unparseable and zero durations to 0d" do
+      assert {:local, "0d"} == Cooldown.strictest([{:local, "garbage"}])
+      assert {:local, "0d"} == Cooldown.strictest([{:local, "0"}])
+
+      assert {{"myorg", "p"}, "14d"} ==
+               Cooldown.strictest([
+                 {:local, "5x"},
+                 {{"myorg", "p"}, "14d"}
+               ])
+    end
   end
 
   describe "format_summary/2" do

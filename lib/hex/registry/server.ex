@@ -318,6 +318,7 @@ defmodule Hex.Registry.Server do
         fetched_policies: fetched
     }
 
+    state = maybe_run_pending(state)
     {:noreply, state}
   end
 
@@ -390,6 +391,8 @@ defmodule Hex.Registry.Server do
   #   {{:registry_etag, ^repo, _package}, _} -> true
   #   {{:timestamp, ^repo, _package}, _} -> true
   #   {{:timestamp, ^repo, _package, _version}, _} -> true
+  #   {{:policy, ^repo, _name}, _} -> true
+  #   {{:policy_etag, ^repo, _name}, _} -> true
   #   _ -> false
   # end)
 
@@ -466,24 +469,17 @@ defmodule Hex.Registry.Server do
   end
 
   defp prefetch_policies_offline(refs, state) do
-    missing =
-      Enum.find(refs, fn {repo, name} ->
-        unless lookup(state.ets, {:policy, repo, name}) do
-          {repo, name}
-        end
-      end)
+    case Enum.find(refs, fn {repo, name} -> !lookup(state.ets, {:policy, repo, name}) end) do
+      {repo, name} ->
+        message =
+          "Hex is running in offline mode and policy " <>
+            "#{repo}/#{name} is not cached locally"
 
-    if missing do
-      {repo, name} = missing
+        {:reply, {:error, message}, state}
 
-      message =
-        "Hex is running in offline mode and policy " <>
-          "#{repo}/#{name} is not cached locally"
-
-      {:reply, {:error, message}, state}
-    else
-      fetched = MapSet.union(MapSet.new(refs), state.fetched_policies)
-      {:reply, :ok, %{state | fetched_policies: fetched}}
+      nil ->
+        fetched = MapSet.union(MapSet.new(refs), state.fetched_policies)
+        {:reply, :ok, %{state | fetched_policies: fetched}}
     end
   end
 
@@ -688,7 +684,7 @@ defmodule Hex.Registry.Server do
   end
 
   defp wait_pending(state, fun) do
-    if MapSet.size(state.pending) == 0 do
+    if MapSet.size(state.pending) == 0 and MapSet.size(state.pending_policies) == 0 do
       state = fun.(state)
       %{state | pending_fun: nil}
     else

@@ -148,7 +148,8 @@ defmodule Hex.State do
       config: [:policy],
       skip_env_if_empty: true,
       default: nil,
-      fun: {Hex.Policy, :parse_config}
+      fun: {Hex.Policy, :parse_config},
+      on_invalid: :keep
     }
   }
 
@@ -280,9 +281,16 @@ defmodule Hex.State do
             {source, value}
 
           :error ->
-            print_invalid_config_error(value, source)
-            {:ok, value} = apply(module, func, [spec[:default]])
-            {:default, value}
+            if spec[:on_invalid] == :keep do
+              # Keys that gate enforcement keep the malformed value tagged as
+              # invalid so reads fail closed, instead of degrading to the
+              # default behind a warning.
+              {source, {:invalid, value}}
+            else
+              print_invalid_config_error(value, source)
+              {:ok, value} = apply(module, func, [spec[:default]])
+              {:default, value}
+            end
         end
     end
   end

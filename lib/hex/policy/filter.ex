@@ -199,7 +199,12 @@ defmodule Hex.Policy.Filter do
     end
   end
 
+  # A severity the client doesn't recognize (a future enum value decoded as an
+  # integer, or a missing field) ranks above every known severity so it can
+  # never slip under a threshold. Contrast with unknown override actions,
+  # which are dropped: ignoring an override falls back to the restriction,
+  # while ignoring an advisory would lift it.
   defp severity_rank(severity) do
-    Enum.find_index(@severity_order, &(&1 == severity)) || 0
+    Enum.find_index(@severity_order, &(&1 == severity)) || length(@severity_order)
   end
 end

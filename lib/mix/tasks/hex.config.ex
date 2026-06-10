@@ -77,20 +77,16 @@ defmodule Mix.Tasks.Hex.Config do
       the environment variable `HEX_COOLDOWN_EXCLUDE_REPOS` to a
       comma-separated list (Default: `[]`). See
       https://hex.pm/docs/dependency-policies for the full guide.
-    * `policy` - One or more policy references this Hex client should
-      honor at resolution time. The simplest way to set it is via
-      `mix hex.config policy <org>/<name>` (multiple policies are
-      comma-separated). The `mix.exs` `:hex` block accepts a richer
-      form: `policy: [repo: "<org>", name: "<name>"]` or a list of
-      such keyword lists. All three sources (`mix.exs`, `HEX_POLICY`,
-      and `~/.hex/hex.config`) are read independently and unioned —
-      every policy contributed by any source must pass for a release
-      to be allowed (AND composition; no source can subtract another).
-      See `mix hex.policy show` for a summary of the active set, or
+    * `policy` - The policy this Hex client honors at resolution time.
+      The simplest way to set it is via
+      `mix hex.config policy <org>/<name>`. The `mix.exs` `:hex` block
+      accepts a richer form: `policy: [repo: "<org>", name: "<name>"]`.
+      A project has exactly one active policy, resolved with the usual
+      precedence: `HEX_POLICY`, then `mix.exs`, then this config. See
+      `mix hex.policy show` for a summary, or
       https://hex.pm/docs/dependency-policies for the full guide.
-    * `HEX_POLICY` - Comma-separated `org/name` pairs that contribute
-      additional policies to the active set for this invocation. Example:
-      `HEX_POLICY=myorg/strict-prod,acme/baseline`.
+    * `HEX_POLICY` - An `org/name` pair that overrides the configured
+      policy for this invocation. Example: `HEX_POLICY=myorg/strict-prod`.
 
   Hex responds to these additional environment variables:
 
@@ -225,6 +221,7 @@ defmodule Mix.Tasks.Hex.Config do
     rendered =
       case ref do
         nil -> nil
+        {:invalid, value} -> "invalid value #{inspect(value)}"
         {repo, name} -> "#{repo}/#{name}"
       end
 

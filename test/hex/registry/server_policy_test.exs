@@ -91,6 +91,28 @@ defmodule Hex.Registry.ServerPolicyTest do
     end)
   end
 
+  test "close/0 waits for in-flight policy fetches", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/repos/myorg/policies/strict-prod", fn conn ->
+      Process.sleep(100)
+      Plug.Conn.resp(conn, 200, fresh_policy([]))
+    end)
+
+    in_tmp("registry_policy_close_in_flight", fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+      registry_path = Path.join(File.cwd!(), "cache.ets")
+      Registry.open(check_version: false, registry_path: registry_path)
+
+      pid = Process.whereis(Registry)
+      assert :ok = Registry.prefetch_policies([{"hexpm:myorg", "strict-prod"}])
+      assert :ok = Registry.close()
+
+      # Without waiting, the fetch result would land in a deleted ETS table
+      # and crash the server.
+      Process.sleep(150)
+      assert Process.whereis(Registry) == pid
+    end)
+  end
+
   test "prefetch_policies/1 raises a helpful error in offline mode when missing" do
     in_tmp("registry_policy_offline", fn ->
       Hex.State.put(:cache_home, File.cwd!())
