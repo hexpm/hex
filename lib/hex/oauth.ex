@@ -61,6 +61,7 @@ defmodule Hex.OAuth do
         if Keyword.get(opts, :prompt_auth, false) do
           reauthenticate("Token refresh failed. Re-authenticating...")
         else
+          warn_unusable_token()
           {:error, :refresh_failed}
         end
 
@@ -68,9 +69,23 @@ defmodule Hex.OAuth do
         if Keyword.get(opts, :prompt_auth, false) do
           reauthenticate("Access token expired and could not be refreshed. Re-authenticating...")
         else
+          warn_unusable_token()
           {:error, :no_refresh_token}
         end
     end
+  end
+
+  # Runs at most once per VM: the refresh result, including errors, is
+  # cached in the OnceCache. Without this warning an expired session
+  # degrades silently — requests are sent without credentials and
+  # private resources fail with errors that look like permission
+  # problems.
+  defp warn_unusable_token() do
+    Hex.Shell.warn(
+      "Your authentication session has expired and could not be refreshed. " <>
+        "Continuing without credentials, requests for private resources will fail. " <>
+        "Run `mix hex.user auth` to re-authenticate"
+    )
   end
 
   defp reauthenticate(message) do
