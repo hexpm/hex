@@ -54,6 +54,8 @@ defmodule Hex.Registry.Policy do
     |> Map.get({repo || "hexpm", package}, [])
   end
 
+  # The solver may ask for a package's versions once per requirement, so the
+  # same blocked version comes through here repeatedly; record it once.
   defp record_block(repo, package, version, reasons) do
     entry = %{
       repo: repo || "hexpm",
@@ -62,6 +64,8 @@ defmodule Hex.Registry.Policy do
       reasons: reasons
     }
 
-    Hex.State.update!(:policy_filtered_versions, &[entry | &1])
+    Hex.State.update!(:policy_filtered_versions, fn entries ->
+      if entry in entries, do: entries, else: [entry | entries]
+    end)
   end
 end

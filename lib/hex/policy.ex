@@ -9,8 +9,11 @@ defmodule Hex.Policy do
   Parses a `policy` configuration value into a `{repo, name}` ref.
 
   Accepts:
-    * a keyword list `[repo: "myorg", name: "strict-prod"]` (mix.exs form)
-    * a `"repo/name"` string (env-var / `mix hex.config` form)
+    * a keyword list in mix.exs: `[org: "myorg", name: "strict-prod"]` for a
+      hexpm organization (resolves to the `hexpm:myorg` repo), or
+      `[repo: "REPO", name: "NAME"]` for any configured repo
+    * a `"REPO/NAME"` string (env-var / `mix hex.config` form), e.g.
+      `"hexpm:myorg/strict-prod"`
     * `nil` or `""` (no policy)
 
   Returns `{:ok, ref}`, `{:ok, nil}`, or `:error`. The bare `"hexpm"` repo is
@@ -35,11 +38,14 @@ defmodule Hex.Policy do
   end
 
   def parse_config([{key, _} | _] = kw) when is_atom(key) do
-    case {Keyword.get(kw, :repo), Keyword.get(kw, :name)} do
-      {"hexpm", _name} ->
+    case {Keyword.get(kw, :repo), Keyword.get(kw, :org), Keyword.get(kw, :name)} do
+      {nil, org, name} when is_binary(org) and org != "" and is_binary(name) and name != "" ->
+        {:ok, {"hexpm:" <> org, name}}
+
+      {"hexpm", _org, _name} ->
         :error
 
-      {repo, name} when is_binary(repo) and is_binary(name) and repo != "" and name != "" ->
+      {repo, nil, name} when is_binary(repo) and repo != "" and is_binary(name) and name != "" ->
         {:ok, {repo, name}}
 
       _ ->
@@ -66,9 +72,10 @@ defmodule Hex.Policy do
 
       {:invalid, value} ->
         Mix.raise(
-          "Invalid policy configuration: #{inspect(value)}. Expected \"ORG/NAME\" " <>
-            "(e.g. \"myorg/strict-prod\") or [repo: \"ORG\", name: \"NAME\"] in mix.exs, " <>
-            "where ORG is not the bare \"hexpm\" repo"
+          "Invalid policy configuration: #{inspect(value)}. Expected \"REPO/NAME\" " <>
+            "(e.g. \"hexpm:myorg/strict-prod\") or [org: \"ORG\", name: \"NAME\"] / " <>
+            "[repo: \"REPO\", name: \"NAME\"] in mix.exs, where REPO is not the " <>
+            "bare \"hexpm\" repo"
         )
 
       {repo, name} = ref ->

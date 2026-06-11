@@ -146,7 +146,6 @@ defmodule Hex.State do
     policy: %{
       env: ["HEX_POLICY"],
       config: [:policy],
-      skip_env_if_empty: true,
       default: nil,
       fun: {Hex.Policy, :parse_config},
       on_invalid: :keep

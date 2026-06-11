@@ -41,9 +41,10 @@ defmodule Mix.Tasks.Hex.PolicyTest do
       assert out =~ "HIGH"
     end
 
-    test "default (no subcommand) is show" do
-      out = capture_io(fn -> Mix.Tasks.Hex.Policy.run([]) end)
-      assert out =~ "No active policy" || out =~ "Active policy"
+    test "a bare invocation (no subcommand) is invalid" do
+      assert_raise Mix.Error, ~r/Invalid arguments, expected one of:/, fn ->
+        Mix.Tasks.Hex.Policy.run([])
+      end
     end
   end
 

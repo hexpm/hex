@@ -9,12 +9,12 @@ defmodule Mix.Tasks.Hex.Policy do
   Shows the active Hex policy and explains why specific versions
   are blocked.
 
-      $ mix hex.policy [show]
+      $ mix hex.policy show
       $ mix hex.policy why PACKAGE
 
   ## Commands
 
-    * `show` (default) — Summarize the active policy: visibility and the
+    * `show` — Summarize the active policy: visibility and the
       per-repository restrictions (cooldown, advisory, retirement) and
       override counts, plus the effective cooldown.
     * `why PACKAGE` — Walk every version of the named package in the
@@ -27,19 +27,21 @@ defmodule Mix.Tasks.Hex.Policy do
   Hex setting, with the usual precedence (`HEX_POLICY` env var, then
   `mix.exs`, then `mix hex.config`):
 
-    * `mix.exs` `:hex` block:
+    * `mix.exs` `:hex` block, with `org:` for a hexpm organization or
+      `repo:` for any configured repo:
 
           defp project() do
-            [hex: [policy: [repo: "myorg", name: "strict-prod"]]]
+            [hex: [policy: [org: "myorg", name: "strict-prod"]]]
           end
 
-    * `HEX_POLICY` env var (an `org/name` pair):
+    * `HEX_POLICY` env var (a `REPO/NAME` pair). An empty value disables
+      the configured policy for the invocation:
 
-          $ HEX_POLICY=myorg/strict-prod mix deps.get
+          $ HEX_POLICY=hexpm:myorg/strict-prod mix deps.get
 
     * `mix hex.config`:
 
-          $ mix hex.config policy myorg/strict-prod
+          $ mix hex.config policy hexpm:myorg/strict-prod
 
   See https://hex.pm/docs/dependency-policies for the full guide.
   """
@@ -51,9 +53,6 @@ defmodule Mix.Tasks.Hex.Policy do
     Hex.start()
 
     case args do
-      [] ->
-        show()
-
       ["show"] ->
         show()
 
@@ -64,7 +63,6 @@ defmodule Mix.Tasks.Hex.Policy do
         Mix.raise("""
         Invalid arguments, expected one of:
 
-        mix hex.policy
         mix hex.policy show
         mix hex.policy why PACKAGE
         """)
@@ -74,7 +72,6 @@ defmodule Mix.Tasks.Hex.Policy do
   @impl true
   def tasks() do
     [
-      {"", "Shows the active policy"},
       {"show", "Shows the active policy"},
       {"why PACKAGE", "Shows which versions of PACKAGE are blocked by the active policy"}
     ]

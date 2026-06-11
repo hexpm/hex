@@ -24,7 +24,7 @@ defmodule Hex.Policy.DiagnosticsTest do
       assert Diagnostics.resolution_summary(nil, [], "0d") == nil
     end
 
-    test "returns a header + cooldown line + reason breakdown" do
+    test "returns a header + cooldown line + per-version listing" do
       p = policy(name: "strict-prod", cooldown: "14d")
 
       filtered = [
@@ -39,11 +39,11 @@ defmodule Hex.Policy.DiagnosticsTest do
       out = Diagnostics.resolution_summary(p, filtered, "0d")
       assert out =~ "Active policy: myorg/strict-prod"
       assert out =~ "Effective cooldown: 14d (myorg/strict-prod)"
-      assert out =~ "Policy hid 1 candidate version\n"
-      assert out =~ "myorg/strict-prod: 1 (1 advisory)"
+      assert out =~ "Policy hid 1 candidate version:\n"
+      assert out =~ "  phoenix 1.7.18 — advisory ≥ HIGH"
     end
 
-    test "pluralizes the hidden count" do
+    test "pluralizes the hidden count and lists versions newest-first" do
       p = policy(name: "strict-prod")
 
       filtered = [
@@ -52,7 +52,29 @@ defmodule Hex.Policy.DiagnosticsTest do
       ]
 
       out = Diagnostics.resolution_summary(p, filtered, "0d")
-      assert out =~ "Policy hid 2 candidate versions"
+      assert out =~ "Policy hid 2 candidate versions:"
+
+      [_count_line, line1, line2] =
+        out |> String.split("\n", trim: true) |> Enum.take(-3)
+
+      assert line1 =~ "phoenix 1.7.19"
+      assert line2 =~ "phoenix 1.7.18"
+    end
+
+    test "caps the listing per package and points at mix hex.policy why" do
+      p = policy(name: "strict-prod")
+
+      filtered =
+        for minor <- 0..7 do
+          %{repo: "hexpm", package: "phoenix", version: "1.#{minor}.0", reasons: [:override_deny]}
+        end
+
+      out = Diagnostics.resolution_summary(p, filtered, "0d")
+      assert out =~ "Policy hid 8 candidate versions:"
+      assert out =~ "phoenix 1.7.0"
+      assert out =~ "phoenix 1.3.0"
+      refute out =~ "phoenix 1.2.0"
+      assert out =~ "  ...and 3 more — run `mix hex.policy why phoenix`"
     end
 
     test "omits the cooldown line when the strictest cooldown is local" do
@@ -132,6 +154,20 @@ defmodule Hex.Policy.DiagnosticsTest do
       assert out =~ "hides 1 version of \"phoenix\""
       assert out =~ "cooldown 14d; eligible 2026-05-20"
       assert out =~ "override deny"
+    end
+
+    test "caps the per-package listing like the resolution summary" do
+      filtered =
+        for minor <- 0..6 do
+          %{repo: "hexpm", package: "phoenix", version: "1.#{minor}.0", reasons: [:override_deny]}
+        end
+
+      out = Diagnostics.failure_note(filtered)
+      assert out =~ "hides 7 versions of \"phoenix\""
+      assert out =~ "phoenix 1.6.0"
+      assert out =~ "phoenix 1.2.0"
+      refute out =~ "phoenix 1.1.0"
+      assert out =~ "  ...and 2 more — run `mix hex.policy why phoenix`"
     end
   end
 end

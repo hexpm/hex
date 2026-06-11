@@ -20,6 +20,39 @@ defmodule Hex.RemoteConvergerPolicyTest do
     end)
   end
 
+  test "an empty HEX_POLICY disables a configured policy for the invocation" do
+    in_tmp("remote_converger_empty_env_policy", fn ->
+      # State.refresh/0 re-reads the config from inside the state agent,
+      # which resolves the path from HEX_HOME rather than :config_home
+      Hex.State.put(:config_home, File.cwd!())
+      original_home = System.get_env("HEX_HOME")
+      System.put_env("HEX_HOME", File.cwd!())
+      original = System.get_env("HEX_POLICY")
+      System.delete_env("HEX_POLICY")
+
+      try do
+        Hex.Config.update(policy: "hexpm:myorg/strict-prod")
+        Hex.State.refresh()
+        assert {"hexpm:myorg", "strict-prod"} = Hex.State.fetch!(:policy)
+
+        System.put_env("HEX_POLICY", "")
+        Hex.State.refresh()
+        assert Hex.State.fetch!(:policy) == nil
+        assert {:ok, nil} = Hex.Policy.load()
+      after
+        case original do
+          nil -> System.delete_env("HEX_POLICY")
+          value -> System.put_env("HEX_POLICY", value)
+        end
+
+        case original_home do
+          nil -> System.delete_env("HEX_HOME")
+          value -> System.put_env("HEX_HOME", value)
+        end
+      end
+    end)
+  end
+
   test "a malformed HEX_POLICY fails resolution instead of degrading to unenforced" do
     in_tmp("remote_converger_malformed_policy", fn ->
       Hex.State.put(:config_home, File.cwd!())
@@ -60,7 +93,7 @@ defmodule Hex.RemoteConvergerPolicyTest do
     output = capture_io(fn -> Hex.RemoteConverger.print_policy_summary() end)
     assert output =~ "Active policy: myorg/strict-prod"
     assert output =~ "Policy hid 1 candidate version"
-    assert output =~ "myorg/strict-prod: 1 (1 override deny)"
+    assert output =~ "  phoenix 1.7.18 — override deny"
   end
 
   test "print_policy_summary/0 prints nothing without an active policy" do

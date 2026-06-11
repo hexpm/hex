@@ -158,6 +158,8 @@ defmodule Hex.Cooldown do
     |> DateTime.to_date()
   end
 
+  @versions_listed_per_package 5
+
   @doc """
   Formats the post-solver summary of versions skipped by cooldown.
 
@@ -165,8 +167,9 @@ defmodule Hex.Cooldown do
   during the solve. Returns `nil` when nothing eligible to report — empty
   input, disabled cutoff, or every entry missing a `published_at`.
 
-  Entries are deduplicated and sorted by package then version. Repo is used
-  for keying only; it is not rendered.
+  Entries are deduplicated and grouped by package; within a package versions
+  are listed newest-first, capped at #{@versions_listed_per_package} with an
+  overflow line. Repo is used for keying only; it is not rendered.
   """
   @spec format_summary([{String.t(), String.t(), String.t(), integer() | nil}], cutoff()) ::
           String.t() | nil
@@ -178,7 +181,6 @@ defmodule Hex.Cooldown do
       entries
       |> Enum.reject(fn {_repo, _pkg, _vsn, published_at} -> is_nil(published_at) end)
       |> Enum.uniq()
-      |> Enum.sort_by(fn {repo, pkg, vsn, _} -> {repo, pkg, vsn} end)
 
     case entries do
       [] ->
@@ -188,14 +190,32 @@ defmodule Hex.Cooldown do
         today = Date.utc_today()
 
         lines =
-          Enum.map(entries, fn {_repo, pkg, vsn, published_at} ->
-            published_date = published_at |> DateTime.from_unix!() |> DateTime.to_date()
-            days_ago = Date.diff(today, published_date)
-            eligible_date = eligible_on(published_at, cutoff)
-            "  #{pkg} #{vsn} — published #{days_ago} days ago, eligible #{eligible_date}"
-          end)
+          entries
+          |> Enum.group_by(fn {repo, pkg, _vsn, _} -> {repo, pkg} end)
+          |> Enum.sort()
+          |> Enum.flat_map(fn {_key, entries} -> package_lines(entries, cutoff, today) end)
 
         "\nVersions filtered by cooldown:\n" <> Enum.join(lines, "\n") <> "\n"
+    end
+  end
+
+  defp package_lines(entries, cutoff, today) do
+    {listed, rest} =
+      entries
+      |> Enum.sort_by(fn {_repo, _pkg, vsn, _} -> Version.parse!(vsn) end, {:desc, Version})
+      |> Enum.split(@versions_listed_per_package)
+
+    lines =
+      Enum.map(listed, fn {_repo, pkg, vsn, published_at} ->
+        published_date = published_at |> DateTime.from_unix!() |> DateTime.to_date()
+        days_ago = Date.diff(today, published_date)
+        eligible_date = eligible_on(published_at, cutoff)
+        "  #{pkg} #{vsn} — published #{days_ago} days ago, eligible #{eligible_date}"
+      end)
+
+    case rest do
+      [] -> lines
+      rest -> lines ++ ["  ...and #{length(rest)} more"]
     end
   end
 end

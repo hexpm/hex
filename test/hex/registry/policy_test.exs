@@ -143,6 +143,20 @@ defmodule Hex.Registry.PolicyTest do
     assert Hex.State.fetch!(:policy_filtered_versions) == []
   end
 
+  test "repeated lookups of the same package record a blocked version once" do
+    Hex.State.put(
+      :active_policy,
+      policy("strict", restriction: %{advisory_min_severity: :SEVERITY_HIGH})
+    )
+
+    assert {:ok, _} = Policy.versions("hexpm", "advised")
+    assert {:ok, _} = Policy.versions("hexpm", "advised")
+    assert {:ok, _} = Policy.versions("hexpm", "advised")
+
+    assert [%{package: "advised", version: "1.0.0"}] =
+             Hex.State.fetch!(:policy_filtered_versions)
+  end
+
   test "no diagnostics recorded when nothing is blocked" do
     Hex.State.put(
       :active_policy,

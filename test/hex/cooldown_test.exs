@@ -302,7 +302,7 @@ defmodule Hex.CooldownTest do
       assert summary =~ "eligible #{Cooldown.eligible_on(published_at, cutoff)}"
     end
 
-    test "sorts by package then version and dedupes identical entries" do
+    test "groups by package, lists versions newest-first, dedupes identical entries" do
       Hex.State.put(:cooldown, "7d")
       cutoff = Cooldown.build_cutoff()
       now = System.system_time(:second)
@@ -317,14 +317,29 @@ defmodule Hex.CooldownTest do
 
       summary = Cooldown.format_summary(entries, cutoff)
 
-      # Ordering: castore 1.0.18, castore 1.0.19, plug 1.16.5; dedup keeps one castore 1.0.19.
+      # Packages alphabetically, versions newest-first; dedup keeps one castore 1.0.19.
       [_header, line1, line2, line3 | _] = String.split(summary, "\n", trim: true)
-      assert line1 =~ "castore 1.0.18"
-      assert line2 =~ "castore 1.0.19"
+      assert line1 =~ "castore 1.0.19"
+      assert line2 =~ "castore 1.0.18"
       assert line3 =~ "plug 1.16.5"
 
       occurrences = summary |> String.split("castore 1.0.19") |> length()
       assert occurrences == 2
+    end
+
+    test "caps the listing per package with an overflow line" do
+      Hex.State.put(:cooldown, "7d")
+      cutoff = Cooldown.build_cutoff()
+      young = System.system_time(:second) - 1 * 86_400
+
+      entries = for minor <- 0..7, do: {"hexpm", "castore", "1.#{minor}.0", young}
+
+      summary = Cooldown.format_summary(entries, cutoff)
+
+      assert summary =~ "castore 1.7.0"
+      assert summary =~ "castore 1.3.0"
+      refute summary =~ "castore 1.2.0"
+      assert summary =~ "  ...and 3 more"
     end
 
     test "omits entries with nil published_at" do

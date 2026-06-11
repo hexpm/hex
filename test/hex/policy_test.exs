@@ -3,9 +3,18 @@ defmodule Hex.PolicyTest do
   alias Hex.Policy
 
   describe "parse_config/1" do
-    test "accepts a keyword list (mix.exs form)" do
-      assert {:ok, {"myorg", "strict-prod"}} ==
-               Policy.parse_config(repo: "myorg", name: "strict-prod")
+    test "accepts a keyword list with a repo (mix.exs form)" do
+      assert {:ok, {"myrepo", "strict-prod"}} ==
+               Policy.parse_config(repo: "myrepo", name: "strict-prod")
+    end
+
+    test "a keyword list with an org resolves to the hexpm:<org> repo" do
+      assert {:ok, {"hexpm:myorg", "strict-prod"}} ==
+               Policy.parse_config(org: "myorg", name: "strict-prod")
+    end
+
+    test "rejects a keyword list with both repo and org" do
+      assert :error == Policy.parse_config(repo: "myrepo", org: "myorg", name: "strict-prod")
     end
 
     test "accepts a repo/name string (env-var form)" do
@@ -27,6 +36,8 @@ defmodule Hex.PolicyTest do
       assert :error == Policy.parse_config("a/b/c")
       assert :error == Policy.parse_config("myorg/strict,acme/baseline")
       assert :error == Policy.parse_config(repo: "x")
+      assert :error == Policy.parse_config(org: "")
+      assert :error == Policy.parse_config(org: "myorg", name: "")
       assert :error == Policy.parse_config(42)
     end
 

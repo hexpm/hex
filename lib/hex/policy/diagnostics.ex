@@ -10,10 +10,13 @@ defmodule Hex.Policy.Diagnostics do
           reasons: [term()]
         }
 
+  @versions_listed_per_package 5
+
   @doc """
   Builds the resolution summary block. Returns `nil` when no policy is loaded;
   with an active policy the block always includes the header line, plus the
-  cooldown and hidden-version lines when relevant.
+  cooldown line and a capped per-version listing of hidden versions when
+  relevant.
 
   `policy` is the decoded policy map (or `nil`); `filtered` is the list of
   `%{repo, package, version, reasons}` entries recorded by Hex.Registry.Policy.
@@ -23,25 +26,48 @@ defmodule Hex.Policy.Diagnostics do
   def resolution_summary(nil, _filtered, _local_cooldown), do: nil
 
   def resolution_summary(policy, filtered, local_cooldown) do
-    ref = "#{policy.repository}/#{policy.name}"
-    header = "Active policy: #{ref}"
-
+    header = "Active policy: #{policy.repository}/#{policy.name}"
     cooldown_line = policy_cooldown_line(policy, local_cooldown)
 
-    hidden_line =
-      if filtered != [] do
-        "Policy hid #{count(length(filtered), "candidate version")}"
+    hidden_lines =
+      if filtered == [] do
+        []
+      else
+        ["Policy hid #{count(length(filtered), "candidate version")}:" | version_lines(filtered)]
       end
 
-    breakdown_line =
-      if filtered != [] do
-        reasons = for entry <- filtered, reason <- entry.reasons, do: reason
-        "  #{ref}: #{length(reasons)} (#{reason_breakdown(reasons)})"
-      end
-
-    [header, cooldown_line, hidden_line, breakdown_line]
+    ([header, cooldown_line] ++ hidden_lines)
     |> Enum.reject(&is_nil/1)
     |> Enum.join("\n")
+  end
+
+  defp version_lines(filtered) do
+    filtered
+    |> Enum.group_by(fn entry -> {entry.repo, entry.package} end)
+    |> Enum.sort()
+    |> Enum.flat_map(fn {{_repo, package}, entries} -> package_lines(package, entries) end)
+  end
+
+  # Newest-first because the interesting hidden versions are the ones newer
+  # than the resolved one; the cap keeps packages with long advisory or
+  # retirement histories from flooding the report. `mix hex.policy why` is
+  # the uncapped view.
+  defp package_lines(package, entries) do
+    {listed, rest} =
+      entries
+      |> Enum.sort_by(&Version.parse!(&1.version), {:desc, Version})
+      |> Enum.split(@versions_listed_per_package)
+
+    lines =
+      Enum.map(listed, fn entry ->
+        attribution = entry.reasons |> Enum.map(&format_reason/1) |> Enum.join(", ")
+        "  #{package} #{entry.version} — #{attribution}"
+      end)
+
+    case rest do
+      [] -> lines
+      rest -> lines ++ ["  ...and #{length(rest)} more — run `mix hex.policy why #{package}`"]
+    end
   end
 
   @doc """
@@ -98,22 +124,10 @@ defmodule Hex.Policy.Diagnostics do
     end
   end
 
-  defp reason_breakdown(reasons) do
-    reasons
-    |> Enum.frequencies_by(&reason_category/1)
-    |> Enum.sort()
-    |> Enum.map(fn {category, count} -> "#{count} #{category}" end)
-    |> Enum.join(", ")
-  end
-
-  defp reason_category({:advisory, _}), do: "advisory"
-  defp reason_category({:retirement, _}), do: "retirement"
-  defp reason_category({:cooldown, _, _}), do: "cooldown"
-  defp reason_category(:override_deny), do: "override deny"
-
   @doc """
   Renders a Note: block to append to a solver failure when the active policy
-  hid candidate versions.
+  hid candidate versions. The per-package listing is capped the same way as
+  the resolution summary.
 
   Returns `nil` if there's nothing relevant to say.
   """
@@ -121,18 +135,15 @@ defmodule Hex.Policy.Diagnostics do
   def failure_note([]), do: nil
 
   def failure_note(filtered) do
-    by_package = Enum.group_by(filtered, fn entry -> {entry.repo, entry.package} end)
+    by_package =
+      filtered
+      |> Enum.group_by(fn entry -> {entry.repo, entry.package} end)
+      |> Enum.sort()
 
     blocks =
       Enum.map(by_package, fn {{_repo, package}, entries} ->
-        lines =
-          Enum.map(entries, fn entry ->
-            attribution = entry.reasons |> Enum.map(&format_reason/1) |> Enum.join(", ")
-            "  #{package} #{entry.version} — #{attribution}"
-          end)
-
         "Note: active policy hides #{count(length(entries), "version")} of \"#{package}\":\n" <>
-          Enum.join(lines, "\n")
+          Enum.join(package_lines(package, entries), "\n")
       end)
 
     Enum.join(blocks, "\n\n")
