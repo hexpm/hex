@@ -9,6 +9,7 @@ defmodule Mix.Tasks.Hex.Policy do
   Shows the active Hex policy and explains why specific versions
   are blocked.
 
+      $ mix hex.policy
       $ mix hex.policy show
       $ mix hex.policy why PACKAGE
 
@@ -16,7 +17,8 @@ defmodule Mix.Tasks.Hex.Policy do
 
     * `show` — Summarize the active policy: visibility and the
       per-repository restrictions (cooldown, advisory, retirement) and
-      override counts, plus the effective cooldown.
+      override counts, plus the effective cooldown. This is the default
+      when no command is given.
     * `why PACKAGE` — Walk every version of the named package in the
       registry, classify each against the active policy, and print a
       per-version table of status and the reasons it is blocked.
@@ -53,6 +55,9 @@ defmodule Mix.Tasks.Hex.Policy do
     Hex.start()
 
     case args do
+      [] ->
+        show()
+
       ["show"] ->
         show()
 

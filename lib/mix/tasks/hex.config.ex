@@ -77,20 +77,13 @@ defmodule Mix.Tasks.Hex.Config do
       the environment variable `HEX_COOLDOWN_EXCLUDE_REPOS` to a
       comma-separated list (Default: `[]`). See
       https://hex.pm/docs/dependency-policies for the full guide.
-    * `policy` - The policy this Hex client honors at resolution time.
-      The simplest way to set it is via
-      `mix hex.config policy <repo>/<name>`, e.g.
-      `mix hex.config policy hexpm:myorg/strict-prod`. The `mix.exs`
-      `:hex` block accepts a richer form: `policy: [org: "<org>", name:
-      "<name>"]` for a hexpm organization, or `policy: [repo: "<repo>",
-      name: "<name>"]` for any configured repo. A project has exactly one
-      active policy, resolved with the usual precedence: `HEX_POLICY`,
-      then `mix.exs`, then this config. See `mix hex.policy show` for a
-      summary, or https://hex.pm/docs/dependency-policies for the full
-      guide.
-    * `HEX_POLICY` - A `repo/name` pair that overrides the configured
-      policy for this invocation. An empty value disables the configured
-      policy. Example: `HEX_POLICY=hexpm:myorg/strict-prod`.
+    * `policy` - The policy this Hex client honors at resolution time, as a
+      `REPO/NAME` pair, e.g. `hexpm:myorg/strict-prod`. The `mix.exs` `:hex`
+      block also accepts `policy: [org: "ORG", name: "NAME"]` for a hexpm
+      organization, or `policy: [repo: "REPO", name: "NAME"]` for any other
+      configured repository. Can be overridden by setting the environment
+      variable `HEX_POLICY`, where an empty value disables the configured
+      policy. See https://hex.pm/docs/dependency-policies for the full guide.
 
   Hex responds to these additional environment variables:
 
