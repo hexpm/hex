@@ -33,7 +33,7 @@ defmodule Hex.RemoteConvergerPolicyTest do
       try do
         Hex.Config.update(policy: "hexpm:myorg/strict-prod")
         Hex.State.refresh()
-        assert {"hexpm:myorg", "strict-prod"} = Hex.State.fetch!(:policy)
+        assert "hexpm:myorg/strict-prod" == Hex.State.fetch!(:policy)
 
         System.put_env("HEX_POLICY", "")
         Hex.State.refresh()

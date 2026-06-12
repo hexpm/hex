@@ -6,7 +6,8 @@ defmodule Hex.Policy do
   @type ref :: {repo :: String.t(), name :: String.t()}
 
   @doc """
-  Parses a `policy` configuration value into a `{repo, name}` ref.
+  Validates a `policy` configuration value and normalizes it to the canonical
+  `"REPO/NAME"` string.
 
   Accepts:
     * a keyword list in mix.exs: `[org: "myorg", name: "strict-prod"]` for a
@@ -16,18 +17,42 @@ defmodule Hex.Policy do
       `"hexpm:myorg/strict-prod"`
     * `nil` or `""` (no policy)
 
-  Returns `{:ok, ref}`, `{:ok, nil}`, or `:error`. The bare `"hexpm"` repo is
-  rejected because the global hexpm has no organization-scoped policies;
+  Returns `{:ok, string}`, `{:ok, nil}`, or `:error`. The bare `"hexpm"` repo
+  is rejected because the global hexpm has no organization-scoped policies;
   policies live under `hexpm:<org>` (or any non-`hexpm` repo for self-hosted
   setups).
   """
-  @spec parse_config(term()) :: {:ok, ref() | nil} | :error
+  @spec parse_config(term()) :: {:ok, String.t() | nil} | :error
   def parse_config(nil), do: {:ok, nil}
   def parse_config(""), do: {:ok, nil}
   def parse_config([]), do: {:ok, nil}
 
   def parse_config(string) when is_binary(string) do
-    case String.split(String.trim(string), "/") do
+    string = String.trim(string)
+
+    case parse_ref(string) do
+      {:ok, _ref} -> {:ok, string}
+      :error -> :error
+    end
+  end
+
+  def parse_config([{key, _} | _] = kw) when is_atom(key) do
+    case {Keyword.get(kw, :repo), Keyword.get(kw, :org), Keyword.get(kw, :name)} do
+      {nil, org, name} when is_binary(org) and org != "" and is_binary(name) ->
+        parse_config("hexpm:" <> org <> "/" <> name)
+
+      {repo, nil, name} when is_binary(repo) and is_binary(name) ->
+        parse_config(repo <> "/" <> name)
+
+      _ ->
+        :error
+    end
+  end
+
+  def parse_config(_), do: :error
+
+  defp parse_ref(string) do
+    case String.split(string, "/") do
       [repo, name]
       when byte_size(repo) > 0 and byte_size(name) > 0 and repo != "hexpm" ->
         {:ok, {repo, name}}
@@ -36,24 +61,6 @@ defmodule Hex.Policy do
         :error
     end
   end
-
-  def parse_config([{key, _} | _] = kw) when is_atom(key) do
-    case {Keyword.get(kw, :repo), Keyword.get(kw, :org), Keyword.get(kw, :name)} do
-      {nil, org, name} when is_binary(org) and org != "" and is_binary(name) and name != "" ->
-        {:ok, {"hexpm:" <> org, name}}
-
-      {"hexpm", _org, _name} ->
-        :error
-
-      {repo, nil, name} when is_binary(repo) and repo != "" and is_binary(name) and name != "" ->
-        {:ok, {repo, name}}
-
-      _ ->
-        :error
-    end
-  end
-
-  def parse_config(_), do: :error
 
   @doc """
   Reads the configured policy ref from `Hex.State`, fetches it through the
@@ -78,7 +85,8 @@ defmodule Hex.Policy do
             "bare \"hexpm\" repo"
         )
 
-      {repo, name} = ref ->
+      string when is_binary(string) ->
+        {:ok, {repo, name} = ref} = parse_ref(string)
         Registry.open()
         Registry.prefetch_policies([ref])
 

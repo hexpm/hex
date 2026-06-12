@@ -186,49 +186,23 @@ defmodule Mix.Tasks.Hex.Config do
     Enum.each(valid_read_keys(), fn {config, _internal} ->
       read(config, true)
     end)
-
-    read(:policy, true)
   end
 
   defp read(key, verbose \\ false)
 
-  defp read(:policy, verbose), do: print_policy(verbose)
-
   defp read(key, verbose) when is_binary(key) do
-    case String.to_atom(key) do
-      :policy ->
-        print_policy(verbose)
+    key = String.to_atom(key)
 
-      atom ->
-        case Keyword.fetch(valid_read_keys(), atom) do
-          {:ok, internal} ->
-            fetch_current_value_and_print(internal, atom, verbose)
+    case Keyword.fetch(valid_read_keys(), key) do
+      {:ok, internal} ->
+        fetch_current_value_and_print(internal, key, verbose)
 
-          _error ->
-            Mix.raise("The key #{key} is not valid")
-        end
+      _error ->
+        Mix.raise("The key #{key} is not valid")
     end
   end
 
   defp read(key, verbose) when is_atom(key), do: read(to_string(key), verbose)
-
-  defp print_policy(verbose) do
-    {source, ref} = Map.fetch!(Hex.State.get_all(), :policy)
-
-    rendered =
-      case ref do
-        nil -> nil
-        {:invalid, value} -> "invalid value #{inspect(value)}"
-        {repo, name} -> "#{repo}/#{name}"
-      end
-
-    print_value(:policy, rendered, verbose, policy_source(source))
-  end
-
-  defp policy_source({:env, env_var}), do: "(using `#{env_var}`)"
-  defp policy_source({:global_config, _key}), do: "(using `#{config_path()}`)"
-  defp policy_source({:project_config, _key}), do: "(using `mix.exs`)"
-  defp policy_source(kind) when kind in [:default, :computed], do: "(default)"
 
   defp fetch_current_value_and_print(internal, key, verbose) do
     case Map.fetch(Hex.State.get_all(), internal) do
@@ -257,33 +231,18 @@ defmodule Mix.Tasks.Hex.Config do
   defp delete(key) do
     key = String.to_atom(key)
 
-    cond do
-      key == :policy ->
-        Hex.Config.remove([:policy])
-
-      Keyword.has_key?(valid_write_keys(), key) ->
-        Hex.Config.remove([key])
-
-      true ->
-        :ok
+    if Keyword.has_key?(valid_write_keys(), key) do
+      Hex.Config.remove([key])
     end
   end
 
   defp set(key, value) do
     key = String.to_atom(key)
 
-    cond do
-      key == :policy ->
-        case Hex.Policy.parse_config(value) do
-          {:ok, _ref} -> Hex.Config.update(policy: value)
-          :error -> Mix.raise("Invalid policy value: #{inspect(value)}")
-        end
-
-      Keyword.has_key?(valid_write_keys(), key) ->
-        Hex.Config.update([{key, value}])
-
-      true ->
-        Mix.raise("Invalid key #{key}")
+    if Keyword.has_key?(valid_write_keys(), key) do
+      Hex.Config.update([{key, value}])
+    else
+      Mix.raise("Invalid key #{key}")
     end
   end
 

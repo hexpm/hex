@@ -4,12 +4,12 @@ defmodule Hex.PolicyTest do
 
   describe "parse_config/1" do
     test "accepts a keyword list with a repo (mix.exs form)" do
-      assert {:ok, {"myrepo", "strict-prod"}} ==
+      assert {:ok, "myrepo/strict-prod"} ==
                Policy.parse_config(repo: "myrepo", name: "strict-prod")
     end
 
     test "a keyword list with an org resolves to the hexpm:<org> repo" do
-      assert {:ok, {"hexpm:myorg", "strict-prod"}} ==
+      assert {:ok, "hexpm:myorg/strict-prod"} ==
                Policy.parse_config(org: "myorg", name: "strict-prod")
     end
 
@@ -18,11 +18,11 @@ defmodule Hex.PolicyTest do
     end
 
     test "accepts a repo/name string (env-var form)" do
-      assert {:ok, {"myorg", "strict-prod"}} == Policy.parse_config("myorg/strict-prod")
+      assert {:ok, "myorg/strict-prod"} == Policy.parse_config("myorg/strict-prod")
     end
 
     test "trims whitespace in the string form" do
-      assert {:ok, {"myorg", "strict-prod"}} == Policy.parse_config("  myorg/strict-prod  ")
+      assert {:ok, "myorg/strict-prod"} == Policy.parse_config("  myorg/strict-prod  ")
     end
 
     test "treats nil and empty as no policy" do
