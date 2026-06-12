@@ -31,6 +31,9 @@ defmodule Hex.OAuthTest do
       Hex.OAuth.store_token(token_data)
 
       assert {:error, :no_refresh_token} = Hex.OAuth.get_token()
+      assert_received {:mix_shell, :info, [warning]}
+      assert warning =~ "could not be refreshed"
+      assert warning =~ "mix hex.user auth"
     end
 
     test "returns error when token is expired and refresh fails" do
@@ -46,6 +49,33 @@ defmodule Hex.OAuthTest do
 
       # Should fail to refresh and return error
       assert {:error, :refresh_failed} = Hex.OAuth.get_token()
+      assert_received {:mix_shell, :info, [warning]}
+      assert warning =~ "could not be refreshed"
+      assert warning =~ "mix hex.user auth"
+    end
+
+    test "warns only once when the cached refresh failure is hit repeatedly" do
+      past_time = System.system_time(:second) - 100
+
+      token_data = %{
+        "access_token" => "expired_token",
+        "refresh_token" => "invalid_refresh_token",
+        "expires_at" => past_time
+      }
+
+      Hex.OAuth.store_token(token_data)
+
+      assert {:error, :refresh_failed} = Hex.OAuth.get_token()
+      assert {:error, :refresh_failed} = Hex.OAuth.get_token()
+
+      assert_received {:mix_shell, :info, [warning]}
+      assert warning =~ "could not be refreshed"
+      refute_received {:mix_shell, :info, _}
+    end
+
+    test "does not warn when no tokens are stored" do
+      assert {:error, :no_auth} = Hex.OAuth.get_token()
+      refute_received {:mix_shell, :info, _}
     end
   end
 
