@@ -22,6 +22,10 @@ defmodule Hex.Server do
     GenServer.call(name, :should_warn_registry_version?)
   end
 
+  def should_warn?(key, name \\ @name) do
+    GenServer.call(name, {:should_warn?, key})
+  end
+
   def init([]) do
     {:ok, state()}
   end
@@ -50,10 +54,19 @@ defmodule Hex.Server do
     {:reply, false, state}
   end
 
+  def handle_call({:should_warn?, key}, _from, state) do
+    if MapSet.member?(state.warned, key) do
+      {:reply, false, state}
+    else
+      {:reply, true, %{state | warned: MapSet.put(state.warned, key)}}
+    end
+  end
+
   defp state() do
     %{
       warned_lock_version: false,
-      warned_registry_version: false
+      warned_registry_version: false,
+      warned: MapSet.new()
     }
   end
 end

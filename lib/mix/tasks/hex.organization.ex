@@ -11,12 +11,17 @@ defmodule Mix.Tasks.Hex.Organization do
 
   By default you will be authorized to all your applications when running
   `mix hex.user auth` and this is the recommended approach. This task is mainly
-  provided for a CI and build systems where access to an organization is needed
+  provided for CI and build systems where access to an organization is needed
   without authorizing a user.
 
-  By authorizing a new organization a new key is created for fetching packages
-  from the organizations repository and the repository key is stored on the
-  local machine.
+  For CI, generate an organization key with `mix hex.organization key ORGANIZATION generate`
+  and pass it with `mix hex.organization auth ORGANIZATION --key KEY`.
+
+  > #### Deprecation {: .warning}
+  >
+  > Authorizing an organization without `--key` is deprecated and will be removed.
+  > It creates a user key tied to your account; use `mix hex.user auth` for
+  > development instead, or pass a pre-generated organization key with `--key` for CI.
 
   To use a package from an organization add `organization: "my_organization"` to the
   dependency declaration in `mix.exs`:
@@ -79,7 +84,8 @@ defmodule Mix.Tasks.Hex.Organization do
     * `--key KEY` - Hash of key used to authenticate HTTP requests to repository, if
       omitted will generate a new key with your account credentials. This flag
       is useful if you have a key pre-generated with `mix hex.organization key`
-      and want to authenticate on a CI server or similar system
+      and want to authenticate on a CI server or similar system. Omitting `--key`
+      is deprecated; authenticate as a user with `mix hex.user auth` instead
 
     * `--key-name KEY_NAME` - By default Hex will base the key name on your machine's
       hostname and the organization name, use this option to give your own name.
@@ -166,6 +172,20 @@ defmodule Mix.Tasks.Hex.Organization do
         test_key(key, organization)
         key
       else
+        Hex.Shell.warn("""
+        Authorizing an organization without --key is deprecated and will be removed.
+
+        For development authenticate as a user instead, which gives you access to \
+        all your organizations:
+
+            mix hex.user auth
+
+        For CI generate an organization key and pass it with --key:
+
+            mix hex.organization key #{organization} generate
+            mix hex.organization auth #{organization} --key KEY
+        """)
+
         key_name = Mix.Tasks.Hex.repository_key_name(organization, opts[:key_name])
         permissions = [%{"domain" => "repository", "resource" => organization}]
         auth = Mix.Tasks.Hex.auth_info(:write)

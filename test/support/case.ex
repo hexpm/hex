@@ -21,6 +21,19 @@ defmodule HexTest.Case do
     end
   end
 
+  @doc """
+  Drains all pending `Mix.Shell.Process` messages and joins the `:info` and
+  `:error` output into a single string for substring assertions.
+  """
+  def shell_output do
+    flush()
+    |> Enum.flat_map(fn
+      {:mix_shell, kind, args} when kind in [:info, :error] -> [IO.chardata_to_string(args)]
+      _ -> []
+    end)
+    |> Enum.join("\n")
+  end
+
   def tmp_path() do
     Path.expand("../../tmp", __DIR__)
   end
