@@ -2,6 +2,12 @@
 
 ## v2.4.3-dev
 
+### Deprecations
+
+* Deprecate `mix hex.organization auth ORGANIZATION` without `--key`; authenticate as a user with `mix hex.user auth` instead, or pass a pre-generated organization key with `--key` for CI
+* Deprecate authenticating to organization repositories with a stored key; a future release will require `mix hex.user auth` or a short-lived organization token
+* Deprecate `HEX_REPOS_KEY`; authenticate per organization with `mix hex.organization auth ORGANIZATION --key KEY`
+
 ## v2.4.2 (2026-04-30)
 
 ### Enhancements

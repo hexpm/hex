@@ -324,6 +324,8 @@ defmodule Hex.Repo do
         # Second priority: Exchange API key for OAuth token if enabled
         repo_config.auth_key && Map.get(repo_config, :trusted, true) &&
             Map.get(repo_config, :oauth_exchange, false) ->
+          maybe_warn_deprecated_repo_key(repo_name, repo_config)
+
           case exchange_api_key_for_token(repo_config, repo_name) do
             {:ok, access_token} ->
               %{config | repo_key: "Bearer #{access_token}"}
@@ -389,6 +391,56 @@ defmodule Hex.Repo do
 
       _ ->
         :not_found
+    end
+  end
+
+  defp maybe_warn_deprecated_repo_key(repo_name, repo_config) do
+    if hexpm_repo_name?(repo_name) do
+      case deprecated_repo_key_source(repo_config) do
+        :env ->
+          if Hex.Server.should_warn?(:deprecated_repos_key) do
+            Hex.Shell.warn("""
+            HEX_REPOS_KEY is deprecated and will be removed.
+
+            For development authenticate as a user with `mix hex.user auth`. For CI \
+            authenticate per organization with `mix hex.organization auth ORGANIZATION --key KEY`.
+            """)
+          end
+
+        :config ->
+          organization = repo_organization(repo_name)
+
+          if Hex.Server.should_warn?({:deprecated_repo_key, organization}) do
+            Hex.Shell.warn("""
+            Authenticating to the #{organization} repository with a stored key is deprecated \
+            and will be removed.
+
+            For development authenticate as a user with `mix hex.user auth`. For CI generate an \
+            organization key with `mix hex.organization key #{organization} generate` and pass it \
+            with `mix hex.organization auth #{organization} --key KEY`.
+            """)
+          end
+      end
+    end
+  end
+
+  defp hexpm_repo_name?("hexpm"), do: true
+  defp hexpm_repo_name?("hexpm:" <> _), do: true
+  defp hexpm_repo_name?(_), do: false
+
+  defp repo_organization("hexpm:" <> organization), do: organization
+  defp repo_organization("hexpm"), do: "hexpm"
+
+  # HEX_REPOS_KEY is exposed as the hexpm source `auth_key` and inherited by
+  # `hexpm:*` repos, so an `auth_key` equal to `repos_key` came from the
+  # environment, while any other value was stored in the local config.
+  defp deprecated_repo_key_source(repo_config) do
+    repos_key = Hex.State.fetch!(:repos_key)
+
+    if repos_key != nil and repo_config.auth_key == repos_key do
+      :env
+    else
+      :config
     end
   end
 
