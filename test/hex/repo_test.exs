@@ -95,25 +95,26 @@ defmodule Hex.RepoTest do
     end)
   end
 
-  test "warns about deprecation when a stored key authenticates to a hexpm repository" do
+  test "warns about deprecation when a stored key authenticates to an organization repository" do
     Hex.Server.reset()
 
-    auth =
-      HexTest.Hexpm.new_user(
-        "stored_repo_key_user",
-        "stored_repo_key@example.com",
-        "password",
-        "stored_repo_key_key"
-      )
-
     repos = Hex.State.fetch!(:repos)
-    hexpm = %{repos["hexpm"] | auth_key: auth[:key], oauth_exchange: true}
-    Hex.State.put(:repos, %{repos | "hexpm" => hexpm})
+    hexpm = repos["hexpm"]
+
+    org_repo = %{
+      url: hexpm.url <> "/repos/storedkeyorg",
+      public_key: hexpm.public_key,
+      auth_key: "stored_key_value",
+      oauth_exchange: true,
+      trusted: true
+    }
+
+    Hex.State.put(:repos, Map.put(repos, "hexpm:storedkeyorg", org_repo))
 
     # The exchange outcome is irrelevant; the warning is emitted before the
     # stored key is exchanged.
     try do
-      Hex.Repo.get_package("hexpm", "postgrex", "")
+      Hex.Repo.get_package("hexpm:storedkeyorg", "pkg", "")
     rescue
       _ -> :ok
     end
@@ -123,7 +124,34 @@ defmodule Hex.RepoTest do
     assert output =~ "mix hex.user auth"
   end
 
-  test "warns about deprecation when HEX_REPOS_KEY authenticates to a hexpm repository" do
+  test "warns about deprecation when HEX_REPOS_KEY authenticates to an organization repository" do
+    Hex.Server.reset()
+
+    repos = Hex.State.fetch!(:repos)
+    hexpm = repos["hexpm"]
+    Hex.State.put(:repos_key, "repos_key_value")
+
+    org_repo = %{
+      url: hexpm.url <> "/repos/reposkeyorg",
+      public_key: hexpm.public_key,
+      auth_key: "repos_key_value",
+      oauth_exchange: true,
+      trusted: true
+    }
+
+    Hex.State.put(:repos, Map.put(repos, "hexpm:reposkeyorg", org_repo))
+
+    try do
+      Hex.Repo.get_package("hexpm:reposkeyorg", "pkg", "")
+    rescue
+      _ -> :ok
+    end
+
+    output = Case.shell_output()
+    assert output =~ "the reposkeyorg repository with HEX_REPOS_KEY is deprecated"
+  end
+
+  test "does not warn for the base hexpm repository authenticated with HEX_REPOS_KEY" do
     Hex.Server.reset()
 
     auth =
@@ -134,6 +162,7 @@ defmodule Hex.RepoTest do
         "repos_key_key"
       )
 
+    # HEX_REPOS_KEY still authenticates the base hexpm repo (and trusted mirrors)
     Hex.State.put(:repos_key, auth[:key])
 
     try do
@@ -143,7 +172,8 @@ defmodule Hex.RepoTest do
     end
 
     output = Case.shell_output()
-    assert output =~ "HEX_REPOS_KEY is deprecated"
+    refute output =~ "HEX_REPOS_KEY"
+    refute output =~ "deprecated"
   end
 
   test "does not attempt oauth exchange when oauth_exchange is not set" do

@@ -6,7 +6,7 @@
 
 * Deprecate `mix hex.organization auth ORGANIZATION` without `--key`; authenticate as a user with `mix hex.user auth` instead, or pass a pre-generated organization key with `--key` for CI
 * Deprecate authenticating to organization repositories with a stored key; a future release will require `mix hex.user auth` or a short-lived organization token
-* Deprecate `HEX_REPOS_KEY`; authenticate per organization with `mix hex.organization auth ORGANIZATION --key KEY`
+* Deprecate authenticating to organization repositories with `HEX_REPOS_KEY`; authenticate per organization with `mix hex.organization auth ORGANIZATION --key KEY` (`HEX_REPOS_KEY` continues to authenticate the base hexpm repository and trusted mirrors)
 
 ### Bug fixes
 
