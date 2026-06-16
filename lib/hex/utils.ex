@@ -111,6 +111,37 @@ defmodule Hex.Utils do
     end
   end
 
+  # Unicode bidirectional formatting characters that can reorder displayed text.
+  @bidi_controls [0x061C, 0x202A, 0x202B, 0x202C, 0x202D, 0x202E, 0x2066, 0x2067, 0x2068, 0x2069]
+
+  # Escapes characters that could manipulate the terminal when printing an
+  # untrusted string. Printable characters, newlines and tabs are kept as-is;
+  # ANSI escapes, bidirectional overrides and other control characters are
+  # rendered as visible escape sequences.
+  def escape_terminal(binary) when is_binary(binary) do
+    binary
+    |> String.to_charlist()
+    |> Enum.map_join(&escape_terminal_char/1)
+  end
+
+  defp escape_terminal_char(?\n), do: "\n"
+  defp escape_terminal_char(?\t), do: "\t"
+  defp escape_terminal_char(?\e), do: "\\e"
+  defp escape_terminal_char(?\r), do: "\\r"
+  defp escape_terminal_char(?\b), do: "\\b"
+  defp escape_terminal_char(?\a), do: "\\a"
+  defp escape_terminal_char(cp) when cp in @bidi_controls, do: unicode_escape(cp)
+  defp escape_terminal_char(cp) when cp < 0x20, do: hex_escape(cp)
+  defp escape_terminal_char(0x7F), do: hex_escape(0x7F)
+  defp escape_terminal_char(cp) when cp in 0x80..0x9F, do: unicode_escape(cp)
+  defp escape_terminal_char(cp), do: <<cp::utf8>>
+
+  defp unicode_escape(cp), do: "\\u{" <> Integer.to_string(cp, 16) <> "}"
+
+  defp hex_escape(cp) do
+    "\\x" <> (cp |> Integer.to_string(16) |> String.pad_leading(2, "0"))
+  end
+
   def binarify(term, opts \\ [])
 
   def binarify(binary, _opts) when is_binary(binary) do

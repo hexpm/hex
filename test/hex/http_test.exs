@@ -59,6 +59,11 @@ defmodule Hex.HTTPTest do
     assert_received {:mix_shell, :info, ["API warning: oops, you done goofed"]}
   end
 
+  test "x-hex-message escapes terminal control sequences from the server" do
+    Hex.HTTP.handle_hex_message("\"danger\e[31m\u{202E}\";level=fatal")
+    assert_received {:mix_shell, :error, ["API error: danger\\e[31m\\u{202E}"]}
+  end
+
   test "request emits the x-hex-message response header", %{bypass: bypass} do
     # handle_response/3 runs inside Task.async, so route shell output to the test process
     Hex.State.put(:shell_process, self())

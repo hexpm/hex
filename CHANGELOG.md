@@ -11,6 +11,7 @@
 ### Bug fixes
 
 * Fix a crash when a server responds with an `x-hex-message` header
+* Escape terminal control sequences in server-provided `x-hex-message` headers
 
 ## v2.4.2 (2026-04-30)
 

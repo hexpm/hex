@@ -403,6 +403,7 @@ defmodule Hex.HTTP do
 
   def handle_hex_message(header) do
     {message, level} = IO.iodata_to_binary(header) |> parse_hex_message
+    message = Hex.Utils.escape_terminal(message)
 
     case level do
       "warn" -> Hex.Shell.info("API warning: " <> message)
