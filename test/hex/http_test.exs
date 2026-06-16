@@ -53,6 +53,10 @@ defmodule Hex.HTTPTest do
 
     Hex.HTTP.handle_hex_message(~c"\"oops, you done goofed\";level=fatal  ")
     assert_received {:mix_shell, :error, ["API error: oops, you done goofed"]}
+
+    # Headers decoded from a real response arrive as binaries, not charlists
+    Hex.HTTP.handle_hex_message("\"oops, you done goofed\" ; level = warn")
+    assert_received {:mix_shell, :info, ["API warning: oops, you done goofed"]}
   end
 
   test "request adds no authorization header if none is given and no netrc is found", %{

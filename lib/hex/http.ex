@@ -402,7 +402,7 @@ defmodule Hex.HTTP do
   end
 
   def handle_hex_message(header) do
-    {message, level} = :binary.list_to_bin(header) |> parse_hex_message
+    {message, level} = IO.iodata_to_binary(header) |> parse_hex_message
 
     case level do
       "warn" -> Hex.Shell.info("API warning: " <> message)
