@@ -276,18 +276,6 @@ defmodule Mix.Tasks.Hex do
   end
 
   @doc false
-  def repository_key_name(organization, key) do
-    {:ok, hostname} = :inet.gethostname()
-    "#{key || hostname}-repository-#{organization}"
-  end
-
-  @doc false
-  def repositories_key_name(key) do
-    {:ok, hostname} = :inet.gethostname()
-    "#{key || hostname}-repositories"
-  end
-
-  @doc false
   def revoke_existing_oauth_tokens do
     case Hex.Config.read()[:"$oauth_token"] do
       nil ->
@@ -335,13 +323,55 @@ defmodule Mix.Tasks.Hex do
   end
 
   @doc false
-  def auth_organization(name, key) do
-    repo = Hex.Repo.get_repo(name) || Hex.Repo.default_hexpm_repo()
-    repo = Map.put(repo, :auth_key, key)
+  def auth_organization("hexpm:" <> organization = name, key) do
+    case exchange_organization_key(key, organization) do
+      {:ok, token} ->
+        repo =
+          (Hex.Repo.get_repo(name) || Hex.Repo.default_hexpm_repo())
+          |> Map.delete(:auth_key)
+          |> Map.put(:oauth_token, token)
 
-    Hex.State.fetch!(:repos)
-    |> Map.put(name, repo)
-    |> Hex.Config.update_repos()
+        Hex.State.fetch!(:repos)
+        |> Map.put(name, repo)
+        |> Hex.Config.update_repos()
+
+      :error ->
+        :ok
+    end
+  end
+
+  defp exchange_organization_key(key, organization) do
+    case Hex.API.OAuth.exchange_api_key(key, "repositories", get_hostname()) do
+      {:ok, {200, _, response}} ->
+        scopes = String.split(response["scope"] || "", " ", trim: true)
+
+        if "repository:#{organization}" in scopes do
+          expires_in = response["expires_in"] || 1800
+          expires_at = System.system_time(:second) + expires_in
+          {:ok, %{"access_token" => response["access_token"], "expires_at" => expires_at}}
+        else
+          Hex.Shell.error(
+            "The given key does not grant access to the #{organization} repository."
+          )
+
+          set_exit_code(1)
+          :error
+        end
+
+      {:ok, {code, _, _}} when code in [401, 403] ->
+        Hex.Shell.error(
+          "Failed to authenticate against the #{organization} repository with the given key."
+        )
+
+        set_exit_code(1)
+        :error
+
+      other ->
+        Hex.Utils.print_error_result(other)
+        Hex.Shell.error("Failed to authenticate against the #{organization} repository.")
+        set_exit_code(1)
+        :error
+    end
   end
 
   defp prompt_otp() do
