@@ -316,16 +316,22 @@ defmodule Hex.Repo do
 
     config =
       cond do
-        # First priority: explicit repo auth key with OAuth exchange disabled - use API key directly
+        # Organization repos use a short-lived token cached by
+        # `mix hex.organization auth --key`, falling back to the user's OAuth
+        # token. A stored API key is no longer used for organization repos.
+        organization_repo_name?(repo_name) ->
+          organization_repo_key(config, repo_name, repo_config)
+
+        # Explicit repo auth key with OAuth exchange disabled - use API key directly
         repo_config.auth_key && Map.get(repo_config, :trusted, true) &&
             !Map.get(repo_config, :oauth_exchange, false) ->
           %{config | repo_key: repo_config.auth_key}
 
-        # Second priority: Exchange API key for OAuth token if enabled
+        # Exchange API key for OAuth token if enabled. Used by the base hexpm
+        # repo (including trusted mirrors authenticated with HEX_REPOS_KEY) and
+        # custom repos that opt into the exchange.
         repo_config.auth_key && Map.get(repo_config, :trusted, true) &&
             Map.get(repo_config, :oauth_exchange, false) ->
-          maybe_warn_deprecated_repo_key(repo_name, repo_config)
-
           case exchange_api_key_for_token(repo_config, repo_name) do
             {:ok, access_token} ->
               %{config | repo_key: "Bearer #{access_token}"}
@@ -334,9 +340,8 @@ defmodule Hex.Repo do
               raise "Failed to exchange API key for OAuth token: #{inspect(reason)}"
           end
 
-        # Third priority: fallback to OAuth token if available, but only for
-        # trusted repos. Untrusted mirrors/custom repos must not receive the
-        # user bearer token.
+        # Fallback to OAuth token if available, but only for trusted repos.
+        # Untrusted mirrors/custom repos must not receive the user bearer token.
         Map.get(repo_config, :trusted, true) ->
           case Hex.OAuth.get_token() do
             {:ok, access_token} ->
@@ -394,53 +399,54 @@ defmodule Hex.Repo do
     end
   end
 
-  defp maybe_warn_deprecated_repo_key(repo_name, repo_config) do
-    if hexpm_repo_name?(repo_name) do
-      case deprecated_repo_key_source(repo_config) do
-        :env ->
-          if Hex.Server.should_warn?(:deprecated_repos_key) do
-            Hex.Shell.warn("""
-            HEX_REPOS_KEY is deprecated and will be removed.
+  @doc false
+  def valid_oauth_token?(repo_config) do
+    match?({:ok, _}, get_cached_token(repo_config))
+  end
 
-            For development authenticate as a user with `mix hex.user auth`. For CI \
-            authenticate per organization with `mix hex.organization auth ORGANIZATION --key KEY`.
-            """)
-          end
+  defp organization_repo_name?("hexpm:" <> _), do: true
+  defp organization_repo_name?(_), do: false
 
-        :config ->
-          organization = repo_organization(repo_name)
+  defp organization_repo_key(config, "hexpm:" <> organization, repo_config) do
+    case get_cached_token(repo_config) do
+      {:ok, access_token} ->
+        %{config | repo_key: "Bearer #{access_token}"}
 
-          if Hex.Server.should_warn?({:deprecated_repo_key, organization}) do
-            Hex.Shell.warn("""
-            Authenticating to the #{organization} repository with a stored key is deprecated \
-            and will be removed.
+      _expired_or_not_found ->
+        case Hex.OAuth.get_token() do
+          {:ok, access_token} ->
+            %{config | repo_key: "Bearer #{access_token}"}
 
-            For development authenticate as a user with `mix hex.user auth`. For CI generate an \
-            organization key with `mix hex.organization key #{organization} generate` and pass it \
-            with `mix hex.organization auth #{organization} --key KEY`.
-            """)
-          end
-      end
+          {:error, _reason} ->
+            warn_missing_organization_auth(organization, repo_config)
+            config
+        end
     end
   end
 
-  defp hexpm_repo_name?("hexpm"), do: true
-  defp hexpm_repo_name?("hexpm:" <> _), do: true
-  defp hexpm_repo_name?(_), do: false
+  # Only warns when the organization repository actually has no usable
+  # authentication. HEX_REPOS_KEY is called out only here, where it no longer
+  # works (organization access); it still authenticates the base hexpm repo and
+  # trusted mirrors, which never reach this branch.
+  defp warn_missing_organization_auth(organization, repo_config) do
+    if Hex.Server.should_warn?({:organization_auth, organization}) do
+      repos_key = Hex.State.fetch!(:repos_key)
 
-  defp repo_organization("hexpm:" <> organization), do: organization
-  defp repo_organization("hexpm"), do: "hexpm"
+      reason =
+        if repos_key != nil and repo_config.auth_key == repos_key do
+          "HEX_REPOS_KEY no longer grants access to the #{organization} repository."
+        else
+          "Not authenticated to the #{organization} repository."
+        end
 
-  # HEX_REPOS_KEY is exposed as the hexpm source `auth_key` and inherited by
-  # `hexpm:*` repos, so an `auth_key` equal to `repos_key` came from the
-  # environment, while any other value was stored in the local config.
-  defp deprecated_repo_key_source(repo_config) do
-    repos_key = Hex.State.fetch!(:repos_key)
+      Hex.Shell.warn("""
+      #{reason}
 
-    if repos_key != nil and repo_config.auth_key == repos_key do
-      :env
-    else
-      :config
+      For development authenticate as a user with `mix hex.user auth`. For CI \
+      authenticate with an organization key:
+
+          mix hex.organization auth #{organization} --key KEY
+      """)
     end
   end
 

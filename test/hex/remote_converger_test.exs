@@ -105,17 +105,6 @@ defmodule Hex.RemoteConvergerTest do
     })
   end
 
-  defp new_repo_auth_user(prefix) do
-    suffix = System.unique_integer([:positive])
-
-    Hexpm.new_user(
-      "#{prefix}_#{suffix}",
-      "#{prefix}_#{suffix}@mail.com",
-      "password",
-      "#{prefix}_#{suffix}_key"
-    )
-  end
-
   test "deps with warn_if_outdated: true and hex: option" do
     in_tmp(fn ->
       Mix.Project.push(WarnOutdatedWithHexOption.MixProject)
@@ -156,11 +145,15 @@ defmodule Hex.RemoteConvergerTest do
     in_tmp(fn ->
       set_home_cwd()
 
-      auth = new_repo_auth_user("remote_converger_repo_auth_preflight")
-
       repos = Hex.State.fetch!(:repos)
-      repos = put_in(repos["hexpm"].auth_key, auth[:key])
-      Hex.State.put(:repos, repos)
+
+      org_repo =
+        Map.put(repos["hexpm"], :oauth_token, %{
+          "access_token" => "token",
+          "expires_at" => System.system_time(:second) + 3600
+        })
+
+      Hex.State.put(:repos, Map.put(repos, "hexpm:remote_converger_org", org_repo))
 
       assert Hex.RemoteConverger.auth_preflight_required?([
                {"hexpm:remote_converger_org", "private_prompt_pkg"}
@@ -183,12 +176,21 @@ defmodule Hex.RemoteConvergerTest do
     in_tmp(fn ->
       set_home_cwd()
 
-      auth = new_repo_auth_user("remote_converger_repo_auth_deps_get")
-
       repos = Hex.State.fetch!(:repos)
-      repos = put_in(repos["hexpm"].auth_key, auth[:key])
-      Hex.State.put(:repos, repos)
 
+      org_repo =
+        Map.merge(repos["hexpm"], %{
+          url: repos["hexpm"].url <> "/repos/remote_converger_org",
+          oauth_token: %{
+            "access_token" => "token",
+            "expires_at" => System.system_time(:second) + 3600
+          }
+        })
+
+      Hex.State.put(:repos, Map.put(repos, "hexpm:remote_converger_org", org_repo))
+
+      # An expired user token is not consulted because the organization repo has
+      # a valid cached token.
       store_expired_oauth_token()
 
       with_project(OrganizationDepsWithExpiredOAuth.MixProject, fn ->

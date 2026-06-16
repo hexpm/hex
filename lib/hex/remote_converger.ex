@@ -910,6 +910,6 @@ defmodule Hex.RemoteConverger do
   end
 
   defp repo_uses_user_oauth?(repo_config) do
-    Map.get(repo_config, :trusted, true) && !repo_config.auth_key
+    Map.get(repo_config, :trusted, true) and not Hex.Repo.valid_oauth_token?(repo_config)
   end
 end

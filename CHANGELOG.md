@@ -2,6 +2,13 @@
 
 ## v2.4.3-dev
 
+### Breaking changes
+
+* `mix hex.organization auth ORGANIZATION` now requires `--key`; for development authenticate as a user with `mix hex.user auth`, which grants access to all your organizations
+* `mix hex.organization auth ORGANIZATION --key KEY` now exchanges the key for a short-lived token and stores only the token, not the key
+* Organization repositories no longer authenticate with a stored API key; they use the short-lived token from `mix hex.organization auth --key` or your `mix hex.user auth` authentication
+* `HEX_REPOS_KEY` no longer grants access to organization repositories; authenticate with `mix hex.organization auth ORGANIZATION --key KEY`
+
 ### Deprecations
 
 * Deprecate `mix hex.organization auth ORGANIZATION` without `--key`; authenticate as a user with `mix hex.user auth` instead, or pass a pre-generated organization key with `--key` for CI

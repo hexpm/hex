@@ -399,9 +399,18 @@ defmodule Mix.Tasks.Hex.UserTest do
       # Verify OAuth tokens exist
       assert Hex.Config.read()[:"$oauth_token"]
 
-      # Create organization auth
-      send(self(), {:mix_shell_input, :prompt, "password"})
-      Mix.Tasks.Hex.Organization.run(["auth", "myorguserdeauth1"])
+      # Authorize an organization (auth --key stores a short-lived token)
+      Hex.State.fetch!(:repos)
+      |> Map.put("hexpm:myorguserdeauth1", %{
+        url: "http://localhost:4043/repo/repos/myorguserdeauth1",
+        oauth_token: %{
+          "access_token" => "org_token",
+          "expires_at" => System.system_time(:second) + 3600
+        }
+      })
+      |> Hex.Config.update_repos()
+
+      assert Hex.Config.read()[:"$repos"]["hexpm:myorguserdeauth1"]
 
       Mix.Tasks.Hex.User.run(["deauth"])
 

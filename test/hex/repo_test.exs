@@ -95,35 +95,64 @@ defmodule Hex.RepoTest do
     end)
   end
 
-  test "warns about deprecation when a stored key authenticates to a hexpm repository" do
+  test "ignores a stored key for an organization repository" do
     Hex.Server.reset()
 
-    auth =
-      HexTest.Hexpm.new_user(
-        "stored_repo_key_user",
-        "stored_repo_key@example.com",
-        "password",
-        "stored_repo_key_key"
-      )
-
     repos = Hex.State.fetch!(:repos)
-    hexpm = %{repos["hexpm"] | auth_key: auth[:key], oauth_exchange: true}
-    Hex.State.put(:repos, %{repos | "hexpm" => hexpm})
+    hexpm = repos["hexpm"]
 
-    # The exchange outcome is irrelevant; the warning is emitted before the
-    # stored key is exchanged.
+    org_repo = %{
+      url: hexpm.url <> "/repos/ignoredorg",
+      public_key: hexpm.public_key,
+      auth_key: "ignored_stored_key",
+      oauth_exchange: true,
+      trusted: true
+    }
+
+    Hex.State.put(:repos, Map.put(repos, "hexpm:ignoredorg", org_repo))
+
+    # With no cached token and no user authentication, the stored key is
+    # ignored: the request is made unauthenticated and the user is told to
+    # authenticate (the key is never exchanged).
     try do
-      Hex.Repo.get_package("hexpm", "postgrex", "")
+      Hex.Repo.get_package("hexpm:ignoredorg", "pkg", "")
     rescue
       _ -> :ok
     end
 
     output = Case.shell_output()
-    assert output =~ "stored key is deprecated"
+    assert output =~ "Not authenticated to the ignoredorg repository"
     assert output =~ "mix hex.user auth"
   end
 
-  test "warns about deprecation when HEX_REPOS_KEY authenticates to a hexpm repository" do
+  test "warns that HEX_REPOS_KEY no longer grants access to an organization repository" do
+    Hex.Server.reset()
+
+    repos = Hex.State.fetch!(:repos)
+    hexpm = repos["hexpm"]
+    Hex.State.put(:repos_key, "repos_key_value")
+
+    org_repo = %{
+      url: hexpm.url <> "/repos/reposkeyorg",
+      public_key: hexpm.public_key,
+      auth_key: "repos_key_value",
+      oauth_exchange: true,
+      trusted: true
+    }
+
+    Hex.State.put(:repos, Map.put(repos, "hexpm:reposkeyorg", org_repo))
+
+    try do
+      Hex.Repo.get_package("hexpm:reposkeyorg", "pkg", "")
+    rescue
+      _ -> :ok
+    end
+
+    output = Case.shell_output()
+    assert output =~ "HEX_REPOS_KEY no longer grants access to the reposkeyorg repository"
+  end
+
+  test "does not warn for the base hexpm repository authenticated with HEX_REPOS_KEY" do
     Hex.Server.reset()
 
     auth =
@@ -134,6 +163,7 @@ defmodule Hex.RepoTest do
         "repos_key_key"
       )
 
+    # HEX_REPOS_KEY still authenticates the base hexpm repo (and trusted mirrors)
     Hex.State.put(:repos_key, auth[:key])
 
     try do
@@ -143,7 +173,8 @@ defmodule Hex.RepoTest do
     end
 
     output = Case.shell_output()
-    assert output =~ "HEX_REPOS_KEY is deprecated"
+    refute output =~ "HEX_REPOS_KEY"
+    refute output =~ "deprecated"
   end
 
   test "does not attempt oauth exchange when oauth_exchange is not set" do
@@ -323,7 +354,7 @@ defmodule Hex.RepoTest do
   end
 
   describe "automatic API key to OAuth token exchange" do
-    test "organization repo inherits oauth_exchange from parent" do
+    test "does not exchange a stored key for an organization repo on fetch" do
       auth =
         HexTest.Hexpm.new_user(
           "org_oauth_user",
@@ -338,27 +369,8 @@ defmodule Hex.RepoTest do
 
       assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm:testorg", "foo", "")
 
-      repos_after = Hex.State.fetch!(:repos)
-      token_data = repos_after["hexpm:testorg"].oauth_token
-      assert is_binary(token_data["access_token"])
-    end
-
-    test "organization repo skips oauth_exchange when disabled on parent" do
-      auth =
-        HexTest.Hexpm.new_user(
-          "org_no_oauth_user",
-          "org_no_oauth@example.com",
-          "password",
-          "org_no_oauth_key"
-        )
-
-      repos = Hex.State.fetch!(:repos)
-      repos = put_in(repos["hexpm"].auth_key, auth[:key])
-      repos = put_in(repos["hexpm"], Map.put(repos["hexpm"], :oauth_exchange, false))
-      Hex.State.put(:repos, repos)
-
-      assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm:testorg", "foo", "")
-
+      # Organization repos no longer exchange a stored or inherited key on fetch;
+      # the exchange happens once during `mix hex.organization auth --key`.
       repos_after = Hex.State.fetch!(:repos)
       org_repo = Map.get(repos_after, "hexpm:testorg")
       assert org_repo == nil or Map.get(org_repo, :oauth_token) == nil
