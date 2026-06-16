@@ -332,21 +332,24 @@ defmodule Hex.Repo do
     end
   end
 
-  defp maybe_warn_deprecated_repo_key("hexpm", organization, repo_config) do
+  # Only organization repositories are deprecated here. HEX_REPOS_KEY still
+  # authenticates the base hexpm repo and trusted mirrors (organization is nil
+  # for those), so they must not be warned about.
+  defp maybe_warn_deprecated_repo_key("hexpm", organization, repo_config)
+       when is_binary(organization) do
     case deprecated_repo_key_source(repo_config) do
       :env ->
-        if Hex.Server.should_warn?(:deprecated_repos_key) do
+        if Hex.Server.should_warn?({:deprecated_repos_key, organization}) do
           Hex.Shell.warn("""
-          HEX_REPOS_KEY is deprecated and will be removed.
+          Authenticating to the #{organization} repository with HEX_REPOS_KEY is deprecated \
+          and will be removed.
 
           For development authenticate as a user with `mix hex.user auth`. For CI \
-          authenticate per organization with `mix hex.organization auth ORGANIZATION --key KEY`.
+          authenticate per organization with `mix hex.organization auth #{organization} --key KEY`.
           """)
         end
 
       :config ->
-        organization = organization || "hexpm"
-
         if Hex.Server.should_warn?({:deprecated_repo_key, organization}) do
           Hex.Shell.warn("""
           Authenticating to the #{organization} repository with a stored key is deprecated \
