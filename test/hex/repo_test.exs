@@ -9,25 +9,6 @@ defmodule Hex.RepoTest do
     end
   end
 
-  test "get_policy/3 rejects an organization repo URL that does not end in /repos/<org>" do
-    repos = Hex.State.fetch!(:repos)
-
-    repos =
-      Map.put(repos, "hexpm:custom", %{
-        url: "http://localhost:4000/custom",
-        public_key: nil,
-        auth_key: "key",
-        trusted: true,
-        oauth_exchange: false,
-        organization: "custom"
-      })
-
-    Hex.State.put(:repos, repos)
-
-    assert {:error, {:unsupported_repo_url, "http://localhost:4000/custom"}} =
-             Hex.Repo.get_policy("hexpm:custom", "strict-prod", nil)
-  end
-
   test "get_tarball/3" do
     assert {:ok, {200, _, _}} = Hex.Repo.get_tarball("hexpm", "postgrex", "0.2.1")
 

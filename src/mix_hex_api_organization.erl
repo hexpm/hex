@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.18.0 (4e787a1), do not edit manually
+%% Vendored from hex_core v0.18.0 (0f47da2), do not edit manually
 
 %% @doc
 %% Hex HTTP API - Organizations.
