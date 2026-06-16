@@ -59,6 +59,22 @@ defmodule Hex.HTTPTest do
     assert_received {:mix_shell, :info, ["API warning: oops, you done goofed"]}
   end
 
+  test "request emits the x-hex-message response header", %{bypass: bypass} do
+    # handle_response/3 runs inside Task.async, so route shell output to the test process
+    Hex.State.put(:shell_process, self())
+
+    Bypass.expect(bypass, fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("x-hex-message", "\"heads up\";level=warn")
+      |> Plug.Conn.resp(200, "")
+    end)
+
+    assert {:ok, {200, _headers, _body}} =
+             Hex.HTTP.request(:get, "http://localhost:#{bypass.port}", %{}, nil)
+
+    assert_received {:mix_shell, :info, ["API warning: heads up"]}
+  end
+
   test "request adds no authorization header if none is given and no netrc is found", %{
     bypass: bypass
   } do
