@@ -81,6 +81,27 @@ defmodule Hex.UtilsTest do
     end
   end
 
+  describe "escape_terminal/1" do
+    test "keeps printable text, newlines and tabs" do
+      assert Hex.Utils.escape_terminal("hello world") == "hello world"
+      assert Hex.Utils.escape_terminal("café ☃") == "café ☃"
+      assert Hex.Utils.escape_terminal("line1\nline2\tend") == "line1\nline2\tend"
+    end
+
+    test "escapes ANSI escapes and other control characters" do
+      assert Hex.Utils.escape_terminal("\e[31mred\e[0m") == "\\e[31mred\\e[0m"
+      assert Hex.Utils.escape_terminal("a\rb\bc\ad") == "a\\rb\\bc\\ad"
+      assert Hex.Utils.escape_terminal(<<0x01, 0x1F>>) == "\\x01\\x1F"
+      assert Hex.Utils.escape_terminal(<<0x7F>>) == "\\x7F"
+    end
+
+    test "escapes bidirectional overrides and C1 control characters" do
+      assert Hex.Utils.escape_terminal("a\u{202E}b") == "a\\u{202E}b"
+      assert Hex.Utils.escape_terminal("\u{2066}") == "\\u{2066}"
+      assert Hex.Utils.escape_terminal(<<0x85::utf8>>) == "\\u{85}"
+    end
+  end
+
   defp render(advisory, line_prefix \\ "") do
     advisory
     |> Hex.Utils.format_advisory_ansi(line_prefix)
