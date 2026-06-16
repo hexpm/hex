@@ -12,8 +12,15 @@ defmodule Hex.Policy.Filter do
     :SEVERITY_CRITICAL
   ]
 
-  @type policy :: map()
-  @type candidate :: map()
+  @type policy :: :hex_pb_policy.Policy()
+  @type candidate :: %{
+    repo: String.t(),
+    package: String.t(),
+    version: String.t(),
+    advisories: [:hex_pb_policy.SecurityAdvisory()],
+    retired: :hex_pb_policy.RetirementStatus(),
+    published_at: DateTime.t()
+  }
   @type reason ::
           {:advisory, atom()}
           | {:retirement, atom()}
@@ -68,16 +75,13 @@ defmodule Hex.Policy.Filter do
   # Candidate repos are named "hexpm" or "hexpm:<org>"; the policy's tabs use
   # "hexpm" or the bare org name, so the "hexpm:" prefix is stripped to match.
   defp repository_policy(policy, candidate) do
-    repo = candidate_repo(candidate)
+    repo = candidate.repo
     key = strip_prefix(repo)
 
-    Enum.find(Map.get(policy, :repositories, []), fn rp ->
+    Enum.find(policy.repositories, fn rp ->
       rp.repository == repo or rp.repository == key
     end)
   end
-
-  defp candidate_repo(%{repo: repo}) when is_binary(repo), do: repo
-  defp candidate_repo(_), do: "hexpm"
 
   defp strip_prefix("hexpm:" <> org), do: org
   defp strip_prefix(repo), do: repo
@@ -86,8 +90,7 @@ defmodule Hex.Policy.Filter do
   # :allow, :deny, or :none. A requirement-bearing override is more specific
   # than a bare-package one for the same package.
   defp override(repo_policy, candidate) do
-    repo_policy
-    |> Map.get(:overrides, [])
+    repo_policy.overrides
     |> Enum.filter(&known_action?/1)
     |> Enum.filter(&override_matches?(&1, candidate))
     |> Enum.sort_by(&override_specificity/1, :desc)
@@ -102,41 +105,28 @@ defmodule Hex.Policy.Filter do
   defp known_action?(%{action: action}),
     do: action in [:OVERRIDE_ACTION_ALLOW, :OVERRIDE_ACTION_DENY]
 
-  defp override_matches?(%{ref: %{package: package} = ref}, %{package: package} = candidate) do
-    case Map.get(ref, :requirement) do
-      nil -> true
-      "" -> true
-      requirement -> version_satisfies?(candidate.version, requirement)
-    end
-  end
+  defp override_matches?(%{ref: %{package: package, requirement: nil} = ref}, %{package: package} = candidate), do: true
+  defp override_matches?(%{ref: %{package: package, requirement: ""} = ref}, %{package: package} = candidate), do: true
+  defp override_matches?(%{ref: %{package: package, requirement: requirement} = ref}, %{package: package} = candidate), do: version_satisfies?(candidate.version, requirement)
 
   defp override_matches?(_override, _candidate), do: false
 
-  defp override_specificity(%{ref: ref}) do
-    case Map.get(ref, :requirement) do
-      nil -> 0
-      "" -> 0
-      _ -> 1
-    end
-  end
+  defp override_specificity(%{ref:%{requirement: nil}}), do: 0
+  defp override_specificity(%{ref:%{requirement: ""}}), do: 0
+  defp override_specificity(%{ref:%{requirement: _}}), do: 1
 
   defp override_effect(:OVERRIDE_ACTION_ALLOW), do: :allow
   defp override_effect(:OVERRIDE_ACTION_DENY), do: :deny
 
-  defp restriction(repo_policy, candidate, opts) do
-    case Map.get(repo_policy, :restriction) do
-      nil ->
-        :allowed
+  defp restriction(%{restriction: nil}, _candidate, _opts), do: :allowed
+  defp restriction(%{restriction: restriction} = repo_policy, candidate, opts) do
+    reasons =
+        []
+        |> add_advisory(restriction, candidate)
+        |> add_retirement(restriction, candidate)
+        |> add_cooldown(restriction, candidate, opts)
 
-      restriction ->
-        reasons =
-          []
-          |> add_advisory(restriction, candidate)
-          |> add_retirement(restriction, candidate)
-          |> add_cooldown(restriction, candidate, opts)
-
-        if reasons == [], do: :allowed, else: {:blocked, reasons}
-    end
+      if reasons == [], do: :allowed, else: {:blocked, reasons}
   end
 
   defp add_advisory(reasons, %{advisory_min_severity: threshold}, candidate)
