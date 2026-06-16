@@ -188,8 +188,9 @@ defmodule HexTest.Hexpm do
   end
 
   defp wait_on_start do
-    case :httpc.request(:get, {~c"http://localhost:4043", []}, [], []) do
-      {:ok, _} ->
+    case :gen_tcp.connect(~c"localhost", 4043, [:binary, active: false], 1_000) do
+      {:ok, sock} ->
+        :gen_tcp.close(sock)
         :ok
 
       {:error, _} ->
