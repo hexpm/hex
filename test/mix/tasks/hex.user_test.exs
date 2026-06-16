@@ -10,7 +10,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       Hex.OAuth.clear_tokens()
 
       # Test that device authorization works but don't try to complete the flow
-      assert {:ok, {200, _headers, response}} = Hex.API.OAuth.device_authorization("api")
+      assert {:ok, {200, _headers, response}} = device_authorization("api")
 
       assert %{
                "device_code" => device_code,
@@ -24,7 +24,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Test that polling returns authorization_pending (user hasn't authorized yet)
       assert {:ok, {400, _headers, %{"error" => "authorization_pending"}}} =
-               Hex.API.OAuth.poll_device_token(device_code)
+               poll_device_token(device_code)
 
       # Verify no tokens were stored since flow didn't complete
       refute Hex.OAuth.has_tokens?()
@@ -39,7 +39,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Test device authorization
       assert {:ok, {200, _headers, %{"device_code" => device_code}}} =
-               Hex.API.OAuth.device_authorization("api")
+               device_authorization("api")
 
       assert is_binary(device_code)
     end)
@@ -55,7 +55,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       custom_name = "MyTestDevice"
 
       assert {:ok, {200, _headers, response}} =
-               Hex.API.OAuth.device_authorization("api repositories", custom_name)
+               device_authorization("api repositories", custom_name)
 
       assert %{
                "device_code" => device_code,
@@ -67,7 +67,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Verify the flow works with the name parameter
       assert {:ok, {400, _headers, %{"error" => "authorization_pending"}}} =
-               Hex.API.OAuth.poll_device_token(device_code)
+               poll_device_token(device_code)
     end)
   end
 
@@ -79,7 +79,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Test device authorization with nil name (should work)
       assert {:ok, {200, _headers, response}} =
-               Hex.API.OAuth.device_authorization("api repositories", nil)
+               device_authorization("api repositories", nil)
 
       assert %{"device_code" => device_code} = response
       assert is_binary(device_code)
@@ -94,7 +94,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Test polling with an invalid device code
       assert {:ok, {400, _headers, %{"error" => error}}} =
-               Hex.API.OAuth.poll_device_token("invalid_device_code")
+               poll_device_token("invalid_device_code")
 
       assert error in ["authorization_pending", "invalid_grant", "expired_token"]
     end)
@@ -108,11 +108,11 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Test that repeated polling gets proper response
       assert {:ok, {200, _headers, %{"device_code" => device_code}}} =
-               Hex.API.OAuth.device_authorization("api")
+               device_authorization("api")
 
       # Immediate polling should get authorization_pending
       assert {:ok, {400, _headers, %{"error" => "authorization_pending"}}} =
-               Hex.API.OAuth.poll_device_token(device_code)
+               poll_device_token(device_code)
     end)
   end
 
@@ -123,7 +123,7 @@ defmodule Mix.Tasks.Hex.UserTest do
       Hex.OAuth.clear_tokens()
 
       # Test device authorization returns proper structure
-      assert {:ok, {200, _headers, response}} = Hex.API.OAuth.device_authorization("api")
+      assert {:ok, {200, _headers, response}} = device_authorization("api")
 
       assert %{
                "device_code" => _,
@@ -143,11 +143,11 @@ defmodule Mix.Tasks.Hex.UserTest do
       auth = Hexpm.new_oauth_user("refreshuser", "refreshuser@mail.com", "password")
 
       # Extract refresh token from auth
-      refresh_token = auth[:refresh_token]
+      token = auth[:refresh_token]
 
       # Test token refresh
       assert {:ok, {200, _headers, response}} =
-               Hex.API.OAuth.refresh_token(refresh_token)
+               refresh_token(token)
 
       assert %{
                "access_token" => new_access_token,
@@ -180,205 +180,6 @@ defmodule Mix.Tasks.Hex.UserTest do
     end)
   end
 
-  test "inline authentication when no auth present" do
-    in_tmp(fn ->
-      set_home_cwd()
-
-      # Clear all auth
-      Hex.OAuth.clear_tokens()
-
-      # User says no to authenticate inline (to avoid hanging on real OAuth flow)
-      send(self(), {:mix_shell_input, :yes?, false})
-
-      # Calling auth_info should ask for inline auth
-      assert_raise Mix.Error, "No authenticated user found. Run `mix hex.user auth`", fn ->
-        Mix.Tasks.Hex.auth_info(:write)
-      end
-
-      assert_received {:mix_shell, :yes?,
-                       ["No authenticated user found. Do you want to authenticate now?"]}
-    end)
-  end
-
-  test "inline authentication declined by user" do
-    in_tmp(fn ->
-      set_home_cwd()
-
-      # Clear all auth
-      Hex.OAuth.clear_tokens()
-
-      # User says no to authenticate inline
-      send(self(), {:mix_shell_input, :yes?, false})
-
-      # Should raise when user declines
-      assert_raise Mix.Error, "No authenticated user found. Run `mix hex.user auth`", fn ->
-        Mix.Tasks.Hex.auth_info(:write)
-      end
-
-      assert_received {:mix_shell, :yes?,
-                       ["No authenticated user found. Do you want to authenticate now?"]}
-    end)
-  end
-
-  test "inline authentication accepted by user" do
-    in_tmp(fn ->
-      set_home_cwd()
-
-      bypass = Bypass.open()
-      original_url = Hex.State.fetch!(:api_url)
-      Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
-
-      # Clear all auth
-      Hex.OAuth.clear_tokens()
-
-      # User says yes to authenticate inline
-      send(self(), {:mix_shell_input, :yes?, true})
-
-      # Mock the OAuth flow for inline auth
-      Bypass.expect(bypass, "POST", "/api/oauth/device_authorization", fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(
-          200,
-          Hex.Utils.safe_serialize_erlang(%{
-            "device_code" => "inline_device",
-            "user_code" => "INLINE",
-            "verification_uri" => "https://hex.pm/oauth/device",
-            "expires_in" => 600,
-            "interval" => 0
-          })
-        )
-      end)
-
-      # Mock polling - succeed immediately
-      Bypass.expect(bypass, "POST", "/api/oauth/token", fn conn ->
-        {:ok, body, conn} = Plug.Conn.read_body(conn)
-        params = Hex.Utils.safe_deserialize_erlang(body)
-
-        resp_body =
-          case params["grant_type"] do
-            "urn:ietf:params:oauth:grant-type:device_code" ->
-              %{
-                "access_token" => "inline_token",
-                "token_type" => "bearer",
-                "expires_in" => 3600,
-                "refresh_token" => "inline_refresh",
-                "scope" => "api repositories"
-              }
-          end
-
-        conn
-        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-        |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(resp_body))
-      end)
-
-      # Calling auth_info should trigger inline auth
-      auth = Mix.Tasks.Hex.auth_info(:write)
-
-      # Should get auth after inline flow with OAuth flag
-      assert [key: _token, oauth: true] = auth
-
-      assert_received {:mix_shell, :yes?,
-                       ["No authenticated user found. Do you want to authenticate now?"]}
-
-      Hex.State.put(:api_url, original_url)
-    end)
-  end
-
-  test "auth_info fallback behavior" do
-    in_tmp(fn ->
-      set_home_cwd()
-
-      # Test fallback from OAuth to API keys
-      Hex.OAuth.clear_tokens()
-
-      # No auth should trigger inline auth (but we disable it)
-      assert [] = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
-
-      # Test with API key set
-      Hex.State.put(:api_key, "test_api_key")
-      assert [key: "test_api_key"] = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
-
-      # Test with OAuth tokens
-      future_time = System.system_time(:second) + 3600
-
-      tokens = %{
-        "access_token" => "oauth_token",
-        "refresh_token" => "oauth_refresh",
-        "expires_at" => future_time
-      }
-
-      Hex.OAuth.store_token(tokens)
-
-      assert [key: "oauth_token", oauth: true] =
-               Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
-
-      # Clear OAuth tokens - should fall back to API key
-      Hex.OAuth.clear_tokens()
-      assert [key: "test_api_key"] = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
-    end)
-  end
-
-  test "auth_info with expired tokens triggers refresh" do
-    in_tmp(fn ->
-      set_home_cwd()
-
-      bypass = Bypass.open()
-      original_url = Hex.State.fetch!(:api_url)
-      Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
-
-      # Store expired OAuth tokens
-      past_time = System.system_time(:second) - 3600
-
-      tokens = %{
-        "access_token" => "expired_token",
-        "refresh_token" => "refresh_token",
-        "expires_at" => past_time
-      }
-
-      Hex.OAuth.store_token(tokens)
-
-      # Mock refresh token endpoint
-      Bypass.expect(bypass, "POST", "/api/oauth/token", fn conn ->
-        {:ok, body, conn} = Plug.Conn.read_body(conn)
-
-        # Check which refresh token is being used
-        cond do
-          String.contains?(body, "refresh_token") ->
-            conn
-            |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
-            |> Plug.Conn.resp(
-              200,
-              Hex.Utils.safe_serialize_erlang(%{
-                "access_token" => "new_token",
-                "token_type" => "bearer",
-                "expires_in" => 3600,
-                "refresh_token" => "new_refresh_token",
-                "scope" => "api:write"
-              })
-            )
-
-          true ->
-            conn
-            |> Plug.Conn.resp(400, "Bad request")
-        end
-      end)
-
-      # Call auth_info - should trigger refresh
-      auth = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
-
-      # Should get new token after refresh
-      assert [key: "new_token", oauth: true] = auth
-
-      # Verify new tokens were stored
-      config = Hex.Config.read()
-      assert config[:"$oauth_token"]["access_token"] == "new_token"
-      assert config[:"$oauth_token"]["refresh_token"] == "new_refresh_token"
-
-      Hex.State.put(:api_url, original_url)
-    end)
-  end
-
   test "deauth user and organizations" do
     in_tmp(fn ->
       set_home_cwd()
@@ -389,9 +190,9 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Store OAuth tokens
       tokens = %{
-        "access_token" => auth[:access_token],
-        "refresh_token" => auth[:refresh_token],
-        "expires_at" => System.system_time(:second) + 3600
+        access_token: auth[:access_token],
+        refresh_token: auth[:refresh_token],
+        expires_at: System.system_time(:second) + 3600
       }
 
       Hex.OAuth.store_token(tokens)
@@ -417,7 +218,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Try to refresh with invalid refresh token
       assert {:ok, {400, _headers, %{"error" => _}}} =
-               Hex.API.OAuth.refresh_token("invalid_refresh_token")
+               refresh_token("invalid_refresh_token")
     end)
   end
 
@@ -431,9 +232,9 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Store tokens
       tokens = %{
-        "access_token" => "write_access",
-        "refresh_token" => "write_refresh",
-        "expires_at" => System.system_time(:second) + 3600
+        access_token: "write_access",
+        refresh_token: "write_refresh",
+        expires_at: System.system_time(:second) + 3600
       }
 
       Hex.OAuth.store_token(tokens)
@@ -459,9 +260,9 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Store OAuth token
       tokens = %{
-        "access_token" => auth[:access_token],
-        "refresh_token" => auth[:refresh_token],
-        "expires_at" => System.system_time(:second) + 3600
+        access_token: auth[:access_token],
+        refresh_token: auth[:refresh_token],
+        expires_at: System.system_time(:second) + 3600
       }
 
       Hex.OAuth.store_token(tokens)
@@ -490,7 +291,7 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Test device authorization with custom scopes
       assert {:ok, {200, _headers, response}} =
-               Hex.API.OAuth.device_authorization("api:write repositories")
+               device_authorization("api:write repositories")
 
       assert %{
                "device_code" => device_code,
@@ -502,57 +303,34 @@ defmodule Mix.Tasks.Hex.UserTest do
 
       # Polling should return pending since user hasn't authorized
       assert {:ok, {400, _headers, %{"error" => "authorization_pending"}}} =
-               Hex.API.OAuth.poll_device_token(device_code)
+               poll_device_token(device_code)
     end)
   end
 
-  test "auth_info includes OTP from HEX_OTP environment variable" do
-    in_tmp(fn ->
-      set_home_cwd()
+  defp device_authorization(scopes, name \\ nil) do
+    opts = if name, do: [name: name], else: []
 
-      # Setup OAuth tokens
-      future_time = System.system_time(:second) + 3600
-
-      tokens = %{
-        "access_token" => "oauth_token",
-        "refresh_token" => "refresh_token",
-        "expires_at" => future_time
-      }
-
-      Hex.OAuth.store_token(tokens)
-
-      # Set HEX_OTP in state
-      Hex.State.put(:api_otp, "123456")
-
-      # Get auth info - should include OTP
-      auth = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
-
-      assert [key: "oauth_token", oauth: true, otp: "123456"] = auth
-    end)
+    :mix_hex_api_oauth.device_authorization(
+      Hex.API.Client.config(),
+      Hex.API.OAuth.client_id(),
+      scopes,
+      opts
+    )
   end
 
-  test "auth_info does not prompt for OTP when HEX_OTP is not set" do
-    in_tmp(fn ->
-      set_home_cwd()
+  defp poll_device_token(device_code) do
+    :mix_hex_api_oauth.poll_device_token(
+      Hex.API.Client.config(),
+      Hex.API.OAuth.client_id(),
+      device_code
+    )
+  end
 
-      # Setup OAuth tokens
-      future_time = System.system_time(:second) + 3600
-
-      tokens = %{
-        "access_token" => "oauth_token",
-        "refresh_token" => "refresh_token",
-        "expires_at" => future_time
-      }
-
-      Hex.OAuth.store_token(tokens)
-
-      # Don't set HEX_OTP - should not prompt upfront
-      Hex.State.put(:api_otp, nil)
-
-      # Get auth info - should not include OTP (server will prompt if needed)
-      auth = Mix.Tasks.Hex.auth_info(:write, auth_inline: false)
-
-      assert [key: "oauth_token", oauth: true] = auth
-    end)
+  defp refresh_token(token) do
+    :mix_hex_api_oauth.refresh_token(
+      Hex.API.Client.config(),
+      Hex.API.OAuth.client_id(),
+      token
+    )
   end
 end

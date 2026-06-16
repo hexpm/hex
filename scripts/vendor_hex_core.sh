@@ -24,6 +24,7 @@ filenames="hex_api_auth.erl \
            hex_api_user.erl \
            hex_api.erl \
            hex_advisory.erl \
+           hex_cli_auth.erl \
            hex_core.hrl \
            hex_core.erl \
            hex_erl_tar.erl \
@@ -58,6 +59,7 @@ search_to_replace="hex_core: \
                    hex_repo \
                    hex_api \
                    hex_advisory \
+                   hex_cli_auth \
                    safe_erl_term"
 
 rm -f $target_dir/$prefix*

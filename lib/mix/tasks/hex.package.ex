@@ -364,11 +364,10 @@ defmodule Mix.Tasks.Hex.Package do
 
   defp package_search(package, opts) do
     Hex.start()
-    auth = Mix.Tasks.Hex.auth_info(:read, auth_inline: false)
 
     opts
     |> search_repo()
-    |> Hex.API.Package.search(package, auth)
+    |> Hex.API.Package.search(package)
     |> lookup_packages()
   end
 

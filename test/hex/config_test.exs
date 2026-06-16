@@ -1,5 +1,5 @@
 defmodule Hex.ConfigTest do
-  use ExUnit.Case
+  use HexTest.Case
   alias Hex.Config
 
   test "find_config_home/1 when no env var flags are set" do
@@ -37,5 +37,41 @@ defmodule Hex.ConfigTest do
   after
     System.delete_env("HEX_HOME")
     System.delete_env("MIX_XDG")
+  end
+
+  test "read/0 migrates string-keyed OAuth tokens to atom keys" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      Config.write(
+        "$oauth_token": %{
+          "access_token" => "a_token",
+          "refresh_token" => "r_token",
+          "expires_at" => 123
+        },
+        "$repos": %{
+          "hexpm:org" => %{
+            url: "https://example.com",
+            oauth_token: %{
+              "access_token" => "repo_token",
+              "expires_at" => 456
+            }
+          }
+        }
+      )
+
+      config = Config.read()
+
+      assert config[:"$oauth_token"] == %{
+               access_token: "a_token",
+               refresh_token: "r_token",
+               expires_at: 123
+             }
+
+      assert config[:"$repos"]["hexpm:org"].oauth_token == %{
+               access_token: "repo_token",
+               expires_at: 456
+             }
+    end)
   end
 end

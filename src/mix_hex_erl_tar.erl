@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.17.0 (cadf1b8), do not edit manually
+%% Vendored from hex_core v0.18.0 (e093545), do not edit manually
 
 %% This file is a copy of erl_tar.erl from OTP with the following modifications:
 %% 1. Module renamed from erl_tar to mix_hex_erl_tar
