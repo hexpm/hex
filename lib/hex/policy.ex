@@ -20,7 +20,8 @@ defmodule Hex.Policy do
   Returns `{:ok, string}`, `{:ok, nil}`, or `:error`. The bare `"hexpm"` repo
   is rejected because the global hexpm has no organization-scoped policies;
   policies live under `hexpm:<org>` (or any non-`hexpm` repo for self-hosted
-  setups).
+  setups). This would be relaxed if hexpm ever serves a global policy (e.g. a
+  `recommended` set) directly under the `hexpm` repo.
   """
   @spec parse_config(term()) :: {:ok, String.t() | nil} | :error
   def parse_config(nil), do: {:ok, nil}
