@@ -10,7 +10,7 @@
 %% == Callbacks ==
 %%
 %% Callbacks are provided via the `cli_auth_callbacks' key in the config map.
-%% All callbacks are required:
+%% All callbacks below are required unless marked optional:
 %%
 %% ```
 %% #{
@@ -29,6 +29,13 @@
 %%                                  AccessToken :: binary(),
 %%                                  RefreshToken :: binary() | undefined,
 %%                                  ExpiresAt :: integer()) -> ok),
+%%
+%%     %% Invalidate the stored global OAuth token after it expired and could
+%%     %% not be refreshed (optional). Lets the build tool drop the unusable
+%%     %% token so concurrent and subsequent callers stop retrying the doomed
+%%     %% refresh, and warn the user. Invoked at most once per resolution, while
+%%     %% holding the token-refresh lock.
+%%     clear_oauth_tokens => fun(() -> ok),
 %%
 %%     %% User interaction
 %%     prompt_otp => fun((Message :: binary()) -> {ok, OtpCode :: binary()} | cancelled),
@@ -114,6 +121,7 @@
             ExpiresAt :: integer()
         ) -> ok
     ),
+    clear_oauth_tokens => fun(() -> ok),
     prompt_otp := fun((Message :: binary()) -> {ok, OtpCode :: binary()} | cancelled),
     should_authenticate := fun((Reason :: auth_prompt_reason()) -> boolean()),
     get_client_id := fun(() -> binary())
@@ -602,13 +610,28 @@ do_resolve_oauth_token_with_context(Config) ->
                     is_binary(maps:get(refresh_token, Tokens)),
             case is_token_expired(ExpiresAt) of
                 true ->
-                    maybe_refresh_token_with_context(Config, Tokens);
+                    refresh_or_clear(Config, Tokens);
                 false ->
                     BearerToken = <<"Bearer ", AccessToken/binary>>,
                     {ok, BearerToken, #{source => oauth, has_refresh_token => HasRefreshToken}}
             end;
         error ->
             {error, no_auth}
+    end.
+
+%% @private
+%% Refresh an expired global token; if the refresh fails, invalidate the stored
+%% token via the optional clear_oauth_tokens callback. This runs inside the
+%% token_refresh lock, so the unusable token is dropped exactly once and the
+%% callers serialized behind the lock re-read it as absent instead of each
+%% retrying the doomed refresh against the server.
+refresh_or_clear(Config, Tokens) ->
+    case maybe_refresh_token_with_context(Config, Tokens) of
+        {ok, _Bearer, _Ctx} = Ok ->
+            Ok;
+        {error, _} = Error ->
+            maybe_call_callback(Config, clear_oauth_tokens, []),
+            Error
     end.
 
 %% @private
@@ -758,3 +781,13 @@ call_callback(Config, Name, Args) ->
     #{cli_auth_callbacks := Callbacks} = Config,
     Fun = maps:get(Name, Callbacks),
     erlang:apply(Fun, Args).
+
+%% @private
+%% Like call_callback/3 but for optional callbacks: returns ok without doing
+%% anything when the callback is not provided.
+maybe_call_callback(Config, Name, Args) ->
+    #{cli_auth_callbacks := Callbacks} = Config,
+    case maps:find(Name, Callbacks) of
+        {ok, Fun} -> erlang:apply(Fun, Args);
+        error -> ok
+    end.

@@ -51,4 +51,39 @@ defmodule Hex.AuthTest do
       assert get_auth_config("does-not-exist") == :undefined
     end
   end
+
+  describe "clear_oauth_tokens/0 callback" do
+    test "drops the in-memory token and warns to re-authenticate" do
+      Hex.State.put(:oauth_token, %{
+        access_token: "expired",
+        refresh_token: "refresh",
+        expires_at: System.system_time(:second) - 100
+      })
+
+      assert Hex.Auth.callbacks().clear_oauth_tokens.() == :ok
+
+      assert Hex.State.get(:oauth_token) == nil
+
+      output = Case.shell_output()
+      assert output =~ "could not be refreshed"
+      assert output =~ "mix hex.user auth"
+    end
+
+    test "keeps the on-disk token so a later run can retry the refresh" do
+      in_tmp("clear_oauth_tokens", fn ->
+        set_home_cwd()
+
+        Hex.OAuth.store_token(%{
+          access_token: "expired",
+          refresh_token: "refresh",
+          expires_at: System.system_time(:second) - 100
+        })
+
+        assert Hex.Auth.callbacks().clear_oauth_tokens.() == :ok
+
+        assert Hex.State.get(:oauth_token) == nil
+        assert Hex.Config.read()[:"$oauth_token"] != nil
+      end)
+    end
+  end
 end

@@ -40,6 +40,7 @@ defmodule Hex.Auth do
       get_auth_config: &get_auth_config/1,
       get_oauth_tokens: &get_oauth_tokens/0,
       persist_oauth_tokens: &persist_oauth_tokens/4,
+      clear_oauth_tokens: &clear_oauth_tokens/0,
       prompt_otp: &prompt_otp/1,
       get_client_id: &Hex.API.OAuth.client_id/0,
       should_authenticate: &should_authenticate/1
@@ -107,6 +108,22 @@ defmodule Hex.Auth do
     Hex.State.fetch!(:repos)
     |> Map.put(repo, repo_config)
     |> Hex.Config.update_repos()
+
+    :ok
+  end
+
+  # Invoked by hex_cli_auth when the stored global OAuth token is expired and
+  # could not be refreshed. Drop it from in-memory state only — keeping the
+  # on-disk token, since a refresh can fail transiently — so the rest of this
+  # run stops retrying the doomed refresh and proceeds unauthenticated.
+  defp clear_oauth_tokens do
+    Hex.State.put(:oauth_token, nil)
+
+    Hex.Shell.warn(
+      "Your authentication session has expired and could not be refreshed. " <>
+        "Continuing without credentials; requests for private resources will fail or " <>
+        "prompt for authentication. Run `mix hex.user auth` to re-authenticate"
+    )
 
     :ok
   end
