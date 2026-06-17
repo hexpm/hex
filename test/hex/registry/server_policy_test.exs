@@ -8,12 +8,12 @@ defmodule Hex.Registry.ServerPolicyTest do
 
     repos =
       Map.put(repos, "hexpm:myorg", %{
-        url: "http://localhost:#{bypass.port}/repos/myorg",
+        url: "http://localhost:#{bypass.port}",
         public_key: File.read!(fixture_path("test_pub.pem")),
         auth_key: "key",
         trusted: true,
         oauth_exchange: false,
-        organization: "myorg"
+        repo_organization: "myorg"
       })
 
     Hex.State.put(:repos, repos)

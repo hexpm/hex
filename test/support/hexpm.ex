@@ -319,9 +319,9 @@ defmodule HexTest.Hexpm do
     expires_at = System.system_time(:second) + token_response["expires_in"]
 
     token_data = %{
-      "access_token" => token_response["access_token"],
-      "refresh_token" => token_response["refresh_token"],
-      "expires_at" => expires_at
+      access_token: token_response["access_token"],
+      refresh_token: token_response["refresh_token"],
+      expires_at: expires_at
     }
 
     # Store OAuth token
@@ -349,9 +349,9 @@ defmodule HexTest.Hexpm do
     expires_at = System.system_time(:second) + 3600
 
     token_data = %{
-      "access_token" => access_token,
-      "refresh_token" => refresh_token,
-      "expires_at" => expires_at
+      access_token: access_token,
+      refresh_token: refresh_token,
+      expires_at: expires_at
     }
 
     # Store OAuth token
@@ -377,9 +377,9 @@ defmodule HexTest.Hexpm do
     expires_at = System.system_time(:second) + 3600
 
     token_data = %{
-      "access_token" => access_token,
-      "refresh_token" => refresh_token,
-      "expires_at" => expires_at
+      access_token: access_token,
+      refresh_token: refresh_token,
+      expires_at: expires_at
     }
 
     Hex.OAuth.store_token(token_data)
@@ -397,9 +397,9 @@ defmodule HexTest.Hexpm do
     expires_at = System.system_time(:second) - 100
 
     token_data = %{
-      "access_token" => access_token,
-      "refresh_token" => refresh_token,
-      "expires_at" => expires_at
+      access_token: access_token,
+      refresh_token: refresh_token,
+      expires_at: expires_at
     }
 
     Hex.OAuth.store_token(token_data)

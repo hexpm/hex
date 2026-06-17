@@ -246,10 +246,10 @@ defmodule Mix.Tasks.Hex.Repo do
   defp show_public_key(nil), do: nil
 
   defp show_public_key(public_key) do
-    [pem_entry] = :public_key.pem_decode(public_key)
-    public_key = :public_key.pem_entry_decode(pem_entry)
+    Hex.Stdlib.ensure_application!(:ssh)
 
-    Hex.Stdlib.ssh_hostkey_fingerprint(:sha256, public_key)
+    public_key
+    |> :mix_hex_repo.fingerprint()
     |> List.to_string()
   end
 
@@ -265,7 +265,9 @@ defmodule Mix.Tasks.Hex.Repo do
 
     case Hex.Repo.get_public_key(repo_config) do
       {:ok, {200, _, key}} ->
-        if show_public_key(key) == fingerprint do
+        Hex.Stdlib.ensure_application!(:ssh)
+
+        if :mix_hex_repo.fingerprint_equal(key, fingerprint) do
           key
         else
           Mix.raise("Public key fingerprint mismatch")

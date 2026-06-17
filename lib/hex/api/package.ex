@@ -5,14 +5,27 @@ defmodule Hex.API.Package do
 
   def get(repo, name, auth \\ []) when name != "" do
     config = Client.build_config(repo, auth)
-    :mix_hex_api_package.get(config, to_string(name))
+
+    Hex.Auth.with_api(
+      :read,
+      config,
+      &:mix_hex_api_package.get(&1, to_string(name)),
+      auth_inline: false,
+      optional: true
+    )
   end
 
   def search(repo, search, auth \\ []) do
     config = Client.build_config(repo, auth)
     search_params = [{:sort, "downloads"}]
 
-    :mix_hex_api_package.search(config, to_string(search), search_params)
+    Hex.Auth.with_api(
+      :read,
+      config,
+      &:mix_hex_api_package.search(&1, to_string(search), search_params),
+      auth_inline: false,
+      optional: true
+    )
   end
 
   defmodule Owner do
@@ -20,35 +33,47 @@ defmodule Hex.API.Package do
 
     alias Hex.API.Client
 
-    def add(repo, package, owner, level, transfer, auth) when package != "" do
-      Mix.Tasks.Hex.with_otp_retry(auth, fn auth_with_otp ->
-        config = Client.build_config(repo, auth_with_otp)
+    def add(repo, package, owner, level, transfer, auth \\ []) when package != "" do
+      config =
+        Client.build_config(repo, auth)
 
-        :mix_hex_api_package_owner.add(
-          config,
+      Hex.Auth.with_api(
+        :write,
+        config,
+        &:mix_hex_api_package_owner.add(
+          &1,
           to_string(package),
           to_string(owner),
           to_string(level),
           transfer
         )
-      end)
+      )
     end
 
-    def delete(repo, package, owner, auth) when package != "" do
-      Mix.Tasks.Hex.with_otp_retry(auth, fn auth_with_otp ->
-        config = Client.build_config(repo, auth_with_otp)
+    def delete(repo, package, owner, auth \\ []) when package != "" do
+      config = Client.build_config(repo, auth)
 
-        :mix_hex_api_package_owner.delete(
-          config,
+      Hex.Auth.with_api(
+        :write,
+        config,
+        &:mix_hex_api_package_owner.delete(
+          &1,
           to_string(package),
           to_string(owner)
         )
-      end)
+      )
     end
 
-    def get(repo, package, auth) when package != "" do
+    def get(repo, package, auth \\ []) when package != "" do
       config = Client.build_config(repo, auth)
-      :mix_hex_api_package_owner.list(config, to_string(package))
+
+      Hex.Auth.with_api(
+        :read,
+        config,
+        &:mix_hex_api_package_owner.list(&1, to_string(package)),
+        auth_inline: false,
+        optional: true
+      )
     end
   end
 end

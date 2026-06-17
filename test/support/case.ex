@@ -21,6 +21,19 @@ defmodule HexTest.Case do
     end
   end
 
+  @doc """
+  Drains all pending `Mix.Shell.Process` messages and joins the `:info` and
+  `:error` output into a single string for substring assertions.
+  """
+  def shell_output do
+    flush()
+    |> Enum.flat_map(fn
+      {:mix_shell, kind, args} when kind in [:info, :error] -> [IO.chardata_to_string(args)]
+      _ -> []
+    end)
+    |> Enum.join("\n")
+  end
+
   def tmp_path() do
     Path.expand("../../tmp", __DIR__)
   end
@@ -293,7 +306,6 @@ defmodule HexTest.Case do
   def reset_state do
     Hex.State.put_all(Application.get_env(:hex, :reset_state))
     Hex.OAuth.clear_tokens()
-    Hex.Repo.clear_exchange_cache()
   end
 
   def set_home_cwd() do

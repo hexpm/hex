@@ -7,7 +7,7 @@ Hexpm.start()
 config = Hex.API.Client.config()
 
 body = %{
-  "client_id" => "78ea6566-89fd-481e-a1d6-7d9d78eacca8",
+  "client_id" => Hex.API.OAuth.client_id(),
   "client_type" => "public",
   "name" => "Hex CLI"
 }

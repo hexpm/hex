@@ -61,9 +61,6 @@ defmodule Hex.RemoteConverger do
       |> Enum.concat()
       |> verify_prefetches()
 
-    # Only preflight user OAuth when one of the relevant repos would
-    # actually rely on the stored OAuth token. Public-only deps.get
-    # should not prompt just because an unrelated token expired.
     check_and_refresh_auth(prefetches)
     Registry.prefetch(prefetches)
 
@@ -875,33 +872,41 @@ defmodule Hex.RemoteConverger do
   defp check_and_refresh_auth(prefetches) do
     if auth_preflight_required?(prefetches) do
       # Try to get token with authentication prompting enabled
-      # The OnceCache ensures only one process prompts even if multiple processes
+      # hex_cli_auth ensures only one process prompts even if multiple processes
       # detect the expired token concurrently
-      case Hex.OAuth.get_token(prompt_auth: true) do
-        {:ok, _access_token} ->
+
+      config = Hex.API.Client.config([])
+
+      :read
+      |> Hex.Auth.with_api(
+        config,
+        fn
+          %{api_key: api_key} when is_binary(api_key) -> :ok
+          %{} -> {:error, :no_auth}
+        end,
+        optional: true,
+        auth_inline: true
+      )
+      |> case do
+        :ok ->
           # Token is valid, was successfully refreshed, or user authenticated
           :ok
 
-        {:error, :auth_failed} ->
-          Hex.Shell.warn(
-            "Authentication failed. Private packages will not be available. " <>
-              "Run `mix hex.user auth` to authenticate."
-          )
-
-        {:error, :auth_declined} ->
+        {:error, {:auth_error, :auth_declined}} ->
+          # User declined authentication
           Hex.Shell.warn(
             "Private packages will not be available. " <>
               "Run `mix hex.user auth` to authenticate."
           )
 
-        {:error, :no_auth} ->
-          # No stored OAuth token to preflight; continue unauthenticated
-          # and let the repo fetch fail normally if authentication is required.
-          :ok
+        {:error, {:auth_error, _reason}} ->
+          Hex.Shell.warn(
+            "Authentication failed. Private packages will not be available. " <>
+              "Run `mix hex.user auth` to authenticate."
+          )
 
-        {:error, _other} ->
-          # Do not fail dependency resolution during OAuth preflight; continue
-          # unauthenticated and let the repo fetch surface any auth error.
+        {:error, _reason} ->
+          # Other errors (shouldn't happen with prompt_auth: true, but handle gracefully)
           :ok
       end
     else

@@ -16,13 +16,33 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       hexpm = Hex.Repo.get_repo("hexpm")
 
       assert myorg.public_key == hexpm.public_key
-      assert myorg.url == "http://localhost:4043/repo/repos/myorgauth"
+      assert myorg.url == "http://localhost:4043/repo"
       assert is_binary(myorg.auth_key)
 
       {:ok, hostname} = :inet.gethostname()
       name = "#{hostname}-repository-myorgauth"
       assert {:ok, {200, _, body}} = Hex.API.Key.get(auth)
       assert name in Enum.map(body, & &1["name"])
+    end)
+  end
+
+  test "auth without --key warns about deprecation" do
+    in_tmp(fn ->
+      set_home_cwd()
+      auth = Hexpm.new_user("orgauthdeprecated", "orgauthdeprecated@mail.com", "password", "key")
+      Hex.State.put(:api_key, auth[:key])
+      Hexpm.new_repo("myorgauthdeprecated", auth)
+
+      send(self(), {:mix_shell_input, :yes?, true})
+      send(self(), {:mix_shell_input, :prompt, "password"})
+      Mix.Tasks.Hex.Organization.run(["auth", "myorgauthdeprecated"])
+
+      output = Case.shell_output()
+      assert output =~ "deprecated"
+      assert output =~ "mix hex.user auth"
+
+      # Still authorizes (warning only, no behavior change)
+      assert is_binary(Hex.Repo.get_repo("hexpm:myorgauthdeprecated").auth_key)
     end)
   end
 
@@ -51,7 +71,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       hexpm = Hex.Repo.get_repo("hexpm")
 
       assert myorg.public_key == hexpm.public_key
-      assert myorg.url == "http://localhost:4043/repo/repos/myorgauthwithkeyname"
+      assert myorg.url == "http://localhost:4043/repo"
       assert is_binary(myorg.auth_key)
 
       assert {:ok, {200, _, body}} = Hex.API.Key.get(auth)
@@ -74,14 +94,14 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       hexpm = Hex.Repo.get_repo("hexpm")
 
       assert myorg.public_key == hexpm.public_key
-      assert myorg.url == "http://localhost:4043/repo/repos/myorgauthkey"
+      assert myorg.url == "http://localhost:4043/repo"
       assert myorg.auth_key == body["secret"]
 
       repos = Hex.Config.read_repos(Hex.Config.read())
       assert repo = repos["hexpm:myorgauthkey"]
       assert repo[:auth_key]
       assert repo[:trusted]
-      assert repo[:url] == "http://localhost:4043/repo/repos/myorgauthkey"
+      assert repo[:url] == "http://localhost:4043/repo"
 
       refute Map.has_key?(Hex.Config.read()[:"$repos"]["hexpm:myorgauthkey"], :trusted)
     end)

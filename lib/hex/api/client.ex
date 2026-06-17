@@ -6,7 +6,8 @@ defmodule Hex.API.Client do
       :mix_hex_core.default_config()
       | http_adapter: {Hex.HTTP, %{}},
         api_url: Hex.State.fetch!(:api_url),
-        http_user_agent_fragment: user_agent_fragment()
+        http_user_agent_fragment: user_agent_fragment(),
+        cli_auth_callbacks: Hex.Auth.callbacks()
     }
 
     config
@@ -26,9 +27,8 @@ defmodule Hex.API.Client do
       opts[:user] && opts[:pass] ->
         # For basic auth, add it as an HTTP header
         base64 = Base.encode64("#{opts[:user]}:#{opts[:pass]}")
-        headers = Map.get(config, :http_headers, %{})
-        headers = Map.put(headers, "authorization", "Basic #{base64}")
-        Map.put(config, :http_headers, headers)
+        token = "Basic #{base64}"
+        Map.put(config, :api_key, token)
 
       true ->
         config
@@ -36,7 +36,7 @@ defmodule Hex.API.Client do
   end
 
   defp maybe_put_otp(config, opts) do
-    if otp = opts[:otp] do
+    if otp = opts[:otp] || Hex.State.get(:api_otp) do
       Map.put(config, :api_otp, otp)
     else
       config

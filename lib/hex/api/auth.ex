@@ -3,7 +3,7 @@ defmodule Hex.API.Auth do
 
   alias Hex.API.Client
 
-  def get(domain, resource, auth) do
+  def get(domain, resource, auth \\ []) do
     config = Client.config(auth)
 
     params = %{
@@ -11,6 +11,9 @@ defmodule Hex.API.Auth do
       resource: to_string(resource)
     }
 
-    :mix_hex_api_auth.test(config, params)
+    Hex.Auth.with_api(:read, config, &:mix_hex_api_auth.test(&1, params),
+      auth_inline: false,
+      optional: true
+    )
   end
 end
