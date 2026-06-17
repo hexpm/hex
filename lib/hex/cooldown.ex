@@ -187,19 +187,18 @@ defmodule Hex.Cooldown do
         nil
 
       entries ->
-        today = Date.utc_today()
-
         lines =
           entries
           |> Enum.group_by(fn {repo, pkg, _vsn, _} -> {repo, pkg} end)
           |> Enum.sort()
-          |> Enum.flat_map(fn {_key, entries} -> package_lines(entries, cutoff, today) end)
+          |> Enum.flat_map(fn {_key, entries} -> package_lines(entries, cutoff) end)
 
-        "\nVersions filtered by cooldown:\n" <> Enum.join(lines, "\n") <> "\n"
+        iodata = ["\nVersions filtered by cooldown:\n", Enum.intersperse(lines, "\n"), "\n"]
+        IO.chardata_to_string(Hex.Shell.format(iodata))
     end
   end
 
-  defp package_lines(entries, cutoff, today) do
+  defp package_lines(entries, cutoff) do
     {listed, rest} =
       entries
       |> Enum.sort_by(fn {_repo, _pkg, vsn, _} -> Version.parse!(vsn) end, {:desc, Version})
@@ -207,10 +206,22 @@ defmodule Hex.Cooldown do
 
     lines =
       Enum.map(listed, fn {_repo, pkg, vsn, published_at} ->
-        published_date = published_at |> DateTime.from_unix!() |> DateTime.to_date()
-        days_ago = Date.diff(today, published_date)
         eligible_date = eligible_on(published_at, cutoff)
-        "  #{pkg} #{vsn} — published #{days_ago} days ago, eligible #{eligible_date}"
+
+        [
+          "  ",
+          :bright,
+          pkg,
+          :reset,
+          " ",
+          :yellow,
+          vsn,
+          :reset,
+          " — eligible ",
+          :cyan,
+          to_string(eligible_date),
+          :reset
+        ]
       end)
 
     case rest do
