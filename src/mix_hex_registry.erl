@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.18.0 (e093545), do not edit manually
+%% Vendored from hex_core v0.18.0 (d6a6a5a), do not edit manually
 
 %% @doc
 %% Functions for encoding and decoding Hex registries.
@@ -138,13 +138,13 @@ unpack_policy(Payload, Repository, Name, PublicKey) ->
 
 %% @private
 encode_policy(Policy) ->
-    hex_pb_policy:encode_msg(Policy, 'Policy').
+    mix_hex_pb_policy:encode_msg(Policy, 'Policy').
 
 %% @private
 decode_policy(Payload, no_verify, no_verify) ->
-    {ok, hex_pb_policy:decode_msg(Payload, 'Policy')};
+    {ok, mix_hex_pb_policy:decode_msg(Payload, 'Policy')};
 decode_policy(Payload, Repository, Name) ->
-    case hex_pb_policy:decode_msg(Payload, 'Policy') of
+    case mix_hex_pb_policy:decode_msg(Payload, 'Policy') of
         #{repository := Repository, name := Name} = Result ->
             {ok, Result};
         _ ->

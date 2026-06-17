@@ -142,6 +142,13 @@ defmodule Hex.State do
       default: [],
       skip_env_if_empty: true,
       fun: {Hex.Cooldown, :parse_exclude_repos}
+    },
+    policy: %{
+      env: ["HEX_POLICY"],
+      config: [:policy],
+      default: nil,
+      fun: {Hex.Policy, :parse_config},
+      on_invalid: :keep
     }
   }
 
@@ -175,7 +182,10 @@ defmodule Hex.State do
       pbkdf2_iters: {:computed, @pbkdf2_iters},
       repos: {:computed, Hex.Config.read_repos(global_config)},
       ssl_version: {:computed, ssl_version()},
-      shell_process: {:computed, nil}
+      shell_process: {:computed, nil},
+      active_policy: {:computed, nil},
+      policy_filtered_versions: {:computed, []},
+      policy_locked_versions: {:computed, %{}}
     })
   end
 
@@ -249,8 +259,8 @@ defmodule Hex.State do
 
     result =
       load_env(spec[:env], env, spec[:skip_env_if_empty]) ||
-        load_project_config(project_config, spec[:config]) ||
-        load_global_config(global_config, spec[:config])
+        maybe_load_project(project_config, spec) ||
+        maybe_load_global(global_config, spec)
 
     {module, func} = spec[:fun] || {__MODULE__, :ok_wrap}
 
@@ -270,9 +280,16 @@ defmodule Hex.State do
             {source, value}
 
           :error ->
-            print_invalid_config_error(value, source)
-            {:ok, value} = apply(module, func, [spec[:default]])
-            {:default, value}
+            if spec[:on_invalid] == :keep do
+              # Keys that gate enforcement keep the malformed value tagged as
+              # invalid so reads fail closed, instead of degrading to the
+              # default behind a warning.
+              {source, {:invalid, value}}
+            else
+              print_invalid_config_error(value, source)
+              {:ok, value} = apply(module, func, [spec[:default]])
+              {:default, value}
+            end
         end
     end
   end
@@ -292,6 +309,12 @@ defmodule Hex.State do
     |> Hex.State.fetch!()
     |> Path.join("hex.config")
   end
+
+  defp maybe_load_project(_config, %{config_scope: :global}), do: nil
+  defp maybe_load_project(config, spec), do: load_project_config(config, spec[:config])
+
+  defp maybe_load_global(_config, %{config_scope: :project}), do: nil
+  defp maybe_load_global(config, spec), do: load_global_config(config, spec[:config])
 
   defp load_env(keys, env, skip_if_empty) do
     Enum.find_value(keys || [], fn key ->

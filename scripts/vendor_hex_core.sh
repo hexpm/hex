@@ -34,6 +34,7 @@ filenames="hex_api_auth.erl \
            hex_licenses.erl \
            hex_pb_names.erl \
            hex_pb_package.erl \
+           hex_pb_policy.erl \
            hex_pb_signed.erl \
            hex_pb_versions.erl \
            hex_registry.erl \
@@ -50,6 +51,7 @@ search_to_replace="hex_core: \
                    hex_licenses \
                    hex_pb_names \
                    hex_pb_package \
+                   hex_pb_policy \
                    hex_pb_signed \
                    hex_pb_versions \
                    hex_registry \

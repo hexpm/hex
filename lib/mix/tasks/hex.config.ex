@@ -68,13 +68,22 @@ defmodule Mix.Tasks.Hex.Config do
       published more recently are filtered out of the candidate set when
       resolving dependencies. Does not apply to installs from an existing
       lockfile. Can be overridden by setting the environment variable
-      `HEX_COOLDOWN` (Default: `"0d"` — no cooldown)
+      `HEX_COOLDOWN` (Default: `"0d"` — no cooldown). See
+      https://hex.pm/docs/dependency-policies for the full guide.
     * `cooldown_exclude_repos` - List of repository names for which
       `cooldown` does not apply, e.g. `["hexpm:myorg"]`. Useful when an
       organization publishes hotfixes to its own repository and wants to
       consume them without cooldown delay. Can be overridden by setting
       the environment variable `HEX_COOLDOWN_EXCLUDE_REPOS` to a
-      comma-separated list (Default: `[]`)
+      comma-separated list (Default: `[]`). See
+      https://hex.pm/docs/dependency-policies for the full guide.
+    * `policy` - The policy this Hex client honors at resolution time, as a
+      `REPO/NAME` pair, e.g. `hexpm:myorg/strict-prod`. The `mix.exs` `:hex`
+      block also accepts `policy: [org: "ORG", name: "NAME"]` for a hexpm
+      organization, or `policy: [repo: "REPO", name: "NAME"]` for any other
+      configured repository. Can be overridden by setting the environment
+      variable `HEX_POLICY`, where an empty value disables the configured
+      policy. See https://hex.pm/docs/dependency-policies for the full guide.
 
   Hex responds to these additional environment variables:
 

@@ -216,6 +216,12 @@ defmodule Hex.Repo do
     Hex.Auth.with_repo(config, &:mix_hex_repo.get_package(&1, package), optional: true)
   end
 
+  def get_policy(repo, name, etag) do
+    repo_config = get_repo(repo)
+    config = build_hex_core_config(repo_config, repo, etag)
+    :mix_hex_repo.get_policy(config, name)
+  end
+
   def get_docs(repo, package, version) do
     repo_config = get_repo(repo)
     config = build_hex_core_config(repo_config, repo)

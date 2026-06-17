@@ -34,6 +34,17 @@ defmodule Hex.Registry.Server do
     end
   end
 
+  def prefetch_policies(refs) do
+    case GenServer.call(@name, {:prefetch_policies, refs}, @timeout) do
+      :ok -> :ok
+      {:error, message} -> Mix.raise(message)
+    end
+  end
+
+  def policy(repo, name) do
+    GenServer.call(@name, {:policy, repo, name}, @timeout)
+  end
+
   def versions(repo, package) do
     GenServer.call(@name, {:versions, repo, package}, @timeout)
   end
@@ -81,7 +92,10 @@ defmodule Hex.Registry.Server do
       pending: MapSet.new(),
       fetched: MapSet.new(),
       waiting: %{},
-      pending_fun: nil
+      pending_fun: nil,
+      pending_policies: MapSet.new(),
+      fetched_policies: MapSet.new(),
+      waiting_policies: %{}
     }
   end
 
@@ -154,6 +168,32 @@ defmodule Hex.Registry.Server do
     else
       prefetch_online(packages, state)
     end
+  end
+
+  def handle_call({:prefetch_policies, refs}, _from, state) do
+    refs =
+      refs
+      |> Enum.map(fn {repo, name} -> {repo || "hexpm", name} end)
+      |> Enum.uniq()
+      |> Enum.reject(&(&1 in state.fetched_policies))
+      |> Enum.reject(&(&1 in state.pending_policies))
+
+    purge_repo_from_cache(refs, state)
+
+    if Hex.State.fetch!(:offline) do
+      prefetch_policies_offline(refs, state)
+    else
+      prefetch_policies_online(refs, state)
+    end
+  end
+
+  def handle_call({:policy, repo, name}, from, state) do
+    maybe_wait_policy({repo, name}, from, state, fn ->
+      case lookup(state.ets, {:policy, repo || "hexpm", name}) do
+        nil -> :error
+        decoded -> {:ok, decoded}
+      end
+    end)
   end
 
   def handle_call({:versions, repo, package}, from, state) do
@@ -258,6 +298,30 @@ defmodule Hex.Registry.Server do
     {:noreply, state}
   end
 
+  def handle_info({:get_policy, repo, name, result}, state) do
+    repo = repo || "hexpm"
+    ref = {repo, name}
+    pending = MapSet.delete(state.pending_policies, ref)
+    fetched = MapSet.put(state.fetched_policies, ref)
+    {replys, waiting} = Map.pop(state.waiting_policies, ref, [])
+
+    write_policy_result(result, repo, name, state)
+
+    Enum.each(replys, fn {from, fun} ->
+      GenServer.reply(from, fun.())
+    end)
+
+    state = %{
+      state
+      | pending_policies: pending,
+        waiting_policies: waiting,
+        fetched_policies: fetched
+    }
+
+    state = maybe_run_pending(state)
+    {:noreply, state}
+  end
+
   defp open_ets(path) do
     case :ets.file2tab(path, verify: true) do
       {:ok, tid} ->
@@ -327,6 +391,8 @@ defmodule Hex.Registry.Server do
   #   {{:registry_etag, ^repo, _package}, _} -> true
   #   {{:timestamp, ^repo, _package}, _} -> true
   #   {{:timestamp, ^repo, _package, _version}, _} -> true
+  #   {{:policy, ^repo, _name}, _} -> true
+  #   {{:policy_etag, ^repo, _name}, _} -> true
   #   _ -> false
   # end)
 
@@ -342,6 +408,8 @@ defmodule Hex.Registry.Server do
       {{{:registry_etag, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:timestamp, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {{{:timestamp, :"$1", :"$2", :"$3"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:policy, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
+      {{{:policy_etag, :"$1", :"$2"}, :_}, [{:"=:=", {:const, repo}, :"$1"}], [true]},
       {:_, [], [false]}
     ]
   end
@@ -383,6 +451,35 @@ defmodule Hex.Registry.Server do
     else
       fetched = MapSet.union(MapSet.new(packages), state.fetched)
       {:reply, :ok, %{state | fetched: fetched}}
+    end
+  end
+
+  defp prefetch_policies_online(refs, state) do
+    Enum.each(refs, fn {repo, name} ->
+      etag = policy_etag(repo, name, state)
+
+      Hex.Parallel.run(:hex_fetcher, {:policy, repo, name}, [await: false], fn ->
+        {:get_policy, repo, name, Hex.Repo.get_policy(repo, name, etag)}
+      end)
+    end)
+
+    pending = MapSet.union(MapSet.new(refs), state.pending_policies)
+    state = %{state | pending_policies: pending}
+    {:reply, :ok, state}
+  end
+
+  defp prefetch_policies_offline(refs, state) do
+    case Enum.find(refs, fn {repo, name} -> !lookup(state.ets, {:policy, repo, name}) end) do
+      {repo, name} ->
+        message =
+          "Hex is running in offline mode and policy " <>
+            "#{repo}/#{name} is not cached locally"
+
+        {:reply, {:error, message}, state}
+
+      nil ->
+        fetched = MapSet.union(MapSet.new(refs), state.fetched_policies)
+        {:reply, :ok, %{state | fetched_policies: fetched}}
     end
   end
 
@@ -444,6 +541,52 @@ defmodule Hex.Registry.Server do
 
     unless cached? do
       raise "Stopping due to errors"
+    end
+  end
+
+  defp write_policy_result({:ok, {code, headers, decoded}}, repo, name, %{ets: tid})
+       when code in 200..299 and is_map(decoded) do
+    :ets.insert(tid, {{:policy, repo, name}, decoded})
+
+    if etag = headers[~c"etag"] do
+      :ets.insert(tid, {{:policy_etag, repo, name}, List.to_string(etag)})
+    end
+  end
+
+  defp write_policy_result({:ok, {304, _, _}}, _repo, _name, _state) do
+    :ok
+  end
+
+  defp write_policy_result(other, repo, name, %{ets: tid}) do
+    cached? = !!:ets.lookup(tid, {:policy, repo, name})
+    print_policy_error(other, repo, name, cached?)
+
+    unless cached? do
+      raise "Stopping due to errors"
+    end
+  end
+
+  defp print_policy_error(result, repo, name, cached?) do
+    cached_message = if cached?, do: " (using cache instead)"
+
+    Hex.Shell.error("Failed to fetch policy #{repo}/#{name} from registry#{cached_message}")
+
+    missing? = missing_status?(result)
+    unauthorized? = unauthorized_status?(result)
+
+    if missing? or unauthorized? do
+      Hex.Shell.error(
+        "This could be because the policy does not exist, it was spelled " <>
+          "incorrectly or you don't have permissions to it"
+      )
+
+      if unauthorized? and not Hex.OAuth.has_tokens?() do
+        Hex.Shell.error("No authenticated user found. Run `mix hex.user auth` to authenticate")
+      end
+    end
+
+    if not (missing? or unauthorized?) or Mix.debug?() do
+      Hex.Utils.print_error_result(result)
     end
   end
 
@@ -522,8 +665,26 @@ defmodule Hex.Registry.Server do
     end
   end
 
+  defp maybe_wait_policy({repo, name}, from, state, fun) do
+    repo = repo || "hexpm"
+
+    cond do
+      {repo, name} in state.fetched_policies ->
+        {:reply, fun.(), state}
+
+      {repo, name} in state.pending_policies ->
+        tuple = {from, fun}
+        waiting = Map.update(state.waiting_policies, {repo, name}, [tuple], &[tuple | &1])
+        state = %{state | waiting_policies: waiting}
+        {:noreply, state}
+
+      true ->
+        Mix.raise("Policy #{repo}/#{name} not prefetched, please report this issue")
+    end
+  end
+
   defp wait_pending(state, fun) do
-    if MapSet.size(state.pending) == 0 do
+    if MapSet.size(state.pending) == 0 and MapSet.size(state.pending_policies) == 0 do
       state = fun.(state)
       %{state | pending_fun: nil}
     else
@@ -541,6 +702,13 @@ defmodule Hex.Registry.Server do
 
   defp package_etag(repo, package, %{ets: tid}) do
     case :ets.lookup(tid, {:registry_etag, repo, package}) do
+      [{_, etag}] -> etag
+      [] -> nil
+    end
+  end
+
+  defp policy_etag(repo, name, %{ets: tid}) do
+    case :ets.lookup(tid, {:policy_etag, repo, name}) do
       [{_, etag}] -> etag
       [] -> nil
     end

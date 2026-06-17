@@ -1216,10 +1216,10 @@ defmodule Hex.MixTaskTest do
       # setup_hexpm.exs publishes the `tired` package with versions 0.1.0
       # (retired) and 0.2.0. Both were published in the test session, so a
       # 1-day cooldown filters BOTH from the candidate set. Without the
-      # unsafe-locked-version bypass, `mix deps.update tired` would
-      # pre-flight error because every matching version is in cooldown.
-      # The bypass detects the locked 0.1.0 is retired and lets the
-      # resolver see the full set, so it picks 0.2.0.
+      # unsafe-locked-version bypass, `mix deps.update tired` would fail
+      # resolution because every matching version is in cooldown. The
+      # bypass detects the locked 0.1.0 is retired and lets the resolver
+      # see the full set, so it picks 0.2.0.
       Mix.Project.push(TiredPin)
 
       in_tmp(fn ->
