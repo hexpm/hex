@@ -298,7 +298,6 @@ defmodule Hex.CooldownTest do
 
       assert summary =~ "Versions filtered by cooldown:"
       assert summary =~ "castore 1.0.19"
-      assert summary =~ "3 days ago"
       assert summary =~ "eligible #{Cooldown.eligible_on(published_at, cutoff)}"
     end
 

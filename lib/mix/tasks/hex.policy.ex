@@ -93,9 +93,13 @@ defmodule Mix.Tasks.Hex.Policy do
   end
 
   defp render_show(policy) do
-    Hex.Shell.info(
-      "Active policy: #{policy.repository}/#{policy.name} [#{visibility_label(policy.visibility)}]\n"
-    )
+    Hex.Shell.info([
+      "Active policy: ",
+      [:cyan, "#{policy.repository}/#{policy.name}"],
+      " ",
+      visibility_tag(policy.visibility),
+      "\n"
+    ])
 
     render_repositories(policy)
     Hex.Shell.info("")
@@ -107,7 +111,11 @@ defmodule Mix.Tasks.Hex.Policy do
         :ok
 
       {source, duration} ->
-        Hex.Shell.info("Effective cooldown: #{duration} (#{cooldown_source(source)})")
+        Hex.Shell.info([
+          "Effective cooldown: ",
+          [:cyan, duration],
+          " (#{cooldown_source(source)})"
+        ])
     end
   end
 
@@ -125,11 +133,11 @@ defmodule Mix.Tasks.Hex.Policy do
     restriction = Map.get(rp, :restriction)
     overrides = Map.get(rp, :overrides, [])
 
-    Hex.Shell.info("    #{rp.repository}:")
-    Hex.Shell.info("      Cooldown:        #{cooldown_label(restriction)}")
-    Hex.Shell.info("      Advisory rule:   #{advisory_label(restriction)}")
-    Hex.Shell.info("      Retirement rule: #{retirement_label(restriction)}")
-    Hex.Shell.info("      Overrides:       #{length(overrides)}")
+    Hex.Shell.info(["    ", [:bright, "#{rp.repository}:"]])
+    Hex.Shell.info(["      Cooldown:        ", cooldown_label(restriction)])
+    Hex.Shell.info(["      Advisory rule:   ", advisory_label(restriction)])
+    Hex.Shell.info(["      Retirement rule: ", retirement_label(restriction)])
+    Hex.Shell.info(["      Overrides:       ", to_string(length(overrides))])
   end
 
   defp why(arg) do
@@ -177,16 +185,16 @@ defmodule Mix.Tasks.Hex.Policy do
 
         case Filter.classify(policy, candidate) do
           :allowed ->
-            [version, "ALLOWED", ""]
+            [version, [:green, "ALLOWED"], ""]
 
           {:blocked, reasons} ->
-            reason_text =
+            reason_cell =
               reasons
-              |> Enum.map(&Diagnostics.format_reason/1)
               |> Enum.uniq()
-              |> Enum.join(", ")
+              |> Enum.map(&[Diagnostics.reason_color(&1), Diagnostics.format_reason(&1)])
+              |> Enum.intersperse(", ")
 
-            [version, "BLOCKED", reason_text]
+            [version, [:red, "BLOCKED"], reason_cell]
         end
       end)
 
@@ -196,27 +204,30 @@ defmodule Mix.Tasks.Hex.Policy do
   defp cooldown_source(:local), do: "local"
   defp cooldown_source({repo, name}), do: "#{repo}/#{name}"
 
-  defp visibility_label(:VISIBILITY_PUBLIC), do: "public"
-  defp visibility_label(:VISIBILITY_PRIVATE), do: "private"
-  defp visibility_label(other), do: to_string(other)
+  defp visibility_tag(:VISIBILITY_PUBLIC), do: [:green, "[public]"]
+  defp visibility_tag(:VISIBILITY_PRIVATE), do: [:yellow, "[private]"]
+  defp visibility_tag(other), do: ["[", to_string(other), "]"]
 
-  defp cooldown_label(%{cooldown: duration}) when is_binary(duration), do: duration
-  defp cooldown_label(_restriction), do: "(none)"
+  defp cooldown_label(%{cooldown: duration}) when is_binary(duration), do: [:cyan, duration]
+  defp cooldown_label(_restriction), do: [:faint, "(none)"]
 
-  defp advisory_label(%{advisory_min_severity: :SEVERITY_NONE}), do: "block any advisory"
+  defp advisory_label(%{advisory_min_severity: :SEVERITY_NONE}), do: [:red, "block any advisory"]
 
   defp advisory_label(%{advisory_min_severity: severity}) when not is_nil(severity),
-    do: "block ≥ #{Hex.Utils.advisory_severity(severity)}"
+    do: [:red, "block ≥ #{Hex.Utils.advisory_severity(severity)}"]
 
-  defp advisory_label(_restriction), do: "(disabled)"
+  defp advisory_label(_restriction), do: [:faint, "(disabled)"]
 
   defp retirement_label(%{retirement_reasons: reasons}) when is_list(reasons) and reasons != [] do
-    reasons
-    |> Enum.map(fn r ->
-      r |> Hex.Utils.package_retirement_reason() |> String.upcase()
-    end)
-    |> Enum.join(", ")
+    text =
+      reasons
+      |> Enum.map(fn r ->
+        r |> Hex.Utils.package_retirement_reason() |> String.upcase()
+      end)
+      |> Enum.join(", ")
+
+    [:yellow, text]
   end
 
-  defp retirement_label(_restriction), do: "(disabled)"
+  defp retirement_label(_restriction), do: [:faint, "(disabled)"]
 end

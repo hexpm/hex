@@ -165,6 +165,16 @@ defmodule Hex.Policy.Diagnostics do
 
   def format_reason(other), do: inspect(other)
 
+  @doc """
+  Maps a blocker reason to an ANSI color used to highlight it in output.
+  """
+  @spec reason_color(term()) :: atom()
+  def reason_color({:advisory, _}), do: :red
+  def reason_color({:retirement, _}), do: :yellow
+  def reason_color({:cooldown, _, _}), do: :cyan
+  def reason_color(:override_deny), do: :red
+  def reason_color(_other), do: :reset
+
   defp count(1, noun), do: "1 #{noun}"
   defp count(n, noun), do: "#{n} #{noun}s"
 end
