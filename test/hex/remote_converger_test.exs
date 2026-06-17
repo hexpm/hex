@@ -133,6 +133,11 @@ defmodule Hex.RemoteConvergerTest do
       end)
 
       refute_received {:mix_shell, :yes?, _}
+
+      # The unusable session is dropped after the first failed refresh, so the
+      # rest of the resolution falls back to unauthenticated fetches instead of
+      # retrying the doomed refresh for every package.
+      assert Hex.State.get(:oauth_token) == nil
     end)
   end
 
