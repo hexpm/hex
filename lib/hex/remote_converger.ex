@@ -117,7 +117,9 @@ defmodule Hex.RemoteConverger do
         end
 
         print_cooldown_summary()
-        print_policy_summary()
+        # The failure note above already lists the hidden versions, so the
+        # summary here contributes only the active-policy header.
+        print_policy_summary(list_filtered: false)
         Mix.raise("Hex dependency resolution failed")
     end
   end
@@ -937,13 +939,19 @@ defmodule Hex.RemoteConverger do
   end
 
   @doc false
-  def print_policy_summary() do
+  def print_policy_summary(opts \\ []) do
     case Hex.State.fetch!(:active_policy) do
       nil ->
         :ok
 
       policy ->
-        filtered = Hex.State.fetch!(:policy_filtered_versions)
+        filtered =
+          if Keyword.get(opts, :list_filtered, true) do
+            Hex.State.fetch!(:policy_filtered_versions)
+          else
+            []
+          end
+
         local_cooldown = Hex.State.fetch!(:cooldown)
 
         if summary = Hex.Policy.Diagnostics.resolution_summary(policy, filtered, local_cooldown) do

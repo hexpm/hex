@@ -96,6 +96,29 @@ defmodule Hex.RemoteConvergerPolicyTest do
     assert output =~ "  phoenix 1.7.18 — override deny"
   end
 
+  test "print_policy_summary/1 with list_filtered: false omits the hidden versions" do
+    Mix.shell(Mix.Shell.IO)
+    on_exit(fn -> Mix.shell(Hex.Shell.Process) end)
+
+    Hex.State.put(:active_policy, %{
+      repository: "myorg",
+      name: "strict-prod",
+      visibility: :VISIBILITY_PUBLIC,
+      repositories: []
+    })
+
+    Hex.State.put(:policy_filtered_versions, [
+      %{repo: "hexpm", package: "phoenix", version: "1.7.18", reasons: [:override_deny]}
+    ])
+
+    output =
+      capture_io(fn -> Hex.RemoteConverger.print_policy_summary(list_filtered: false) end)
+
+    assert output =~ "Active policy: myorg/strict-prod"
+    refute output =~ "Policy hid"
+    refute output =~ "phoenix 1.7.18"
+  end
+
   test "print_policy_summary/0 prints nothing without an active policy" do
     Mix.shell(Mix.Shell.IO)
     on_exit(fn -> Mix.shell(Hex.Shell.Process) end)
