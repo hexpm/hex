@@ -1,17 +1,39 @@
 # CHANGELOG
 
-## v2.4.3-dev
+## v2.5.0-dev
+
+### Enhancements
+
+* Add organization-defined dependency policies that filter the package versions available during dependency resolution. An organization publishes a named policy through its repository, and a project opts into one with the `policy` config (`HEX_POLICY`, `[org: "ORG", name: "NAME"]` in the `mix.exs` `:hex` block, or `mix hex.config`). A policy constrains one or more repositories — typically the organization's own repo and `hexpm` — and for each can block releases that:
+
+    * carry a security advisory at or above a minimum severity
+    * are retired for one of a given set of reasons
+    * are newer than a release-age cooldown window
+
+  Per-package allow/deny overrides take precedence over the restriction (an allow also exempts the release, and the most specific match wins), and versions already in `mix.lock` are never filtered. Use `mix hex.policy show` to summarize the active policy and `mix hex.policy why PACKAGE` to see why specific versions are blocked.
+
+* Add a configurable release-age cooldown to dependency resolution that withholds freshly published versions until they reach a minimum age, mitigating supply-chain attacks where a compromised release is pulled into projects before it can be detected and retired. Configure it with the `cooldown` config (`HEX_COOLDOWN`), accepting durations like `7d`, `2w`, or `1mo`, and exempt specific repositories with `cooldown_exclude_repos`. Versions already in `mix.lock`, and locked versions that are retired or carry an advisory, bypass the cooldown so existing projects and security fixes are never held back.
+* Warn about packages with known security advisories during `mix deps.get` and `mix deps.update`
+* Add `mix hex.search QUERY` to search documentation from the terminal, and move package name search to `mix hex.package search`
+* Add `--page` and `--format md` options to `mix hex.docs`
+* Support JSON output in `mix hex.outdated`
+* Annotate cooldown-held versions in `mix hex.outdated`
+* Validate package files in `mix hex.build`
+* Accept `LicenseRef-` license identifiers in `mix hex.build`
+* Use subdomain URLs (`PACKAGE.hexdocs.pm`) for package docs
+* Escape terminal control sequences in server-provided `x-hex-message` headers
+
+### Bug fixes
+
+* Fix a crash when a server responds with an `x-hex-message` header
+* Deduplicate aliased security advisories
+* Warn when the OAuth session cannot be refreshed instead of silently sending unauthenticated requests
 
 ### Deprecations
 
 * Deprecate `mix hex.organization auth ORGANIZATION` without `--key`; authenticate as a user with `mix hex.user auth` instead, or pass a pre-generated organization key with `--key` for CI
 * Deprecate authenticating to organization repositories with a stored key; a future release will require `mix hex.user auth` or a short-lived organization token
 * Deprecate authenticating to organization repositories with `HEX_REPOS_KEY`; authenticate per organization with `mix hex.organization auth ORGANIZATION --key KEY` (`HEX_REPOS_KEY` continues to authenticate the base hexpm repository and trusted mirrors)
-
-### Bug fixes
-
-* Fix a crash when a server responds with an `x-hex-message` header
-* Escape terminal control sequences in server-provided `x-hex-message` headers
 
 ## v2.4.2 (2026-04-30)
 
