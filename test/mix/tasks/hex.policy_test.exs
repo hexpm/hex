@@ -41,13 +41,54 @@ defmodule Mix.Tasks.Hex.PolicyTest do
       assert out =~ "HIGH"
     end
 
-    test "a bare invocation (no subcommand) defaults to show" do
-      out = capture_io(fn -> Mix.Tasks.Hex.Policy.run([]) end)
-      assert out =~ "No active policy"
+    test "lists each package override with its action" do
+      Hex.State.put(:active_policy, %{
+        repository: "myorg",
+        name: "strict-prod",
+        visibility: :VISIBILITY_PUBLIC,
+        repositories: [
+          %{
+            repository: "hexpm",
+            restriction: %{},
+            overrides: [
+              %{action: :OVERRIDE_ACTION_ALLOW, ref: %{package: "plug", requirement: ">= 1.0.0"}},
+              %{action: :OVERRIDE_ACTION_DENY, ref: %{package: "evil_dep"}}
+            ]
+          }
+        ]
+      })
+
+      out = capture_io(fn -> Mix.Tasks.Hex.Policy.run(["show"]) end)
+      assert out =~ "plug"
+      assert out =~ ">= 1.0.0"
+      assert out =~ "ALLOW"
+      assert out =~ "evil_dep"
+      assert out =~ "DENY"
+    end
+
+    test "renders a (none) placeholder when a repository has no overrides" do
+      Hex.State.put(:active_policy, %{
+        repository: "myorg",
+        name: "strict-prod",
+        visibility: :VISIBILITY_PUBLIC,
+        repositories: [
+          %{repository: "hexpm", restriction: %{}, overrides: []}
+        ]
+      })
+
+      out = capture_io(fn -> Mix.Tasks.Hex.Policy.run(["show"]) end)
+      assert out =~ "Overrides:"
+      assert out =~ "(none)"
     end
   end
 
   describe "why" do
+    test "a bare invocation (no subcommand) raises the usage message" do
+      assert_raise Mix.Error, ~r/Invalid arguments, expected one of:/, fn ->
+        Mix.Tasks.Hex.Policy.run([])
+      end
+    end
+
     test "complains when package name is missing" do
       assert_raise Mix.Error, ~r/Invalid arguments, expected one of:/, fn ->
         Mix.Tasks.Hex.Policy.run(["why"])
