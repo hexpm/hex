@@ -149,6 +149,126 @@ defmodule Mix.Tasks.Hex.AuditTest do
     end)
   end
 
+  test "audit (advisory ignored by primary id)", context do
+    with_test_package("2.0.0", context, fn ->
+      inject_advisory(@package_name, "2.0.0", [@advisory])
+      Hex.State.put(:ignore_advisories, ["GHSA-test-0001"])
+
+      Mix.Task.run("hex.audit")
+
+      output = shell_output()
+      assert output =~ "Ignored advisories:"
+      assert output =~ "GHSA-test-0001"
+      refute output =~ "Found packages with security advisories"
+    end)
+  end
+
+  test "audit (advisory ignored by CVE alias, case-insensitively)", context do
+    advisory = %{
+      id: "GHSA-test-0005",
+      aliases: ["CVE-2026-11111"],
+      summary: "Path traversal via crafted filename",
+      html_url: "https://github.com/advisories/GHSA-test-0005",
+      severity: :SEVERITY_LOW,
+      api_url: "https://hex.pm/api/advisories/GHSA-test-0005"
+    }
+
+    with_test_package("2.1.0", context, fn ->
+      inject_advisory(@package_name, "2.1.0", [advisory])
+      Hex.State.put(:ignore_advisories, ["cve-2026-11111"])
+
+      Mix.Task.run("hex.audit")
+
+      output = shell_output()
+      assert output =~ "Ignored advisories:"
+      assert output =~ "GHSA-test-0005"
+      refute output =~ "Found packages with security advisories"
+    end)
+  end
+
+  test "audit (retirement ignored by package name)", context do
+    with_test_package("2.2.0", context, fn ->
+      retire_test_package("2.2.0", "security")
+      Hex.State.put(:ignore_retirements, [{@package_name, nil}])
+
+      Mix.Task.run("hex.audit")
+
+      output = shell_output()
+      assert output =~ "Ignored retired:"
+      assert output =~ "#{@package_name} 2.2.0 - (security)"
+      refute output =~ "Found retired packages"
+    end)
+  end
+
+  test "audit (retirement ignored by pinned version)", context do
+    with_test_package("2.3.0", context, fn ->
+      retire_test_package("2.3.0", "deprecated", "Use something else")
+      Hex.State.put(:ignore_retirements, [{@package_name, "2.3.0"}])
+
+      Mix.Task.run("hex.audit")
+
+      output = shell_output()
+      assert output =~ "Ignored retired:"
+      refute output =~ "Found retired packages"
+    end)
+  end
+
+  test "audit (pinned ignore for a different version still fails)", context do
+    with_test_package("2.4.0", context, fn ->
+      retire_test_package("2.4.0", "security")
+      Hex.State.put(:ignore_retirements, [{@package_name, "9.9.9"}])
+
+      assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
+
+      output = shell_output()
+      assert output =~ "Retired:"
+      assert output =~ "Found retired packages"
+      assert output =~ "ignore_retirements entry #{@package_name} 9.9.9 does not match"
+    end)
+  end
+
+  test "audit (mixed active and ignored advisories)", context do
+    other_advisory = %{
+      id: "GHSA-test-0006",
+      summary: "Denial of service via oversized payload",
+      html_url: "https://github.com/advisories/GHSA-test-0006",
+      severity: :SEVERITY_CRITICAL,
+      api_url: "https://hex.pm/api/advisories/GHSA-test-0006"
+    }
+
+    with_test_package("2.5.0", context, fn ->
+      inject_advisory(@package_name, "2.5.0", [@advisory, other_advisory])
+      Hex.State.put(:ignore_advisories, ["GHSA-test-0001"])
+
+      assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
+
+      output = shell_output()
+      assert output =~ "Advisories:"
+      assert output =~ "GHSA-test-0006"
+      assert output =~ "Ignored advisories:"
+      assert output =~ "GHSA-test-0001"
+      assert output =~ "Found packages with security advisories"
+    end)
+  end
+
+  test "audit (stale ignore entries warn without failing)", context do
+    with_test_package("2.6.0", context, fn ->
+      Hex.State.put(:ignore_advisories, ["CVE-2020-00000"])
+      Hex.State.put(:ignore_retirements, [{"nonexistent_package", nil}])
+
+      Mix.Task.run("hex.audit")
+
+      output = shell_output()
+      assert output =~ "No retired or security advisory packages found"
+
+      assert output =~
+               ~s(ignore_advisories entry "CVE-2020-00000" does not match any advisory)
+
+      assert output =~
+               "ignore_retirements entry nonexistent_package does not match any retired"
+    end)
+  end
+
   def with_test_package(version, %{auth: auth}, fun) do
     Mix.Project.push(RetiredDeps.MixProject)
 

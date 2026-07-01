@@ -36,23 +36,38 @@ defmodule Mix.Tasks.Hex.Audit do
     |> Hex.Mix.packages_from_lock()
     |> Registry.prefetch()
 
-    retired = retired_packages(lock)
-    advisories = advisory_packages(lock)
+    ignore_advisories = Hex.State.fetch!(:ignore_advisories)
+    ignore_retirements = Hex.State.fetch!(:ignore_retirements)
 
-    if retired == [] and advisories == [] do
+    all_retired = retired_packages(lock)
+    raw_advisories = advisory_packages(lock)
+
+    {ignored_retired, retired} =
+      Enum.split_with(all_retired, fn {package, version, _message} ->
+        Hex.Ignores.retirement_ignored?(package, version, ignore_retirements)
+      end)
+
+    advisories = group_advisories(raw_advisories, ignore_advisories, :active)
+    ignored_advisories = group_advisories(raw_advisories, ignore_advisories, :ignored)
+
+    if retired == [] and advisories == [] and ignored_retired == [] and
+         ignored_advisories == [] do
       Hex.Shell.info("No retired or security advisory packages found")
     else
-      if retired != [], do: print_retired_section(retired)
+      print_sections([
+        {:retired, "Retired:", retired},
+        {:advisories, "Advisories:", advisories},
+        {:retired, "Ignored retired:", ignored_retired},
+        {:advisories, "Ignored advisories:", ignored_advisories}
+      ])
+    end
 
-      if advisories != [] do
-        if retired != [], do: Hex.Shell.info("")
-        print_advisories_section(advisories)
-      end
+    warn_unused_ignores(all_retired, raw_advisories, ignore_advisories, ignore_retirements)
 
+    if retired != [] or advisories != [] do
       Hex.Shell.info("")
       if retired != [], do: Hex.Shell.error("Found retired packages")
       if advisories != [], do: Hex.Shell.error("Found packages with security advisories")
-
       Mix.Tasks.Hex.set_exit_code(1)
     end
   end
@@ -82,27 +97,48 @@ defmodule Mix.Tasks.Hex.Audit do
   end
 
   defp advisory_status(%{repo: repo, name: package, version: version}) do
-    advisories =
-      (Registry.advisories(repo, package, version) || [])
-      |> :mix_hex_advisory.group_for_display()
-
-    Enum.map(advisories, fn advisory -> {package, version, advisory} end)
+    case Registry.advisories(repo, package, version) || [] do
+      [] -> []
+      advisories -> [{package, version, advisories}]
+    end
   end
 
   defp advisory_status(nil), do: []
 
-  defp print_retired_section(retired) do
-    Hex.Shell.info(Hex.Shell.format([:bright, "Retired:", :reset]))
+  defp group_advisories(raw_advisories, ignores, mode) do
+    Enum.flat_map(raw_advisories, fn {package, version, advisories} ->
+      advisories
+      |> Enum.filter(fn advisory ->
+        ignored? = Hex.Ignores.advisory_ignored?(advisory, ignores)
+        if mode == :ignored, do: ignored?, else: not ignored?
+      end)
+      |> :mix_hex_advisory.group_for_display()
+      |> Enum.map(fn advisory -> {package, version, advisory} end)
+    end)
+  end
 
-    Enum.each(retired, fn {package, version, message} ->
+  defp print_sections(sections) do
+    sections
+    |> Enum.reject(fn {_type, _header, entries} -> entries == [] end)
+    |> Enum.with_index()
+    |> Enum.each(fn {{type, header, entries}, index} ->
+      if index > 0, do: Hex.Shell.info("")
+      print_section(type, header, entries)
+    end)
+  end
+
+  defp print_section(:retired, header, entries) do
+    Hex.Shell.info(Hex.Shell.format([:bright, header, :reset]))
+
+    Enum.each(entries, fn {package, version, message} ->
       Hex.Shell.info(Hex.Shell.format(["  #{package} #{version} - ", :yellow, message, :reset]))
     end)
   end
 
-  defp print_advisories_section(advisories) do
-    Hex.Shell.info(Hex.Shell.format([:bright, "Advisories:", :reset]))
+  defp print_section(:advisories, header, entries) do
+    Hex.Shell.info(Hex.Shell.format([:bright, header, :reset]))
 
-    advisories
+    entries
     |> Enum.with_index()
     |> Enum.each(fn {{package, version, advisory}, index} ->
       if index > 0, do: Hex.Shell.info("")
@@ -114,4 +150,32 @@ defmodule Mix.Tasks.Hex.Audit do
       )
     end)
   end
+
+  defp warn_unused_ignores(all_retired, raw_advisories, ignore_advisories, ignore_retirements) do
+    all_advisories =
+      Enum.flat_map(raw_advisories, fn {_package, _version, advisories} -> advisories end)
+
+    Enum.each(ignore_advisories, fn id ->
+      unless Enum.any?(all_advisories, &Hex.Ignores.advisory_matches?(&1, id)) do
+        Hex.Shell.warn(
+          "ignore_advisories entry \"#{id}\" does not match any advisory " <>
+            "for the locked dependencies and can be removed"
+        )
+      end
+    end)
+
+    Enum.each(ignore_retirements, fn {name, version} = entry ->
+      unless Enum.any?(all_retired, fn {package, package_version, _message} ->
+               Hex.Ignores.retirement_matches?(package, package_version, entry)
+             end) do
+        Hex.Shell.warn(
+          "ignore_retirements entry #{format_retirement_entry(name, version)} " <>
+            "does not match any retired locked dependency and can be removed"
+        )
+      end
+    end)
+  end
+
+  defp format_retirement_entry(name, nil), do: name
+  defp format_retirement_entry(name, version), do: "#{name} #{version}"
 end
