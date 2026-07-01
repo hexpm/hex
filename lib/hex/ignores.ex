@@ -41,6 +41,27 @@ defmodule Hex.Ignores do
 
   def parse_retirements(_), do: :error
 
+  def advisory_ignored?(advisory, ids) do
+    Enum.any?(ids, &advisory_matches?(advisory, &1))
+  end
+
+  def advisory_matches?(%{id: advisory_id} = advisory, id) do
+    id = String.downcase(id)
+
+    Enum.any?([advisory_id | Map.get(advisory, :aliases, [])], fn candidate ->
+      String.downcase(candidate) == id
+    end)
+  end
+
+  def retirement_ignored?(package, version, entries) do
+    Enum.any?(entries, &retirement_matches?(package, version, &1))
+  end
+
+  def retirement_matches?(package, _version, {name, nil}), do: package == name
+
+  def retirement_matches?(package, version, {name, pinned}),
+    do: package == name and version == pinned
+
   defp split_env_list(value) do
     value
     |> String.split(",")
