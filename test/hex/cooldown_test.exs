@@ -37,6 +37,21 @@ defmodule Hex.CooldownTest do
       assert {:ok, 14 * 86_400} == Cooldown.duration_to_seconds("2w")
       assert {:ok, 30 * 86_400} == Cooldown.duration_to_seconds("1mo")
     end
+
+    test "rejects malformed durations" do
+      assert :error == Cooldown.duration_to_seconds("")
+      assert :error == Cooldown.duration_to_seconds("5")
+      assert :error == Cooldown.duration_to_seconds("00")
+      assert :error == Cooldown.duration_to_seconds("d")
+      assert :error == Cooldown.duration_to_seconds("5m")
+      assert :error == Cooldown.duration_to_seconds("5x")
+      assert :error == Cooldown.duration_to_seconds("5dd")
+      assert :error == Cooldown.duration_to_seconds("+5d")
+      assert :error == Cooldown.duration_to_seconds("-5d")
+      assert :error == Cooldown.duration_to_seconds("1_0d")
+      assert :error == Cooldown.duration_to_seconds(" 5d")
+      assert :error == Cooldown.duration_to_seconds("5d ")
+    end
   end
 
   describe "build_cutoff/0" do

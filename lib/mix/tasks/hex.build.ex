@@ -251,13 +251,14 @@ defmodule Mix.Tasks.Hex.Build do
   @doc false
   def package(package, config) do
     files = package[:files] || Hex.Package.default_files()
-    exclude_patterns = (package[:exclude_patterns] || []) ++ [~r/\W\.DS_Store$/]
+    exclude_patterns = package[:exclude_patterns] || []
 
     files =
       files
       |> expand_paths(File.cwd!())
       |> Enum.reject(fn path ->
-        Enum.any?(exclude_patterns, &(path =~ &1))
+        Path.basename(path) == ".DS_Store" or
+          Enum.any?(exclude_patterns, &(path =~ &1))
       end)
 
     package

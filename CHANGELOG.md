@@ -2,6 +2,10 @@
 
 ## v2.5.1-dev
 
+### Bug fixes
+
+* Remove regexes from compiled code. Compiled regex patterns are not portable across OTP versions, so the precompiled archive could crash with `:re.import/1 is undefined` when built and run on different OTP versions
+
 ## v2.5.0 (2026-06-28)
 
 ### Enhancements
