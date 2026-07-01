@@ -49,6 +49,30 @@ defmodule Mix.Tasks.Hex.ConfigTest do
     end)
   end
 
+  test "ignore_advisories and ignore_retirements config keys" do
+    in_tmp(fn ->
+      System.put_env("HEX_HOME", File.cwd!())
+      Hex.State.refresh()
+
+      Mix.Tasks.Hex.Config.run(["ignore_advisories"])
+      assert_received {:mix_shell, :info, ["[]"]}
+
+      Mix.Tasks.Hex.Config.run(["ignore_retirements"])
+      assert_received {:mix_shell, :info, ["[]"]}
+
+      System.put_env("HEX_IGNORE_ADVISORIES", "CVE-2026-32686, GHSA-xxxx-yyyy-zzzz")
+      System.put_env("HEX_IGNORE_RETIREMENTS", "decimal,phoenix@1.0.0")
+      Hex.State.refresh()
+
+      assert Hex.State.fetch!(:ignore_advisories) == ["CVE-2026-32686", "GHSA-xxxx-yyyy-zzzz"]
+      assert Hex.State.fetch!(:ignore_retirements) == [{"decimal", nil}, {"phoenix", "1.0.0"}]
+
+      System.delete_env("HEX_IGNORE_ADVISORIES")
+      System.delete_env("HEX_IGNORE_RETIREMENTS")
+      Hex.State.refresh()
+    end)
+  end
+
   test "config key" do
     in_tmp(fn ->
       System.put_env("HEX_HOME", File.cwd!())
