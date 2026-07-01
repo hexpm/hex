@@ -149,6 +149,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       File.write!("myfile.txt", "hello")
       File.write!("executable.sh", "world")
       File.write!("dir/dir2/test.txt", "and")
+      File.write!("dir/.DS_Store", "junk")
       File.chmod!("myfile.txt", 0o100644)
       File.chmod!("executable.sh", 0o100755)
       File.chmod!("dir/dir2/test.txt", 0o100644)
@@ -170,6 +171,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       assert File.read!("unzip/myfile.txt") == "hello"
       assert File.read!("unzip/dir/.dotfile") == ""
       assert File.read!("unzip/dir/dir2/test.txt") == "and"
+      refute File.exists?("unzip/dir/.DS_Store")
       assert File.stat!("unzip/myfile.txt").mode == 0o100644
       assert File.stat!("unzip/executable.sh").mode == 0o100755
     end)
