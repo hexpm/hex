@@ -70,14 +70,15 @@ defmodule Hex.Cooldown do
   @spec duration_to_seconds(String.t()) :: {:ok, non_neg_integer()} | :error
   def duration_to_seconds("0"), do: {:ok, 0}
 
-  def duration_to_seconds(string) when is_binary(string) do
-    with [_, digits, unit] <- Regex.run(~r/\A(\d+)(d|w|mo)\z/, string),
-         {n, ""} <- Integer.parse(digits) do
-      {:ok, n * unit_seconds(unit)}
-    else
+  # The leading-digit guard rejects the signs Integer.parse/1 accepts ("+5d", "-5d")
+  def duration_to_seconds(<<digit, _::binary>> = string) when digit in ?0..?9 do
+    case Integer.parse(string) do
+      {n, unit} when unit in ["d", "w", "mo"] -> {:ok, n * unit_seconds(unit)}
       _ -> :error
     end
   end
+
+  def duration_to_seconds(string) when is_binary(string), do: :error
 
   defp unit_seconds("d"), do: 86_400
   defp unit_seconds("w"), do: 86_400 * 7
