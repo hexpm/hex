@@ -17,6 +17,37 @@ defmodule Mix.Tasks.Hex.Audit do
   The task will display advisory details and exit with a non-zero code
   if any packages with advisories are found.
 
+  ## Ignoring advisories and retirements
+
+  Advisories that do not affect your project and retirements you cannot act
+  on yet can be acknowledged in the `:hex` section of your `mix.exs` project
+  configuration:
+
+      def project() do
+        [
+          # ...
+          hex: [
+            ignore_advisories: ["CVE-2026-32686"],
+            ignore_retirements: [:decimal, phoenix: "1.0.0"]
+          ]
+        ]
+      end
+
+  `ignore_advisories` lists advisory IDs; an advisory is ignored when the
+  given ID matches its primary ID or any of its aliases, so a GHSA advisory
+  can also be ignored by its CVE ID. `ignore_retirements` lists packages by
+  name, optionally pinned to a single version.
+
+  Ignored findings are listed in separate "Ignored" sections and do not cause
+  a non-zero exit code. Entries that do not match anything in the lock file
+  produce a warning so they can be cleaned up. The same configuration
+  silences the advisory and retirement warnings printed by `mix deps.get`
+  and `mix deps.update`.
+
+  Both values can also be set with the `HEX_IGNORE_ADVISORIES` and
+  `HEX_IGNORE_RETIREMENTS` environment variables as comma-separated lists,
+  where retirement entries are `NAME` or `NAME@VERSION`.
+
   > In a project, this task must be invoked before any other tasks
   > that may load or start your application. Otherwise, you must
   > explicitly list `:hex` as part of your `:extra_applications`.
