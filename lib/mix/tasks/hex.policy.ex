@@ -9,7 +9,6 @@ defmodule Mix.Tasks.Hex.Policy do
   Shows the active Hex policy and explains why specific versions
   are blocked.
 
-      $ mix hex.policy
       $ mix hex.policy show
       $ mix hex.policy why PACKAGE
 
@@ -17,8 +16,7 @@ defmodule Mix.Tasks.Hex.Policy do
 
     * `show` — Summarize the active policy: visibility and the
       per-repository restrictions (cooldown, advisory, retirement) and
-      override counts, plus the effective cooldown. This is the default
-      when no command is given.
+      the package overrides, plus the effective cooldown.
     * `why PACKAGE` — Walk every version of the named package in the
       registry, classify each against the active policy, and print a
       per-version table of status and the reasons it is blocked.
@@ -55,9 +53,6 @@ defmodule Mix.Tasks.Hex.Policy do
     Hex.start()
 
     case args do
-      [] ->
-        show()
-
       ["show"] ->
         show()
 
@@ -137,8 +132,39 @@ defmodule Mix.Tasks.Hex.Policy do
     Hex.Shell.info(["      Cooldown:        ", cooldown_label(restriction)])
     Hex.Shell.info(["      Advisory rule:   ", advisory_label(restriction)])
     Hex.Shell.info(["      Retirement rule: ", retirement_label(restriction)])
-    Hex.Shell.info(["      Overrides:       ", to_string(length(overrides))])
+    render_overrides(overrides)
   end
+
+  defp render_overrides([]) do
+    Hex.Shell.info(["      Overrides:       ", [:faint, "(none)"]])
+  end
+
+  defp render_overrides(overrides) do
+    Hex.Shell.info(["      Overrides:"])
+
+    Enum.each(overrides, fn override ->
+      Hex.Shell.info(["        ", override_label(override)])
+    end)
+  end
+
+  defp override_label(%{action: action, ref: ref}) do
+    package = Map.get(ref, :package)
+
+    package_text =
+      case Map.get(ref, :requirement) do
+        requirement when is_binary(requirement) and requirement != "" ->
+          "#{package} #{requirement}"
+
+        _ ->
+          "#{package}"
+      end
+
+    [package_text, "  ", override_action_label(action)]
+  end
+
+  defp override_action_label(:OVERRIDE_ACTION_ALLOW), do: [:green, "ALLOW"]
+  defp override_action_label(:OVERRIDE_ACTION_DENY), do: [:red, "DENY"]
+  defp override_action_label(other), do: [to_string(other)]
 
   defp why(arg) do
     {repo, package} = parse_package_arg(arg)
