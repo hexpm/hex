@@ -235,6 +235,136 @@ defmodule Hex.RemoteConvergerTest do
     end
   end
 
+  defmodule IgnoredAdvisoryDeps.MixProject do
+    def project do
+      [
+        app: :ignored_advisory_deps,
+        version: "0.1.0",
+        deps: [{:rc_ignored_package, "0.1.0"}]
+      ]
+    end
+  end
+
+  test "deps.get does not warn about ignored advisories" do
+    auth =
+      Hexpm.new_user(
+        "rc_ignored_user",
+        "rc_ignored@mail.com",
+        "passpass",
+        "rc_ignored_key"
+      )
+
+    Hexpm.new_package("hexpm", "rc_ignored_package", "0.1.0", [], %{}, auth)
+
+    advisory = %{
+      id: "GHSA-rc-0002",
+      aliases: ["CVE-2026-22222"],
+      summary: "Remote code execution via crafted input",
+      html_url: "https://github.com/advisories/GHSA-rc-0002",
+      severity: :SEVERITY_HIGH,
+      api_url: "https://hex.pm/api/advisories/GHSA-rc-0002"
+    }
+
+    with_project(IgnoredAdvisoryDeps.MixProject, fn ->
+      in_tmp(fn ->
+        Hex.State.put(:cache_home, tmp_path())
+        Hex.State.put(:api_key, auth[:key])
+        Mix.Dep.Lock.write(%{rc_ignored_package: {:hex, :rc_ignored_package, "0.1.0"}})
+
+        :ok = Mix.Tasks.Deps.Get.run([])
+        flush()
+
+        :sys.replace_state(Hex.Registry.Server, fn %{ets: tid} = state ->
+          :ets.insert(
+            tid,
+            {{:advisories, "hexpm", "rc_ignored_package", "0.1.0"}, [advisory]}
+          )
+
+          state
+        end)
+
+        File.rm!("mix.lock")
+        Mix.Task.clear()
+        :ok = Mix.Tasks.Deps.Get.run([])
+
+        output = shell_output()
+        assert output =~ "VULNERABLE!"
+        assert output =~ "GHSA-rc-0002"
+
+        Hex.State.put(:ignore_advisories, ["CVE-2026-22222"])
+
+        File.rm!("mix.lock")
+        Mix.Task.clear()
+        :ok = Mix.Tasks.Deps.Get.run([])
+
+        output = shell_output()
+        refute output =~ "VULNERABLE!"
+        refute output =~ "GHSA-rc-0002"
+        refute output =~ "Found packages with security advisories"
+      end)
+    end)
+  end
+
+  defmodule IgnoredRetiredDeps.MixProject do
+    def project do
+      [
+        app: :ignored_retired_deps,
+        version: "0.1.0",
+        deps: [{:rc_ignored_retired, "0.1.0"}]
+      ]
+    end
+  end
+
+  test "deps.get does not warn about ignored retirements" do
+    auth =
+      Hexpm.new_user(
+        "rc_retired_user",
+        "rc_retired@mail.com",
+        "passpass",
+        "rc_retired_key"
+      )
+
+    Hexpm.new_package("hexpm", "rc_ignored_retired", "0.1.0", [], %{}, auth)
+
+    with_project(IgnoredRetiredDeps.MixProject, fn ->
+      in_tmp(fn ->
+        Hex.State.put(:cache_home, tmp_path())
+        Hex.State.put(:api_key, auth[:key])
+        Mix.Dep.Lock.write(%{rc_ignored_retired: {:hex, :rc_ignored_retired, "0.1.0"}})
+
+        :ok = Mix.Tasks.Deps.Get.run([])
+        flush()
+
+        :sys.replace_state(Hex.Registry.Server, fn %{ets: tid} = state ->
+          :ets.insert(
+            tid,
+            {{:retired, "hexpm", "rc_ignored_retired", "0.1.0"},
+             %{reason: :RETIRED_SECURITY, message: "Retired for testing"}}
+          )
+
+          state
+        end)
+
+        File.rm!("mix.lock")
+        Mix.Task.clear()
+        :ok = Mix.Tasks.Deps.Get.run([])
+
+        output = shell_output()
+        assert output =~ "RETIRED!"
+
+        Hex.State.put(:ignore_retirements, [{"rc_ignored_retired", nil}])
+
+        File.rm!("mix.lock")
+        Mix.Task.clear()
+        :ok = Mix.Tasks.Deps.Get.run([])
+
+        output = shell_output()
+        refute output =~ "RETIRED!"
+        refute output =~ "Found retired packages"
+      end)
+    end)
+  end
+
   defmodule ChecksumIntegrity.MixProject do
     def project do
       [

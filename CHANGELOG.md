@@ -2,6 +2,10 @@
 
 ## v2.5.1-dev
 
+### Enhancements
+
+* Add `ignore_advisories` and `ignore_retirements` configs to acknowledge security advisories and package retirements. Configure them in the `mix.exs` `:hex` block (`ignore_advisories: ["CVE-2026-32686"]`, `ignore_retirements: [:decimal, phoenix: "1.0.0"]`) or with the `HEX_IGNORE_ADVISORIES` and `HEX_IGNORE_RETIREMENTS` environment variables. `mix hex.audit` lists ignored findings in separate sections without failing and warns about entries that no longer match anything, and `mix deps.get`/`mix deps.update` stop warning about ignored findings
+
 ### Bug fixes
 
 * Remove regexes from compiled code. Compiled regex patterns are not portable across OTP versions, so the precompiled archive could crash with `:re.import/1 is undefined` when built and run on different OTP versions

@@ -552,11 +552,29 @@ defmodule Hex.RemoteConverger do
   end
 
   defp annotate_dependency_changes(dep_changes) do
+    ignore_advisories = Hex.State.fetch!(:ignore_advisories)
+    ignore_retirements = Hex.State.fetch!(:ignore_retirements)
+
     Enum.map(dep_changes, fn {mod, deps} ->
       annotated =
         Enum.map(deps, fn {name, repo, _prev, version, _warning} = dep ->
-          retired = Registry.retired(repo, name, version)
-          advisories = Registry.advisories(repo, name, version) || []
+          retired =
+            case Registry.retired(repo, name, version) do
+              %{} = retired ->
+                if Hex.Ignores.retirement_ignored?(name, version, ignore_retirements) do
+                  nil
+                else
+                  retired
+                end
+
+              nil ->
+                nil
+            end
+
+          advisories =
+            (Registry.advisories(repo, name, version) || [])
+            |> Enum.reject(&Hex.Ignores.advisory_ignored?(&1, ignore_advisories))
+
           {dep, retired, advisories}
         end)
 

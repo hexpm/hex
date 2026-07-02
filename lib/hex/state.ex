@@ -149,6 +149,20 @@ defmodule Hex.State do
       default: nil,
       fun: {Hex.Policy, :parse_config},
       on_invalid: :keep
+    },
+    ignore_advisories: %{
+      env: ["HEX_IGNORE_ADVISORIES"],
+      config: [:ignore_advisories],
+      default: [],
+      skip_env_if_empty: true,
+      fun: {Hex.Ignores, :parse_advisories}
+    },
+    ignore_retirements: %{
+      env: ["HEX_IGNORE_RETIREMENTS"],
+      config: [:ignore_retirements],
+      default: [],
+      skip_env_if_empty: true,
+      fun: {Hex.Ignores, :parse_retirements}
     }
   }
 

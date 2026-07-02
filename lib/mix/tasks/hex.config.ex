@@ -77,6 +77,18 @@ defmodule Mix.Tasks.Hex.Config do
       the environment variable `HEX_COOLDOWN_EXCLUDE_REPOS` to a
       comma-separated list (Default: `[]`). See
       https://hex.pm/docs/dependency-policies for the full guide.
+    * `ignore_advisories` - List of security advisory IDs to acknowledge,
+      e.g. `["CVE-2026-32686"]`. Matching advisories are not reported by
+      `mix hex.audit`, `mix deps.get`, and `mix deps.update`. An ID matches
+      an advisory's primary ID or any of its aliases. Can be overridden by
+      setting `HEX_IGNORE_ADVISORIES` as a comma-separated list.
+      (Default: `[]`)
+    * `ignore_retirements` - List of packages whose retirement to
+      acknowledge, as atoms with an optional pinned version, e.g.
+      `[:decimal, phoenix: "1.0.0"]`. Matching retirements are not reported
+      by `mix hex.audit`, `mix deps.get`, and `mix deps.update`. Can be
+      overridden by setting `HEX_IGNORE_RETIREMENTS` as a comma-separated
+      list of `NAME` or `NAME@VERSION` entries. (Default: `[]`)
     * `policy` - The policy this Hex client honors at resolution time, as a
       `REPO/NAME` pair, e.g. `hexpm:myorg/strict-prod`. The `mix.exs` `:hex`
       block also accepts `policy: [org: "ORG", name: "NAME"]` for a hexpm
