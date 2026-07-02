@@ -111,4 +111,38 @@ defmodule Hex.IgnoresTest do
       refute Ignores.retirement_ignored?("ecto", "1.0.0", [])
     end
   end
+
+  describe "split_advisories/2" do
+    @eef %{
+      id: "EEF-0001",
+      aliases: ["CVE-2026-33333"],
+      summary: "Remote code execution",
+      severity: :SEVERITY_HIGH
+    }
+    @ghsa %{
+      id: "GHSA-aaaa-bbbb-cccc",
+      aliases: ["CVE-2026-33333"],
+      summary: "Remote code execution",
+      severity: :SEVERITY_HIGH
+    }
+    @other %{id: "GHSA-dddd-eeee-ffff", summary: "Denial of service", severity: :SEVERITY_LOW}
+
+    test "no ignores keeps everything active" do
+      assert Ignores.split_advisories([@eef, @ghsa, @other], []) == {[], [@eef, @ghsa, @other]}
+    end
+
+    test "ignoring one member id suppresses the whole aliased group" do
+      assert Ignores.split_advisories([@eef, @ghsa, @other], ["EEF-0001"]) ==
+               {[@eef, @ghsa], [@other]}
+    end
+
+    test "ignoring the shared CVE suppresses the whole aliased group" do
+      assert Ignores.split_advisories([@eef, @ghsa, @other], ["cve-2026-33333"]) ==
+               {[@eef, @ghsa], [@other]}
+    end
+
+    test "ungrouped advisories are matched individually" do
+      assert Ignores.split_advisories([@other], ["GHSA-dddd-eeee-ffff"]) == {[@other], []}
+    end
+  end
 end

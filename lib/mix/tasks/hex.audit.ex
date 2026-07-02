@@ -78,8 +78,7 @@ defmodule Mix.Tasks.Hex.Audit do
         Hex.Ignores.retirement_ignored?(package, version, ignore_retirements)
       end)
 
-    advisories = group_advisories(raw_advisories, ignore_advisories, :active)
-    ignored_advisories = group_advisories(raw_advisories, ignore_advisories, :ignored)
+    {ignored_advisories, advisories} = split_advisory_findings(raw_advisories, ignore_advisories)
 
     if retired == [] and advisories == [] and ignored_retired == [] and
          ignored_advisories == [] do
@@ -136,16 +135,20 @@ defmodule Mix.Tasks.Hex.Audit do
 
   defp advisory_status(nil), do: []
 
-  defp group_advisories(raw_advisories, ignores, mode) do
-    Enum.flat_map(raw_advisories, fn {package, version, advisories} ->
-      advisories
-      |> Enum.filter(fn advisory ->
-        ignored? = Hex.Ignores.advisory_ignored?(advisory, ignores)
-        if mode == :ignored, do: ignored?, else: not ignored?
+  defp split_advisory_findings(raw_advisories, ignores) do
+    splits =
+      Enum.map(raw_advisories, fn {package, version, advisories} ->
+        {ignored, active} = Hex.Ignores.split_advisories(advisories, ignores)
+        {display_findings(package, version, ignored), display_findings(package, version, active)}
       end)
-      |> :mix_hex_advisory.group_for_display()
-      |> Enum.map(fn advisory -> {package, version, advisory} end)
-    end)
+
+    {Enum.flat_map(splits, &elem(&1, 0)), Enum.flat_map(splits, &elem(&1, 1))}
+  end
+
+  defp display_findings(package, version, advisories) do
+    advisories
+    |> :mix_hex_advisory.group_for_display()
+    |> Enum.map(fn advisory -> {package, version, advisory} end)
   end
 
   defp print_sections(sections) do

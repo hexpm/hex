@@ -269,6 +269,37 @@ defmodule Mix.Tasks.Hex.AuditTest do
     end)
   end
 
+  test "audit (ignoring one advisory of an aliased group suppresses the group)", context do
+    eef_advisory = %{
+      id: "EEF-test-0001",
+      aliases: ["CVE-2026-33333"],
+      summary: "Remote code execution via crafted input",
+      html_url: "https://cna.erlef.org/advisories/EEF-test-0001",
+      severity: :SEVERITY_HIGH,
+      api_url: "https://hex.pm/api/advisories/EEF-test-0001"
+    }
+
+    ghsa_advisory = %{
+      id: "GHSA-test-0008",
+      aliases: ["CVE-2026-33333"],
+      summary: "Remote code execution via crafted input",
+      html_url: "https://github.com/advisories/GHSA-test-0008",
+      severity: :SEVERITY_HIGH,
+      api_url: "https://hex.pm/api/advisories/GHSA-test-0008"
+    }
+
+    with_test_package("2.7.0", context, fn ->
+      inject_advisory(@package_name, "2.7.0", [eef_advisory, ghsa_advisory])
+      Hex.State.put(:ignore_advisories, ["EEF-test-0001"])
+
+      Mix.Task.run("hex.audit")
+
+      output = shell_output()
+      assert output =~ "Ignored advisories:"
+      refute output =~ "Found packages with security advisories"
+    end)
+  end
+
   def with_test_package(version, %{auth: auth}, fun) do
     Mix.Project.push(RetiredDeps.MixProject)
 
