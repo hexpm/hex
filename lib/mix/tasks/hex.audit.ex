@@ -78,8 +78,7 @@ defmodule Mix.Tasks.Hex.Audit do
         Hex.Ignores.retirement_ignored?(package, version, ignore_retirements)
       end)
 
-    advisories = group_advisories(raw_advisories, ignore_advisories, :active)
-    ignored_advisories = group_advisories(raw_advisories, ignore_advisories, :ignored)
+    {ignored_advisories, advisories} = split_advisory_findings(raw_advisories, ignore_advisories)
 
     if retired == [] and advisories == [] and ignored_retired == [] and
          ignored_advisories == [] do
@@ -136,16 +135,20 @@ defmodule Mix.Tasks.Hex.Audit do
 
   defp advisory_status(nil), do: []
 
-  defp group_advisories(raw_advisories, ignores, mode) do
-    Enum.flat_map(raw_advisories, fn {package, version, advisories} ->
-      advisories
-      |> Enum.filter(fn advisory ->
-        ignored? = Hex.Ignores.advisory_ignored?(advisory, ignores)
-        if mode == :ignored, do: ignored?, else: not ignored?
+  defp split_advisory_findings(raw_advisories, ignores) do
+    splits =
+      Enum.map(raw_advisories, fn {package, version, advisories} ->
+        {ignored, active} = Hex.Ignores.split_advisories(advisories, ignores)
+        {display_findings(package, version, ignored), display_findings(package, version, active)}
       end)
-      |> :mix_hex_advisory.group_for_display()
-      |> Enum.map(fn advisory -> {package, version, advisory} end)
-    end)
+
+    {Enum.flat_map(splits, &elem(&1, 0)), Enum.flat_map(splits, &elem(&1, 1))}
+  end
+
+  defp display_findings(package, version, advisories) do
+    advisories
+    |> :mix_hex_advisory.group_for_display()
+    |> Enum.map(fn advisory -> {package, version, advisory} end)
   end
 
   defp print_sections(sections) do
@@ -186,25 +189,46 @@ defmodule Mix.Tasks.Hex.Audit do
     all_advisories =
       Enum.flat_map(raw_advisories, fn {_package, _version, advisories} -> advisories end)
 
-    Enum.each(ignore_advisories, fn id ->
-      unless Enum.any?(all_advisories, &Hex.Ignores.advisory_matches?(&1, id)) do
-        Hex.Shell.warn(
-          "ignore_advisories entry \"#{id}\" does not match any advisory " <>
-            "for the locked dependencies and can be removed"
-        )
-      end
-    end)
+    advisory_warnings =
+      ignore_advisories
+      |> Enum.reject(fn id ->
+        Enum.any?(all_advisories, &Hex.Ignores.advisory_matches?(&1, id))
+      end)
+      |> Enum.map(fn id ->
+        "ignore_advisories entry \"#{id}\"#{ignore_source(:ignore_advisories)} does not " <>
+          "match any advisory for the locked dependencies and can be removed"
+      end)
 
-    Enum.each(ignore_retirements, fn {name, version} = entry ->
-      unless Enum.any?(all_retired, fn {package, package_version, _message} ->
-               Hex.Ignores.retirement_matches?(package, package_version, entry)
-             end) do
-        Hex.Shell.warn(
-          "ignore_retirements entry #{format_retirement_entry(name, version)} " <>
-            "does not match any retired locked dependency and can be removed"
-        )
-      end
-    end)
+    retirement_warnings =
+      ignore_retirements
+      |> Enum.reject(fn entry ->
+        Enum.any?(all_retired, fn {package, version, _message} ->
+          Hex.Ignores.retirement_matches?(package, version, entry)
+        end)
+      end)
+      |> Enum.map(fn {name, version} ->
+        "ignore_retirements entry #{format_retirement_entry(name, version)}" <>
+          "#{ignore_source(:ignore_retirements)} does not match any retired locked " <>
+          "dependency and can be removed"
+      end)
+
+    case advisory_warnings ++ retirement_warnings do
+      [] ->
+        :ok
+
+      warnings ->
+        Hex.Shell.info("")
+        Enum.each(warnings, &Hex.Shell.warn/1)
+    end
+  end
+
+  defp ignore_source(key) do
+    case Hex.State.fetch_source!(key) do
+      {:env, var} -> " (set in environment variable #{var})"
+      {:project_config, _key} -> " (set in mix.exs)"
+      {:global_config, _key} -> " (set in global config)"
+      _other -> ""
+    end
   end
 
   defp format_retirement_entry(name, nil), do: name

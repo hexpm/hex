@@ -573,7 +573,7 @@ defmodule Hex.RemoteConverger do
 
           advisories =
             (Registry.advisories(repo, name, version) || [])
-            |> Enum.reject(&Hex.Ignores.advisory_ignored?(&1, ignore_advisories))
+            |> Hex.Ignores.reject_ignored_advisories(ignore_advisories)
 
           {dep, retired, advisories}
         end)

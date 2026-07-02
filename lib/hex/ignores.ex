@@ -49,7 +49,7 @@ defmodule Hex.Ignores do
     id = String.downcase(id)
 
     Enum.any?([advisory_id | Map.get(advisory, :aliases, [])], fn candidate ->
-      String.downcase(candidate) == id
+      String.downcase(alias_id(candidate)) == id
     end)
   end
 
@@ -61,6 +61,26 @@ defmodule Hex.Ignores do
 
   def retirement_matches?(package, version, {name, pinned}),
     do: package == name and version == pinned
+
+  def split_advisories(advisories, []), do: {[], advisories}
+
+  def split_advisories(advisories, ids) do
+    ignored_ids =
+      advisories
+      |> :mix_hex_advisory.group_for_display()
+      |> Enum.filter(&advisory_ignored?(&1, ids))
+      |> Enum.flat_map(&group_identifiers/1)
+      |> MapSet.new()
+
+    Enum.split_with(advisories, fn %{id: id} ->
+      MapSet.member?(ignored_ids, String.downcase(id))
+    end)
+  end
+
+  def reject_ignored_advisories(advisories, ids) do
+    {_ignored, active} = split_advisories(advisories, ids)
+    active
+  end
 
   defp split_env_list(value) do
     value
@@ -103,4 +123,12 @@ defmodule Hex.Ignores do
       :error
     end
   end
+
+  defp group_identifiers(%{id: id} = group) do
+    aliases = Map.get(group, :aliases, [])
+    [String.downcase(id) | Enum.map(aliases, &String.downcase(alias_id(&1)))]
+  end
+
+  defp alias_id(%{id: id}), do: id
+  defp alias_id(id) when is_binary(id), do: id
 end
