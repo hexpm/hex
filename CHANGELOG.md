@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## v2.5.2-dev
+
 ## v2.5.1 (2026-07-09)
 
 ### Enhancements

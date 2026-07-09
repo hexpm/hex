@@ -1,7 +1,7 @@
 defmodule Hex.MixProject do
   use Mix.Project
 
-  @version "2.5.1"
+  @version "2.5.2-dev"
 
   def project do
     [
