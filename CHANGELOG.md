@@ -1,10 +1,11 @@
 # CHANGELOG
 
-## v2.5.1-dev
+## v2.5.1 (2026-07-09)
 
 ### Enhancements
 
-* Add `ignore_advisories` and `ignore_retirements` configs to acknowledge security advisories and package retirements. Configure them in the `mix.exs` `:hex` block (`ignore_advisories: ["CVE-2026-32686"]`, `ignore_retirements: [:decimal, phoenix: "1.0.0"]`) or with the `HEX_IGNORE_ADVISORIES` and `HEX_IGNORE_RETIREMENTS` environment variables. `mix hex.audit` lists ignored findings in separate sections without failing and warns about entries that no longer match anything, and `mix deps.get`/`mix deps.update` stop warning about ignored findings
+* Add `ignore_advisories` and `ignore_retirements` configs to acknowledge security advisories and package retirements. Configure them in the `mix.exs` `:hex` block (`ignore_advisories: ["CVE-2026-32686"]`, `ignore_retirements: [:decimal, phoenix: "1.0.0"]`) or with the `HEX_IGNORE_ADVISORIES` and `HEX_IGNORE_RETIREMENTS` environment variables. An advisory can be ignored by any of its aliased identifiers (for example the GHSA alias of a CVE). `mix hex.audit` lists ignored findings in separate sections without failing and warns about entries that no longer match anything, and `mix deps.get`/`mix deps.update` stop warning about ignored findings
+* List each package override with its requirement and allow/deny status in `mix hex.policy show` instead of only an override count. `mix hex.policy` without a subcommand now prints usage instead of defaulting to `show`
 
 ### Bug fixes
 

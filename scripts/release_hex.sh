@@ -69,9 +69,9 @@ function main {
   build ${hex_version} 28.4.1    1.19.5 1.19.0 noble-20260210.1
 
   # Elixir v1.20
-  build ${hex_version} 27.3.4.13 1.20.2 1.20.0 noble-20260509.1
-  build ${hex_version} 28.5.0.2  1.20.2 1.20.0 noble-20260509.1
-  build ${hex_version} 29.0.2    1.20.2 1.20.0 noble-20260509.1
+  build ${hex_version} 27.3.4.14 1.20.2 1.20.0 noble-20260610
+  build ${hex_version} 28.5.0.3  1.20.2 1.20.0 noble-20260610
+  build ${hex_version} 29.0.3    1.20.2 1.20.0 noble-20260610
 
   rm -rf _build
   rm "${hex_csv}.bak"
