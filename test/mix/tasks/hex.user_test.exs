@@ -206,15 +206,6 @@ defmodule Mix.Tasks.Hex.UserTest do
     end)
   end
 
-  test "reset account password" do
-    Hexpm.new_user("reset_password", "reset_password@mail.com", "password", "reset_password")
-
-    send(self(), {:mix_shell_input, :prompt, "reset_password"})
-    Mix.Tasks.Hex.User.run(["reset_password", "account"])
-
-    assert_received {:mix_shell, :info, ["We’ve sent you an email" <> _]}
-  end
-
   test "reset local password" do
     in_tmp(fn ->
       set_home_cwd()

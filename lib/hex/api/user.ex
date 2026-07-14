@@ -16,10 +16,4 @@ defmodule Hex.API.User do
 
     API.erlang_post_request(nil, "users", %{username: username, email: email, password: password})
   end
-
-  def password_reset(name) do
-    Hex.API.check_write_api()
-
-    API.erlang_post_request(nil, "users/#{URI.encode(name)}/reset", %{})
-  end
 end

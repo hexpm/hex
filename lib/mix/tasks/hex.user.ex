@@ -75,12 +75,6 @@ defmodule Mix.Tasks.Hex.User do
 
       $ mix hex.user key list
 
-  ## Reset user account password
-
-  Starts the process for resetting account password.
-
-      $ mix hex.user reset_password account
-
   ## Reset local password
 
   Updates the local password for your local authentication credentials.
@@ -125,9 +119,6 @@ defmodule Mix.Tasks.Hex.User do
       ["key", "list"] ->
         key_list()
 
-      ["reset_password", "account"] ->
-        reset_account_password()
-
       ["reset_password", "local"] ->
         reset_local_password()
 
@@ -147,7 +138,6 @@ defmodule Mix.Tasks.Hex.User do
       {"key revoke KEY_NAME", "Removes given key from account"},
       {"key revoke --all", "Revoke all keys"},
       {"key list", "Lists all keys associated with your account"},
-      {"reset_password account", "Reset user account password"},
       {"reset_password local", "Reset local password"}
     ]
   end
@@ -164,7 +154,6 @@ defmodule Mix.Tasks.Hex.User do
     mix hex.user key revoke KEY_NAME
     mix hex.user key revoke --all
     mix hex.user key list
-    mix hex.user reset_password account
     mix hex.user reset_password local
     """)
   end
@@ -178,23 +167,6 @@ defmodule Mix.Tasks.Hex.User do
 
       other ->
         Hex.Shell.error("Failed to auth")
-        Hex.Utils.print_error_result(other)
-    end
-  end
-
-  defp reset_account_password() do
-    name = Hex.Shell.prompt("Username or Email:") |> String.trim()
-
-    case Hex.API.User.password_reset(name) do
-      {:ok, {code, _, _}} when code in 200..299 ->
-        Hex.Shell.info(
-          "We’ve sent you an email containing a link that will allow you to reset " <>
-            "your account password for the next 24 hours. Please check your spam folder if the " <>
-            "email doesn’t appear within a few minutes."
-        )
-
-      other ->
-        Hex.Shell.error("Initiating password reset for #{name} failed")
         Hex.Utils.print_error_result(other)
     end
   end
