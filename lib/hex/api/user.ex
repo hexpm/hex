@@ -23,9 +23,4 @@ defmodule Hex.API.User do
       to_string(email)
     )
   end
-
-  def password_reset(name) do
-    config = Client.config()
-    :mix_hex_api_user.reset_password(config, to_string(name))
-  end
 end
