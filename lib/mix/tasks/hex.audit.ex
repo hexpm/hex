@@ -217,7 +217,7 @@ defmodule Mix.Tasks.Hex.Audit do
         :ok
 
       warnings ->
-        Hex.Shell.info("")
+        Hex.Shell.warn("")
         Enum.each(warnings, &Hex.Shell.warn/1)
     end
   end

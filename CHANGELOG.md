@@ -2,6 +2,10 @@
 
 ## v2.5.2-dev
 
+### Enhancements
+
+* Print warnings to standard error instead of standard output, keeping stdout clean for machine-readable output such as `mix hex.outdated --json`. Warning-colored lines that are part of a command's regular output, such as retirement notices in `mix hex.info` and the `mix deps.get` dependency listing, remain on standard output
+
 ## v2.5.1 (2026-07-09)
 
 ### Enhancements

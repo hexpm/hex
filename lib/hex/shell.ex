@@ -6,9 +6,11 @@ defmodule Hex.Shell do
     Mix.shell().info(output)
   end
 
+  # Warnings are diagnostics, so print them to stderr, keeping stdout
+  # clean for machine-readable output such as `mix hex.outdated --json`.
   def warn(output) do
     validate_output!(output)
-    Mix.shell().info([IO.ANSI.yellow(), output, IO.ANSI.reset()])
+    Mix.shell().error([IO.ANSI.yellow(), output, IO.ANSI.reset()])
   end
 
   def error(output) do

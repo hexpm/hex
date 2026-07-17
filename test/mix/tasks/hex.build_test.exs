@@ -47,7 +47,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       File.write!("myfile.txt", "hello")
       Mix.Tasks.Hex.Build.run([])
 
-      assert_received {:mix_shell, :info, ["\e[33m\nYou have not included any licenses\n\e[0m"]}
+      assert_received {:mix_shell, :error, ["\e[33m\nYou have not included any licenses\n\e[0m"]}
       assert package_created?("release_missing_licenses-0.0.1")
     end)
   after
@@ -63,7 +63,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
       File.write!("myfile.txt", "hello")
       Mix.Tasks.Hex.Build.run([])
 
-      assert_received {:mix_shell, :info,
+      assert_received {:mix_shell, :error,
                        [
                          "\e[33mThe following licenses are not recognized by SPDX:\n * CustomLicense\n\nValid license identifiers are available from https://spdx.org/licenses\e[0m"
                        ]}
@@ -480,7 +480,7 @@ defmodule Mix.Tasks.Hex.BuildTest do
         "\e[33mMix project configuration :organization belongs under the :package key, " <>
           "did you misplace it?\e[0m"
 
-      assert_received {:mix_shell, :info, [^message]}
+      assert_received {:mix_shell, :error, [^message]}
     end)
   after
     purge([ReleaseOrganizationWrongLocation.MixProject])
