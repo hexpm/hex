@@ -48,6 +48,69 @@ defmodule Mix.Tasks.Hex.Audit do
   `HEX_IGNORE_RETIREMENTS` environment variables as comma-separated lists,
   where retirement entries are `NAME` or `NAME@VERSION`.
 
+  ## Command line options
+
+    * `--format FORMAT` - selects the output format. Supported formats are
+      `human` (default) and `sarif`. SARIF output requires OTP 27 or later
+    * `--output PATH` - writes the report to the given file instead of
+      printing it. Can only be used with `--format sarif`
+
+  ## SARIF output
+
+  With `--format sarif` the audit result is rendered as a
+  [SARIF](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html)
+  v2.1.0 document that code scanning services can ingest. Each finding is
+  anchored to the dependency's entry in `mix.lock`, advisory severities are
+  mapped to SARIF levels and GitHub `security-severity` scores, and ignored
+  findings are included with a suppression so they show up as closed
+  alerts. The exit code behaves the same as with the human format, so CI
+  jobs still fail while findings are open.
+
+  ### Usage with GitHub Actions
+
+  The report can be uploaded to [GitHub code
+  scanning](https://docs.github.com/en/code-security/code-scanning), which
+  lists the findings in the repository's Security tab and annotates
+  `mix.lock` in pull requests:
+
+  ```yaml
+  name: Audit dependencies
+
+  on:
+    push:
+      branches: [main]
+    pull_request:
+    schedule:
+      - cron: "0 6 * * *"
+
+  permissions:
+    contents: read
+    security-events: write
+
+  jobs:
+    audit:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v5
+        - uses: erlef/setup-beam@v1
+          with:
+            otp-version: "28"
+            elixir-version: "1.18"
+        - run: mix deps.get
+        - run: mix hex.audit --format sarif --output hex-audit.sarif
+        - uses: github/codeql-action/upload-sarif@v4
+          if: always()
+          with:
+            sarif_file: hex-audit.sarif
+            category: hex-audit
+  ```
+
+  `mix hex.audit` exits with a non-zero code when it finds retired packages
+  or advisories, failing the job. `if: always()` makes sure the report is
+  still uploaded in that case. Add `continue-on-error: true` to the audit
+  step instead if the alerts should only appear in the Security tab without
+  failing the build.
+
   > In a project, this task must be invoked before any other tasks
   > that may load or start your application. Otherwise, you must
   > explicitly list `:hex` as part of your `:extra_applications`.
@@ -55,10 +118,24 @@ defmodule Mix.Tasks.Hex.Audit do
 
   @behaviour Hex.Mix.TaskDescription
 
+  @switches [format: :string, output: :string]
+
   @impl true
-  def run(_) do
+  def run(args) do
     Mix.Tasks.Deps.Loadpaths.run(["--no-compile", "--no-listeners"])
     Hex.start()
+
+    {opts, _args} = OptionParser.parse!(args, strict: @switches)
+    format = opts[:format] || "human"
+
+    unless format in ["human", "sarif"] do
+      Mix.raise("Invalid --format value, expected one of: human, sarif")
+    end
+
+    if opts[:output] && format != "sarif" do
+      Mix.raise("--output can only be used with --format sarif")
+    end
+
     Registry.open()
 
     lock = Mix.Dep.Lock.read()
@@ -80,6 +157,33 @@ defmodule Mix.Tasks.Hex.Audit do
 
     {ignored_advisories, advisories} = split_advisory_findings(raw_advisories, ignore_advisories)
 
+    case format do
+      "human" ->
+        print_human(retired, advisories, ignored_retired, ignored_advisories)
+
+      "sarif" ->
+        output_sarif(retired, advisories, ignored_retired, ignored_advisories, opts[:output])
+    end
+
+    warn_unused_ignores(all_retired, raw_advisories, ignore_advisories, ignore_retirements)
+
+    if retired != [] or advisories != [] do
+      if format == "human", do: Hex.Shell.info("")
+      if retired != [], do: Hex.Shell.error("Found retired packages")
+      if advisories != [], do: Hex.Shell.error("Found packages with security advisories")
+      Mix.Tasks.Hex.set_exit_code(1)
+    end
+  end
+
+  @impl true
+  def tasks() do
+    [
+      {"", "Shows retired Hex deps and security advisories for the current project"},
+      {"--format sarif", "Outputs the audit result as a SARIF document"}
+    ]
+  end
+
+  defp print_human(retired, advisories, ignored_retired, ignored_advisories) do
     if retired == [] and advisories == [] and ignored_retired == [] and
          ignored_advisories == [] do
       Hex.Shell.info("No retired or security advisory packages found")
@@ -91,22 +195,28 @@ defmodule Mix.Tasks.Hex.Audit do
         {:advisories, "Ignored advisories:", ignored_advisories}
       ])
     end
+  end
 
-    warn_unused_ignores(all_retired, raw_advisories, ignore_advisories, ignore_retirements)
+  defp output_sarif(retired, advisories, ignored_retired, ignored_advisories, output) do
+    findings =
+      sarif_findings(:retired, retired, false) ++
+        sarif_findings(:retired, ignored_retired, true) ++
+        sarif_findings(:advisory, advisories, false) ++
+        sarif_findings(:advisory, ignored_advisories, true)
 
-    if retired != [] or advisories != [] do
-      Hex.Shell.info("")
-      if retired != [], do: Hex.Shell.error("Found retired packages")
-      if advisories != [], do: Hex.Shell.error("Found packages with security advisories")
-      Mix.Tasks.Hex.set_exit_code(1)
+    lockfile = Mix.Project.config()[:lockfile] || "mix.lock"
+    sarif = Hex.Sarif.encode_audit(findings, lockfile)
+
+    case output do
+      nil -> Hex.Shell.info(sarif)
+      path -> File.write!(path, [sarif, ?\n])
     end
   end
 
-  @impl true
-  def tasks() do
-    [
-      {"", "Shows retired Hex deps and security advisories for the current project"}
-    ]
+  defp sarif_findings(type, entries, ignored?) do
+    Enum.map(entries, fn {package, version, detail} ->
+      {type, package, version, detail, ignored?}
+    end)
   end
 
   defp retired_packages(lock) do
@@ -115,7 +225,7 @@ defmodule Mix.Tasks.Hex.Audit do
 
   defp retirement_status(%{repo: repo, name: package, version: version}) do
     case Registry.retired(repo, package, version) do
-      %{} = retired -> [{package, version, Hex.Utils.package_retirement_message(retired)}]
+      %{} = retired -> [{package, version, retired}]
       nil -> []
     end
   end
@@ -164,7 +274,8 @@ defmodule Mix.Tasks.Hex.Audit do
   defp print_section(:retired, header, entries) do
     Hex.Shell.info(Hex.Shell.format([:bright, header, :reset]))
 
-    Enum.each(entries, fn {package, version, message} ->
+    Enum.each(entries, fn {package, version, retired} ->
+      message = Hex.Utils.package_retirement_message(retired)
       Hex.Shell.info(Hex.Shell.format(["  #{package} #{version} - ", :yellow, message, :reset]))
     end)
   end
