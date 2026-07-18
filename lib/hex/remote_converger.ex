@@ -660,7 +660,10 @@ defmodule Hex.RemoteConverger do
     Hex.Shell.info(Hex.Shell.format(line))
 
     if retired do
-      Hex.Shell.warn("    #{Hex.Utils.package_retirement_message(retired)}")
+      # Part of the stdout dependency listing, so only warning-colored
+      # instead of Hex.Shell.warn/1 which prints to stderr.
+      retirement_message = "    #{Hex.Utils.package_retirement_message(retired)}"
+      Hex.Shell.info(Hex.Shell.format([:yellow, retirement_message, :reset]))
     end
 
     advisories

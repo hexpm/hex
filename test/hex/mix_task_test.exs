@@ -912,7 +912,7 @@ defmodule Hex.MixTaskTest do
 
       Mix.Task.run("deps.get")
 
-      assert_received {:mix_shell, :info,
+      assert_received {:mix_shell, :error,
                        ["\e[33mex_doc is missing its version requirement, use \">= 0.0.0\"" <> _]}
     end)
   end
@@ -925,10 +925,10 @@ defmodule Hex.MixTaskTest do
 
       Mix.Task.run("deps.get")
 
-      assert_received {:mix_shell, :info,
+      assert_received {:mix_shell, :error,
                        ["\e[33mex_doc is missing its version requirement, use \">= 0.0.0\"" <> _]}
 
-      assert_received {:mix_shell, :info,
+      assert_received {:mix_shell, :error,
                        ["\e[33mex_doc is using unknown options: :dir, :typo\e[0m"]}
     end)
   end

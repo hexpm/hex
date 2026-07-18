@@ -13,7 +13,7 @@ defmodule Hex.MixTest do
 
   test "from_lock/1 warns on newer lock versions" do
     message =
-      {:mix_shell, :info,
+      {:mix_shell, :error,
        [
          "\e[33mThe mix.lock file was generated with a newer version of Hex. " <>
            "Update your client by running `mix local.hex` to avoid losing data.\e[0m"

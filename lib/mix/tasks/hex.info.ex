@@ -249,11 +249,17 @@ defmodule Mix.Tasks.Hex.Info do
       message: release["retirement"]["message"]
     }
 
-    Hex.Shell.warn([
-      [:bright, "This version has been retired"],
-      [:normal, ": "],
-      [:normal, Hex.Utils.package_retirement_message(retirement)]
-    ])
+    # Part of the stdout package report, so only warning-colored instead
+    # of Hex.Shell.warn/1 which prints to stderr.
+    Hex.Shell.info(
+      Hex.Shell.format([
+        :yellow,
+        [:bright, "This version has been retired"],
+        [:normal, ": "],
+        [:normal, Hex.Utils.package_retirement_message(retirement)],
+        :reset
+      ])
+    )
   end
 
   defp print_publisher(release) do
