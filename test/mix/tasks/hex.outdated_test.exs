@@ -784,8 +784,20 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       lines = flush()
       output = Enum.map_join(lines, "\n", fn {_, _, [line]} -> line end)
 
+      assert output =~ "To view the diffs in each available update, visit:"
+      assert output =~ ~r"http://localhost:\d+/l/\w+"
+
       assert output =~
                "To view the diff of a specific update, run `mix hex.package diff APP FROM..TO`."
+
+      Hex.State.put(:no_short_urls, true)
+
+      assert catch_throw(Mix.Task.rerun("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+      lines = flush()
+      output = Enum.map_join(lines, "\n", fn {_, _, [line]} -> line end)
+
+      assert output =~ "https://hex.pm/diffs?diffs[]=foo:0.1.0:0.1.1"
     end)
   end
 
