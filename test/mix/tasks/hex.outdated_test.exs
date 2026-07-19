@@ -14,6 +14,18 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end
   end
 
+  defmodule OutdatedOrganizationDeps.MixProject do
+    def project do
+      [
+        app: :outdated_app,
+        version: "0.0.1",
+        deps: [
+          {:foo, "~> 0.1.0", repo: "hexpm:testorg"}
+        ]
+      ]
+    end
+  end
+
   defmodule OutdatedBetaDeps.MixProject do
     def project do
       [
@@ -798,6 +810,39 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       output = Enum.map_join(lines, "\n", fn {_, _, [line]} -> line end)
 
       assert output =~ "https://hex.pm/diffs?diffs[]=foo:0.1.0:0.1.1"
+    end)
+  end
+
+  test "outdated links organization diffs without shortening the URL" do
+    Mix.Project.push(OutdatedOrganizationDeps.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+
+      suffix = System.unique_integer([:positive])
+
+      auth =
+        Hexpm.new_user(
+          "outdated_org_#{suffix}",
+          "outdated_org_#{suffix}@mail.com",
+          "password",
+          "outdated_org_key_#{suffix}"
+        )
+
+      repos = Hex.State.fetch!(:repos)
+      Hex.State.put(:repos, put_in(repos["hexpm"].auth_key, auth[:key]))
+
+      Mix.Dep.Lock.write(%{foo: {:hex, :foo, "0.1.0", nil, nil, nil, "hexpm:testorg", nil}})
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+      lines = flush()
+      output = Enum.map_join(lines, "\n", fn {_, _, [line]} -> line end)
+
+      assert output =~ "https://hex.pm/diffs?diffs[]=testorg/foo:0.1.0:0.1.1"
     end)
   end
 

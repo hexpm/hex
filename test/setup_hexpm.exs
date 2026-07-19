@@ -87,6 +87,7 @@ Hexpm.new_package(
 
 Hexpm.new_repo("testorg", auth)
 Hexpm.new_package("testorg", "foo", "0.1.0", [], pkg_meta, auth)
+Hexpm.new_package("testorg", "foo", "0.1.1", [], pkg_meta, auth)
 Hexpm.new_package("testorg", "bar", "0.1.0", [foo: "~> 0.1.0"], pkg_meta, auth)
 
 Hexpm.new_repo("remote_converger_org", auth)

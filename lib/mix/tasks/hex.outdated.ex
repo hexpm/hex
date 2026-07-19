@@ -140,7 +140,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp display_table(
-         [{_package, _dep_only, current, latest, requirements, outdated?, cooldown}],
+         [{_repo, _package, _dep_only, current, latest, requirements, outdated?, cooldown}],
          [_app],
          _opts
        ) do
@@ -198,7 +198,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp maybe_print_cooldown_legend(versions) do
     entries =
       Enum.flat_map(versions, fn
-        {package, _, _, latest, _, _, %{eligible_on: eligible_on}} ->
+        {_repo, package, _, _, latest, _, _, %{eligible_on: eligible_on}} ->
           [{package, latest, eligible_on}]
 
         _ ->
@@ -223,7 +223,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   defp set_exit_code(versions, args, opts) do
     outdated_versions =
-      Enum.filter(versions, fn {_p, _o, _l, _la, _r, outdated?, cooldown} ->
+      Enum.filter(versions, fn {_repo, _p, _o, _l, _la, _r, outdated?, cooldown} ->
         outdated? and is_nil(cooldown)
       end)
 
@@ -301,7 +301,8 @@ defmodule Mix.Tasks.Hex.Outdated do
         # deps can have multiple `only` values, so we separate by `,`
         only_values = String.split(only_value, ",", trim: true)
 
-        Enum.filter(versions, fn {_package, dep_only, _lock, _latest, _reqs, _outdated?, _c} ->
+        Enum.filter(versions, fn {_repo, _package, dep_only, _lock, _latest, _reqs, _outdated?,
+                                  _c} ->
           dep_only_parts = String.split(dep_only, ",")
           Enum.any?(dep_only_parts, &(&1 in only_values))
         end)
@@ -337,7 +338,7 @@ defmodule Mix.Tasks.Hex.Outdated do
             end
 
           [
-            {Atom.to_string(name), dep_only, lock_version, latest_version, requirements,
+            {repo, Atom.to_string(name), dep_only, lock_version, latest_version, requirements,
              outdated?, cooldown}
           ]
 
@@ -385,7 +386,7 @@ defmodule Mix.Tasks.Hex.Outdated do
     List.last(versions)
   end
 
-  defp format_all_row({package, dep_only, lock, latest, requirements, outdated?, cooldown}) do
+  defp format_all_row({_repo, package, dep_only, lock, latest, requirements, outdated?, cooldown}) do
     latest_color = if outdated?, do: :red, else: :green
     req_matches? = req_matches?(requirements, latest)
 
@@ -407,14 +408,23 @@ defmodule Mix.Tasks.Hex.Outdated do
     ]
   end
 
-  defp build_diff_link({package, _dep_only, lock, latest, requirements, outdated?, _cooldown}) do
+  defp build_diff_link(
+         {repo, package, _dep_only, lock, latest, requirements, outdated?, _cooldown}
+       ) do
     req_matches? = req_matches?(requirements, latest)
 
-    case {outdated?, req_matches?} do
-      {true, true} -> "diffs[]=#{package}:#{lock}:#{latest}"
-      {_, _} -> nil
+    with true <- outdated?,
+         true <- req_matches?,
+         comparison_package when is_binary(comparison_package) <- diff_package(repo, package) do
+      "diffs[]=#{comparison_package}:#{lock}:#{latest}"
+    else
+      _ -> nil
     end
   end
+
+  defp diff_package("hexpm", package), do: package
+  defp diff_package("hexpm:" <> organization, package), do: "#{organization}/#{package}"
+  defp diff_package(_repo, _package), do: nil
 
   defp version_match?(_version, nil), do: true
   defp version_match?(version, req), do: Version.match?(version, req)
@@ -435,11 +445,15 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp diff_link(diff_links) do
     long_url = "https://hex.pm/diffs?" <> Enum.join(diff_links, "&")
 
-    if Hex.State.fetch!(:no_short_urls) do
+    if Hex.State.fetch!(:no_short_urls) or private_comparison?(diff_links) do
       long_url
     else
       maybe_get_short_link(long_url)
     end
+  end
+
+  defp private_comparison?(diff_links) do
+    Enum.any?(diff_links, &String.contains?(&1, "/"))
   end
 
   defp maybe_get_short_link(long_url) do
@@ -450,8 +464,8 @@ defmodule Mix.Tasks.Hex.Outdated do
   end
 
   defp any_possible_to_update?(outdated_versions) do
-    Enum.any?(outdated_versions, fn {_package, _dep_only, _lock, latest, requirements, _outdated?,
-                                     _cooldown} ->
+    Enum.any?(outdated_versions, fn {_repo, _package, _dep_only, _lock, latest, requirements,
+                                     _outdated?, _cooldown} ->
       req_matches?(requirements, latest)
     end)
   end
@@ -476,7 +490,9 @@ defmodule Mix.Tasks.Hex.Outdated do
     |> Enum.join(",")
   end
 
-  defp cast_version_map({package, dep_only, lock, latest, requirements, outdated?, cooldown}) do
+  defp cast_version_map(
+         {_repo, package, dep_only, lock, latest, requirements, outdated?, cooldown}
+       ) do
     %{
       package: package,
       only: dep_only,
