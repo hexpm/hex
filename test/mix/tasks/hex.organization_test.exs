@@ -42,7 +42,12 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       assert output =~ "mix hex.user auth"
 
       # Still authorizes (warning only, no behavior change)
-      assert is_binary(Hex.Repo.get_repo("hexpm:myorgauthdeprecated").auth_key)
+      myorg = Hex.Repo.get_repo("hexpm:myorgauthdeprecated")
+      assert is_binary(myorg.auth_key)
+      assert myorg.auth_key_owner == :user
+
+      repos = Hex.Config.read_repos(Hex.Config.read())
+      assert repos["hexpm:myorgauthdeprecated"].auth_key_owner == :user
     end)
   end
 
@@ -104,6 +109,96 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       assert repo[:url] == "http://localhost:4043/repo"
 
       refute Map.has_key?(Hex.Config.read()[:"$repos"]["hexpm:myorgauthkey"], :trusted)
+    end)
+  end
+
+  test "auth --key with an organization-owned key records the owner" do
+    in_tmp(fn ->
+      set_home_cwd()
+      bypass = Bypass.open()
+      Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+      body = %{
+        "key" => %{
+          "name" => "ci",
+          "owner" => %{"type" => "organization", "name" => "myorgownedkey"}
+        }
+      }
+
+      Bypass.expect(bypass, "GET", "/api/auth", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+        |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
+      end)
+
+      Mix.Tasks.Hex.Organization.run(["auth", "myorgownedkey", "--key", "orgkeysecret"])
+
+      output = Case.shell_output()
+
+      assert output =~
+               "Starting with Hex 2.6 this command will exchange the organization key for a short-lived token"
+
+      refute output =~ "deprecated"
+
+      repos = Hex.Config.read_repos(Hex.Config.read())
+      assert repos["hexpm:myorgownedkey"].auth_key == "orgkeysecret"
+      assert repos["hexpm:myorgownedkey"].auth_key_owner == :organization
+    end)
+  end
+
+  test "auth --key with a user-owned key warns about deprecation" do
+    in_tmp(fn ->
+      set_home_cwd()
+      bypass = Bypass.open()
+      Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+      body = %{
+        "key" => %{
+          "name" => "laptop",
+          "owner" => %{"type" => "user", "name" => "eric"}
+        }
+      }
+
+      Bypass.expect(bypass, "GET", "/api/auth", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+        |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
+      end)
+
+      Mix.Tasks.Hex.Organization.run(["auth", "myuserownedkey", "--key", "userkeysecret"])
+
+      output = Case.shell_output()
+      assert output =~ "The given key is owned by your user account, not the organization"
+      assert output =~ "will stop working in Hex 2.6"
+      assert output =~ "mix hex.organization key myuserownedkey generate"
+      refute output =~ "Starting with Hex 2.6"
+
+      # Still authorizes (warning only, no behavior change)
+      repos = Hex.Config.read_repos(Hex.Config.read())
+      assert repos["hexpm:myuserownedkey"].auth_key == "userkeysecret"
+      assert repos["hexpm:myuserownedkey"].auth_key_owner == :user
+    end)
+  end
+
+  test "auth --key against a server without key owner information stores no owner" do
+    in_tmp(fn ->
+      set_home_cwd()
+      bypass = Bypass.open()
+      Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+      Bypass.expect(bypass, "GET", "/api/auth", fn conn ->
+        Plug.Conn.resp(conn, 204, "")
+      end)
+
+      Mix.Tasks.Hex.Organization.run(["auth", "myorgnoowner", "--key", "noownersecret"])
+
+      output = Case.shell_output()
+      refute output =~ "owned by your user account"
+      refute output =~ "Starting with Hex 2.6"
+
+      repos = Hex.Config.read_repos(Hex.Config.read())
+      assert repos["hexpm:myorgnoowner"].auth_key == "noownersecret"
+      refute Map.has_key?(repos["hexpm:myorgnoowner"], :auth_key_owner)
     end)
   end
 

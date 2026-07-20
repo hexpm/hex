@@ -95,6 +95,27 @@ defmodule Hex.RepoTest do
     end)
   end
 
+  test "auth_key_owner persists through config round-trip" do
+    in_tmp(fn ->
+      Hex.State.put(:config_home, File.cwd!())
+
+      repos = Hex.State.fetch!(:repos)
+
+      org_repo = %{auth_key: "org_key_value", auth_key_owner: :organization}
+
+      repos
+      |> Map.put("hexpm:roundtriporg", org_repo)
+      |> Hex.Config.update_repos()
+
+      # Reload config from disk to simulate a fresh session
+      config = Hex.Config.read()
+      repos = Hex.Config.read_repos(config)
+
+      assert repos["hexpm:roundtriporg"].auth_key == "org_key_value"
+      assert repos["hexpm:roundtriporg"].auth_key_owner == :organization
+    end)
+  end
+
   test "warns about deprecation when a stored key authenticates to an organization repository" do
     Hex.Server.reset()
 
@@ -120,8 +141,70 @@ defmodule Hex.RepoTest do
     end
 
     output = Case.shell_output()
-    assert output =~ "stored key is deprecated"
+    assert output =~ "stored key is deprecated and will stop working in Hex 2.6"
     assert output =~ "mix hex.user auth"
+
+    assert output =~
+             "re-run `mix hex.organization auth storedkeyorg --key KEY` on this Hex version"
+  end
+
+  test "warns about deprecation when a user-owned key authenticates to an organization repository" do
+    Hex.Server.reset()
+
+    repos = Hex.State.fetch!(:repos)
+    hexpm = repos["hexpm"]
+
+    org_repo = %{
+      url: hexpm.url <> "/repos/userkeyorg",
+      public_key: hexpm.public_key,
+      auth_key: "user_key_value",
+      auth_key_owner: :user,
+      oauth_exchange: true,
+      trusted: true
+    }
+
+    Hex.State.put(:repos, Map.put(repos, "hexpm:userkeyorg", org_repo))
+
+    try do
+      Hex.Repo.get_package("hexpm:userkeyorg", "pkg", "")
+    rescue
+      _ -> :ok
+    end
+
+    output = Case.shell_output()
+
+    assert output =~
+             "key owned by your user account is deprecated and will stop working in Hex 2.6"
+
+    assert output =~ "mix hex.user auth"
+    refute output =~ "re-run"
+  end
+
+  test "does not warn when an organization-owned key authenticates to an organization repository" do
+    Hex.Server.reset()
+
+    repos = Hex.State.fetch!(:repos)
+    hexpm = repos["hexpm"]
+
+    org_repo = %{
+      url: hexpm.url <> "/repos/orgkeyorg",
+      public_key: hexpm.public_key,
+      auth_key: "org_key_value",
+      auth_key_owner: :organization,
+      oauth_exchange: true,
+      trusted: true
+    }
+
+    Hex.State.put(:repos, Map.put(repos, "hexpm:orgkeyorg", org_repo))
+
+    try do
+      Hex.Repo.get_package("hexpm:orgkeyorg", "pkg", "")
+    rescue
+      _ -> :ok
+    end
+
+    output = Case.shell_output()
+    refute output =~ "deprecated"
   end
 
   test "warns about deprecation when HEX_REPOS_KEY authenticates to an organization repository" do
@@ -148,7 +231,9 @@ defmodule Hex.RepoTest do
     end
 
     output = Case.shell_output()
-    assert output =~ "the reposkeyorg repository with HEX_REPOS_KEY is deprecated"
+
+    assert output =~
+             "the reposkeyorg repository with HEX_REPOS_KEY is deprecated and will stop working in Hex 2.6"
   end
 
   test "does not warn for the base hexpm repository authenticated with HEX_REPOS_KEY" do
