@@ -277,14 +277,18 @@ defmodule Mix.Tasks.Hex do
   end
 
   @doc false
-  def auth_organization(name, key) do
+  def auth_organization(name, key, owner) do
     repo = Hex.Repo.get_repo(name) || Hex.Repo.default_hexpm_repo()
     repo = Map.put(repo, :auth_key, key)
+    repo = put_auth_key_owner(repo, owner)
 
     Hex.State.fetch!(:repos)
     |> Map.put(name, repo)
     |> Hex.Config.update_repos()
   end
+
+  defp put_auth_key_owner(repo, nil), do: Map.delete(repo, :auth_key_owner)
+  defp put_auth_key_owner(repo, owner), do: Map.put(repo, :auth_key_owner, owner)
 
   @doc false
   def required_opts(opts, required) do

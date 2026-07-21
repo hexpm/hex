@@ -165,43 +165,56 @@ defmodule Mix.Tasks.Hex.Organization do
   end
 
   defp auth(organization, opts) do
-    key = opts[:key]
+    if key = opts[:key] do
+      owner = test_key(key, organization)
 
-    key =
-      if key do
-        test_key(key, organization)
-        key
-      else
+      if owner == :user do
         Hex.Shell.warn("""
-        Authorizing an organization without --key is deprecated and will be removed.
+        The given key is owned by your user account, not the organization. Authenticating \
+        to organization repositories with user keys is deprecated and will stop working \
+        in Hex 2.6.
 
-        For development authenticate as a user instead, which gives you access to \
-        all your organizations:
-
-            mix hex.user auth
-
-        For CI generate an organization key and pass it with --key:
-
-            mix hex.organization key #{organization} generate
-            mix hex.organization auth #{organization} --key KEY
+        For development authenticate as a user with `mix hex.user auth`. For CI generate \
+        an organization key with `mix hex.organization key #{organization} generate` and \
+        pass it with `--key`.
         """)
-
-        key_name = Mix.Tasks.Hex.repository_key_name(organization, opts[:key_name])
-        permissions = [%{"domain" => "repository", "resource" => organization}]
-
-        case Hex.API.Key.new(key_name, permissions) do
-          {:ok, {201, _, body}} ->
-            body["secret"]
-
-          other ->
-            Mix.shell().error("Generation of key failed")
-            Hex.Utils.print_error_result(other)
-            nil
-        end
       end
 
-    if key do
-      Mix.Tasks.Hex.auth_organization("hexpm:#{organization}", key)
+      Mix.Tasks.Hex.auth_organization("hexpm:#{organization}", key, owner)
+
+      if owner == :organization do
+        Hex.Shell.info("""
+        Starting with Hex 2.6 this command will exchange the organization key for a \
+        short-lived token instead of storing the key. In CI, run it right before \
+        fetching dependencies.
+        """)
+      end
+    else
+      Hex.Shell.warn("""
+      Authorizing an organization without --key is deprecated and will be removed.
+
+      For development authenticate as a user instead, which gives you access to \
+      all your organizations:
+
+          mix hex.user auth
+
+      For CI generate an organization key and pass it with --key:
+
+          mix hex.organization key #{organization} generate
+          mix hex.organization auth #{organization} --key KEY
+      """)
+
+      key_name = Mix.Tasks.Hex.repository_key_name(organization, opts[:key_name])
+      permissions = [%{"domain" => "repository", "resource" => organization}]
+
+      case Hex.API.Key.new(key_name, permissions) do
+        {:ok, {201, _, body}} ->
+          Mix.Tasks.Hex.auth_organization("hexpm:#{organization}", body["secret"], :user)
+
+        other ->
+          Mix.shell().error("Generation of key failed")
+          Hex.Utils.print_error_result(other)
+      end
     end
   end
 
@@ -287,8 +300,8 @@ defmodule Mix.Tasks.Hex.Organization do
 
   defp test_key(key, name) do
     case Hex.API.Auth.get("repository", name, key: key) do
-      {:ok, {code, _, _body}} when code in 200..299 ->
-        :ok
+      {:ok, {code, _, body}} when code in 200..299 ->
+        key_owner(body)
 
       {:ok, {code, _, %{"message" => message}}} when code in [401, 403] ->
         Hex.Shell.error(
@@ -296,11 +309,17 @@ defmodule Mix.Tasks.Hex.Organization do
         )
 
         Mix.Tasks.Hex.set_exit_code(1)
+        nil
 
       other ->
         Hex.Utils.print_error_result(other)
         Hex.Shell.error("Failed to verify authentication key")
         Mix.Tasks.Hex.set_exit_code(1)
+        nil
     end
   end
+
+  defp key_owner(%{"key" => %{"owner" => %{"type" => "organization"}}}), do: :organization
+  defp key_owner(%{"key" => %{"owner" => %{"type" => "user"}}}), do: :user
+  defp key_owner(_body), do: nil
 end
