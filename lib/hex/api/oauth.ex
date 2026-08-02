@@ -42,6 +42,31 @@ defmodule Hex.API.OAuth do
   defp drop_undefined_refresh_token(tokens), do: tokens
 
   @doc """
+  Requests a URL for authenticating this session against organizations that
+  require single sign-on.
+
+  ## Examples
+
+      iex> Hex.API.OAuth.sso_authorization(["acme"])
+      {:ok, {201, _headers, %{"verification_uri" => "https://hex.pm/sso/authorize/...",
+                              "expires_in" => 600}}}
+  """
+  def sso_authorization(organizations) do
+    config = Client.config()
+
+    Hex.Auth.with_api(:read, config, fn config ->
+      :mix_hex_api_oauth.sso_authorization(config, Enum.map(organizations, &to_string/1))
+    end)
+  end
+
+  @doc """
+  Opens a URL in the default browser.
+  """
+  def open_browser(url) do
+    :mix_hex_api_oauth.open_browser(url)
+  end
+
+  @doc """
   Revokes an OAuth token (access or refresh token).
 
   ## Examples

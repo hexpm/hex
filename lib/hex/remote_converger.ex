@@ -62,6 +62,7 @@ defmodule Hex.RemoteConverger do
       |> verify_prefetches()
 
     check_and_refresh_auth(prefetches)
+    check_sso_reauth(prefetches)
     Registry.prefetch(prefetches)
 
     locked = prepare_locked(lock, old_lock, deps)
@@ -936,6 +937,75 @@ defmodule Hex.RemoteConverger do
       :ok
     end
   end
+
+  # The organizations a resolution can need are exactly the ones its own
+  # dependencies name: a published package's dependencies come from the public
+  # repository or from its own organization, so nothing private turns up part
+  # way through. That is what makes one prompt for the batch possible rather
+  # than a 403 at a time, and it is why a member of ten SSO organizations who
+  # depends on two is asked about two.
+  @doc false
+  def check_sso_reauth(prefetches) do
+    needed =
+      prefetches
+      |> Enum.flat_map(fn
+        {"hexpm:" <> organization, _package} -> [organization]
+        {_repo, _package} -> []
+      end)
+      |> MapSet.new()
+
+    Hex.OAuth.sso_reauth_required()
+    |> Enum.filter(&MapSet.member?(needed, &1))
+    |> prompt_sso_reauth()
+  end
+
+  defp prompt_sso_reauth([]), do: :ok
+
+  defp prompt_sso_reauth(organizations) do
+    if Hex.Shell.yes?("#{sso_subject(organizations)} SSO authentication. Authenticate now?") do
+      start_sso_reauth(organizations)
+    else
+      Hex.Shell.warn("Packages from #{names(organizations)} will not be available.")
+    end
+  end
+
+  defp start_sso_reauth(organizations) do
+    case Hex.API.OAuth.sso_authorization(organizations) do
+      {:ok, {status, _headers, %{"verification_uri" => uri}}} when status in 200..299 ->
+        Hex.Shell.info("Open #{uri} in your browser to authenticate")
+        Hex.API.OAuth.open_browser(uri)
+        Hex.Shell.prompt("Press enter when you have finished authenticating")
+        finish_sso_reauth(organizations)
+
+      {:ok, {_status, _headers, %{"message" => message}}} ->
+        Hex.Shell.warn("Could not start SSO authentication: #{message}")
+
+      _other ->
+        Hex.Shell.warn("Could not start SSO authentication.")
+    end
+  end
+
+  # The session and its refresh token are untouched by all this; what changed is
+  # what the session may reach, so a refresh is what picks it up.
+  defp finish_sso_reauth(organizations) do
+    config = Hex.API.Client.config([])
+
+    with :ok <- Hex.Auth.refresh_tokens(config),
+         [] <- Enum.filter(Hex.OAuth.sso_reauth_required(), &(&1 in organizations)) do
+      :ok
+    else
+      _other ->
+        Hex.Shell.warn(
+          "#{sso_subject(organizations)} SSO authentication. " <>
+            "Packages from #{names(organizations)} will not be available."
+        )
+    end
+  end
+
+  defp sso_subject([organization]), do: "#{organization} requires"
+  defp sso_subject(organizations), do: "#{names(organizations)} require"
+
+  defp names(organizations), do: Enum.join(organizations, ", ")
 
   @doc false
   def auth_preflight_required?(prefetches) do

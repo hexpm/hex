@@ -86,4 +86,79 @@ defmodule Hex.AuthTest do
       end)
     end
   end
+
+  describe "SSO re-authentication" do
+    test "stores the organizations the server flagged with the token" do
+      in_tmp("sso_reauth", fn ->
+        set_home_cwd()
+        store_token()
+
+        assert Hex.Auth.callbacks().sso_reauth.(["acme"]) == :ok
+
+        assert Hex.OAuth.sso_reauth_required() == ["acme"]
+        assert Hex.Config.read()[:"$oauth_token"][:sso_reauth_required] == ["acme"]
+      end)
+    end
+
+    test "drops them again once nothing is flagged" do
+      in_tmp("sso_reauth", fn ->
+        set_home_cwd()
+        store_token()
+
+        assert Hex.Auth.callbacks().sso_reauth.(["acme"]) == :ok
+        assert Hex.Auth.callbacks().sso_reauth.([]) == :ok
+
+        assert Hex.OAuth.sso_reauth_required() == []
+        refute Map.has_key?(Hex.State.get(:oauth_token), :sso_reauth_required)
+      end)
+    end
+
+    test "asks only about the organizations this resolution needs" do
+      in_tmp("sso_reauth", fn ->
+        set_home_cwd()
+        store_token()
+        Hex.Auth.callbacks().sso_reauth.(["acme", "widgets"])
+
+        send(self(), {:mix_shell_input, :yes?, false})
+        Hex.RemoteConverger.check_sso_reauth([{"hexpm:acme", "foo"}, {"hexpm", "ecto"}])
+
+        assert_received {:mix_shell, :yes?, [question]}
+        assert question =~ "acme requires SSO authentication"
+        refute question =~ "widgets"
+      end)
+    end
+
+    test "says what declining costs" do
+      in_tmp("sso_reauth", fn ->
+        set_home_cwd()
+        store_token()
+        Hex.Auth.callbacks().sso_reauth.(["acme"])
+
+        send(self(), {:mix_shell_input, :yes?, false})
+        Hex.RemoteConverger.check_sso_reauth([{"hexpm:acme", "foo"}])
+
+        assert_received {:mix_shell, :yes?, _question}
+        assert Case.shell_output() =~ "Packages from acme will not be available"
+      end)
+    end
+
+    test "asks nothing when the project needs none of the flagged organizations" do
+      in_tmp("sso_reauth", fn ->
+        set_home_cwd()
+        store_token()
+        Hex.Auth.callbacks().sso_reauth.(["acme"])
+
+        assert Hex.RemoteConverger.check_sso_reauth([{"hexpm", "ecto"}]) == :ok
+        assert Case.shell_output() == ""
+      end)
+    end
+  end
+
+  defp store_token do
+    Hex.OAuth.store_token(%{
+      access_token: "token",
+      refresh_token: "refresh",
+      expires_at: System.system_time(:second) + 3600
+    })
+  end
 end
