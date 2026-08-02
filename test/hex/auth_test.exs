@@ -142,6 +142,52 @@ defmodule Hex.AuthTest do
       end)
     end
 
+    test "asks nothing about an organization authenticated with its own key" do
+      in_tmp("sso_reauth", fn ->
+        set_home_cwd()
+        store_token()
+        Hex.Auth.callbacks().sso_reauth.(["acme"])
+        repos = Hex.State.fetch!(:repos)
+        hexpm = repos["hexpm"]
+
+        Hex.State.put(
+          :repos,
+          Map.put(repos, "hexpm:acme", %{hexpm | auth_key: "org-key"})
+        )
+
+        assert Hex.RemoteConverger.check_sso_reauth([{"hexpm:acme", "foo"}]) == :ok
+        assert Case.shell_output() == ""
+      end)
+    end
+
+    test "says so rather than asking when Hex is offline" do
+      in_tmp("sso_reauth", fn ->
+        set_home_cwd()
+        store_token()
+        Hex.Auth.callbacks().sso_reauth.(["acme"])
+        Hex.State.put(:offline, true)
+
+        Hex.RemoteConverger.check_sso_reauth([{"hexpm:acme", "foo"}])
+
+        refute_received {:mix_shell, :yes?, _question}
+        assert Case.shell_output() =~ "Hex is offline"
+      end)
+    end
+
+    test "says so rather than asking when HEX_API_KEY is what authenticates" do
+      in_tmp("sso_reauth", fn ->
+        set_home_cwd()
+        store_token()
+        Hex.Auth.callbacks().sso_reauth.(["acme"])
+        Hex.State.put(:api_key, "key")
+
+        Hex.RemoteConverger.check_sso_reauth([{"hexpm:acme", "foo"}])
+
+        refute_received {:mix_shell, :yes?, _question}
+        assert Case.shell_output() =~ "HEX_API_KEY"
+      end)
+    end
+
     test "asks nothing when the project needs none of the flagged organizations" do
       in_tmp("sso_reauth", fn ->
         set_home_cwd()

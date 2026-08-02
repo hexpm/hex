@@ -949,8 +949,13 @@ defmodule Hex.RemoteConverger do
     needed =
       prefetches
       |> Enum.flat_map(fn
-        {"hexpm:" <> organization, _package} -> [organization]
-        {_repo, _package} -> []
+        {"hexpm:" <> organization = repo, _package} ->
+          # An organization authenticated with its own key does not touch the
+          # stored token, so nothing about it is worth asking.
+          if repo_requires_user_oauth?(repo), do: [organization], else: []
+
+        {_repo, _package} ->
+          []
       end)
       |> MapSet.new()
 
@@ -962,26 +967,60 @@ defmodule Hex.RemoteConverger do
   defp prompt_sso_reauth([]), do: :ok
 
   defp prompt_sso_reauth(organizations) do
-    if Hex.Shell.yes?("#{sso_subject(organizations)} SSO authentication. Authenticate now?") do
-      start_sso_reauth(organizations)
-    else
-      Hex.Shell.warn("Packages from #{names(organizations)} will not be available.")
+    cond do
+      Hex.State.fetch!(:offline) ->
+        unavailable(organizations, "Hex is offline")
+
+      Hex.State.get(:api_key) ->
+        unavailable(organizations, "HEX_API_KEY authenticates as itself")
+
+      Hex.Shell.yes?("#{sso_subject(organizations)} SSO authentication. Authenticate now?") ->
+        start_sso_reauth(organizations)
+
+      true ->
+        Hex.Shell.warn("Packages from #{names(organizations)} will not be available.")
     end
+  end
+
+  defp unavailable(organizations, reason) do
+    Hex.Shell.warn(
+      "#{sso_subject(organizations)} SSO authentication, but #{reason}. " <>
+        "Packages from #{names(organizations)} will not be available."
+    )
   end
 
   defp start_sso_reauth(organizations) do
     case Hex.API.OAuth.sso_authorization(organizations) do
-      {:ok, {status, _headers, %{"verification_uri" => uri}}} when status in 200..299 ->
-        Hex.Shell.info("Open #{uri} in your browser to authenticate")
-        Hex.API.OAuth.open_browser(uri)
-        Hex.Shell.prompt("Press enter when you have finished authenticating")
+      {:ok, {status, _headers, %{"verification_uri" => uri}}}
+      when status in 200..299 and is_binary(uri) ->
+        # The URL goes in the prompt rather than beside it: `mix deps.get
+        # --quiet` swallows info output, and asking someone to finish something
+        # in a browser without telling them where is a dead end.
+        open_browser(uri)
+        Hex.Shell.prompt("Open #{uri} to authenticate, then press enter")
         finish_sso_reauth(organizations)
 
-      {:ok, {_status, _headers, %{"message" => message}}} ->
+      {:ok, {_status, _headers, %{"message" => message}}} when is_binary(message) ->
         Hex.Shell.warn("Could not start SSO authentication: #{message}")
 
       _other ->
         Hex.Shell.warn("Could not start SSO authentication.")
+    end
+  end
+
+  # Opening a browser is a convenience on top of the printed URL, so nothing it
+  # does is worth ending a resolution over.
+  defp open_browser(uri) do
+    case URI.parse(uri) do
+      %URI{scheme: scheme} when scheme in ["http", "https"] ->
+        try do
+          Hex.API.OAuth.open_browser(uri)
+        catch
+          _kind, _reason -> :ok
+        end
+
+      _other ->
+        :ok
     end
   end
 
