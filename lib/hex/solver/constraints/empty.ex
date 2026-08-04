@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.3 (f702d44), do not edit manually
+# Vendored from hex_solver v0.2.3 (291c624), do not edit manually
 
 defmodule Hex.Solver.Constraints.Empty do
   @moduledoc false
@@ -34,6 +34,10 @@ defmodule Hex.Solver.Constraints.Empty do
       kind: :def,
       args: [left, right],
       clauses: []
+  end
+
+  def to_requirement(%Empty{}) do
+    "< 0.0.0-0"
   end
 
   def to_string(%Empty{}) do

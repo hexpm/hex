@@ -1,9 +1,9 @@
-# Vendored from hex_solver v0.2.3 (f702d44), do not edit manually
+# Vendored from hex_solver v0.2.3 (291c624), do not edit manually
 
 defmodule Hex.Solver.Requirement do
   @moduledoc false
 
-  alias Hex.Solver.Constraints.{Range, Util}
+  alias Hex.Solver.Constraints.{Empty, Range, Util}
   alias Hex.Solver.Requirement.Parser
 
   @allowed_range_ops [:>, :>=, :<, :<=, :~>]
@@ -45,7 +45,9 @@ defmodule Hex.Solver.Requirement do
   end
 
   defp delex([], acc) do
-    Util.union(acc)
+    acc
+    |> Enum.map(&normalize_constraint/1)
+    |> Util.union()
   end
 
   defp delex([op | rest], acc) when op in [:||, :or] do
@@ -145,6 +147,24 @@ defmodule Hex.Solver.Requirement do
 
   defp to_version({major, minor, patch, pre, _build}),
     do: %Elixir.Version{major: major, minor: minor, patch: patch, pre: pre}
+
+  defp normalize_constraint(%Range{
+         max: %Elixir.Version{major: 0, minor: 0, patch: 0, pre: [0]},
+         include_max: false
+       }) do
+    %Empty{}
+  end
+
+  defp normalize_constraint(
+         %Range{
+           min: %Elixir.Version{major: 0, minor: 0, patch: 0, pre: [0]},
+           include_min: true
+         } = range
+       ) do
+    %{range | min: nil, include_min: false}
+  end
+
+  defp normalize_constraint(constraint), do: constraint
 
   # Vendored from https://github.com/elixir-lang/elixir/blob/0ff6522/lib/elixir/lib/version.ex#L495
   defmodule Parser do

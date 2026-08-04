@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.3 (f702d44), do not edit manually
+# Vendored from hex_solver v0.2.3 (291c624), do not edit manually
 
 defmodule Hex.Solver.Constraints.Version do
   @moduledoc false
@@ -99,6 +99,10 @@ defmodule Hex.Solver.Constraints.Version do
       :eq -> left
       :gt -> right
     end
+  end
+
+  def to_requirement(%Version{} = version) do
+    Kernel.to_string(version)
   end
 
   def max(left, right) do

@@ -202,7 +202,7 @@ defmodule Hex.Mix do
          optional: optional,
          label: app
        }) do
-    {String.to_atom(app), to_string(constraint),
+    {String.to_atom(app), Hex.Solver.constraint_to_requirement!(constraint),
      hex: String.to_atom(name), repo: repo || "hexpm", optional: optional}
   end
 

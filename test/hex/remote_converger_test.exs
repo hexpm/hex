@@ -48,6 +48,41 @@ defmodule Hex.RemoteConvergerTest do
     end)
   end
 
+  test "deps/2 returns valid requirements for registry dependencies" do
+    Hex.Registry.Server.open()
+    package = "unconstrained_parent"
+    version = "1.0.0"
+
+    :sys.replace_state(Hex.Registry.Server, fn %{ets: tid, fetched: fetched} = state ->
+      :ets.insert(
+        tid,
+        {{:deps, "hexpm", package, version},
+         [
+           {"hexpm", "foo", "foo", ">= 0.5.50 or < 0.9.0", false},
+           {"hexpm", "bar", "bar", "< 0.0.0-0", true}
+         ]}
+      )
+
+      %{state | fetched: MapSet.put(fetched, {"hexpm", package})}
+    end)
+
+    lock = %{unconstrained_parent: {:hex, :unconstrained_parent, version}}
+    deps = Hex.RemoteConverger.deps(%Mix.Dep{app: :unconstrained_parent}, lock)
+
+    assert [
+             {:foo, any_requirement, optional: false, hex: "foo", repo: nil},
+             {:bar, empty_requirement, optional: true, hex: "bar", repo: nil}
+           ] = deps
+
+    assert any_requirement == ">= 0.0.0-0"
+    assert {:ok, _requirement} = Version.parse_requirement(any_requirement)
+    assert Hex.Solver.parse_constraint!(any_requirement) == %Hex.Solver.Constraints.Range{}
+
+    assert empty_requirement == "< 0.0.0-0"
+    assert {:ok, _requirement} = Version.parse_requirement(empty_requirement)
+    assert Hex.Solver.parse_constraint!(empty_requirement) == %Hex.Solver.Constraints.Empty{}
+  end
+
   defmodule WarnOutdatedWithHexOption.MixProject do
     def project do
       [

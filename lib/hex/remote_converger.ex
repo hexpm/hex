@@ -449,7 +449,7 @@ defmodule Hex.RemoteConverger do
     for %{repo: repo, name: name, constraint: req, optional: optional, label: app} <- deps do
       app = String.to_atom(app)
       opts = [optional: optional, hex: name, repo: repo]
-      {app, to_string(req), opts}
+      {app, Hex.Solver.constraint_to_requirement!(req), opts}
     end
   end
 
