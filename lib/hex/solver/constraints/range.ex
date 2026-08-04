@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.3 (f702d44), do not edit manually
+# Vendored from hex_solver v0.2.3 (291c624), do not edit manually
 
 defmodule Hex.Solver.Constraints.Range do
   @moduledoc false
@@ -382,6 +382,14 @@ defmodule Hex.Solver.Constraints.Range do
 
   def normalize(%Range{} = range), do: range
   def normalize(%Elixir.Version{} = version), do: version
+
+  def to_requirement(%Range{min: nil, max: nil}) do
+    ">= 0.0.0-0"
+  end
+
+  def to_requirement(%Range{} = range) do
+    Range.to_string(range)
+  end
 
   def to_string(%Range{min: nil, max: nil}) do
     "any"

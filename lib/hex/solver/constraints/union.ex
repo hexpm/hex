@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.3 (f702d44), do not edit manually
+# Vendored from hex_solver v0.2.3 (291c624), do not edit manually
 
 defmodule Hex.Solver.Constraints.Union do
   @moduledoc false
@@ -153,6 +153,10 @@ defmodule Hex.Solver.Constraints.Union do
 
   defp maybe_to_range(%Elixir.Version{} = version), do: Version.to_range(version)
   defp maybe_to_range(other), do: other
+
+  def to_requirement(%Union{ranges: ranges}) do
+    Enum.map_join(ranges, " or ", &Constraint.to_requirement/1)
+  end
 
   def to_string(%Union{ranges: ranges}) do
     Enum.map_join(ranges, " or ", &Kernel.to_string/1)

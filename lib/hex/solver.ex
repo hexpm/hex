@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.3 (f702d44), do not edit manually
+# Vendored from hex_solver v0.2.3 (291c624), do not edit manually
 
 defmodule Hex.Solver do
   _ = """
@@ -26,7 +26,7 @@ defmodule Hex.Solver do
   @type result() :: %{package() => {Version.t(), repo()}}
   @opaque constraint() :: Hex.Solver.Requirement.t()
 
-  alias Hex.Solver.{Failure, Requirement, Solver}
+  alias Hex.Solver.{Constraint, Failure, Requirement, Solver}
 
   @doc """
   Runs the version solver.
@@ -84,5 +84,15 @@ defmodule Hex.Solver do
   @spec parse_constraint!(String.t() | Version.t() | Version.Requirement.t()) :: constraint()
   def parse_constraint!(string) do
     Requirement.to_constraint!(string)
+  end
+
+  @doc """
+  Serializes an internal solver constraint as an Elixir version requirement.
+  """
+  @spec constraint_to_requirement!(constraint()) :: String.t()
+  def constraint_to_requirement!(constraint) do
+    requirement = Constraint.to_requirement(constraint)
+    Version.parse_requirement!(requirement)
+    requirement
   end
 end
