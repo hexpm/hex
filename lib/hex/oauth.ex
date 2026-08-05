@@ -32,6 +32,17 @@ defmodule Hex.OAuth do
   end
 
   @doc """
+  The organizations the stored session has to authenticate through their
+  identity provider for before it can reach them again.
+  """
+  def sso_reauth_required do
+    case Hex.State.get(:oauth_token) do
+      %{sso_reauth_required: organizations} when is_list(organizations) -> organizations
+      _token_data -> []
+    end
+  end
+
+  @doc """
   Clears all stored OAuth tokens.
   """
   def clear_tokens do

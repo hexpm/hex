@@ -26,6 +26,17 @@ defmodule Hex.Auth do
   end
 
   @doc """
+  Refresh the stored OAuth token now, whether or not it has expired.
+
+  Authenticating a session against an organization's identity provider grants
+  scopes the current access token was minted without, and this is how they are
+  picked up without waiting the token out.
+  """
+  def refresh_tokens(config) do
+    :mix_hex_cli_auth.refresh_tokens(config)
+  end
+
+  @doc """
   Execute a function with preemptive authentication using the provided auth data.
   """
   def with_preemptive_auth(auth, config, fun, opts \\ []) do
@@ -41,6 +52,7 @@ defmodule Hex.Auth do
       get_oauth_tokens: &get_oauth_tokens/0,
       persist_oauth_tokens: &persist_oauth_tokens/4,
       clear_oauth_tokens: &clear_oauth_tokens/0,
+      sso_reauth: &sso_reauth/1,
       prompt_otp: &prompt_otp/1,
       get_client_id: &Hex.API.OAuth.client_id/0,
       should_authenticate: &should_authenticate/1
@@ -127,6 +139,26 @@ defmodule Hex.Auth do
 
     :ok
   end
+
+  # Invoked by hex_cli_auth after every token grant with the organizations the
+  # server says this session has to authenticate through their identity
+  # provider for. Store them with the token rather than acting on them: which
+  # ones matter depends on what the running command needs, and a later run that
+  # reuses this token without refreshing it would otherwise have no idea.
+  defp sso_reauth(organizations) do
+    token_data = Hex.State.get(:oauth_token)
+
+    if is_map(token_data) and Hex.OAuth.sso_reauth_required() != organizations do
+      Hex.OAuth.store_token(put_sso_reauth(token_data, organizations))
+    end
+
+    :ok
+  end
+
+  defp put_sso_reauth(token_data, []), do: Map.delete(token_data, :sso_reauth_required)
+
+  defp put_sso_reauth(token_data, organizations),
+    do: Map.put(token_data, :sso_reauth_required, organizations)
 
   defp prompt_otp(message) do
     case Hex.Shell.prompt(message) do
