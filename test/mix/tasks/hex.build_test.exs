@@ -403,6 +403,25 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge([ReleaseMeta.MixProject])
   end
 
+  test "keeps secret_scan config in the metadata" do
+    meta =
+      Mix.Tasks.Hex.Build.package(
+        %{
+          secret_scan: [ignore: ["test/fixtures/**"]],
+          files: [],
+          app: :demo,
+          name: "demo",
+          description: "d",
+          licenses: ["MIT"],
+          build_tools: ["mix"]
+        },
+        app: :demo,
+        version: "1.0.0"
+      )
+
+    assert meta[:secret_scan] == [ignore: ["test/fixtures/**"]]
+  end
+
   test "reject package if description is missing" do
     Process.put(:hex_test_app_name, :build_no_description)
     Mix.Project.push(ReleaseNoDescription.MixProject)
