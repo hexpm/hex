@@ -33,7 +33,7 @@ defmodule Mix.Tasks.Hex.Build do
 
   @error_fields ~w(app name files version build_tools)a
   @warn_fields ~w(description licenses links)a
-  @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir extra)a
+  @meta_fields @error_fields ++ @warn_fields ++ ~w(elixir extra secret_scan)a
   @root_fields ~w(app version elixir description)a
   @max_description_length 300
   @default_repo "hexpm"
@@ -367,8 +367,16 @@ defmodule Mix.Tasks.Hex.Build do
     end
   end
 
+  defp format_metadata_value([]) do
+    ""
+  end
+
   defp format_metadata_value(list) when is_list(list) do
-    Enum.join(list, ", ")
+    if Keyword.keyword?(list) do
+      format_metadata_value(Map.new(list))
+    else
+      Enum.join(list, ", ")
+    end
   end
 
   defp format_metadata_value(map) when is_map(map) do
