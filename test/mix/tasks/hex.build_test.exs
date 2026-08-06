@@ -403,23 +403,26 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge([ReleaseMeta.MixProject])
   end
 
-  test "keeps secret_scan config in the metadata" do
-    meta =
-      Mix.Tasks.Hex.Build.package(
-        %{
-          secret_scan: [ignore: ["test/fixtures/**"]],
-          files: [],
-          app: :demo,
-          name: "demo",
-          description: "d",
-          licenses: ["MIT"],
-          build_tools: ["mix"]
-        },
-        app: :demo,
-        version: "1.0.0"
-      )
+  test "create with secret_scan" do
+    Process.put(:hex_test_app_name, :build_secret_scan)
+    Mix.Project.push(ReleaseSecretScan.MixProject)
 
-    assert meta[:secret_scan] == [ignore: ["test/fixtures/**"]]
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+
+      File.write!("myfile.txt", "hello")
+      File.chmod!("myfile.txt", 0o100644)
+
+      Mix.Tasks.Hex.Build.run(["--unpack"])
+
+      # A keyword list has to print like a map does, not blow up on the tuples.
+      assert_received {:mix_shell, :info, ["  Secret scan: \n    ignore: test/fixtures/**"]}
+
+      {:ok, metadata} = :file.consult("build_secret_scan-0.0.1/hex_metadata.config")
+      assert {"secret_scan", [{"ignore", ["test/fixtures/**"]}]} in metadata
+    end)
+  after
+    purge([ReleaseSecretScan.MixProject])
   end
 
   test "reject package if description is missing" do

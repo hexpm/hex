@@ -367,8 +367,16 @@ defmodule Mix.Tasks.Hex.Build do
     end
   end
 
+  defp format_metadata_value([]) do
+    ""
+  end
+
   defp format_metadata_value(list) when is_list(list) do
-    Enum.join(list, ", ")
+    if Keyword.keyword?(list) do
+      format_metadata_value(Map.new(list))
+    else
+      Enum.join(list, ", ")
+    end
   end
 
   defp format_metadata_value(map) when is_map(map) do
