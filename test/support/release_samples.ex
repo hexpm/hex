@@ -29,6 +29,22 @@ defmodule ReleaseSimple.MixProject do
   end
 end
 
+defmodule ReleaseSecretScan.MixProject do
+  def project do
+    [
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
+      description: "baz",
+      version: "0.0.1",
+      package: [
+        licenses: ["MIT"],
+        files: ["myfile.txt"],
+        links: %{"a" => "http://a"},
+        secret_scan: [ignore: ["test/fixtures/**"]]
+      ]
+    ]
+  end
+end
+
 defmodule ReleaseNewSimple.MixProject do
   def project do
     [
