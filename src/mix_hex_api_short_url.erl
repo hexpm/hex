@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.18.0 (d6a6a5a), do not edit manually
+%% Vendored from hex_core v0.19.0 (18ab8f1), do not edit manually
 
 %% @doc
 %% Hex HTTP API - Short URLs.

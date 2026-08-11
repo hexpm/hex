@@ -125,4 +125,114 @@ defmodule Hex.RemoteConvergerPolicyTest do
 
     assert capture_io(fn -> Hex.RemoteConverger.print_policy_summary() end) == ""
   end
+
+  test "locked dependency warnings apply scoped overrides and keep unrelated advisories" do
+    with_warning_registry(fn ->
+      Hex.State.put(
+        :active_policy,
+        policy([
+          %{
+            action: :OVERRIDE_ACTION_ADVISORY,
+            ref: %{package: "warning_pkg"},
+            advisory_id: "CVE-2026-10001"
+          },
+          %{
+            action: :OVERRIDE_ACTION_RETIREMENT,
+            ref: %{package: "warning_pkg"},
+            retirement_reason: :RETIRED_SECURITY
+          }
+        ])
+      )
+
+      dep = {"warning_pkg", "hexpm", nil, "1.0.0", nil}
+
+      assert [new: [{^dep, nil, [%{id: "GHSA-warning-2"}]}]] =
+               Hex.RemoteConverger.annotate_dependency_changes(new: [dep])
+    end)
+  end
+
+  test "locked dependency warnings apply matching ALLOW overrides" do
+    with_warning_registry(fn ->
+      active_policy = policy([])
+      [repo_policy] = active_policy.repositories
+
+      active_policy = %{
+        active_policy
+        | repositories: [
+            %{
+              repo_policy
+              | overrides: [
+                  %{action: :OVERRIDE_ACTION_ALLOW, ref: %{package: "warning_pkg"}}
+                ]
+            }
+          ]
+      }
+
+      Hex.State.put(:active_policy, active_policy)
+      dep = {"warning_pkg", "hexpm", nil, "1.0.0", nil}
+
+      assert [new: [{^dep, nil, []}]] =
+               Hex.RemoteConverger.annotate_dependency_changes(new: [dep])
+    end)
+  end
+
+  defp with_warning_registry(fun) do
+    path = tmp_path("policy_warning_registry.ets")
+    File.rm(path)
+
+    advisories = [
+      {{"hexpm", "warning_pkg", "1.0.0"},
+       [
+         %{
+           id: "GHSA-warning-1",
+           aliases: ["CVE-2026-10001"],
+           severity: :SEVERITY_HIGH
+         },
+         %{id: "GHSA-warning-2", aliases: [], severity: :SEVERITY_HIGH}
+       ]}
+    ]
+
+    retired = %{
+      {:hexpm, :warning_pkg, "1.0.0"} => %{reason: :RETIRED_SECURITY}
+    }
+
+    create_test_registry(
+      path,
+      [{:hexpm, :warning_pkg, "1.0.0", []}],
+      advisories,
+      %{},
+      retired
+    )
+
+    Hex.Registry.Server.close()
+    Hex.State.put(:offline, true)
+    Hex.State.put(:ignore_advisories, [])
+    Hex.State.put(:ignore_retirements, [])
+    Hex.Registry.Server.open(registry_path: path)
+    Hex.Registry.Server.prefetch([{"hexpm", "warning_pkg"}])
+
+    try do
+      fun.()
+    after
+      Hex.Registry.Server.close()
+    end
+  end
+
+  defp policy(overrides) do
+    %{
+      repository: "myorg",
+      name: "strict-prod",
+      visibility: :VISIBILITY_PUBLIC,
+      repositories: [
+        %{
+          repository: "hexpm",
+          restriction: %{
+            advisory_min_severity: :SEVERITY_LOW,
+            retirement_reasons: [:RETIRED_SECURITY]
+          },
+          overrides: overrides
+        }
+      ]
+    }
+  end
 end

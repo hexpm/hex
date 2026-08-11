@@ -143,28 +143,51 @@ defmodule Mix.Tasks.Hex.Policy do
     Hex.Shell.info(["      Overrides:"])
 
     Enum.each(overrides, fn override ->
-      Hex.Shell.info(["        ", override_label(override)])
+      label =
+        if Filter.valid_override?(override) do
+          override_label(override)
+        else
+          [:faint, "(invalid override ignored)"]
+        end
+
+      Hex.Shell.info(["        ", label])
     end)
   end
 
-  defp override_label(%{action: action, ref: ref}) do
-    package = Map.get(ref, :package)
+  defp override_label(%{action: action, ref: ref} = override) do
+    label = override_action_label(action, override)
 
-    package_text =
-      case Map.get(ref, :requirement) do
-        requirement when is_binary(requirement) and requirement != "" ->
-          "#{package} #{requirement}"
+    case Map.get(override, :comment) do
+      comment when is_binary(comment) and comment != "" ->
+        [ref_label(ref), "  ", label, "  ", comment]
 
-        _ ->
-          "#{package}"
-      end
-
-    [package_text, "  ", override_action_label(action)]
+      _comment ->
+        [ref_label(ref), "  ", label]
+    end
   end
 
-  defp override_action_label(:OVERRIDE_ACTION_ALLOW), do: [:green, "ALLOW"]
-  defp override_action_label(:OVERRIDE_ACTION_DENY), do: [:red, "DENY"]
-  defp override_action_label(other), do: [to_string(other)]
+  defp override_action_label(:OVERRIDE_ACTION_ALLOW, _override), do: [:green, "ALLOW"]
+  defp override_action_label(:OVERRIDE_ACTION_DENY, _override), do: [:red, "DENY"]
+
+  defp override_action_label(:OVERRIDE_ACTION_ADVISORY, override),
+    do: [:green, "ADVISORY ", override.advisory_id]
+
+  defp override_action_label(:OVERRIDE_ACTION_RETIREMENT, override) do
+    [:green, "RETIREMENT ", Hex.Utils.package_retirement_reason(override.retirement_reason)]
+  end
+
+  defp override_action_label(:OVERRIDE_ACTION_COOLDOWN, _override),
+    do: [:green, "COOLDOWN"]
+
+  defp ref_label(ref) do
+    case Map.get(ref, :requirement) do
+      requirement when is_binary(requirement) and requirement != "" ->
+        "#{Map.get(ref, :package)} #{requirement}"
+
+      _requirement ->
+        to_string(Map.get(ref, :package))
+    end
+  end
 
   defp why(arg) do
     {repo, package} = parse_package_arg(arg)
@@ -209,23 +232,56 @@ defmodule Mix.Tasks.Hex.Policy do
         version = to_string(v)
         candidate = Filter.candidate_from_registry(repo, package, version)
 
-        case Filter.classify(policy, candidate) do
-          :allowed ->
-            [version, [:green, "ALLOWED"], ""]
+        case Filter.explain(policy, candidate) do
+          {:allowed, acceptances} ->
+            [version, [:green, "ALLOWED"], acceptance_cell(acceptances)]
 
-          {:blocked, reasons} ->
+          {:blocked, reasons, acceptances} ->
             reason_cell =
               reasons
               |> Enum.uniq()
               |> Enum.map(&[Diagnostics.reason_color(&1), Diagnostics.format_reason(&1)])
               |> Enum.intersperse(", ")
 
-            [version, [:red, "BLOCKED"], reason_cell]
+            details =
+              case acceptance_cell(acceptances) do
+                "" -> reason_cell
+                accepted -> [reason_cell, "; ", accepted]
+              end
+
+            [version, [:red, "BLOCKED"], details]
         end
       end)
 
-    Mix.Tasks.Hex.print_table(["Version", "Status", "Blocked by"], rows)
+    Mix.Tasks.Hex.print_table(["Version", "Status", "Policy result"], rows)
   end
+
+  defp acceptance_cell([]), do: ""
+
+  defp acceptance_cell(acceptances) do
+    acceptances
+    |> Enum.map(&acceptance_label/1)
+    |> Enum.intersperse(", ")
+  end
+
+  defp acceptance_label(%{kind: kind, identifier: identifier} = acceptance)
+       when kind in [:advisory, :retirement] do
+    label = if kind == :advisory, do: "advisory", else: "retirement"
+
+    [
+      :green,
+      "#{label} #{identifier} accepted: #{Filter.acceptance_message(acceptance)}"
+    ]
+  end
+
+  defp acceptance_label(%{kind: :cooldown} = acceptance),
+    do: [:green, "policy cooldown bypassed: #{Filter.acceptance_message(acceptance)}"]
+
+  defp acceptance_label(%{kind: :allow} = acceptance),
+    do: [:green, "accepted by ALLOW override: #{Filter.acceptance_message(acceptance)}"]
+
+  defp acceptance_label(%{kind: :deny} = acceptance),
+    do: [:red, "denied by override: #{Filter.acceptance_message(acceptance)}"]
 
   defp cooldown_source(:local), do: "local"
   defp cooldown_source({repo, name}), do: "#{repo}/#{name}"
