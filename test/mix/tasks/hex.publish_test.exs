@@ -567,10 +567,15 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       set_home_tmp()
-      setup_auth("user", "hunter42")
+      auth = setup_auth("user", "hunter42")
       File.write!("myfile.txt", "hello")
 
-      send(self(), {:mix_shell_input, :prompt, "2"})
+      assert {:ok, {200, _headers, body}} = Hex.API.User.me(auth)
+
+      assert organization_index =
+               Enum.find_index(body["organizations"], &(&1["name"] == "testorg"))
+
+      send(self(), {:mix_shell_input, :prompt, Integer.to_string(organization_index + 2)})
       send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
 
