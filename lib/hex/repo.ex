@@ -248,7 +248,7 @@ defmodule Hex.Repo do
 
   def get_installs() do
     repo = get_repo("hexpm")
-    config = build_hex_core_config(repo, "")
+    config = build_hex_core_config(repo, "hexpm")
 
     Hex.Auth.with_repo(config, &:mix_hex_repo.get_hex_installs/1)
   end
@@ -319,7 +319,8 @@ defmodule Hex.Repo do
         repo_verify: !unsafe_registry,
         repo_verify_origin: !no_verify_repo_origin,
         trusted: Map.get(repo_config, :trusted, false),
-        oauth_exchange: Map.get(repo_config, :oauth_exchange, false)
+        oauth_exchange: Map.get(repo_config, :oauth_exchange, false),
+        cli_auth_callbacks: Hex.Auth.callbacks(global_oauth: repo_name == "hexpm")
     }
 
     if repo_config.auth_key do
