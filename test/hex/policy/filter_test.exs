@@ -392,6 +392,13 @@ defmodule Hex.Policy.FilterTest do
       end
     end
 
+    test "identifies numeric actions decoded from a newer protocol" do
+      assert Filter.unknown_override_action?(%{action: 99, ref: %{package: "phoenix"}})
+      refute Filter.unknown_override_action?(%{action: :OVERRIDE_ACTION_ALLOW})
+      refute Filter.unknown_override_action?(%{action: :unknown})
+      refute Filter.unknown_override_action?(%{})
+    end
+
     test "comment limits count Unicode codepoints" do
       override = %{
         action: :OVERRIDE_ACTION_ALLOW,

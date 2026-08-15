@@ -1,5 +1,6 @@
 defmodule Hex.Registry.ServerPolicyTest do
   use HexTest.Case, async: false
+  import ExUnit.CaptureIO
   alias Hex.Registry.Server, as: Registry
 
   setup do
@@ -63,6 +64,62 @@ defmodule Hex.Registry.ServerPolicyTest do
       assert policy.name == "strict-prod"
       assert [%{repository: "hexpm", restriction: restriction}] = policy.repositories
       assert restriction.advisory_min_severity == :SEVERITY_HIGH
+    end)
+  end
+
+  test "policy load warns once about unsupported override actions", %{bypass: bypass} do
+    repositories = [
+      %{
+        repository: "hexpm",
+        restriction: %{advisory_min_severity: :SEVERITY_HIGH},
+        overrides: [
+          %{action: 99, ref: %{package: "decimal", requirement: "== 1.0.0"}},
+          %{action: 99, ref: %{package: "decimal", requirement: "== 1.0.0"}},
+          %{action: :OVERRIDE_ACTION_ALLOW, ref: %{package: "jason"}}
+        ]
+      }
+    ]
+
+    Bypass.expect_once(bypass, "GET", "/repos/myorg/policies/strict-prod", fn conn ->
+      Plug.Conn.resp(conn, 200, fresh_policy(repositories))
+    end)
+
+    in_tmp("registry_policy_unknown_action", fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+      Hex.State.put(:policy, "hexpm:myorg/strict-prod")
+      Registry.open(check_version: false, registry_path: Path.join(File.cwd!(), "cache.ets"))
+      Mix.shell(Mix.Shell.IO)
+      on_exit(fn -> Mix.shell(Hex.Shell.Process) end)
+
+      output =
+        capture_io(:stderr, fn ->
+          assert {:ok, policy} = Hex.Policy.load()
+
+          candidate = %{
+            repo: "hexpm",
+            package: "decimal",
+            version: "1.0.0",
+            advisories: [%{id: "GHSA-test", severity: :SEVERITY_HIGH}],
+            retired: nil,
+            published_at: nil
+          }
+
+          for _iteration <- 1..3 do
+            assert {:blocked, [{:advisory, :SEVERITY_HIGH}]} =
+                     Hex.Policy.Filter.classify(policy, candidate)
+          end
+        end)
+
+      assert output =~ ~s(Dependency policy "myorg/strict-prod")
+      assert output =~ "Hex #{Hex.version()} doesn't support"
+
+      assert output =~
+               ~s(repository "hexpm", package "decimal", requirement "== 1.0.0", action 99)
+
+      assert output =~ "These overrides will be ignored"
+      assert output =~ "Upgrade Hex to apply these overrides"
+      assert length(:binary.matches(output, "package \"decimal\"")) == 1
+      refute output =~ "jason"
     end)
   end
 

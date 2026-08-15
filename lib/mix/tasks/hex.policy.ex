@@ -144,15 +144,43 @@ defmodule Mix.Tasks.Hex.Policy do
 
     Enum.each(overrides, fn override ->
       label =
-        if Filter.valid_override?(override) do
-          override_label(override)
-        else
-          [:faint, "(invalid override ignored)"]
+        cond do
+          Filter.valid_override?(override) ->
+            override_label(override)
+
+          Filter.unknown_override_action?(override) ->
+            unknown_override_label(override)
+
+          true ->
+            [:faint, "(invalid override ignored)"]
         end
 
       Hex.Shell.info(["        ", label])
     end)
   end
+
+  defp unknown_override_label(%{action: action} = override) do
+    ref =
+      case Map.get(override, :ref) do
+        %{} = ref -> ref
+        _ref -> %{}
+      end
+
+    [
+      "package ",
+      inspect(Map.get(ref, :package)),
+      unknown_requirement_label(ref),
+      "  ",
+      [:yellow, "UNKNOWN ACTION #{action}"],
+      " ",
+      [:faint, "(ignored)"]
+    ]
+  end
+
+  defp unknown_requirement_label(%{requirement: requirement}),
+    do: " requirement #{inspect(requirement)}"
+
+  defp unknown_requirement_label(_ref), do: ""
 
   defp override_label(%{action: action, ref: ref} = override) do
     label = override_action_label(action, override)

@@ -182,6 +182,31 @@ defmodule Mix.Tasks.Hex.PolicyTest do
       refute out =~ "bidi"
       refute out =~ "spoof"
     end
+
+    test "identifies unsupported override actions and their scope" do
+      Hex.State.put(:active_policy, %{
+        repository: "myorg",
+        name: "strict-prod",
+        visibility: :VISIBILITY_PUBLIC,
+        repositories: [
+          %{
+            repository: "hexpm",
+            restriction: %{},
+            overrides: [
+              %{
+                action: 99,
+                ref: %{package: "decimal", requirement: "== 1.0.0"}
+              }
+            ]
+          }
+        ]
+      })
+
+      out = capture_io(fn -> Mix.Tasks.Hex.Policy.run(["show"]) end)
+      assert out =~ ~s(package "decimal" requirement "== 1.0.0")
+      assert out =~ "UNKNOWN ACTION 99"
+      assert out =~ "(ignored)"
+    end
   end
 
   describe "why" do

@@ -380,6 +380,10 @@ defmodule Hex.Policy.Filter do
   end
 
   @doc false
+  def unknown_override_action?(%{action: action}) when is_integer(action), do: true
+  def unknown_override_action?(_override), do: false
+
+  @doc false
   def valid_override?(%{action: action, ref: %{package: package} = ref} = override)
       when is_binary(package) and package != "" do
     action in @override_actions and
