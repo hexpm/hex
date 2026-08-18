@@ -36,36 +36,6 @@ defmodule Hex.UpdateCheckerTest do
     assert {:version, _} = GenServer.call(pid, :check)
   end
 
-  test "uses the global OAuth token instead of the repository key for Hex.pm" do
-    flush()
-
-    Hex.OAuth.store_token(%{
-      access_token: "hexpm-user-token",
-      refresh_token: "hexpm-refresh-token",
-      expires_at: System.system_time(:second) + 3600
-    })
-
-    bypass = Bypass.open()
-    repos = Hex.State.fetch!(:repos)
-
-    repos =
-      repos
-      |> put_in(["hexpm", :url], "http://localhost:#{bypass.port}")
-      |> put_in(["hexpm", :auth_key], "legacy-repo-key")
-      |> put_in(["hexpm", :oauth_exchange], false)
-
-    Hex.State.put(:repos, repos)
-
-    Bypass.expect_once(bypass, "GET", "/installs/hex-1.x.csv", fn conn ->
-      assert Plug.Conn.get_req_header(conn, "authorization") == ["Bearer hexpm-user-token"]
-      Plug.Conn.resp(conn, 200, versions_to_csv([{"100.0.0", "1.0.0"}]))
-    end)
-
-    {:ok, pid} = UpdateChecker.start_link(name: nil)
-    GenServer.cast(pid, :start_check)
-    assert {:version, _} = GenServer.call(pid, :check)
-  end
-
   test "dont display same hex version" do
     flush()
     bypass_csv([{"0.0.1", "1.0.0"}])

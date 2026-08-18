@@ -34,16 +34,11 @@ defmodule Hex.Auth do
   end
 
   @doc false
-  @spec callbacks(keyword()) :: :mix_hex_cli_auth.callbacks()
-  def callbacks(opts \\ []) do
-    get_oauth_tokens =
-      if Keyword.get(opts, :global_oauth, true),
-        do: &get_oauth_tokens/0,
-        else: fn -> :error end
-
+  @spec callbacks() :: :mix_hex_cli_auth.callbacks()
+  def callbacks do
     %{
       get_auth_config: &get_auth_config/1,
-      get_oauth_tokens: get_oauth_tokens,
+      get_oauth_tokens: &get_oauth_tokens/0,
       persist_oauth_tokens: &persist_oauth_tokens/4,
       clear_oauth_tokens: &clear_oauth_tokens/0,
       prompt_otp: &prompt_otp/1,
