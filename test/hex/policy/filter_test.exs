@@ -153,6 +153,16 @@ defmodule Hex.Policy.FilterTest do
       assert {:blocked, [:override_deny]} = Filter.classify(p, candidate(version: "1.7.11"))
     end
 
+    test "first override wins when matching overrides are equally specific" do
+      allow = %{action: :OVERRIDE_ACTION_ALLOW, ref: %{package: "phoenix"}}
+      deny = %{action: :OVERRIDE_ACTION_DENY, ref: %{package: "phoenix"}}
+
+      assert :allowed == Filter.classify(policy(tab(overrides: [allow, deny])), candidate())
+
+      assert {:blocked, [:override_deny]} =
+               Filter.classify(policy(tab(overrides: [deny, allow])), candidate())
+    end
+
     test "an override for a different package does not match" do
       p = policy(tab(overrides: [%{action: :OVERRIDE_ACTION_DENY, ref: %{package: "ecto"}}]))
       assert :allowed == Filter.classify(p, candidate(package: "phoenix"))
