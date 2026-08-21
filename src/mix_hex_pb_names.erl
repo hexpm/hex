@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (3133bb5), do not edit manually
+%% Vendored from hex_core v0.19.0 (cf6a12c), do not edit manually
 
 %% -*- coding: utf-8 -*-
 %% % this file is @generated

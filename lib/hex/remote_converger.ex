@@ -551,17 +551,22 @@ defmodule Hex.RemoteConverger do
     end
   end
 
-  defp annotate_dependency_changes(dep_changes) do
+  @doc false
+  def annotate_dependency_changes(dep_changes) do
     ignore_advisories = Hex.State.fetch!(:ignore_advisories)
     ignore_retirements = Hex.State.fetch!(:ignore_retirements)
+    policy = Hex.State.fetch!(:active_policy)
 
     Enum.map(dep_changes, fn {mod, deps} ->
       annotated =
         Enum.map(deps, fn {name, repo, _prev, version, _warning} = dep ->
+          candidate = Hex.Policy.Filter.candidate_from_registry(repo, name, version)
+
           retired =
             case Registry.retired(repo, name, version) do
               %{} = retired ->
-                if Hex.Ignores.retirement_ignored?(name, version, ignore_retirements) do
+                if policy_accepts_finding?(policy, candidate, {:retirement, retired}) or
+                     Hex.Ignores.retirement_ignored?(name, version, ignore_retirements) do
                   nil
                 else
                   retired
@@ -573,6 +578,7 @@ defmodule Hex.RemoteConverger do
 
           advisories =
             (Registry.advisories(repo, name, version) || [])
+            |> Enum.reject(&policy_accepts_finding?(policy, candidate, {:advisory, &1}))
             |> Hex.Ignores.reject_ignored_advisories(ignore_advisories)
 
           {dep, retired, advisories}
@@ -580,6 +586,15 @@ defmodule Hex.RemoteConverger do
 
       {mod, annotated}
     end)
+  end
+
+  defp policy_accepts_finding?(nil, _candidate, _finding), do: false
+
+  defp policy_accepts_finding?(policy, candidate, finding) do
+    match?(
+      {:accepted, _acceptance},
+      Hex.Policy.Filter.audit_finding(policy, candidate, finding, :overrides)
+    )
   end
 
   defp group_dependency_changes(resolved, previously_locked_versions) do

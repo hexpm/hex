@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (3133bb5), do not edit manually
+%% Vendored from hex_core v0.19.0 (cf6a12c), do not edit manually
 
 %% @doc
 %% Authentication handling with callback functions for build-tool-specific operations.

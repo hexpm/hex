@@ -1,6 +1,7 @@
 defmodule Hex.Policy do
   @moduledoc false
 
+  alias Hex.Policy.Filter
   alias Hex.Registry.Server, as: Registry
 
   @type ref :: {repo :: String.t(), name :: String.t()}
@@ -92,8 +93,12 @@ defmodule Hex.Policy do
         Registry.prefetch_policies([ref])
 
         case Registry.policy(repo, name) do
-          {:ok, decoded} -> {:ok, decoded}
-          :error -> Mix.raise("Failed to load policy #{repo}/#{name}")
+          {:ok, decoded} ->
+            warn_unknown_override_actions(decoded)
+            {:ok, decoded}
+
+          :error ->
+            Mix.raise("Failed to load policy #{repo}/#{name}")
         end
     end
   end
@@ -123,5 +128,67 @@ defmodule Hex.Policy do
         Hex.State.put(:active_policy, policy)
         {:ok, policy}
     end
+  end
+
+  defp warn_unknown_override_actions(policy) do
+    entries = unknown_override_actions(policy)
+
+    if entries != [] do
+      policy_ref =
+        case policy do
+          %{repository: repository, name: name} -> "#{repository}/#{name}"
+          _policy -> "unknown"
+        end
+
+      overrides =
+        Enum.map_join(entries, "\n", &unknown_override_action_label/1)
+
+      Hex.Shell.warn(
+        "Dependency policy #{inspect(policy_ref)} contains override actions that " <>
+          "Hex #{Hex.version()} doesn't support. These overrides will be ignored:\n" <>
+          overrides <>
+          "\nUpgrade Hex to apply these overrides."
+      )
+    end
+  end
+
+  defp unknown_override_actions(%{repositories: repositories}) when is_list(repositories) do
+    repositories
+    |> Enum.flat_map(&repository_unknown_override_actions/1)
+    |> Enum.uniq()
+  end
+
+  defp unknown_override_actions(_policy), do: []
+
+  defp repository_unknown_override_actions(%{} = repository_policy) do
+    repository = Map.get(repository_policy, :repository)
+
+    case Map.get(repository_policy, :overrides, []) do
+      overrides when is_list(overrides) ->
+        for %{action: action} = override <- overrides,
+            Filter.unknown_override_action?(override) do
+          {repository, override_package(override), override_requirement(override), action}
+        end
+
+      _overrides ->
+        []
+    end
+  end
+
+  defp repository_unknown_override_actions(_repository_policy), do: []
+
+  defp override_package(%{ref: %{package: package}}), do: package
+  defp override_package(_override), do: nil
+
+  defp override_requirement(%{ref: %{requirement: requirement}}), do: requirement
+  defp override_requirement(_override), do: nil
+
+  defp unknown_override_action_label({repository, package, nil, action}) do
+    "  repository #{inspect(repository)}, package #{inspect(package)}, action #{action}"
+  end
+
+  defp unknown_override_action_label({repository, package, requirement, action}) do
+    "  repository #{inspect(repository)}, package #{inspect(package)}, " <>
+      "requirement #{inspect(requirement)}, action #{action}"
   end
 end

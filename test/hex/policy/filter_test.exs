@@ -153,9 +153,391 @@ defmodule Hex.Policy.FilterTest do
       assert {:blocked, [:override_deny]} = Filter.classify(p, candidate(version: "1.7.11"))
     end
 
+    test "first override wins when matching overrides are equally specific" do
+      allow = %{action: :OVERRIDE_ACTION_ALLOW, ref: %{package: "phoenix"}}
+      deny = %{action: :OVERRIDE_ACTION_DENY, ref: %{package: "phoenix"}}
+
+      assert :allowed == Filter.classify(policy(tab(overrides: [allow, deny])), candidate())
+
+      assert {:blocked, [:override_deny]} =
+               Filter.classify(policy(tab(overrides: [deny, allow])), candidate())
+    end
+
     test "an override for a different package does not match" do
       p = policy(tab(overrides: [%{action: :OVERRIDE_ACTION_DENY, ref: %{package: "ecto"}}]))
       assert :allowed == Filter.classify(p, candidate(package: "phoenix"))
+    end
+  end
+
+  describe "classify/3 - scoped overrides" do
+    @advisory %{
+      id: "GHSA-test-0001",
+      aliases: ["CVE-2026-12345"],
+      severity: :SEVERITY_HIGH
+    }
+
+    test "an advisory override matches primary IDs and aliases without regard to case" do
+      for id <- ["GHSA-test-0001", "cve-2026-12345"] do
+        p =
+          policy(
+            tab(
+              restriction: %{advisory_min_severity: :SEVERITY_LOW},
+              overrides: [
+                %{
+                  action: :OVERRIDE_ACTION_ADVISORY,
+                  ref: %{package: "phoenix"},
+                  advisory_id: id
+                }
+              ]
+            )
+          )
+
+        assert :allowed == Filter.classify(p, candidate(advisories: [@advisory]))
+      end
+    end
+
+    test "a requirement narrows the exception using Hex requirement semantics" do
+      p =
+        policy(
+          tab(
+            restriction: %{advisory_min_severity: :SEVERITY_LOW},
+            overrides: [
+              %{
+                action: :OVERRIDE_ACTION_ADVISORY,
+                ref: %{package: "phoenix", requirement: "~> 1.0.0"},
+                advisory_id: "CVE-2026-12345"
+              }
+            ]
+          )
+        )
+
+      assert :allowed == Filter.classify(p, candidate(version: "1.0.9", advisories: [@advisory]))
+
+      assert {:blocked, [{:advisory, :SEVERITY_LOW}]} =
+               Filter.classify(p, candidate(version: "1.1.0", advisories: [@advisory]))
+    end
+
+    test "an advisory override removes only the matching advisory" do
+      other = %{id: "GHSA-test-0002", aliases: [], severity: :SEVERITY_CRITICAL}
+
+      p =
+        policy(
+          tab(
+            restriction: %{advisory_min_severity: :SEVERITY_LOW},
+            overrides: [
+              %{
+                action: :OVERRIDE_ACTION_ADVISORY,
+                ref: %{package: "phoenix"},
+                advisory_id: "CVE-2026-12345"
+              }
+            ]
+          )
+        )
+
+      assert {:blocked, [{:advisory, :SEVERITY_LOW}]} =
+               Filter.classify(p, candidate(advisories: [@advisory, other]))
+    end
+
+    test "a new advisory for an overridden release remains blocked" do
+      overridden = %{
+        id: "GHSA-decimal-4242",
+        aliases: ["CVE-2026-4242"],
+        severity: :SEVERITY_HIGH
+      }
+
+      newly_published = %{
+        id: "GHSA-decimal-4243",
+        aliases: ["CVE-2026-4243"],
+        severity: :SEVERITY_CRITICAL
+      }
+
+      p =
+        policy(
+          tab(
+            restriction: %{advisory_min_severity: :SEVERITY_LOW},
+            overrides: [
+              %{
+                action: :OVERRIDE_ACTION_ADVISORY,
+                ref: %{package: "decimal", requirement: "== 1.0.0"},
+                advisory_id: "CVE-2026-4242"
+              }
+            ]
+          )
+        )
+
+      assert {:blocked, [{:advisory, :SEVERITY_LOW}]} =
+               Filter.classify(
+                 p,
+                 candidate(
+                   package: "decimal",
+                   version: "1.0.0",
+                   advisories: [overridden, newly_published]
+                 )
+               )
+    end
+
+    test "a retirement override removes only its selected reason" do
+      p =
+        policy(
+          tab(
+            restriction: %{retirement_reasons: [:RETIRED_SECURITY]},
+            overrides: [
+              %{
+                action: :OVERRIDE_ACTION_RETIREMENT,
+                ref: %{package: "phoenix"},
+                retirement_reason: :RETIRED_SECURITY
+              }
+            ]
+          )
+        )
+
+      assert :allowed == Filter.classify(p, candidate(retired: %{reason: :RETIRED_SECURITY}))
+    end
+
+    test "a changed retirement reason is not accepted by an existing override" do
+      p =
+        policy(
+          tab(
+            restriction: %{
+              retirement_reasons: [:RETIRED_DEPRECATED, :RETIRED_SECURITY]
+            },
+            overrides: [
+              %{
+                action: :OVERRIDE_ACTION_RETIREMENT,
+                ref: %{package: "phoenix"},
+                retirement_reason: :RETIRED_DEPRECATED
+              }
+            ]
+          )
+        )
+
+      assert {:blocked, [{:retirement, :RETIRED_SECURITY}]} =
+               Filter.classify(p, candidate(retired: %{reason: :RETIRED_SECURITY}))
+    end
+
+    test "an advisory override never bypasses cooldowns" do
+      now = 1_700_000_000
+
+      p =
+        policy(
+          tab(
+            restriction: %{advisory_min_severity: :SEVERITY_LOW, cooldown: "14d"},
+            overrides: [
+              %{
+                action: :OVERRIDE_ACTION_ADVISORY,
+                ref: %{package: "phoenix"},
+                advisory_id: "CVE-2026-12345"
+              }
+            ]
+          )
+        )
+
+      assert {:blocked, [{:cooldown, "14d", %Date{}}]} =
+               Filter.classify(
+                 p,
+                 candidate(advisories: [@advisory], published_at: now - 86_400),
+                 now: now
+               )
+    end
+
+    test "a cooldown override bypasses only the policy cooldown" do
+      now = 1_700_000_000
+
+      p =
+        policy(
+          tab(
+            restriction: %{advisory_min_severity: :SEVERITY_LOW, cooldown: "14d"},
+            overrides: [
+              %{action: :OVERRIDE_ACTION_COOLDOWN, ref: %{package: "phoenix"}}
+            ]
+          )
+        )
+
+      assert {:blocked, [{:advisory, :SEVERITY_LOW}]} =
+               Filter.classify(
+                 p,
+                 candidate(advisories: [@advisory], published_at: now - 86_400),
+                 now: now
+               )
+    end
+
+    test "malformed and unknown overrides are ignored" do
+      invalid = [
+        %{advisory_id: "CVE-2026-12345"},
+        %{
+          action: :OVERRIDE_ACTION_ADVISORY,
+          ref: %{package: "phoenix"},
+          advisory_id: "CVE-2026-12345",
+          retirement_reason: :RETIRED_SECURITY
+        },
+        %{
+          action: :OVERRIDE_ACTION_RETIREMENT,
+          ref: %{package: "phoenix"},
+          retirement_reason: 99
+        },
+        %{
+          action: :OVERRIDE_ACTION_ADVISORY,
+          ref: %{package: "phoenix", requirement: "not a requirement"},
+          advisory_id: "CVE-2026-12345"
+        },
+        %{
+          action: :OVERRIDE_ACTION_ADVISORY,
+          ref: %{package: "phoenix"},
+          advisory_id: ""
+        },
+        %{action: 99, ref: %{package: "phoenix"}}
+      ]
+
+      for override <- invalid do
+        p =
+          policy(
+            tab(
+              restriction: %{advisory_min_severity: :SEVERITY_LOW},
+              overrides: [override]
+            )
+          )
+
+        assert {:blocked, [{:advisory, :SEVERITY_LOW}]} =
+                 Filter.classify(p, candidate(advisories: [@advisory]))
+      end
+    end
+
+    test "identifies numeric actions decoded from a newer protocol" do
+      assert Filter.unknown_override_action?(%{action: 99, ref: %{package: "phoenix"}})
+      refute Filter.unknown_override_action?(%{action: :OVERRIDE_ACTION_ALLOW})
+      refute Filter.unknown_override_action?(%{action: :unknown})
+      refute Filter.unknown_override_action?(%{})
+    end
+
+    test "comment limits count Unicode codepoints" do
+      override = %{
+        action: :OVERRIDE_ACTION_ALLOW,
+        ref: %{package: "phoenix"},
+        comment: String.duplicate("e\u0301", 250)
+      }
+
+      assert Filter.valid_override?(override)
+      refute Filter.valid_override?(%{override | comment: String.duplicate("e\u0301", 251)})
+    end
+
+    test "invalid UTF-8 strings decoded from the protocol fail closed" do
+      for {invalid_field, invalid_value} <- [
+            {:package, <<255>>},
+            {:package, "phoenix\nspoof"},
+            {:package, "phoenix\u202Espoof"},
+            {:advisory_id, <<255>>},
+            {:advisory_id, "CVE-2026-12345\nspoof"},
+            {:requirement, <<255>>},
+            {:comment, <<255>>},
+            {:comment, "line one\nline two"},
+            {:comment, "line\u2028separator"},
+            {:comment, "paragraph\u2029separator"},
+            {:comment, "bidi\u202Eoverride"}
+          ] do
+        encoded_value = if String.valid?(invalid_value), do: invalid_value, else: "!"
+        ref = %{package: "phoenix"}
+
+        override = %{
+          action: :OVERRIDE_ACTION_ADVISORY,
+          ref: ref,
+          advisory_id: "CVE-2026-12345"
+        }
+
+        override =
+          case invalid_field do
+            :package -> put_in(override, [:ref, :package], encoded_value)
+            :advisory_id -> Map.put(override, :advisory_id, encoded_value)
+            :requirement -> put_in(override, [:ref, :requirement], encoded_value)
+            :comment -> Map.put(override, :comment, encoded_value)
+          end
+
+        encoded =
+          :mix_hex_registry.encode_policy(%{
+            repository: "myorg",
+            name: "strict",
+            visibility: :VISIBILITY_PUBLIC,
+            repositories: [
+              %{
+                repository: "hexpm",
+                restriction: %{advisory_min_severity: :SEVERITY_LOW},
+                overrides: [override]
+              }
+            ]
+          })
+
+        encoded =
+          if encoded_value == invalid_value do
+            encoded
+          else
+            :binary.replace(encoded, encoded_value, invalid_value)
+          end
+
+        assert {:ok, decoded} = :mix_hex_registry.decode_policy(encoded, :no_verify, :no_verify)
+
+        assert {:blocked, [{:advisory, :SEVERITY_LOW}]} =
+                 Filter.classify(decoded, candidate(advisories: [@advisory]))
+      end
+    end
+
+    test "explain includes an optional comment" do
+      p =
+        policy(
+          tab(
+            restriction: %{advisory_min_severity: :SEVERITY_LOW},
+            overrides: [
+              %{
+                action: :OVERRIDE_ACTION_ADVISORY,
+                ref: %{package: "phoenix"},
+                advisory_id: "CVE-2026-12345",
+                comment: "The vulnerable code path is disabled"
+              }
+            ]
+          )
+        )
+
+      assert {:allowed, [acceptance]} = Filter.explain(p, candidate(advisories: [@advisory]))
+      assert acceptance.source == :override
+      assert acceptance.identifier == "CVE-2026-12345"
+      assert Filter.acceptance_message(acceptance) == "The vulnerable code path is disabled"
+
+      assert Filter.acceptance_message(%{acceptance | comment: nil}) ==
+               "Accepted by the active dependency policy."
+    end
+  end
+
+  describe "audit_finding/4" do
+    test "overrides mode applies ALLOW and scoped overrides but not thresholds" do
+      low = %{id: "CVE-low", aliases: [], severity: :SEVERITY_LOW}
+
+      threshold_policy =
+        policy(tab(restriction: %{advisory_min_severity: :SEVERITY_HIGH}))
+
+      assert :active =
+               Filter.audit_finding(threshold_policy, candidate(), {:advisory, low}, :overrides)
+
+      assert {:accepted, %{source: :policy}} =
+               Filter.audit_finding(threshold_policy, candidate(), {:advisory, low}, :policy)
+
+      allow_policy =
+        policy(tab(overrides: [%{action: :OVERRIDE_ACTION_ALLOW, ref: %{package: "phoenix"}}]))
+
+      assert {:accepted, %{source: :override}} =
+               Filter.audit_finding(allow_policy, candidate(), {:advisory, low}, :overrides)
+    end
+
+    test "policy mode keeps findings rejected by DENY and restriction rules" do
+      advisory = %{id: "CVE-high", aliases: [], severity: :SEVERITY_HIGH}
+
+      deny_policy =
+        policy(tab(overrides: [%{action: :OVERRIDE_ACTION_DENY, ref: %{package: "phoenix"}}]))
+
+      assert :active =
+               Filter.audit_finding(deny_policy, candidate(), {:advisory, advisory}, :policy)
+
+      restricted = policy(tab(restriction: %{advisory_min_severity: :SEVERITY_HIGH}))
+
+      assert :active =
+               Filter.audit_finding(restricted, candidate(), {:advisory, advisory}, :policy)
     end
   end
 

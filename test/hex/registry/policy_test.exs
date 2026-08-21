@@ -24,7 +24,14 @@ defmodule Hex.Registry.PolicyTest do
 
     path = tmp_path("cache_policy.ets")
     File.rm(path)
-    create_test_registry(path, registry, advisories, %{}, retired)
+    now = System.system_time(:second)
+
+    publish_times = %{
+      {:hexpm, :clean, "1.0.0"} => now - 30 * 86_400,
+      {:hexpm, :clean, "1.1.0"} => now - 86_400
+    }
+
+    create_test_registry(path, registry, advisories, publish_times, retired)
 
     Server.close()
     Hex.State.put(:offline, true)
@@ -51,7 +58,10 @@ defmodule Hex.Registry.PolicyTest do
       name: name,
       visibility: :VISIBILITY_PUBLIC,
       repositories: [
-        Map.merge(%{repository: "hexpm", overrides: []}, Map.new(tab_fields))
+        Map.merge(
+          %{repository: "hexpm", overrides: []},
+          Map.new(tab_fields)
+        )
       ]
     }
   end
@@ -130,6 +140,29 @@ defmodule Hex.Registry.PolicyTest do
     assert Hex.State.fetch!(:policy_filtered_versions) == []
   end
 
+  test "a policy cooldown override does not bypass the local cooldown" do
+    Hex.State.put(:cooldown, "14d")
+    Hex.State.put(:cooldown_cutoff, Hex.Cooldown.build_cutoff())
+
+    Hex.State.put(
+      :active_policy,
+      policy("hotfix",
+        restriction: %{cooldown: "14d"},
+        overrides: [
+          %{action: :OVERRIDE_ACTION_COOLDOWN, ref: %{package: "clean"}}
+        ]
+      )
+    )
+
+    assert {:ok, versions} = Policy.versions("hexpm", "clean")
+    assert Enum.map(versions, &to_string/1) == ["1.0.0"]
+
+    assert [{"hexpm", "clean", "1.1.0", _published_at}] =
+             Hex.State.fetch!(:cooldown_filtered_versions)
+
+    assert Hex.State.fetch!(:policy_filtered_versions) == []
+  end
+
   test "a locked version is exempt from policy filtering" do
     Hex.State.put(
       :active_policy,
@@ -172,5 +205,59 @@ defmodule Hex.Registry.PolicyTest do
     Code.ensure_loaded!(Policy)
     assert function_exported?(Policy, :prefetch, 1)
     assert function_exported?(Policy, :dependencies, 3)
+  end
+
+  test "the previous protocol decoder treats new override actions as unknown" do
+    source = fixture_path("mix_hex_pb_policy_previous.erl")
+
+    {:ok, :mix_hex_pb_policy_previous, binary} =
+      :compile.file(String.to_charlist(source), [:binary])
+
+    {:module, :mix_hex_pb_policy_previous} =
+      :code.load_binary(:mix_hex_pb_policy_previous, String.to_charlist(source), binary)
+
+    on_exit(fn ->
+      :code.purge(:mix_hex_pb_policy_previous)
+      :code.delete(:mix_hex_pb_policy_previous)
+    end)
+
+    encoded =
+      :mix_hex_registry.encode_policy(%{
+        repository: "myorg",
+        name: "strict",
+        visibility: :VISIBILITY_PUBLIC,
+        repositories: [
+          %{
+            repository: "hexpm",
+            restriction: %{advisory_min_severity: :SEVERITY_LOW},
+            overrides: [
+              %{
+                action: :OVERRIDE_ACTION_ADVISORY,
+                ref: %{package: "advised"},
+                advisory_id: "GHSA-test-aaaa-bbbb"
+              }
+            ]
+          }
+        ]
+      })
+
+    decoded = apply(:mix_hex_pb_policy_previous, :decode_msg, [encoded, :Policy])
+    [repository_policy] = decoded.repositories
+
+    assert repository_policy.overrides == [
+             %{action: 2, ref: %{package: "advised"}}
+           ]
+
+    candidate = %{
+      repo: "hexpm",
+      package: "advised",
+      version: "1.0.0",
+      advisories: [%{id: "GHSA-test-aaaa-bbbb", severity: :SEVERITY_HIGH}],
+      retired: nil,
+      published_at: nil
+    }
+
+    assert {:blocked, [{:advisory, :SEVERITY_LOW}]} =
+             Hex.Policy.Filter.classify(decoded, candidate)
   end
 end

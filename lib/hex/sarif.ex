@@ -38,12 +38,12 @@ defmodule Hex.Sarif do
   @doc """
   Encodes audit findings as a SARIF JSON document.
 
-  Findings are `{:retired, package, version, retired, ignored?}` or
-  `{:advisory, package, version, advisory, ignored?}` tuples, where
+  Findings are `{:retired, package, version, retired, suppression}` or
+  `{:advisory, package, version, advisory, suppression}` tuples, where
   `retired` is the retirement status map from the registry and `advisory`
   is a display group returned by
-  `:mix_hex_advisory.group_for_display/1`. Ignored findings are included
-  with a SARIF suppression. `lockfile` is the path of the lock file the
+  `:mix_hex_advisory.group_for_display/1`. Project-ignored and policy-accepted
+  findings are included with a SARIF suppression. `lockfile` is the path of the lock file the
   results are anchored to, relative to the working directory.
 
   Requires the `:json` module (OTP 27 or later).
@@ -394,11 +394,25 @@ defmodule Hex.Sarif do
 
   defp put_suppressions(result, false), do: result
 
-  defp put_suppressions(result, true) do
+  defp put_suppressions(result, true), do: put_suppressions(result, :project)
+
+  defp put_suppressions(result, :project) do
     Map.put(result, "suppressions", [
       %{
         "kind" => "external",
-        "justification" => "Ignored by the ignore_advisories/ignore_retirements Hex configuration"
+        "justification" =>
+          "Ignored by the ignore_advisories/ignore_retirements Hex configuration",
+        "properties" => %{"source" => "project"}
+      }
+    ])
+  end
+
+  defp put_suppressions(result, {:policy, explanation}) do
+    Map.put(result, "suppressions", [
+      %{
+        "kind" => "external",
+        "justification" => explanation,
+        "properties" => %{"source" => "policy"}
       }
     ])
   end
