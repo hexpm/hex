@@ -23,6 +23,14 @@ defmodule Hex.API.ReleaseDocs do
 
   def publish(repo, name, version, tar, auth \\ [], progress \\ fn _ -> nil end) do
     config = Client.build_config(repo, auth)
+
+    headers =
+      config.http_headers
+      |> Map.put("content-length", Integer.to_string(byte_size(tar)))
+      |> Map.put("expect", "100-continue")
+
+    config = Map.put(config, :http_headers, headers)
+
     # Pass progress callback through adapter config
     adapter_config = %{progress_callback: progress}
 

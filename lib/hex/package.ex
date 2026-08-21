@@ -53,6 +53,12 @@ defmodule Hex.Package do
         package. If a `rebar` or `rebar.config` file is present Hex will mark it
         as able to build with rebar. This detection can be overridden by setting
         this field.
+      * `:secret_scan` - Configuration for the repository's secret scanning of
+        the package. Supports `:ignore`, a list of file path globs whose
+        findings are suppressed, for paths that deliberately ship secret-like
+        values such as test fixtures:
+
+            secret_scan: [ignore: ["test/fixtures/**"]]
     """
   end
 end

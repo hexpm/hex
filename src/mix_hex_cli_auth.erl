@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (766ae61), do not edit manually
+%% Vendored from hex_core v0.19.0 (a6e8a52), do not edit manually
 
 %% @doc
 %% Authentication handling with callback functions for build-tool-specific operations.
@@ -282,7 +282,7 @@ with_repo(BaseConfig, Fun) ->
 %% <li>`repo_key' from `get_auth_config' callback - passthrough</li>
 %% <li>`auth_key' from `get_auth_config' when `trusted' is true and `oauth_exchange' is true - exchange for OAuth token</li>
 %% <li>`auth_key' from `get_auth_config' when `trusted' is true - use directly</li>
-%% <li>Global OAuth token from `get_oauth_tokens' callback</li>
+%% <li>Global OAuth token from `get_oauth_tokens' callback for Hex.pm repositories</li>
 %% <li>No auth when `optional' is true (with retry on 401)</li>
 %% <li>Prompt via `should_authenticate' when `auth_inline' is true</li>
 %% </ol>
@@ -513,7 +513,7 @@ resolve_api_auth(_Permission, Config) ->
 %% 1. repo_key from get_auth_config => passthrough
 %% 2. trusted + auth_key + oauth_exchange => exchange for OAuth token
 %% 3. trusted + auth_key => use directly
-%% 4. trusted + global OAuth tokens => use those
+%% 4. trusted Hex.pm or child repository + global OAuth tokens => use those
 %% 5. Fallthrough to no_auth (handled by with_repo/3 for optional/auth_inline)
 -spec resolve_repo_auth(mix_hex_core:config()) ->
     {ok, binary(), auth_context()} | no_auth | {error, auth_error()}.
@@ -555,8 +555,8 @@ do_resolve_repo_auth(RepoName, LookupRepo, Config) ->
                 [ParentName, _OrgName] ->
                     do_resolve_repo_auth(RepoName, ParentName, Config);
                 _ ->
-                    %% 6. trusted + global OAuth tokens => use those
-                    resolve_global_oauth_for_repo(Config)
+                    %% 6. trusted Hex.pm or child repository + global OAuth tokens => use those
+                    resolve_global_oauth_for_repo(RepoName, Config)
             end;
         _ ->
             %% 7. Not trusted, no auth
@@ -564,6 +564,13 @@ do_resolve_repo_auth(RepoName, LookupRepo, Config) ->
     end.
 
 %% @private
+resolve_global_oauth_for_repo(<<"hexpm">>, Config) ->
+    resolve_global_oauth_for_repo(Config);
+resolve_global_oauth_for_repo(<<"hexpm:", _/binary>>, Config) ->
+    resolve_global_oauth_for_repo(Config);
+resolve_global_oauth_for_repo(_RepoName, _Config) ->
+    no_auth.
+
 resolve_global_oauth_for_repo(Config) ->
     case resolve_oauth_token_with_context(Config) of
         {ok, Token, AuthContext} ->

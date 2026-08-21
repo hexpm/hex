@@ -134,7 +134,8 @@ defmodule Hex.Auth do
     Hex.Shell.warn(
       "Your authentication session has expired and could not be refreshed. " <>
         "Continuing without credentials; requests for private resources will fail or " <>
-        "prompt for authentication. Run `mix hex.user auth` to re-authenticate"
+        "prompt for authentication. Run `mix hex.user auth` to re-authenticate" <>
+        "or run `mix hex.user deauth` to deauthorize the user on the local machine."
     )
 
     :ok

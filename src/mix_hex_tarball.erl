@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (766ae61), do not edit manually
+%% Vendored from hex_core v0.19.0 (a6e8a52), do not edit manually
 
 %% @doc
 %% Functions for creating and unpacking Hex tarballs.
@@ -489,10 +489,7 @@ finish_unpack(#{
             filelib:ensure_dir(filename:join(Output, "*")),
             case unpack_contents(Contents, Output, MaxUncompressedSize) of
                 ok ->
-                    [
-                        try_updating_mtime(filename:join(Output, P))
-                     || P <- filelib:wildcard("**", Output)
-                    ],
+                    update_mtimes(Output),
                     copy_metadata_config(Output, maps:get("metadata.config", Files)),
                     {ok, Result};
                 {error, Reason} ->
@@ -1101,10 +1098,7 @@ unpack_tarball(Source, Output, MaxSize) ->
     filelib:ensure_dir(filename:join(Output, "*")),
     case mix_hex_erl_tar:extract(Source, [{cwd, Output}, compressed, {max_size, MaxSize}]) of
         ok ->
-            [
-                try_updating_mtime(filename:join(Output, Path))
-             || Path <- filelib:wildcard("**", Output)
-            ],
+            update_mtimes(Output),
             ok;
         {error, too_big} ->
             {error, {tarball, {too_big_uncompressed, MaxSize}}};
@@ -1113,11 +1107,30 @@ unpack_tarball(Source, Output, MaxSize) ->
     end.
 
 %% @private
-%% let it silently fail for bad symlinks
-try_updating_mtime(Path) ->
-    Time = calendar:universal_time(),
-    _ = file:write_file_info(Path, #file_info{mtime = Time}, [{time, universal}]),
-    ok.
+%% Skips symlinks: write_file_info/3 follows them, and descending into
+%% symlinked directories loops on link cycles. Failures are ignored.
+update_mtimes(Dir) ->
+    update_mtimes(Dir, calendar:universal_time()).
+
+update_mtimes(Dir, Time) ->
+    case file:list_dir(Dir) of
+        {ok, Names} ->
+            lists:foreach(fun(Name) -> update_mtime(filename:join(Dir, Name), Time) end, Names);
+        {error, _} ->
+            ok
+    end.
+
+update_mtime(Path, Time) ->
+    case file:read_link_info(Path, [{time, universal}]) of
+        {ok, #file_info{type = directory}} ->
+            _ = file:write_file_info(Path, #file_info{mtime = Time}, [{time, universal}]),
+            update_mtimes(Path, Time);
+        {ok, #file_info{type = regular}} ->
+            _ = file:write_file_info(Path, #file_info{mtime = Time}, [{time, universal}]),
+            ok;
+        _ ->
+            ok
+    end.
 
 %% @private
 create_memory_tarball(Files) ->

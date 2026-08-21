@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.3 (f702d44), do not edit manually
+# Vendored from hex_solver v0.2.3 (291c624), do not edit manually
 
 defmodule Hex.Solver.Constraints.Impl do
   @moduledoc false
@@ -34,6 +34,9 @@ defmodule Hex.Solver.Constraints.Impl do
 
         def compare(left, right),
           do: unquote(__CALLER__.module).compare(left, right)
+
+        def to_requirement(constraint),
+          do: unquote(__CALLER__.module).to_requirement(constraint)
       end
     end
   end

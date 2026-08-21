@@ -349,7 +349,7 @@ defmodule Hex.Repo do
         if Hex.Server.should_warn?({:deprecated_repos_key, organization}) do
           Hex.Shell.warn("""
           Authenticating to the #{organization} repository with HEX_REPOS_KEY is deprecated \
-          and will be removed.
+          and will stop working in Hex 2.6.
 
           For development authenticate as a user with `mix hex.user auth`. For CI \
           authenticate per organization with `mix hex.organization auth #{organization} --key KEY`.
@@ -357,20 +357,43 @@ defmodule Hex.Repo do
         end
 
       :config ->
-        if Hex.Server.should_warn?({:deprecated_repo_key, organization}) do
-          Hex.Shell.warn("""
-          Authenticating to the #{organization} repository with a stored key is deprecated \
-          and will be removed.
-
-          For development authenticate as a user with `mix hex.user auth`. For CI generate an \
-          organization key with `mix hex.organization key #{organization} generate` and pass it \
-          with `mix hex.organization auth #{organization} --key KEY`.
-          """)
-        end
+        warn_deprecated_stored_key(organization, Map.get(repo_config, :auth_key_owner))
     end
   end
 
   defp maybe_warn_deprecated_repo_key(_repo_name, _organization, _repo_config), do: :ok
+
+  defp warn_deprecated_stored_key(_organization, :organization), do: :ok
+
+  defp warn_deprecated_stored_key(organization, :user) do
+    if Hex.Server.should_warn?({:deprecated_repo_key, organization}) do
+      Hex.Shell.warn("""
+      Authenticating to the #{organization} repository with a key owned by your user \
+      account is deprecated and will stop working in Hex 2.6.
+
+      For development authenticate as a user with `mix hex.user auth`. For CI generate an \
+      organization key with `mix hex.organization key #{organization} generate` and pass it \
+      with `mix hex.organization auth #{organization} --key KEY`.
+      """)
+    end
+  end
+
+  defp warn_deprecated_stored_key(organization, _owner) do
+    if Hex.Server.should_warn?({:deprecated_repo_key, organization}) do
+      Hex.Shell.warn("""
+      Authenticating to the #{organization} repository with a stored key is deprecated \
+      and will stop working in Hex 2.6.
+
+      For development authenticate as a user with `mix hex.user auth`. For CI generate an \
+      organization key with `mix hex.organization key #{organization} generate` and pass it \
+      with `mix hex.organization auth #{organization} --key KEY`.
+
+      If you already authenticate with an organization key, re-run \
+      `mix hex.organization auth #{organization} --key KEY` on this Hex version to record it \
+      and silence this warning.
+      """)
+    end
+  end
 
   # HEX_REPOS_KEY is exposed as the hexpm source `auth_key` and inherited by
   # `hexpm:*` repos, so an `auth_key` equal to `repos_key` came from the
