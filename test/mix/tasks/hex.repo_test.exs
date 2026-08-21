@@ -124,6 +124,48 @@ defmodule Mix.Tasks.Hex.RepoTest do
     end)
   end
 
+  test "fetch public key uses netrc instead of the global OAuth token" do
+    on_exit(fn -> System.delete_env("NETRC") end)
+
+    in_tmp(fn ->
+      Hex.State.put(:config_home, File.cwd!())
+
+      File.write!(".netrc", """
+      machine localhost
+        login repo-user
+        password repo-password
+      """)
+
+      System.put_env("NETRC", Path.join(File.cwd!(), ".netrc"))
+
+      Hex.OAuth.store_token(%{
+        access_token: "hexpm-user-token",
+        refresh_token: "hexpm-refresh-token",
+        expires_at: System.system_time(:second) + 3600
+      })
+
+      bypass = Bypass.open()
+
+      Bypass.expect_once(bypass, "GET", "/public_key", fn conn ->
+        assert Plug.Conn.get_req_header(conn, "authorization") == [
+                 "Basic #{Base.encode64("repo-user:repo-password")}"
+               ]
+
+        Plug.Conn.resp(conn, 200, @public_key)
+      end)
+
+      Mix.Tasks.Hex.Repo.run([
+        "add",
+        "custom",
+        "http://localhost:#{bypass.port}",
+        "--fetch-public-key",
+        @public_key_fingerprint
+      ])
+
+      assert Hex.Repo.get_repo("custom").public_key == @public_key
+    end)
+  end
+
   test "remove" do
     in_tmp(fn ->
       Hex.State.put(:config_home, File.cwd!())

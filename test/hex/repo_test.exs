@@ -17,6 +17,73 @@ defmodule Hex.RepoTest do
     end
   end
 
+  test "custom repository uses netrc instead of the global OAuth token" do
+    on_exit(fn -> System.delete_env("NETRC") end)
+
+    in_tmp(fn ->
+      Hex.State.put(:config_home, File.cwd!())
+
+      File.write!(".netrc", """
+      machine localhost
+        login repo-user
+        password repo-password
+      """)
+
+      System.put_env("NETRC", Path.join(File.cwd!(), ".netrc"))
+
+      Hex.OAuth.store_token(%{
+        access_token: "hexpm-user-token",
+        refresh_token: "hexpm-refresh-token",
+        expires_at: System.system_time(:second) + 3600
+      })
+
+      bypass = Bypass.open()
+
+      Bypass.expect_once(bypass, "GET", "/tarballs/example-1.0.0.tar", fn conn ->
+        assert Plug.Conn.get_req_header(conn, "authorization") == [
+                 "Basic #{Base.encode64("repo-user:repo-password")}"
+               ]
+
+        Plug.Conn.resp(conn, 200, "tarball")
+      end)
+
+      Mix.Tasks.Hex.Repo.run([
+        "add",
+        "custom",
+        "http://localhost:#{bypass.port}"
+      ])
+
+      assert {:ok, {200, _, "tarball"}} =
+               Hex.Repo.get_tarball("custom", "example", "1.0.0")
+    end)
+  end
+
+  test "custom Hex.pm organization URL uses the global OAuth token" do
+    Hex.OAuth.store_token(%{
+      access_token: "hexpm-user-token",
+      refresh_token: "hexpm-refresh-token",
+      expires_at: System.system_time(:second) + 3600
+    })
+
+    bypass = Bypass.open()
+    repos = Hex.State.fetch!(:repos)
+
+    repos =
+      repos
+      |> Map.put("hexpm:acme", %{url: "http://localhost:#{bypass.port}"})
+      |> Hex.Repo.update_organizations()
+
+    Hex.State.put(:repos, repos)
+
+    Bypass.expect_once(bypass, "GET", "/tarballs/example-1.0.0.tar", fn conn ->
+      assert Plug.Conn.get_req_header(conn, "authorization") == ["Bearer hexpm-user-token"]
+      Plug.Conn.resp(conn, 200, "tarball")
+    end)
+
+    assert {:ok, {200, _, "tarball"}} =
+             Hex.Repo.get_tarball("hexpm:acme", "example", "1.0.0")
+  end
+
   test "get public key" do
     bypass = Bypass.open()
     repos = Hex.State.fetch!(:repos)
