@@ -48,6 +48,27 @@ defmodule Mix.Tasks.Hex.Audit do
   `HEX_IGNORE_RETIREMENTS` environment variables as comma-separated lists,
   where retirement entries are `NAME` or `NAME@VERSION`.
 
+  ## Policy audit modes
+
+  Every mode checks all Hex dependencies in `mix.lock` for advisories and
+  retirements. The active policy changes the result only when a policy flag
+  is passed.
+
+  | Command | Policy applied |
+  | --- | --- |
+  | `mix hex.audit` | None |
+  | `mix hex.audit --policy-overrides` | Matching ALLOW, ADVISORY, and RETIREMENT overrides |
+  | `mix hex.audit --policy` | Advisory severity, retirement reasons, and overrides |
+
+  Choose `--policy-overrides` when every finding should remain active unless an
+  organization administrator explicitly accepted it. Choose `--policy` to
+  check compliance with the organization's full advisory and retirement
+  policy.
+
+  Both policy flags require an active policy and cannot be used together.
+  Project ignores are applied after policy evaluation. Audit modes do not
+  check cooldown eligibility or general lockfile validity.
+
   ## Command line options
 
     * `--policy-overrides` - reports all advisory and retirement findings except
