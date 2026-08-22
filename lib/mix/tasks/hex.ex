@@ -121,14 +121,15 @@ defmodule Mix.Tasks.Hex do
   end
 
   @doc false
-  def auth(opts \\ []) do
-    auth_device(opts)
+  def auth do
+    auth_device()
   end
 
   @doc false
-  def auth_device(_opts \\ []) do
+  def auth_device do
     # Clean up any existing authentication
     revoke_existing_oauth_tokens()
+    Hex.OAuth.clear_tokens()
     revoke_and_cleanup_old_api_keys()
 
     prompt_user = fn verification_uri, user_code ->
@@ -237,16 +238,10 @@ defmodule Mix.Tasks.Hex do
 
       token_data when is_map(token_data) ->
         if access_token = token_data[:access_token] do
-          case Hex.API.OAuth.revoke_token(access_token) do
-            {:ok, {code, _, _}} when code in 200..299 ->
-              :ok
-
-            _ ->
-              :ok
-          end
+          _ = Hex.API.OAuth.revoke_token(access_token)
         end
 
-        Hex.Config.remove([:"$oauth_token"])
+        :ok
 
       _ ->
         :ok

@@ -113,6 +113,27 @@ defmodule Hex.AuthTest do
       end)
     end
 
+    test "keeps them when a refreshed token is persisted" do
+      in_tmp("sso_reauth", fn ->
+        set_home_cwd()
+        store_token()
+        Hex.Auth.callbacks().sso_reauth.(["acme"])
+
+        expires_at = System.system_time(:second) + 3600
+
+        assert Hex.Auth.callbacks().persist_oauth_tokens.(
+                 :global,
+                 "refreshed",
+                 "refresh",
+                 expires_at
+               ) == :ok
+
+        assert Hex.State.get(:oauth_token).access_token == "refreshed"
+        assert Hex.OAuth.sso_reauth_required() == ["acme"]
+        assert Hex.Config.read()[:"$oauth_token"][:sso_reauth_required] == ["acme"]
+      end)
+    end
+
     test "asks only about the organizations this resolution needs" do
       in_tmp("sso_reauth", fn ->
         set_home_cwd()
@@ -174,7 +195,7 @@ defmodule Hex.AuthTest do
       end)
     end
 
-    test "says so rather than asking when HEX_API_KEY is what authenticates" do
+    test "says so rather than asking when an API key is what authenticates" do
       in_tmp("sso_reauth", fn ->
         set_home_cwd()
         store_token()
@@ -184,7 +205,7 @@ defmodule Hex.AuthTest do
         Hex.RemoteConverger.check_sso_reauth([{"hexpm:acme", "foo"}])
 
         refute_received {:mix_shell, :yes?, _question}
-        assert Case.shell_output() =~ "HEX_API_KEY"
+        assert Case.shell_output() =~ "an API key is configured and authenticates as itself"
       end)
     end
 

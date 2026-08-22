@@ -191,13 +191,10 @@ defmodule Hex.Repo do
   defp clean_expired_oauth_token(repo) do
     case repo[:oauth_token] do
       %{expires_at: expires_at} ->
-        current_time = System.system_time(:second)
-
-        # Keep token if it's valid for more than 5 minutes (300 seconds)
-        if expires_at > current_time + 300 do
-          repo
-        else
+        if :mix_hex_cli_auth.is_token_expired(expires_at) do
           Map.delete(repo, :oauth_token)
+        else
+          repo
         end
 
       _ ->

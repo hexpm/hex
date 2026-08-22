@@ -74,44 +74,24 @@ defmodule Hex.Auth do
         :error
 
       %{access_token: access_token, expires_at: expires_at} = token_data ->
-        tokens = %{access_token: access_token, expires_at: expires_at}
-
-        tokens =
-          if token_data[:refresh_token],
-            do: Map.put(tokens, :refresh_token, token_data[:refresh_token]),
-            else: tokens
-
-        {:ok, tokens}
+        {:ok, token_map(access_token, expires_at, token_data[:refresh_token])}
     end
   end
 
   defp persist_oauth_tokens(repo, access_token, refresh_token, expires_at)
 
   defp persist_oauth_tokens(:global, access_token, refresh_token, expires_at) do
-    token_data = %{
-      access_token: access_token,
-      expires_at: expires_at
-    }
-
+    # The flagged organizations arrive through the sso_reauth callback, not with
+    # the token, so carry them over instead of dropping them on every refresh.
     token_data =
-      if refresh_token,
-        do: Map.put(token_data, :refresh_token, refresh_token),
-        else: token_data
+      token_map(access_token, expires_at, refresh_token, Hex.OAuth.sso_reauth_required())
 
     Hex.OAuth.store_token(token_data)
     :ok
   end
 
   defp persist_oauth_tokens(repo, access_token, refresh_token, expires_at) do
-    token_data = %{
-      access_token: access_token,
-      expires_at: expires_at
-    }
-
-    token_data =
-      if refresh_token,
-        do: Map.put(token_data, :refresh_token, refresh_token),
-        else: token_data
+    token_data = token_map(access_token, expires_at, refresh_token)
 
     repo_config =
       Hex.Repo.get_repo(repo)
@@ -122,6 +102,15 @@ defmodule Hex.Auth do
     |> Hex.Config.update_repos()
 
     :ok
+  end
+
+  defp token_map(access_token, expires_at, refresh_token, sso_reauth_required \\ []) do
+    token_data = %{access_token: access_token, expires_at: expires_at}
+
+    token_data =
+      if refresh_token, do: Map.put(token_data, :refresh_token, refresh_token), else: token_data
+
+    put_sso_reauth(token_data, sso_reauth_required)
   end
 
   # Invoked by hex_cli_auth when the stored global OAuth token is expired and
@@ -149,7 +138,7 @@ defmodule Hex.Auth do
   defp sso_reauth(organizations) do
     token_data = Hex.State.get(:oauth_token)
 
-    if is_map(token_data) and Hex.OAuth.sso_reauth_required() != organizations do
+    if is_map(token_data) and Map.get(token_data, :sso_reauth_required, []) != organizations do
       Hex.OAuth.store_token(put_sso_reauth(token_data, organizations))
     end
 

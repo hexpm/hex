@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (a6e8a52), do not edit manually
+%% Vendored from hex_core v0.19.0 (eb5508a), do not edit manually
 
 %% @doc
 %% Functions for encoding and decoding Hex registries.

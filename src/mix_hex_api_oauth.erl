@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (a6e8a52), do not edit manually
+%% Vendored from hex_core v0.19.0 (eb5508a), do not edit manually
 
 %% @doc
 %% Hex HTTP API - OAuth.
@@ -11,7 +11,7 @@
     poll_device_token/3,
     refresh_token/3,
     sso_authorization/2,
-    open_browser/1,
+    sso_reauth_required/1,
     revoke_token/3,
     client_credentials_token/4,
     client_credentials_token/5
@@ -374,13 +374,26 @@ revoke_token(Config, ClientId, Token) ->
     },
     mix_hex_api:post(Config, Path, Params).
 
-%% @doc
-%% Opens a URL in the default browser.
-%%
-%% Uses the platform's opener: `open' on macOS, `xdg-open' on Linux, `start'
-%% on Windows. Returns `{error, browser_not_found}' when none of them exists,
-%% which is the ordinary case on a headless machine.
-%% @end
+%% @private
+%% Organizations a token response says the session has to authenticate against
+%% their identity provider for. Older servers do not send the field at all,
+%% which means nothing is lapsed.
+-spec sso_reauth_required(map()) -> [binary()].
+sso_reauth_required(TokenResponse) ->
+    case maps:get(<<"sso_reauth_required">>, TokenResponse, []) of
+        Organizations when is_list(Organizations) -> Organizations;
+        _Other -> []
+    end.
+
+%%====================================================================
+%% Internal functions
+%%====================================================================
+
+%% @private
+%% Opens a URL in the default browser using the platform's opener: `open' on
+%% macOS, `xdg-open' on Linux, `start' on Windows. Returns
+%% `{error, browser_not_found}' when none of them exists, which is the ordinary
+%% case on a headless machine.
 -spec open_browser(binary()) -> ok | {error, browser_not_found}.
 open_browser(Url) when is_binary(Url) ->
     ok = ensure_valid_http_url(Url),
@@ -400,19 +413,6 @@ open_browser(Url) when is_binary(Url) ->
         Executable ->
             open_port({spawn_executable, Executable}, [{args, Args}]),
             ok
-    end.
-
-%%====================================================================
-%% Internal functions
-%%====================================================================
-
-%% @private
-%% Older servers do not send the field at all, which means nothing is lapsed.
--spec sso_reauth_required(map()) -> [binary()].
-sso_reauth_required(TokenResponse) ->
-    case maps:get(<<"sso_reauth_required">>, TokenResponse, []) of
-        Organizations when is_list(Organizations) -> Organizations;
-        _Other -> []
     end.
 
 %% @private

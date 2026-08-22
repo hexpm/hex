@@ -961,18 +961,7 @@ defmodule Hex.RemoteConverger do
   # depends on two is asked about two.
   @doc false
   def check_sso_reauth(prefetches) do
-    needed =
-      prefetches
-      |> Enum.flat_map(fn
-        {"hexpm:" <> organization = repo, _package} ->
-          # An organization authenticated with its own key does not touch the
-          # stored token, so nothing about it is worth asking.
-          if repo_requires_user_oauth?(repo), do: [organization], else: []
-
-        {_repo, _package} ->
-          []
-      end)
-      |> MapSet.new()
+    needed = MapSet.new(user_oauth_organizations(prefetches))
 
     Hex.OAuth.sso_reauth_required()
     |> Enum.filter(&MapSet.member?(needed, &1))
@@ -987,7 +976,7 @@ defmodule Hex.RemoteConverger do
         unavailable(organizations, "Hex is offline")
 
       Hex.State.get(:api_key) ->
-        unavailable(organizations, "HEX_API_KEY authenticates as itself")
+        unavailable(organizations, "an API key is configured and authenticates as itself")
 
       Hex.Shell.yes?("#{sso_subject(organizations)} SSO authentication. Authenticate now?") ->
         start_sso_reauth(organizations)
@@ -1024,12 +1013,13 @@ defmodule Hex.RemoteConverger do
   end
 
   # Opening a browser is a convenience on top of the printed URL, so nothing it
-  # does is worth ending a resolution over.
+  # does is worth ending a resolution over: System.cmd/2 raises when the
+  # platform has no opener installed.
   defp open_browser(uri) do
     case URI.parse(uri) do
       %URI{scheme: scheme} when scheme in ["http", "https"] ->
         try do
-          Hex.API.OAuth.open_browser(uri)
+          Hex.Utils.system_open(uri)
         catch
           _kind, _reason -> :ok
         end
@@ -1061,22 +1051,24 @@ defmodule Hex.RemoteConverger do
 
   defp names(organizations), do: Enum.join(organizations, ", ")
 
-  @doc false
-  def auth_preflight_required?(prefetches) do
+  defp auth_preflight_required?(prefetches) do
+    user_oauth_organizations(prefetches) != []
+  end
+
+  # The organizations among the prefetched repositories that the stored user
+  # session authenticates for. An organization with its own key does not touch
+  # that session, so nothing about it is worth asking or refreshing for.
+  defp user_oauth_organizations(prefetches) do
     prefetches
     |> Enum.map(fn {repo, _package} -> repo end)
     |> Enum.uniq()
-    |> Enum.any?(&repo_requires_user_oauth?/1)
-  end
+    |> Enum.flat_map(fn
+      "hexpm:" <> organization = repo ->
+        if repo |> Hex.Repo.get_repo() |> repo_uses_user_oauth?(), do: [organization], else: []
 
-  defp repo_requires_user_oauth?("hexpm:" <> _ = repo) do
-    repo
-    |> Hex.Repo.get_repo()
-    |> repo_uses_user_oauth?()
-  end
-
-  defp repo_requires_user_oauth?(_repo) do
-    false
+      _repo ->
+        []
+    end)
   end
 
   defp repo_uses_user_oauth?(repo_config) do
