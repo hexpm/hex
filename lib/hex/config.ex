@@ -2,6 +2,10 @@ defmodule Hex.Config do
   @moduledoc false
 
   def read() do
+    transaction(&do_read/0)
+  end
+
+  defp do_read() do
     case File.read(config_path()) do
       {:ok, binary} ->
         case decode_term(binary) do
@@ -10,7 +14,7 @@ defmodule Hex.Config do
 
           {:error, _} ->
             config = decode_elixir(binary)
-            write(config)
+            do_write(config)
             migrate(config)
         end
 
@@ -61,25 +65,56 @@ defmodule Hex.Config do
   defp migrate_oauth_token(token), do: token
 
   def update(config) do
-    read()
-    |> Keyword.merge(config)
-    |> write()
+    transaction(fn ->
+      do_read()
+      |> Keyword.merge(config)
+      |> do_write()
+    end)
   end
 
   def remove(keys) do
-    read()
-    |> Keyword.drop(keys)
-    |> write()
+    transaction(fn ->
+      do_read()
+      |> Keyword.drop(keys)
+      |> do_write()
+    end)
   end
 
   def write(config) do
+    transaction(fn -> do_write(config) end)
+  end
+
+  # Reads and writes of the config file are serialized against each other, so a
+  # read-merge-write cannot lose what another process wrote in between. Callers
+  # run in separate processes (registry and tarball fetchers) and under
+  # different :mix_hex_cli_auth locks, so this is the only lock they share.
+  defp transaction(fun) do
+    :global.trans({{__MODULE__, :config}, self()}, fun, [node()], :infinity)
+  end
+
+  defp do_write(config) do
     config = Enum.reject(config, fn {_key, value} -> is_nil(value) end)
     string = encode_term(config)
 
     path = config_path()
-    File.mkdir_p!(Path.dirname(path))
+    dir = Path.dirname(path)
+    new_dir? = not File.dir?(dir)
+    File.mkdir_p!(dir)
+    if new_dir?, do: chmod(dir, 0o700)
+
     File.write!(path, string)
+    chmod(path, 0o600)
+
     config
+  end
+
+  # The config holds the OAuth access token and the refresh token that mints
+  # more of them, so it is readable only by its owner. Filesystems without Unix
+  # modes reject the call instead of applying one, which is not a reason to fail
+  # the write.
+  defp chmod(path, mode) do
+    _ = File.chmod(path, mode)
+    :ok
   end
 
   defp config_path() do

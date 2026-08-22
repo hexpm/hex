@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (eb5508a), do not edit manually
+%% Vendored from hex_core v0.19.0 (c7cbc92), do not edit manually
 
 %% @doc
 %% Hex HTTP API - OAuth.
@@ -21,7 +21,7 @@
 
 -type oauth_tokens() :: #{
     access_token := binary(),
-    refresh_token => binary() | undefined,
+    refresh_token => binary(),
     expires_at := integer(),
     %% Organizations the session must authenticate against their identity
     %% provider for. Their scopes are not in this token and re-requesting them
@@ -184,14 +184,12 @@ poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt) ->
                         <<"access_token">> := AccessToken,
                         <<"expires_in">> := ExpiresIn
                     } = TokenResponse,
-                    RefreshToken = maps:get(<<"refresh_token">>, TokenResponse, undefined),
-                    TokenExpiresAt = erlang:system_time(second) + ExpiresIn,
-                    {ok, #{
+                    Tokens = #{
                         access_token => AccessToken,
-                        refresh_token => RefreshToken,
-                        expires_at => TokenExpiresAt,
+                        expires_at => erlang:system_time(second) + ExpiresIn,
                         sso_reauth_required => sso_reauth_required(TokenResponse)
-                    }};
+                    },
+                    {ok, put_refresh_token(Tokens, TokenResponse)};
                 {ok, {400, _, #{<<"error">> := <<"authorization_pending">>}}} ->
                     poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt);
                 {ok, {400, _, #{<<"error">> := <<"slow_down">>}}} ->
@@ -205,8 +203,12 @@ poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt) ->
                     {error, {access_denied, Status, Body}};
                 {ok, {Status, _, Body}} ->
                     {error, {poll_failed, Status, Body}};
-                {error, Reason} ->
-                    {error, Reason}
+                {error, _Reason} ->
+                    %% A request that did not get through says nothing about the
+                    %% authorization, which the user may be minutes into. The
+                    %% device code lives on the server until it expires, so keep
+                    %% polling until then.
+                    poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt)
             end
     end.
 
@@ -393,19 +395,27 @@ sso_reauth_required(TokenResponse) ->
 %% Opens a URL in the default browser using the platform's opener: `open' on
 %% macOS, `xdg-open' on Linux, `start' on Windows. Returns
 %% `{error, browser_not_found}' when none of them exists, which is the ordinary
-%% case on a headless machine.
--spec open_browser(binary()) -> ok | {error, browser_not_found}.
+%% case on a headless machine, and `{error, invalid_url}' for anything that is
+%% not an http(s) URL.
+-spec open_browser(binary()) -> ok | {error, browser_not_found | invalid_url}.
 open_browser(Url) when is_binary(Url) ->
-    ok = ensure_valid_http_url(Url),
-    UrlStr = binary_to_list(Url),
+    case valid_http_url(Url) of
+        true ->
+            spawn_browser(binary_to_list(Url));
+        false ->
+            {error, invalid_url}
+    end.
+
+%% @private
+spawn_browser(Url) ->
     {Cmd, Args} =
         case os:type() of
             {unix, darwin} ->
-                {"open", [UrlStr]};
+                {"open", [Url]};
             {unix, _} ->
-                {"xdg-open", [UrlStr]};
+                {"xdg-open", [Url]};
             {win32, _} ->
-                {"cmd", ["/c", "start", "", UrlStr]}
+                {"cmd", ["/c", "start", "", Url]}
         end,
     case os:find_executable(Cmd) of
         false ->
@@ -416,14 +426,22 @@ open_browser(Url) when is_binary(Url) ->
     end.
 
 %% @private
-%% Validates that a URL uses http:// or https:// scheme.
--spec ensure_valid_http_url(binary()) -> ok.
-ensure_valid_http_url(Url) when is_binary(Url) ->
+%% Whether a URL uses the http:// or https:// scheme.
+-spec valid_http_url(binary()) -> boolean().
+valid_http_url(Url) when is_binary(Url) ->
     case uri_string:parse(Url) of
-        #{scheme := <<"https">>} -> ok;
-        #{scheme := <<"http">>} -> ok;
-        _ -> throw({invalid_url, Url})
+        #{scheme := <<"https">>} -> true;
+        #{scheme := <<"http">>} -> true;
+        _ -> false
     end.
+
+%% @private
+%% A response without a refresh token carries no key at all rather than a
+%% placeholder, so what a build tool stores is only ever a real token.
+put_refresh_token(Tokens, #{<<"refresh_token">> := RefreshToken}) when is_binary(RefreshToken) ->
+    Tokens#{refresh_token => RefreshToken};
+put_refresh_token(Tokens, _TokenResponse) ->
+    Tokens.
 
 %% @private
 %% Get the hostname of the current machine.

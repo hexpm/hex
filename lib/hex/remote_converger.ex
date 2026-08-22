@@ -61,8 +61,9 @@ defmodule Hex.RemoteConverger do
       |> Enum.concat()
       |> verify_prefetches()
 
-    check_and_refresh_auth(prefetches)
-    check_sso_reauth(prefetches)
+    organizations = user_oauth_organizations(prefetches)
+    check_and_refresh_auth(organizations)
+    check_sso_reauth(organizations)
     Registry.prefetch(prefetches)
 
     locked = prepare_locked(lock, old_lock, deps)
@@ -908,48 +909,41 @@ defmodule Hex.RemoteConverger do
     version1.major == 0 and version2.major == 0 and version1.minor != version2.minor
   end
 
-  defp check_and_refresh_auth(prefetches) do
-    if auth_preflight_required?(prefetches) do
-      # Try to get token with authentication prompting enabled
-      # hex_cli_auth ensures only one process prompts even if multiple processes
-      # detect the expired token concurrently
+  # A package from an organization the user session authenticates for needs that
+  # session, so it is renewed, or asked for, once here instead of once per
+  # parallel fetch. The function passed to with_api does nothing: resolving the
+  # credentials is what the preflight is after.
+  @doc false
+  def check_and_refresh_auth([]), do: :ok
 
+  def check_and_refresh_auth(_organizations) do
+    if Hex.State.fetch!(:offline) do
+      :ok
+    else
       config = Hex.API.Client.config([])
 
-      :read
-      |> Hex.Auth.with_api(
-        config,
-        fn
-          %{api_key: api_key} when is_binary(api_key) -> :ok
-          %{} -> {:error, :no_auth}
-        end,
-        optional: true,
-        auth_inline: true
-      )
-      |> case do
+      case Hex.Auth.with_api(:read, config, fn _config -> :ok end, auth_inline: true) do
         :ok ->
-          # Token is valid, was successfully refreshed, or user authenticated
           :ok
 
         {:error, {:auth_error, :auth_declined}} ->
-          # User declined authentication
           Hex.Shell.warn(
             "Private packages will not be available. " <>
               "Run `mix hex.user auth` to authenticate."
           )
 
-        {:error, {:auth_error, _reason}} ->
+        {:error, {:auth_error, :token_refresh_unavailable}} ->
+          Hex.Shell.warn(
+            "Could not reach Hex to renew your authentication. " <>
+              "Private packages will not be available."
+          )
+
+        {:error, _reason} ->
           Hex.Shell.warn(
             "Authentication failed. Private packages will not be available. " <>
               "Run `mix hex.user auth` to authenticate."
           )
-
-        {:error, _reason} ->
-          # Other errors (shouldn't happen with prompt_auth: true, but handle gracefully)
-          :ok
       end
-    else
-      :ok
     end
   end
 
@@ -960,11 +954,9 @@ defmodule Hex.RemoteConverger do
   # than a 403 at a time, and it is why a member of ten SSO organizations who
   # depends on two is asked about two.
   @doc false
-  def check_sso_reauth(prefetches) do
-    needed = MapSet.new(user_oauth_organizations(prefetches))
-
+  def check_sso_reauth(organizations) do
     Hex.OAuth.sso_reauth_required()
-    |> Enum.filter(&MapSet.member?(needed, &1))
+    |> Enum.filter(&(&1 in organizations))
     |> prompt_sso_reauth()
   end
 
@@ -974,9 +966,6 @@ defmodule Hex.RemoteConverger do
     cond do
       Hex.State.fetch!(:offline) ->
         unavailable(organizations, "Hex is offline")
-
-      Hex.State.get(:api_key) ->
-        unavailable(organizations, "an API key is configured and authenticates as itself")
 
       Hex.Shell.yes?("#{sso_subject(organizations)} SSO authentication. Authenticate now?") ->
         start_sso_reauth(organizations)
@@ -1051,14 +1040,11 @@ defmodule Hex.RemoteConverger do
 
   defp names(organizations), do: Enum.join(organizations, ", ")
 
-  defp auth_preflight_required?(prefetches) do
-    user_oauth_organizations(prefetches) != []
-  end
-
   # The organizations among the prefetched repositories that the stored user
   # session authenticates for. An organization with its own key does not touch
   # that session, so nothing about it is worth asking or refreshing for.
-  defp user_oauth_organizations(prefetches) do
+  @doc false
+  def user_oauth_organizations(prefetches) do
     prefetches
     |> Enum.map(fn {repo, _package} -> repo end)
     |> Enum.uniq()

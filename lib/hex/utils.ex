@@ -435,8 +435,22 @@ defmodule Hex.Utils do
     end
   end
 
-  defp win_cmd_args(path) do
-    ["/c", "start", String.replace(path, "&", "^&")]
+  # `start` takes its first quoted argument as the window title, so the empty
+  # string keeps the path in the position `start` opens. cmd.exe parses the rest
+  # of the command line before `start` sees it, so every character it acts on is
+  # escaped with a caret; the caret itself goes first so the ones added here are
+  # not escaped again.
+  @win_cmd_metacharacters ["^", "&", "|", "<", ">", "(", ")", "\""]
+
+  @doc false
+  def win_cmd_args(path) do
+    ["/c", "start", "", escape_win_cmd(path)]
+  end
+
+  defp escape_win_cmd(path) do
+    Enum.reduce(@win_cmd_metacharacters, path, fn character, path ->
+      String.replace(path, character, "^" <> character)
+    end)
   end
 
   @doc """

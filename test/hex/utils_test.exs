@@ -102,6 +102,23 @@ defmodule Hex.UtilsTest do
     end
   end
 
+  describe "win_cmd_args/1" do
+    test "passes the empty title argument start expects" do
+      assert Hex.Utils.win_cmd_args("https://hex.pm/sso/authorize/abc") ==
+               ["/c", "start", "", "https://hex.pm/sso/authorize/abc"]
+    end
+
+    test "escapes the characters cmd.exe acts on" do
+      assert Hex.Utils.win_cmd_args(~s|https://hex.pm/?a=1&b=2\|c<d>e(f)g"h^i|) ==
+               [
+                 "/c",
+                 "start",
+                 "",
+                 ~s|https://hex.pm/?a=1^&b=2^\|c^<d^>e^(f^)g^"h^^i|
+               ]
+    end
+  end
+
   defp render(advisory, line_prefix \\ "") do
     advisory
     |> Hex.Utils.format_advisory_ansi(line_prefix)

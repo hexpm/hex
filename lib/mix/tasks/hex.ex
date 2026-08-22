@@ -121,16 +121,8 @@ defmodule Mix.Tasks.Hex do
   end
 
   @doc false
-  def auth do
-    auth_device()
-  end
-
-  @doc false
   def auth_device do
-    # Clean up any existing authentication
-    revoke_existing_oauth_tokens()
-    Hex.OAuth.clear_tokens()
-    revoke_and_cleanup_old_api_keys()
+    clear_credentials()
 
     prompt_user = fn verification_uri, user_code ->
       Hex.Shell.info("To authenticate, visit: #{verification_uri}")
@@ -231,20 +223,39 @@ defmodule Mix.Tasks.Hex do
   end
 
   @doc false
+  def clear_credentials do
+    revoke_existing_oauth_tokens()
+    Hex.OAuth.clear_tokens()
+    revoke_and_cleanup_old_api_keys()
+  end
+
+  @doc false
   def revoke_existing_oauth_tokens do
     case Hex.Config.read()[:"$oauth_token"] do
-      nil ->
-        :ok
-
       token_data when is_map(token_data) ->
         if access_token = token_data[:access_token] do
-          _ = Hex.API.OAuth.revoke_token(access_token)
+          revoke_token(access_token)
         end
 
         :ok
 
       _ ->
         :ok
+    end
+  end
+
+  # A token the server did not revoke keeps working until it expires, so say so
+  # rather than reporting the local clear as the whole job.
+  defp revoke_token(access_token) do
+    case Hex.API.OAuth.revoke_token(access_token) do
+      {:ok, {status, _headers, _body}} when status in 200..299 ->
+        :ok
+
+      _other ->
+        Hex.Shell.warn(
+          "Could not revoke the existing authentication token on Hex. " <>
+            "It stays valid until it expires."
+        )
     end
   end
 

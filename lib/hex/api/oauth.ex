@@ -26,29 +26,13 @@ defmodule Hex.API.OAuth do
     config = Client.config()
 
     case :mix_hex_api_oauth.device_auth_flow(config, @client_id, scopes, prompt_user, opts) do
-      {:ok, tokens} -> {:ok, clean_token_map(tokens)}
+      {:ok, tokens} -> {:ok, drop_empty_sso_reauth_required(tokens)}
       other -> other
     end
   end
 
-  # :mix_hex_api_oauth always includes both keys: :refresh_token as the atom
-  # :undefined when the server didn't return one, and :sso_reauth_required as
-  # an empty list when no organization is flagged. Drop them so stored token
-  # maps only ever contain a binary refresh token and a non-empty organization
-  # list, or no key at all.
-  defp clean_token_map(tokens) do
-    tokens
-    |> drop_undefined_refresh_token()
-    |> drop_empty_sso_reauth_required()
-  end
-
-  defp drop_undefined_refresh_token(%{refresh_token: refresh} = tokens)
-       when refresh in [:undefined, nil] do
-    Map.delete(tokens, :refresh_token)
-  end
-
-  defp drop_undefined_refresh_token(tokens), do: tokens
-
+  # :mix_hex_api_oauth reports "nothing is flagged" as an empty list. A stored
+  # token map carries the key only when there is something in it.
   defp drop_empty_sso_reauth_required(%{sso_reauth_required: []} = tokens) do
     Map.delete(tokens, :sso_reauth_required)
   end
@@ -68,9 +52,12 @@ defmodule Hex.API.OAuth do
   def sso_authorization(organizations) do
     config = Client.config()
 
-    Hex.Auth.with_api(:read, config, fn config ->
-      :mix_hex_api_oauth.sso_authorization(config, organizations)
-    end)
+    Hex.Auth.with_session_api(
+      :read,
+      config,
+      fn config -> :mix_hex_api_oauth.sso_authorization(config, organizations) end,
+      auth_inline: false
+    )
   end
 
   @doc """

@@ -641,6 +641,10 @@ defmodule Hex.Registry.Server do
   defp missing_status?(_), do: false
 
   defp unauthorized_status?({:ok, {status, _, _}}), do: status in [401, 403]
+
+  defp unauthorized_status?({:error, {:auth_error, reason}}),
+    do: reason in [:no_credentials, :auth_declined]
+
   defp unauthorized_status?(_), do: false
 
   defp public_key_message("hexpm:" <> _), do: "on our public keys page: #{@public_keys_html}"

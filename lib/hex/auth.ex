@@ -13,6 +13,19 @@ defmodule Hex.Auth do
   end
 
   @doc """
+  Execute a function with API authentication as the stored user session.
+
+  An API key authenticates as itself and cannot stand in for the session, so it
+  is left out of the resolution. This is for the endpoints that act on the
+  session rather than on behalf of whoever is calling.
+  """
+  def with_session_api(permission, config, fun, opts \\ []) do
+    config = Map.delete(config, :api_key)
+    config = put_in(config.cli_auth_callbacks.get_auth_config, fn _repo -> :undefined end)
+    :mix_hex_cli_auth.with_api(permission, config, fun, opts)
+  end
+
+  @doc """
   Execute a function with repository authentication.
   """
   def with_repo(config, fun, opts \\ []) do
@@ -108,22 +121,26 @@ defmodule Hex.Auth do
     token_data = %{access_token: access_token, expires_at: expires_at}
 
     token_data =
-      if refresh_token, do: Map.put(token_data, :refresh_token, refresh_token), else: token_data
+      if is_binary(refresh_token),
+        do: Map.put(token_data, :refresh_token, refresh_token),
+        else: token_data
 
     put_sso_reauth(token_data, sso_reauth_required)
   end
 
   # Invoked by hex_cli_auth when the stored global OAuth token is expired and
-  # could not be refreshed. Drop it from in-memory state only — keeping the
-  # on-disk token, since a refresh can fail transiently — so the rest of this
-  # run stops retrying the doomed refresh and proceeds unauthenticated.
+  # the server answered its refresh with a non-2xx; a refresh that never got an
+  # answer does not come through here, which is what lets this say the session
+  # is over. Drop it from in-memory state only — keeping the on-disk token,
+  # since the server may have been failing rather than refusing — so the rest of
+  # this run stops retrying the doomed refresh and proceeds unauthenticated.
   defp clear_oauth_tokens do
     Hex.State.put(:oauth_token, nil)
 
     Hex.Shell.warn(
       "Your authentication session has expired and could not be refreshed. " <>
         "Continuing without credentials; requests for private resources will fail or " <>
-        "prompt for authentication. Run `mix hex.user auth` to re-authenticate" <>
+        "prompt for authentication. Run `mix hex.user auth` to re-authenticate " <>
         "or run `mix hex.user deauth` to deauthorize the user on the local machine."
     )
 
