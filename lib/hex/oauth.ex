@@ -2,19 +2,6 @@ defmodule Hex.OAuth do
   @moduledoc false
 
   @doc """
-  Gets the current access token from state.
-
-  Returns `{:ok, token}` if a valid token exists, or `{:error, reason}` otherwise.
-  """
-  def get_token do
-    case Hex.State.get(:oauth_token) do
-      nil -> {:error, :no_token}
-      %{access_token: token} -> {:ok, token}
-      _ -> {:error, :invalid_token}
-    end
-  end
-
-  @doc """
   Stores OAuth token data.
 
   Since we now use 2FA for write operations, we only store a single token.
@@ -29,6 +16,17 @@ defmodule Hex.OAuth do
   def store_token(token_data) do
     Hex.Config.update([{:"$oauth_token", token_data}])
     Hex.State.put(:oauth_token, token_data)
+  end
+
+  @doc """
+  The organizations the stored session has to authenticate through their
+  identity provider for before it can reach them again.
+  """
+  def sso_reauth_required do
+    case Hex.State.get(:oauth_token) do
+      %{sso_reauth_required: organizations} when is_list(organizations) -> organizations
+      _token_data -> []
+    end
   end
 
   @doc """

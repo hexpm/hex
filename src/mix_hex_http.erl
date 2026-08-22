@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (cf6a12c), do not edit manually
+%% Vendored from hex_core v0.19.0 (eb5508a), do not edit manually
 
 %% @doc
 %% HTTP contract.

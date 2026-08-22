@@ -62,6 +62,7 @@ defmodule Hex.RemoteConverger do
       |> verify_prefetches()
 
     check_and_refresh_auth(prefetches)
+    check_sso_reauth(prefetches)
     Registry.prefetch(prefetches)
 
     locked = prepare_locked(lock, old_lock, deps)
@@ -952,22 +953,122 @@ defmodule Hex.RemoteConverger do
     end
   end
 
+  # The organizations a resolution can need are exactly the ones its own
+  # dependencies name: a published package's dependencies come from the public
+  # repository or from its own organization, so nothing private turns up part
+  # way through. That is what makes one prompt for the batch possible rather
+  # than a 403 at a time, and it is why a member of ten SSO organizations who
+  # depends on two is asked about two.
   @doc false
-  def auth_preflight_required?(prefetches) do
+  def check_sso_reauth(prefetches) do
+    needed = MapSet.new(user_oauth_organizations(prefetches))
+
+    Hex.OAuth.sso_reauth_required()
+    |> Enum.filter(&MapSet.member?(needed, &1))
+    |> prompt_sso_reauth()
+  end
+
+  defp prompt_sso_reauth([]), do: :ok
+
+  defp prompt_sso_reauth(organizations) do
+    cond do
+      Hex.State.fetch!(:offline) ->
+        unavailable(organizations, "Hex is offline")
+
+      Hex.State.get(:api_key) ->
+        unavailable(organizations, "an API key is configured and authenticates as itself")
+
+      Hex.Shell.yes?("#{sso_subject(organizations)} SSO authentication. Authenticate now?") ->
+        start_sso_reauth(organizations)
+
+      true ->
+        Hex.Shell.warn("Packages from #{names(organizations)} will not be available.")
+    end
+  end
+
+  defp unavailable(organizations, reason) do
+    Hex.Shell.warn(
+      "#{sso_subject(organizations)} SSO authentication, but #{reason}. " <>
+        "Packages from #{names(organizations)} will not be available."
+    )
+  end
+
+  defp start_sso_reauth(organizations) do
+    case Hex.API.OAuth.sso_authorization(organizations) do
+      {:ok, {status, _headers, %{"verification_uri" => uri}}}
+      when status in 200..299 and is_binary(uri) ->
+        # The URL goes in the prompt rather than beside it: `mix deps.get
+        # --quiet` swallows info output, and asking someone to finish something
+        # in a browser without telling them where is a dead end.
+        open_browser(uri)
+        Hex.Shell.prompt("Open #{uri} to authenticate, then press enter")
+        finish_sso_reauth(organizations)
+
+      {:ok, {_status, _headers, %{"message" => message}}} when is_binary(message) ->
+        Hex.Shell.warn("Could not start SSO authentication: #{message}")
+
+      _other ->
+        Hex.Shell.warn("Could not start SSO authentication.")
+    end
+  end
+
+  # Opening a browser is a convenience on top of the printed URL, so nothing it
+  # does is worth ending a resolution over: System.cmd/2 raises when the
+  # platform has no opener installed.
+  defp open_browser(uri) do
+    case URI.parse(uri) do
+      %URI{scheme: scheme} when scheme in ["http", "https"] ->
+        try do
+          Hex.Utils.system_open(uri)
+        catch
+          _kind, _reason -> :ok
+        end
+
+      _other ->
+        :ok
+    end
+  end
+
+  # The session and its refresh token are untouched by all this; what changed is
+  # what the session may reach, so a refresh is what picks it up.
+  defp finish_sso_reauth(organizations) do
+    config = Hex.API.Client.config([])
+
+    with :ok <- Hex.Auth.refresh_tokens(config),
+         [] <- Enum.filter(Hex.OAuth.sso_reauth_required(), &(&1 in organizations)) do
+      :ok
+    else
+      _other ->
+        Hex.Shell.warn(
+          "#{sso_subject(organizations)} SSO authentication. " <>
+            "Packages from #{names(organizations)} will not be available."
+        )
+    end
+  end
+
+  defp sso_subject([organization]), do: "#{organization} requires"
+  defp sso_subject(organizations), do: "#{names(organizations)} require"
+
+  defp names(organizations), do: Enum.join(organizations, ", ")
+
+  defp auth_preflight_required?(prefetches) do
+    user_oauth_organizations(prefetches) != []
+  end
+
+  # The organizations among the prefetched repositories that the stored user
+  # session authenticates for. An organization with its own key does not touch
+  # that session, so nothing about it is worth asking or refreshing for.
+  defp user_oauth_organizations(prefetches) do
     prefetches
     |> Enum.map(fn {repo, _package} -> repo end)
     |> Enum.uniq()
-    |> Enum.any?(&repo_requires_user_oauth?/1)
-  end
+    |> Enum.flat_map(fn
+      "hexpm:" <> organization = repo ->
+        if repo |> Hex.Repo.get_repo() |> repo_uses_user_oauth?(), do: [organization], else: []
 
-  defp repo_requires_user_oauth?("hexpm:" <> _ = repo) do
-    repo
-    |> Hex.Repo.get_repo()
-    |> repo_uses_user_oauth?()
-  end
-
-  defp repo_requires_user_oauth?(_repo) do
-    false
+      _repo ->
+        []
+    end)
   end
 
   defp repo_uses_user_oauth?(repo_config) do

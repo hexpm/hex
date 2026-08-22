@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (cf6a12c), do not edit manually
+%% Vendored from hex_core v0.19.0 (eb5508a), do not edit manually
 
 %% @doc
 %% Authentication handling with callback functions for build-tool-specific operations.
@@ -37,6 +37,13 @@
 %%     %% holding the token-refresh lock.
 %%     clear_oauth_tokens => fun(() -> ok),
 %%
+%%     %% Report the organizations the server says this session has to
+%%     %% authenticate against their identity provider for (optional). Called
+%%     %% after every token grant, with the empty list when there are none, so
+%%     %% the build tool always holds the current set. It is not told which of
+%%     %% them the running command needs; deciding that is the build tool's job.
+%%     sso_reauth => fun(([binary()]) -> ok),
+%%
 %%     %% User interaction
 %%     prompt_otp => fun((Message :: binary()) -> {ok, OtpCode :: binary()} | cancelled),
 %%     should_authenticate => fun((Reason :: no_credentials | token_refresh_failed) -> boolean()),
@@ -73,7 +80,7 @@
 %%
 %% Internally, authentication resolution tracks context via `auth_context()':
 %% <ul>
-%% <li>`source' - Where the credentials came from (`env', `config', or `oauth')</li>
+%% <li>`source' - Where the credentials came from (`config' or `oauth')</li>
 %% <li>`has_refresh_token' - Whether token refresh is possible on 401</li>
 %% </ul>
 %%
@@ -89,7 +96,9 @@
     with_repo/2,
     with_repo/3,
     resolve_api_auth/2,
-    resolve_repo_auth/1
+    resolve_repo_auth/1,
+    refresh_tokens/1,
+    is_token_expired/1
 ]).
 
 -export_type([
@@ -122,6 +131,7 @@
         ) -> ok
     ),
     clear_oauth_tokens => fun(() -> ok),
+    sso_reauth => fun((Organizations :: [binary()]) -> ok),
     prompt_otp := fun((Message :: binary()) -> {ok, OtpCode :: binary()} | cancelled),
     should_authenticate := fun((Reason :: auth_prompt_reason()) -> boolean()),
     get_client_id := fun(() -> binary())
@@ -156,7 +166,7 @@
     | {auth_error, term()}.
 
 -type auth_context() :: #{
-    source => env | config | oauth,
+    source => config | oauth,
     has_refresh_token => boolean()
 }.
 
@@ -369,10 +379,11 @@ prompt_and_device_auth(BaseConfig, Fun, Reason, Opts) ->
     case call_callback(BaseConfig, should_authenticate, [Reason]) of
         true ->
             case device_auth(BaseConfig, <<"api repositories">>, Opts) of
-                {ok, #{access_token := Token}} ->
+                {ok, #{access_token := Token} = Tokens} ->
                     BearerToken = <<"Bearer ", Token/binary>>,
                     Config = BaseConfig#{api_key => BearerToken},
-                    AuthContext = #{source => oauth, has_refresh_token => true},
+                    HasRefreshToken = is_binary(maps:get(refresh_token, Tokens, undefined)),
+                    AuthContext = #{source => oauth, has_refresh_token => HasRefreshToken},
                     execute_with_retry(Config, Fun, AuthContext, 0, undefined, Opts);
                 {error, _} = Error ->
                     Error
@@ -396,6 +407,35 @@ execute_optional_with_retry(BaseConfig, Fun, Opts) ->
             Other
     end.
 
+%% @doc
+%% Refreshes the stored global OAuth token now, whether or not it has expired.
+%%
+%% What a token carries can change without it expiring: authenticating a
+%% session against an organization's identity provider grants scopes the
+%% current access token was minted without. This is how a build tool picks
+%% those up rather than waiting out the access token.
+-spec refresh_tokens(mix_hex_core:config()) -> ok | {error, auth_error()}.
+refresh_tokens(Config) ->
+    Refresh = fun(Tokens) ->
+        %% A failed refresh leaves the stored token in place; the caller warns
+        %% and continues with it.
+        case maybe_refresh_token_with_context(Config, Tokens) of
+            {ok, _BearerToken, _AuthContext} -> ok;
+            {error, _Reason} = Error -> Error
+        end
+    end,
+    case with_token_refresh_lock(Config, Refresh) of
+        error -> {error, {auth_error, no_credentials}};
+        Result -> Result
+    end.
+
+%% @private
+%% Check if a token is expired (within 5 minute buffer).
+-spec is_token_expired(integer()) -> boolean().
+is_token_expired(ExpiresAt) ->
+    Now = erlang:system_time(second),
+    ExpiresAt - Now < ?EXPIRY_BUFFER_SECONDS.
+
 %%====================================================================
 %% Internal functions - Device Auth
 %%====================================================================
@@ -414,10 +454,17 @@ device_auth(Config, Scope, Opts) ->
     end,
     FlowOpts = [{open_browser, OpenBrowser}],
     case mix_hex_api_oauth:device_auth_flow(Config, ClientId, Scope, PromptUser, FlowOpts) of
-        {ok, #{access_token := AccessToken, refresh_token := RefreshToken, expires_at := ExpiresAt}} ->
+        {ok, #{
+            access_token := AccessToken,
+            refresh_token := RefreshToken,
+            expires_at := ExpiresAt,
+            sso_reauth_required := SsoReauthRequired
+        }} ->
             ok = call_callback(Config, persist_oauth_tokens, [
                 global, AccessToken, RefreshToken, ExpiresAt
             ]),
+            report_sso_reauth(Config, SsoReauthRequired),
+            %% sso_reauth_required reaches the build tool through the sso_reauth callback.
             {ok, #{
                 access_token => AccessToken,
                 refresh_token => RefreshToken,
@@ -434,13 +481,6 @@ device_auth(Config, Scope, Opts) ->
         {error, Reason} ->
             {error, {auth_error, Reason}}
     end.
-
-%% @private
-%% Check if a token is expired (within 5 minute buffer).
--spec is_token_expired(integer()) -> boolean().
-is_token_expired(ExpiresAt) ->
-    Now = erlang:system_time(second),
-    ExpiresAt - Now < ?EXPIRY_BUFFER_SECONDS.
 
 %%====================================================================
 %% Internal functions - Auth Resolution
@@ -599,32 +639,39 @@ get_parent_repo_key(Config, RepoName, KeyType) ->
 %% @private
 %% Resolve OAuth token with global lock to prevent concurrent refresh attempts.
 resolve_oauth_token_with_context(Config) ->
+    Resolve = fun(#{access_token := AccessToken, expires_at := ExpiresAt} = Tokens) ->
+        HasRefreshToken =
+            maps:is_key(refresh_token, Tokens) andalso
+                is_binary(maps:get(refresh_token, Tokens)),
+        case is_token_expired(ExpiresAt) of
+            true ->
+                refresh_or_clear(Config, Tokens);
+            false ->
+                BearerToken = <<"Bearer ", AccessToken/binary>>,
+                {ok, BearerToken, #{source => oauth, has_refresh_token => HasRefreshToken}}
+        end
+    end,
+    case with_token_refresh_lock(Config, Resolve) of
+        error -> {error, no_auth};
+        Result -> Result
+    end.
+
+%% @private
+%% Fetch the stored global tokens and hand them to Fun under the token-refresh
+%% lock, so concurrent callers do not each refresh the same token. Returns
+%% `error' without calling Fun when no tokens are stored.
+with_token_refresh_lock(Config, Fun) ->
     global:trans(
         {{?MODULE, token_refresh}, self()},
         fun() ->
-            do_resolve_oauth_token_with_context(Config)
+            case call_callback(Config, get_oauth_tokens, []) of
+                {ok, Tokens} -> Fun(Tokens);
+                error -> error
+            end
         end,
         [node()],
         infinity
     ).
-
-%% @private
-do_resolve_oauth_token_with_context(Config) ->
-    case call_callback(Config, get_oauth_tokens, []) of
-        {ok, #{access_token := AccessToken, expires_at := ExpiresAt} = Tokens} ->
-            HasRefreshToken =
-                maps:is_key(refresh_token, Tokens) andalso
-                    is_binary(maps:get(refresh_token, Tokens)),
-            case is_token_expired(ExpiresAt) of
-                true ->
-                    refresh_or_clear(Config, Tokens);
-                false ->
-                    BearerToken = <<"Bearer ", AccessToken/binary>>,
-                    {ok, BearerToken, #{source => oauth, has_refresh_token => HasRefreshToken}}
-            end;
-        error ->
-            {error, no_auth}
-    end.
 
 %% @private
 %% Refresh an expired global token; if the refresh fails, invalidate the stored
@@ -657,6 +704,7 @@ maybe_refresh_token_with_context(Config, #{refresh_token := RefreshToken}) when
             ok = call_callback(Config, persist_oauth_tokens, [
                 global, NewAccessToken, NewRefreshToken, ExpiresAt
             ]),
+            report_sso_reauth(Config, mix_hex_api_oauth:sso_reauth_required(TokenResponse)),
             BearerToken = <<"Bearer ", NewAccessToken/binary>>,
             HasRefreshToken = is_binary(NewRefreshToken),
             {ok, BearerToken, #{source => oauth, has_refresh_token => HasRefreshToken}};
@@ -788,6 +836,13 @@ call_callback(Config, Name, Args) ->
     #{cli_auth_callbacks := Callbacks} = Config,
     Fun = maps:get(Name, Callbacks),
     erlang:apply(Fun, Args).
+
+%% @private
+%% Hands the build tool the organizations this session has to authenticate for.
+%% Always called after a grant, including with the empty list, so a set that
+%% has been resolved does not linger.
+report_sso_reauth(Config, Organizations) when is_list(Organizations) ->
+    maybe_call_callback(Config, sso_reauth, [Organizations]).
 
 %% @private
 %% Like call_callback/3 but for optional callbacks: returns ok without doing
