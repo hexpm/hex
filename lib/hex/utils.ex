@@ -142,6 +142,15 @@ defmodule Hex.Utils do
     "\\x" <> (cp |> Integer.to_string(16) |> String.pad_leading(2, "0"))
   end
 
+  # Drops every byte a terminal acts on from an untrusted string that has no
+  # business holding one. A percent-encoded URL and a device code are printable
+  # ASCII, so a newline that fakes a line of output or an escape sequence that
+  # repaints the screen is dropped rather than shown as an escape, which is what
+  # escape_terminal/1 does for text that may legitimately span lines.
+  def printable_ascii(binary) when is_binary(binary) do
+    for <<byte <- binary>>, byte in 0x20..0x7E, into: "", do: <<byte>>
+  end
+
   def binarify(term, opts \\ [])
 
   def binarify(binary, _opts) when is_binary(binary) do
@@ -439,8 +448,10 @@ defmodule Hex.Utils do
   # string keeps the path in the position `start` opens. cmd.exe parses the rest
   # of the command line before `start` sees it, so every character it acts on is
   # escaped with a caret; the caret itself goes first so the ones added here are
-  # not escaped again.
-  @win_cmd_metacharacters ["^", "&", "|", "<", ">", "(", ")", "\""]
+  # not escaped again. A caret inside `%NAME%` is not removed until after the
+  # expansion pass has looked the name up and failed, which is what keeps an
+  # environment variable's contents out of the command line.
+  @win_cmd_metacharacters ["^", "&", "|", "<", ">", "(", ")", "\"", "%"]
 
   @doc false
   def win_cmd_args(path) do

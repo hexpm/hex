@@ -106,13 +106,7 @@ defmodule Hex.Auth do
   defp persist_oauth_tokens(repo, access_token, refresh_token, expires_at) do
     token_data = token_map(access_token, expires_at, refresh_token)
 
-    repo_config =
-      Hex.Repo.get_repo(repo)
-      |> Map.put(:oauth_token, token_data)
-
-    Hex.State.fetch!(:repos)
-    |> Map.put(repo, repo_config)
-    |> Hex.Config.update_repos()
+    Hex.Config.update_repo(repo, &Map.put(&1, :oauth_token, token_data))
 
     :ok
   end
@@ -167,15 +161,17 @@ defmodule Hex.Auth do
   defp put_sso_reauth(token_data, organizations),
     do: Map.put(token_data, :sso_reauth_required, organizations)
 
+  # A prompt answers :eof when there is nothing on stdin to read, which is what
+  # an OTP challenge in CI gets.
   defp prompt_otp(message) do
     case Hex.Shell.prompt(message) do
-      nil ->
-        :cancelled
-
-      otp ->
+      otp when is_binary(otp) ->
         otp = String.trim(otp)
         Hex.State.put(:api_otp, otp)
         {:ok, otp}
+
+      _eof ->
+        :cancelled
     end
   end
 

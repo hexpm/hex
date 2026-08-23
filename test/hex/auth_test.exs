@@ -87,6 +87,52 @@ defmodule Hex.AuthTest do
     end
   end
 
+  describe "persist_oauth_tokens/4 callback" do
+    test "keeps the tokens repositories exchanged at the same time" do
+      in_tmp("persist_repo_tokens", fn ->
+        set_home_cwd()
+        Hex.Config.write([])
+
+        expires_at = System.system_time(:second) + 3600
+        names = Enum.map(1..15, &"hexpm:org#{&1}")
+
+        names
+        |> Enum.map(fn name ->
+          Task.async(fn ->
+            Hex.Auth.callbacks().persist_oauth_tokens.(
+              name,
+              "token-#{name}",
+              "refresh",
+              expires_at
+            )
+          end)
+        end)
+        |> Task.await_many(10_000)
+
+        repos = Hex.Config.read()[:"$repos"]
+
+        for name <- names do
+          assert repos[name].oauth_token.access_token == "token-#{name}"
+        end
+      end)
+    end
+  end
+
+  describe "prompt_otp/1 callback" do
+    test "returns the code that was typed" do
+      send(self(), {:mix_shell_input, :prompt, "123456\n"})
+
+      assert Hex.Auth.callbacks().prompt_otp.("OTP code:") == {:ok, "123456"}
+      assert Hex.State.get(:api_otp) == "123456"
+    end
+
+    test "cancels when there is nothing to read" do
+      send(self(), {:mix_shell_input, :prompt, :eof})
+
+      assert Hex.Auth.callbacks().prompt_otp.("OTP code:") == :cancelled
+    end
+  end
+
   describe "SSO re-authentication" do
     test "stores the organizations the server flagged with the token" do
       in_tmp("sso_reauth", fn ->
@@ -261,6 +307,28 @@ defmodule Hex.AuthTest do
       end)
     end
 
+    test "prints the authorization URL without the characters a terminal acts on" do
+      in_tmp("sso_reauth", fn ->
+        set_home_cwd()
+        store_token()
+        Hex.Auth.callbacks().sso_reauth.(["acme"])
+        stub_sso_authorization(%{}, "https://hex.pm/sso/\e]0;pwned\a\nauthorize")
+
+        send(self(), {:mix_shell_input, :yes?, true})
+        send(self(), {:mix_shell_input, :prompt, ""})
+
+        check_sso_reauth([{"hexpm:acme", "foo"}])
+
+        assert_received {:mix_shell, :prompt, [prompt]}
+
+        assert prompt ==
+                 "Open https://hex.pm/sso/]0;pwnedauthorize to authenticate, then press enter"
+
+        assert_received {:hex_system_cmd, _cmd, args}
+        assert "https://hex.pm/sso/]0;pwnedauthorize" in args
+      end)
+    end
+
     test "says so when the authorization URL cannot be requested" do
       in_tmp("sso_reauth", fn ->
         set_home_cwd()
@@ -331,6 +399,26 @@ defmodule Hex.AuthTest do
       end)
     end
 
+    test "renews the session HEX_API_KEY does not stand in for" do
+      in_tmp("preflight", fn ->
+        set_home_cwd()
+
+        Hex.OAuth.store_token(%{
+          access_token: "expired",
+          refresh_token: "refresh",
+          expires_at: System.system_time(:second) - 100
+        })
+
+        Hex.State.put(:api_key, "env_api_key")
+        stub_token_refresh(%{"sso_reauth_required" => ["acme"]})
+
+        assert Hex.RemoteConverger.check_and_refresh_auth(["acme"]) == :ok
+
+        assert Hex.State.get(:oauth_token).access_token == "renewed"
+        assert Hex.OAuth.sso_reauth_required() == ["acme"]
+      end)
+    end
+
     test "does not renew the session when Hex is offline" do
       in_tmp("preflight", fn ->
         set_home_cwd()
@@ -361,7 +449,7 @@ defmodule Hex.AuthTest do
   # Answers the two requests re-authorization makes: the URL the user opens, and
   # the refresh that picks up what completing it granted. Overrides go into the
   # refresh response, which is what says whether anything is still lapsed.
-  defp stub_sso_authorization(refresh_overrides) do
+  defp stub_sso_authorization(refresh_overrides, verification_uri \\ nil) do
     bypass = Bypass.open()
     Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
     test_pid = self()
@@ -375,8 +463,12 @@ defmodule Hex.AuthTest do
           {:ok, body, conn} = Plug.Conn.read_body(conn)
           %{"organizations" => organizations} = :erlang.binary_to_term(body)
 
+          uri =
+            verification_uri ||
+              "https://hex.pm/sso/authorize/#{Enum.join(organizations, "-")}"
+
           erlang_resp(conn, 201, %{
-            "verification_uri" => "https://hex.pm/sso/authorize/#{Enum.join(organizations, "-")}",
+            "verification_uri" => uri,
             "expires_in" => 600
           })
 
@@ -390,6 +482,24 @@ defmodule Hex.AuthTest do
 
           erlang_resp(conn, 200, Map.merge(payload, refresh_overrides))
       end
+    end)
+  end
+
+  defp stub_token_refresh(overrides) do
+    bypass = Bypass.open()
+    Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+    Bypass.expect(bypass, fn conn ->
+      assert conn.request_path == "/api/oauth/token"
+
+      payload = %{
+        "access_token" => "renewed",
+        "refresh_token" => "refresh",
+        "token_type" => "Bearer",
+        "expires_in" => 3600
+      }
+
+      erlang_resp(conn, 200, Map.merge(payload, overrides))
     end)
   end
 

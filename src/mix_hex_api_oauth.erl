@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (c7cbc92), do not edit manually
+%% Vendored from hex_core v0.19.0 (9ea52a0), do not edit manually
 
 %% @doc
 %% Hex HTTP API - OAuth.
@@ -14,7 +14,8 @@
     sso_reauth_required/1,
     revoke_token/3,
     client_credentials_token/4,
-    client_credentials_token/5
+    client_credentials_token/5,
+    win_cmd_args/1
 ]).
 
 -export_type([oauth_tokens/0, device_auth_error/0]).
@@ -148,27 +149,46 @@ device_auth_flow(Config, ClientId, Scope, PromptUser) ->
 ) -> {ok, oauth_tokens()} | {error, device_auth_error()}.
 device_auth_flow(Config, ClientId, Scope, PromptUser, Opts) ->
     case device_authorization(Config, ClientId, Scope, Opts) of
-        {ok, {200, _, DeviceResponse}} when is_map(DeviceResponse) ->
-            #{
-                <<"device_code">> := DeviceCode,
-                <<"user_code">> := UserCode,
-                <<"verification_uri_complete">> := VerificationUri,
-                <<"expires_in">> := ExpiresIn,
-                <<"interval">> := IntervalSeconds
-            } = DeviceResponse,
-            ok = PromptUser(VerificationUri, UserCode),
-            OpenBrowser = proplists:get_value(open_browser, Opts, false),
-            case OpenBrowser of
-                true -> open_browser(VerificationUri);
-                false -> ok
-            end,
-            ExpiresAt = erlang:system_time(second) + ExpiresIn,
-            poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt);
+        {ok, {200, _, DeviceResponse}} ->
+            case device_authorization_fields(DeviceResponse) of
+                {ok, DeviceCode, UserCode, VerificationUri, ExpiresIn, IntervalSeconds} ->
+                    ok = PromptUser(VerificationUri, UserCode),
+                    OpenBrowser = proplists:get_value(open_browser, Opts, false),
+                    case OpenBrowser of
+                        true -> open_browser(VerificationUri);
+                        false -> ok
+                    end,
+                    ExpiresAt = erlang:system_time(second) + ExpiresIn,
+                    poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt);
+                error ->
+                    {error, {device_auth_failed, 200, DeviceResponse}}
+            end;
         {ok, {Status, _, Body}} ->
             {error, {device_auth_failed, Status, Body}};
         {error, Reason} ->
             {error, Reason}
     end.
+
+%% @private
+%% The fields the flow goes on to use, in the types it uses them as: the
+%% interval is slept on and the expiry is added to a timestamp.
+device_authorization_fields(#{
+    <<"device_code">> := DeviceCode,
+    <<"user_code">> := UserCode,
+    <<"verification_uri_complete">> := VerificationUri,
+    <<"expires_in">> := ExpiresIn,
+    <<"interval">> := Interval
+}) when
+    is_binary(DeviceCode),
+    is_binary(UserCode),
+    is_binary(VerificationUri),
+    is_integer(ExpiresIn),
+    is_integer(Interval),
+    Interval >= 0
+->
+    {ok, DeviceCode, UserCode, VerificationUri, ExpiresIn, Interval};
+device_authorization_fields(_DeviceResponse) ->
+    error.
 
 %% @private
 poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt) ->
@@ -179,17 +199,20 @@ poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt) ->
         false ->
             timer:sleep(IntervalSeconds * 1000),
             case poll_device_token(Config, ClientId, DeviceCode) of
-                {ok, {200, _, TokenResponse}} when is_map(TokenResponse) ->
-                    #{
-                        <<"access_token">> := AccessToken,
-                        <<"expires_in">> := ExpiresIn
-                    } = TokenResponse,
-                    Tokens = #{
-                        access_token => AccessToken,
-                        expires_at => erlang:system_time(second) + ExpiresIn,
-                        sso_reauth_required => sso_reauth_required(TokenResponse)
-                    },
-                    {ok, put_refresh_token(Tokens, TokenResponse)};
+                {ok, {200, _, TokenResponse}} ->
+                    case token_response_fields(TokenResponse) of
+                        {ok, AccessToken, ExpiresIn} ->
+                            Tokens = #{
+                                access_token => AccessToken,
+                                expires_at => erlang:system_time(second) + ExpiresIn
+                            },
+                            {ok,
+                                put_sso_reauth_required(
+                                    put_refresh_token(Tokens, TokenResponse), TokenResponse
+                                )};
+                        error ->
+                            {error, {poll_failed, 200, TokenResponse}}
+                    end;
                 {ok, {400, _, #{<<"error">> := <<"authorization_pending">>}}} ->
                     poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt);
                 {ok, {400, _, #{<<"error">> := <<"slow_down">>}}} ->
@@ -376,16 +399,25 @@ revoke_token(Config, ClientId, Token) ->
     },
     mix_hex_api:post(Config, Path, Params).
 
-%% @private
+%% @doc
 %% Organizations a token response says the session has to authenticate against
-%% their identity provider for. Older servers do not send the field at all,
-%% which means nothing is lapsed.
--spec sso_reauth_required(map()) -> [binary()].
-sso_reauth_required(TokenResponse) ->
-    case maps:get(<<"sso_reauth_required">>, TokenResponse, []) of
-        Organizations when is_list(Organizations) -> Organizations;
-        _Other -> []
-    end.
+%% their identity provider for.
+%%
+%% Returns `{ok, []}' when the response does not carry the field, which is what
+%% servers that predate it send and means nothing is lapsed. Returns `error'
+%% when the field is there in a shape that cannot be read, which says nothing
+%% about what has lapsed and must not be taken for the empty set.
+%% @end
+-spec sso_reauth_required(map()) -> {ok, [binary()]} | error.
+sso_reauth_required(#{<<"sso_reauth_required">> := Organizations}) when is_list(Organizations) ->
+    case lists:all(fun is_binary/1, Organizations) of
+        true -> {ok, Organizations};
+        false -> error
+    end;
+sso_reauth_required(#{<<"sso_reauth_required">> := _Organizations}) ->
+    error;
+sso_reauth_required(_TokenResponse) ->
+    {ok, []}.
 
 %%====================================================================
 %% Internal functions
@@ -415,7 +447,7 @@ spawn_browser(Url) ->
             {unix, _} ->
                 {"xdg-open", [Url]};
             {win32, _} ->
-                {"cmd", ["/c", "start", "", Url]}
+                {"cmd", win_cmd_args(Url)}
         end,
     case os:find_executable(Cmd) of
         false ->
@@ -424,6 +456,37 @@ spawn_browser(Url) ->
             open_port({spawn_executable, Executable}, [{args, Args}]),
             ok
     end.
+
+%% @private
+%% `start' takes its first quoted argument as the window title, so the empty
+%% string keeps the URL in the position `start' opens.
+-spec win_cmd_args(string()) -> [string()].
+win_cmd_args(Url) ->
+    ["/c", "start", "", escape_win_cmd(Url)].
+
+%% @private
+%% cmd.exe parses the command line before `start' sees it, and erts only quotes
+%% an argument that contains whitespace, so every character cmd acts on is
+%% prefixed with a caret. `%' is included because cmd expands `%NAME%' before it
+%% scans for separators.
+escape_win_cmd(Url) ->
+    lists:flatmap(fun escape_win_cmd_character/1, Url).
+
+%% @private
+escape_win_cmd_character(Character) when
+    Character =:= $^;
+    Character =:= $&;
+    Character =:= $|;
+    Character =:= $<;
+    Character =:= $>;
+    Character =:= $(;
+    Character =:= $);
+    Character =:= $";
+    Character =:= $%
+->
+    [$^, Character];
+escape_win_cmd_character(Character) ->
+    [Character].
 
 %% @private
 %% Whether a URL uses the http:// or https:// scheme.
@@ -436,12 +499,30 @@ valid_http_url(Url) when is_binary(Url) ->
     end.
 
 %% @private
+%% The access token and its lifetime, in the types the caller uses them as.
+token_response_fields(#{<<"access_token">> := AccessToken, <<"expires_in">> := ExpiresIn}) when
+    is_binary(AccessToken), is_integer(ExpiresIn)
+->
+    {ok, AccessToken, ExpiresIn};
+token_response_fields(_TokenResponse) ->
+    error.
+
+%% @private
 %% A response without a refresh token carries no key at all rather than a
 %% placeholder, so what a build tool stores is only ever a real token.
 put_refresh_token(Tokens, #{<<"refresh_token">> := RefreshToken}) when is_binary(RefreshToken) ->
     Tokens#{refresh_token => RefreshToken};
 put_refresh_token(Tokens, _TokenResponse) ->
     Tokens.
+
+%% @private
+%% A response whose sso_reauth_required cannot be read carries no key, so the
+%% caller is not handed the empty set as if the server had sent it.
+put_sso_reauth_required(Tokens, TokenResponse) ->
+    case sso_reauth_required(TokenResponse) of
+        {ok, Organizations} -> Tokens#{sso_reauth_required => Organizations};
+        error -> Tokens
+    end.
 
 %% @private
 %% Get the hostname of the current machine.

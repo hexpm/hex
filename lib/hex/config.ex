@@ -100,21 +100,41 @@ defmodule Hex.Config do
     dir = Path.dirname(path)
     new_dir? = not File.dir?(dir)
     File.mkdir_p!(dir)
-    if new_dir?, do: chmod(dir, 0o700)
+    if new_dir?, do: File.chmod!(dir, 0o700)
 
-    File.write!(path, string)
-    chmod(path, 0o600)
+    write_private!(path, string)
 
     config
   end
 
   # The config holds the OAuth access token and the refresh token that mints
-  # more of them, so it is readable only by its owner. Filesystems without Unix
-  # modes reject the call instead of applying one, which is not a reason to fail
-  # the write.
-  defp chmod(path, mode) do
-    _ = File.chmod(path, mode)
-    :ok
+  # more of them, so no other user gets to read it. The mode is set on the
+  # temporary file while it is still empty, so the tokens are never on disk under
+  # the mode the umask picked, and the rename is atomic, so a reader gets either
+  # the whole previous config or the whole new one.
+  defp write_private!(path, string) do
+    tmp_path = path <> "." <> Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
+
+    try do
+      create_private!(tmp_path)
+      File.write!(tmp_path, string)
+      File.rename!(tmp_path, path)
+    rescue
+      exception ->
+        File.rm(tmp_path)
+        reraise exception, __STACKTRACE__
+    end
+  end
+
+  defp create_private!(path) do
+    case :file.open(path, [:write, :binary, :exclusive]) do
+      {:ok, device} ->
+        :ok = :file.close(device)
+        File.chmod!(path, 0o600)
+
+      {:error, reason} ->
+        raise File.Error, reason: reason, action: "write to file", path: path
+    end
   end
 
   defp config_path() do
@@ -183,6 +203,24 @@ defmodule Hex.Config do
   end
 
   def update_repos(repos) do
+    transaction(fn -> do_update_repos(do_read(), repos) end)
+  end
+
+  # Replaces one repository's config and keeps what another process wrote for
+  # the others. A write goes through the whole $repos key, so two repositories
+  # exchanging a token at the same time drop each other's unless the read
+  # happens under the same lock as the write.
+  def update_repo(name, fun) when is_function(fun, 1) do
+    transaction(fn ->
+      config = do_read()
+      repos = read_repos(config)
+      repo = Map.get_lazy(repos, name, fn -> Hex.Repo.get_repo(name) end)
+
+      do_update_repos(config, Map.put(repos, name, fun.(repo)))
+    end)
+  end
+
+  defp do_update_repos(config, repos) do
     config_repos =
       repos
       |> Hex.Repo.clean_organizations()
@@ -193,7 +231,10 @@ defmodule Hex.Config do
       |> Hex.Repo.merge_hexpm()
       |> Hex.Repo.update_organizations()
 
-    Hex.Config.update([{:"$repos", config_repos}])
+    config
+    |> Keyword.put(:"$repos", config_repos)
+    |> do_write()
+
     Hex.State.put(:repos, state_repos)
   end
 end

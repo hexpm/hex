@@ -911,8 +911,12 @@ defmodule Hex.RemoteConverger do
 
   # A package from an organization the user session authenticates for needs that
   # session, so it is renewed, or asked for, once here instead of once per
-  # parallel fetch. The function passed to with_api does nothing: resolving the
-  # credentials is what the preflight is after.
+  # parallel fetch. The function passed to with_session_api does nothing:
+  # resolving the credentials is what the preflight is after. It goes through
+  # the session rather than through HEX_API_KEY because the fetches this runs
+  # ahead of use the session; an API key would resolve here and leave the
+  # session to be refreshed mid-fetch, past the point where anything can be
+  # asked.
   @doc false
   def check_and_refresh_auth([]), do: :ok
 
@@ -922,7 +926,7 @@ defmodule Hex.RemoteConverger do
     else
       config = Hex.API.Client.config([])
 
-      case Hex.Auth.with_api(:read, config, fn _config -> :ok end, auth_inline: true) do
+      case Hex.Auth.with_session_api(:read, config, fn _config -> :ok end, auth_inline: true) do
         :ok ->
           :ok
 
@@ -986,6 +990,8 @@ defmodule Hex.RemoteConverger do
     case Hex.API.OAuth.sso_authorization(organizations) do
       {:ok, {status, _headers, %{"verification_uri" => uri}}}
       when status in 200..299 and is_binary(uri) ->
+        uri = Hex.Utils.printable_ascii(uri)
+
         # The URL goes in the prompt rather than beside it: `mix deps.get
         # --quiet` swallows info output, and asking someone to finish something
         # in a browser without telling them where is a dead end.

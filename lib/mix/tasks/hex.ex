@@ -122,10 +122,8 @@ defmodule Mix.Tasks.Hex do
 
   @doc false
   def auth_device do
-    clear_credentials()
-
     prompt_user = fn verification_uri, user_code ->
-      Hex.Shell.info("To authenticate, visit: #{verification_uri}")
+      Hex.Shell.info("To authenticate, visit: #{Hex.Utils.printable_ascii(verification_uri)}")
       Hex.Shell.info("")
       Hex.Shell.info("Your verification code:")
       Hex.Shell.info("")
@@ -139,6 +137,7 @@ defmodule Mix.Tasks.Hex do
 
     case Hex.API.OAuth.device_auth_flow("api repositories", prompt_user, open_browser: true) do
       {:ok, tokens} ->
+        clear_credentials()
         store_token(tokens)
 
       {:error, :timeout} ->
@@ -164,6 +163,7 @@ defmodule Mix.Tasks.Hex do
   end
 
   defp format_user_code(user_code) do
+    user_code = Hex.Utils.printable_ascii(user_code)
     mid = div(String.length(user_code), 2)
 
     String.slice(user_code, 0, mid) <>

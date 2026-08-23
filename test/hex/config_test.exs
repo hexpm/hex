@@ -83,9 +83,44 @@ defmodule Hex.ConfigTest do
       end)
     end
 
+    test "write/1 replaces the config instead of writing the tokens into it in place" do
+      in_tmp(fn ->
+        set_home_cwd()
+        Config.write("$oauth_token": %{access_token: "a_token"})
+        inode = File.stat!("hex.config").inode
+
+        Config.write("$oauth_token": %{access_token: "b_token"})
+
+        assert File.stat!("hex.config").inode != inode
+        assert permissions("hex.config") == 0o600
+        assert Path.wildcard("*") == ["hex.config"]
+      end)
+    end
+
     defp permissions(path) do
       rem(File.stat!(path).mode, 0o1000)
     end
+  end
+
+  test "update_repo/2 keeps concurrent repository writes from dropping each other" do
+    in_tmp(fn ->
+      set_home_cwd()
+      Config.write([])
+
+      names = Enum.map(1..15, &"hexpm:org#{&1}")
+
+      names
+      |> Enum.map(fn name ->
+        Task.async(fn -> Config.update_repo(name, &Map.put(&1, :auth_key, name)) end)
+      end)
+      |> Task.await_many(10_000)
+
+      repos = Config.read()[:"$repos"]
+
+      for name <- names do
+        assert repos[name].auth_key == name
+      end
+    end)
   end
 
   test "read/0 migrates string-keyed OAuth tokens to atom keys" do
