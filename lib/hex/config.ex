@@ -131,6 +131,7 @@ defmodule Hex.Config do
     case :io.read(pid, ~c"") do
       {:ok, term} -> consult(pid, [term | acc], string)
       {:error, reason} -> {:error, reason}
+      :error -> {:error, :invalid_term}
       :eof -> {:ok, Enum.reverse(acc)}
     end
   end

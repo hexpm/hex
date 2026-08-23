@@ -51,6 +51,18 @@ defmodule Hex.ConfigTest do
     end)
   end
 
+  test "read/0 raises when a stored binary is not valid UTF-8" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      Config.write(foo: [<<0xFF, 0xFE>>])
+
+      assert_raise Mix.Error, ~r/remove the file and run `mix hex\.user auth`/, fn ->
+        Config.read()
+      end
+    end)
+  end
+
   test "read/0 migrates string-keyed OAuth tokens to atom keys" do
     in_tmp(fn ->
       set_home_cwd()
