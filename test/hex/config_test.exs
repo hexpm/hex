@@ -39,6 +39,18 @@ defmodule Hex.ConfigTest do
     System.delete_env("MIX_XDG")
   end
 
+  test "read/0 raises when the config is not readable" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      File.write!(Path.join(Hex.State.fetch!(:config_home), "hex.config"), "[foo: :bar]")
+
+      assert_raise Mix.Error, ~r/remove the file and run `mix hex\.user auth`/, fn ->
+        Config.read()
+      end
+    end)
+  end
+
   test "read/0 migrates string-keyed OAuth tokens to atom keys" do
     in_tmp(fn ->
       set_home_cwd()
