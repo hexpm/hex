@@ -9,9 +9,10 @@ defmodule Hex.Config do
             migrate(term)
 
           {:error, _} ->
-            config = decode_elixir(binary)
-            write(config)
-            migrate(config)
+            Mix.raise(
+              "Could not read #{config_path()}, remove the file and run " <>
+                "`mix hex.user auth` to authenticate again"
+            )
         end
 
       {:error, _} ->
@@ -130,13 +131,9 @@ defmodule Hex.Config do
     case :io.read(pid, ~c"") do
       {:ok, term} -> consult(pid, [term | acc], string)
       {:error, reason} -> {:error, reason}
+      :error -> {:error, :invalid_term}
       :eof -> {:ok, Enum.reverse(acc)}
     end
-  end
-
-  defp decode_elixir(string) do
-    {term, _binding} = Code.eval_string(string)
-    term
   end
 
   def read_repos(config) do
