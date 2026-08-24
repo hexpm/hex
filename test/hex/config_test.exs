@@ -83,6 +83,19 @@ defmodule Hex.ConfigTest do
       end)
     end
 
+    test "write/1 tightens a directory an older Hex already created" do
+      in_tmp(fn ->
+        home = Path.join(File.cwd!(), "hex_home")
+        set_home_path(home)
+        File.mkdir_p!(home)
+        File.chmod!(home, 0o755)
+
+        Config.write("$oauth_token": %{access_token: "a_token"})
+
+        assert permissions(home) == 0o700
+      end)
+    end
+
     test "write/1 replaces the config instead of writing the tokens into it in place" do
       in_tmp(fn ->
         set_home_cwd()

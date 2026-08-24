@@ -98,9 +98,12 @@ defmodule Hex.Config do
 
     path = config_path()
     dir = Path.dirname(path)
-    new_dir? = not File.dir?(dir)
     File.mkdir_p!(dir)
-    if new_dir?, do: File.chmod!(dir, 0o700)
+
+    # Unconditionally, not only when the directory is new. An install that
+    # predates this is still world-readable, and the file mode below is no help
+    # if anyone can list the directory and open what is in it.
+    File.chmod!(dir, 0o700)
 
     write_private!(path, string)
 
@@ -127,6 +130,10 @@ defmodule Hex.Config do
   end
 
   defp create_private!(path) do
+    # The file exists at whatever mode the umask picked between the open and the
+    # chmod. Nobody can reach it in that window, because the directory is 0700
+    # by the time this runs, and the mode is set before anything is written to
+    # it either way.
     case :file.open(path, [:write, :binary, :exclusive]) do
       {:ok, device} ->
         :ok = :file.close(device)

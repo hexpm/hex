@@ -279,6 +279,19 @@ with_api(Permission, BaseConfig, Fun, Opts) ->
         {error, {auth_error, Reason}} when Optional =:= true, ?IS_REFRESH_FAILURE(Reason) ->
             %% Token refresh failed but auth is optional, fall back to no credentials
             execute_optional_with_retry(api, BaseConfig, Fun, AuthInline, Opts);
+        {error, {auth_error, token_refresh_failed}} when AuthInline =:= true ->
+            %% The server refused the refresh token, which leaves us with no
+            %% usable token, same as having none, so it gets the same offer to
+            %% authenticate. Without this the caller that asked to be prompted up
+            %% front is told to run mix hex.user auth instead of being asked.
+            %%
+            %% Not token_refresh_unavailable: there the refresh got no answer at
+            %% all, so the token may well still be good and the network is what
+            %% is wrong. Offering a device flow that needs the same network is no
+            %% help.
+            maybe_authenticate_and_retry(
+                api, BaseConfig, Fun, token_refresh_failed, initial_retries(), Opts
+            );
         {error, _} = Error ->
             Error
     end.

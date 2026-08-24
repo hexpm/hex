@@ -399,6 +399,35 @@ defmodule Hex.AuthTest do
       end)
     end
 
+    # A refused refresh leaves no usable token, same as having none, so it gets
+    # the same offer rather than three "run mix hex.user auth" messages.
+    test "asks to authenticate when the stored session was refused" do
+      in_tmp("preflight", fn ->
+        set_home_cwd()
+
+        Hex.OAuth.store_token(%{
+          access_token: "expired",
+          refresh_token: "refresh",
+          expires_at: System.system_time(:second) - 100
+        })
+
+        bypass = Bypass.open()
+        Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+        Bypass.expect(bypass, fn conn ->
+          assert conn.request_path == "/api/oauth/token"
+          erlang_resp(conn, 400, %{"error" => "invalid_grant"})
+        end)
+
+        send(self(), {:mix_shell_input, :yes?, false})
+        Hex.RemoteConverger.check_and_refresh_auth(["acme"])
+
+        assert_received {:mix_shell, :yes?, [question]}
+        assert question =~ "Token refresh failed"
+        assert question =~ "renew your authentication"
+      end)
+    end
+
     test "renews the session HEX_API_KEY does not stand in for" do
       in_tmp("preflight", fn ->
         set_home_cwd()
