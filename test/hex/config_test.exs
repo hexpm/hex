@@ -136,6 +136,36 @@ defmodule Hex.ConfigTest do
     end)
   end
 
+  test "update_repo/2 keeps a repository URL that only memory has" do
+    in_tmp(fn ->
+      set_home_cwd()
+      Config.write([])
+
+      # HEX_MIRROR and HEX_REPOS both land here without ever reaching the file,
+      # so deriving the new state from the file would send the next request to
+      # whatever the file says instead.
+      repos = put_in(Hex.State.fetch!(:repos)["hexpm"].url, "http://localhost:4043/repo")
+      Hex.State.put(:repos, repos)
+
+      Config.update_repo("hexpm", &Map.put(&1, :oauth_token, %{access_token: "a_token"}))
+
+      assert Hex.State.fetch!(:repos)["hexpm"].url == "http://localhost:4043/repo"
+      assert Hex.State.fetch!(:repos)["hexpm"].oauth_token == %{access_token: "a_token"}
+      assert Config.read()[:"$repos"]["hexpm"].oauth_token == %{access_token: "a_token"}
+    end)
+  end
+
+  test "update_repo/2 keeps a repository the file has and memory does not" do
+    in_tmp(fn ->
+      set_home_cwd()
+      Config.write("$repos": %{"hexpm:other" => %{auth_key: "other_key"}})
+
+      Config.update_repo("hexpm", &Map.put(&1, :oauth_token, %{access_token: "a_token"}))
+
+      assert Config.read()[:"$repos"]["hexpm:other"].auth_key == "other_key"
+    end)
+  end
+
   test "read/0 migrates string-keyed OAuth tokens to atom keys" do
     in_tmp(fn ->
       set_home_cwd()

@@ -210,37 +210,54 @@ defmodule Hex.Config do
   end
 
   def update_repos(repos) do
-    transaction(fn -> do_update_repos(do_read(), repos) end)
+    transaction(fn ->
+      write_repos(do_read(), repos)
+      put_state_repos(repos)
+    end)
   end
 
   # Replaces one repository's config and keeps what another process wrote for
   # the others. A write goes through the whole $repos key, so two repositories
   # exchanging a token at the same time drop each other's unless the read
   # happens under the same lock as the write.
+  #
+  # The two halves start from different places on purpose. The file is what
+  # another process may have written since, so the disk write starts from the
+  # file. Memory holds repositories the file does not, set from HEX_REPOS or
+  # HEX_MIRROR or by a caller, so the state write starts from the state. Taking
+  # both from the file replaces those with whatever the file says the next time
+  # any repository exchanges a token.
   def update_repo(name, fun) when is_function(fun, 1) do
     transaction(fn ->
       config = do_read()
-      repos = read_repos(config)
-      repo = Map.get_lazy(repos, name, fn -> Hex.Repo.get_repo(name) end)
-
-      do_update_repos(config, Map.put(repos, name, fun.(repo)))
+      write_repos(config, apply_to_repo(read_repos(config), name, fun))
+      put_state_repos(apply_to_repo(Hex.State.fetch!(:repos), name, fun))
     end)
   end
 
-  defp do_update_repos(config, repos) do
+  defp apply_to_repo(repos, name, fun) do
+    repo = Map.get_lazy(repos, name, fn -> Hex.Repo.get_repo(name) end)
+    Map.put(repos, name, fun.(repo))
+  end
+
+  defp write_repos(config, repos) do
     config_repos =
       repos
       |> Hex.Repo.clean_organizations()
       |> Hex.Repo.clean_hexpm()
 
+    config
+    |> Keyword.put(:"$repos", config_repos)
+    |> do_write()
+
+    :ok
+  end
+
+  defp put_state_repos(repos) do
     state_repos =
       repos
       |> Hex.Repo.merge_hexpm()
       |> Hex.Repo.update_organizations()
-
-    config
-    |> Keyword.put(:"$repos", config_repos)
-    |> do_write()
 
     Hex.State.put(:repos, state_repos)
   end
