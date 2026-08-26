@@ -43,6 +43,24 @@ defmodule Hex.SolverTest do
            """
   end
 
+  test "unsatisfiable dependency requirement" do
+    assert solve(unsatisfiable: nil) == %{unsatisfiable: "0.1.0", foo: "0.1.0"}
+
+    assert_received {:mix_shell, :error,
+                     [
+                       "\e[33mPackage unsatisfiable 0.2.0 can't be used because its requirement " <>
+                         "\"~> 0.1.0 and >= 0.2.0\" for foo can never be satisfied: " <>
+                         "\"~> 0.1.0\" and \">= 0.2.0\" are disjoint" <> _
+                     ]}
+
+    assert solve(unsatisfiable: "0.2.0") == """
+           Because "unsatisfiable >= 0.2.0" depends on "foo empty" which doesn't match any versions, "unsatisfiable >= 0.2.0" is forbidden.
+           So, because "your app" depends on "unsatisfiable 0.2.0", version solving failed.\
+           """
+
+    refute_received {:mix_shell, :error, _}
+  end
+
   test "backtrack" do
     assert solve(decimal: "0.2.0", ex_plex: "0.2.0") == %{decimal: "0.2.0", ex_plex: "0.2.0"}
     assert solve(decimal: "0.1.0", ex_plex: ">= 0.1.0") == %{decimal: "0.1.0", ex_plex: "0.1.2"}
