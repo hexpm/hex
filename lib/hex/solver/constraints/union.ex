@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.3 (291c624), do not edit manually
+# Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
 
 defmodule Hex.Solver.Constraints.Union do
   @moduledoc false
@@ -46,7 +46,7 @@ defmodule Hex.Solver.Constraints.Union do
   defp do_allows_all?(_lefts, []), do: true
   defp do_allows_all?([], _rights), do: false
 
-  def allows_any?(%Union{}, %Empty{}), do: true
+  def allows_any?(%Union{}, %Empty{}), do: false
 
   def allows_any?(%Union{} = left, right) do
     do_allows_any?(to_ranges(left), to_ranges(right))

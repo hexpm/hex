@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.3 (291c624), do not edit manually
+# Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
 
 defmodule Hex.Solver.Constraints.Version do
   @moduledoc false
@@ -16,7 +16,7 @@ defmodule Hex.Solver.Constraints.Version do
 
   def allows?(%Version{} = left, %Version{} = right), do: left == right
 
-  def allows_any?(%Version{}, %Empty{}), do: true
+  def allows_any?(%Version{}, %Empty{}), do: false
   def allows_any?(%Version{} = left, right), do: Constraint.allows?(right, left)
 
   def allows_all?(%Version{}, %Empty{}) do

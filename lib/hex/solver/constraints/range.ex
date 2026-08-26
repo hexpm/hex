@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.3 (291c624), do not edit manually
+# Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
 
 defmodule Hex.Solver.Constraints.Range do
   @moduledoc false
@@ -51,7 +51,7 @@ defmodule Hex.Solver.Constraints.Range do
     Enum.all?(ranges, &allows_all?(range, &1))
   end
 
-  def allows_any?(%Range{}, %Empty{}), do: true
+  def allows_any?(%Range{}, %Empty{}), do: false
   def allows_any?(%Range{} = range, %Elixir.Version{} = version), do: allows?(range, version)
 
   def allows_any?(%Range{} = left, %Range{} = right) do
