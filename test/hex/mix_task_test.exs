@@ -225,6 +225,19 @@ defmodule Hex.MixTaskTest do
     end
   end
 
+  defmodule WithUnsatisfiableDepVersion do
+    def project do
+      [
+        app: :with_unsatisfiable_dep_version,
+        version: "0.1.0",
+        consolidate_protocols: false,
+        deps: [
+          {:ex_doc, "~> 0.0.1 and >= 0.1.0"}
+        ]
+      ]
+    end
+  end
+
   defmodule WithMissingDepVersion do
     def project do
       [
@@ -897,6 +910,21 @@ defmodule Hex.MixTaskTest do
 
       message =
         ~r[Required version "> hello" for package ex_doc is incorrectly specified]
+
+      assert_raise Mix.Error, message, fn ->
+        Mix.Task.run("deps.get")
+      end
+    end)
+  end
+
+  test "deps.get with unsatisfiable version" do
+    Mix.Project.push(WithUnsatisfiableDepVersion)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+
+      message =
+        ~r[Required version "~> 0.0.1 and >= 0.1.0" for package ex_doc can never be satisfied .*"~> 0.0.1" and ">= 0.1.0" are disjoint]
 
       assert_raise Mix.Error, message, fn ->
         Mix.Task.run("deps.get")

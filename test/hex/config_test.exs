@@ -58,6 +58,18 @@ defmodule Hex.ConfigTest do
     end)
   end
 
+  test "read/0 raises when the config is not readable" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      File.write!(Path.join(Hex.State.fetch!(:config_home), "hex.config"), "[foo: :bar]")
+
+      assert_raise Mix.Error, ~r/remove the file and run `mix hex\.user auth`/, fn ->
+        Config.read()
+      end
+    end)
+  end
+
   if match?({:unix, _}, :os.type()) do
     test "write/1 leaves the config readable only by its owner" do
       in_tmp(fn ->
@@ -132,6 +144,18 @@ defmodule Hex.ConfigTest do
 
       for name <- names do
         assert repos[name].auth_key == name
+      end
+    end)
+  end
+
+  test "read/0 raises when a stored binary is not valid UTF-8" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      Config.write(foo: [<<0xFF, 0xFE>>])
+
+      assert_raise Mix.Error, ~r/remove the file and run `mix hex\.user auth`/, fn ->
+        Config.read()
       end
     end)
   end

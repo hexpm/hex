@@ -226,7 +226,7 @@ defmodule Hex.RemoteConverger do
   defp request_to_dependency(request) do
     constraint =
       if request.requirement do
-        Hex.Solver.parse_constraint!(request.requirement)
+        parse_requirement!(request.name, request.requirement, request.from)
       else
         %Hex.Solver.Constraints.Range{}
       end
@@ -486,11 +486,24 @@ defmodule Hex.RemoteConverger do
       Mix.raise("No package with name #{name} (from: #{from}) in registry")
     end
 
-    if req != nil and Version.parse_requirement(req) == :error do
+    if req != nil do
+      parse_requirement!(name, req, from)
+    end
+  end
+
+  defp parse_requirement!(name, req, from) do
+    Hex.Solver.parse_constraint!(req)
+  rescue
+    Version.InvalidRequirementError ->
       Mix.raise(
         "Required version #{inspect(req)} for package #{name} is incorrectly specified (from: #{from})"
       )
-    end
+
+    error in Hex.Solver.UnsatisfiableRequirementError ->
+      Mix.raise(
+        "Required version #{inspect(req)} for package #{name} can never be satisfied " <>
+          "(from: #{from}): #{inspect(error.left)} and #{inspect(error.right)} are disjoint"
+      )
   end
 
   defp verify_otp_app_names(dependencies) do
@@ -782,7 +795,7 @@ defmodule Hex.RemoteConverger do
         %{
           repo: if(opts[:repo] != "hexpm", do: opts[:repo]),
           name: opts[:hex],
-          constraint: Hex.Solver.parse_constraint!(req),
+          constraint: Registry.dependency_constraint(name, version, opts[:hex], req),
           optional: !!opts[:optional],
           label: Atom.to_string(app)
         }

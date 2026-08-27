@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.2.3 (291c624), do not edit manually
+# Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
 
 defmodule Hex.Solver do
   _ = """
@@ -80,6 +80,9 @@ defmodule Hex.Solver do
   @doc """
   Parses or converts a SemVer version or Elixir version requirement to an internal solver constraint
   that can be returned by the `Hex.Solver.Registry` or passed to `Hex.Solver.run/4`.
+
+  Raises `Version.InvalidRequirementError` if the requirement is invalid and
+  `Hex.Solver.UnsatisfiableRequirementError` if no version can satisfy it.
   """
   @spec parse_constraint!(String.t() | Version.t() | Version.Requirement.t()) :: constraint()
   def parse_constraint!(string) do

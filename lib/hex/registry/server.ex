@@ -50,7 +50,43 @@ defmodule Hex.Registry.Server do
   end
 
   def dependencies(repo, package, version) do
-    GenServer.call(@name, {:dependencies, repo, package, version}, @timeout)
+    case GenServer.call(@name, {:dependencies, repo, package, version}, @timeout) do
+      {:ok, deps} -> {:ok, Enum.map(deps, &dependency(package, version, &1))}
+      :error -> :error
+    end
+  end
+
+  def dependency_constraint(package, version, name, requirement) do
+    Hex.Solver.parse_constraint!(requirement || ">= 0.0.0")
+  rescue
+    error in Hex.Solver.UnsatisfiableRequirementError ->
+      warn_unsatisfiable(package, version, name, error)
+      %Hex.Solver.Constraints.Empty{}
+  end
+
+  defp dependency(package, version, {repo, name, app, requirement, optional}) do
+    %{
+      repo: if(repo != "hexpm", do: repo),
+      name: name,
+      constraint: dependency_constraint(package, version, name, requirement),
+      optional: optional,
+      label: app
+    }
+  end
+
+  defp warn_unsatisfiable(package, version, name, error) do
+    key = {package, to_string(version), name}
+    warned = Hex.State.fetch!(:unsatisfiable_requirements)
+
+    unless key in warned do
+      Hex.State.put(:unsatisfiable_requirements, MapSet.put(warned, key))
+
+      Hex.Shell.warn(
+        "Package #{package} #{version} can't be used because its requirement " <>
+          "#{inspect(error.requirement)} for #{name} can never be satisfied: " <>
+          "#{inspect(error.left)} and #{inspect(error.right)} are disjoint"
+      )
+    end
   end
 
   def inner_checksum(repo, package, version) do
@@ -220,17 +256,6 @@ defmodule Hex.Registry.Server do
           :error
 
         deps ->
-          deps =
-            Enum.map(deps, fn {repo, package, app, requirement, optional} ->
-              %{
-                repo: if(repo != "hexpm", do: repo),
-                name: package,
-                constraint: Hex.Solver.parse_constraint!(requirement || ">= 0.0.0"),
-                optional: optional,
-                label: app
-              }
-            end)
-
           {:ok, deps}
       end
     end)
