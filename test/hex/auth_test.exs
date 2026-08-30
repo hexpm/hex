@@ -307,6 +307,35 @@ defmodule Hex.AuthTest do
       end)
     end
 
+    test "adds the mix task when the server refuses to start" do
+      in_tmp("sso_reauth", fn ->
+        set_home_cwd()
+        store_token()
+        Hex.Auth.callbacks().sso_reauth.(["acme"])
+
+        # The server's refusal never names a client command, since it cannot
+        # know which client asked, so the task comes from here.
+        bypass = Bypass.open()
+        Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+        Bypass.expect(bypass, fn conn ->
+          assert conn.request_path == "/api/oauth/sso_authorization"
+
+          erlang_resp(conn, 422, %{
+            "message" => "SSO re-authorization is for an OAuth session"
+          })
+        end)
+
+        send(self(), {:mix_shell_input, :yes?, true})
+
+        check_sso_reauth([{"hexpm:acme", "foo"}])
+
+        output = Case.shell_output()
+        assert output =~ "SSO re-authorization is for an OAuth session"
+        assert output =~ "Run `mix hex.user auth` to authenticate again"
+      end)
+    end
+
     test "prints the authorization URL without the characters a terminal acts on" do
       in_tmp("sso_reauth", fn ->
         set_home_cwd()

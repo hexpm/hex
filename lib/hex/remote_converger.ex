@@ -1012,11 +1012,20 @@ defmodule Hex.RemoteConverger do
         Hex.Shell.prompt("Open #{uri} to authenticate, then press enter")
         finish_sso_reauth(organizations)
 
+      # The server's message never names a client command, since it cannot know
+      # which client asked, so the mix task goes in here. A full `mix hex.user
+      # auth` re-establishes organization access at approval, which makes it
+      # the fallback whatever kept the in-place flow from starting.
       {:ok, {_status, _headers, %{"message" => message}}} when is_binary(message) ->
-        Hex.Shell.warn("Could not start SSO authentication: #{message}")
+        Hex.Shell.warn(
+          "Could not start SSO authentication: #{message}. " <>
+            "Run `mix hex.user auth` to authenticate again."
+        )
 
       _other ->
-        Hex.Shell.warn("Could not start SSO authentication.")
+        Hex.Shell.warn(
+          "Could not start SSO authentication. Run `mix hex.user auth` to authenticate again."
+        )
     end
   end
 
