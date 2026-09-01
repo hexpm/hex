@@ -36,7 +36,7 @@ defmodule Mix.Tasks.Hex.User do
         whoami()
 
       ["auth"] ->
-        auth()
+        Mix.Tasks.Hex.auth_device()
 
       ["deauth"] ->
         deauth()
@@ -76,18 +76,8 @@ defmodule Mix.Tasks.Hex.User do
     end
   end
 
-  defp auth() do
-    Mix.Tasks.Hex.auth()
-  end
-
   defp deauth() do
-    # Revoke and clear OAuth tokens
-    Mix.Tasks.Hex.revoke_existing_oauth_tokens()
-    Hex.OAuth.clear_tokens()
-
-    # Revoke and cleanup old API keys
-    Mix.Tasks.Hex.revoke_and_cleanup_old_api_keys()
-
+    Mix.Tasks.Hex.clear_credentials()
     deauth_organizations()
 
     Hex.Shell.info(

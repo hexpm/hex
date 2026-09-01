@@ -121,18 +121,9 @@ defmodule Mix.Tasks.Hex do
   end
 
   @doc false
-  def auth(opts \\ []) do
-    auth_device(opts)
-  end
-
-  @doc false
-  def auth_device(_opts \\ []) do
-    # Clean up any existing authentication
-    revoke_existing_oauth_tokens()
-    revoke_and_cleanup_old_api_keys()
-
+  def auth_device do
     prompt_user = fn verification_uri, user_code ->
-      Hex.Shell.info("To authenticate, visit: #{verification_uri}")
+      Hex.Shell.info("To authenticate, visit: #{Hex.Utils.printable_ascii(verification_uri)}")
       Hex.Shell.info("")
       Hex.Shell.info("Your verification code:")
       Hex.Shell.info("")
@@ -146,6 +137,7 @@ defmodule Mix.Tasks.Hex do
 
     case Hex.API.OAuth.device_auth_flow("api repositories", prompt_user, open_browser: true) do
       {:ok, tokens} ->
+        clear_credentials()
         store_token(tokens)
 
       {:error, :timeout} ->
@@ -171,6 +163,7 @@ defmodule Mix.Tasks.Hex do
   end
 
   defp format_user_code(user_code) do
+    user_code = Hex.Utils.printable_ascii(user_code)
     mid = div(String.length(user_code), 2)
 
     String.slice(user_code, 0, mid) <>
@@ -230,26 +223,39 @@ defmodule Mix.Tasks.Hex do
   end
 
   @doc false
+  def clear_credentials do
+    revoke_existing_oauth_tokens()
+    Hex.OAuth.clear_tokens()
+    revoke_and_cleanup_old_api_keys()
+  end
+
+  @doc false
   def revoke_existing_oauth_tokens do
     case Hex.Config.read()[:"$oauth_token"] do
-      nil ->
-        :ok
-
       token_data when is_map(token_data) ->
         if access_token = token_data[:access_token] do
-          case Hex.API.OAuth.revoke_token(access_token) do
-            {:ok, {code, _, _}} when code in 200..299 ->
-              :ok
-
-            _ ->
-              :ok
-          end
+          revoke_token(access_token)
         end
 
-        Hex.Config.remove([:"$oauth_token"])
+        :ok
 
       _ ->
         :ok
+    end
+  end
+
+  # A token the server did not revoke keeps working until it expires, so say so
+  # rather than reporting the local clear as the whole job.
+  defp revoke_token(access_token) do
+    case Hex.API.OAuth.revoke_token(access_token) do
+      {:ok, {status, _headers, _body}} when status in 200..299 ->
+        :ok
+
+      _other ->
+        Hex.Shell.warn(
+          "Could not revoke the existing authentication token on Hex. " <>
+            "It stays valid until it expires."
+        )
     end
   end
 

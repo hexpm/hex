@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (cf6a12c), do not edit manually
+%% Vendored from hex_core v0.19.0 (9ea52a0), do not edit manually
 
 %% @doc
 %% Hex HTTP API - Organizations.

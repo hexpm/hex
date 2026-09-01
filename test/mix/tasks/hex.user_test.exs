@@ -240,10 +240,9 @@ defmodule Mix.Tasks.Hex.UserTest do
       Hex.OAuth.store_token(tokens)
       assert Hex.OAuth.has_tokens?()
 
-      # Retrieve tokens - same token for both read and write
-      # Same token is returned for both read and write operations
-      assert {:ok, "write_access"} = Hex.OAuth.get_token()
-      assert {:ok, "write_access"} = Hex.OAuth.get_token()
+      # Retrieve tokens - the same token is used for both read and write
+      assert %{access_token: "write_access", refresh_token: "write_refresh"} =
+               Hex.State.get(:oauth_token)
 
       # Clear tokens
       Hex.OAuth.clear_tokens()

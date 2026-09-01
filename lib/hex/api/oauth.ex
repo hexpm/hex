@@ -26,20 +26,39 @@ defmodule Hex.API.OAuth do
     config = Client.config()
 
     case :mix_hex_api_oauth.device_auth_flow(config, @client_id, scopes, prompt_user, opts) do
-      {:ok, tokens} -> {:ok, drop_undefined_refresh_token(tokens)}
+      {:ok, tokens} -> {:ok, drop_empty_sso_reauth_required(tokens)}
       other -> other
     end
   end
 
-  # :mix_hex_api_oauth always includes a :refresh_token key, using the atom
-  # :undefined when the server didn't return one. Drop it so stored token maps
-  # only ever contain a binary refresh token (or no key at all).
-  defp drop_undefined_refresh_token(%{refresh_token: refresh} = tokens)
-       when refresh in [:undefined, nil] do
-    Map.delete(tokens, :refresh_token)
+  # :mix_hex_api_oauth reports "nothing is flagged" as an empty list. A stored
+  # token map carries the key only when there is something in it.
+  defp drop_empty_sso_reauth_required(%{sso_reauth_required: []} = tokens) do
+    Map.delete(tokens, :sso_reauth_required)
   end
 
-  defp drop_undefined_refresh_token(tokens), do: tokens
+  defp drop_empty_sso_reauth_required(tokens), do: tokens
+
+  @doc """
+  Requests a URL for authenticating this session against organizations that
+  require single sign-on.
+
+  ## Examples
+
+      iex> Hex.API.OAuth.sso_authorization(["acme"])
+      {:ok, {201, _headers, %{"verification_uri" => "https://hex.pm/sso/authorize/...",
+                              "expires_in" => 600}}}
+  """
+  def sso_authorization(organizations) do
+    config = Client.config()
+
+    Hex.Auth.with_session_api(
+      :read,
+      config,
+      fn config -> :mix_hex_api_oauth.sso_authorization(config, organizations) end,
+      auth_inline: false
+    )
+  end
 
   @doc """
   Revokes an OAuth token (access or refresh token).

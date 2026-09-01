@@ -61,7 +61,9 @@ defmodule Hex.RemoteConverger do
       |> Enum.concat()
       |> verify_prefetches()
 
-    check_and_refresh_auth(prefetches)
+    organizations = user_oauth_organizations(prefetches)
+    check_and_refresh_auth(organizations)
+    check_sso_reauth(organizations)
     Registry.prefetch(prefetches)
 
     locked = prepare_locked(lock, old_lock, deps)
@@ -920,67 +922,167 @@ defmodule Hex.RemoteConverger do
     version1.major == 0 and version2.major == 0 and version1.minor != version2.minor
   end
 
-  defp check_and_refresh_auth(prefetches) do
-    if auth_preflight_required?(prefetches) do
-      # Try to get token with authentication prompting enabled
-      # hex_cli_auth ensures only one process prompts even if multiple processes
-      # detect the expired token concurrently
+  # A package from an organization the user session authenticates for needs that
+  # session, so it is renewed, or asked for, once here instead of once per
+  # parallel fetch. The function passed to with_session_api does nothing:
+  # resolving the credentials is what the preflight is after. It goes through
+  # the session rather than through HEX_API_KEY because the fetches this runs
+  # ahead of use the session; an API key would resolve here and leave the
+  # session to be refreshed mid-fetch, past the point where anything can be
+  # asked.
+  @doc false
+  def check_and_refresh_auth([]), do: :ok
 
+  def check_and_refresh_auth(_organizations) do
+    if Hex.State.fetch!(:offline) do
+      :ok
+    else
       config = Hex.API.Client.config([])
 
-      :read
-      |> Hex.Auth.with_api(
-        config,
-        fn
-          %{api_key: api_key} when is_binary(api_key) -> :ok
-          %{} -> {:error, :no_auth}
-        end,
-        optional: true,
-        auth_inline: true
-      )
-      |> case do
+      case Hex.Auth.with_session_api(:read, config, fn _config -> :ok end, auth_inline: true) do
         :ok ->
-          # Token is valid, was successfully refreshed, or user authenticated
           :ok
 
         {:error, {:auth_error, :auth_declined}} ->
-          # User declined authentication
           Hex.Shell.warn(
             "Private packages will not be available. " <>
               "Run `mix hex.user auth` to authenticate."
           )
 
-        {:error, {:auth_error, _reason}} ->
+        {:error, {:auth_error, :token_refresh_unavailable}} ->
+          Hex.Shell.warn(
+            "Could not reach Hex to renew your authentication. " <>
+              "Private packages will not be available."
+          )
+
+        {:error, _reason} ->
           Hex.Shell.warn(
             "Authentication failed. Private packages will not be available. " <>
               "Run `mix hex.user auth` to authenticate."
           )
-
-        {:error, _reason} ->
-          # Other errors (shouldn't happen with prompt_auth: true, but handle gracefully)
-          :ok
       end
-    else
-      :ok
     end
   end
 
+  # The organizations a resolution can need are exactly the ones its own
+  # dependencies name: a published package's dependencies come from the public
+  # repository or from its own organization, so nothing private turns up part
+  # way through. That is what makes one prompt for the batch possible rather
+  # than a 403 at a time, and it is why a member of ten SSO organizations who
+  # depends on two is asked about two.
   @doc false
-  def auth_preflight_required?(prefetches) do
+  def check_sso_reauth(organizations) do
+    Hex.OAuth.sso_reauth_required()
+    |> Enum.filter(&(&1 in organizations))
+    |> prompt_sso_reauth()
+  end
+
+  defp prompt_sso_reauth([]), do: :ok
+
+  defp prompt_sso_reauth(organizations) do
+    cond do
+      Hex.State.fetch!(:offline) ->
+        unavailable(organizations, "Hex is offline")
+
+      Hex.Shell.yes?("#{sso_subject(organizations)} SSO authentication. Authenticate now?") ->
+        start_sso_reauth(organizations)
+
+      true ->
+        Hex.Shell.warn("Packages from #{names(organizations)} will not be available.")
+    end
+  end
+
+  defp unavailable(organizations, reason) do
+    Hex.Shell.warn(
+      "#{sso_subject(organizations)} SSO authentication, but #{reason}. " <>
+        "Packages from #{names(organizations)} will not be available."
+    )
+  end
+
+  defp start_sso_reauth(organizations) do
+    case Hex.API.OAuth.sso_authorization(organizations) do
+      {:ok, {status, _headers, %{"verification_uri" => uri}}}
+      when status in 200..299 and is_binary(uri) ->
+        uri = Hex.Utils.printable_ascii(uri)
+
+        # The URL goes in the prompt rather than beside it: `mix deps.get
+        # --quiet` swallows info output, and asking someone to finish something
+        # in a browser without telling them where is a dead end.
+        open_browser(uri)
+        Hex.Shell.prompt("Open #{uri} to authenticate, then press enter")
+        finish_sso_reauth(organizations)
+
+      # The server's message never names a client command, since it cannot know
+      # which client asked, so the mix task goes in here. A full `mix hex.user
+      # auth` re-establishes organization access at approval, which makes it
+      # the fallback whatever kept the in-place flow from starting.
+      {:ok, {_status, _headers, %{"message" => message}}} when is_binary(message) ->
+        Hex.Shell.warn(
+          "Could not start SSO authentication: #{Hex.Utils.escape_terminal(message)}. " <>
+            "Run `mix hex.user auth` to authenticate again."
+        )
+
+      _other ->
+        Hex.Shell.warn(
+          "Could not start SSO authentication. Run `mix hex.user auth` to authenticate again."
+        )
+    end
+  end
+
+  # Opening a browser is a convenience on top of the printed URL, so nothing it
+  # does is worth ending a resolution over: System.cmd/2 raises when the
+  # platform has no opener installed.
+  defp open_browser(uri) do
+    case URI.parse(uri) do
+      %URI{scheme: scheme} when scheme in ["http", "https"] ->
+        try do
+          Hex.Utils.system_open(uri)
+        catch
+          _kind, _reason -> :ok
+        end
+
+      _other ->
+        :ok
+    end
+  end
+
+  # The session and its refresh token are untouched by all this; what changed is
+  # what the session may reach, so a refresh is what picks it up.
+  defp finish_sso_reauth(organizations) do
+    config = Hex.API.Client.config([])
+
+    with :ok <- Hex.Auth.refresh_tokens(config),
+         [] <- Enum.filter(Hex.OAuth.sso_reauth_required(), &(&1 in organizations)) do
+      :ok
+    else
+      _other ->
+        Hex.Shell.warn(
+          "#{sso_subject(organizations)} SSO authentication. " <>
+            "Packages from #{names(organizations)} will not be available."
+        )
+    end
+  end
+
+  defp sso_subject([organization]), do: "#{organization} requires"
+  defp sso_subject(organizations), do: "#{names(organizations)} require"
+
+  defp names(organizations), do: Enum.join(organizations, ", ")
+
+  # The organizations among the prefetched repositories that the stored user
+  # session authenticates for. An organization with its own key does not touch
+  # that session, so nothing about it is worth asking or refreshing for.
+  @doc false
+  def user_oauth_organizations(prefetches) do
     prefetches
     |> Enum.map(fn {repo, _package} -> repo end)
     |> Enum.uniq()
-    |> Enum.any?(&repo_requires_user_oauth?/1)
-  end
+    |> Enum.flat_map(fn
+      "hexpm:" <> organization = repo ->
+        if repo |> Hex.Repo.get_repo() |> repo_uses_user_oauth?(), do: [organization], else: []
 
-  defp repo_requires_user_oauth?("hexpm:" <> _ = repo) do
-    repo
-    |> Hex.Repo.get_repo()
-    |> repo_uses_user_oauth?()
-  end
-
-  defp repo_requires_user_oauth?(_repo) do
-    false
+      _repo ->
+        []
+    end)
   end
 
   defp repo_uses_user_oauth?(repo_config) do

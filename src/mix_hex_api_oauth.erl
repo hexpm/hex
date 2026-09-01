@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (cf6a12c), do not edit manually
+%% Vendored from hex_core v0.19.0 (9ea52a0), do not edit manually
 
 %% @doc
 %% Hex HTTP API - OAuth.
@@ -10,17 +10,24 @@
     device_auth_flow/5,
     poll_device_token/3,
     refresh_token/3,
+    sso_authorization/2,
+    sso_reauth_required/1,
     revoke_token/3,
     client_credentials_token/4,
-    client_credentials_token/5
+    client_credentials_token/5,
+    win_cmd_args/1
 ]).
 
 -export_type([oauth_tokens/0, device_auth_error/0]).
 
 -type oauth_tokens() :: #{
     access_token := binary(),
-    refresh_token => binary() | undefined,
-    expires_at := integer()
+    refresh_token => binary(),
+    expires_at := integer(),
+    %% Organizations the session must authenticate against their identity
+    %% provider for. Their scopes are not in this token and re-requesting them
+    %% will not help; see sso_authorization/2.
+    sso_reauth_required => [binary()]
 }.
 
 -type device_auth_error() ::
@@ -142,27 +149,46 @@ device_auth_flow(Config, ClientId, Scope, PromptUser) ->
 ) -> {ok, oauth_tokens()} | {error, device_auth_error()}.
 device_auth_flow(Config, ClientId, Scope, PromptUser, Opts) ->
     case device_authorization(Config, ClientId, Scope, Opts) of
-        {ok, {200, _, DeviceResponse}} when is_map(DeviceResponse) ->
-            #{
-                <<"device_code">> := DeviceCode,
-                <<"user_code">> := UserCode,
-                <<"verification_uri_complete">> := VerificationUri,
-                <<"expires_in">> := ExpiresIn,
-                <<"interval">> := IntervalSeconds
-            } = DeviceResponse,
-            ok = PromptUser(VerificationUri, UserCode),
-            OpenBrowser = proplists:get_value(open_browser, Opts, false),
-            case OpenBrowser of
-                true -> open_browser(VerificationUri);
-                false -> ok
-            end,
-            ExpiresAt = erlang:system_time(second) + ExpiresIn,
-            poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt);
+        {ok, {200, _, DeviceResponse}} ->
+            case device_authorization_fields(DeviceResponse) of
+                {ok, DeviceCode, UserCode, VerificationUri, ExpiresIn, IntervalSeconds} ->
+                    ok = PromptUser(VerificationUri, UserCode),
+                    OpenBrowser = proplists:get_value(open_browser, Opts, false),
+                    case OpenBrowser of
+                        true -> open_browser(VerificationUri);
+                        false -> ok
+                    end,
+                    ExpiresAt = erlang:system_time(second) + ExpiresIn,
+                    poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt);
+                error ->
+                    {error, {device_auth_failed, 200, DeviceResponse}}
+            end;
         {ok, {Status, _, Body}} ->
             {error, {device_auth_failed, Status, Body}};
         {error, Reason} ->
             {error, Reason}
     end.
+
+%% @private
+%% The fields the flow goes on to use, in the types it uses them as: the
+%% interval is slept on and the expiry is added to a timestamp.
+device_authorization_fields(#{
+    <<"device_code">> := DeviceCode,
+    <<"user_code">> := UserCode,
+    <<"verification_uri_complete">> := VerificationUri,
+    <<"expires_in">> := ExpiresIn,
+    <<"interval">> := Interval
+}) when
+    is_binary(DeviceCode),
+    is_binary(UserCode),
+    is_binary(VerificationUri),
+    is_integer(ExpiresIn),
+    is_integer(Interval),
+    Interval >= 0
+->
+    {ok, DeviceCode, UserCode, VerificationUri, ExpiresIn, Interval};
+device_authorization_fields(_DeviceResponse) ->
+    error.
 
 %% @private
 poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt) ->
@@ -173,18 +199,20 @@ poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt) ->
         false ->
             timer:sleep(IntervalSeconds * 1000),
             case poll_device_token(Config, ClientId, DeviceCode) of
-                {ok, {200, _, TokenResponse}} when is_map(TokenResponse) ->
-                    #{
-                        <<"access_token">> := AccessToken,
-                        <<"expires_in">> := ExpiresIn
-                    } = TokenResponse,
-                    RefreshToken = maps:get(<<"refresh_token">>, TokenResponse, undefined),
-                    TokenExpiresAt = erlang:system_time(second) + ExpiresIn,
-                    {ok, #{
-                        access_token => AccessToken,
-                        refresh_token => RefreshToken,
-                        expires_at => TokenExpiresAt
-                    }};
+                {ok, {200, _, TokenResponse}} ->
+                    case token_response_fields(TokenResponse) of
+                        {ok, AccessToken, ExpiresIn} ->
+                            Tokens = #{
+                                access_token => AccessToken,
+                                expires_at => erlang:system_time(second) + ExpiresIn
+                            },
+                            {ok,
+                                put_sso_reauth_required(
+                                    put_refresh_token(Tokens, TokenResponse), TokenResponse
+                                )};
+                        error ->
+                            {error, {poll_failed, 200, TokenResponse}}
+                    end;
                 {ok, {400, _, #{<<"error">> := <<"authorization_pending">>}}} ->
                     poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt);
                 {ok, {400, _, #{<<"error">> := <<"slow_down">>}}} ->
@@ -198,8 +226,12 @@ poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt) ->
                     {error, {access_denied, Status, Body}};
                 {ok, {Status, _, Body}} ->
                     {error, {poll_failed, Status, Body}};
-                {error, Reason} ->
-                    {error, Reason}
+                {error, _Reason} ->
+                    %% A request that did not get through says nothing about the
+                    %% authorization, which the user may be minutes into. The
+                    %% device code lives on the server until it expires, so keep
+                    %% polling until then.
+                    poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt)
             end
     end.
 
@@ -261,6 +293,30 @@ refresh_token(Config, ClientId, RefreshToken) ->
         <<"client_id">> => ClientId
     },
     mix_hex_api:post(Config, Path, Params).
+
+%% @doc
+%% Requests a URL for authenticating the current session against organizations
+%% that require single sign-on.
+%%
+%% The session the access token belongs to is the one being authorized: its
+%% owner opens the URL in a browser, completes SSO, and the next token refresh
+%% carries the scopes again. The URL is single-use and short-lived.
+%%
+%% Examples:
+%%
+%% ```
+%% 1> Config = mix_hex_core:default_config().
+%% 2> mix_hex_api_oauth:sso_authorization(Config, [<<"acme">>]).
+%% {ok, {201, _, #{
+%%     <<"verification_uri">> => <<"https://hex.pm/sso/authorize/...">>,
+%%     <<"expires_in">> => 600
+%% }}}
+%% '''
+%% @end
+-spec sso_authorization(mix_hex_core:config(), [binary()]) -> mix_hex_api:response().
+sso_authorization(Config, Organizations) ->
+    Path = <<"oauth/sso_authorization">>,
+    mix_hex_api:post(Config, Path, #{<<"organizations">> => Organizations}).
 
 %% @doc
 %% Exchanges an API key for an OAuth access token using the client credentials grant.
@@ -343,25 +399,55 @@ revoke_token(Config, ClientId, Token) ->
     },
     mix_hex_api:post(Config, Path, Params).
 
+%% @doc
+%% Organizations a token response says the session has to authenticate against
+%% their identity provider for.
+%%
+%% Returns `{ok, []}' when the response does not carry the field, which is what
+%% servers that predate it send and means nothing is lapsed. Returns `error'
+%% when the field is there in a shape that cannot be read, which says nothing
+%% about what has lapsed and must not be taken for the empty set.
+%% @end
+-spec sso_reauth_required(map()) -> {ok, [binary()]} | error.
+sso_reauth_required(#{<<"sso_reauth_required">> := Organizations}) when is_list(Organizations) ->
+    case lists:all(fun is_binary/1, Organizations) of
+        true -> {ok, Organizations};
+        false -> error
+    end;
+sso_reauth_required(#{<<"sso_reauth_required">> := _Organizations}) ->
+    error;
+sso_reauth_required(_TokenResponse) ->
+    {ok, []}.
+
 %%====================================================================
 %% Internal functions
 %%====================================================================
 
 %% @private
-%% Open a URL in the default browser.
-%% Uses platform-specific commands: open (macOS), xdg-open (Linux), start (Windows).
--spec open_browser(binary()) -> ok | {error, browser_not_found}.
+%% Opens a URL in the default browser using the platform's opener: `open' on
+%% macOS, `xdg-open' on Linux, `start' on Windows. Returns
+%% `{error, browser_not_found}' when none of them exists, which is the ordinary
+%% case on a headless machine, and `{error, invalid_url}' for anything that is
+%% not an http(s) URL.
+-spec open_browser(binary()) -> ok | {error, browser_not_found | invalid_url}.
 open_browser(Url) when is_binary(Url) ->
-    ok = ensure_valid_http_url(Url),
-    UrlStr = binary_to_list(Url),
+    case valid_http_url(Url) of
+        true ->
+            spawn_browser(binary_to_list(Url));
+        false ->
+            {error, invalid_url}
+    end.
+
+%% @private
+spawn_browser(Url) ->
     {Cmd, Args} =
         case os:type() of
             {unix, darwin} ->
-                {"open", [UrlStr]};
+                {"open", [Url]};
             {unix, _} ->
-                {"xdg-open", [UrlStr]};
+                {"xdg-open", [Url]};
             {win32, _} ->
-                {"cmd", ["/c", "start", "", UrlStr]}
+                {"cmd", win_cmd_args(Url)}
         end,
     case os:find_executable(Cmd) of
         false ->
@@ -372,13 +458,70 @@ open_browser(Url) when is_binary(Url) ->
     end.
 
 %% @private
-%% Validates that a URL uses http:// or https:// scheme.
--spec ensure_valid_http_url(binary()) -> ok.
-ensure_valid_http_url(Url) when is_binary(Url) ->
+%% `start' takes its first quoted argument as the window title, so the empty
+%% string keeps the URL in the position `start' opens.
+-spec win_cmd_args(string()) -> [string()].
+win_cmd_args(Url) ->
+    ["/c", "start", "", escape_win_cmd(Url)].
+
+%% @private
+%% cmd.exe parses the command line before `start' sees it, and erts only quotes
+%% an argument that contains whitespace, so every character cmd acts on is
+%% prefixed with a caret. `%' is included because cmd expands `%NAME%' before it
+%% scans for separators.
+escape_win_cmd(Url) ->
+    lists:flatmap(fun escape_win_cmd_character/1, Url).
+
+%% @private
+escape_win_cmd_character(Character) when
+    Character =:= $^;
+    Character =:= $&;
+    Character =:= $|;
+    Character =:= $<;
+    Character =:= $>;
+    Character =:= $(;
+    Character =:= $);
+    Character =:= $";
+    Character =:= $%
+->
+    [$^, Character];
+escape_win_cmd_character(Character) ->
+    [Character].
+
+%% @private
+%% Whether a URL uses the http:// or https:// scheme.
+-spec valid_http_url(binary()) -> boolean().
+valid_http_url(Url) when is_binary(Url) ->
     case uri_string:parse(Url) of
-        #{scheme := <<"https">>} -> ok;
-        #{scheme := <<"http">>} -> ok;
-        _ -> throw({invalid_url, Url})
+        #{scheme := <<"https">>} -> true;
+        #{scheme := <<"http">>} -> true;
+        _ -> false
+    end.
+
+%% @private
+%% The access token and its lifetime, in the types the caller uses them as.
+token_response_fields(#{<<"access_token">> := AccessToken, <<"expires_in">> := ExpiresIn}) when
+    is_binary(AccessToken), is_integer(ExpiresIn)
+->
+    {ok, AccessToken, ExpiresIn};
+token_response_fields(_TokenResponse) ->
+    error.
+
+%% @private
+%% A response without a refresh token carries no key at all rather than a
+%% placeholder, so what a build tool stores is only ever a real token.
+put_refresh_token(Tokens, #{<<"refresh_token">> := RefreshToken}) when is_binary(RefreshToken) ->
+    Tokens#{refresh_token => RefreshToken};
+put_refresh_token(Tokens, _TokenResponse) ->
+    Tokens.
+
+%% @private
+%% A response whose sso_reauth_required cannot be read carries no key, so the
+%% caller is not handed the empty set as if the server had sent it.
+put_sso_reauth_required(Tokens, TokenResponse) ->
+    case sso_reauth_required(TokenResponse) of
+        {ok, Organizations} -> Tokens#{sso_reauth_required => Organizations};
+        error -> Tokens
     end.
 
 %% @private

@@ -102,6 +102,41 @@ defmodule Hex.UtilsTest do
     end
   end
 
+  describe "win_cmd_args/1" do
+    test "passes the empty title argument start expects" do
+      assert Hex.Utils.win_cmd_args("https://hex.pm/sso/authorize/abc") ==
+               ["/c", "start", "", "https://hex.pm/sso/authorize/abc"]
+    end
+
+    test "escapes the characters cmd.exe acts on" do
+      assert Hex.Utils.win_cmd_args(~s|https://hex.pm/?a=1&b=2\|c<d>e(f)g"h^i|) ==
+               [
+                 "/c",
+                 "start",
+                 "",
+                 ~s|https://hex.pm/?a=1^&b=2^\|c^<d^>e^(f^)g^"h^^i|
+               ]
+    end
+
+    test "escapes the percent signs cmd.exe expands environment variables from" do
+      assert Hex.Utils.win_cmd_args("https://hex.pm/%COMSPEC%") ==
+               ["/c", "start", "", "https://hex.pm/^%COMSPEC^%"]
+    end
+  end
+
+  describe "printable_ascii/1" do
+    test "keeps printable ASCII" do
+      assert Hex.Utils.printable_ascii("https://hex.pm/oauth/device?code=ABCD-1234") ==
+               "https://hex.pm/oauth/device?code=ABCD-1234"
+    end
+
+    test "drops escape sequences, newlines and everything else outside printable ASCII" do
+      assert Hex.Utils.printable_ascii("a\e[31mb\nc\td\x7Fe") == "a[31mbcde"
+      assert Hex.Utils.printable_ascii("a\u{202E}b") == "ab"
+      assert Hex.Utils.printable_ascii(<<0x85::utf8>>) == ""
+    end
+  end
+
   defp render(advisory, line_prefix \\ "") do
     advisory
     |> Hex.Utils.format_advisory_ansi(line_prefix)
