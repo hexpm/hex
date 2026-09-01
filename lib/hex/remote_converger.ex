@@ -1018,7 +1018,7 @@ defmodule Hex.RemoteConverger do
       # the fallback whatever kept the in-place flow from starting.
       {:ok, {_status, _headers, %{"message" => message}}} when is_binary(message) ->
         Hex.Shell.warn(
-          "Could not start SSO authentication: #{message}. " <>
+          "Could not start SSO authentication: #{Hex.Utils.escape_terminal(message)}. " <>
             "Run `mix hex.user auth` to authenticate again."
         )
 
