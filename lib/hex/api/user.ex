@@ -17,16 +17,4 @@ defmodule Hex.API.User do
       optional: true
     )
   end
-
-  # NOTE: Only used for testing
-  def new(username, email, password) do
-    config = Client.config()
-
-    :mix_hex_api_user.create(
-      config,
-      to_string(username),
-      to_string(password),
-      to_string(email)
-    )
-  end
 end
