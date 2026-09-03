@@ -204,9 +204,22 @@ defmodule HexTest.Hexpm do
     :mix_hex_api.post(config, ["repo"], body)
   end
 
+  def new_user(username, email, password) do
+    config = Hex.API.Client.config()
+
+    body = %{
+      "username" => to_string(username),
+      "email" => to_string(email),
+      "password" => to_string(password)
+    }
+
+    {:ok, {201, _, _}} = :mix_hex_api.post(config, ["user"], body)
+    :ok
+  end
+
   def new_user(username, email, password, key) do
     permissions = [%{"domain" => "api"}, %{"domain" => "repositories"}]
-    {:ok, {201, _, _}} = Hex.API.User.new(username, email, password)
+    new_user(username, email, password)
 
     {:ok, {201, _, %{"secret" => secret}}} =
       Hex.API.Key.new(key, permissions, user: username, pass: password)
@@ -290,7 +303,7 @@ defmodule HexTest.Hexpm do
     unique_email = "#{timestamp}_#{random_suffix}_#{email}"
 
     # Create user account
-    {:ok, {201, _, _}} = Hex.API.User.new(unique_username, unique_email, password)
+    new_user(unique_username, unique_email, password)
 
     # Create real OAuth tokens through the test server endpoints
     config = Hex.API.Client.config()

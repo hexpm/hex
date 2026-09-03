@@ -133,8 +133,7 @@ defmodule Hex.API.OAuthTest do
     end
 
     test "exchanges API key with multiple scopes" do
-      {:ok, {201, _, _}} =
-        Hex.API.User.new("apikey_multi", "apikey_multi@example.com", "password")
+      Hexpm.new_user("apikey_multi", "apikey_multi@example.com", "password")
 
       permissions = [%{"domain" => "api"}, %{"domain" => "repositories"}]
 
@@ -150,7 +149,7 @@ defmodule Hex.API.OAuthTest do
     end
 
     test "accepts scopes as list" do
-      {:ok, {201, _, _}} = Hex.API.User.new("apikey_list", "apikey_list@example.com", "password")
+      Hexpm.new_user("apikey_list", "apikey_list@example.com", "password")
 
       permissions = [%{"domain" => "api"}, %{"domain" => "repositories"}]
 
