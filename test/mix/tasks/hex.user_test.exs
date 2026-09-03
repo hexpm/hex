@@ -1,31 +1,6 @@
 defmodule Mix.Tasks.Hex.UserTest do
   use HexTest.IntegrationCase
 
-  test "register" do
-    send(self(), {:mix_shell_input, :prompt, "eric"})
-    send(self(), {:mix_shell_input, :prompt, "mail@mail.com"})
-    send(self(), {:mix_shell_input, :yes?, false})
-    send(self(), {:mix_shell_input, :prompt, "hunter42"})
-    send(self(), {:mix_shell_input, :prompt, "hunter43"})
-
-    assert_raise Mix.Error, "Entered passwords do not match", fn ->
-      Mix.Tasks.Hex.User.run(["register"])
-    end
-
-    send(self(), {:mix_shell_input, :prompt, "eric"})
-    send(self(), {:mix_shell_input, :prompt, "mail@mail.com"})
-    send(self(), {:mix_shell_input, :yes?, false})
-    send(self(), {:mix_shell_input, :prompt, "hunter42"})
-    send(self(), {:mix_shell_input, :prompt, "hunter42"})
-    send(self(), {:mix_shell_input, :prompt, "hunter43"})
-    send(self(), {:mix_shell_input, :prompt, "hunter43"})
-
-    Mix.Tasks.Hex.User.run(["register"])
-
-    assert {:ok, {200, _, body}} = Hex.API.User.get("eric")
-    assert body["username"] == "eric"
-  end
-
   test "auth" do
     in_tmp(fn ->
       set_home_cwd()

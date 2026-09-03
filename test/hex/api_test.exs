@@ -2,7 +2,7 @@ defmodule Hex.APITest do
   use HexTest.IntegrationCase
 
   test "user" do
-    assert {:ok, {201, _, _}} = Hex.API.User.new("test_user", "test_user@mail.com", "hunter42")
+    Hexpm.new_user("test_user", "test_user@mail.com", "hunter42")
     assert {:ok, {200, _, %{"username" => "test_user"}}} = Hex.API.User.get("test_user")
     assert {:ok, {404, _, _}} = Hex.API.User.get("unknown_user")
   end
@@ -111,7 +111,7 @@ defmodule Hex.APITest do
     auth = Hexpm.new_key(user: "user", pass: "hunter42")
 
     Hexpm.new_package("hexpm", "orange", "0.0.1", %{}, %{}, auth)
-    Hex.API.User.new("orange_user", "orange_user@mail.com", "hunter42")
+    Hexpm.new_user("orange_user", "orange_user@mail.com", "hunter42")
 
     assert {:ok, {200, _, [%{"username" => "user"}]}} =
              Hex.API.Package.Owner.get("hexpm", "orange", auth)
