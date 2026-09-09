@@ -133,37 +133,39 @@ defmodule Hex.AuthTest do
     end
   end
 
-  describe "SSO re-authentication" do
+  describe "organization re-authentication" do
     test "stores the organizations the server flagged with the token" do
-      in_tmp("sso_reauth", fn ->
+      in_tmp("organization_reauth", fn ->
         set_home_cwd()
         store_token()
 
-        assert Hex.Auth.callbacks().sso_reauth.(["acme"]) == :ok
+        assert Hex.Auth.callbacks().organization_reauth.(requirements(["acme"])) == :ok
 
-        assert Hex.OAuth.sso_reauth_required() == ["acme"]
-        assert Hex.Config.read()[:"$oauth_token"][:sso_reauth_required] == ["acme"]
+        assert Hex.OAuth.organization_reauth_required() == requirements(["acme"])
+
+        assert Hex.Config.read()[:"$oauth_token"][:organization_reauth_required] ==
+                 requirements(["acme"])
       end)
     end
 
     test "drops them again once nothing is flagged" do
-      in_tmp("sso_reauth", fn ->
+      in_tmp("organization_reauth", fn ->
         set_home_cwd()
         store_token()
 
-        assert Hex.Auth.callbacks().sso_reauth.(["acme"]) == :ok
-        assert Hex.Auth.callbacks().sso_reauth.([]) == :ok
+        assert Hex.Auth.callbacks().organization_reauth.(requirements(["acme"])) == :ok
+        assert Hex.Auth.callbacks().organization_reauth.([]) == :ok
 
-        assert Hex.OAuth.sso_reauth_required() == []
-        refute Map.has_key?(Hex.State.get(:oauth_token), :sso_reauth_required)
+        assert Hex.OAuth.organization_reauth_required() == []
+        refute Map.has_key?(Hex.State.get(:oauth_token), :organization_reauth_required)
       end)
     end
 
     test "keeps them when a refreshed token is persisted" do
-      in_tmp("sso_reauth", fn ->
+      in_tmp("organization_reauth", fn ->
         set_home_cwd()
         store_token()
-        Hex.Auth.callbacks().sso_reauth.(["acme"])
+        Hex.Auth.callbacks().organization_reauth.(requirements(["acme"]))
 
         expires_at = System.system_time(:second) + 3600
 
@@ -175,34 +177,36 @@ defmodule Hex.AuthTest do
                ) == :ok
 
         assert Hex.State.get(:oauth_token).access_token == "refreshed"
-        assert Hex.OAuth.sso_reauth_required() == ["acme"]
-        assert Hex.Config.read()[:"$oauth_token"][:sso_reauth_required] == ["acme"]
+        assert Hex.OAuth.organization_reauth_required() == requirements(["acme"])
+
+        assert Hex.Config.read()[:"$oauth_token"][:organization_reauth_required] ==
+                 requirements(["acme"])
       end)
     end
 
     test "asks only about the organizations this resolution needs" do
-      in_tmp("sso_reauth", fn ->
+      in_tmp("organization_reauth", fn ->
         set_home_cwd()
         store_token()
-        Hex.Auth.callbacks().sso_reauth.(["acme", "widgets"])
+        Hex.Auth.callbacks().organization_reauth.(requirements(["acme", "widgets"]))
 
         send(self(), {:mix_shell_input, :yes?, false})
-        check_sso_reauth([{"hexpm:acme", "foo"}, {"hexpm", "ecto"}])
+        check_organization_reauth([{"hexpm:acme", "foo"}, {"hexpm", "ecto"}])
 
         assert_received {:mix_shell, :yes?, [question]}
-        assert question =~ "acme requires SSO authentication"
+        assert question =~ "acme: SSO authentication required"
         refute question =~ "widgets"
       end)
     end
 
     test "says what declining costs" do
-      in_tmp("sso_reauth", fn ->
+      in_tmp("organization_reauth", fn ->
         set_home_cwd()
         store_token()
-        Hex.Auth.callbacks().sso_reauth.(["acme"])
+        Hex.Auth.callbacks().organization_reauth.(requirements(["acme"]))
 
         send(self(), {:mix_shell_input, :yes?, false})
-        check_sso_reauth([{"hexpm:acme", "foo"}])
+        check_organization_reauth([{"hexpm:acme", "foo"}])
 
         assert_received {:mix_shell, :yes?, _question}
         assert Case.shell_output() =~ "Packages from acme will not be available"
@@ -210,10 +214,10 @@ defmodule Hex.AuthTest do
     end
 
     test "asks nothing about an organization authenticated with its own key" do
-      in_tmp("sso_reauth", fn ->
+      in_tmp("organization_reauth", fn ->
         set_home_cwd()
         store_token()
-        Hex.Auth.callbacks().sso_reauth.(["acme"])
+        Hex.Auth.callbacks().organization_reauth.(requirements(["acme"]))
         repos = Hex.State.fetch!(:repos)
         hexpm = repos["hexpm"]
 
@@ -222,19 +226,19 @@ defmodule Hex.AuthTest do
           Map.put(repos, "hexpm:acme", %{hexpm | auth_key: "org-key"})
         )
 
-        assert check_sso_reauth([{"hexpm:acme", "foo"}]) == :ok
+        assert check_organization_reauth([{"hexpm:acme", "foo"}]) == :ok
         assert Case.shell_output() == ""
       end)
     end
 
     test "says so rather than asking when Hex is offline" do
-      in_tmp("sso_reauth", fn ->
+      in_tmp("organization_reauth", fn ->
         set_home_cwd()
         store_token()
-        Hex.Auth.callbacks().sso_reauth.(["acme"])
+        Hex.Auth.callbacks().organization_reauth.(requirements(["acme"]))
         Hex.State.put(:offline, true)
 
-        check_sso_reauth([{"hexpm:acme", "foo"}])
+        check_organization_reauth([{"hexpm:acme", "foo"}])
 
         refute_received {:mix_shell, :yes?, _question}
         assert Case.shell_output() =~ "Hex is offline"
@@ -242,76 +246,81 @@ defmodule Hex.AuthTest do
     end
 
     test "asks nothing when the project needs none of the flagged organizations" do
-      in_tmp("sso_reauth", fn ->
+      in_tmp("organization_reauth", fn ->
         set_home_cwd()
         store_token()
-        Hex.Auth.callbacks().sso_reauth.(["acme"])
+        Hex.Auth.callbacks().organization_reauth.(requirements(["acme"]))
 
-        assert check_sso_reauth([{"hexpm", "ecto"}]) == :ok
+        assert check_organization_reauth([{"hexpm", "ecto"}]) == :ok
         assert Case.shell_output() == ""
       end)
     end
 
     test "authenticates and picks the scopes up on the forced refresh" do
-      in_tmp("sso_reauth", fn ->
+      in_tmp("organization_reauth", fn ->
         set_home_cwd()
         store_token()
-        Hex.Auth.callbacks().sso_reauth.(["acme"])
-        stub_sso_authorization(%{})
+        Hex.Auth.callbacks().organization_reauth.(requirements(["acme"]))
+        stub_organization_authorization(%{})
 
         send(self(), {:mix_shell_input, :yes?, true})
         send(self(), {:mix_shell_input, :prompt, ""})
 
-        assert check_sso_reauth([{"hexpm:acme", "foo"}]) == :ok
+        assert check_organization_reauth([{"hexpm:acme", "foo"}]) == :ok
 
         assert_received {:hex_system_cmd, _cmd, args}
-        assert "https://hex.pm/sso/authorize/acme" in args
+        assert "https://hex.pm/organizations/authorize/acme" in args
 
-        assert Hex.OAuth.sso_reauth_required() == []
+        assert Hex.OAuth.organization_reauth_required() == []
         assert Hex.State.get(:oauth_token).access_token == "renewed"
         assert Case.shell_output() == ""
       end)
     end
 
     test "asks for the URL as the stored session rather than as HEX_API_KEY" do
-      in_tmp("sso_reauth", fn ->
+      in_tmp("organization_reauth", fn ->
         set_home_cwd()
         store_token()
-        Hex.Auth.callbacks().sso_reauth.(["acme"])
+        Hex.Auth.callbacks().organization_reauth.(requirements(["acme"]))
         Hex.State.put(:api_key, "env_api_key")
-        stub_sso_authorization(%{})
+        stub_organization_authorization(%{})
 
         send(self(), {:mix_shell_input, :yes?, true})
         send(self(), {:mix_shell_input, :prompt, ""})
 
-        assert check_sso_reauth([{"hexpm:acme", "foo"}]) == :ok
+        assert check_organization_reauth([{"hexpm:acme", "foo"}]) == :ok
 
-        assert_received {:sso_authorization_header, "Bearer token"}
+        assert_received {:organization_authorization_header, "Bearer token"}
       end)
     end
 
     test "says what is unavailable when the session is still lapsed afterwards" do
-      in_tmp("sso_reauth", fn ->
+      in_tmp("organization_reauth", fn ->
         set_home_cwd()
         store_token()
-        Hex.Auth.callbacks().sso_reauth.(["acme"])
-        stub_sso_authorization(%{"sso_reauth_required" => ["acme"]})
+        Hex.Auth.callbacks().organization_reauth.(requirements(["acme"]))
+
+        stub_organization_authorization(%{
+          "organization_reauth_required" => [
+            %{"organization" => "acme", "requirements" => ["sso"]}
+          ]
+        })
 
         send(self(), {:mix_shell_input, :yes?, true})
         send(self(), {:mix_shell_input, :prompt, ""})
 
-        check_sso_reauth([{"hexpm:acme", "foo"}])
+        check_organization_reauth([{"hexpm:acme", "foo"}])
 
-        assert Hex.OAuth.sso_reauth_required() == ["acme"]
+        assert Hex.OAuth.organization_reauth_required() == requirements(["acme"])
         assert Case.shell_output() =~ "Packages from acme will not be available"
       end)
     end
 
     test "adds the mix task when the server refuses to start" do
-      in_tmp("sso_reauth", fn ->
+      in_tmp("organization_reauth", fn ->
         set_home_cwd()
         store_token()
-        Hex.Auth.callbacks().sso_reauth.(["acme"])
+        Hex.Auth.callbacks().organization_reauth.(requirements(["acme"]))
 
         # The server's refusal never names a client command, since it cannot
         # know which client asked, so the task comes from here.
@@ -319,7 +328,7 @@ defmodule Hex.AuthTest do
         Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
 
         Bypass.expect(bypass, fn conn ->
-          assert conn.request_path == "/api/oauth/sso_authorization"
+          assert conn.request_path == "/api/oauth/organization_authorization"
 
           erlang_resp(conn, 422, %{
             "message" => "SSO re-authorization is for an OAuth session"
@@ -328,7 +337,7 @@ defmodule Hex.AuthTest do
 
         send(self(), {:mix_shell_input, :yes?, true})
 
-        check_sso_reauth([{"hexpm:acme", "foo"}])
+        check_organization_reauth([{"hexpm:acme", "foo"}])
 
         output = Case.shell_output()
         assert output =~ "SSO re-authorization is for an OAuth session"
@@ -337,16 +346,16 @@ defmodule Hex.AuthTest do
     end
 
     test "prints the authorization URL without the characters a terminal acts on" do
-      in_tmp("sso_reauth", fn ->
+      in_tmp("organization_reauth", fn ->
         set_home_cwd()
         store_token()
-        Hex.Auth.callbacks().sso_reauth.(["acme"])
-        stub_sso_authorization(%{}, "https://hex.pm/sso/\e]0;pwned\a\nauthorize")
+        Hex.Auth.callbacks().organization_reauth.(requirements(["acme"]))
+        stub_organization_authorization(%{}, "https://hex.pm/sso/\e]0;pwned\a\nauthorize")
 
         send(self(), {:mix_shell_input, :yes?, true})
         send(self(), {:mix_shell_input, :prompt, ""})
 
-        check_sso_reauth([{"hexpm:acme", "foo"}])
+        check_organization_reauth([{"hexpm:acme", "foo"}])
 
         assert_received {:mix_shell, :prompt, [prompt]}
 
@@ -359,10 +368,10 @@ defmodule Hex.AuthTest do
     end
 
     test "says so when the authorization URL cannot be requested" do
-      in_tmp("sso_reauth", fn ->
+      in_tmp("organization_reauth", fn ->
         set_home_cwd()
         store_token()
-        Hex.Auth.callbacks().sso_reauth.(["acme"])
+        Hex.Auth.callbacks().organization_reauth.(requirements(["acme"]))
 
         bypass = Bypass.open()
         Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
@@ -373,12 +382,75 @@ defmodule Hex.AuthTest do
 
         send(self(), {:mix_shell_input, :yes?, true})
 
-        check_sso_reauth([{"hexpm:acme", "foo"}])
+        check_organization_reauth([{"hexpm:acme", "foo"}])
 
         refute_received {:hex_system_cmd, _cmd, _args}
         assert Case.shell_output() =~ "acme does not use SSO"
       end)
     end
+  end
+
+  test "shows both requirements and retains them after a cancelled prompt" do
+    in_tmp("organization_requirements", fn ->
+      set_home_cwd()
+      store_token()
+      entries = [%{organization: "acme", requirements: ["tfa", "sso"]}]
+      Hex.Auth.callbacks().organization_reauth.(entries)
+      send(self(), {:mix_shell_input, :yes?, false})
+      check_organization_reauth([{"hexpm:acme", "foo"}])
+      assert_received {:mix_shell, :yes?, [question]}
+      assert question =~ "acme: 2FA verification required, SSO authentication required"
+      assert Hex.OAuth.organization_reauth_required() == entries
+    end)
+  end
+
+  test "EOF after opening the browser doesn't refresh or report authentication success" do
+    in_tmp("organization_requirements_eof", fn ->
+      set_home_cwd()
+      store_token()
+      Hex.Auth.callbacks().organization_reauth.(requirements(["acme"]))
+      bypass = Bypass.open()
+      Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+      Bypass.expect_once(bypass, "POST", "/api/oauth/organization_authorization", fn conn ->
+        erlang_resp(conn, 201, %{
+          "verification_uri" => "https://hex.pm/organizations/authorize?code=example",
+          "expires_in" => 600
+        })
+      end)
+
+      send(self(), {:mix_shell_input, :yes?, true})
+      send(self(), {:mix_shell_input, :prompt, :eof})
+      check_organization_reauth([{"hexpm:acme", "foo"}])
+      assert Hex.State.get(:oauth_token).access_token == "token"
+      assert Hex.OAuth.organization_reauth_required() == requirements(["acme"])
+      assert Case.shell_output() =~ "authentication was cancelled"
+    end)
+  end
+
+  test "a noninteractive shell with EOF retains missing verification without starting a browser" do
+    in_tmp("organization_requirements_noninteractive", fn ->
+      set_home_cwd()
+      store_token()
+      entries = [%{organization: "acme", requirements: ["tfa", "sso"]}]
+      Hex.Auth.callbacks().organization_reauth.(entries)
+      previous = Mix.shell()
+      Mix.shell(Mix.Shell.IO)
+
+      try do
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          ExUnit.CaptureIO.capture_io("", fn ->
+            check_organization_reauth([{"hexpm:acme", "foo"}])
+          end)
+        end)
+      after
+        Mix.shell(previous)
+      end
+
+      refute_received {:hex_system_cmd, _, _}
+      assert Hex.OAuth.organization_reauth_required() == entries
+      assert Hex.State.get(:oauth_token).access_token == "token"
+    end)
   end
 
   describe "authentication preflight" do
@@ -468,12 +540,17 @@ defmodule Hex.AuthTest do
         })
 
         Hex.State.put(:api_key, "env_api_key")
-        stub_token_refresh(%{"sso_reauth_required" => ["acme"]})
+
+        stub_token_refresh(%{
+          "organization_reauth_required" => [
+            %{"organization" => "acme", "requirements" => ["sso"]}
+          ]
+        })
 
         assert Hex.RemoteConverger.check_and_refresh_auth(["acme"]) == :ok
 
         assert Hex.State.get(:oauth_token).access_token == "renewed"
-        assert Hex.OAuth.sso_reauth_required() == ["acme"]
+        assert Hex.OAuth.organization_reauth_required() == requirements(["acme"])
       end)
     end
 
@@ -498,32 +575,32 @@ defmodule Hex.AuthTest do
     end
   end
 
-  defp check_sso_reauth(prefetches) do
+  defp check_organization_reauth(prefetches) do
     prefetches
     |> Hex.RemoteConverger.user_oauth_organizations()
-    |> Hex.RemoteConverger.check_sso_reauth()
+    |> Hex.RemoteConverger.check_organization_reauth()
   end
 
   # Answers the two requests re-authorization makes: the URL the user opens, and
   # the refresh that picks up what completing it granted. Overrides go into the
   # refresh response, which is what says whether anything is still lapsed.
-  defp stub_sso_authorization(refresh_overrides, verification_uri \\ nil) do
+  defp stub_organization_authorization(refresh_overrides, verification_uri \\ nil) do
     bypass = Bypass.open()
     Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
     test_pid = self()
 
     Bypass.expect(bypass, fn conn ->
       case conn.request_path do
-        "/api/oauth/sso_authorization" ->
+        "/api/oauth/organization_authorization" ->
           [header] = Plug.Conn.get_req_header(conn, "authorization")
-          send(test_pid, {:sso_authorization_header, header})
+          send(test_pid, {:organization_authorization_header, header})
 
           {:ok, body, conn} = Plug.Conn.read_body(conn)
           %{"organizations" => organizations} = :erlang.binary_to_term(body)
 
           uri =
             verification_uri ||
-              "https://hex.pm/sso/authorize/#{Enum.join(organizations, "-")}"
+              "https://hex.pm/organizations/authorize/#{Enum.join(organizations, "-")}"
 
           erlang_resp(conn, 201, %{
             "verification_uri" => uri,
@@ -574,4 +651,6 @@ defmodule Hex.AuthTest do
       expires_at: System.system_time(:second) + 3600
     })
   end
+
+  defp requirements(names), do: Enum.map(names, &%{organization: &1, requirements: ["sso"]})
 end

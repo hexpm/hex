@@ -63,7 +63,7 @@ defmodule Hex.RemoteConverger do
 
     organizations = user_oauth_organizations(prefetches)
     check_and_refresh_auth(organizations)
-    check_sso_reauth(organizations)
+    check_organization_reauth(organizations)
     Registry.prefetch(prefetches)
 
     locked = prepare_locked(lock, old_lock, deps)
@@ -968,70 +968,66 @@ defmodule Hex.RemoteConverger do
   # dependencies name: a published package's dependencies come from the public
   # repository or from its own organization, so nothing private turns up part
   # way through. That is what makes one prompt for the batch possible rather
-  # than a 403 at a time, and it is why a member of ten SSO organizations who
+  # than a 403 at a time, and it is why a member of ten organizations who
   # depends on two is asked about two.
   @doc false
-  def check_sso_reauth(organizations) do
-    Hex.OAuth.sso_reauth_required()
-    |> Enum.filter(&(&1 in organizations))
-    |> prompt_sso_reauth()
+  def check_organization_reauth(organizations) do
+    Hex.OAuth.organization_reauth_required()
+    |> Enum.filter(&(&1.organization in organizations))
+    |> prompt_organization_reauth()
   end
 
-  defp prompt_sso_reauth([]), do: :ok
+  defp prompt_organization_reauth([]), do: :ok
 
-  defp prompt_sso_reauth(organizations) do
+  defp prompt_organization_reauth(entries) do
     cond do
       Hex.State.fetch!(:offline) ->
-        unavailable(organizations, "Hex is offline")
+        unavailable(entries, "Hex is offline")
 
-      Hex.Shell.yes?("#{sso_subject(organizations)} SSO authentication. Authenticate now?") ->
-        start_sso_reauth(organizations)
+      Hex.Shell.yes?("#{requirements(entries)}. Authenticate now?") ->
+        start_organization_reauth(entries)
 
       true ->
-        Hex.Shell.warn("Packages from #{names(organizations)} will not be available.")
+        Hex.Shell.warn("Packages from #{names(entries)} will not be available.")
     end
   end
 
-  defp unavailable(organizations, reason) do
+  defp unavailable(entries, reason) do
     Hex.Shell.warn(
-      "#{sso_subject(organizations)} SSO authentication, but #{reason}. " <>
-        "Packages from #{names(organizations)} will not be available."
+      "#{requirements(entries)}, but #{reason}. Packages from #{names(entries)} will not be available."
     )
   end
 
-  defp start_sso_reauth(organizations) do
-    case Hex.API.OAuth.sso_authorization(organizations) do
-      {:ok, {status, _headers, %{"verification_uri" => uri}}}
-      when status in 200..299 and is_binary(uri) ->
+  defp start_organization_reauth(entries) do
+    case Hex.API.OAuth.organization_authorization(Enum.map(entries, & &1.organization)) do
+      {:ok, {status, _, %{"verification_uri" => uri, "expires_in" => expires_in}}}
+      when status in 200..299 and is_binary(uri) and is_integer(expires_in) and expires_in > 0 ->
         uri = Hex.Utils.printable_ascii(uri)
-
-        # The URL goes in the prompt rather than beside it: `mix deps.get
-        # --quiet` swallows info output, and asking someone to finish something
-        # in a browser without telling them where is a dead end.
+        expires_at = System.monotonic_time(:second) + expires_in
         open_browser(uri)
-        Hex.Shell.prompt("Open #{uri} to authenticate, then press enter")
-        finish_sso_reauth(organizations)
 
-      # The server's message never names a client command, since it cannot know
-      # which client asked, so the mix task goes in here. A full `mix hex.user
-      # auth` re-establishes organization access at approval, which makes it
-      # the fallback whatever kept the in-place flow from starting.
-      {:ok, {_status, _headers, %{"message" => message}}} when is_binary(message) ->
+        case Hex.Shell.prompt("Open #{uri} to authenticate, then press enter") do
+          answer when is_binary(answer) ->
+            if System.monotonic_time(:second) < expires_at,
+              do: finish_organization_reauth(entries),
+              else: unavailable(entries, "the request expired")
+
+          _ ->
+            unavailable(entries, "authentication was cancelled")
+        end
+
+      {:ok, {_status, _, %{"message" => message}}} when is_binary(message) ->
         Hex.Shell.warn(
-          "Could not start SSO authentication: #{Hex.Utils.escape_terminal(message)}. " <>
-            "Run `mix hex.user auth` to authenticate again."
+          "Could not start organization authentication: #{Hex.Utils.escape_terminal(message)}. Run `mix hex.user auth` to authenticate again."
         )
 
-      _other ->
+      _ ->
         Hex.Shell.warn(
-          "Could not start SSO authentication. Run `mix hex.user auth` to authenticate again."
+          "Could not start organization authentication. Run `mix hex.user auth` to authenticate again."
         )
     end
   end
 
-  # Opening a browser is a convenience on top of the printed URL, so nothing it
-  # does is worth ending a resolution over: System.cmd/2 raises when the
-  # platform has no opener installed.
   defp open_browser(uri) do
     case URI.parse(uri) do
       %URI{scheme: scheme} when scheme in ["http", "https"] ->
@@ -1041,32 +1037,36 @@ defmodule Hex.RemoteConverger do
           _kind, _reason -> :ok
         end
 
-      _other ->
+      _ ->
         :ok
     end
   end
 
-  # The session and its refresh token are untouched by all this; what changed is
-  # what the session may reach, so a refresh is what picks it up.
-  defp finish_sso_reauth(organizations) do
+  defp finish_organization_reauth(entries) do
     config = Hex.API.Client.config([])
+    names = Enum.map(entries, & &1.organization)
 
     with :ok <- Hex.Auth.refresh_tokens(config),
-         [] <- Enum.filter(Hex.OAuth.sso_reauth_required(), &(&1 in organizations)) do
+         [] <- Enum.filter(Hex.OAuth.organization_reauth_required(), &(&1.organization in names)) do
       :ok
     else
-      _other ->
-        Hex.Shell.warn(
-          "#{sso_subject(organizations)} SSO authentication. " <>
-            "Packages from #{names(organizations)} will not be available."
-        )
+      _ -> unavailable(entries, "authentication is incomplete")
     end
   end
 
-  defp sso_subject([organization]), do: "#{organization} requires"
-  defp sso_subject(organizations), do: "#{names(organizations)} require"
+  defp requirements(entries) do
+    Enum.map_join(entries, "; ", fn entry ->
+      reasons =
+        Enum.map_join(entry.requirements, ", ", fn
+          "tfa" -> "2FA verification required"
+          "sso" -> "SSO authentication required"
+        end)
 
-  defp names(organizations), do: Enum.join(organizations, ", ")
+      "#{entry.organization}: #{reasons}"
+    end)
+  end
+
+  defp names(entries), do: Enum.map_join(entries, ", ", & &1.organization)
 
   # The organizations among the prefetched repositories that the stored user
   # session authenticates for. An organization with its own key does not touch

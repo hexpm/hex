@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (9ea52a0), do not edit manually
+%% Vendored from hex_core v0.19.0 (b3757c5), do not edit manually
 
 %% @doc
 %% Authentication handling with callback functions for build-tool-specific operations.
@@ -38,12 +38,12 @@
 %%     clear_oauth_tokens => fun(() -> ok),
 %%
 %%     %% Report the organizations the server says this session has to
-%%     %% authenticate against their identity provider for (optional). Called
+%%     %% complete SSO or 2FA verification for (optional). Called
 %%     %% after every token grant that carried a readable set, with the empty
 %%     %% list when there are none, so the build tool always holds the current
 %%     %% set. It is not told which of them the running command needs; deciding
 %%     %% that is the build tool's job.
-%%     sso_reauth => fun(([binary()]) -> ok),
+%%     organization_reauth => fun(([map()]) -> ok),
 %%
 %%     %% User interaction
 %%     prompt_otp => fun((Message :: binary()) -> {ok, OtpCode :: binary()} | cancelled),
@@ -141,7 +141,7 @@
         ) -> ok
     ),
     clear_oauth_tokens => fun(() -> ok),
-    sso_reauth => fun((Organizations :: [binary()]) -> ok),
+    organization_reauth => fun((Organizations :: [map()]) -> ok),
     prompt_otp := fun((Message :: binary()) -> {ok, OtpCode :: binary()} | cancelled),
     should_authenticate := fun((Reason :: auth_prompt_reason()) -> boolean()),
     get_client_id := fun(() -> binary())
@@ -517,7 +517,7 @@ renew_repo_auth_and_retry(BaseConfig, Fun, RepoKey, Response) ->
 %% Refreshes the stored global OAuth token now, whether or not it has expired.
 %%
 %% What a token carries can change without it expiring: authenticating a
-%% session against an organization's identity provider grants scopes the
+%% session for an organization's authentication requirements grants scopes the
 %% current access token was minted without. This is how a build tool picks
 %% those up rather than waiting out the access token.
 -spec refresh_tokens(mix_hex_core:config()) -> ok | {error, auth_error()}.
@@ -561,12 +561,12 @@ device_auth(Config, Scope, Opts) ->
     FlowOpts = [{open_browser, OpenBrowser}],
     case mix_hex_api_oauth:device_auth_flow(Config, ClientId, Scope, PromptUser, FlowOpts) of
         {ok, Response} ->
-            %% sso_reauth_required reaches the build tool through the sso_reauth
+            %% organization_reauth_required reaches the build tool through the organization_reauth
             %% callback rather than with the tokens. The response carries no key
             %% when the server sent a set that could not be read.
-            Tokens = maps:without([sso_reauth_required], Response),
+            Tokens = maps:without([organization_reauth_required], Response),
             ok = persist_tokens(Config, global, Tokens),
-            report_sso_reauth(Config, maps:find(sso_reauth_required, Response)),
+            report_organization_reauth(Config, maps:find(organization_reauth_required, Response)),
             {ok, Tokens};
         {error, timeout} ->
             {error, {auth_error, device_auth_timeout}};
@@ -822,7 +822,9 @@ maybe_refresh_token_with_context(Config, #{refresh_token := RefreshToken}) when
                 expires_at => erlang:system_time(second) + ExpiresIn
             },
             ok = persist_tokens(Config, global, NewTokens),
-            report_sso_reauth(Config, mix_hex_api_oauth:sso_reauth_required(TokenResponse)),
+            report_organization_reauth(
+                Config, mix_hex_api_oauth:organization_reauth_required(TokenResponse)
+            ),
             BearerToken = <<"Bearer ", NewAccessToken/binary>>,
             {ok, BearerToken, #{has_refresh_token => has_refresh_token(NewTokens)}};
         {ok, {Status, _, _Body}} when Status =:= 400; Status =:= 401 ->
@@ -1003,9 +1005,9 @@ call_callback(Config, Name, Args) ->
 %% resolved does not linger. A grant whose set could not be read is not
 %% reported: the empty list would be taken for the server saying there is
 %% nothing, and the build tool would drop the organizations it holds.
-report_sso_reauth(Config, {ok, Organizations}) when is_list(Organizations) ->
-    maybe_call_callback(Config, sso_reauth, [Organizations]);
-report_sso_reauth(_Config, error) ->
+report_organization_reauth(Config, {ok, Organizations}) when is_list(Organizations) ->
+    maybe_call_callback(Config, organization_reauth, [Organizations]);
+report_organization_reauth(_Config, error) ->
     ok.
 
 %% @private

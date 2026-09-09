@@ -104,8 +104,8 @@ defmodule Hex.UtilsTest do
 
   describe "win_cmd_args/1" do
     test "passes the empty title argument start expects" do
-      assert Hex.Utils.win_cmd_args("https://hex.pm/sso/authorize/abc") ==
-               ["/c", "start", "", "https://hex.pm/sso/authorize/abc"]
+      assert Hex.Utils.win_cmd_args("https://hex.pm/organizations/authorize/abc") ==
+               ["/c", "start", "", "https://hex.pm/organizations/authorize/abc"]
     end
 
     test "escapes the characters cmd.exe acts on" do

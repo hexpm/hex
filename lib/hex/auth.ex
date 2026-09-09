@@ -41,9 +41,9 @@ defmodule Hex.Auth do
   @doc """
   Refresh the stored OAuth token now, whether or not it has expired.
 
-  Authenticating a session against an organization's identity provider grants
-  scopes the current access token was minted without, and this is how they are
-  picked up without waiting the token out.
+  Satisfying an organization's SSO or 2FA requirements grants scopes absent
+  from the current access token. Refreshing retrieves those scopes without
+  waiting for the token to expire.
   """
   def refresh_tokens(config) do
     :mix_hex_cli_auth.refresh_tokens(config)
@@ -65,7 +65,7 @@ defmodule Hex.Auth do
       get_oauth_tokens: &get_oauth_tokens/0,
       persist_oauth_tokens: &persist_oauth_tokens/4,
       clear_oauth_tokens: &clear_oauth_tokens/0,
-      sso_reauth: &sso_reauth/1,
+      organization_reauth: &organization_reauth/1,
       prompt_otp: &prompt_otp/1,
       get_client_id: &Hex.API.OAuth.client_id/0,
       should_authenticate: &should_authenticate/1
@@ -94,10 +94,10 @@ defmodule Hex.Auth do
   defp persist_oauth_tokens(repo, access_token, refresh_token, expires_at)
 
   defp persist_oauth_tokens(:global, access_token, refresh_token, expires_at) do
-    # The flagged organizations arrive through the sso_reauth callback, not with
+    # The flagged organizations arrive through the organization_reauth callback, not with
     # the token, so carry them over instead of dropping them on every refresh.
     token_data =
-      token_map(access_token, expires_at, refresh_token, Hex.OAuth.sso_reauth_required())
+      token_map(access_token, expires_at, refresh_token, Hex.OAuth.organization_reauth_required())
 
     Hex.OAuth.store_token(token_data)
     :ok
@@ -111,7 +111,7 @@ defmodule Hex.Auth do
     :ok
   end
 
-  defp token_map(access_token, expires_at, refresh_token, sso_reauth_required \\ []) do
+  defp token_map(access_token, expires_at, refresh_token, organization_reauth_required \\ []) do
     token_data = %{access_token: access_token, expires_at: expires_at}
 
     token_data =
@@ -119,7 +119,7 @@ defmodule Hex.Auth do
         do: Map.put(token_data, :refresh_token, refresh_token),
         else: token_data
 
-    put_sso_reauth(token_data, sso_reauth_required)
+    put_organization_reauth(token_data, organization_reauth_required)
   end
 
   # Invoked by hex_cli_auth when the stored global OAuth token is expired and
@@ -141,25 +141,25 @@ defmodule Hex.Auth do
     :ok
   end
 
-  # Invoked by hex_cli_auth after every token grant with the organizations the
-  # server says this session has to authenticate through their identity
-  # provider for. Store them with the token rather than acting on them: which
-  # ones matter depends on what the running command needs, and a later run that
-  # reuses this token without refreshing it would otherwise have no idea.
-  defp sso_reauth(organizations) do
+  # Invoked by hex_cli_auth after every token grant with outstanding organization
+  # authentication requirements. Store them with the token so commands can select
+  # the organizations they need, including when reusing a token without refreshing.
+  defp organization_reauth(organizations) do
     token_data = Hex.State.get(:oauth_token)
 
-    if is_map(token_data) and Map.get(token_data, :sso_reauth_required, []) != organizations do
-      Hex.OAuth.store_token(put_sso_reauth(token_data, organizations))
+    if is_map(token_data) and
+         Map.get(token_data, :organization_reauth_required, []) != organizations do
+      Hex.OAuth.store_token(put_organization_reauth(token_data, organizations))
     end
 
     :ok
   end
 
-  defp put_sso_reauth(token_data, []), do: Map.delete(token_data, :sso_reauth_required)
+  defp put_organization_reauth(token_data, []),
+    do: Map.delete(token_data, :organization_reauth_required)
 
-  defp put_sso_reauth(token_data, organizations),
-    do: Map.put(token_data, :sso_reauth_required, organizations)
+  defp put_organization_reauth(token_data, organizations),
+    do: Map.put(token_data, :organization_reauth_required, organizations)
 
   # A prompt answers :eof when there is nothing on stdin to read, which is what
   # an OTP challenge in CI gets.
