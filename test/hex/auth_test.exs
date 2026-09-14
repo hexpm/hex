@@ -277,6 +277,22 @@ defmodule Hex.AuthTest do
       end)
     end
 
+    test "refreshes after the prompt even when the verification URL has expired" do
+      in_tmp("organization_reauth", fn ->
+        set_home_cwd()
+        store_token()
+        Hex.Auth.callbacks().organization_reauth.(requirements(["acme"]))
+        stub_organization_authorization(%{}, nil, 0)
+
+        send(self(), {:mix_shell_input, :yes?, true})
+        send(self(), {:mix_shell_input, :prompt, ""})
+
+        assert check_organization_reauth([{"hexpm:acme", "foo"}]) == :ok
+        assert Hex.OAuth.organization_reauth_required() == []
+        assert Hex.State.get(:oauth_token).access_token == "renewed"
+      end)
+    end
+
     test "asks for the URL as the stored session rather than as HEX_API_KEY" do
       in_tmp("organization_reauth", fn ->
         set_home_cwd()
@@ -584,7 +600,11 @@ defmodule Hex.AuthTest do
   # Answers the two requests re-authorization makes: the URL the user opens, and
   # the refresh that picks up what completing it granted. Overrides go into the
   # refresh response, which is what says whether anything is still lapsed.
-  defp stub_organization_authorization(refresh_overrides, verification_uri \\ nil) do
+  defp stub_organization_authorization(
+         refresh_overrides,
+         verification_uri \\ nil,
+         expires_in \\ 600
+       ) do
     bypass = Bypass.open()
     Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
     test_pid = self()
@@ -604,7 +624,7 @@ defmodule Hex.AuthTest do
 
           erlang_resp(conn, 201, %{
             "verification_uri" => uri,
-            "expires_in" => 600
+            "expires_in" => expires_in
           })
 
         "/api/oauth/token" ->

@@ -1000,20 +1000,16 @@ defmodule Hex.RemoteConverger do
 
   defp start_organization_reauth(entries) do
     case Hex.API.OAuth.organization_authorization(Enum.map(entries, & &1.organization)) do
-      {:ok, {status, _, %{"verification_uri" => uri, "expires_in" => expires_in}}}
-      when status in 200..299 and is_binary(uri) and is_integer(expires_in) and expires_in > 0 ->
+      {:ok, {status, _, %{"verification_uri" => uri}}}
+      when status in 200..299 and is_binary(uri) ->
         uri = Hex.Utils.printable_ascii(uri)
-        expires_at = System.monotonic_time(:second) + expires_in
         open_browser(uri)
 
+        # The server decides whether the request was completed; the refresh
+        # reads its answer, however long the prompt sat open.
         case Hex.Shell.prompt("Open #{uri} to authenticate, then press enter") do
-          answer when is_binary(answer) ->
-            if System.monotonic_time(:second) < expires_at,
-              do: finish_organization_reauth(entries),
-              else: unavailable(entries, "the request expired")
-
-          _ ->
-            unavailable(entries, "authentication was cancelled")
+          answer when is_binary(answer) -> finish_organization_reauth(entries)
+          _ -> unavailable(entries, "authentication was cancelled")
         end
 
       {:ok, {_status, _, %{"message" => message}}} when is_binary(message) ->

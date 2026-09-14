@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (b3757c5), do not edit manually
+%% Vendored from hex_core v0.19.0 (68d8345), do not edit manually
 
 %% @doc
 %% Hex HTTP API - OAuth.
@@ -421,8 +421,8 @@ parse_organization_requirements(
         #{<<"organization">> := Name, <<"requirements">> := Requirements} | Rest
     ],
     Acc
-) when is_binary(Name), byte_size(Name) > 0, is_list(Requirements), Requirements =/= [] ->
-    case lists:all(fun(R) -> R =:= <<"tfa">> orelse R =:= <<"sso">> end, Requirements) of
+) when is_binary(Name), byte_size(Name) > 0, Requirements =/= [] ->
+    case valid_requirements(Requirements) of
         true ->
             parse_organization_requirements(
                 Rest,
@@ -433,6 +433,17 @@ parse_organization_requirements(
     end;
 parse_organization_requirements(_, _) ->
     error.
+
+%% A proper list of known requirements. Decoded terms can carry an improper
+%% list, which is_list/1 accepts and lists:all/2 would crash on.
+valid_requirements([]) ->
+    true;
+valid_requirements([Requirement | Rest]) when
+    Requirement =:= <<"tfa">>; Requirement =:= <<"sso">>
+->
+    valid_requirements(Rest);
+valid_requirements(_) ->
+    false.
 
 %%====================================================================
 %% Internal functions
