@@ -86,7 +86,7 @@ defmodule Hex.OrganizationAuthIntegrationTest do
     counter = div(System.system_time(:second), 30) + 1
     digest = :crypto.mac(:hmac, :sha, Base.decode32!(secret), <<counter::64>>)
     offset = Bitwise.band(:binary.last(digest), 15)
-    <<_::binary-size(^offset), code::32, _::binary>> = digest
+    <<code::32>> = :binary.part(digest, offset, 4)
 
     code
     |> Bitwise.band(0x7FFFFFFF)
