@@ -1058,7 +1058,7 @@ defmodule Hex.RemoteConverger do
     Enum.map_join(entries, "; ", fn entry ->
       reasons =
         Enum.map_join(entry.requirements, ", ", fn
-          "tfa" -> "2FA verification required"
+          "tfa" -> "2FA enrollment required"
           "sso" -> "SSO authentication required"
         end)
 

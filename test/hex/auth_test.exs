@@ -399,7 +399,7 @@ defmodule Hex.AuthTest do
       send(self(), {:mix_shell_input, :yes?, false})
       check_organization_reauth([{"hexpm:acme", "foo"}])
       assert_received {:mix_shell, :yes?, [question]}
-      assert question =~ "acme: 2FA verification required, SSO authentication required"
+      assert question =~ "acme: 2FA enrollment required, SSO authentication required"
       assert Hex.OAuth.organization_reauth_required() == entries
     end)
   end

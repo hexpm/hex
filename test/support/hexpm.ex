@@ -72,7 +72,8 @@ defmodule HexTest.Hexpm do
       {~c"MIX_ARCHIVES", hexpm_mix_archives},
       {~c"PATH", path},
       {~c"HEX_SIGNING_KEY", key},
-      {~c"HEXPM_SETUP", ~c"1"}
+      {~c"HEXPM_SETUP", ~c"1"},
+      {~c"HEXPM_ORGANIZATION_TFA_MODE", ~c"enabled"}
     ]
 
     spawn(fn ->
