@@ -68,7 +68,7 @@ jobs:
     env:
       HEXPM_OTP: OTP-28.5
       HEXPM_ELIXIR: v1.19.5
-      HEXPM_BRANCH: organization-tfa-enforcement
+      HEXPM_BRANCH: main
       HEXPM_PATH: hexpm
       HEXPM_ELIXIR_PATH: hexpm_elixir
       HEXPM_OTP_PATH: hexpm_otp
