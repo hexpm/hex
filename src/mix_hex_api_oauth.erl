@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (9ea52a0), do not edit manually
+%% Vendored from hex_core v0.19.0 (68d8345), do not edit manually
 
 %% @doc
 %% Hex HTTP API - OAuth.
@@ -10,8 +10,8 @@
     device_auth_flow/5,
     poll_device_token/3,
     refresh_token/3,
-    sso_authorization/2,
-    sso_reauth_required/1,
+    organization_authorization/2,
+    organization_reauth_required/1,
     revoke_token/3,
     client_credentials_token/4,
     client_credentials_token/5,
@@ -24,10 +24,10 @@
     access_token := binary(),
     refresh_token => binary(),
     expires_at := integer(),
-    %% Organizations the session must authenticate against their identity
-    %% provider for. Their scopes are not in this token and re-requesting them
-    %% will not help; see sso_authorization/2.
-    sso_reauth_required => [binary()]
+    %% Organizations whose SSO or 2FA requirements the session must satisfy.
+    %% Their scopes are absent until verification is complete; see
+    %% organization_authorization/2.
+    organization_reauth_required => [map()]
 }.
 
 -type device_auth_error() ::
@@ -207,7 +207,7 @@ poll_for_token_loop(Config, ClientId, DeviceCode, IntervalSeconds, ExpiresAt) ->
                                 expires_at => erlang:system_time(second) + ExpiresIn
                             },
                             {ok,
-                                put_sso_reauth_required(
+                                put_organization_reauth_required(
                                     put_refresh_token(Tokens, TokenResponse), TokenResponse
                                 )};
                         error ->
@@ -295,27 +295,27 @@ refresh_token(Config, ClientId, RefreshToken) ->
     mix_hex_api:post(Config, Path, Params).
 
 %% @doc
-%% Requests a URL for authenticating the current session against organizations
-%% that require single sign-on.
+%% Requests a browser URL to verify the organizations' SSO and 2FA requirements
+%% for the current OAuth session.
 %%
 %% The session the access token belongs to is the one being authorized: its
-%% owner opens the URL in a browser, completes SSO, and the next token refresh
-%% carries the scopes again. The URL is single-use and short-lived.
+%% owner completes the required verification in a browser. The next token
+%% refresh carries the scopes again. The URL is single-use and short-lived.
 %%
 %% Examples:
 %%
 %% ```
 %% 1> Config = mix_hex_core:default_config().
-%% 2> mix_hex_api_oauth:sso_authorization(Config, [<<"acme">>]).
+%% 2> mix_hex_api_oauth:organization_authorization(Config, [<<"acme">>]).
 %% {ok, {201, _, #{
-%%     <<"verification_uri">> => <<"https://hex.pm/sso/authorize/...">>,
+%%     <<"verification_uri">> => <<"https://hex.pm/organizations/authorize?code=...">>,
 %%     <<"expires_in">> => 600
 %% }}}
 %% '''
 %% @end
--spec sso_authorization(mix_hex_core:config(), [binary()]) -> mix_hex_api:response().
-sso_authorization(Config, Organizations) ->
-    Path = <<"oauth/sso_authorization">>,
+-spec organization_authorization(mix_hex_core:config(), [binary()]) -> mix_hex_api:response().
+organization_authorization(Config, Organizations) ->
+    Path = <<"oauth/organization_authorization">>,
     mix_hex_api:post(Config, Path, #{<<"organizations">> => Organizations}).
 
 %% @doc
@@ -400,24 +400,50 @@ revoke_token(Config, ClientId, Token) ->
     mix_hex_api:post(Config, Path, Params).
 
 %% @doc
-%% Organizations a token response says the session has to authenticate against
-%% their identity provider for.
-%%
-%% Returns `{ok, []}' when the response does not carry the field, which is what
-%% servers that predate it send and means nothing is lapsed. Returns `error'
-%% when the field is there in a shape that cannot be read, which says nothing
-%% about what has lapsed and must not be taken for the empty set.
+%% Missing organization authentication requirements in a token response.
+%% An absent field means no outstanding requirements. Malformed fields are
+%% rejected so callers cannot report successful authentication from them.
 %% @end
--spec sso_reauth_required(map()) -> {ok, [binary()]} | error.
-sso_reauth_required(#{<<"sso_reauth_required">> := Organizations}) when is_list(Organizations) ->
-    case lists:all(fun is_binary/1, Organizations) of
-        true -> {ok, Organizations};
-        false -> error
-    end;
-sso_reauth_required(#{<<"sso_reauth_required">> := _Organizations}) ->
+-spec organization_reauth_required(map()) -> {ok, [map()]} | error.
+organization_reauth_required(#{<<"organization_reauth_required">> := Entries}) when
+    is_list(Entries)
+->
+    parse_organization_requirements(Entries, []);
+organization_reauth_required(#{<<"organization_reauth_required">> := _}) ->
     error;
-sso_reauth_required(_TokenResponse) ->
+organization_reauth_required(_) ->
     {ok, []}.
+
+parse_organization_requirements([], Acc) ->
+    {ok, lists:reverse(Acc)};
+parse_organization_requirements(
+    [
+        #{<<"organization">> := Name, <<"requirements">> := Requirements} | Rest
+    ],
+    Acc
+) when is_binary(Name), byte_size(Name) > 0, Requirements =/= [] ->
+    case valid_requirements(Requirements) of
+        true ->
+            parse_organization_requirements(
+                Rest,
+                [#{organization => Name, requirements => lists:usort(Requirements)} | Acc]
+            );
+        false ->
+            error
+    end;
+parse_organization_requirements(_, _) ->
+    error.
+
+%% A proper list of known requirements. Decoded terms can carry an improper
+%% list, which is_list/1 accepts and lists:all/2 would crash on.
+valid_requirements([]) ->
+    true;
+valid_requirements([Requirement | Rest]) when
+    Requirement =:= <<"tfa">>; Requirement =:= <<"sso">>
+->
+    valid_requirements(Rest);
+valid_requirements(_) ->
+    false.
 
 %%====================================================================
 %% Internal functions
@@ -516,11 +542,11 @@ put_refresh_token(Tokens, _TokenResponse) ->
     Tokens.
 
 %% @private
-%% A response whose sso_reauth_required cannot be read carries no key, so the
+%% A response whose organization_reauth_required cannot be read carries no key, so the
 %% caller is not handed the empty set as if the server had sent it.
-put_sso_reauth_required(Tokens, TokenResponse) ->
-    case sso_reauth_required(TokenResponse) of
-        {ok, Organizations} -> Tokens#{sso_reauth_required => Organizations};
+put_organization_reauth_required(Tokens, TokenResponse) ->
+    case organization_reauth_required(TokenResponse) of
+        {ok, Organizations} -> Tokens#{organization_reauth_required => Organizations};
         error -> Tokens
     end.
 
