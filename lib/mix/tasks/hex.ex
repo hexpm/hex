@@ -233,8 +233,12 @@ defmodule Mix.Tasks.Hex do
   def revoke_existing_oauth_tokens do
     case Hex.Config.read()[:"$oauth_token"] do
       token_data when is_map(token_data) ->
-        if access_token = token_data[:access_token] do
-          revoke_token(access_token)
+        # The refresh token is the one that outlives the session, so it is the
+        # one worth presenting.
+        cond do
+          refresh_token = token_data[:refresh_token] -> revoke_token(refresh_token)
+          access_token = token_data[:access_token] -> revoke_token(access_token)
+          true -> :ok
         end
 
         :ok
@@ -246,8 +250,8 @@ defmodule Mix.Tasks.Hex do
 
   # A token the server did not revoke keeps working until it expires, so say so
   # rather than reporting the local clear as the whole job.
-  defp revoke_token(access_token) do
-    case Hex.API.OAuth.revoke_token(access_token) do
+  defp revoke_token(token) do
+    case Hex.API.OAuth.revoke_token(token) do
       {:ok, {status, _headers, _body}} when status in 200..299 ->
         :ok
 

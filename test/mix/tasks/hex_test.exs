@@ -31,6 +31,35 @@ defmodule Mix.Tasks.HexTest do
         assert Case.shell_output() == ""
       end)
     end
+
+    test "revokes the refresh token so the server ends the session" do
+      in_tmp(fn ->
+        set_home_cwd()
+        store_token()
+        stub_device_flow()
+
+        Mix.Tasks.Hex.revoke_existing_oauth_tokens()
+
+        assert_received {:revoked, "refresh"}
+      end)
+    end
+
+    test "revokes the access token when there is no refresh token" do
+      in_tmp(fn ->
+        set_home_cwd()
+
+        Hex.OAuth.store_token(%{
+          access_token: "token",
+          expires_at: System.system_time(:second) + 3600
+        })
+
+        stub_device_flow()
+
+        Mix.Tasks.Hex.revoke_existing_oauth_tokens()
+
+        assert_received {:revoked, "token"}
+      end)
+    end
   end
 
   describe "auth_device/0" do
@@ -63,7 +92,7 @@ defmodule Mix.Tasks.HexTest do
 
         assert {:ok, %{access_token: "new_token"}} = Mix.Tasks.Hex.auth_device()
 
-        assert_received {:revoked, "token"}
+        assert_received {:revoked, "refresh"}
         assert Hex.State.get(:oauth_token).access_token == "new_token"
         assert Hex.Config.read()[:"$oauth_token"][:access_token] == "new_token"
       end)
