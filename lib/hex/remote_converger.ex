@@ -546,6 +546,7 @@ defmodule Hex.RemoteConverger do
         resolved
         |> group_dependency_changes(previously_locked_versions)
         |> annotate_dependency_changes()
+        |> reject_unflagged_unchanged()
 
       Enum.each(dep_changes, fn {mod, deps} ->
         unless deps == [], do: print_category(mod)
@@ -602,6 +603,16 @@ defmodule Hex.RemoteConverger do
       {mod, annotated}
     end)
   end
+
+  # Unchanged dependencies are only listed when they are retired or have advisories
+  defp reject_unflagged_unchanged(dep_changes) do
+    Enum.map(dep_changes, fn
+      {:eq, deps} -> {:eq, Enum.filter(deps, &flagged_dependency?/1)}
+      {mod, deps} -> {mod, deps}
+    end)
+  end
+
+  defp flagged_dependency?({_dep, retired, advisories}), do: retired != nil or advisories != []
 
   defp policy_accepts_finding?(nil, _candidate, _finding), do: false
 

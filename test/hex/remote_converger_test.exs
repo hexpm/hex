@@ -400,6 +400,84 @@ defmodule Hex.RemoteConvergerTest do
     end)
   end
 
+  defmodule UnchangedDeps.MixProject do
+    def project do
+      [
+        app: :unchanged_deps,
+        version: "0.1.0",
+        deps: [
+          {:rc_unchanged_clean, "0.1.0"},
+          {:rc_unchanged_retired, "0.1.0"},
+          {:rc_unchanged_advisory, "0.1.0"}
+        ]
+      ]
+    end
+  end
+
+  test "deps.get only lists unchanged dependencies that are retired or have advisories" do
+    auth =
+      Hexpm.new_user(
+        "rc_unchanged_user",
+        "rc_unchanged@mail.com",
+        "passpass",
+        "rc_unchanged_key"
+      )
+
+    Hexpm.new_package("hexpm", "rc_unchanged_clean", "0.1.0", [], %{}, auth)
+    Hexpm.new_package("hexpm", "rc_unchanged_retired", "0.1.0", [], %{}, auth)
+    Hexpm.new_package("hexpm", "rc_unchanged_advisory", "0.1.0", [], %{}, auth)
+
+    with_project(UnchangedDeps.MixProject, fn ->
+      in_tmp(fn ->
+        Hex.State.put(:cache_home, tmp_path())
+        Hex.State.put(:api_key, auth[:key])
+
+        :ok = Mix.Tasks.Deps.Get.run([])
+
+        output = shell_output()
+        assert output =~ "New:"
+        assert output =~ "  rc_unchanged_clean 0.1.0"
+
+        Mix.Task.clear()
+        :ok = Mix.Tasks.Deps.Get.run([])
+
+        output = shell_output()
+        assert output =~ "Resolution completed"
+        refute output =~ "Unchanged:"
+        refute output =~ "  rc_unchanged_clean 0.1.0"
+        refute output =~ "  rc_unchanged_retired 0.1.0"
+        refute output =~ "  rc_unchanged_advisory 0.1.0"
+
+        :sys.replace_state(Hex.Registry.Server, fn %{ets: tid} = state ->
+          :ets.insert(
+            tid,
+            {{:retired, "hexpm", "rc_unchanged_retired", "0.1.0"},
+             %{reason: :RETIRED_SECURITY, message: "Retired for testing"}}
+          )
+
+          :ets.insert(
+            tid,
+            {{:advisories, "hexpm", "rc_unchanged_advisory", "0.1.0"}, [@advisory]}
+          )
+
+          state
+        end)
+
+        Mix.Task.clear()
+        :ok = Mix.Tasks.Deps.Get.run([])
+
+        output = shell_output()
+        assert output =~ "Unchanged:"
+        refute output =~ "  rc_unchanged_clean 0.1.0"
+        assert output =~ "  rc_unchanged_retired 0.1.0 RETIRED!"
+        assert output =~ "  rc_unchanged_advisory 0.1.0 VULNERABLE!"
+        assert output =~ "GHSA-rc-0001"
+        assert output =~ "Found retired packages"
+        assert output =~ "Found packages with security advisories"
+      end)
+    end)
+  end
+
   defmodule ChecksumIntegrity.MixProject do
     def project do
       [
