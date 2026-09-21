@@ -10,6 +10,10 @@
 * Record whether the key given to `mix hex.organization auth ORGANIZATION --key KEY` is owned by the organization or by a user. Organization keys no longer trigger the stored-key deprecation warning, while user keys warn that they will stop working in Hex 2.6. Re-run the command on this Hex version to record the owner of an already stored organization key and silence the warning
 * Stop listing unchanged dependencies after `mix deps.get` and `mix deps.update` resolve dependencies. Unchanged dependencies that are retired or have security advisories are still listed under "Unchanged:"
 
+### Bug fixes
+
+* Report locked packages matched by a DENY override in `mix hex.audit --policy` and `mix hex.audit --policy-overrides`. Denied packages are listed in a "Denied:" section, fail the audit, and appear in SARIF output under the `HEX0006` rule. `ignore_advisories` and `ignore_retirements` do not apply to denied packages
+
 ## v2.5.1 (2026-07-09)
 
 ### Enhancements
