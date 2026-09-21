@@ -18,6 +18,12 @@ defmodule Mix.Tasks.Hex.AuditTest do
     end
   end
 
+  defmodule SharedNameDeps.MixProject do
+    def project do
+      [app: :test_app, version: "0.0.1", deps: []]
+    end
+  end
+
   setup_all do
     auth = Hexpm.new_user("audit_user", "audit@mail.com", "passpass", "key")
     {:ok, [auth: auth]}
@@ -614,6 +620,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
                "Dependency '#{@package_name}' '3.5.0' is denied by the active dependency " <>
                  "policy: 'Replaced by the internal fork'."
 
+      assert result["partialFingerprints"] == %{"hexAudit/v1" => "denied:hexpm/test_package"}
       refute Map.has_key?(result, "suppressions")
     end)
   end
@@ -769,7 +776,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
                          "arguments" => [@package_name, "3.0.0", "(security)"]
                        },
                        "locations" => [retired_location],
-                       "partialFingerprints" => %{"hexAudit/v1" => "retired:test_package"}
+                       "partialFingerprints" => %{"hexAudit/v1" => "retired:hexpm/test_package"}
                      } = retired_result,
                      %{
                        "ruleId" => "GHSA-test-0001",
@@ -788,7 +795,7 @@ defmodule Mix.Tasks.Hex.AuditTest do
                        },
                        "locations" => [advisory_location],
                        "partialFingerprints" => %{
-                         "hexAudit/v1" => "advisory:test_package:GHSA-test-0001"
+                         "hexAudit/v1" => "advisory:hexpm/test_package:GHSA-test-0001"
                        }
                      } = advisory_result
                    ]
@@ -836,6 +843,87 @@ defmodule Mix.Tasks.Hex.AuditTest do
       assert region_snippet =~ ~s("#{@package_name}": {:hex, :#{@package_name}, "3.0.0")
       assert context_snippet =~ "%{\n"
       assert context_snippet =~ region_snippet
+    end)
+  end
+
+  @tag :requires_json
+  test "audit --format sarif (same package name locked from hexpm and an organization)",
+       %{auth: auth} do
+    Mix.Project.push(SharedNameDeps.MixProject)
+
+    assert {:ok, {204, _, _}} = Hexpm.new_repo("auditorg", auth)
+    Hexpm.new_package("hexpm", @package_name, "3.6.0", [], %{}, auth)
+    Hexpm.new_package("auditorg", @package_name, "3.6.0", [], %{}, auth)
+
+    assert {:ok, {204, _, _}} =
+             Hex.API.Release.retire("hexpm", @package_name, "3.6.0", %{reason: "security"}, auth)
+
+    assert {:ok, {204, _, _}} =
+             Hex.API.Release.retire(
+               "auditorg",
+               @package_name,
+               "3.6.0",
+               %{reason: "deprecated"},
+               auth
+             )
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      repos = Hex.State.fetch!(:repos)
+      Hex.State.put(:repos, put_in(repos["hexpm"].auth_key, auth[:key]))
+
+      Mix.Dep.Lock.write(%{
+        @package => {:hex, @package, "3.6.0", nil, [:mix], [], "hexpm", nil},
+        test_package_private: {:hex, @package, "3.6.0", nil, [:mix], [], "hexpm:auditorg", nil}
+      })
+
+      # Fetching a package replaces its registry rows, so the advisories are
+      # injected once both repositories have been fetched.
+      Hex.Registry.Server.open()
+      Hex.Registry.Server.prefetch([{"hexpm", @package_name}, {"hexpm:auditorg", @package_name}])
+      assert {:ok, _versions} = Hex.Registry.Server.versions("hexpm", @package_name)
+      assert {:ok, _versions} = Hex.Registry.Server.versions("hexpm:auditorg", @package_name)
+      inject_advisory("hexpm", @package_name, "3.6.0", [@advisory])
+      inject_advisory("hexpm:auditorg", @package_name, "3.6.0", [@advisory])
+
+      deny = %{action: :OVERRIDE_ACTION_DENY, ref: %{package: @package_name}}
+
+      put_policy_repositories([
+        %{overrides: [deny]},
+        %{repository: "auditorg", overrides: [deny]}
+      ])
+
+      assert catch_throw(Mix.Task.run("hex.audit", ["--policy-overrides", "--format", "sarif"])) ==
+               {:exit_code, 1}
+
+      [run] = decode_sarif()["runs"]
+
+      assert [
+               {"HEX0006", 2, hexpm_line},
+               {"HEX0006", 3, org_line},
+               {"HEX0003", 2, hexpm_line},
+               {"HEX0004", 3, org_line},
+               {"GHSA-test-0001", 2, hexpm_line},
+               {"GHSA-test-0001", 3, org_line}
+             ] =
+               Enum.map(run["results"], fn %{"ruleId" => rule_id, "locations" => [location]} ->
+                 region = location["physicalLocation"]["region"]
+                 {rule_id, region["startLine"], region["snippet"]["text"]}
+               end)
+
+      assert hexpm_line =~ ~s("#{@package_name}": {:hex, :#{@package_name}, "3.6.0")
+      assert hexpm_line =~ ~s("hexpm", nil})
+      assert org_line =~ ~s("test_package_private": {:hex, :#{@package_name}, "3.6.0")
+      assert org_line =~ ~s("hexpm:auditorg", nil})
+
+      assert Enum.map(run["results"], & &1["partialFingerprints"]["hexAudit/v1"]) == [
+               "denied:hexpm/test_package",
+               "denied:hexpm:auditorg/test_package",
+               "retired:hexpm/test_package",
+               "retired:hexpm:auditorg/test_package",
+               "advisory:hexpm/test_package:GHSA-test-0001",
+               "advisory:hexpm:auditorg/test_package:GHSA-test-0001"
+             ]
     end)
   end
 
@@ -911,23 +999,30 @@ defmodule Mix.Tasks.Hex.AuditTest do
   end
 
   defp inject_advisory(package, version, advisories) do
+    inject_advisory("hexpm", package, version, advisories)
+  end
+
+  defp inject_advisory(repo, package, version, advisories) do
     :sys.replace_state(Hex.Registry.Server, fn %{ets: tid} = state ->
-      :ets.insert(tid, {{:advisories, "hexpm", package, version}, advisories})
+      :ets.insert(tid, {{:advisories, repo, package, version}, advisories})
       state
     end)
   end
 
   defp put_policy(fields) do
+    put_policy_repositories([Map.new(fields)])
+  end
+
+  defp put_policy_repositories(repositories) do
     Hex.State.put(:active_policy, %{
       repository: "myorg",
       name: "strict-prod",
       visibility: :VISIBILITY_PUBLIC,
-      repositories: [
-        Map.merge(
-          %{repository: "hexpm", restriction: %{}, overrides: []},
-          Map.new(fields)
+      repositories:
+        Enum.map(
+          repositories,
+          &Map.merge(%{repository: "hexpm", restriction: %{}, overrides: []}, &1)
         )
-      ]
     })
   end
 

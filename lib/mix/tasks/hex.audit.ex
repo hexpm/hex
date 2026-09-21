@@ -312,7 +312,7 @@ defmodule Mix.Tasks.Hex.Audit do
           other -> other
         end
 
-      {type, entry.package, entry.version, entry.detail, suppression}
+      {type, entry.repo, entry.package, entry.version, entry.detail, suppression}
     end)
   end
 
