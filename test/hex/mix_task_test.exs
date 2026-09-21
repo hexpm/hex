@@ -469,7 +469,7 @@ defmodule Hex.MixTaskTest do
       File.write!("deps/ecto/.hex", manifest)
       Mix.Task.run("deps.get", [])
 
-      assert_received {:mix_shell, :info, ["  ecto 0.2.0"]}
+      assert %{ecto: {:hex, :ecto, "0.2.0", _, _, _, "hexpm", _}} = Mix.Dep.Lock.read()
     end)
   after
     purge([
@@ -494,7 +494,7 @@ defmodule Hex.MixTaskTest do
       File.write!("deps/ecto/.hex", manifest)
       Mix.Task.run("deps.get", [])
 
-      assert_received {:mix_shell, :info, ["  ecto 0.2.0"]}
+      assert %{ecto: {:hex, :ecto, "0.2.0", _, _, _, "hexpm", _}} = Mix.Dep.Lock.read()
     end)
   after
     purge([
@@ -526,7 +526,7 @@ defmodule Hex.MixTaskTest do
       File.write!("deps/ecto/.hex", manifest)
       Mix.Task.run("deps.get", [])
 
-      assert_received {:mix_shell, :info, ["  ecto 0.2.0"]}
+      assert %{ecto: {:hex, :ecto, "0.2.0", _, _, _, "hexpm", _}} = Mix.Dep.Lock.read()
     end)
   after
     purge([
