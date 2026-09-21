@@ -66,8 +66,8 @@ jobs:
             elixir: 1.12.3
 
     env:
-      HEXPM_OTP: OTP-28.5
-      HEXPM_ELIXIR: v1.19.5
+      HEXPM_OTP: OTP-29.0.5
+      HEXPM_ELIXIR: v1.20.3
       HEXPM_BRANCH: main
       HEXPM_PATH: hexpm
       HEXPM_ELIXIR_PATH: hexpm_elixir
