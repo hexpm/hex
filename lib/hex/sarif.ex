@@ -42,15 +42,15 @@ defmodule Hex.Sarif do
   @doc """
   Encodes audit findings as a SARIF JSON document.
 
-  Findings are `{:retired, package, version, retired, suppression}`,
-  `{:advisory, package, version, advisory, suppression}`, or
-  `{:denied, package, version, acceptance, false}` tuples, where `retired` is
-  the retirement status map from the registry, `advisory` is a display group
-  returned by `:mix_hex_advisory.group_for_display/1`, and `acceptance`
-  describes the policy DENY override. Project-ignored and policy-accepted
-  findings are included with a SARIF suppression. `lockfile` is the path of
-  the lock file the results are anchored to, relative to the working
-  directory.
+  Findings are `{:retired, repo, package, version, retired, suppression}`,
+  `{:advisory, repo, package, version, advisory, suppression}`, or
+  `{:denied, repo, package, version, acceptance, false}` tuples, where `repo`
+  is the repository the package is locked from, `retired` is the retirement
+  status map from the registry, `advisory` is a display group returned by
+  `:mix_hex_advisory.group_for_display/1`, and `acceptance` describes the
+  policy DENY override. Project-ignored and policy-accepted findings are
+  included with a SARIF suppression. `lockfile` is the path of the lock file
+  the results are anchored to, relative to the working directory.
 
   Requires the `:json` module (OTP 27 or later).
   """
@@ -236,15 +236,15 @@ defmodule Hex.Sarif do
 
   defp rules(findings) do
     denied_rules =
-      if Enum.any?(findings, &match?({:denied, _package, _version, _acceptance, _}, &1)),
+      if Enum.any?(findings, &match?({:denied, _repo, _package, _version, _acceptance, _}, &1)),
         do: [denied_rule()],
         else: []
 
     retired_rules =
       findings
       |> Enum.flat_map(fn
-        {:retired, _package, _version, retired, _ignored?} -> [Map.get(retired, :reason)]
-        {_type, _package, _version, _detail, _ignored?} -> []
+        {:retired, _repo, _package, _version, retired, _ignored?} -> [Map.get(retired, :reason)]
+        {_type, _repo, _package, _version, _detail, _ignored?} -> []
       end)
       |> Enum.uniq_by(fn reason -> elem(retired_rule_info(reason), 0) end)
       |> Enum.map(&retired_rule/1)
@@ -252,8 +252,8 @@ defmodule Hex.Sarif do
     advisory_rules =
       findings
       |> Enum.flat_map(fn
-        {:advisory, _package, _version, advisory, _ignored?} -> [advisory]
-        {_type, _package, _version, _detail, _ignored?} -> []
+        {:advisory, _repo, _package, _version, advisory, _ignored?} -> [advisory]
+        {_type, _repo, _package, _version, _detail, _ignored?} -> []
       end)
       |> Enum.uniq_by(& &1.id)
       |> Enum.map(&advisory_rule/1)
@@ -353,7 +353,7 @@ defmodule Hex.Sarif do
   end
 
   defp result(
-         {:denied, package, version, acceptance, _suppression},
+         {:denied, repo, package, version, acceptance, _suppression},
          rule_indexes,
          artifact,
          lock_lines
@@ -366,12 +366,17 @@ defmodule Hex.Sarif do
       "ruleIndex" => Map.fetch!(rule_indexes, rule_id),
       "level" => "error",
       "message" => result_message(@denied_message_template, [package, version, message]),
-      "locations" => [location(package, artifact, lock_lines)],
-      "partialFingerprints" => %{"hexAudit/v1" => "denied:#{package}"}
+      "locations" => [location(repo, package, artifact, lock_lines)],
+      "partialFingerprints" => %{"hexAudit/v1" => "denied:#{repo}/#{package}"}
     }
   end
 
-  defp result({:retired, package, version, retired, ignored?}, rule_indexes, artifact, lock_lines) do
+  defp result(
+         {:retired, repo, package, version, retired, ignored?},
+         rule_indexes,
+         artifact,
+         lock_lines
+       ) do
     reason = Map.get(retired, :reason)
     {rule_id, _name, _short_description} = retired_rule_info(reason)
     message = Hex.Utils.package_retirement_message(retired)
@@ -381,14 +386,14 @@ defmodule Hex.Sarif do
       "ruleIndex" => Map.fetch!(rule_indexes, rule_id),
       "level" => retired_level(reason),
       "message" => result_message(@retired_message_template, [package, version, message]),
-      "locations" => [location(package, artifact, lock_lines)],
-      "partialFingerprints" => %{"hexAudit/v1" => "retired:#{package}"}
+      "locations" => [location(repo, package, artifact, lock_lines)],
+      "partialFingerprints" => %{"hexAudit/v1" => "retired:#{repo}/#{package}"}
     }
     |> put_suppressions(ignored?)
   end
 
   defp result(
-         {:advisory, package, version, advisory, ignored?},
+         {:advisory, repo, package, version, advisory, ignored?},
          rule_indexes,
          artifact,
          lock_lines
@@ -398,8 +403,10 @@ defmodule Hex.Sarif do
       "ruleIndex" => Map.fetch!(rule_indexes, advisory.id),
       "level" => advisory_level(advisory),
       "message" => advisory_result_message(package, version, advisory),
-      "locations" => [location(package, artifact, lock_lines)],
-      "partialFingerprints" => %{"hexAudit/v1" => "advisory:#{package}:#{advisory.id}"}
+      "locations" => [location(repo, package, artifact, lock_lines)],
+      "partialFingerprints" => %{
+        "hexAudit/v1" => "advisory:#{repo}/#{package}:#{advisory.id}"
+      }
     }
     |> put_suppressions(ignored?)
   end
@@ -533,9 +540,9 @@ defmodule Hex.Sarif do
   defp security_severity(%{severity: :SEVERITY_NONE}), do: "0.0"
   defp security_severity(_advisory), do: nil
 
-  defp location(package, artifact, lock_lines) do
+  defp location(repo, package, artifact, lock_lines) do
     physical_location =
-      case Map.get(lock_lines.packages, package) do
+      case Map.get(lock_lines.packages, {repo, package}) do
         nil ->
           %{"artifactLocation" => artifact}
 
@@ -568,10 +575,11 @@ defmodule Hex.Sarif do
     }
   end
 
-  # The lock file's lines plus a map from each locked package to its line
-  # number, found by looking for the `{:hex, :package_name, ...}` tuples.
-  # Keyed by package name rather than the lock entry's app name since
-  # findings carry package names.
+  # The lock file's lines plus a map from each locked `{repo, package}` to
+  # its line number, found by looking for the `{:hex, :package_name, ...}`
+  # tuples. Keyed by repository and package name rather than the lock
+  # entry's app name since findings carry those, and the same package name
+  # can be locked from more than one repository under different app names.
   defp lock_lines(lockfile) do
     case File.read(lockfile) do
       {:ok, contents} ->
@@ -590,9 +598,9 @@ defmodule Hex.Sarif do
           lines
           |> Enum.with_index(1)
           |> Enum.reduce(%{}, fn {line, index}, acc ->
-            case package_from_line(line) do
+            case lock_entry_from_line(line) do
               nil -> acc
-              package -> Map.put_new(acc, package, index)
+              entry -> Map.put_new(acc, entry, index)
             end
           end)
 
@@ -603,14 +611,24 @@ defmodule Hex.Sarif do
     end
   end
 
-  defp package_from_line(line) do
+  # The `{repo, package}` of a `{:hex, :package_name, ...}` lock line, or
+  # nil for any other line. The tuple is parsed with the Elixir parser so
+  # the nested deps list and quoted strings do not confuse the element
+  # positions. The repository is the seventh element; lock entries written
+  # before Hex recorded it belong to hexpm.
+  defp lock_entry_from_line(line) do
     with [_before, rest] <- :binary.split(line, "{:hex, :"),
-         [package, _rest] <- :binary.split(rest, ",") do
-      package
+         tuple = "{:hex, :" <> String.trim_trailing(rest, ","),
+         {:ok, {:{}, _meta, [:hex, package | elements]}} when is_atom(package) <-
+           Code.string_to_quoted(tuple) do
+      {lock_repo(Enum.at(elements, 4)), Atom.to_string(package)}
     else
       _other -> nil
     end
   end
+
+  defp lock_repo(repo) when is_binary(repo), do: repo
+  defp lock_repo(_missing), do: "hexpm"
 
   defp encode_json!(term) do
     if Code.ensure_loaded?(:json) do
