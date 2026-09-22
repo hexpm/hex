@@ -66,6 +66,10 @@ defmodule Mix.Tasks.Hex.Audit do
   `ignore_advisories` and `ignore_retirements` do not apply to denied
   packages.
 
+  With the `policy_enforce_lock` config enabled, `mix deps.get` and
+  `mix deps.update` run the `--policy` check on `mix.lock` after resolving
+  dependencies and fail when it reports anything. See `mix help hex.policy`.
+
   ## SARIF output
 
   With `--format sarif` the audit result is rendered as a
@@ -158,62 +162,28 @@ defmodule Mix.Tasks.Hex.Audit do
     |> Hex.Mix.packages_from_lock()
     |> Registry.prefetch()
 
-    ignore_advisories = Hex.State.fetch!(:ignore_advisories)
-    ignore_retirements = Hex.State.fetch!(:ignore_retirements)
-
-    denied = denied_packages(lock, policy)
-    all_retired = retired_packages(lock)
-    raw_advisories = advisory_packages(lock)
-    all_advisories = display_advisory_findings(raw_advisories)
-
-    {policy_accepted_retired, policy_active_retired} =
-      split_policy_findings(all_retired, policy, mode, :retirement)
-
-    {policy_accepted_advisories, policy_active_advisories} =
-      split_policy_findings(all_advisories, policy, mode, :advisory)
-
-    {ignored_retired, retired} =
-      Enum.split_with(policy_active_retired, fn entry ->
-        Hex.Ignores.retirement_ignored?(entry.package, entry.version, ignore_retirements)
-      end)
-
-    {ignored_advisories, advisories} =
-      Enum.split_with(policy_active_advisories, fn entry ->
-        Hex.Ignores.advisory_ignored?(entry.detail, ignore_advisories)
-      end)
+    result = Hex.Audit.run(lock, policy, mode)
 
     case format do
-      "human" ->
-        print_human(
-          denied,
-          retired,
-          advisories,
-          policy_accepted_retired,
-          policy_accepted_advisories,
-          ignored_retired,
-          ignored_advisories
-        )
-
-      "sarif" ->
-        output_sarif(
-          denied,
-          retired,
-          advisories,
-          policy_accepted_retired,
-          policy_accepted_advisories,
-          ignored_retired,
-          ignored_advisories,
-          opts[:output]
-        )
+      "human" -> print_human(result)
+      "sarif" -> output_sarif(result, opts[:output])
     end
 
-    warn_unused_ignores(all_retired, raw_advisories, ignore_advisories, ignore_retirements)
+    warn_unused_ignores(
+      result.all_retired,
+      result.raw_advisories,
+      Hex.State.fetch!(:ignore_advisories),
+      Hex.State.fetch!(:ignore_retirements)
+    )
 
-    if denied != [] or retired != [] or advisories != [] do
+    if Hex.Audit.active_findings?(result) do
       if format == "human", do: Hex.Shell.info("")
-      if denied != [], do: Hex.Shell.error("Found packages denied by the active policy")
-      if retired != [], do: Hex.Shell.error("Found retired packages")
-      if advisories != [], do: Hex.Shell.error("Found packages with security advisories")
+      if result.denied != [], do: Hex.Shell.error("Found packages denied by the active policy")
+      if result.retired != [], do: Hex.Shell.error("Found retired packages")
+
+      if result.advisories != [],
+        do: Hex.Shell.error("Found packages with security advisories")
+
       Mix.Tasks.Hex.set_exit_code(1)
     end
   end
@@ -250,50 +220,33 @@ defmodule Mix.Tasks.Hex.Audit do
     end
   end
 
-  defp print_human(
-         denied,
-         retired,
-         advisories,
-         policy_accepted_retired,
-         policy_accepted_advisories,
-         ignored_retired,
-         ignored_advisories
-       ) do
-    if denied == [] and retired == [] and advisories == [] and ignored_retired == [] and
-         ignored_advisories == [] and policy_accepted_retired == [] and
-         policy_accepted_advisories == [] do
+  defp print_human(result) do
+    sections = [
+      {:denied, "Denied:", result.denied, false},
+      {:retired, "Retired:", result.retired, false},
+      {:advisories, "Advisories:", result.advisories, false},
+      {:retired, "Policy-accepted retired:", result.policy_accepted_retired, true},
+      {:advisories, "Policy-accepted advisories:", result.policy_accepted_advisories, true},
+      {:retired, "Ignored retired:", result.ignored_retired, false},
+      {:advisories, "Ignored advisories:", result.ignored_advisories, false}
+    ]
+
+    if Enum.all?(sections, fn {_type, _header, entries, _accepted?} -> entries == [] end) do
       Hex.Shell.info("No retired or security advisory packages found")
     else
-      print_sections([
-        {:denied, "Denied:", denied, false},
-        {:retired, "Retired:", retired, false},
-        {:advisories, "Advisories:", advisories, false},
-        {:retired, "Policy-accepted retired:", policy_accepted_retired, true},
-        {:advisories, "Policy-accepted advisories:", policy_accepted_advisories, true},
-        {:retired, "Ignored retired:", ignored_retired, false},
-        {:advisories, "Ignored advisories:", ignored_advisories, false}
-      ])
+      Hex.Audit.print_sections(sections)
     end
   end
 
-  defp output_sarif(
-         denied,
-         retired,
-         advisories,
-         policy_accepted_retired,
-         policy_accepted_advisories,
-         ignored_retired,
-         ignored_advisories,
-         output
-       ) do
+  defp output_sarif(result, output) do
     findings =
-      sarif_findings(:denied, denied, false) ++
-        sarif_findings(:retired, retired, false) ++
-        sarif_findings(:retired, ignored_retired, :project) ++
-        sarif_findings(:retired, policy_accepted_retired, :policy) ++
-        sarif_findings(:advisory, advisories, false) ++
-        sarif_findings(:advisory, ignored_advisories, :project) ++
-        sarif_findings(:advisory, policy_accepted_advisories, :policy)
+      sarif_findings(:denied, result.denied, false) ++
+        sarif_findings(:retired, result.retired, false) ++
+        sarif_findings(:retired, result.ignored_retired, :project) ++
+        sarif_findings(:retired, result.policy_accepted_retired, :policy) ++
+        sarif_findings(:advisory, result.advisories, false) ++
+        sarif_findings(:advisory, result.ignored_advisories, :project) ++
+        sarif_findings(:advisory, result.policy_accepted_advisories, :policy)
 
     lockfile = Mix.Project.config()[:lockfile] || "mix.lock"
     sarif = Hex.Sarif.encode_audit(findings, lockfile)
@@ -314,185 +267,6 @@ defmodule Mix.Tasks.Hex.Audit do
 
       {type, entry.repo, entry.package, entry.version, entry.detail, suppression}
     end)
-  end
-
-  defp denied_packages(_lock, nil), do: []
-
-  defp denied_packages(lock, policy) do
-    Enum.flat_map(lock, fn {_app, lock} -> denied_status(Hex.Utils.lock(lock), policy) end)
-  end
-
-  defp denied_status(%{repo: repo, name: package, version: version}, policy) do
-    candidate = Hex.Policy.Filter.candidate_from_registry(repo, package, version)
-
-    case Hex.Policy.Filter.deny_override(policy, candidate) do
-      nil -> []
-      acceptance -> [finding(repo, package, version, acceptance)]
-    end
-  end
-
-  defp denied_status(nil, _policy), do: []
-
-  defp retired_packages(lock) do
-    Enum.flat_map(lock, fn {_app, lock} -> retirement_status(Hex.Utils.lock(lock)) end)
-  end
-
-  defp retirement_status(%{repo: repo, name: package, version: version}) do
-    case Registry.retired(repo, package, version) do
-      %{} = retired ->
-        [finding(repo, package, version, retired)]
-
-      nil ->
-        []
-    end
-  end
-
-  defp retirement_status(nil), do: []
-
-  defp advisory_packages(lock) do
-    Enum.flat_map(lock, fn {_app, lock} -> advisory_status(Hex.Utils.lock(lock)) end)
-  end
-
-  defp advisory_status(%{repo: repo, name: package, version: version}) do
-    case Registry.advisories(repo, package, version) || [] do
-      [] ->
-        []
-
-      advisories ->
-        [%{repo: repo || "hexpm", package: package, version: version, advisories: advisories}]
-    end
-  end
-
-  defp advisory_status(nil), do: []
-
-  defp display_advisory_findings(raw_advisories) do
-    Enum.flat_map(raw_advisories, fn entry ->
-      groups = Enum.group_by(entry.advisories, &advisory_group_key/1)
-
-      group_keys =
-        entry.advisories
-        |> Enum.map(&advisory_group_key/1)
-        |> Enum.uniq()
-
-      display_advisories = :mix_hex_advisory.group_for_display(entry.advisories)
-
-      Enum.zip(display_advisories, group_keys)
-      |> Enum.map(fn {advisory, group_key} ->
-        policy_advisory =
-          groups
-          |> Map.fetch!(group_key)
-          |> Enum.max_by(
-            &Hex.Policy.Filter.severity_rank(Map.get(&1, :severity)),
-            fn -> advisory end
-          )
-
-        finding(entry.repo, entry.package, entry.version, advisory)
-        |> Map.put(
-          :policy_detail,
-          Map.put(advisory, :severity, Map.get(policy_advisory, :severity))
-        )
-      end)
-    end)
-  end
-
-  defp advisory_group_key(%{id: id} = advisory) do
-    Enum.find([id | Map.get(advisory, :aliases, [])], &String.starts_with?(&1, "CVE-")) || id
-  end
-
-  defp split_policy_findings(entries, nil, :default, _type), do: {[], entries}
-
-  defp split_policy_findings(entries, policy, mode, type) do
-    {accepted, active} =
-      Enum.split_with(entries, fn entry ->
-        candidate =
-          Hex.Policy.Filter.candidate_from_registry(entry.repo, entry.package, entry.version)
-
-        detail = Map.get(entry, :policy_detail, entry.detail)
-
-        case Hex.Policy.Filter.audit_finding(policy, candidate, {type, detail}, mode) do
-          :active -> false
-          {:accepted, _acceptance} -> true
-        end
-      end)
-
-    accepted =
-      Enum.map(accepted, fn entry ->
-        candidate =
-          Hex.Policy.Filter.candidate_from_registry(entry.repo, entry.package, entry.version)
-
-        detail = Map.get(entry, :policy_detail, entry.detail)
-
-        {:accepted, acceptance} =
-          Hex.Policy.Filter.audit_finding(policy, candidate, {type, detail}, mode)
-
-        %{entry | acceptance: acceptance}
-      end)
-
-    {accepted, active}
-  end
-
-  defp finding(repo, package, version, detail) do
-    %{repo: repo || "hexpm", package: package, version: version, detail: detail, acceptance: nil}
-  end
-
-  defp print_sections(sections) do
-    sections
-    |> Enum.reject(fn {_type, _header, entries, _policy_accepted?} -> entries == [] end)
-    |> Enum.with_index()
-    |> Enum.each(fn {{type, header, entries, policy_accepted?}, index} ->
-      if index > 0, do: Hex.Shell.info("")
-      print_section(type, header, entries, policy_accepted?)
-    end)
-  end
-
-  defp print_section(:denied, header, entries, _policy_accepted?) do
-    Hex.Shell.info(Hex.Shell.format([:bright, header, :reset]))
-
-    Enum.each(entries, fn entry ->
-      message = Hex.Policy.Filter.acceptance_message(entry.detail)
-
-      Hex.Shell.info(
-        Hex.Shell.format(["  #{entry.package} #{entry.version} - ", :red, message, :reset])
-      )
-    end)
-  end
-
-  defp print_section(:retired, header, entries, policy_accepted?) do
-    Hex.Shell.info(Hex.Shell.format([:bright, header, :reset]))
-
-    Enum.each(entries, fn entry ->
-      message = Hex.Utils.package_retirement_message(entry.detail)
-
-      Hex.Shell.info(
-        Hex.Shell.format(["  #{entry.package} #{entry.version} - ", :yellow, message, :reset])
-      )
-
-      if policy_accepted?, do: print_policy_acceptance(entry.acceptance, "    ")
-    end)
-  end
-
-  defp print_section(:advisories, header, entries, policy_accepted?) do
-    Hex.Shell.info(Hex.Shell.format([:bright, header, :reset]))
-
-    entries
-    |> Enum.with_index()
-    |> Enum.each(fn {entry, index} ->
-      if index > 0, do: Hex.Shell.info("")
-
-      Hex.Shell.info(
-        Hex.Shell.format([
-          "  #{entry.package} #{entry.version} - "
-          | Hex.Utils.format_advisory_ansi(entry.detail, "    ")
-        ])
-      )
-
-      if policy_accepted?, do: print_policy_acceptance(entry.acceptance, "    ")
-    end)
-  end
-
-  defp print_policy_acceptance(acceptance, indent) do
-    explanation = Hex.Policy.Filter.acceptance_message(acceptance)
-    Hex.Shell.info(Hex.Shell.format([:green, "#{indent}Policy: #{explanation}", :reset]))
   end
 
   defp warn_unused_ignores(all_retired, raw_advisories, ignore_advisories, ignore_retirements) do
