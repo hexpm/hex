@@ -51,13 +51,20 @@ defmodule Mix.Tasks.Hex.Audit do
   ## Command line options
 
     * `--policy-overrides` - reports all advisory and retirement findings except
-      those accepted by a matching policy ALLOW, ADVISORY, or RETIREMENT override
+      those accepted by a matching policy ALLOW, ADVISORY, or RETIREMENT override,
+      and locked packages matched by a DENY override
     * `--policy` - reports advisory and retirement findings rejected by the
-      active policy's restrictions and overrides
+      active policy's restrictions and overrides, and locked packages matched
+      by a DENY override
     * `--format FORMAT` - selects the output format. Supported formats are
       `human` (default) and `sarif`. SARIF output requires OTP 27 or later
     * `--output PATH` - writes the report to the given file instead of
       printing it. Can only be used with `--format sarif`
+
+  Both policy modes list locked packages matched by a DENY override in a
+  "Denied:" section and exit with a non-zero code when any are found.
+  `ignore_advisories` and `ignore_retirements` do not apply to denied
+  packages.
 
   ## SARIF output
 
@@ -154,6 +161,7 @@ defmodule Mix.Tasks.Hex.Audit do
     ignore_advisories = Hex.State.fetch!(:ignore_advisories)
     ignore_retirements = Hex.State.fetch!(:ignore_retirements)
 
+    denied = denied_packages(lock, policy)
     all_retired = retired_packages(lock)
     raw_advisories = advisory_packages(lock)
     all_advisories = display_advisory_findings(raw_advisories)
@@ -177,6 +185,7 @@ defmodule Mix.Tasks.Hex.Audit do
     case format do
       "human" ->
         print_human(
+          denied,
           retired,
           advisories,
           policy_accepted_retired,
@@ -187,6 +196,7 @@ defmodule Mix.Tasks.Hex.Audit do
 
       "sarif" ->
         output_sarif(
+          denied,
           retired,
           advisories,
           policy_accepted_retired,
@@ -199,8 +209,9 @@ defmodule Mix.Tasks.Hex.Audit do
 
     warn_unused_ignores(all_retired, raw_advisories, ignore_advisories, ignore_retirements)
 
-    if retired != [] or advisories != [] do
+    if denied != [] or retired != [] or advisories != [] do
       if format == "human", do: Hex.Shell.info("")
+      if denied != [], do: Hex.Shell.error("Found packages denied by the active policy")
       if retired != [], do: Hex.Shell.error("Found retired packages")
       if advisories != [], do: Hex.Shell.error("Found packages with security advisories")
       Mix.Tasks.Hex.set_exit_code(1)
@@ -240,6 +251,7 @@ defmodule Mix.Tasks.Hex.Audit do
   end
 
   defp print_human(
+         denied,
          retired,
          advisories,
          policy_accepted_retired,
@@ -247,12 +259,13 @@ defmodule Mix.Tasks.Hex.Audit do
          ignored_retired,
          ignored_advisories
        ) do
-    if retired == [] and advisories == [] and ignored_retired == [] and
+    if denied == [] and retired == [] and advisories == [] and ignored_retired == [] and
          ignored_advisories == [] and policy_accepted_retired == [] and
          policy_accepted_advisories == [] do
       Hex.Shell.info("No retired or security advisory packages found")
     else
       print_sections([
+        {:denied, "Denied:", denied, false},
         {:retired, "Retired:", retired, false},
         {:advisories, "Advisories:", advisories, false},
         {:retired, "Policy-accepted retired:", policy_accepted_retired, true},
@@ -264,6 +277,7 @@ defmodule Mix.Tasks.Hex.Audit do
   end
 
   defp output_sarif(
+         denied,
          retired,
          advisories,
          policy_accepted_retired,
@@ -273,7 +287,8 @@ defmodule Mix.Tasks.Hex.Audit do
          output
        ) do
     findings =
-      sarif_findings(:retired, retired, false) ++
+      sarif_findings(:denied, denied, false) ++
+        sarif_findings(:retired, retired, false) ++
         sarif_findings(:retired, ignored_retired, :project) ++
         sarif_findings(:retired, policy_accepted_retired, :policy) ++
         sarif_findings(:advisory, advisories, false) ++
@@ -300,6 +315,23 @@ defmodule Mix.Tasks.Hex.Audit do
       {type, entry.package, entry.version, entry.detail, suppression}
     end)
   end
+
+  defp denied_packages(_lock, nil), do: []
+
+  defp denied_packages(lock, policy) do
+    Enum.flat_map(lock, fn {_app, lock} -> denied_status(Hex.Utils.lock(lock), policy) end)
+  end
+
+  defp denied_status(%{repo: repo, name: package, version: version}, policy) do
+    candidate = Hex.Policy.Filter.candidate_from_registry(repo, package, version)
+
+    case Hex.Policy.Filter.deny_override(policy, candidate) do
+      nil -> []
+      acceptance -> [finding(repo, package, version, acceptance)]
+    end
+  end
+
+  defp denied_status(nil, _policy), do: []
 
   defp retired_packages(lock) do
     Enum.flat_map(lock, fn {_app, lock} -> retirement_status(Hex.Utils.lock(lock)) end)
@@ -410,6 +442,18 @@ defmodule Mix.Tasks.Hex.Audit do
     |> Enum.each(fn {{type, header, entries, policy_accepted?}, index} ->
       if index > 0, do: Hex.Shell.info("")
       print_section(type, header, entries, policy_accepted?)
+    end)
+  end
+
+  defp print_section(:denied, header, entries, _policy_accepted?) do
+    Hex.Shell.info(Hex.Shell.format([:bright, header, :reset]))
+
+    Enum.each(entries, fn entry ->
+      message = Hex.Policy.Filter.acceptance_message(entry.detail)
+
+      Hex.Shell.info(
+        Hex.Shell.format(["  #{entry.package} #{entry.version} - ", :red, message, :reset])
+      )
     end)
   end
 

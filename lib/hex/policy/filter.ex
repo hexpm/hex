@@ -154,7 +154,26 @@ defmodule Hex.Policy.Filter do
   def acceptance_message(%{comment: comment}) when is_binary(comment) and comment != "",
     do: comment
 
+  def acceptance_message(%{kind: :deny}), do: "Denied by the active dependency policy."
   def acceptance_message(_acceptance), do: "Accepted by the active dependency policy."
+
+  @doc """
+  Returns the acceptance describing the final DENY override matching a locked
+  release, or `nil` when the release is not denied.
+  """
+  @spec deny_override(policy(), candidate()) :: acceptance() | nil
+  def deny_override(policy, candidate) do
+    case repository_policy(policy, candidate) do
+      nil ->
+        nil
+
+      repo_policy ->
+        case final_override(repo_policy, candidate) do
+          {:deny, override} -> override_acceptance(override)
+          _other -> nil
+        end
+    end
+  end
 
   @doc """
   Builds a candidate map for `classify/3` from the registry. Carries the

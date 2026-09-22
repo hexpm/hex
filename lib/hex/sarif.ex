@@ -31,20 +31,26 @@ defmodule Hex.Sarif do
   }
   @retired_rule_fallback @retired_rules[:RETIRED_OTHER]
 
+  @denied_rule {"HEX0006", "PolicyDenied", "Hex package denied by dependency policy"}
+
   @retired_message_template "Dependency '{0}' '{1}' is retired: '{2}'."
+  @denied_message_template "Dependency '{0}' '{1}' is denied by the active dependency " <>
+                             "policy: '{2}'."
   @advisory_message_template "Dependency '{0}' '{1}' is affected by security advisory " <>
                                "'{2}': '{3}'. See '{4}'."
 
   @doc """
   Encodes audit findings as a SARIF JSON document.
 
-  Findings are `{:retired, package, version, retired, suppression}` or
-  `{:advisory, package, version, advisory, suppression}` tuples, where
-  `retired` is the retirement status map from the registry and `advisory`
-  is a display group returned by
-  `:mix_hex_advisory.group_for_display/1`. Project-ignored and policy-accepted
-  findings are included with a SARIF suppression. `lockfile` is the path of the lock file the
-  results are anchored to, relative to the working directory.
+  Findings are `{:retired, package, version, retired, suppression}`,
+  `{:advisory, package, version, advisory, suppression}`, or
+  `{:denied, package, version, acceptance, false}` tuples, where `retired` is
+  the retirement status map from the registry, `advisory` is a display group
+  returned by `:mix_hex_advisory.group_for_display/1`, and `acceptance`
+  describes the policy DENY override. Project-ignored and policy-accepted
+  findings are included with a SARIF suppression. `lockfile` is the path of
+  the lock file the results are anchored to, relative to the working
+  directory.
 
   Requires the `:json` module (OTP 27 or later).
   """
@@ -229,11 +235,16 @@ defmodule Hex.Sarif do
   end
 
   defp rules(findings) do
+    denied_rules =
+      if Enum.any?(findings, &match?({:denied, _package, _version, _acceptance, _}, &1)),
+        do: [denied_rule()],
+        else: []
+
     retired_rules =
       findings
       |> Enum.flat_map(fn
         {:retired, _package, _version, retired, _ignored?} -> [Map.get(retired, :reason)]
-        {:advisory, _package, _version, _advisory, _ignored?} -> []
+        {_type, _package, _version, _detail, _ignored?} -> []
       end)
       |> Enum.uniq_by(fn reason -> elem(retired_rule_info(reason), 0) end)
       |> Enum.map(&retired_rule/1)
@@ -242,12 +253,38 @@ defmodule Hex.Sarif do
       findings
       |> Enum.flat_map(fn
         {:advisory, _package, _version, advisory, _ignored?} -> [advisory]
-        {:retired, _package, _version, _retired, _ignored?} -> []
+        {_type, _package, _version, _detail, _ignored?} -> []
       end)
       |> Enum.uniq_by(& &1.id)
       |> Enum.map(&advisory_rule/1)
 
-    retired_rules ++ advisory_rules
+    denied_rules ++ retired_rules ++ advisory_rules
+  end
+
+  defp denied_rule() do
+    {id, name, short_description} = @denied_rule
+
+    help =
+      "Update or replace the dependency so the lock file no longer contains " <>
+        "a denied release, or change the DENY override in the organization's " <>
+        "dependency policy."
+
+    %{
+      "id" => id,
+      "name" => name,
+      "shortDescription" => %{"text" => short_description},
+      "fullDescription" => %{
+        "text" =>
+          "The locked version of this dependency is blocked by a DENY override " <>
+            "in the active dependency policy."
+      },
+      "helpUri" => "https://hexdocs.pm/hex/Mix.Tasks.Hex.Audit.html",
+      "help" => %{"text" => help, "markdown" => help},
+      "defaultConfiguration" => %{"level" => "error"},
+      "messageStrings" => %{
+        "default" => %{"text" => @denied_message_template}
+      }
+    }
   end
 
   defp retired_rule_info(reason), do: Map.get(@retired_rules, reason, @retired_rule_fallback)
@@ -313,6 +350,25 @@ defmodule Hex.Sarif do
       %{html_url: url} -> Map.put(rule, "helpUri", url)
       _other -> rule
     end
+  end
+
+  defp result(
+         {:denied, package, version, acceptance, _suppression},
+         rule_indexes,
+         artifact,
+         lock_lines
+       ) do
+    {rule_id, _name, _short_description} = @denied_rule
+    message = Hex.Policy.Filter.acceptance_message(acceptance)
+
+    %{
+      "ruleId" => rule_id,
+      "ruleIndex" => Map.fetch!(rule_indexes, rule_id),
+      "level" => "error",
+      "message" => result_message(@denied_message_template, [package, version, message]),
+      "locations" => [location(package, artifact, lock_lines)],
+      "partialFingerprints" => %{"hexAudit/v1" => "denied:#{package}"}
+    }
   end
 
   defp result({:retired, package, version, retired, ignored?}, rule_indexes, artifact, lock_lines) do

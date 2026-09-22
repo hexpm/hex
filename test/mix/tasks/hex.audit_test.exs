@@ -501,6 +501,123 @@ defmodule Mix.Tasks.Hex.AuditTest do
     end)
   end
 
+  test "--policy reports locked packages matched by a DENY override", context do
+    with_test_package("2.15.0", context, fn ->
+      put_policy(
+        overrides: [
+          %{
+            action: :OVERRIDE_ACTION_DENY,
+            ref: %{package: @package_name},
+            comment: "Replaced by the internal fork"
+          }
+        ]
+      )
+
+      assert catch_throw(Mix.Task.run("hex.audit", ["--policy"])) == {:exit_code, 1}
+
+      output = shell_output()
+      assert output =~ "Denied:"
+      assert output =~ "#{@package_name} 2.15.0 - "
+      assert output =~ "Replaced by the internal fork"
+      assert output =~ "Found packages denied by the active policy"
+      refute output =~ "Found retired packages"
+      refute output =~ "Found packages with security advisories"
+    end)
+  end
+
+  test "--policy-overrides reports DENY overrides without a comment", context do
+    with_test_package("2.15.1", context, fn ->
+      put_policy(overrides: [%{action: :OVERRIDE_ACTION_DENY, ref: %{package: @package_name}}])
+
+      assert catch_throw(Mix.Task.run("hex.audit", ["--policy-overrides"])) == {:exit_code, 1}
+
+      output = shell_output()
+      assert output =~ "Denied:"
+      assert output =~ "#{@package_name} 2.15.1 - "
+      assert output =~ "Denied by the active dependency policy."
+      assert output =~ "Found packages denied by the active policy"
+    end)
+  end
+
+  test "--policy skips DENY overrides whose requirement does not match the lock", context do
+    with_test_package("2.15.2", context, fn ->
+      put_policy(
+        overrides: [
+          %{
+            action: :OVERRIDE_ACTION_DENY,
+            ref: %{package: @package_name, requirement: "< 2.0.0"}
+          }
+        ]
+      )
+
+      Mix.Task.run("hex.audit", ["--policy"])
+
+      assert_received {:mix_shell, :info, ["No retired or security advisory packages found"]}
+    end)
+  end
+
+  test "--policy keeps a DENY override active when the retirement is ignored", context do
+    with_test_package("2.15.3", context, fn ->
+      retire_test_package("2.15.3", "deprecated")
+      put_policy(overrides: [%{action: :OVERRIDE_ACTION_DENY, ref: %{package: @package_name}}])
+      Hex.State.put(:ignore_retirements, [{@package_name, nil}])
+
+      assert catch_throw(Mix.Task.run("hex.audit", ["--policy"])) == {:exit_code, 1}
+
+      output = shell_output()
+      assert output =~ "Denied:"
+      assert output =~ "Ignored retired:"
+      assert output =~ "Found packages denied by the active policy"
+      refute output =~ "Found retired packages"
+    end)
+  end
+
+  test "audit without policy flags does not report DENY overrides", context do
+    with_test_package("2.15.4", context, fn ->
+      put_policy(overrides: [%{action: :OVERRIDE_ACTION_DENY, ref: %{package: @package_name}}])
+
+      Mix.Task.run("hex.audit", [])
+
+      assert_received {:mix_shell, :info, ["No retired or security advisory packages found"]}
+    end)
+  end
+
+  @tag :requires_json
+  test "audit --format sarif (denied packages use the PolicyDenied rule)", context do
+    with_test_package("3.5.0", context, fn ->
+      put_policy(
+        overrides: [
+          %{
+            action: :OVERRIDE_ACTION_DENY,
+            ref: %{package: @package_name},
+            comment: "Replaced by the internal fork"
+          }
+        ]
+      )
+
+      assert catch_throw(Mix.Task.run("hex.audit", ["--policy", "--format", "sarif"])) ==
+               {:exit_code, 1}
+
+      assert_received {:mix_shell, :error, ["Found packages denied by the active policy"]}
+
+      [run] = decode_sarif()["runs"]
+      [rule] = run["tool"]["driver"]["rules"]
+      assert rule["id"] == "HEX0006"
+      assert rule["name"] == "PolicyDenied"
+      assert rule["defaultConfiguration"] == %{"level" => "error"}
+
+      [result] = run["results"]
+      assert result["ruleId"] == "HEX0006"
+      assert result["level"] == "error"
+
+      assert result["message"]["text"] ==
+               "Dependency '#{@package_name}' '3.5.0' is denied by the active dependency " <>
+                 "policy: 'Replaced by the internal fork'."
+
+      refute Map.has_key?(result, "suppressions")
+    end)
+  end
+
   @tag :requires_json
   test "policy-accepted SARIF findings identify their source and include comments", context do
     with_test_package("2.14.0", context, fn ->
