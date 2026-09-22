@@ -498,7 +498,7 @@ defmodule Hex.Registry.Server do
       {repo, name} ->
         message =
           "Hex is running in offline mode and policy " <>
-            "#{repo}/#{name} is not cached locally"
+            "#{repo}/#{name} is not cached locally. " <> Hex.Policy.disable_hint()
 
         {:reply, {:error, message}, state}
 

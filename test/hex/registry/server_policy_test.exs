@@ -176,11 +176,31 @@ defmodule Hex.Registry.ServerPolicyTest do
       Hex.State.put(:offline, true)
       Registry.open(check_version: false, registry_path: Path.join(File.cwd!(), "cache.ets"))
 
+      error =
+        assert_raise Mix.Error,
+                     ~r"Hex is running in offline mode and policy hexpm:myorg/strict-prod is not cached locally",
+                     fn ->
+                       Registry.prefetch_policies([{"hexpm:myorg", "strict-prod"}])
+                     end
+
+      assert error.message =~ Hex.Policy.disable_hint()
+    end)
+  end
+
+  test "a policy that can't be fetched or loaded explains how to run without it",
+       %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/repos/myorg/policies/strict-prod", fn conn ->
+      Plug.Conn.resp(conn, 404, "")
+    end)
+
+    in_tmp("registry_policy_fetch_failure", fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+      Hex.State.put(:policy, "hexpm:myorg/strict-prod")
+      Registry.open(check_version: false, registry_path: Path.join(File.cwd!(), "cache.ets"))
+
       assert_raise Mix.Error,
-                   ~r"Hex is running in offline mode and policy hexpm:myorg/strict-prod is not cached locally",
-                   fn ->
-                     Registry.prefetch_policies([{"hexpm:myorg", "strict-prod"}])
-                   end
+                   "Failed to load policy hexpm:myorg/strict-prod. " <> Hex.Policy.disable_hint(),
+                   fn -> Hex.Policy.load() end
     end)
   end
 end

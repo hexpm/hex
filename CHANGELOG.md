@@ -11,6 +11,7 @@
 * Stop listing unchanged dependencies after `mix deps.get` and `mix deps.update` resolve dependencies. Unchanged dependencies that are retired or have security advisories are still listed under "Unchanged:"
 
 * Add the `policy_enforce_lock` config. When it's enabled and a policy is active, `mix deps.get` and `mix deps.update` fail if a Hex package in `mix.lock` is rejected by the policy, using the same check as `mix hex.audit --policy`. Findings acknowledged with `ignore_advisories` or `ignore_retirements` pass, and a package matched by a DENY override fails until the policy changes. Configure it in the `mix.exs` `:hex` block, with the `HEX_POLICY_ENFORCE_LOCK` environment variable, or with `mix hex.config`
+* End every error caused by the active dependency policy with how to run without it (`HEX_POLICY= mix deps.get`). This covers an invalid policy configuration, a policy that can't be fetched or loaded, a resolution failure where the policy hid versions, and the `policy_enforce_lock` check, which also names `HEX_POLICY_ENFORCE_LOCK` to skip only that check
 ### Bug fixes
 
 * Report locked packages matched by a DENY override in `mix hex.audit --policy` and `mix hex.audit --policy-overrides`. Denied packages are listed in a "Denied:" section, fail the audit, and appear in SARIF output under the `HEX0006` rule. `ignore_advisories` and `ignore_retirements` do not apply to denied packages

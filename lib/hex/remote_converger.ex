@@ -114,7 +114,9 @@ defmodule Hex.RemoteConverger do
       {:error, message} ->
         Hex.Shell.info(message)
 
-        if note = Hex.Policy.Diagnostics.failure_note(Hex.State.fetch!(:policy_filtered_versions)) do
+        note = Hex.Policy.Diagnostics.failure_note(Hex.State.fetch!(:policy_filtered_versions))
+
+        if note do
           Hex.Shell.info("\n" <> note)
         end
 
@@ -122,7 +124,12 @@ defmodule Hex.RemoteConverger do
         # The failure note above already lists the hidden versions, so the
         # summary here contributes only the active-policy header.
         print_policy_summary(list_filtered: false)
-        Mix.raise("Hex dependency resolution failed")
+
+        if note do
+          Mix.raise("Hex dependency resolution failed. " <> Hex.Policy.disable_hint())
+        else
+          Mix.raise("Hex dependency resolution failed")
+        end
     end
   end
 
@@ -353,7 +360,10 @@ defmodule Hex.RemoteConverger do
           an override in the policy, or acknowledge the advisory or retirement for this \
           project with ignore_advisories or ignore_retirements in the :hex section of \
           mix.exs. A package denied by the policy is only allowed again by changing the \
-          policy.\
+          policy.
+
+          To install anyway, set HEX_POLICY_ENFORCE_LOCK to an empty value to skip only \
+          this check. #{Hex.Policy.disable_hint()}\
           """)
         end
     end

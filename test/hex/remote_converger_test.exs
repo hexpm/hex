@@ -518,9 +518,13 @@ defmodule Hex.RemoteConvergerTest do
 
         Mix.Task.clear()
 
-        assert_raise Mix.Error, ~r/Locked dependencies are rejected by the active/, fn ->
-          Mix.Tasks.Deps.Get.run([])
-        end
+        error =
+          assert_raise Mix.Error, ~r/Locked dependencies are rejected by the active/, fn ->
+            Mix.Tasks.Deps.Get.run([])
+          end
+
+        assert error.message =~ "set HEX_POLICY_ENFORCE_LOCK to an empty value"
+        assert error.message =~ Hex.Policy.disable_hint()
 
         output = shell_output()
         assert output =~ "Advisories:"
@@ -626,6 +630,49 @@ defmodule Hex.RemoteConvergerTest do
         assert_raise Mix.Error, ~r/Invalid policy_enforce_lock configuration: "yes"/, fn ->
           Mix.Tasks.Deps.Get.run([])
         end
+      end)
+    end)
+  end
+
+  defmodule PolicyResolutionDeps.MixProject do
+    def project do
+      [
+        app: :policy_resolution_deps,
+        version: "0.1.0",
+        deps: [{:rc_policy_resolution, "0.1.0"}]
+      ]
+    end
+  end
+
+  test "resolution failures caused by the policy explain how to run without it" do
+    auth =
+      Hexpm.new_user(
+        "rc_policy_resolution_user",
+        "rc_policy_resolution@mail.com",
+        "passpass",
+        "rc_policy_resolution_key"
+      )
+
+    Hexpm.new_package("hexpm", "rc_policy_resolution", "0.1.0", [], %{}, auth)
+
+    with_project(PolicyResolutionDeps.MixProject, fn ->
+      in_tmp(fn ->
+        Hex.State.put(:cache_home, tmp_path())
+        Hex.State.put(:api_key, auth[:key])
+
+        :ok = Mix.Tasks.Deps.Get.run([])
+        flush()
+
+        put_registry_policy(
+          overrides: [%{action: :OVERRIDE_ACTION_DENY, ref: %{package: "rc_policy_resolution"}}]
+        )
+
+        File.rm!("mix.lock")
+        Mix.Task.clear()
+
+        error = assert_raise Mix.Error, fn -> Mix.Tasks.Deps.Get.run([]) end
+        assert error.message == "Hex dependency resolution failed. " <> Hex.Policy.disable_hint()
+        assert shell_output() =~ ~s(Note: active policy hides 1 version of "rc_policy_resolution")
       end)
     end)
   end
