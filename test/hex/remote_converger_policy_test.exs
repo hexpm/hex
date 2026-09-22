@@ -63,9 +63,12 @@ defmodule Hex.RemoteConvergerPolicyTest do
         Hex.State.refresh()
         assert {:invalid, "myorgstrict"} = Hex.State.fetch!(:policy)
 
-        assert_raise Mix.Error, ~r/Invalid policy configuration: "myorgstrict"/, fn ->
-          Hex.Policy.load()
-        end
+        error =
+          assert_raise Mix.Error, ~r/Invalid policy configuration: "myorgstrict"/, fn ->
+            Hex.Policy.load()
+          end
+
+        assert error.message =~ Hex.Policy.disable_hint()
       after
         case original do
           nil -> System.delete_env("HEX_POLICY")

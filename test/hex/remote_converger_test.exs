@@ -478,6 +478,230 @@ defmodule Hex.RemoteConvergerTest do
     end)
   end
 
+  defmodule EnforceLockAdvisoryDeps.MixProject do
+    def project do
+      [
+        app: :enforce_lock_advisory_deps,
+        version: "0.1.0",
+        deps: [{:rc_enforce_advisory, "0.1.0"}]
+      ]
+    end
+  end
+
+  test "policy_enforce_lock fails deps.get and deps.update on a locked package the policy rejects" do
+    auth =
+      Hexpm.new_user(
+        "rc_enforce_advisory_user",
+        "rc_enforce_advisory@mail.com",
+        "passpass",
+        "rc_enforce_advisory_key"
+      )
+
+    Hexpm.new_package("hexpm", "rc_enforce_advisory", "0.1.0", [], %{}, auth)
+
+    with_project(EnforceLockAdvisoryDeps.MixProject, fn ->
+      in_tmp(fn ->
+        Hex.State.put(:cache_home, tmp_path())
+        Hex.State.put(:api_key, auth[:key])
+
+        :ok = Mix.Tasks.Deps.Get.run([])
+        flush()
+
+        :sys.replace_state(Hex.Registry.Server, fn %{ets: tid} = state ->
+          :ets.insert(tid, {{:advisories, "hexpm", "rc_enforce_advisory", "0.1.0"}, [@advisory]})
+          state
+        end)
+
+        put_registry_policy(restriction: %{advisory_min_severity: :SEVERITY_HIGH})
+        Hex.State.put(:policy_enforce_lock, true)
+        lock = File.read!("mix.lock")
+
+        Mix.Task.clear()
+
+        error =
+          assert_raise Mix.Error, ~r/Locked dependencies are rejected by the active/, fn ->
+            Mix.Tasks.Deps.Get.run([])
+          end
+
+        assert error.message =~ "set HEX_POLICY_ENFORCE_LOCK to an empty value"
+        assert error.message =~ Hex.Policy.disable_hint()
+
+        output = shell_output()
+        assert output =~ "Advisories:"
+        assert output =~ "rc_enforce_advisory 0.1.0 - "
+        assert output =~ "GHSA-rc-0001"
+        assert File.read!("mix.lock") == lock
+
+        Mix.Task.clear()
+
+        assert_raise Mix.Error, ~r/Locked dependencies are rejected by the active/, fn ->
+          Mix.Tasks.Deps.Update.run(["rc_enforce_advisory"])
+        end
+
+        flush()
+        Hex.State.put(:ignore_advisories, ["GHSA-rc-0001"])
+        Mix.Task.clear()
+        :ok = Mix.Tasks.Deps.Get.run([])
+        refute shell_output() =~ "Advisories:"
+
+        Hex.State.put(:ignore_advisories, [])
+        Hex.State.put(:policy_enforce_lock, false)
+        Mix.Task.clear()
+        :ok = Mix.Tasks.Deps.Get.run([])
+
+        output = shell_output()
+        assert output =~ "rc_enforce_advisory 0.1.0 VULNERABLE!"
+        assert output =~ "Found packages with security advisories"
+
+        Hex.State.put(:policy_enforce_lock, true)
+        Hex.State.put(:policy, nil)
+        Mix.Task.clear()
+        :ok = Mix.Tasks.Deps.Get.run([])
+      end)
+    end)
+  end
+
+  defmodule EnforceLockDeniedDeps.MixProject do
+    def project do
+      [
+        app: :enforce_lock_denied_deps,
+        version: "0.1.0",
+        deps: [{:rc_enforce_denied, "0.1.0"}]
+      ]
+    end
+  end
+
+  test "policy_enforce_lock fails on a locked package denied by the policy even when ignored" do
+    auth =
+      Hexpm.new_user(
+        "rc_enforce_denied_user",
+        "rc_enforce_denied@mail.com",
+        "passpass",
+        "rc_enforce_denied_key"
+      )
+
+    Hexpm.new_package("hexpm", "rc_enforce_denied", "0.1.0", [], %{}, auth)
+
+    with_project(EnforceLockDeniedDeps.MixProject, fn ->
+      in_tmp(fn ->
+        Hex.State.put(:cache_home, tmp_path())
+        Hex.State.put(:api_key, auth[:key])
+
+        :ok = Mix.Tasks.Deps.Get.run([])
+        flush()
+
+        :sys.replace_state(Hex.Registry.Server, fn %{ets: tid} = state ->
+          :ets.insert(
+            tid,
+            {{:retired, "hexpm", "rc_enforce_denied", "0.1.0"},
+             %{reason: :RETIRED_DEPRECATED, message: "Retired for testing"}}
+          )
+
+          state
+        end)
+
+        put_registry_policy(
+          overrides: [
+            %{
+              action: :OVERRIDE_ACTION_DENY,
+              ref: %{package: "rc_enforce_denied"},
+              comment: "Use the internal fork"
+            }
+          ]
+        )
+
+        Hex.State.put(:ignore_retirements, [{"rc_enforce_denied", nil}])
+        Hex.State.put(:policy_enforce_lock, true)
+        Mix.Task.clear()
+
+        assert_raise Mix.Error, ~r/Locked dependencies are rejected by the active/, fn ->
+          Mix.Tasks.Deps.Get.run([])
+        end
+
+        output = shell_output()
+        assert output =~ "Denied:"
+        assert output =~ "rc_enforce_denied 0.1.0 - "
+        assert output =~ "Use the internal fork"
+        refute output =~ "Retired:"
+
+        Hex.State.put(:policy_enforce_lock, {:invalid, "yes"})
+        Mix.Task.clear()
+
+        assert_raise Mix.Error, ~r/Invalid policy_enforce_lock configuration: "yes"/, fn ->
+          Mix.Tasks.Deps.Get.run([])
+        end
+      end)
+    end)
+  end
+
+  defmodule PolicyResolutionDeps.MixProject do
+    def project do
+      [
+        app: :policy_resolution_deps,
+        version: "0.1.0",
+        deps: [{:rc_policy_resolution, "0.1.0"}]
+      ]
+    end
+  end
+
+  test "resolution failures caused by the policy explain how to run without it" do
+    auth =
+      Hexpm.new_user(
+        "rc_policy_resolution_user",
+        "rc_policy_resolution@mail.com",
+        "passpass",
+        "rc_policy_resolution_key"
+      )
+
+    Hexpm.new_package("hexpm", "rc_policy_resolution", "0.1.0", [], %{}, auth)
+
+    with_project(PolicyResolutionDeps.MixProject, fn ->
+      in_tmp(fn ->
+        Hex.State.put(:cache_home, tmp_path())
+        Hex.State.put(:api_key, auth[:key])
+
+        :ok = Mix.Tasks.Deps.Get.run([])
+        flush()
+
+        put_registry_policy(
+          overrides: [%{action: :OVERRIDE_ACTION_DENY, ref: %{package: "rc_policy_resolution"}}]
+        )
+
+        File.rm!("mix.lock")
+        Mix.Task.clear()
+
+        error = assert_raise Mix.Error, fn -> Mix.Tasks.Deps.Get.run([]) end
+        assert error.message == "Hex dependency resolution failed. " <> Hex.Policy.disable_hint()
+        assert shell_output() =~ ~s(Note: active policy hides 1 version of "rc_policy_resolution")
+      end)
+    end)
+  end
+
+  # Serves a policy from the registry cache and marks it fetched, so
+  # Hex.Policy.load/0 returns it without requesting it from the repository.
+  defp put_registry_policy(repository_policy) do
+    {repo, name} = {"hexpm:enforceorg", "strict-prod"}
+
+    policy = %{
+      repository: "enforceorg",
+      name: name,
+      visibility: :VISIBILITY_PUBLIC,
+      repositories: [
+        Map.merge(
+          %{repository: "hexpm", restriction: %{}, overrides: []},
+          Map.new(repository_policy)
+        )
+      ]
+    }
+
+    :sys.replace_state(Hex.Registry.Server, fn %{ets: tid} = state ->
+      :ets.insert(tid, {{:policy, repo, name}, policy})
+      %{state | fetched_policies: MapSet.put(state.fetched_policies, {repo, name})}
+    end)
+
+    Hex.State.put(:policy, "#{repo}/#{name}")
+  end
+
   defmodule ChecksumIntegrity.MixProject do
     def project do
       [

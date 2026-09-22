@@ -96,6 +96,14 @@ defmodule Mix.Tasks.Hex.Config do
       configured repository. Can be overridden by setting the environment
       variable `HEX_POLICY`, where an empty value disables the configured
       policy. See https://hex.pm/docs/dependency-policies for the full guide.
+    * `policy_enforce_lock` - When `true` and a `policy` is active,
+      `mix deps.get` and `mix deps.update` check every Hex package in
+      `mix.lock` with the same check as `mix hex.audit --policy` after
+      resolving dependencies, and fail when a package is rejected. Findings
+      acknowledged with `ignore_advisories` or `ignore_retirements` pass, and
+      a package matched by a DENY override in the policy always fails. Can be
+      overridden by setting the environment variable `HEX_POLICY_ENFORCE_LOCK`,
+      where an empty value disables the check (Default: `false`)
 
   Hex responds to these additional environment variables:
 

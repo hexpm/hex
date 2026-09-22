@@ -43,6 +43,34 @@ defmodule Mix.Tasks.Hex.Policy do
 
           $ mix hex.config policy hexpm:myorg/strict-prod
 
+  ## Enforcing the lock
+
+  Versions already in `mix.lock` are trusted during resolution, so a locked
+  release that later gets an advisory, a retirement, or a DENY override is
+  still installed. Enable `policy_enforce_lock` to make `mix deps.get` and
+  `mix deps.update` fail instead:
+
+      defp project() do
+        [
+          hex: [
+            policy: [org: "myorg", name: "strict-prod"],
+            policy_enforce_lock: true
+          ]
+        ]
+      end
+
+  After resolving, every Hex package in `mix.lock` goes through the check
+  `mix hex.audit --policy` runs. The policy's advisory and retirement
+  restrictions and overrides apply first, then `ignore_advisories` and
+  `ignore_retirements` from the project. An ignore entry acknowledges one
+  finding for the project without changing which new versions the policy
+  accepts. A package matched by a DENY override fails until the policy
+  changes. Cooldown doesn't apply to locked versions.
+
+  The setting follows the usual precedence: `HEX_POLICY_ENFORCE_LOCK`, then
+  `mix.exs`, then `mix hex.config policy_enforce_lock true`. An empty
+  `HEX_POLICY_ENFORCE_LOCK` disables the check for the invocation.
+
   See https://hex.pm/docs/dependency-policies for the full guide.
   """
 

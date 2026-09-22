@@ -84,7 +84,7 @@ defmodule Hex.Policy do
           "Invalid policy configuration: #{inspect(value)}. Expected \"REPO/NAME\" " <>
             "(e.g. \"hexpm:myorg/strict-prod\") or [org: \"ORG\", name: \"NAME\"] / " <>
             "[repo: \"REPO\", name: \"NAME\"] in mix.exs, where REPO is not the " <>
-            "bare \"hexpm\" repo"
+            "bare \"hexpm\" repo. " <> disable_hint()
         )
 
       string when is_binary(string) ->
@@ -98,9 +98,19 @@ defmodule Hex.Policy do
             {:ok, decoded}
 
           :error ->
-            Mix.raise("Failed to load policy #{repo}/#{name}")
+            Mix.raise("Failed to load policy #{repo}/#{name}. " <> disable_hint())
         end
     end
+  end
+
+  @doc """
+  Explains how to run a single command without the configured policy. Every
+  error the policy causes ends with it.
+  """
+  @spec disable_hint() :: String.t()
+  def disable_hint() do
+    "To run without the policy, set HEX_POLICY to an empty value, " <>
+      "for example `HEX_POLICY= mix deps.get`"
   end
 
   @doc """

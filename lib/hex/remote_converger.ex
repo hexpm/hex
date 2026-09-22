@@ -114,7 +114,9 @@ defmodule Hex.RemoteConverger do
       {:error, message} ->
         Hex.Shell.info(message)
 
-        if note = Hex.Policy.Diagnostics.failure_note(Hex.State.fetch!(:policy_filtered_versions)) do
+        note = Hex.Policy.Diagnostics.failure_note(Hex.State.fetch!(:policy_filtered_versions))
+
+        if note do
           Hex.Shell.info("\n" <> note)
         end
 
@@ -122,7 +124,12 @@ defmodule Hex.RemoteConverger do
         # The failure note above already lists the hidden versions, so the
         # summary here contributes only the active-policy header.
         print_policy_summary(list_filtered: false)
-        Mix.raise("Hex dependency resolution failed")
+
+        if note do
+          Mix.raise("Hex dependency resolution failed. " <> Hex.Policy.disable_hint())
+        else
+          Mix.raise("Hex dependency resolution failed")
+        end
     end
   end
 
@@ -274,6 +281,8 @@ defmodule Hex.RemoteConverger do
     print_success(resolved, old_lock)
     verify_resolved(resolved, old_lock)
     new_lock = Hex.Mix.to_lock(resolved)
+    merged_lock = lock_merge(lock, new_lock)
+    enforce_policy_on_lock(merged_lock)
     Hex.SCM.prefetch(new_lock)
 
     deps_to_warn =
@@ -311,7 +320,53 @@ defmodule Hex.RemoteConverger do
       )
     end
 
-    lock_merge(lock, new_lock)
+    merged_lock
+  end
+
+  defp enforce_policy_on_lock(lock) do
+    case {Hex.State.fetch!(:active_policy), Hex.State.fetch!(:policy_enforce_lock)} do
+      {nil, _enforce} ->
+        :ok
+
+      {_policy, enforce} when enforce in [nil, false] ->
+        :ok
+
+      {_policy, {:invalid, value}} ->
+        Mix.raise(
+          "Invalid policy_enforce_lock configuration: #{inspect(value)}. " <>
+            "Expected true or false"
+        )
+
+      {policy, true} ->
+        result = Hex.Audit.run(lock, policy, :policy)
+
+        if Hex.Audit.active_findings?(result) do
+          Hex.Shell.info("")
+
+          Hex.Audit.print_sections([
+            {:denied, "Denied:", result.denied, false},
+            {:retired, "Retired:", result.retired, false},
+            {:advisories, "Advisories:", result.advisories, false}
+          ])
+
+          Hex.Shell.info("")
+
+          Mix.raise("""
+          Locked dependencies are rejected by the active dependency policy, see above \
+          for details. policy_enforce_lock is enabled, so mix.lock was not updated and \
+          no dependencies were fetched.
+
+          Update the dependency to a release the policy accepts, accept the finding with \
+          an override in the policy, or acknowledge the advisory or retirement for this \
+          project with ignore_advisories or ignore_retirements in the :hex section of \
+          mix.exs. A package denied by the policy is only allowed again by changing the \
+          policy.
+
+          To install anyway, set HEX_POLICY_ENFORCE_LOCK to an empty value to skip only \
+          this check. #{Hex.Policy.disable_hint()}\
+          """)
+        end
+    end
   end
 
   defp add_apps_to_resolved(resolved, requests) do

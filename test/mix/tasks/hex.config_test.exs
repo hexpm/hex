@@ -73,6 +73,33 @@ defmodule Mix.Tasks.Hex.ConfigTest do
     end)
   end
 
+  test "policy_enforce_lock config key" do
+    in_tmp(fn ->
+      System.put_env("HEX_HOME", File.cwd!())
+      Hex.State.refresh()
+
+      try do
+        Mix.Tasks.Hex.Config.run(["policy_enforce_lock"])
+        assert_received {:mix_shell, :info, ["false"]}
+
+        Mix.Tasks.Hex.Config.run(["policy_enforce_lock", "true"])
+        Hex.State.refresh()
+        assert Hex.State.fetch!(:policy_enforce_lock) == true
+
+        System.put_env("HEX_POLICY_ENFORCE_LOCK", "")
+        Hex.State.refresh()
+        assert Hex.State.fetch!(:policy_enforce_lock) == false
+
+        System.put_env("HEX_POLICY_ENFORCE_LOCK", "yes")
+        Hex.State.refresh()
+        assert Hex.State.fetch!(:policy_enforce_lock) == {:invalid, "yes"}
+      after
+        System.delete_env("HEX_POLICY_ENFORCE_LOCK")
+        Hex.State.refresh()
+      end
+    end)
+  end
+
   test "config key" do
     in_tmp(fn ->
       System.put_env("HEX_HOME", File.cwd!())

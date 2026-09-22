@@ -150,6 +150,13 @@ defmodule Hex.State do
       fun: {Hex.Policy, :parse_config},
       on_invalid: :keep
     },
+    policy_enforce_lock: %{
+      env: ["HEX_POLICY_ENFORCE_LOCK"],
+      config: [:policy_enforce_lock],
+      default: false,
+      fun: {__MODULE__, :to_boolean},
+      on_invalid: :keep
+    },
     ignore_advisories: %{
       env: ["HEX_IGNORE_ADVISORIES"],
       config: [:ignore_advisories],
