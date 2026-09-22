@@ -131,6 +131,7 @@ defmodule Hex.Registry.ServerPolicyTest do
 
     in_tmp("registry_policy_cache_fallback", fn ->
       Hex.State.put(:cache_home, File.cwd!())
+      Hex.State.put(:shell_process, self())
       registry_path = Path.join(File.cwd!(), "cache.ets")
       Registry.open(check_version: false, registry_path: registry_path)
 
@@ -145,6 +146,31 @@ defmodule Hex.Registry.ServerPolicyTest do
       assert :ok = Registry.prefetch_policies([{"hexpm:myorg", "strict-prod"}])
       assert {:ok, policy} = Registry.policy("hexpm:myorg", "strict-prod")
       assert policy.name == "strict-prod"
+
+      assert_received {:mix_shell, :error,
+                       [
+                         "Failed to fetch policy hexpm:myorg/strict-prod from registry " <>
+                           "(using cache instead)"
+                       ]}
+    end)
+  end
+
+  test "a failed policy fetch without a cached copy doesn't claim to use the cache",
+       %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/repos/myorg/policies/strict-prod", fn conn ->
+      Plug.Conn.resp(conn, 404, "")
+    end)
+
+    in_tmp("registry_policy_fetch_uncached", fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+      Hex.State.put(:shell_process, self())
+      Registry.open(check_version: false, registry_path: Path.join(File.cwd!(), "cache.ets"))
+
+      assert :ok = Registry.prefetch_policies([{"hexpm:myorg", "strict-prod"}])
+      assert :error = Registry.policy("hexpm:myorg", "strict-prod")
+
+      assert_received {:mix_shell, :error,
+                       ["Failed to fetch policy hexpm:myorg/strict-prod from registry"]}
     end)
   end
 

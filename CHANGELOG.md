@@ -16,6 +16,7 @@
 
 * Report locked packages matched by a DENY override in `mix hex.audit --policy` and `mix hex.audit --policy-overrides`. Denied packages are listed in a "Denied:" section, fail the audit, and appear in SARIF output under the `HEX0006` rule. `ignore_advisories` and `ignore_retirements` do not apply to denied packages
 * Identify `mix hex.audit --format sarif` results by repository and package instead of package alone, so a package locked from both hexpm and an organization repository under two app names points each result at its own `mix.lock` line. SARIF fingerprints now include the repository, so existing code scanning alerts are re-keyed once
+* Only say `(using cache instead)` when a package or policy fails to fetch from the registry and a cached copy exists. Without a cached copy the message claimed a fallback that didn't happen
 
 ## v2.5.1 (2026-07-09)
 
