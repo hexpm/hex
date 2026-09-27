@@ -220,26 +220,21 @@ defmodule HexTest.Hexpm do
   def new_user(username, email, password, key) do
     permissions = [%{"domain" => "api"}, %{"domain" => "repositories"}]
     new_user(username, email, password)
-
-    {:ok, {201, _, %{"secret" => secret}}} =
-      Hex.API.Key.new(key, permissions, user: username, pass: password)
-
+    [key: secret] = new_key(username, key, permissions)
     [key: secret, "$write_key": secret, "$read_key": secret]
   end
 
-  def new_key(auth) do
-    permissions = [%{"domain" => "api"}]
-    {:ok, {201, _, %{"secret" => secret}}} = Hex.API.Key.new("key", permissions, auth)
+  def new_key(username, key, permissions \\ [%{"domain" => "api"}]) do
+    config = Hex.API.Client.config()
+
+    body = %{
+      "username" => to_string(username),
+      "name" => to_string(key),
+      "permissions" => permissions
+    }
+
+    {:ok, {201, _, %{"secret" => secret}}} = :mix_hex_api.post(config, ["key"], body)
     [key: secret]
-  end
-
-  def new_key(username, password, key) do
-    permissions = [%{"domain" => "api"}]
-
-    {:ok, {201, _, %{"secret" => secret}}} =
-      Hex.API.Key.new(key, permissions, user: username, pass: password)
-
-    [key: secret, "$write_key": secret, "$read_key": secret]
   end
 
   def new_organization_key(organization, key, auth) do
