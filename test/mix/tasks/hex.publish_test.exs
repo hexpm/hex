@@ -128,7 +128,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       File.write!("myfile.txt", "hello")
       File.write_stat!("mix.exs", %{File.stat!("mix.exs") | mode: 0o100644})
       File.write_stat!("myfile.txt", %{File.stat!("myfile.txt") | mode: 0o100644})
-      setup_auth("user2", "hunter42")
+      setup_auth("user2")
 
       send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -164,7 +164,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
-      setup_auth("user2", "hunter42")
+      setup_auth("user2")
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["package", "--no-progress", "--replace", "--yes"])
 
@@ -180,7 +180,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       set_home_tmp()
-      setup_auth("user", "hunter42")
+      setup_auth("user")
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
@@ -204,7 +204,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
-      setup_auth("user2", "hunter42")
+      setup_auth("user2")
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
 
       assert catch_throw(
@@ -227,7 +227,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       set_home_tmp()
-      setup_auth("user", "hunter42")
+      setup_auth("user")
 
       error_msg = "Invalid filename: top-level filenames cannot match a semantic version pattern"
 
@@ -248,7 +248,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       set_home_tmp()
-      setup_auth("user", "hunter42")
+      setup_auth("user")
 
       error_msg = "Invalid filename: top-level filenames cannot match a semantic version pattern"
 
@@ -269,7 +269,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       set_home_tmp()
-      setup_auth("user", "hunter42")
+      setup_auth("user")
 
       error_msg = "File not found: my_docs/index.html"
 
@@ -288,7 +288,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       set_home_tmp()
-      setup_auth("user", "hunter42")
+      setup_auth("user")
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
@@ -305,7 +305,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       set_home_tmp()
-      setup_auth("user", "hunter42")
+      setup_auth("user")
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
@@ -322,7 +322,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       set_home_tmp()
-      setup_auth("user", "hunter42")
+      setup_auth("user")
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["docs", "--no-progress", "--replace"])
@@ -344,7 +344,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
-      setup_auth("user2", "hunter42")
+      setup_auth("user2")
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
 
@@ -377,7 +377,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
 
-      setup_auth("user", "hunter42")
+      setup_auth("user")
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["--no-progress", "--replace", "--yes"])
@@ -400,7 +400,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
-      setup_auth("user", "hunter42")
+      setup_auth("user")
 
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
       Mix.Tasks.Hex.Publish.run(["--dry-run", "--yes", "--replace"])
@@ -420,7 +420,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       File.write!("myfile.txt", "hello")
-      setup_auth("user2", "hunter42")
+      setup_auth("user2")
 
       send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -485,7 +485,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     in_tmp(fn ->
       set_home_tmp()
       File.write!("mix.exs", "mix.exs")
-      setup_auth("user", "hunter42")
+      setup_auth("user")
 
       Mix.Tasks.Deps.Get.run([])
 
@@ -509,7 +509,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       set_home_tmp()
-      setup_auth("user", "hunter42")
+      setup_auth("user")
 
       error_msg =
         "Stopping package build due to errors.\n" <> "Missing files: missing.txt, missing/*"
@@ -537,7 +537,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       set_home_tmp()
-      setup_auth("user2", "hunter42")
+      setup_auth("user2")
 
       File.mkdir!("missing")
       File.write!("myfile.txt", "hello")
@@ -567,7 +567,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       set_home_tmp()
-      auth = setup_auth("user", "hunter42")
+      auth = setup_auth("user")
       File.write!("myfile.txt", "hello")
 
       assert {:ok, {200, _headers, body}} = Hex.API.User.me(auth)
@@ -604,7 +604,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       bypass_repo("myorg")
-      setup_auth("user", "hunter42")
+      setup_auth("user")
 
       send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -626,7 +626,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
     in_tmp(fn ->
       set_home_tmp()
       File.write!("mix.exs", "mix.exs")
-      setup_auth("user", "hunter42")
+      setup_auth("user")
 
       send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -650,7 +650,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
       set_home_tmp()
       File.write!("mix.exs", "mix.exs")
       bypass_repo("myorg2")
-      setup_auth("user", "hunter42")
+      setup_auth("user")
 
       send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "hunter42"})
@@ -678,7 +678,7 @@ defmodule Mix.Tasks.Hex.PublishTest do
 
     in_tmp(fn ->
       set_home_tmp()
-      setup_auth("user2", "hunter42")
+      setup_auth("user2")
 
       error_msg =
         "Stopping package build due to errors.\n" <>

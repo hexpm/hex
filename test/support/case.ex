@@ -256,28 +256,15 @@ defmodule HexTest.Case do
     ]
   end
 
-  def setup_auth(username, password) do
+  def setup_auth(username) do
     write_permissions = [%{"domain" => "api"}]
     read_permissions = [%{"domain" => "api", "resource" => "read"}]
 
-    {:ok, {201, _, write_body}} =
-      Hex.API.Key.new("setup_auth_write", write_permissions, user: username, pass: password)
+    [key: write_key] = HexTest.Hexpm.new_key(username, "setup_auth_write", write_permissions)
+    HexTest.Hexpm.new_key(username, "setup_auth_read", read_permissions)
 
-    {:ok, {201, _, _read_body}} =
-      Hex.API.Key.new("setup_auth_read", read_permissions, user: username, pass: password)
-
-    write_key = write_body["secret"]
     Hex.State.put(:api_key, write_key)
     [key: write_key]
-  end
-
-  def get_auth(username, password) do
-    permissions = [%{"domain" => "api"}]
-
-    {:ok, {201, _, body}} =
-      Hex.API.Key.new("setup_auth", permissions, user: username, pass: password)
-
-    [key: body["secret"]]
   end
 
   def init_reset_state() do
@@ -452,7 +439,7 @@ defmodule HexTest.Case do
           |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
           |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
 
-        %Plug.Conn{method: "POST", request_path: "/api/keys"} ->
+        %Plug.Conn{method: "POST", request_path: "/api/key"} ->
           body = %{"secret" => "myrepo secret"}
 
           conn
