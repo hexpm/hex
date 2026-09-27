@@ -21,7 +21,7 @@ defmodule Hex.APITest do
   end
 
   test "release" do
-    auth = Hexpm.new_key(user: "user", pass: "hunter42")
+    auth = Hexpm.new_key("user", "hunter42", "key")
 
     %{tarball: tarball} = Hex.Tar.create!(meta(:pear, "0.0.1", []), ["mix.exs"], :memory)
     assert {:ok, {404, _, _}} = Hex.API.Release.get("hexpm", "pear", "0.0.1")
@@ -45,7 +45,7 @@ defmodule Hex.APITest do
   end
 
   test "docs" do
-    auth = Hexpm.new_key(user: "user", pass: "hunter42")
+    auth = Hexpm.new_key("user", "hunter42", "key")
 
     %{tarball: tarball} = Hex.Tar.create!(meta(:tangerine, "0.0.1", []), ["mix.exs"], :memory)
     assert {:ok, {201, _, _}} = Hex.API.Release.publish("hexpm", tarball, auth)
@@ -69,7 +69,7 @@ defmodule Hex.APITest do
 
   test "keys" do
     permissions = [%{"domain" => "api"}]
-    auth = [user: "user", pass: "hunter42"]
+    auth = Hexpm.new_key("user", "hunter42", "keys_test")
 
     assert {:ok, {201, _, %{"secret" => key_a}}} = Hex.API.Key.new("key_a", permissions, auth)
     assert {:ok, {201, _, %{"secret" => key_b}}} = Hex.API.Key.new("key_b", permissions, auth)
@@ -88,7 +88,7 @@ defmodule Hex.APITest do
     assert {:ok, {401, _, _}} = Hex.API.Key.get(auth)
 
     # Delete all keys
-    auth = [user: "user", pass: "hunter42"]
+    auth = Hexpm.new_key("user", "hunter42", "keys_test")
     assert {:ok, {201, _, %{"secret" => key_c}}} = Hex.API.Key.new("key_c", permissions, auth)
     assert {:ok, {201, _, %{"secret" => key_d}}} = Hex.API.Key.new("key_d", permissions, auth)
     assert is_binary(key_c) and byte_size(key_c) > 0
@@ -108,7 +108,7 @@ defmodule Hex.APITest do
   end
 
   test "owners" do
-    auth = Hexpm.new_key(user: "user", pass: "hunter42")
+    auth = Hexpm.new_key("user", "hunter42", "key")
 
     Hexpm.new_package("hexpm", "orange", "0.0.1", %{}, %{}, auth)
     Hexpm.new_user("orange_user", "orange_user@mail.com", "hunter42")
