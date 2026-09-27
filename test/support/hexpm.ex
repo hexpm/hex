@@ -209,28 +209,19 @@ defmodule HexTest.Hexpm do
   end
 
   def new_user(username, email, password, key) do
-    permissions = [%{"domain" => "api"}]
     new_user(username, email, password)
-
-    {:ok, {201, %{"secret" => secret}, _}} =
-      Hex.API.Key.new(key, permissions, user: username, pass: password)
-
-    [key: secret, "$write_key": Mix.Tasks.Hex.encrypt_key(password, secret), "$read_key": secret]
-  end
-
-  def new_key(auth) do
-    permissions = [%{"domain" => "api"}]
-    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.Key.new("key", permissions, auth)
-    [key: secret]
+    new_key(username, password, key)
   end
 
   def new_key(username, password, key) do
-    permissions = [%{"domain" => "api"}]
-
-    {:ok, {201, %{"secret" => secret}, _}} =
-      Hex.API.Key.new(key, permissions, user: username, pass: password)
-
+    secret = create_key(username, key, [%{"domain" => "api"}])
     [key: secret, "$write_key": Mix.Tasks.Hex.encrypt_key(password, secret), "$read_key": secret]
+  end
+
+  def create_key(username, key, permissions) do
+    body = %{"username" => username, "name" => key, "permissions" => permissions}
+    {:ok, {201, %{"secret" => secret}, _}} = Hex.API.erlang_post_request(nil, "key", body)
+    secret
   end
 
   def new_organization_key(organization, key, auth) do

@@ -231,25 +231,12 @@ defmodule HexTest.Case do
     write_permissions = [%{"domain" => "api"}]
     read_permissions = [%{"domain" => "api", "resource" => "read"}]
 
-    {:ok, {201, write_body, _}} =
-      Hex.API.Key.new("setup_auth_write", write_permissions, user: username, pass: password)
+    write_secret = HexTest.Hexpm.create_key(username, "setup_auth_write", write_permissions)
+    read_key = HexTest.Hexpm.create_key(username, "setup_auth_read", read_permissions)
 
-    {:ok, {201, read_body, _}} =
-      Hex.API.Key.new("setup_auth_read", read_permissions, user: username, pass: password)
-
-    write_key = Mix.Tasks.Hex.encrypt_key(password, write_body["secret"])
-    read_key = read_body["secret"]
+    write_key = Mix.Tasks.Hex.encrypt_key(password, write_secret)
     Mix.Tasks.Hex.update_keys(write_key, read_key)
     [key: write_key]
-  end
-
-  def get_auth(username, password) do
-    permissions = [%{"domain" => "api"}]
-
-    {:ok, {201, body, _}} =
-      Hex.API.Key.new("setup_auth", permissions, user: username, pass: password)
-
-    [key: body["secret"]]
   end
 
   def init_reset_state() do
@@ -400,7 +387,7 @@ defmodule HexTest.Case do
           |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
           |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
 
-        %Plug.Conn{method: "POST", request_path: "/api/keys"} ->
+        %Plug.Conn{method: "POST", request_path: "/api/key"} ->
           body = %{"secret" => "myrepo secret"}
 
           conn
