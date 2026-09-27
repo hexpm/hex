@@ -137,8 +137,7 @@ defmodule Hex.API.OAuthTest do
 
       permissions = [%{"domain" => "api"}, %{"domain" => "repositories"}]
 
-      {:ok, {201, _, %{"secret" => api_key}}} =
-        Hex.API.Key.new("api_key_multi", permissions, user: "apikey_multi", pass: "password")
+      [key: api_key] = Hexpm.new_key("apikey_multi", "api_key_multi", permissions)
 
       assert {:ok, {200, _headers, response}} =
                Hex.API.OAuth.exchange_api_key(api_key, "api repositories")
@@ -153,8 +152,7 @@ defmodule Hex.API.OAuthTest do
 
       permissions = [%{"domain" => "api"}, %{"domain" => "repositories"}]
 
-      {:ok, {201, _, %{"secret" => api_key}}} =
-        Hex.API.Key.new("api_key_list", permissions, user: "apikey_list", pass: "password")
+      [key: api_key] = Hexpm.new_key("apikey_list", "api_key_list", permissions)
 
       assert {:ok, {200, _headers, response}} =
                Hex.API.OAuth.exchange_api_key(api_key, ["api", "repositories"])

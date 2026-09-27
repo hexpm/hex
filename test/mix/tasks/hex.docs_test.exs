@@ -12,7 +12,7 @@ defmodule Mix.Tasks.Hex.DocsTest do
   end
 
   setup_all do
-    auth = Hexpm.new_key(user: "user", pass: "hunter42")
+    auth = Hexpm.new_key("user", "key")
     Hexpm.new_package("hexpm", "docs_package", "1.1.1", %{}, %{}, auth)
     Hexpm.new_package("hexpm", "docs_package", "1.1.2", %{}, %{}, auth)
     Hexpm.new_package("hexpm", "docs_package", "2.0.0-rc1", %{}, %{}, auth)
