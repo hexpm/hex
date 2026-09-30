@@ -4,6 +4,7 @@
 
 ### Enhancements
 
+* Support trusted publishing in `mix hex.publish`. In a GitHub Actions job with the `id-token: write` permission and no `HEX_API_KEY` or other Hex credential configured, the job's OIDC token is exchanged for a short-lived token that can only publish the package, so CI can publish without storing an API key. A trusted publisher must be configured for the package on hex.pm first
 * Print warnings to standard error instead of standard output, keeping stdout clean for machine-readable output such as `mix hex.outdated --json`. Warning-colored lines that are part of a command's regular output, such as retirement notices in `mix hex.info` and the `mix deps.get` dependency listing, remain on standard output
 * Add `--format sarif` and `--output PATH` options to `mix hex.audit` to render the audit result as a SARIF v2.1.0 document that can be uploaded to GitHub code scanning and other SARIF consumers. Findings are anchored to the dependency's `mix.lock` entry and ignored findings are included as suppressed results. Requires OTP 27 or later
 * Link to the hex.pm diffs page (`https://hex.pm/diffs`) in `mix hex.outdated` now that package diffs have moved from diff.hex.pm into hex.pm
