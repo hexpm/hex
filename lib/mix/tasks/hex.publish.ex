@@ -244,20 +244,21 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp print_owner_prompt(build, organization, opts) do
-    organizations = user_organizations()
+    yes? = Keyword.get(opts, :yes, false)
 
-    owner_prompt? =
-      public_organization?(organization) and
-        not Keyword.get(opts, :yes, false) and
-        organizations != [] and
-        not package_exists?(build)
+    organizations =
+      if public_organization?(organization) and not yes? and not package_exists?(build) do
+        user_organizations()
+      else
+        []
+      end
 
     Hex.Shell.info("")
 
-    if owner_prompt? do
+    if organizations != [] do
       do_print_owner_prompt(organizations)
     else
-      if Keyword.get(opts, :yes, false) or Hex.Shell.yes?("Proceed?") do
+      if yes? or Hex.Shell.yes?("Proceed?") do
         {:ok, nil}
       else
         :error
