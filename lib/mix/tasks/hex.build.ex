@@ -8,7 +8,8 @@ defmodule Mix.Tasks.Hex.Build do
 
   The package .tar file is created in the current directory, but is not pushed
   to the repository. An app named `foo` at version `1.2.3` will be built as
-  `foo-1.2.3.tar`.
+  `foo-1.2.3.tar`. The `build_env` field of the package metadata records the
+  Hex version that built the package.
 
       $ mix hex.build
 
@@ -189,6 +190,7 @@ defmodule Mix.Tasks.Hex.Build do
     |> Map.merge(package)
     |> package(config, excluded)
     |> Map.put(:requirements, deps)
+    |> Map.put(:build_env, %{hex: Hex.version()})
   end
 
   defp dependencies() do
