@@ -47,22 +47,19 @@ defmodule Mix.Tasks.Hex.Build do
     Hex.start()
     {opts, _args} = OptionParser.parse!(args, strict: @switches, aliases: @aliases)
 
-    build = prepare_package()
-
+    build = prepare_package(opts)
     organization = build.organization
     meta = build.meta
-    package = build.package
-    exclude_deps = build.exclude_deps
 
     Hex.Shell.info("Building #{meta.name} #{meta.version}")
-    print_info(meta, organization, exclude_deps, package[:files])
+    print_info(build, organization)
 
     if opts[:unpack] do
       output = Keyword.get(opts, :output, "#{meta.name}-#{meta.version}")
-      build_and_unpack_package(meta, output)
+      build_and_unpack_package(build, output)
     else
       output = Keyword.get(opts, :output, "#{meta.name}-#{meta.version}.tar")
-      build_package(meta, output)
+      build_package(build, output)
     end
   end
 
@@ -73,15 +70,15 @@ defmodule Mix.Tasks.Hex.Build do
     ]
   end
 
-  defp build_package(meta, output) do
-    %{outer_checksum: outer_checksum} = Hex.Tar.create!(meta, meta.files, output)
+  defp build_package(build, output) do
+    %{outer_checksum: outer_checksum} = Hex.Tar.create!(build.meta, build.tar_files, output)
     Hex.Shell.info("Package checksum: #{Base.encode16(outer_checksum, case: :lower)}")
     Hex.Shell.info("Saved to #{output}")
   end
 
-  defp build_and_unpack_package(meta, output) do
+  defp build_and_unpack_package(build, output) do
     %{tarball: tarball, inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
-      Hex.Tar.create!(meta, meta.files, :memory)
+      Hex.Tar.create!(build.meta, build.tar_files, :memory)
 
     %{inner_checksum: ^inner_checksum, outer_checksum: ^outer_checksum} =
       Hex.Tar.unpack!({:binary, tarball}, output)
@@ -90,7 +87,7 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   @doc false
-  def prepare_package() do
+  def prepare_package(opts \\ []) do
     Mix.Project.get!()
     config = Mix.Project.config()
     check_umbrella_project!(config)
@@ -100,7 +97,10 @@ defmodule Mix.Tasks.Hex.Build do
     check_misspellings!(package)
     {organization, package} = Map.pop(package, :organization)
     {deps, exclude_deps} = dependencies()
-    meta = meta_for(config, package, deps)
+    name = package[:name] || config[:app]
+    excluded = build_outputs(name, config, List.wrap(opts[:output]))
+    meta = meta_for(config, package, deps, excluded)
+    {executables, missing_executables} = executables(package[:executables], meta.files, excluded)
 
     %{
       config: config,
@@ -108,12 +108,16 @@ defmodule Mix.Tasks.Hex.Build do
       deps: deps,
       exclude_deps: exclude_deps,
       meta: meta,
-      organization: organization
+      organization: organization,
+      tar_files: tar_files(meta.files, executables),
+      missing_executables: missing_executables
     }
   end
 
   @doc false
-  def print_info(meta, organization, exclude_deps, package_files) do
+  def print_info(build, organization) do
+    %{meta: meta, exclude_deps: exclude_deps, package: package} = build
+
     if meta[:requirements] != [] do
       Hex.Shell.info("  Dependencies:")
 
@@ -137,8 +141,9 @@ defmodule Mix.Tasks.Hex.Build do
       Enum.concat([
         check_missing_fields(meta, organization),
         check_description_length(meta),
-        check_missing_files(package_files || []),
-        check_reserved_files(package_files || []),
+        check_missing_files(package[:files] || []),
+        check_missing_executables(build.missing_executables),
+        check_reserved_files(package[:files] || []),
         check_excluded_deps(exclude_deps)
       ])
 
@@ -177,12 +182,12 @@ defmodule Mix.Tasks.Hex.Build do
     ]
   end
 
-  defp meta_for(config, package, deps) do
+  defp meta_for(config, package, deps, excluded) do
     config
     |> Keyword.take(@root_fields)
     |> Map.new()
     |> Map.merge(package)
-    |> package(config)
+    |> package(config, excluded)
     |> Map.put(:requirements, deps)
   end
 
@@ -249,24 +254,37 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   @doc false
-  def package(package, config) do
+  def package(package, config, excluded) do
     files = package[:files] || Hex.Package.default_files()
     exclude_patterns = package[:exclude_patterns] || []
+    name = package[:name] || config[:app]
 
     files =
       files
-      |> expand_paths(File.cwd!())
-      |> Enum.reject(fn path ->
-        Path.basename(path) == ".DS_Store" or
-          Enum.any?(exclude_patterns, &(path =~ &1))
-      end)
+      |> expand_paths(excluded)
+      |> Enum.reject(fn path -> Enum.any?(exclude_patterns, &(path =~ &1)) end)
 
     package
     |> Map.put(:files, files)
     |> maybe_put(:description, package[:description], &String.trim/1)
-    |> maybe_put(:name, package[:name] || config[:app], &to_string(&1))
+    |> maybe_put(:name, name, &to_string(&1))
     |> maybe_put(:build_tools, !package[:build_tools] && guess_build_tools(files), & &1)
     |> Map.take(@meta_fields)
+  end
+
+  defp build_outputs(name, config, outputs) do
+    build_root = System.get_env("MIX_BUILD_ROOT") || config[:build_path] || "_build"
+
+    [
+      "#{name}-#{config[:version]}.tar",
+      "#{name}-#{config[:version]}",
+      "_build",
+      "deps",
+      build_root,
+      Mix.Project.build_path(config),
+      Mix.Project.deps_path(config)
+      | outputs
+    ]
   end
 
   defp maybe_put(map, key, value, transform) do
@@ -315,32 +333,171 @@ defmodule Mix.Tasks.Hex.Build do
     if only = opts[:only], do: :prod in List.wrap(only), else: true
   end
 
-  defp expand_paths(paths, dir) do
-    expand_dir = Path.expand(dir)
+  # Returns the package files matching the :executables patterns and the
+  # patterns that match none of the package files
+  defp executables(nil, _files, _excluded), do: {nil, []}
 
-    paths
-    |> Enum.map(&Path.join(dir, &1))
-    |> Enum.flat_map(&Path.wildcard/1)
-    |> Enum.flat_map(&dir_files/1)
-    |> Enum.map(&Path.expand/1)
-    |> Enum.uniq()
-    |> Enum.map(&Path.relative_to(&1, expand_dir))
+  defp executables(patterns, files, excluded) do
+    files = MapSet.new(files)
+
+    matches =
+      Enum.map(patterns, fn pattern ->
+        {pattern, Enum.filter(expand_paths([pattern], excluded), &(&1 in files))}
+      end)
+
+    executables = MapSet.new(Enum.flat_map(matches, &elem(&1, 1)))
+    missing = for {pattern, []} <- matches, do: pattern
+    {executables, missing}
   end
 
-  defp dir_files(path) do
+  defp expand_paths(patterns, excluded) do
+    dir = File.cwd!()
+
+    excluded =
+      excluded
+      |> Enum.map(&relative_path(&1, dir))
+      |> Enum.flat_map(&[&1 | disk_spellings(&1)])
+      |> Enum.uniq()
+
+    patterns
+    |> Enum.flat_map(fn pattern ->
+      literal? = not glob?(pattern)
+      pattern |> Hex.Wildcard.wildcard() |> Enum.map(&{relative_path(&1, dir), literal?})
+    end)
+    |> Enum.reject(fn {path, literal?} ->
+      build_output?(path, excluded) or (not literal? and junk_path?(path))
+    end)
+    |> Enum.flat_map(fn {path, _literal?} -> dir_files(path, excluded) end)
+    |> Enum.uniq()
+  end
+
+  defp relative_path(path, dir) do
+    path
+    |> Path.expand(dir)
+    |> Path.relative_to(dir)
+  end
+
+  defp dir_files(path, excluded) do
     case File.lstat(path) do
       {:ok, %File.Stat{type: :directory}} ->
         new_paths =
           path
-          |> File.ls!()
+          |> Hex.Wildcard.list_names!()
           |> Enum.map(&Path.join(path, &1))
-          |> Enum.flat_map(&dir_files/1)
+          |> Enum.reject(&(junk_path?(&1) or build_output?(&1, excluded)))
+          |> Enum.flat_map(&dir_files(&1, excluded))
 
         [path | new_paths]
 
       _ ->
         [path]
     end
+  end
+
+  # On case-insensitive file systems a build output path such as --output
+  # FOO.tar can refer to an existing file with a different spelling, foo.tar.
+  # Returns the spellings of the directory entries that the path refers to,
+  # found by comparing inodes, which are zero on file systems without them.
+  defp disk_spellings(path) do
+    case Path.split(path) do
+      [first | _] = names when first not in ["/", ".."] ->
+        Enum.reduce(names, ["."], fn name, dirs ->
+          Enum.flat_map(dirs, &entry_spellings(&1, name))
+        end)
+
+      _other ->
+        []
+    end
+  end
+
+  defp entry_spellings(dir, name) do
+    path = Hex.Wildcard.join_path(dir, name)
+
+    with {:ok, %File.Stat{inode: inode, major_device: device}} when inode != 0 <-
+           File.lstat(path),
+         {:ok, names} <- Hex.Wildcard.list_names(dir) do
+      if name in names do
+        [path]
+      else
+        for entry <- names,
+            entry_path = Hex.Wildcard.join_path(dir, entry),
+            match?(
+              {:ok, %File.Stat{inode: ^inode, major_device: ^device}},
+              File.lstat(entry_path)
+            ),
+            do: entry_path
+      end
+    else
+      _ -> []
+    end
+  end
+
+  defp glob?(component) do
+    String.contains?(component, ["*", "?", "[", "{"])
+  end
+
+  # Package file names are the bytes of the names on disk, charlist file names
+  # use the native encoding where with :latin1 every character is one byte
+  @doc false
+  def disk_path(name, :utf8), do: String.to_charlist(name)
+  def disk_path(name, :latin1), do: :binary.bin_to_list(name)
+
+  @doc false
+  def tar_files(files, executables, encoding \\ :file.native_name_encoding())
+
+  def tar_files(files, nil, encoding) do
+    Enum.map(files, &{&1, disk_path(&1, encoding)})
+  end
+
+  def tar_files(files, executables, encoding) do
+    Enum.map(files, &{&1, disk_path(&1, encoding), %{executable: &1 in executables}})
+  end
+
+  defp junk_path?(path) do
+    Enum.any?(Path.split(path), &junk_file?/1)
+  end
+
+  defp build_output?(path, excluded) do
+    Enum.any?(excluded, &(path == &1 or String.starts_with?(path, &1 <> "/")))
+  end
+
+  @junk_files [
+    ".DS_Store",
+    ".Spotlight-V100",
+    ".Trashes",
+    ".fseventsd",
+    ".TemporaryItems",
+    ".apdisk",
+    "Icon\r",
+    "__MACOSX",
+    ".git",
+    ".hg",
+    ".svn",
+    ".bzr",
+    ".jj"
+  ]
+  @case_insensitive_junk_files ["thumbs.db", "ehthumbs.db", "desktop.ini"]
+  @junk_prefixes ["._", ".#", ".nfs", ".fuse_hidden"]
+  @junk_suffixes ["~", ".orig", ".rej", ".bak"]
+
+  defp junk_file?(name) do
+    name in @junk_files or
+      String.downcase(name) in @case_insensitive_junk_files or
+      String.starts_with?(name, @junk_prefixes) or
+      String.ends_with?(name, @junk_suffixes) or
+      emacs_auto_save_file?(name) or
+      vim_swap_file?(name)
+  end
+
+  defp emacs_auto_save_file?(name) do
+    byte_size(name) >= 2 and String.starts_with?(name, "#") and String.ends_with?(name, "#")
+  end
+
+  defp vim_swap_file?(name) do
+    size = byte_size(name)
+
+    size >= 5 and String.starts_with?(name, ".") and
+      match?(<<".sw", char>> when char in ?a..?p, binary_part(name, size - 4, 4))
   end
 
   defp print_metadata(metadata, :files) do
@@ -426,7 +583,7 @@ defmodule Mix.Tasks.Hex.Build do
   end
 
   defp check_missing_files(package_files) do
-    case Enum.filter(package_files, &(Path.wildcard(&1) == [])) do
+    case Enum.filter(package_files, &(Hex.Wildcard.wildcard(&1) == [])) do
       [] ->
         []
 
@@ -435,9 +592,15 @@ defmodule Mix.Tasks.Hex.Build do
     end
   end
 
+  defp check_missing_executables([]), do: []
+
+  defp check_missing_executables(missing) do
+    ["Executables not in package: #{Enum.join(missing, ", ")}"]
+  end
+
   defp check_reserved_files(package_files) do
     reserved_file = @metadata_config
-    invalid_file = Enum.find(package_files, &(reserved_file in Path.wildcard(&1)))
+    invalid_file = Enum.find(package_files, &(reserved_file in Hex.Wildcard.wildcard(&1)))
 
     if invalid_file do
       ["Do not include this file: #{reserved_file}"]

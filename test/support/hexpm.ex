@@ -267,12 +267,13 @@ defmodule HexTest.Hexpm do
 
     meta =
       meta
-      |> Map.merge(%{name: name, version: version, requirements: reqs})
-      |> Map.put_new(:description, "empty")
-      |> Map.put_new(:licenses, ["MIT"])
-      |> Map.put_new(:app, name)
-      |> Map.put_new(:build_tools, ["mix"])
-      |> Map.put_new(:files, ["mix.exs"])
+      |> Map.new(fn {key, value} -> {to_string(key), value} end)
+      |> Map.merge(%{"name" => name, "version" => version, "requirements" => reqs})
+      |> Map.put_new("description", "empty")
+      |> Map.put_new("licenses", ["MIT"])
+      |> Map.put_new("app", name)
+      |> Map.put_new("build_tools", ["mix"])
+      |> Map.put_new("files", ["mix.exs"])
 
     deps = inspect(deps, pretty: true)
     module = String.capitalize(name)

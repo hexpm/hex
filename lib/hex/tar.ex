@@ -10,7 +10,9 @@ defmodule Hex.Tar do
   def create!(metadata, files, output) do
     files =
       Enum.map(files, fn
-        {filename, contents} -> {String.to_charlist(filename), contents}
+        {filename, path} when is_list(path) -> {String.to_charlist(filename), path}
+        {filename, path, options} -> {String.to_charlist(filename), path, options}
+        {filename, contents} when is_binary(contents) -> {String.to_charlist(filename), contents}
         filename -> String.to_charlist(filename)
       end)
 

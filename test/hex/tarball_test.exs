@@ -88,6 +88,20 @@ defmodule Hex.TarballTest do
     end)
   end
 
+  test "Hex.Tar.create! reads file paths from disk and binaries from memory" do
+    metadata = %{name: "foo", version: "1.0.0"}
+
+    in_tmp(fn ->
+      File.write!("disk.txt", "disk")
+      files = [{"archive.txt", ~c"disk.txt"}, {"memory.txt", "memory"}]
+
+      %{tarball: tarball} = Hex.Tar.create!(metadata, files, :memory)
+      %{contents: contents} = Hex.Tar.unpack!({:binary, tarball}, :memory)
+
+      assert Enum.sort(contents) == [{~c"archive.txt", "disk"}, {~c"memory.txt", "memory"}]
+    end)
+  end
+
   test "create rejects unsupported file types" do
     if mkfifo = System.find_executable("mkfifo") do
       metadata = %{name: "foo", version: "1.0.0"}
