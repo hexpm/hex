@@ -813,6 +813,23 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge([ReleaseSecretScan.MixProject])
   end
 
+  test "records the hex version in build_env" do
+    Process.put(:hex_test_app_name, :build_env)
+    Mix.Project.push(ReleaseSimple.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+      File.write!("myfile.txt", "hello")
+
+      Mix.Tasks.Hex.Build.run(["--unpack"])
+
+      {:ok, metadata} = :file.consult("build_env-0.0.1/hex_metadata.config")
+      assert {"build_env", [{"hex", Hex.version()}]} in metadata
+    end)
+  after
+    purge([ReleaseSimple.MixProject])
+  end
+
   test "reject package if description is missing" do
     Process.put(:hex_test_app_name, :build_no_description)
     Mix.Project.push(ReleaseNoDescription.MixProject)
