@@ -201,11 +201,9 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp proceed_with_owner(build, organization, opts) do
     meta = build.meta
-    exclude_deps = build.exclude_deps
-    package = build.package
 
     Hex.Shell.info("Building #{meta.name} #{meta.version}")
-    Build.print_info(meta, organization, exclude_deps, package[:files])
+    Build.print_info(build, organization)
 
     print_link_to_coc()
     print_public_private(organization)
@@ -491,7 +489,10 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp create_release(build, organization, opts) do
     meta = build.meta
-    %{tarball: tarball, outer_checksum: checksum} = Hex.Tar.create!(meta, meta.files, :memory)
+
+    %{tarball: tarball, outer_checksum: checksum} =
+      Hex.Tar.create!(meta, build.tar_files, :memory)
+
     dry_run? = Keyword.get(opts, :dry_run, false)
     opts = [{:name, Map.fetch!(build.meta, :name)} | opts]
 

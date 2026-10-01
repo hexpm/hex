@@ -27,6 +27,7 @@ filenames="hex_api_auth.erl \
            hex_cli_auth.erl \
            hex_core.hrl \
            hex_core.erl \
+           hex_deflate.erl \
            hex_erl_tar.erl \
            hex_erl_tar.hrl \
            hex_http.erl \
@@ -46,6 +47,7 @@ filenames="hex_api_auth.erl \
 search_to_replace="hex_core: \
                    hex_core) \
                    hex_core.hrl \
+                   hex_deflate \
                    hex_erl_tar \
                    hex_filename \
                    hex_licenses \
