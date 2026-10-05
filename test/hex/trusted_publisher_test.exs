@@ -56,6 +56,7 @@ defmodule Hex.TrustedPublisherTest do
       {:ok, bypass: bypass}
     end
 
+    @tag :requires_json
     test "returns OAuth auth for the minted token", %{bypass: bypass} do
       Bypass.expect(bypass, fn conn ->
         case conn.request_path do
