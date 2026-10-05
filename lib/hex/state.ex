@@ -10,7 +10,8 @@ defmodule Hex.State do
   @config %{
     api_key: %{
       env: ["HEX_API_KEY"],
-      config: [:api_key]
+      config: [:api_key],
+      skip_env_if_empty: true
     },
     api_otp: %{
       env: ["HEX_OTP"]

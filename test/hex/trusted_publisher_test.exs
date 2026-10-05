@@ -32,6 +32,25 @@ defmodule Hex.TrustedPublisherTest do
       refute Hex.TrustedPublisher.available?()
     end
 
+    test "ignores an empty HEX_API_KEY" do
+      original = System.get_env("HEX_API_KEY")
+
+      try do
+        System.put_env("HEX_API_KEY", "")
+        Hex.State.refresh()
+        refute Hex.State.fetch_source!(:api_key) == {:env, "HEX_API_KEY"}
+      after
+        if original do
+          System.put_env("HEX_API_KEY", original)
+        else
+          System.delete_env("HEX_API_KEY")
+        end
+
+        Hex.State.refresh()
+        HexTest.Case.reset_state()
+      end
+    end
+
     test "when the user authenticated" do
       in_tmp(fn ->
         set_home_cwd()
@@ -56,7 +75,6 @@ defmodule Hex.TrustedPublisherTest do
       {:ok, bypass: bypass}
     end
 
-    @tag :requires_json
     test "returns OAuth auth for the minted token", %{bypass: bypass} do
       Bypass.expect(bypass, fn conn ->
         case conn.request_path do
@@ -84,8 +102,7 @@ defmodule Hex.TrustedPublisherTest do
       end)
 
       message =
-        "Trusted publishing failed, GitHub Actions refused to issue an OIDC token (HTTP 403). " <>
-          "Make sure the workflow has the `id-token: write` permission"
+        "Trusted publishing failed, GitHub Actions refused to issue an OIDC token (HTTP 403)"
 
       assert_raise Mix.Error, message, fn -> Hex.TrustedPublisher.auth!("hexpm", "foo") end
     end

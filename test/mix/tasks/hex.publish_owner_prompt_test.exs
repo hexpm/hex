@@ -36,6 +36,7 @@ defmodule Mix.Tasks.Hex.PublishOwnerPromptTest do
     end)
 
     assert_received {:request, "GET", "/api/repos/hexpm/packages/#{@package}"}
+    assert_received {:authorization, "/api/repos/hexpm/packages/#{@package}", []}
     assert_received {:request, "POST", "/api/packages/#{@package}/releases"}
     refute_received {:request, _method, "/api/users/me"}
   end
@@ -60,6 +61,11 @@ defmodule Mix.Tasks.Hex.PublishOwnerPromptTest do
     Bypass.expect(bypass, fn conn ->
       {:ok, _body, conn} = Plug.Conn.read_body(conn, length: 100_000_000)
       send(test_pid, {:request, conn.method, conn.request_path})
+
+      send(
+        test_pid,
+        {:authorization, conn.request_path, Plug.Conn.get_req_header(conn, "authorization")}
+      )
 
       case {conn.method, conn.request_path} do
         {"GET", "/api/users/me"} ->

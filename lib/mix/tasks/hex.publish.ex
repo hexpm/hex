@@ -322,7 +322,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp package_exists?(build) do
-    case Hex.API.Package.get("hexpm", build.meta.name) do
+    case Hex.API.Package.get_anonymous("hexpm", build.meta.name) do
       {:ok, {200, _headers, _body}} ->
         true
 

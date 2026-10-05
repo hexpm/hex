@@ -63,18 +63,17 @@ defmodule Hex.TrustedPublisher do
 
     case Hex.HTTP.request(:get, put_audience(url, audience), headers, nil) do
       {:ok, {200, _headers, body}} ->
-        case decode_json(body) do
-          %{"value" => token} when is_binary(token) and token != "" ->
+        case oidc_token_value(body) do
+          {:ok, token} ->
             token
 
-          _other ->
+          :error ->
             Mix.raise("Trusted publishing failed, GitHub Actions answered without an OIDC token")
         end
 
       {:ok, {status, _headers, _body}} ->
         Mix.raise(
-          "Trusted publishing failed, GitHub Actions refused to issue an OIDC token " <>
-            "(HTTP #{status}). Make sure the workflow has the `id-token: write` permission"
+          "Trusted publishing failed, GitHub Actions refused to issue an OIDC token (HTTP #{status})"
         )
 
       {:error, reason} ->
@@ -119,22 +118,40 @@ defmodule Hex.TrustedPublisher do
   defp describe_error({:ok, {status, _headers, _body}}), do: "HTTP #{status}"
   defp describe_error({:error, reason}), do: inspect(reason)
 
-  defp decode_json(body) do
-    cond do
-      Code.ensure_loaded?(:json) ->
-        safe_decode(fn -> :json.decode(body) end)
+  defp oidc_token_value(body) do
+    case Hex.Stdlib.json_decode(body) do
+      {:ok, %{"value" => token}} when is_binary(token) and token != "" ->
+        {:ok, token}
 
-      Code.ensure_loaded?(JSON) ->
-        safe_decode(fn -> apply(JSON, :decode!, [body]) end)
+      {:ok, _other} ->
+        :error
 
-      true ->
-        Mix.raise("Trusted publishing requires OTP 27 or later, or Elixir 1.18 or later")
+      :unavailable ->
+        extract_jwt_value(body)
     end
   end
 
-  defp safe_decode(fun) do
-    fun.()
-  rescue
-    _error -> nil
+  # Without a JSON decoder, take the value directly. A compact JWT is limited to
+  # the base64url alphabet and dots, so it holds no quotes or escapes, and a bad
+  # extraction fails Hex's signature check.
+  defp extract_jwt_value(body) do
+    with [_before, rest] <- :binary.split(body, "\"value\""),
+         "\"" <> rest <- skip_separator(rest),
+         {token, "\"" <> _rest} when token != "" <- take_jwt(rest, "") do
+      {:ok, token}
+    else
+      _other -> :error
+    end
   end
+
+  defp skip_separator(<<char, rest::binary>>) when char in [?\s, ?\t, ?\n, ?\r, ?:],
+    do: skip_separator(rest)
+
+  defp skip_separator(rest), do: rest
+
+  defp take_jwt(<<char, rest::binary>>, acc)
+       when char in ?A..?Z or char in ?a..?z or char in ?0..?9 or char in [?-, ?_, ?.],
+       do: take_jwt(rest, <<acc::binary, char>>)
+
+  defp take_jwt(rest, acc), do: {acc, rest}
 end

@@ -44,7 +44,6 @@ defmodule Mix.Tasks.Hex.PublishTrustedPublisherTest do
     {:ok, bypass: bypass}
   end
 
-  @tag :requires_json
   test "publishes package and docs with one trusted publisher token", %{bypass: bypass} do
     stub_api(bypass)
 
@@ -74,7 +73,6 @@ defmodule Mix.Tasks.Hex.PublishTrustedPublisherTest do
     refute_received {:request, _method, "/api/users/me", _, _}
   end
 
-  @tag :requires_json
   test "scopes the token to the organization repository", %{bypass: bypass} do
     stub_api(bypass)
 
@@ -86,7 +84,6 @@ defmodule Mix.Tasks.Hex.PublishTrustedPublisherTest do
                      ["Bearer minted_token"]}
   end
 
-  @tag :requires_json
   test "publishes docs alone with a trusted publisher token", %{bypass: bypass} do
     stub_api(bypass)
 
@@ -116,7 +113,6 @@ defmodule Mix.Tasks.Hex.PublishTrustedPublisherTest do
     assert_received {:mix_shell, :info, ["Building #{@package} 0.1.0"]}
   end
 
-  @tag :requires_json
   test "raises with the reason Hex refused the exchange", %{bypass: bypass} do
     stub_api(bypass,
       exchange:
