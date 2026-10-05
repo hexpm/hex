@@ -1,7 +1,12 @@
-# Vendored from mint v1.7.1 (d30d2cf), do not edit manually
+# Vendored from mint v1.11.0 (fb850d3), do not edit manually
 
 defmodule Hex.Mint.HTTP1.Parse do
   @moduledoc false
+
+  alias Hex.Mint.ParsingTools
+
+  # Bound the parse work and keep the chunk size within an unsigned 64-bit value.
+  @max_chunk_size_digits 16
 
   defmacro is_digit(char), do: quote(do: unquote(char) in ?0..?9)
   defmacro is_alpha(char), do: quote(do: unquote(char) in ?a..?z or unquote(char) in ?A..?Z)
@@ -9,20 +14,122 @@ defmodule Hex.Mint.HTTP1.Parse do
   defmacro is_comma(char), do: quote(do: unquote(char) == ?,)
   defmacro is_vchar(char), do: quote(do: unquote(char) in 33..126)
 
+  defmacro is_hex_digit(char) do
+    quote do
+      is_digit(unquote(char)) or unquote(char) in ?a..?f or unquote(char) in ?A..?F
+    end
+  end
+
   defmacro is_tchar(char) do
     quote do
       is_digit(unquote(char)) or is_alpha(unquote(char)) or unquote(char) in ~c"!#$%&'*+-.^_`|~"
     end
   end
 
-  def ignore_until_crlf(<<>>), do: :more
-  def ignore_until_crlf(<<"\r\n", rest::binary>>), do: {:ok, rest}
-  def ignore_until_crlf(<<_char, rest::binary>>), do: ignore_until_crlf(rest)
+  def chunk_size(<<char, rest::binary>>) when is_hex_digit(char) do
+    parse_hex_prefix(rest, hex_digit_value(char), 1)
+  end
+
+  def chunk_size(_other), do: :error
+
+  defp parse_hex_prefix(<<char, _rest::binary>>, _acc, @max_chunk_size_digits)
+       when is_hex_digit(char),
+       do: :error
+
+  defp parse_hex_prefix(<<char, rest::binary>>, acc, digit_count) when is_hex_digit(char) do
+    parse_hex_prefix(rest, acc * 16 + hex_digit_value(char), digit_count + 1)
+  end
+
+  defp parse_hex_prefix(<<>>, _acc, _digit_count), do: :more
+  defp parse_hex_prefix(rest, acc, _digit_count), do: {:ok, acc, rest}
+
+  defp hex_digit_value(char) when is_digit(char), do: char - ?0
+  defp hex_digit_value(char) when char in ?a..?f, do: char - ?a + 10
+  defp hex_digit_value(char) when char in ?A..?F, do: char - ?A + 10
+
+  def chunk_extensions(data), do: chunk_extensions(data, :start)
+
+  defp chunk_extensions(<<>>, _state), do: :more
+
+  defp chunk_extensions("\r", state) when state in [:start, :name, :token], do: :more
+
+  defp chunk_extensions(<<"\r\n", rest::binary>>, state)
+       when state in [:start, :name, :token],
+       do: {:ok, rest}
+
+  defp chunk_extensions(<<?;, rest::binary>>, state)
+       when state in [:start, :separator, :name, :name_bws, :token],
+       do: chunk_extensions(rest, :name_start)
+
+  defp chunk_extensions(<<char, rest::binary>>, state)
+       when is_whitespace(char) and state in [:start, :separator, :token],
+       do: chunk_extensions(rest, :separator)
+
+  defp chunk_extensions(<<char, rest::binary>>, state)
+       when is_whitespace(char) and state in [:name, :name_bws],
+       do: chunk_extensions(rest, :name_bws)
+
+  defp chunk_extensions(<<char, rest::binary>>, state)
+       when is_whitespace(char) and state in [:name_start, :value_start],
+       do: chunk_extensions(rest, state)
+
+  defp chunk_extensions(<<?=, rest::binary>>, state) when state in [:name, :name_bws],
+    do: chunk_extensions(rest, :value_start)
+
+  defp chunk_extensions(<<char, rest::binary>>, state)
+       when is_tchar(char) and state in [:name_start, :name],
+       do: chunk_extensions(rest, :name)
+
+  defp chunk_extensions(<<char, rest::binary>>, state)
+       when is_tchar(char) and state in [:value_start, :token],
+       do: chunk_extensions(rest, :token)
+
+  defp chunk_extensions(<<?", rest::binary>>, :value_start),
+    do: chunk_extensions(rest, :quoted)
+
+  defp chunk_extensions(<<?", rest::binary>>, :quoted),
+    do: chunk_extensions(rest, :start)
+
+  defp chunk_extensions(<<?\\, rest::binary>>, :quoted),
+    do: chunk_extensions(rest, :quoted_pair)
+
+  defp chunk_extensions(<<char, rest::binary>>, :quoted)
+       when char in [9, 32, 33] or char in 35..91 or char in 93..126 or char in 128..255,
+       do: chunk_extensions(rest, :quoted)
+
+  defp chunk_extensions(<<char, rest::binary>>, :quoted_pair)
+       when char == 9 or char in 32..126 or char in 128..255,
+       do: chunk_extensions(rest, :quoted)
+
+  defp chunk_extensions(_data, _state), do: :error
 
   def content_length_header(string) do
-    case Integer.parse(String.trim_trailing(string)) do
-      {length, ""} when length >= 0 -> {:ok, length}
-      _other -> {:error, {:invalid_content_length_header, string}}
+    if ParsingTools.only_digits?(string) do
+      {:ok, String.to_integer(string)}
+    else
+      {:error, {:invalid_content_length_header, string}}
+    end
+  end
+
+  # RFC 9112 5.1: optional whitespace around the field value is not part of it.
+  # :erlang.decode_packet/3 strips the leading whitespace but keeps the trailing one,
+  # and replacing an obs-fold at the start of a value leaves a leading space.
+  def trim_leading_whitespace(<<char, rest::binary>>) when is_whitespace(char),
+    do: trim_leading_whitespace(rest)
+
+  def trim_leading_whitespace(string), do: string
+
+  def trim_trailing_whitespace(<<>>), do: <<>>
+
+  def trim_trailing_whitespace(string) do
+    prefix_size = byte_size(string) - 1
+
+    case string do
+      <<prefix::binary-size(^prefix_size), char>> when is_whitespace(char) ->
+        trim_trailing_whitespace(prefix)
+
+      _other ->
+        string
     end
   end
 

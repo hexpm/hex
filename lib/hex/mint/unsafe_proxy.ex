@@ -1,9 +1,10 @@
-# Vendored from mint v1.7.1 (d30d2cf), do not edit manually
+# Vendored from mint v1.11.0 (fb850d3), do not edit manually
 
 defmodule Hex.Mint.UnsafeProxy do
   @moduledoc false
 
   alias Hex.Mint.{Types, UnsafeProxy}
+  alias Hex.Mint.Core.Util
 
   @behaviour Hex.Mint.Core.Conn
 
@@ -18,16 +19,20 @@ defmodule Hex.Mint.UnsafeProxy do
 
   @opaque t() :: %UnsafeProxy{}
 
-  @type host_triple() :: {Types.scheme(), address :: Types.address(), :inet.port_number()}
+  @type host_tuple() ::
+          {Types.scheme(), address :: Types.address(), :inet.port_number(), opts :: keyword()}
 
-  @spec connect(host_triple(), host_triple(), opts :: keyword()) ::
-          {:ok, t()} | {:error, Types.error()}
-  def connect(proxy, host, opts \\ []) do
-    {proxy_scheme, proxy_address, proxy_port} = proxy
-    {scheme, address, port} = host
+  @spec connect(host_tuple(), host_tuple()) :: {:ok, t()} | {:error, Types.error()}
+  def connect(proxy, host) do
+    {proxy_scheme, proxy_address, proxy_port, proxy_opts} = proxy
+    {scheme, address, port, opts} = host
     hostname = Hex.Mint.Core.Util.hostname(opts, address)
 
-    with {:ok, state} <- Hex.Mint.HTTP1.connect(proxy_scheme, proxy_address, proxy_port, opts) do
+    # The proxy connection is the one returned to the caller, so it defaults to
+    # the caller's :mode.
+    proxy_opts = Keyword.merge(Keyword.take(opts, [:mode]), proxy_opts)
+
+    with {:ok, state} <- Hex.Mint.HTTP1.connect(proxy_scheme, proxy_address, proxy_port, proxy_opts) do
       conn = %UnsafeProxy{
         scheme: scheme,
         hostname: hostname,
@@ -83,7 +88,7 @@ defmodule Hex.Mint.UnsafeProxy do
         body \\ nil
       ) do
     path = request_line(conn, path)
-    headers = headers ++ conn.proxy_headers
+    headers = put_new_host_header(headers, conn) ++ conn.proxy_headers
 
     case module.request(state, method, path, headers, body) do
       {:ok, state, request} -> {:ok, %{conn | state: state}, request}
@@ -172,7 +177,9 @@ defmodule Hex.Mint.UnsafeProxy do
   end
 
   defp request_line(%UnsafeProxy{scheme: scheme, hostname: hostname, port: port}, path) do
-    %URI{scheme: Atom.to_string(scheme), host: hostname, port: port, path: path}
+    host = Util.uri_host_without_brackets(hostname)
+
+    %URI{scheme: Atom.to_string(scheme), host: host, port: port, path: path}
     |> URI.to_string()
   end
 
@@ -197,8 +204,39 @@ defmodule Hex.Mint.UnsafeProxy do
   def get_proxy_headers(%__MODULE__{}), do: []
 
   @impl true
-  @spec put_proxy_headers(t(), Hex.Mint.Types.headers()) :: t()
+  @spec put_proxy_headers(t(), Hex.Mint.Types.headers()) :: no_return()
   def put_proxy_headers(%__MODULE__{}, _headers) do
     raise "invalid function for proxy unsafe proxy connections"
+  end
+
+  @impl true
+  def request_body_window(%__MODULE__{module: module, state: state}, ref) do
+    module.request_body_window(state, ref)
+  end
+
+  # When proxying over plain HTTP, the request is sent to the proxy but its Host
+  # header must identify the origin server, not the proxy (RFC 7230, sec. 5.4).
+  # Hex.Mint.HTTP1 would otherwise default the Host header to the proxy's address,
+  # since its connection points at the proxy. We set it here (unless the caller
+  # already provided one) so Hex.Mint.HTTP1's `put_new` leaves the origin's Host in
+  # place.
+  defp put_new_host_header(headers, conn) do
+    if Enum.any?(headers, fn {name, _value} -> Hex.Mint.Core.Headers.lower_raw(name) == "host" end) do
+      headers
+    else
+      [{"Host", host_header_value(conn)} | headers]
+    end
+  end
+
+  # Mirrors the default-port handling in Hex.Mint.HTTP1: omit the port when it is the
+  # default for the scheme.
+  defp host_header_value(%UnsafeProxy{scheme: scheme, hostname: hostname, port: port}) do
+    hostname = Util.uri_host(hostname)
+
+    if URI.default_port(Atom.to_string(scheme)) == port do
+      hostname
+    else
+      "#{hostname}:#{port}"
+    end
   end
 end

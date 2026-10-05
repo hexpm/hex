@@ -1,11 +1,11 @@
-# Vendored from mint v1.7.1 (d30d2cf), do not edit manually
+# Vendored from mint v1.11.0 (fb850d3), do not edit manually
 
 defmodule Hex.Mint.Core.Util do
   @moduledoc false
 
   alias Hex.Mint.Types
 
-  @spec hostname(keyword(), String.t()) :: String.t()
+  @spec hostname(keyword(), Types.address()) :: String.t()
   def hostname(opts, address) when is_list(opts) do
     case Keyword.fetch(opts, :hostname) do
       {:ok, hostname} ->
@@ -16,6 +16,36 @@ defmodule Hex.Mint.Core.Util do
 
       :error ->
         raise ArgumentError, "the :hostname option is required when address is not a binary"
+    end
+  end
+
+  # RFC 9112 3.2.2 and RFC 3986 3.2.2: an IPv6 literal in the Host header, the
+  # :authority pseudo-header or a request target must be enclosed in square
+  # brackets.
+  @spec uri_host(String.t()) :: String.t()
+  def uri_host(hostname) do
+    case without_zone_id(hostname) do
+      {:ipv6, address} -> "[" <> address <> "]"
+      :other -> hostname
+    end
+  end
+
+  # The RFC 3986 IP-literal has no zone ID ("fe80::1%eth0"), so it's left out of
+  # IPv6 literals sent to the server.
+  @spec uri_host_without_brackets(String.t()) :: String.t()
+  def uri_host_without_brackets(hostname) do
+    case without_zone_id(hostname) do
+      {:ipv6, address} -> address
+      :other -> hostname
+    end
+  end
+
+  defp without_zone_id(hostname) do
+    [address | _zone_id] = String.split(hostname, "%", parts: 2)
+
+    case :inet.parse_ipv6strict_address(String.to_charlist(address)) do
+      {:ok, _address} -> {:ipv6, address}
+      {:error, :einval} -> :other
     end
   end
 

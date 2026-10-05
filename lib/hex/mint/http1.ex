@@ -1,4 +1,4 @@
-# Vendored from mint v1.7.1 (d30d2cf), do not edit manually
+# Vendored from mint v1.11.0 (fb850d3), do not edit manually
 
 defmodule Hex.Mint.HTTP1 do
   _ = """
@@ -31,7 +31,8 @@ defmodule Hex.Mint.HTTP1 do
   """
   @opaque t() :: %__MODULE__{}
 
-  @user_agent "mint/" <> "1.7.1"
+  @user_agent "mint/" <> "1.11.0"
+  @default_max_header_list_size 256 * 1024
 
   @typedoc """
   An HTTP/1-specific error reason.
@@ -44,13 +45,36 @@ defmodule Hex.Mint.HTTP1 do
     * `:request_body_is_streaming` - when you call `request/5` to send a new
       request but another request is already streaming.
 
+    * `:request_is_not_streaming` - when you call `stream_request_body/3` for a
+      request whose body is not being streamed, for example after sending `:eof`.
+
+    * `:unknown_request_to_stream` - when you call `stream_request_body/3` with a
+      request reference that doesn't belong to this connection.
+
+    * `:unprocessed` - when a pipelined request gets no response because the server
+      answered a previous request with a `connection: close` header. The server didn't
+      process the request, so it can be retried on a new connection. Requests pipelined
+      behind a response that closes the connection in other ways get a
+      `Hex.Mint.TransportError` with reason `:closed` instead, since the server might have
+      processed them.
+
     * `{:unexpected_data, data}` - when unexpected data is received from the server.
 
     * `:invalid_status_line` - when the HTTP/1 status line is invalid.
 
+    * `{:response_line_too_long, size, max_size}` - when a response status line or
+      chunk-size line (including chunk extensions) exceeds the configured size limit.
+      `size` is the number of bytes received and `max_size` is the configured maximum.
+
     * `{:invalid_request_target, target}` - when the request target is invalid.
 
+    * `{:invalid_request_method, method}` - when the request method is invalid.
+
     * `:invalid_header` - when headers can't be parsed correctly.
+
+    * `{:max_header_list_size_exceeded, size, max_size}` - when a response header section
+      or chunked trailer section exceeds the configured size limit. `size` is the number of
+      bytes received and `max_size` is the configured maximum.
 
     * `{:invalid_header_name, name}` - when a header name is invalid.
 
@@ -98,6 +122,8 @@ defmodule Hex.Mint.HTTP1 do
     :scheme_as_string,
     :case_sensitive_headers,
     :skip_target_validation,
+    :max_header_list_size,
+    :stream_headers,
     requests: :queue.new(),
     state: :closed,
     buffer: "",
@@ -139,6 +165,19 @@ defmodule Hex.Mint.HTTP1 do
           [reason-phrase](https://datatracker.ietf.org/doc/html/rfc9112#name-status-line)
           for the status code if it is returned by the server in the status-line.
           This is only available for HTTP/1.1 connections. *Available since v1.8.0*.
+
+    * `:max_header_list_size` - (`t:pos_integer/0` or `:infinity`) the maximum number of
+      bytes allowed in a response status line, chunk-size line (including chunk
+      extensions), header section, or chunked trailer section. This includes header names, values,
+      and line delimiters. Defaults to 256 KiB. *Available since 1.9.2*.
+
+    * `:stream_headers` - (`t:boolean/0`) if set to `true`, response headers and trailer headers
+      will be emitted as they are parsed, rather than buffered until the complete header section
+      is received. When enabled, you may receive multiple `{:headers, ref, headers}` responses
+      for a single request. A folded continuation line (obsolete line folding) is unfolded
+      when it arrives in the same message as its header, and rejected with an
+      `:invalid_header` error when it arrives after its header was emitted. Defaults to
+      `false`. *Available since v1.10.0*.
 
   """
   @spec connect(Types.scheme(), Types.address(), :inet.port_number(), keyword()) ::
@@ -195,6 +234,9 @@ defmodule Hex.Mint.HTTP1 do
     mode = Keyword.get(opts, :mode, :active)
     log? = Keyword.get(opts, :log, false)
 
+    max_header_list_size =
+      Keyword.get(opts, :max_header_list_size, @default_max_header_list_size)
+
     unless mode in [:active, :passive] do
       raise ArgumentError,
             "the :mode option must be either :active or :passive, got: #{inspect(mode)}"
@@ -203,6 +245,12 @@ defmodule Hex.Mint.HTTP1 do
     unless is_boolean(log?) do
       raise ArgumentError,
             "the :log option must be a boolean, got: #{inspect(log?)}"
+    end
+
+    unless max_header_list_size == :infinity or
+             (is_integer(max_header_list_size) and max_header_list_size > 0) do
+      raise ArgumentError,
+            ":max_header_list_size must be a positive integer or :infinity, got: #{inspect(max_header_list_size)}"
     end
 
     with :ok <- Util.inet_opts(transport, socket),
@@ -218,6 +266,8 @@ defmodule Hex.Mint.HTTP1 do
         log: log?,
         case_sensitive_headers: Keyword.get(opts, :case_sensitive_headers, false),
         skip_target_validation: Keyword.get(opts, :skip_target_validation, false),
+        max_header_list_size: max_header_list_size,
+        stream_headers: Keyword.get(opts, :stream_headers, false),
         optional_responses: validate_optional_response_values(opts)
       }
 
@@ -318,20 +368,23 @@ defmodule Hex.Mint.HTTP1 do
            ),
          :ok <- transport.send(socket, iodata) do
       request_ref = make_ref()
-      request = new_request(request_ref, method, body, encoding)
+      conn = enqueue_request(conn, new_request(request_ref, method))
 
-      case request.state do
-        {:stream_request, _} ->
-          conn = %{conn | streaming_request: request}
-          {:ok, conn, request_ref}
+      # The request is enqueued right away so that a response the server
+      # sends before the body is complete (such as 100 Continue or an early
+      # 413) is parsed rather than treated as unexpected data.
+      conn =
+        if body == :stream do
+          %{conn | streaming_request: %{ref: request_ref, encoding: encoding}}
+        else
+          conn
+        end
 
-        _ ->
-          conn = enqueue_request(conn, request)
-          {:ok, conn, request_ref}
-      end
+      {:ok, conn, request_ref}
     else
       {:error, %TransportError{reason: :closed} = error} ->
-        {:error, %{conn | state: :closed}, error}
+        conn = internal_close(conn)
+        {:error, conn, error}
 
       {:error, %error_module{} = error} when error_module in [HTTPError, TransportError] ->
         {:error, conn, error}
@@ -372,18 +425,20 @@ defmodule Hex.Mint.HTTP1 do
           iodata() | :eof | {:eof, trailer_headers :: Types.headers()}
         ) ::
           {:ok, t()} | {:error, t(), Types.error()}
-  def stream_request_body(
-        %__MODULE__{streaming_request: %{state: {:stream_request, :identity}, ref: ref}} = conn,
-        ref,
-        :eof
-      ) do
-    request = %{conn.streaming_request | state: :status}
-    conn = enqueue_request(%{conn | streaming_request: nil}, request)
-    {:ok, conn}
+  def stream_request_body(%__MODULE__{state: :closed} = conn, _request_ref, _chunk) do
+    {:error, conn, wrap_error(:closed)}
   end
 
   def stream_request_body(
-        %__MODULE__{streaming_request: %{state: {:stream_request, :identity}, ref: ref}} = conn,
+        %__MODULE__{streaming_request: %{encoding: :identity, ref: ref}} = conn,
+        ref,
+        :eof
+      ) do
+    {:ok, %{conn | streaming_request: nil}}
+  end
+
+  def stream_request_body(
+        %__MODULE__{streaming_request: %{encoding: :identity, ref: ref}} = conn,
         ref,
         {:eof, _trailer_headers}
       ) do
@@ -391,7 +446,7 @@ defmodule Hex.Mint.HTTP1 do
   end
 
   def stream_request_body(
-        %__MODULE__{streaming_request: %{state: {:stream_request, :identity}, ref: ref}} = conn,
+        %__MODULE__{streaming_request: %{encoding: :identity, ref: ref}} = conn,
         ref,
         body
       ) do
@@ -400,7 +455,8 @@ defmodule Hex.Mint.HTTP1 do
         {:ok, conn}
 
       {:error, %TransportError{reason: :closed} = error} ->
-        {:error, %{conn | state: :closed}, error}
+        conn = internal_close(conn)
+        {:error, conn, error}
 
       {:error, error} ->
         {:error, conn, error}
@@ -408,35 +464,40 @@ defmodule Hex.Mint.HTTP1 do
   end
 
   def stream_request_body(
-        %__MODULE__{streaming_request: %{state: {:stream_request, :chunked}, ref: ref}} = conn,
+        %__MODULE__{streaming_request: %{encoding: :chunked, ref: ref}} = conn,
         ref,
         chunk
       ) do
     with {:ok, chunk} <- validate_chunk(conn, chunk),
          :ok <- conn.transport.send(conn.socket, Request.encode_chunk(chunk)) do
       case chunk do
-        :eof ->
-          request = %{conn.streaming_request | state: :status}
-          conn = enqueue_request(%{conn | streaming_request: nil}, request)
-          {:ok, conn}
-
-        {:eof, _trailer_headers} ->
-          request = %{conn.streaming_request | state: :status}
-          conn = enqueue_request(%{conn | streaming_request: nil}, request)
-          {:ok, conn}
-
-        _other ->
-          {:ok, conn}
+        :eof -> {:ok, %{conn | streaming_request: nil}}
+        {:eof, _trailer_headers} -> {:ok, %{conn | streaming_request: nil}}
+        _other -> {:ok, conn}
       end
     else
       :empty_chunk ->
         {:ok, conn}
 
       {:error, %TransportError{reason: :closed} = error} ->
-        {:error, %{conn | state: :closed}, error}
+        conn = internal_close(conn)
+        {:error, conn, error}
 
       {:error, error} ->
         {:error, conn, error}
+    end
+  end
+
+  def stream_request_body(%__MODULE__{} = conn, request_ref, _chunk)
+      when is_reference(request_ref) do
+    known? =
+      (conn.request != nil and conn.request.ref == request_ref) or
+        Enum.any?(:queue.to_list(conn.requests), &(&1.ref == request_ref))
+
+    if known? do
+      {:error, conn, wrap_error(:request_is_not_streaming)}
+    else
+      {:error, conn, wrap_error(:unknown_request_to_stream)}
     end
   end
 
@@ -514,21 +575,21 @@ defmodule Hex.Mint.HTTP1 do
         {:ok, conn, Enum.reverse(responses)}
 
       {:error, conn, reason, responses} ->
-        conn = put_in(conn.state, :closed)
-        {:error, conn, reason, responses}
+        conn = internal_close(conn)
+        {:error, conn, reason, Enum.reverse(responses)}
     end
   end
 
-  defp handle_close(%__MODULE__{request: request} = conn) do
-    conn = put_in(conn.state, :closed)
-    conn = request_done(conn)
+  defp handle_close(%__MODULE__{request: %{body: :until_closed} = request} = conn) do
+    conn = pop_request(conn)
+    responses = [{:done, request.ref}]
+    {conn, responses} = close_after_response(conn, responses, queued_request_error(conn, request))
+    {:ok, conn, Enum.reverse(responses)}
+  end
 
-    if request && request.body == :until_closed do
-      conn = put_in(conn.state, :closed)
-      {:ok, conn, [{:done, request.ref}]}
-    else
-      {:error, conn, conn.transport.wrap_error(:closed), []}
-    end
+  defp handle_close(conn) do
+    conn = conn |> internal_close() |> pop_request()
+    {:error, conn, conn.transport.wrap_error(:closed), []}
   end
 
   defp handle_transport_error(conn, error) do
@@ -553,6 +614,7 @@ defmodule Hex.Mint.HTTP1 do
     case conn.transport.recv(conn.socket, byte_count, timeout) do
       {:ok, data} -> handle_data(conn, data)
       {:error, %Hex.Mint.TransportError{reason: :closed}} -> handle_close(conn)
+      {:error, %Hex.Mint.TransportError{reason: :timeout} = error} -> {:error, conn, error, []}
       {:error, error} -> handle_transport_error(conn, error)
     end
   end
@@ -600,10 +662,8 @@ defmodule Hex.Mint.HTTP1 do
   @spec open_request_count(t()) :: non_neg_integer()
   def open_request_count(%__MODULE__{} = conn) do
     case conn do
-      %{request: nil, streaming_request: nil} -> 0
-      %{request: nil} -> 1
-      %{streaming_request: nil} -> 1 + :queue.len(conn.requests)
-      _ -> 2 + :queue.len(conn.requests)
+      %{request: nil} -> 0
+      _ -> 1 + :queue.len(conn.requests)
     end
   end
 
@@ -669,27 +729,42 @@ defmodule Hex.Mint.HTTP1 do
     %{conn | proxy_headers: headers}
   end
 
+  @doc """
+  See `Hex.Mint.HTTP.request_body_window/2`.
+  """
+  @doc since: "1.8.0"
+  @impl true
+  def request_body_window(%__MODULE__{streaming_request: %{ref: ref}}, ref), do: :infinity
+
+  def request_body_window(%__MODULE__{}, ref) do
+    raise ArgumentError,
+          "request with request reference #{inspect(ref)} was not found or is not streaming a body"
+  end
+
   ## Helpers
 
   defp decode(:status, %{request: request} = conn, data, responses) do
     case Response.decode_status_line(data) do
       {:ok, {version, status, status_reason}, rest} ->
-        request = %{request | version: version, status: status, state: :headers}
-        conn = %{conn | request: request}
-        responses = [{:status, request.ref, status} | responses]
+        with :ok <- check_response_line_size(conn, byte_size(data) - byte_size(rest)) do
+          request = %{request | version: version, status: status, state: :headers}
+          conn = %{conn | request: request}
+          responses = [{:status, request.ref, status} | responses]
 
-        responses =
-          if :status_reason in conn.optional_responses do
-            [{:status_reason, request.ref, status_reason} | responses]
-          else
-            responses
-          end
+          responses =
+            if :status_reason in conn.optional_responses do
+              [{:status_reason, request.ref, status_reason} | responses]
+            else
+              responses
+            end
 
-        decode(:headers, conn, rest, responses)
+          decode(:headers, conn, rest, responses)
+        else
+          {:error, reason} -> {:error, conn, wrap_error(reason), responses}
+        end
 
       :more ->
-        conn = put_in(conn.buffer, data)
-        {:ok, conn, responses}
+        buffer_response_line(conn, data, responses)
 
       :error ->
         {:error, conn, wrap_error(:invalid_status_line), responses}
@@ -712,35 +787,88 @@ defmodule Hex.Mint.HTTP1 do
   end
 
   defp decode_headers(conn, request, data, responses, headers) do
-    case Response.decode_header(data) do
+    case decode_header(data, conn.stream_headers) do
       {:ok, {name, value}, rest} ->
         headers = [{name, value} | headers]
 
-        case store_header(request, name, value) do
-          {:ok, request} -> decode_headers(conn, request, rest, responses, headers)
+        with {:ok, request} <- add_header_bytes(conn, request, byte_size(data) - byte_size(rest)),
+             {:ok, request} <- store_header(request, name, value) do
+          decode_headers(conn, request, rest, responses, headers)
+        else
           {:error, reason} -> {:error, conn, wrap_error(reason), responses}
         end
 
       {:ok, :eof, rest} ->
-        responses = [{:headers, request.ref, Enum.reverse(headers)} | responses]
-        request = %{request | state: :body, headers_buffer: []}
-        conn = %{conn | buffer: "", request: request}
-        decode(:body, conn, rest, responses)
+        case add_header_bytes(conn, request, byte_size(data) - byte_size(rest)) do
+          {:ok, request} ->
+            responses =
+              if conn.stream_headers and headers == [] do
+                responses
+              else
+                [{:headers, request.ref, Enum.reverse(headers)} | responses]
+              end
+
+            request = %{request | state: :body, headers_buffer: [], headers_size: 0}
+            conn = %{conn | buffer: "", request: request}
+            decode(:body, conn, rest, responses)
+
+          {:error, reason} ->
+            {:error, conn, wrap_error(reason), responses}
+        end
 
       :more ->
-        request = %{request | headers_buffer: headers}
-        conn = %{conn | buffer: data, request: request}
-        {:ok, conn, responses}
+        case check_header_section_size(conn, request.headers_size + byte_size(data)) do
+          :ok ->
+            {responses, headers_buffer} =
+              cond do
+                not conn.stream_headers ->
+                  {responses, headers}
+
+                headers != [] ->
+                  {[{:headers, request.ref, Enum.reverse(headers)} | responses], []}
+
+                true ->
+                  {responses, []}
+              end
+
+            request = %{request | headers_buffer: headers_buffer}
+            conn = %{conn | buffer: data, request: request}
+            {:ok, conn, responses}
+
+          {:error, reason} ->
+            {:error, conn, wrap_error(reason), responses}
+        end
 
       :error ->
         {:error, conn, wrap_error(:invalid_header), responses}
     end
   end
 
-  defp decode_body(:none, conn, data, request_ref, responses) do
-    conn = put_in(conn.buffer, data)
-    conn = request_done(conn)
-    responses = [{:done, request_ref} | responses]
+  # A successful CONNECT switches the connection to tunnel mode, so bytes after
+  # the header section belong to the tunnel rather than to another response.
+  defp decode_body(
+         :none,
+         %{request: %{method: "CONNECT", status: status}} = conn,
+         data,
+         _request_ref,
+         responses
+       )
+       when status in 200..299 do
+    {conn, responses} = request_done(conn, responses)
+    {:ok, %{conn | buffer: data}, responses}
+  end
+
+  defp decode_body(:none, conn, data, _request_ref, responses) do
+    {conn, responses} = request_done(conn, responses)
+    next_request(conn, data, responses)
+  end
+
+  # RFC 9112 6.1: the framing of an HTTP/1.0 message with Transfer-Encoding is
+  # treated as faulty, so the connection is closed after it without processing the
+  # final response, and the current request fails along with the queued ones.
+  defp decode_body(:informational, %{request: request} = conn, _data, _request_ref, responses)
+       when request.version < {1, 1} and request.transfer_encoding != [] do
+    {conn, responses} = close_after_response(conn, responses, conn.transport.wrap_error(:closed))
     {:ok, conn, responses}
   end
 
@@ -754,6 +882,7 @@ defmodule Hex.Mint.HTTP1 do
         version: nil,
         status: nil,
         headers_buffer: [],
+        headers_size: 0,
         data_buffer: [],
         content_length: nil,
         connection: [],
@@ -765,10 +894,9 @@ defmodule Hex.Mint.HTTP1 do
     decode(:status, conn, data, responses)
   end
 
-  defp decode_body(:single, conn, data, request_ref, responses) do
+  defp decode_body(:single, conn, data, _request_ref, responses) do
     {conn, responses} = add_body(conn, data, responses)
-    conn = request_done(conn)
-    responses = [{:done, request_ref} | responses]
+    {conn, responses} = request_done(conn, responses)
     {:ok, conn, responses}
   end
 
@@ -777,7 +905,7 @@ defmodule Hex.Mint.HTTP1 do
     {:ok, conn, responses}
   end
 
-  defp decode_body({:content_length, length}, conn, data, request_ref, responses) do
+  defp decode_body({:content_length, length}, conn, data, _request_ref, responses) do
     cond do
       length > byte_size(data) ->
         conn = put_in(conn.request.body, {:content_length, length - byte_size(data)})
@@ -785,10 +913,9 @@ defmodule Hex.Mint.HTTP1 do
         {:ok, conn, responses}
 
       length <= byte_size(data) ->
-        <<body::binary-size(^length), rest::binary>> = data
+        {body, rest} = :erlang.split_binary(data, length)
         {conn, responses} = add_body(conn, body, responses)
-        conn = request_done(conn)
-        responses = [{:done, request_ref} | responses]
+        {conn, responses} = request_done(conn, responses)
         next_request(conn, rest, responses)
     end
   end
@@ -800,34 +927,20 @@ defmodule Hex.Mint.HTTP1 do
   end
 
   defp decode_body({:chunked, nil}, conn, data, request_ref, responses) do
-    case Integer.parse(data, 16) do
-      {_size, ""} ->
-        conn = put_in(conn.buffer, data)
-        conn = put_in(conn.request.body, {:chunked, nil})
-        {:ok, conn, responses}
-
-      {0, rest} ->
+    with {:ok, size, rest} <- Parse.chunk_size(data),
+         {:ok, rest} <- Parse.chunk_extensions(rest),
+         :ok <- check_response_line_size(conn, byte_size(data) - byte_size(rest)) do
+      if size == 0 do
         # Manually collapse the body buffer since we're done with the body
         {conn, responses} = collapse_body_buffer(conn, responses)
-        decode_body({:chunked, :metadata, :trailer}, conn, rest, request_ref, responses)
-
-      {size, rest} when size > 0 ->
-        decode_body({:chunked, :metadata, size}, conn, rest, request_ref, responses)
-
-      _other ->
-        {:error, conn, wrap_error(:invalid_chunk_size), responses}
-    end
-  end
-
-  defp decode_body({:chunked, :metadata, size}, conn, data, request_ref, responses) do
-    case Parse.ignore_until_crlf(data) do
-      {:ok, rest} ->
+        decode_body({:chunked, :trailer}, conn, rest, request_ref, responses)
+      else
         decode_body({:chunked, size}, conn, rest, request_ref, responses)
-
-      :more ->
-        conn = put_in(conn.buffer, data)
-        conn = put_in(conn.request.body, {:chunked, :metadata, size})
-        {:ok, conn, responses}
+      end
+    else
+      :more -> buffer_response_line(conn, data, responses, {:chunked, nil})
+      :error -> {:error, conn, wrap_error(:invalid_chunk_size), responses}
+      {:error, reason} -> {:error, conn, wrap_error(reason), responses}
     end
   end
 
@@ -855,11 +968,15 @@ defmodule Hex.Mint.HTTP1 do
       length > byte_size(data) ->
         conn = put_in(conn.buffer, "")
         conn = put_in(conn.request.body, {:chunked, length - byte_size(data)})
-        conn = add_body_to_buffer(conn, data)
+        # Emit the partial chunk data right away instead of buffering it until
+        # the whole chunk arrives. Buffering would let a server that announces a
+        # huge chunk and then dribbles bytes force us to accumulate the entire
+        # (never-completed) chunk in memory (CVE-2026-56810).
+        {conn, responses} = add_body(conn, data, responses)
         {:ok, conn, responses}
 
       length <= byte_size(data) ->
-        <<body::binary-size(^length), rest::binary>> = data
+        {body, rest} = :erlang.split_binary(data, length)
         {conn, responses} = add_body(conn, body, responses)
         conn = put_in(conn.request.body, {:chunked, :crlf})
         decode_body({:chunked, :crlf}, conn, rest, request_ref, responses)
@@ -867,40 +984,87 @@ defmodule Hex.Mint.HTTP1 do
   end
 
   defp decode_trailer_headers(conn, data, responses, headers) do
-    case Response.decode_header(data) do
+    case decode_header(data, conn.stream_headers) do
       {:ok, {name, value}, rest} ->
-        headers = [{name, value} | headers]
-        decode_trailer_headers(conn, rest, responses, headers)
+        case add_header_bytes(conn, conn.request, byte_size(data) - byte_size(rest)) do
+          {:ok, request} ->
+            conn = %{conn | request: request}
+            headers = [{name, value} | headers]
+            decode_trailer_headers(conn, rest, responses, headers)
+
+          {:error, reason} ->
+            {:error, conn, wrap_error(reason), responses}
+        end
 
       {:ok, :eof, rest} ->
-        headers = Headers.remove_unallowed_trailer(headers)
+        case add_header_bytes(conn, conn.request, byte_size(data) - byte_size(rest)) do
+          {:ok, _request} ->
+            headers = Headers.remove_unallowed_trailer(headers)
 
-        responses = [
-          {:done, conn.request.ref}
-          | add_trailer_headers(headers, conn.request.ref, responses)
-        ]
+            responses = add_trailer_headers(headers, conn.request.ref, responses)
+            {conn, responses} = request_done(conn, responses)
+            next_request(conn, rest, responses)
 
-        conn = request_done(conn)
-        next_request(conn, rest, responses)
+          {:error, reason} ->
+            {:error, conn, wrap_error(reason), responses}
+        end
 
       :more ->
-        request = %{conn.request | body: {:chunked, :trailer}, headers_buffer: headers}
-        conn = %{conn | buffer: data, request: request}
-        {:ok, conn, responses}
+        case check_header_section_size(conn, conn.request.headers_size + byte_size(data)) do
+          :ok ->
+            {responses, headers_buffer} =
+              cond do
+                not conn.stream_headers ->
+                  {responses, headers}
+
+                headers != [] ->
+                  responses =
+                    headers
+                    |> Headers.remove_unallowed_trailer()
+                    |> add_trailer_headers(conn.request.ref, responses)
+
+                  {responses, []}
+
+                true ->
+                  {responses, []}
+              end
+
+            request = %{conn.request | body: {:chunked, :trailer}, headers_buffer: headers_buffer}
+            conn = %{conn | buffer: data, request: request}
+            {:ok, conn, responses}
+
+          {:error, reason} ->
+            {:error, conn, wrap_error(reason), responses}
+        end
 
       :error ->
         {:error, conn, wrap_error(:invalid_trailer_header), responses}
     end
   end
 
+  # With :stream_headers a header is emitted as soon as its line ends, before the
+  # next line is seen, so a folded continuation line that arrives later can't be
+  # joined to it and is rejected as an invalid header line.
+  defp decode_header(data, stream_headers?), do: Response.decode_header(data, stream_headers?)
+
+  # A response that closes the connection is the last one the server sends on
+  # it, so anything after it can't be a response to a queued request.
+  defp next_request(%{state: :closed} = conn, _data, responses) do
+    {:ok, %{conn | buffer: ""}, responses}
+  end
+
+  defp next_request(%{request: nil} = conn, "", responses) do
+    {:ok, %{conn | buffer: ""}, responses}
+  end
+
+  # Bytes left over after the last in-flight response would otherwise be
+  # delivered as the response to whichever request is issued next.
   defp next_request(%{request: nil} = conn, data, responses) do
-    # TODO: Figure out if we should keep buffering even though there are no
-    # requests in flight
-    {:ok, %{conn | buffer: data}, responses}
+    {:error, conn, wrap_error({:unexpected_data, data}), responses}
   end
 
   defp next_request(conn, data, responses) do
-    decode(:status, %{conn | state: :status}, data, responses)
+    decode(:status, conn, data, responses)
   end
 
   defp add_trailer_headers([], _request_ref, responses), do: responses
@@ -908,13 +1072,28 @@ defmodule Hex.Mint.HTTP1 do
   defp add_trailer_headers(headers, request_ref, responses),
     do: [{:headers, request_ref, Enum.reverse(headers)} | responses]
 
-  defp add_body(conn, data, responses) do
-    conn = add_body_to_buffer(conn, data)
-    collapse_body_buffer(conn, responses)
+  defp add_header_bytes(conn, request, bytes) do
+    size = request.headers_size + bytes
+
+    with :ok <- check_header_section_size(conn, size) do
+      {:ok, %{request | headers_size: size}}
+    end
   end
 
-  defp add_body_to_buffer(conn, data) do
-    update_in(conn.request.data_buffer, &[&1 | data])
+  defp check_header_section_size(%{max_header_list_size: :infinity}, _size), do: :ok
+
+  defp check_header_section_size(%{max_header_list_size: max_size}, size)
+       when size <= max_size,
+       do: :ok
+
+  defp check_header_section_size(%{max_header_list_size: max_size}, size),
+    do: {:error, {:max_header_list_size_exceeded, size, max_size}}
+
+  # The body buffer is iodata built as an improper list, which dialyzer warns about.
+  @dialyzer {:nowarn_function, add_body: 3}
+  defp add_body(conn, data, responses) do
+    conn = update_in(conn.request.data_buffer, &[&1 | data])
+    collapse_body_buffer(conn, responses)
   end
 
   defp collapse_body_buffer(conn, responses) do
@@ -927,6 +1106,34 @@ defmodule Hex.Mint.HTTP1 do
         {conn, [{:data, conn.request.ref, data} | responses]}
     end
   end
+
+  defp buffer_response_line(conn, data, responses, body_state \\ nil) do
+    case check_response_line_size(conn, byte_size(data)) do
+      :ok ->
+        conn = put_in(conn.buffer, data)
+
+        conn =
+          if body_state == nil do
+            conn
+          else
+            put_in(conn.request.body, body_state)
+          end
+
+        {:ok, conn, responses}
+
+      {:error, reason} ->
+        {:error, conn, wrap_error(reason), responses}
+    end
+  end
+
+  defp check_response_line_size(%{max_header_list_size: :infinity}, _size), do: :ok
+
+  defp check_response_line_size(%{max_header_list_size: max_size}, size)
+       when size <= max_size,
+       do: :ok
+
+  defp check_response_line_size(%{max_header_list_size: max_size}, size),
+    do: {:error, {:response_line_too_long, size, max_size}}
 
   defp store_header(%{content_length: nil} = request, "content-length", value) do
     with {:ok, content_length} <- Parse.content_length_header(value),
@@ -951,16 +1158,59 @@ defmodule Hex.Mint.HTTP1 do
     {:ok, request}
   end
 
-  defp request_done(%{request: request} = conn) do
+  # A successful CONNECT switches the connection to tunnel mode, so the
+  # response's HTTP version and Connection headers no longer determine the
+  # lifetime of the underlying socket. In particular, HTTP/1.0 responses are
+  # otherwise treated as non-persistent and would close the newly-established
+  # tunnel before the caller can use it.
+  defp request_done(%{request: %{method: "CONNECT", status: status} = request} = conn, responses)
+       when status in 200..299 do
+    {pop_request(conn), [{:done, request.ref} | responses]}
+  end
+
+  defp request_done(%{request: request} = conn, responses) do
     conn = pop_request(conn)
+    responses = [{:done, request.ref} | responses]
 
     cond do
-      !request -> conn
-      "close" in request.connection -> internal_close(conn)
-      request.version >= {1, 1} -> conn
-      "keep-alive" in request.connection -> conn
-      true -> internal_close(conn)
+      "close" in request.connection ->
+        close_after_response(conn, responses, queued_request_error(conn, request))
+
+      request.version >= {1, 1} ->
+        {conn, responses}
+
+      # RFC 9112 6.1: the framing of an HTTP/1.0 message with Transfer-Encoding is
+      # treated as faulty, so the connection is closed after it even if kept alive.
+      "keep-alive" in request.connection and request.transfer_encoding == [] ->
+        {conn, responses}
+
+      true ->
+        close_after_response(conn, responses, queued_request_error(conn, request))
     end
+  end
+
+  # The server doesn't process any requests after one it answers with
+  # "Connection: close" (RFC 9112 section 9.6), so the queued requests can be
+  # retried. Otherwise the server might have processed them before closing.
+  defp queued_request_error(conn, request) do
+    if "close" in request.connection do
+      wrap_error(:unprocessed)
+    else
+      conn.transport.wrap_error(:closed)
+    end
+  end
+
+  # Requests pipelined behind a response that closes the connection never get a
+  # response of their own.
+  defp close_after_response(conn, responses, error) do
+    requests = if conn.request, do: [conn.request | :queue.to_list(conn.requests)], else: []
+
+    responses =
+      Enum.reduce(requests, responses, fn request, responses ->
+        [{:error, request.ref, error} | responses]
+      end)
+
+    {internal_close(%{conn | request: nil, requests: :queue.new()}), responses}
   end
 
   defp pop_request(conn) do
@@ -1010,13 +1260,27 @@ defmodule Hex.Mint.HTTP1 do
       method == "HEAD" or status in [204, 304] ->
         {:ok, :none}
 
-      # method == "CONNECT" and status in 200..299 -> nil
+      # RFC9110 9.3.6:
+      # > A server MUST NOT send any Transfer-Encoding or Content-Length header
+      # > fields in a 2xx (Successful) response to CONNECT. A client MUST ignore
+      # > any Content-Length or Transfer-Encoding header fields received in a
+      # > successful response to CONNECT.
+      method == "CONNECT" and status in 200..299 ->
+        {:ok, :none}
 
       request.transfer_encoding != [] && request.content_length ->
         {:error, :transfer_encoding_and_content_length}
 
-      "chunked" == List.first(request.transfer_encoding) ->
+      # RFC9112 6.3:
+      # > If a Transfer-Encoding header field is present in a response and the
+      # > chunked transfer coding is not the final encoding, the message body
+      # > length is determined by reading the connection until it is closed by
+      # > the server.
+      "chunked" == List.last(request.transfer_encoding) ->
         {:ok, {:chunked, nil}}
+
+      request.transfer_encoding != [] ->
+        {:ok, :until_closed}
 
       request.content_length ->
         {:ok, {:content_length, request.content_length}}
@@ -1057,21 +1321,15 @@ defmodule Hex.Mint.HTTP1 do
     :ok
   end
 
-  defp new_request(ref, method, body, encoding) do
-    state =
-      if body == :stream do
-        {:stream_request, encoding}
-      else
-        :status
-      end
-
+  defp new_request(ref, method) do
     %{
       ref: ref,
-      state: state,
+      state: :status,
       method: method,
       version: nil,
       status: nil,
       headers_buffer: [],
+      headers_size: 0,
       data_buffer: [],
       content_length: nil,
       connection: [],
@@ -1088,6 +1346,8 @@ defmodule Hex.Mint.HTTP1 do
 
   # If the port is the default for the scheme, don't add it to the host header
   defp default_host_header(%__MODULE__{scheme_as_string: scheme, host: host, port: port}) do
+    host = Util.uri_host(host)
+
     if URI.default_port(scheme) == port do
       host
     else
@@ -1146,8 +1406,21 @@ defmodule Hex.Mint.HTTP1 do
     "the connection is closed"
   end
 
+  def format_error(:unprocessed) do
+    "request was not processed because the server answered a previous request with " <>
+      "\"connection: close\", so it's safe to retry on a new connection"
+  end
+
   def format_error(:request_body_is_streaming) do
     "a request body is currently streaming, so no new requests can be issued"
+  end
+
+  def format_error(:request_is_not_streaming) do
+    "can't send more data on a request that is not streaming its body"
+  end
+
+  def format_error(:unknown_request_to_stream) do
+    "can't stream the request body because the request is not known to this connection"
   end
 
   def format_error({:unexpected_data, data}) do
@@ -1158,12 +1431,25 @@ defmodule Hex.Mint.HTTP1 do
     "invalid status line"
   end
 
+  def format_error({:response_line_too_long, size, max_size}) do
+    "the response line (#{size} bytes) exceeds the maximum allowed size of #{max_size} bytes"
+  end
+
   def format_error(:invalid_header) do
     "invalid header"
   end
 
+  def format_error({:max_header_list_size_exceeded, size, max_size}) do
+    "the response header or trailer section (#{size} bytes) exceeds the maximum allowed size of " <>
+      "#{max_size} bytes"
+  end
+
   def format_error({:invalid_request_target, target}) do
     "invalid request target: #{inspect(target)}"
+  end
+
+  def format_error({:invalid_request_method, method}) do
+    "invalid request method: #{inspect(method)}"
   end
 
   def format_error({:invalid_header_name, name}) do

@@ -1,4 +1,4 @@
-# Vendored from mint v1.7.1 (d30d2cf), do not edit manually
+# Vendored from mint v1.11.0 (fb850d3), do not edit manually
 
 defmodule Hex.Mint.Negotiate do
   @moduledoc false
@@ -118,6 +118,9 @@ defmodule Hex.Mint.Negotiate do
     case transport.upgrade(transport_state, proxy_scheme, hostname, port, transport_opts) do
       {:ok, transport_state} ->
         alpn_negotiate(new_scheme, transport_state, hostname, port, opts)
+
+      {:error, %TransportError{} = error} ->
+        {:error, error}
 
       {:error, reason} ->
         {:error, %TransportError{reason: reason}}

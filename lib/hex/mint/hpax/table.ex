@@ -1,4 +1,4 @@
-# Vendored from hpax v1.0.3, do not edit manually
+# Vendored from hpax v1.1.0, do not edit manually
 
 defmodule Hex.Mint.HPAX.Table do
   @moduledoc false
@@ -11,7 +11,8 @@ defmodule Hex.Mint.HPAX.Table do
     entries: [],
     size: 0,
     length: 0,
-    pending_minimum_resize: nil
+    pending_minimum_resize: nil,
+    required_minimum_resize: nil
   ]
 
   @type huffman_encoding() :: :always | :never
@@ -23,11 +24,12 @@ defmodule Hex.Mint.HPAX.Table do
           entries: [{binary(), binary()}],
           size: non_neg_integer(),
           length: non_neg_integer(),
-          pending_minimum_resize: non_neg_integer() | nil
+          pending_minimum_resize: non_neg_integer() | nil,
+          required_minimum_resize: non_neg_integer() | nil
         }
 
   @static_table [
-    {":authority", nil},
+    {":authority", ""},
     {":method", "GET"},
     {":method", "POST"},
     {":path", "/"},
@@ -41,56 +43,57 @@ defmodule Hex.Mint.HPAX.Table do
     {":status", "400"},
     {":status", "404"},
     {":status", "500"},
-    {"accept-charset", nil},
+    {"accept-charset", ""},
     {"accept-encoding", "gzip, deflate"},
-    {"accept-language", nil},
-    {"accept-ranges", nil},
-    {"accept", nil},
-    {"access-control-allow-origin", nil},
-    {"age", nil},
-    {"allow", nil},
-    {"authorization", nil},
-    {"cache-control", nil},
-    {"content-disposition", nil},
-    {"content-encoding", nil},
-    {"content-language", nil},
-    {"content-length", nil},
-    {"content-location", nil},
-    {"content-range", nil},
-    {"content-type", nil},
-    {"cookie", nil},
-    {"date", nil},
-    {"etag", nil},
-    {"expect", nil},
-    {"expires", nil},
-    {"from", nil},
-    {"host", nil},
-    {"if-match", nil},
-    {"if-modified-since", nil},
-    {"if-none-match", nil},
-    {"if-range", nil},
-    {"if-unmodified-since", nil},
-    {"last-modified", nil},
-    {"link", nil},
-    {"location", nil},
-    {"max-forwards", nil},
-    {"proxy-authenticate", nil},
-    {"proxy-authorization", nil},
-    {"range", nil},
-    {"referer", nil},
-    {"refresh", nil},
-    {"retry-after", nil},
-    {"server", nil},
-    {"set-cookie", nil},
-    {"strict-transport-security", nil},
-    {"transfer-encoding", nil},
-    {"user-agent", nil},
-    {"vary", nil},
-    {"via", nil},
-    {"www-authenticate", nil}
+    {"accept-language", ""},
+    {"accept-ranges", ""},
+    {"accept", ""},
+    {"access-control-allow-origin", ""},
+    {"age", ""},
+    {"allow", ""},
+    {"authorization", ""},
+    {"cache-control", ""},
+    {"content-disposition", ""},
+    {"content-encoding", ""},
+    {"content-language", ""},
+    {"content-length", ""},
+    {"content-location", ""},
+    {"content-range", ""},
+    {"content-type", ""},
+    {"cookie", ""},
+    {"date", ""},
+    {"etag", ""},
+    {"expect", ""},
+    {"expires", ""},
+    {"from", ""},
+    {"host", ""},
+    {"if-match", ""},
+    {"if-modified-since", ""},
+    {"if-none-match", ""},
+    {"if-range", ""},
+    {"if-unmodified-since", ""},
+    {"last-modified", ""},
+    {"link", ""},
+    {"location", ""},
+    {"max-forwards", ""},
+    {"proxy-authenticate", ""},
+    {"proxy-authorization", ""},
+    {"range", ""},
+    {"referer", ""},
+    {"refresh", ""},
+    {"retry-after", ""},
+    {"server", ""},
+    {"set-cookie", ""},
+    {"strict-transport-security", ""},
+    {"transfer-encoding", ""},
+    {"user-agent", ""},
+    {"vary", ""},
+    {"via", ""},
+    {"www-authenticate", ""}
   ]
 
   @static_table_size length(@static_table)
+  @static_table_by_index @static_table |> Enum.map(&{:ok, &1}) |> List.to_tuple()
   @dynamic_table_start @static_table_size + 1
 
   @doc """
@@ -151,29 +154,28 @@ defmodule Hex.Mint.HPAX.Table do
   Looks up a header by index `index` in the given `table`.
 
   Returns `{:ok, {name, value}}` if a header is found at the given `index`, otherwise returns
-  `:error`. `value` can be a binary in case both the header name and value are present in the
-  table, or `nil` if only the name is present (this can only happen in the static table).
+  `:error`. Some static table entries (see RFC 7541, Appendix A) have no defined value; `value`
+  is the empty binary `""` for those.
   """
-  @spec lookup_by_index(t(), pos_integer()) :: {:ok, {binary(), binary() | nil}} | :error
+  @spec lookup_by_index(t(), pos_integer()) :: {:ok, {binary(), binary()}} | :error
   def lookup_by_index(table, index)
 
-  # Static table
-  for {header, index} <- Enum.with_index(@static_table, 1) do
-    def lookup_by_index(%__MODULE__{}, unquote(index)), do: {:ok, unquote(header)}
-  end
-
-  def lookup_by_index(%__MODULE__{length: 0}, _index) do
-    :error
+  def lookup_by_index(%__MODULE__{}, index) when index in 1..@static_table_size do
+    elem(@static_table_by_index, index - 1)
   end
 
   def lookup_by_index(%__MODULE__{entries: entries, length: length}, index)
       when index >= @dynamic_table_start and index <= @dynamic_table_start + length - 1 do
-    {:ok, Enum.at(entries, index - @dynamic_table_start)}
+    {:ok, get_dynamic_entry(entries, index - @dynamic_table_start)}
   end
 
   def lookup_by_index(%__MODULE__{}, _index) do
     :error
   end
+
+  @compile {:inline, get_dynamic_entry: 2}
+  defp get_dynamic_entry([entry | _], 0), do: entry
+  defp get_dynamic_entry([_ | rest], n), do: get_dynamic_entry(rest, n - 1)
 
   @doc """
   Looks up the index of a header by its name and value.
@@ -192,7 +194,7 @@ defmodule Hex.Mint.HPAX.Table do
   > header field names MUST be converted to lowercase prior to their encoding in HTTP/2
 
   """
-  @spec lookup_by_header(t(), binary(), binary() | nil) ::
+  @spec lookup_by_header(t(), binary(), binary()) ::
           {:full, pos_integer()} | {:name, pos_integer()} | :not_found
   def lookup_by_header(table, name, value)
 
@@ -279,6 +281,36 @@ defmodule Hex.Mint.HPAX.Table do
         max_table_size: new_protocol_max_table_size,
         pending_minimum_resize: pending_minimum_resize
     }
+  end
+
+  @doc """
+  Changes the maximum size the peer's encoder is permitted to use for this decoding table.
+
+  The table's own maximum size is chosen by that encoder and signalled with dynamic table size
+  update instructions, so it only follows the protocol maximum down. When the new protocol
+  maximum is below the maximum the encoder declared, entries are evicted to fit it and the
+  encoder is required to start its next block with a dynamic table size update of at most that
+  size, per RFC7541§4.2. `required_minimum_resize` holds the smallest such size until the update
+  arrives, since that is the one the encoder has to signal.
+  """
+  @spec protocol_resize(t(), non_neg_integer()) :: t()
+  def protocol_resize(%__MODULE__{} = table, new_protocol_max_table_size) do
+    table = %{table | protocol_max_table_size: new_protocol_max_table_size}
+
+    if new_protocol_max_table_size < table.max_table_size do
+      required_minimum_resize =
+        case table.required_minimum_resize do
+          nil -> new_protocol_max_table_size
+          current -> min(current, new_protocol_max_table_size)
+        end
+
+      %{
+        dynamic_resize(table, new_protocol_max_table_size)
+        | required_minimum_resize: required_minimum_resize
+      }
+    else
+      table
+    end
   end
 
   def dynamic_resize(%__MODULE__{} = table, new_max_table_size) do

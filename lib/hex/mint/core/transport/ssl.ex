@@ -1,4 +1,4 @@
-# Vendored from mint v1.7.1 (d30d2cf), do not edit manually
+# Vendored from mint v1.11.0 (fb850d3), do not edit manually
 
 defmodule Hex.Mint.Core.Transport.SSL do
   @moduledoc false
@@ -295,6 +295,8 @@ defmodule Hex.Mint.Core.Transport.SSL do
   @default_versions [:"tlsv1.3", :"tlsv1.2"]
   @default_timeout 30_000
 
+  @tunnel_cb_info {Hex.Mint.Core.Transport.SSL.Tunnel, :ssl, :ssl_closed, :ssl_error, :ssl_passive}
+
   Record.defrecordp(
     :certificate,
     :Certificate,
@@ -349,6 +351,10 @@ defmodule Hex.Mint.Core.Transport.SSL do
   end
 
   @impl true
+  # :ssl.connect/3's spec doesn't cover upgrading an :ssl socket, but the
+  # function supports any socket type that the :cb_info callback module can
+  # handle.
+  @dialyzer {:nowarn_function, upgrade: 5}
   def upgrade(socket, :http, hostname, _port, opts) do
     hostname = String.to_charlist(hostname)
     timeout = Keyword.get(opts, :timeout, @default_timeout)
@@ -359,8 +365,21 @@ defmodule Hex.Mint.Core.Transport.SSL do
     wrap_err(:ssl.connect(socket, ssl_opts(hostname, opts), timeout))
   end
 
-  def upgrade(_socket, :https, _hostname, _port, _opts) do
-    raise "nested SSL sessions are not supported"
+  def upgrade(socket, :https, hostname, _port, opts) do
+    hostname = String.to_charlist(hostname)
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
+
+    with :ok <- setopts(socket, active: false) do
+      # The TLS session to the host is nested inside the TLS session to the
+      # proxy: the established :ssl socket acts as the transport for the new
+      # connection, so :ssl needs a callback module that speaks :ssl instead
+      # of :gen_tcp. Forced with Keyword.put/3 so that user-provided transport
+      # options cannot override it.
+      opts = Keyword.delete(opts, :hostname)
+      opts = Keyword.put(ssl_opts(hostname, opts), :cb_info, @tunnel_cb_info)
+
+      wrap_err(:ssl.connect(socket, opts, timeout))
+    end
   end
 
   @impl true

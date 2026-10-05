@@ -1,4 +1,4 @@
-# Vendored from hpax v1.0.3, do not edit manually
+# Vendored from hpax v1.1.0, do not edit manually
 
 defmodule Hex.Mint.HPAX do
   _ = """
@@ -84,29 +84,61 @@ defmodule Hex.Mint.HPAX do
   end
 
   @doc """
-  Resizes the given table to the given maximum size.
+  Resizes the given encoding table to the given maximum size.
 
-  This is intended for use where the overlying protocol has signaled a change to the table's
-  maximum size, such as when an HTTP/2 `SETTINGS` frame is received.
+  This is intended for use on an encoding context where the overlying protocol has signaled a
+  change to the maximum size the encoder is permitted to use, such as when an HTTP/2 `SETTINGS`
+  frame is received. The table takes the whole size it is permitted, which
+  [RFC7541§4.2](https://datatracker.ietf.org/doc/html/rfc7541#section-4.2) requires it to declare
+  to the decoder, so a "dynamic table size update" command is prefixed to the next block encoded
+  with this table.
 
   If the indicated size is less than the table's current size, entries
   will be evicted as needed to fit within the specified size, and the table's
-  maximum size will be decreased to the specified value. A flag will also be
-  set which will enqueue a "dynamic table size update" command to be prefixed
-  to the next block encoded with this table, per
-  [RFC9113§4.3.1](https://www.rfc-editor.org/rfc/rfc9113.html#section-4.3.1).
+  maximum size will be decreased to the specified value.
 
   If the indicated size is greater than or equal to the table's current max size, no entries are evicted
   and the table's maximum size changes to the specified value.
 
+  Use `protocol_resize/2` for a decoding context, whose maximum size is chosen by the peer's
+  encoder rather than by the protocol.
+
   ## Examples
 
-      decoding_context = Hex.Mint.HPAX.new(4096)
-      Hex.Mint.HPAX.resize(decoding_context, 8192)
+      encoding_context = Hex.Mint.HPAX.new(4096)
+      Hex.Mint.HPAX.resize(encoding_context, 8192)
 
   """
   @spec resize(table(), non_neg_integer()) :: table()
   defdelegate resize(table, new_max_size), to: Table
+
+  @doc """
+  Changes the maximum size the peer's encoder is permitted to use for the given decoding table.
+
+  This is intended for use on a decoding context when the overlying protocol communicates a new
+  maximum to the peer, such as when an HTTP/2 client sends `SETTINGS_HEADER_TABLE_SIZE` and the
+  server acknowledges it.
+  [RFC7541§4.2](https://datatracker.ietf.org/doc/html/rfc7541#section-4.2) leaves the table's own
+  maximum size to the encoder, which declares it with a "dynamic table size update" command, so
+  raising the permitted maximum doesn't change the size of the table.
+
+  If the new maximum is below the maximum the encoder declared, the table is resized to it and
+  entries are evicted as needed to fit. The encoder then has to declare a size of at most the new
+  maximum at the start of its next block, so `decode/2` returns `{:error, :missing_size_update}`
+  for a block that doesn't start with one, per
+  [RFC9113§4.3.1](https://www.rfc-editor.org/rfc/rfc9113.html#section-4.3.1). When the maximum
+  changes more than once before that block, the smallest of them is the one that has to be
+  declared.
+
+  ## Examples
+
+      decoding_context = Hex.Mint.HPAX.new(4096)
+      Hex.Mint.HPAX.protocol_resize(decoding_context, 8192)
+
+  """
+  @doc since: "1.1.0"
+  @spec protocol_resize(table(), non_neg_integer()) :: table()
+  defdelegate protocol_resize(table, new_protocol_max_size), to: Table
 
   @doc """
   Decodes a header block fragment (HBF) through a given table.
@@ -131,13 +163,31 @@ defmodule Hex.Mint.HPAX do
   def decode(<<0b001::3, rest::bitstring>>, %Table{} = table) do
     {new_max_size, rest} = decode_integer(rest, 5)
 
-    # Dynamic resizes must be less than protocol max table size
-    # https://datatracker.ietf.org/doc/html/rfc7541#section-6.3
-    if new_max_size <= table.protocol_max_table_size do
-      decode(rest, Table.dynamic_resize(table, new_max_size))
-    else
-      {:error, :protocol_error}
+    cond do
+      # Dynamic resizes must be less than protocol max table size
+      # https://datatracker.ietf.org/doc/html/rfc7541#section-6.3
+      new_max_size > table.protocol_max_table_size ->
+        {:error, :protocol_error}
+
+      # The smallest maximum size the table was reduced to has to be signalled first
+      # https://datatracker.ietf.org/doc/html/rfc7541#section-4.2
+      is_integer(table.required_minimum_resize) and new_max_size > table.required_minimum_resize ->
+        {:error, :missing_size_update}
+
+      true ->
+        table = %{table | required_minimum_resize: nil}
+        decode(rest, Table.dynamic_resize(table, new_max_size))
     end
+  catch
+    :throw, {:hpax, error} -> {:error, error}
+  end
+
+  # A reduction of the maximum size below the size of the table has to be acknowledged with a
+  # dynamic table size update at the start of the next block
+  # https://www.rfc-editor.org/rfc/rfc9113.html#section-4.3.1
+  def decode(block, %Table{required_minimum_resize: required})
+      when is_binary(block) and is_integer(required) do
+    {:error, :missing_size_update}
   end
 
   def decode(block, %Table{} = table) when is_binary(block) do
@@ -300,7 +350,8 @@ defmodule Hex.Mint.HPAX do
   end
 
   defp encode_headers([{action, name, value} | rest], table, acc)
-       when action in @valid_header_actions and is_binary(name) and is_binary(value) do
+       when action in @valid_header_actions do
+    validate_header(name, value)
     huffman? = table.huffman_encoding == :always
 
     {encoded, table} =
@@ -330,6 +381,15 @@ defmodule Hex.Mint.HPAX do
       end
 
     encode_headers(rest, table, [acc, encoded])
+  end
+
+  defp validate_header(name, value) when is_binary(name) and is_binary(value) do
+    :ok
+  end
+
+  defp validate_header(name, value) do
+    raise ArgumentError,
+          "expected header name/value to be strings, got: #{inspect(name)}/#{inspect(value)}"
   end
 
   defp encode_indexed_header(index) do

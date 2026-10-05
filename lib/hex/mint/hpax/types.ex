@@ -1,4 +1,4 @@
-# Vendored from hpax v1.0.3, do not edit manually
+# Vendored from hpax v1.1.0, do not edit manually
 
 defmodule Hex.Mint.HPAX.Types do
   @moduledoc false
@@ -47,9 +47,18 @@ defmodule Hex.Mint.HPAX.Types do
 
   ## Decoding
 
+  # HPACK integers must fit in 0..2^32 - 1 (RFC 7541, section 5.1). We cap both
+  # the decoded value and the number of continuation octets we're willing to
+  # process, so that a peer cannot send a long run of continuation octets and
+  # force us into building an arbitrarily large bignums (a denial-of-service).
+  # 2^32 - 1 needs at most 5 continuation octets (7 bits each), so once the
+  # shift would grow past that the value can only exceed the maximum.
+  @max_integer (1 <<< 32) - 1
+  @max_shift 4 * 7
+
   @spec decode_integer(bitstring, 1..8) :: {:ok, non_neg_integer(), binary()} | :error
   def decode_integer(bitstring, prefix) when is_bitstring(bitstring) and prefix in 1..8 do
-    with <<value::size(prefix), rest::binary>> <- bitstring do
+    with <<value::size(^prefix), rest::binary>> <- bitstring do
       if value < power_of_two(prefix) - 1 do
         {:ok, value, rest}
       else
@@ -61,10 +70,13 @@ defmodule Hex.Mint.HPAX.Types do
   end
 
   defp decode_remaining_integer(<<0::1, value::7, rest::binary>>, int, m) do
-    {:ok, int + (value <<< m), rest}
+    case int + (value <<< m) do
+      decoded when decoded <= @max_integer -> {:ok, decoded, rest}
+      _too_large -> :error
+    end
   end
 
-  defp decode_remaining_integer(<<1::1, value::7, rest::binary>>, int, m) do
+  defp decode_remaining_integer(<<1::1, value::7, rest::binary>>, int, m) when m <= @max_shift do
     decode_remaining_integer(rest, int + (value <<< m), m + 7)
   end
 
@@ -76,7 +88,7 @@ defmodule Hex.Mint.HPAX.Types do
   def decode_binary(binary) when is_binary(binary) do
     with <<huffman_bit::1, rest::bitstring>> <- binary,
          {:ok, length, rest} <- decode_integer(rest, 7),
-         <<contents::binary-size(length), rest::binary>> <- rest do
+         <<contents::binary-size(^length), rest::binary>> <- rest do
       contents =
         case huffman_bit do
           0 -> contents

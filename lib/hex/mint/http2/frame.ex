@@ -1,4 +1,4 @@
-# Vendored from mint v1.7.1 (d30d2cf), do not edit manually
+# Vendored from mint v1.11.0 (fb850d3), do not edit manually
 
 defmodule Hex.Mint.HTTP2.Frame do
   @moduledoc false
@@ -39,7 +39,7 @@ defmodule Hex.Mint.HTTP2.Frame do
 
   @spec inspect(tuple()) :: String.t()
 
-  for {type, _code} <- @types do
+  for {type, _code} <- Enum.sort(@types) do
     def inspect(frame) when is_record(frame, unquote(type)) do
       unquote(String.upcase(Atom.to_string(type))) <> Kernel.inspect(unquote(type)(frame))
     end
@@ -65,7 +65,7 @@ defmodule Hex.Mint.HTTP2.Frame do
   @spec flag_set?(byte(), atom(), atom()) :: boolean()
   def flag_set?(flags, frame, flag_name)
 
-  for {frame, flags} <- @flags,
+  for {frame, flags} <- Enum.sort(@flags),
       {flag_name, flag_value} <- flags do
     defp set_flag(flags, unquote(frame), unquote(flag_name)), do: bor(flags, unquote(flag_value))
 
@@ -91,12 +91,15 @@ defmodule Hex.Mint.HTTP2.Frame do
                {:frame_size_error, atom()}
                | {:protocol_error, binary()}
                | :payload_too_big
-  def decode_next(bin, max_frame_size \\ 16_384) when is_binary(bin) do
-    case decode_next_raw(bin) do
-      {:ok, {_type, _flags, _stream_id, payload}, _rest}
-      when byte_size(payload) > max_frame_size ->
-        {:error, :payload_too_big}
+  def decode_next(bin, max_frame_size \\ 16_384)
 
+  def decode_next(<<length::24, _header::binary-size(6), _rest::binary>>, max_frame_size)
+      when length > max_frame_size do
+    {:error, :payload_too_big}
+  end
+
+  def decode_next(bin, _max_frame_size) when is_binary(bin) do
+    case decode_next_raw(bin) do
       {:ok, {type, flags, stream_id, payload}, rest} ->
         {:ok, decode_contents(type, flags, stream_id, payload), rest}
 
@@ -123,7 +126,7 @@ defmodule Hex.Mint.HTTP2.Frame do
     :more
   end
 
-  for {frame, type} <- @types do
+  for {frame, type} <- Enum.sort(@types) do
     function = :"decode_#{frame}"
 
     defp decode_contents(unquote(type), flags, stream_id, payload) do
@@ -149,8 +152,13 @@ defmodule Hex.Mint.HTTP2.Frame do
 
     {exclusive?, stream_dependency, weight, data} =
       if flag_set?(flags, :headers, :priority) do
-        <<exclusive::1, stream_dependency::31, weight::8, rest::binary>> = data
-        {exclusive == 1, stream_dependency, weight + 1, rest}
+        case data do
+          <<exclusive::1, stream_dependency::31, weight::8, rest::binary>> ->
+            {exclusive == 1, stream_dependency, weight + 1, rest}
+
+          _other ->
+            throw({:hex_mint, {:frame_size_error, :headers}})
+        end
       else
         {nil, nil, nil, data}
       end
@@ -197,6 +205,12 @@ defmodule Hex.Mint.HTTP2.Frame do
   end
 
   # http://httpwg.org/specs/rfc7540.html#rfc.section.6.5
+  # RFC 9113 6.5: a SETTINGS frame with the ACK flag set must have an empty payload.
+  defp decode_settings(flags, _stream_id, payload)
+       when is_flag_set(flags, unquote(@flags[:settings][:ack])) and byte_size(payload) > 0 do
+    throw({:hex_mint, {:frame_size_error, :settings}})
+  end
+
   defp decode_settings(_flags, _stream_id, payload) when rem(byte_size(payload), 6) != 0 do
     throw({:hex_mint, {:frame_size_error, :settings}})
   end
@@ -208,15 +222,20 @@ defmodule Hex.Mint.HTTP2.Frame do
   # http://httpwg.org/specs/rfc7540.html#rfc.section.6.6
   defp decode_push_promise(flags, stream_id, payload) do
     {data, padding} = decode_padding(:push_promise, flags, payload)
-    <<_reserved::1, promised_stream_id::31, header_block_fragment::binary>> = data
 
-    push_promise(
-      stream_id: stream_id,
-      flags: flags,
-      promised_stream_id: promised_stream_id,
-      hbf: header_block_fragment,
-      padding: padding
-    )
+    case data do
+      <<_reserved::1, promised_stream_id::31, header_block_fragment::binary>> ->
+        push_promise(
+          stream_id: stream_id,
+          flags: flags,
+          promised_stream_id: promised_stream_id,
+          hbf: header_block_fragment,
+          padding: padding
+        )
+
+      _other ->
+        throw({:hex_mint, {:frame_size_error, :push_promise}})
+    end
   end
 
   # http://httpwg.org/specs/rfc7540.html#rfc.section.6.7
@@ -230,15 +249,19 @@ defmodule Hex.Mint.HTTP2.Frame do
 
   # http://httpwg.org/specs/rfc7540.html#rfc.section.6.8
   defp decode_goaway(flags, stream_id, payload) do
-    <<_reserved::1, last_stream_id::31, error_code::32, debug_data::binary>> = payload
+    case payload do
+      <<_reserved::1, last_stream_id::31, error_code::32, debug_data::binary>> ->
+        goaway(
+          stream_id: stream_id,
+          flags: flags,
+          last_stream_id: last_stream_id,
+          error_code: humanize_error_code(error_code),
+          debug_data: debug_data
+        )
 
-    goaway(
-      stream_id: stream_id,
-      flags: flags,
-      last_stream_id: last_stream_id,
-      error_code: humanize_error_code(error_code),
-      debug_data: debug_data
-    )
+      _other ->
+        throw({:hex_mint, {:frame_size_error, :goaway}})
+    end
   end
 
   # http://httpwg.org/specs/rfc7540.html#rfc.section.6.9
@@ -263,6 +286,12 @@ defmodule Hex.Mint.HTTP2.Frame do
     continuation(stream_id: stream_id, flags: flags, hbf: payload)
   end
 
+  # RFC 9113 6.1: a frame with the PADDED flag set always carries a Pad Length field.
+  defp decode_padding(frame, flags, <<>>)
+       when is_flag_set(flags, unquote(@flags[:data][:padded])) do
+    throw({:hex_mint, {:frame_size_error, frame}})
+  end
+
   defp decode_padding(frame, flags, <<pad_length, rest::binary>> = payload)
        when is_flag_set(flags, unquote(@flags[:data][:padded])) do
     if pad_length >= byte_size(payload) do
@@ -273,7 +302,7 @@ defmodule Hex.Mint.HTTP2.Frame do
     else
       # 1 byte is for the space taken by pad_length
       data_length = byte_size(payload) - pad_length - 1
-      <<data::size(^data_length)-binary, padding::size(^pad_length)-binary>> = rest
+      {data, padding} = :erlang.split_binary(rest, data_length)
       {data, padding}
     end
   end
@@ -296,14 +325,33 @@ defmodule Hex.Mint.HTTP2.Frame do
     # ignore that setting.
     acc =
       case identifier do
-        0x01 -> [{:header_table_size, value} | acc]
-        0x02 -> [{:enable_push, value == 1} | acc]
-        0x03 -> [{:max_concurrent_streams, value} | acc]
-        0x04 -> [{:initial_window_size, value} | acc]
-        0x05 -> [{:max_frame_size, value} | acc]
-        0x06 -> [{:max_header_list_size, value} | acc]
-        0x08 -> [{:enable_connect_protocol, value == 1} | acc]
-        _other -> acc
+        0x01 ->
+          [{:header_table_size, value} | acc]
+
+        # RFC 9113 6.5.2: SETTINGS_ENABLE_PUSH is only allowed to be 0 or 1.
+        0x02 when value in [0, 1] ->
+          [{:enable_push, value == 1} | acc]
+
+        0x02 ->
+          throw({:hex_mint, {:protocol_error, "SETTINGS_ENABLE_PUSH value #{value} is not 0 or 1"}})
+
+        0x03 ->
+          [{:max_concurrent_streams, value} | acc]
+
+        0x04 ->
+          [{:initial_window_size, value} | acc]
+
+        0x05 ->
+          [{:max_frame_size, value} | acc]
+
+        0x06 ->
+          [{:max_header_list_size, value} | acc]
+
+        0x08 ->
+          [{:enable_connect_protocol, value == 1} | acc]
+
+        _other ->
+          acc
       end
 
     decode_settings_params(rest, acc)
@@ -470,7 +518,7 @@ defmodule Hex.Mint.HTTP2.Frame do
     0x0D => :http_1_1_required
   }
 
-  for {code, human_code} <- error_codes do
+  for {code, human_code} <- Enum.sort(error_codes) do
     defp humanize_error_code(unquote(code)), do: unquote(human_code)
     defp dehumanize_error_code(unquote(human_code)), do: unquote(code)
   end

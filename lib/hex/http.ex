@@ -316,7 +316,7 @@ defmodule Hex.HTTP do
           []
 
         %URI{host: phost, port: pport} = proxy when not is_nil(phost) and not is_nil(pport) ->
-          proxy_opts =
+          proxy_headers =
             case proxy.userinfo do
               nil ->
                 []
@@ -326,7 +326,7 @@ defmodule Hex.HTTP do
                 [proxy_headers: [{"proxy-authorization", "Basic #{encoded}"}]]
             end
 
-          [proxy: {:http, phost, pport, proxy_opts}]
+          [proxy: {:http, phost, pport, []}] ++ proxy_headers
 
         _ ->
           []

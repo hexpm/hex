@@ -1,4 +1,4 @@
-# Vendored from mint v1.7.1 (d30d2cf), do not edit manually
+# Vendored from mint v1.11.0 (fb850d3), do not edit manually
 
 defmodule Hex.Mint.Core.Conn do
   @moduledoc false
@@ -64,4 +64,6 @@ defmodule Hex.Mint.Core.Conn do
   @callback put_proxy_headers(conn(), Hex.Mint.Types.headers()) :: conn()
 
   @callback put_log(conn(), boolean()) :: conn()
+
+  @callback request_body_window(conn(), Types.request_ref()) :: non_neg_integer() | :infinity
 end

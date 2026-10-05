@@ -1,41 +1,6 @@
 #!/bin/bash
 set -e
 
-# Pending upstream Mint PRs that must be present in the source tree passed
-# to this script. If re-vendoring from upstream `main` or a Mint release that
-# does not yet include these, either wait for them to merge or point this
-# script at a branch that has them applied. The easy path: use the
-# integration branch below which has all of them cherry-picked.
-#
-# Integration branch:
-#   https://github.com/elixir-mint/mint/tree/ericmj/hex-vendor-integration
-#
-# Included (or to-be-submitted) upstream PRs:
-#
-#   * elixir-mint/mint#478 - "Support Elixir ~> 1.12". Removes the
-#     `^length` binary-size pin (Elixir 1.14+) and drops `Mint.Application`
-#     so the persistent_term cacertfile cache works without the app starting.
-#     Hex supports `~> 1.12` so these changes are required.
-#     https://github.com/elixir-mint/mint/pull/478
-#     Branch: https://github.com/elixir-mint/mint/tree/ericmj/support-elixir-1.12
-#
-#   * elixir-mint/mint#479 - "Fix HTTP/1 handling of 1xx informational
-#     responses". Without this, a 100 Continue / 103 Early Hints / any
-#     unsolicited 1xx causes Mint to emit `:done` prematurely and close
-#     the connection on the real final response.
-#     https://github.com/elixir-mint/mint/pull/479
-#     Branch: https://github.com/elixir-mint/mint/tree/ericmj/fix-1xx-informational-response
-#
-#   * `Mint.HTTP2.set_window_size/3`. Adds a public API to advertise a larger
-#     HTTP/2 receive window to the server (connection-level or per-stream) via
-#     a `WINDOW_UPDATE` frame.
-#     Branch: https://github.com/elixir-mint/mint/tree/ericmj/http2-connection-window-size
-#
-#   * Larger default HTTP/2 receive windows (4 MB per stream, 16 MB per
-#     connection) plus threshold-gated `WINDOW_UPDATE` batching to mitigate
-#     the amplification-DoS shape of refilling on every DATA frame.
-#     Branch: https://github.com/elixir-mint/mint/tree/ericmj/http2-larger-default-windows
-
 if [[ -z "$1" ]]; then
   echo "Usage: vendor_mint.sh PATH_TO_MINT"
   exit 1
@@ -51,15 +16,9 @@ popd
 
 rm -rf lib/hex/mint
 
-skip_filenames="mint/application.ex"
-
 for filename in $(find $dir/lib -type f -name '*.ex'); do
   target_filename=${filename#$dir/lib/}
   target_path=lib/hex/${target_filename}
-
-  if [[ $skip_filenames == *$target_filename* ]]; then
-    continue
-  fi
 
   mkdir -p $(dirname $target_path)
   echo "# Vendored from mint v$version ($shortref), do not edit manually" > $target_path

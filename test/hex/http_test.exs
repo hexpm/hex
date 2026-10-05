@@ -12,15 +12,11 @@ defmodule Hex.HTTPTest do
   end
 
   defp proxy_auth_header(opts) do
-    case Keyword.get(opts, :proxy) do
-      {:http, _host, _port, proxy_opts} ->
-        case Keyword.get(proxy_opts, :proxy_headers, []) do
-          [{"proxy-authorization", "Basic " <> creds}] -> creds
-          _ -> nil
-        end
+    assert {:http, _host, _port, []} = Keyword.fetch!(opts, :proxy)
 
-      _ ->
-        nil
+    case Keyword.get(opts, :proxy_headers, []) do
+      [{"proxy-authorization", "Basic " <> creds}] -> creds
+      _ -> nil
     end
   end
 
@@ -53,8 +49,8 @@ defmodule Hex.HTTPTest do
     Hex.State.put(:http_proxy, "http://example.com")
 
     opts = Hex.HTTP.proxy_config("http://hex.pm")
-    assert {:http, "example.com", 80, proxy_opts} = Keyword.fetch!(opts, :proxy)
-    assert Keyword.get(proxy_opts, :proxy_headers, []) == []
+    assert {:http, "example.com", 80, []} = Keyword.fetch!(opts, :proxy)
+    refute Keyword.has_key?(opts, :proxy_headers)
   end
 
   test "x-hex-message" do
