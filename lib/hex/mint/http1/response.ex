@@ -119,7 +119,7 @@ defmodule Hex.Mint.HTTP1.Response do
         :error
 
       {:ok, name_size} ->
-        <<name::binary-size(^name_size), ?:, rest::binary>> = binary
+        <<name::binary-size(name_size), ?:, rest::binary>> = binary
         decode_header_value(rest, [], emit_at_end?, Headers.lower_raw(name))
 
       other ->
@@ -129,7 +129,7 @@ defmodule Hex.Mint.HTTP1.Response do
 
   defp decode_header_value(data, segments, emit_at_end?, name) do
     with {:ok, size} <- find_line_end(data, 0) do
-      <<segment::binary-size(^size), rest::binary>> = data
+      <<segment::binary-size(size), rest::binary>> = data
 
       with {:ok, rest} <- skip_line_end(rest) do
         segments = [segment | segments]

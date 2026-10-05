@@ -91,3 +91,10 @@ for filename in $(find lib/hex/mint -type f -name '*.ex' ! -path '*/hpax*'); do
   sed -i.bak 's/HPAX/Hex.Mint.HPAX/g' $filename
   rm $filename.bak
 done
+
+# Elixir < 1.15 doesn't allow the pin operator in binary size specifiers,
+# rewrite `size(^var)` to `size(var)`
+for filename in $(find lib/hex/mint -type f -name '*.ex'); do
+  sed -i.bak -E 's/size\(\^([a-z_]+)\)/size(\1)/g' $filename
+  rm $filename.bak
+done

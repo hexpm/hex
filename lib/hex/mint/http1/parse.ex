@@ -125,7 +125,7 @@ defmodule Hex.Mint.HTTP1.Parse do
     prefix_size = byte_size(string) - 1
 
     case string do
-      <<prefix::binary-size(^prefix_size), char>> when is_whitespace(char) ->
+      <<prefix::binary-size(prefix_size), char>> when is_whitespace(char) ->
         trim_trailing_whitespace(prefix)
 
       _other ->
