@@ -45,39 +45,8 @@ defmodule Hex.HTTP.Pool.Conn do
   def handle_continue(:connect, state), do: do_connect(state)
 
   @impl true
-  def handle_cast(
-        {:request, from, method, path, headers, {:stream, fun, offset}},
-        %{ready: true} = state
-      ) do
-    case MintHTTP.request(state.conn, method, path, headers, :stream) do
-      {:ok, conn, ref} ->
-        case stream_body(conn, ref, fun, offset) do
-          {:ok, conn} ->
-            req = %{from: from, status: nil, headers: [], data: []}
-            state = %{state | conn: conn, requests: Map.put(state.requests, ref, req)}
-            {:noreply, state}
-
-          {:error, conn, reason} ->
-            GenServer.reply(from, {:error, reason})
-            GenServer.cast(state.host_pid, {:req_done, self()})
-            close_and_reconnect(%{state | conn: conn})
-        end
-
-      {:error, conn, reason} ->
-        request_error(from, reason, %{state | conn: conn})
-    end
-  end
-
   def handle_cast({:request, from, method, path, headers, body}, %{ready: true} = state) do
-    case MintHTTP.request(state.conn, method, path, headers, body) do
-      {:ok, conn, ref} ->
-        req = %{from: from, status: nil, headers: [], data: [], sink: nil}
-        state = %{state | conn: conn, requests: Map.put(state.requests, ref, req)}
-        {:noreply, state}
-
-      {:error, conn, reason} ->
-        request_error(from, reason, %{state | conn: conn})
-    end
+    start_request(state, from, method, path, headers, body, nil)
   end
 
   def handle_cast({:request, from, _method, _path, _headers, _body}, state) do
@@ -93,24 +62,7 @@ defmodule Hex.HTTP.Pool.Conn do
       ) do
     case File.open(filename, [:write, :raw, :binary]) do
       {:ok, fd} ->
-        case MintHTTP.request(state.conn, method, path, headers, body) do
-          {:ok, conn, ref} ->
-            req = %{
-              from: from,
-              status: nil,
-              headers: [],
-              data: [],
-              sink: %{fd: fd, filename: filename}
-            }
-
-            state = %{state | conn: conn, requests: Map.put(state.requests, ref, req)}
-            {:noreply, state}
-
-          {:error, conn, reason} ->
-            _ = File.close(fd)
-            _ = File.rm(filename)
-            request_error(from, reason, %{state | conn: conn})
-        end
+        start_request(state, from, method, path, headers, body, %{fd: fd, filename: filename})
 
       {:error, reason} ->
         GenServer.reply(from, {:error, reason})
@@ -133,7 +85,7 @@ defmodule Hex.HTTP.Pool.Conn do
       {:ok, conn, responses} ->
         state = %{state | conn: conn}
         state = Enum.reduce(responses, state, &process_response/2)
-        {:noreply, maybe_draining(state)}
+        send_bodies(state)
 
       {:error, conn, reason, responses} ->
         state = %{state | conn: conn}
@@ -155,15 +107,121 @@ defmodule Hex.HTTP.Pool.Conn do
     :ok
   end
 
-  defp stream_body(conn, ref, fun, offset) do
+  ## Request bodies
+  #
+  # Bodies are sent with `stream_request_body/3` in chunks no larger than
+  # `request_body_window/2`. HTTP/1 has no flow control so the whole body goes
+  # out at once. On HTTP/2 we send what the server's window allows and resume
+  # from `handle_info/2` once WINDOW_UPDATE frames have been processed.
+  #
+  # With `expect: 100-continue` the body is held back until the server sends
+  # `100 Continue`. If the final response arrives first the body is never sent.
+
+  defp start_request(state, from, method, path, headers, body, sink) do
+    {headers, body} = request_body(headers, body)
+    mint_body = if body, do: :stream
+
+    case MintHTTP.request(state.conn, method, path, headers, mint_body) do
+      {:ok, conn, ref} ->
+        body =
+          cond do
+            body == nil -> nil
+            expect_continue?(headers) -> {:continue, body}
+            true -> {:sending, body}
+          end
+
+        req = %{from: from, status: nil, headers: [], data: [], sink: sink, body: body}
+        state = %{state | conn: conn, requests: Map.put(state.requests, ref, req)}
+        send_bodies(state)
+
+      {:error, conn, reason} ->
+        close_sink(%{sink: sink})
+        request_error(from, reason, %{state | conn: conn})
+    end
+  end
+
+  # A body is `{buffer, next}` where `buffer` is the binary still to be sent
+  # and `next` is the `{fun, offset}` producer for the rest, or nil.
+  defp request_body(headers, nil), do: {headers, nil}
+
+  defp request_body(headers, {:stream, fun, offset}), do: {headers, {"", {fun, offset}}}
+
+  defp request_body(headers, body) when is_binary(body) do
+    headers =
+      if List.keymember?(headers, "content-length", 0) do
+        headers
+      else
+        [{"content-length", Integer.to_string(byte_size(body))} | headers]
+      end
+
+    {headers, {body, nil}}
+  end
+
+  defp expect_continue?(headers) do
+    Enum.any?(headers, fn {name, value} ->
+      String.downcase(name) == "expect" and String.downcase(value) == "100-continue"
+    end)
+  end
+
+  defp send_bodies(state) do
+    result =
+      Enum.reduce_while(state.requests, {:ok, state}, fn
+        {ref, %{body: {:sending, body}}}, {:ok, state} ->
+          case send_body(state.conn, ref, body) do
+            {:ok, conn, body} ->
+              body = if body, do: {:sending, body}
+              state = %{state | conn: conn}
+              {:cont, {:ok, put_in(state.requests[ref].body, body)}}
+
+            {:error, conn, reason} ->
+              {:halt, {:error, %{state | conn: conn}, reason}}
+          end
+
+        _other, acc ->
+          {:cont, acc}
+      end)
+
+    case result do
+      {:ok, state} ->
+        {:noreply, maybe_draining(state)}
+
+      {:error, state, reason} ->
+        state
+        |> fail_in_flight(reason)
+        |> close_and_reconnect()
+    end
+  end
+
+  defp send_body(conn, ref, {"", nil}) do
+    case MintHTTP.stream_request_body(conn, ref, :eof) do
+      {:ok, conn} -> {:ok, conn, nil}
+      {:error, conn, reason} -> {:error, conn, reason}
+    end
+  end
+
+  defp send_body(conn, ref, {"", {fun, offset}}) do
     case fun.(offset) do
       :eof ->
-        MintHTTP.stream_request_body(conn, ref, :eof)
+        send_body(conn, ref, {"", nil})
 
       {:ok, chunk, next_offset} ->
+        send_body(conn, ref, {IO.iodata_to_binary(chunk), {fun, next_offset}})
+    end
+  end
+
+  defp send_body(conn, ref, {buffer, next} = body) do
+    case MintHTTP.request_body_window(conn, ref) do
+      window when window <= 0 ->
+        {:ok, conn, body}
+
+      window ->
+        size = min(window, byte_size(buffer))
+        chunk = :binary.part(buffer, 0, size)
+        rest = :binary.part(buffer, size, byte_size(buffer) - size)
+
         case MintHTTP.stream_request_body(conn, ref, chunk) do
-          {:ok, conn} -> stream_body(conn, ref, fun, next_offset)
-          {:error, _conn, _reason} = err -> err
+          {:ok, conn} -> send_body(conn, ref, {rest, next})
+          {:error, conn, reason} -> {:error, conn, reason}
         end
     end
   end
@@ -240,8 +298,7 @@ defmodule Hex.HTTP.Pool.Conn do
     if MintHTTP.open?(conn, :write) do
       state
     else
-      GenServer.cast(state.host_pid, {:conn_draining, self()})
-      drain_if_done(%{state | ready: false})
+      drain_if_done(stop_accepting(state))
     end
   end
 
@@ -256,6 +313,11 @@ defmodule Hex.HTTP.Pool.Conn do
   end
 
   defp drain_if_done(state), do: state
+
+  defp stop_accepting(state) do
+    GenServer.cast(state.host_pid, {:conn_draining, self()})
+    %{state | ready: false}
+  end
 
   ## Response handling
 
@@ -272,10 +334,10 @@ defmodule Hex.HTTP.Pool.Conn do
       %{sink: %{fd: fd}} = req ->
         _ = :file.position(fd, 0)
         _ = :file.truncate(fd)
-        %{req | status: status, headers: [], data: []}
+        reset_response(req, status)
 
       req ->
-        %{req | status: status, headers: [], data: []}
+        reset_response(req, status)
     end)
   end
 
@@ -306,17 +368,12 @@ defmodule Hex.HTTP.Pool.Conn do
       {nil, _} ->
         state
 
-      {%{sink: %{fd: fd}} = req, requests} ->
-        _ = File.close(fd)
-        GenServer.reply(req.from, {:ok, req.status, req.headers, nil})
-        GenServer.cast(state.host_pid, {:req_done, self()})
-        %{state | requests: requests}
-
       {req, requests} ->
-        body = IO.iodata_to_binary(req.data)
-        GenServer.reply(req.from, {:ok, req.status, req.headers, body})
+        state = %{state | requests: requests}
+        state = if req.body, do: close_unfinished_request(state), else: state
+        GenServer.reply(req.from, {:ok, req.status, req.headers, response_body(req)})
         GenServer.cast(state.host_pid, {:req_done, self()})
-        %{state | requests: requests}
+        state
     end
   end
 
@@ -334,6 +391,35 @@ defmodule Hex.HTTP.Pool.Conn do
   end
 
   defp process_response(_other, state), do: state
+
+  defp response_body(%{sink: %{fd: fd}}) do
+    _ = File.close(fd)
+    nil
+  end
+
+  defp response_body(req), do: IO.iodata_to_binary(req.data)
+
+  # The response finished before the request body was sent (the server
+  # answered without `100 Continue`, or rejected the body early). On HTTP/2
+  # Mint has already reset the stream. An HTTP/1 connection is still in the
+  # middle of the request so it can't be reused; stop taking requests before
+  # `req_done` lets the host dispatch to this conn again.
+  defp close_unfinished_request(%{protocol: :http1} = state) do
+    {:ok, conn} = MintHTTP.close(state.conn)
+    stop_accepting(%{state | conn: conn})
+  end
+
+  defp close_unfinished_request(state), do: state
+
+  defp reset_response(req, status) do
+    body =
+      case {req.body, status} do
+        {{:continue, body}, 100} -> {:sending, body}
+        {body, _status} -> body
+      end
+
+    %{req | status: status, headers: [], data: [], body: body}
+  end
 
   defp abort_request(state, ref, reason) do
     case Map.pop(state.requests, ref) do

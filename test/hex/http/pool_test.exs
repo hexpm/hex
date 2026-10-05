@@ -228,4 +228,98 @@ defmodule Hex.HTTP.PoolTest do
     assert length(results) == count
     Enum.each(results, fn {:ok, 200, _, "ok"} -> :ok end)
   end
+
+  defp chunked_body(body, test_pid) do
+    fun = fn
+      offset when offset < byte_size(body) ->
+        send(test_pid, {:body_chunk, offset})
+        size = min(10_000, byte_size(body) - offset)
+        {:ok, :binary.part(body, offset, size), offset + size}
+
+      _offset ->
+        :eof
+    end
+
+    {:stream, fun, 0}
+  end
+
+  test "HTTP/2 request bodies larger than the flow-control window are sent in full", %{
+    bypass: bypass
+  } do
+    test_pid = self()
+
+    # Cowboy advertises the default 65_535 byte windows, so this body needs
+    # several WINDOW_UPDATE frames from the server before it is fully sent.
+    body = :crypto.strong_rand_bytes(1_000_000)
+
+    Bypass.expect(bypass, fn conn ->
+      {:ok, received, conn} = Plug.Conn.read_body(conn)
+      send(test_pid, {:received, Plug.Conn.get_http_protocol(conn), received})
+      Plug.Conn.resp(conn, 201, "ok")
+    end)
+
+    url = "http://localhost:#{bypass.port}/upload"
+    pool_opts = [timeout: 10_000, connect_opts: [protocols: [:http2]]]
+
+    for request_body <- [body, chunked_body(body, test_pid)] do
+      assert {:ok, 201, _headers, "ok"} =
+               Hex.HTTP.Pool.request(url, "POST", [], request_body, pool_opts)
+
+      assert_received {:received, :"HTTP/2", ^body}
+    end
+  end
+
+  for protocol <- [:http1, :http2] do
+    test "#{protocol} request with Expect 100-continue sends the body only after 100 Continue",
+         %{bypass: bypass} do
+      test_pid = self()
+
+      Bypass.expect(bypass, fn conn ->
+        case Plug.Conn.get_req_header(conn, "x-otp") do
+          [] ->
+            Plug.Conn.resp(conn, 401, "otp required")
+
+          ["123456"] ->
+            conn = Plug.Conn.inform(conn, 100, [])
+            {:ok, received, conn} = Plug.Conn.read_body(conn)
+            send(test_pid, {:received, Plug.Conn.get_http_protocol(conn), received})
+            Plug.Conn.resp(conn, 201, "created")
+        end
+      end)
+
+      url = "http://localhost:#{bypass.port}/publish"
+      pool_opts = [timeout: 5_000, connect_opts: [protocols: [unquote(protocol)]]]
+      headers = [{"expect", "100-continue"}, {"content-length", "11"}]
+
+      assert {:ok, 401, _headers, "otp required"} =
+               Hex.HTTP.Pool.request(
+                 url,
+                 "POST",
+                 headers,
+                 chunked_body("hello world", test_pid),
+                 pool_opts
+               )
+
+      refute_received {:body_chunk, _offset}
+
+      assert {:ok, 201, _headers, "created"} =
+               Hex.HTTP.Pool.request(
+                 url,
+                 "POST",
+                 [{"x-otp", "123456"} | headers],
+                 chunked_body("hello world", test_pid),
+                 pool_opts
+               )
+
+      assert_received {:body_chunk, 0}
+
+      expected_protocol =
+        case unquote(protocol) do
+          :http1 -> :"HTTP/1.1"
+          :http2 -> :"HTTP/2"
+        end
+
+      assert_received {:received, ^expected_protocol, "hello world"}
+    end
+  end
 end
