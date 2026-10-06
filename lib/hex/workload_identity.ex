@@ -1,8 +1,8 @@
-defmodule Hex.TrustedPublisher do
+defmodule Hex.WorkloadIdentity do
   @moduledoc false
 
   @doc """
-  Whether publishing should authenticate as a trusted publisher.
+  Whether publishing should authenticate with Workload Identity.
 
   Only a GitHub Actions job allowed to request OIDC tokens qualifies, and any
   credential the user configured takes precedence.
@@ -49,7 +49,7 @@ defmodule Hex.TrustedPublisher do
 
       other ->
         Mix.raise(
-          "Trusted publishing failed, could not fetch the OIDC audience from Hex: " <>
+          "Workload Identity authentication failed, could not fetch the OIDC audience from Hex: " <>
             describe_error(other)
         )
     end
@@ -68,17 +68,19 @@ defmodule Hex.TrustedPublisher do
             token
 
           :error ->
-            Mix.raise("Trusted publishing failed, GitHub Actions answered without an OIDC token")
+            Mix.raise(
+              "Workload Identity authentication failed, GitHub Actions answered without an OIDC token"
+            )
         end
 
       {:ok, {status, _headers, _body}} ->
         Mix.raise(
-          "Trusted publishing failed, GitHub Actions refused to issue an OIDC token (HTTP #{status})"
+          "Workload Identity authentication failed, GitHub Actions refused to issue an OIDC token (HTTP #{status})"
         )
 
       {:error, reason} ->
         Mix.raise(
-          "Trusted publishing failed, could not request an OIDC token from GitHub Actions: " <>
+          "Workload Identity authentication failed, could not request an OIDC token from GitHub Actions: " <>
             inspect(reason)
         )
     end
@@ -98,7 +100,7 @@ defmodule Hex.TrustedPublisher do
 
       other ->
         Mix.raise(
-          "Trusted publishing failed, Hex did not grant a token for #{scope}: " <>
+          "Workload Identity authentication failed, Hex did not grant a token for #{scope}: " <>
             describe_error(other)
         )
     end

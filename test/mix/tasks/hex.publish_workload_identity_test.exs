@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Hex.PublishTrustedPublisherTest do
+defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
   use HexTest.Case
 
   @package "trusted_package"
@@ -44,7 +44,7 @@ defmodule Mix.Tasks.Hex.PublishTrustedPublisherTest do
     {:ok, bypass: bypass}
   end
 
-  test "publishes package and docs with one trusted publisher token", %{bypass: bypass} do
+  test "publishes package and docs with one workload identity token", %{bypass: bypass} do
     stub_api(bypass)
 
     publish(["--yes", "--no-progress"])
@@ -84,7 +84,7 @@ defmodule Mix.Tasks.Hex.PublishTrustedPublisherTest do
                      ["Bearer minted_token"]}
   end
 
-  test "publishes docs alone with a trusted publisher token", %{bypass: bypass} do
+  test "publishes docs alone with a workload identity token", %{bypass: bypass} do
     stub_api(bypass)
 
     publish(["docs", "--no-progress"])
@@ -117,12 +117,12 @@ defmodule Mix.Tasks.Hex.PublishTrustedPublisherTest do
     stub_api(bypass,
       exchange:
         {403,
-         %{"error" => "access_denied", "error_description" => "No matching trusted publisher"}}
+         %{"error" => "access_denied", "error_description" => "No matching workload identity"}}
     )
 
     message =
-      "Trusted publishing failed, Hex did not grant a token for package:hexpm/#{@package}: " <>
-        "access_denied: No matching trusted publisher (HTTP 403)"
+      "Workload Identity authentication failed, Hex did not grant a token for package:hexpm/#{@package}: " <>
+        "access_denied: No matching workload identity (HTTP 403)"
 
     assert_raise Mix.Error, message, fn ->
       publish(["package", "--yes", "--no-progress"])

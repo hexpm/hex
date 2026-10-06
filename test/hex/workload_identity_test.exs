@@ -1,4 +1,4 @@
-defmodule Hex.TrustedPublisherTest do
+defmodule Hex.WorkloadIdentityTest do
   use HexTest.Case
 
   setup do
@@ -10,26 +10,26 @@ defmodule Hex.TrustedPublisherTest do
 
   describe "available?/0" do
     test "outside GitHub Actions OIDC" do
-      refute Hex.TrustedPublisher.available?()
+      refute Hex.WorkloadIdentity.available?()
     end
 
     test "in GitHub Actions OIDC without credentials" do
       put_github_oidc_env("http://localhost/token")
-      assert Hex.TrustedPublisher.available?()
+      assert Hex.WorkloadIdentity.available?()
     end
 
     test "when either GitHub Actions OIDC variable is empty" do
       put_github_oidc_env("")
-      refute Hex.TrustedPublisher.available?()
+      refute Hex.WorkloadIdentity.available?()
 
       put_github_oidc_env("http://localhost/token", "")
-      refute Hex.TrustedPublisher.available?()
+      refute Hex.WorkloadIdentity.available?()
     end
 
     test "when HEX_API_KEY is set" do
       put_github_oidc_env("http://localhost/token")
       Hex.State.put(:api_key, "api_key")
-      refute Hex.TrustedPublisher.available?()
+      refute Hex.WorkloadIdentity.available?()
     end
 
     test "ignores an empty HEX_API_KEY" do
@@ -56,14 +56,14 @@ defmodule Hex.TrustedPublisherTest do
         set_home_cwd()
         put_github_oidc_env("http://localhost/token")
         Hex.OAuth.store_token(%{access_token: "token", expires_at: 0})
-        refute Hex.TrustedPublisher.available?()
+        refute Hex.WorkloadIdentity.available?()
       end)
     end
 
     test "when the hexpm repository has an API key" do
       put_github_oidc_env("http://localhost/token")
       Hex.State.update!(:repos, &put_in(&1["hexpm"][:api_key], "repo_api_key"))
-      refute Hex.TrustedPublisher.available?()
+      refute Hex.WorkloadIdentity.available?()
     end
   end
 
@@ -90,7 +90,7 @@ defmodule Hex.TrustedPublisherTest do
         end
       end)
 
-      assert Hex.TrustedPublisher.auth!("hexpm", "foo") == [key: "minted_token", oauth: true]
+      assert Hex.WorkloadIdentity.auth!("hexpm", "foo") == [key: "minted_token", oauth: true]
     end
 
     test "raises when GitHub Actions refuses the OIDC token", %{bypass: bypass} do
@@ -102,21 +102,21 @@ defmodule Hex.TrustedPublisherTest do
       end)
 
       message =
-        "Trusted publishing failed, GitHub Actions refused to issue an OIDC token (HTTP 403)"
+        "Workload Identity authentication failed, GitHub Actions refused to issue an OIDC token (HTTP 403)"
 
-      assert_raise Mix.Error, message, fn -> Hex.TrustedPublisher.auth!("hexpm", "foo") end
+      assert_raise Mix.Error, message, fn -> Hex.WorkloadIdentity.auth!("hexpm", "foo") end
     end
 
-    test "raises when Hex does not offer trusted publishing", %{bypass: bypass} do
+    test "raises when Hex does not offer Workload Identity", %{bypass: bypass} do
       Bypass.expect(bypass, fn conn ->
         erlang_resp(conn, 404, %{"status" => 404, "message" => "Not found"})
       end)
 
       message =
-        "Trusted publishing failed, could not fetch the OIDC audience from Hex: " <>
+        "Workload Identity authentication failed, could not fetch the OIDC audience from Hex: " <>
           "Not found (HTTP 404)"
 
-      assert_raise Mix.Error, message, fn -> Hex.TrustedPublisher.auth!("hexpm", "foo") end
+      assert_raise Mix.Error, message, fn -> Hex.WorkloadIdentity.auth!("hexpm", "foo") end
     end
   end
 

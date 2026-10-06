@@ -31,13 +31,14 @@ defmodule Mix.Tasks.Hex.Publish do
   without documentation run `mix hex.publish package` or to only publish documentation
   run `mix hex.publish docs`.
 
-  ## Trusted publishing
+  ## Workload Identity
 
-  In a GitHub Actions job with the `id-token: write` permission, and when no
-  `HEX_API_KEY` or other Hex credential is configured, the job's OIDC token is
-  exchanged for a short-lived token that can only publish this package. Configure
-  a trusted publisher for the package on hex.pm first. The package must already
-  exist, so its first release has to be published with a regular account.
+  Workload Identity is sometimes also known as "Trusted Publishing". In a GitHub
+  Actions job with the `id-token: write` permission, and when no `HEX_API_KEY` or
+  other Hex credential is configured, the job's OIDC token is exchanged for a
+  short-lived token that can only publish this package. Configure a workload
+  identity for the package on hex.pm first. The package must already exist, so
+  its first release has to be published with a regular account.
 
   ## Reverting a package
 
@@ -168,9 +169,9 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp publish_auth(build, organization, opts) do
-    if not Keyword.get(opts, :dry_run, false) and Hex.TrustedPublisher.available?() do
-      Hex.Shell.info("Authenticating with trusted publishing...")
-      Hex.TrustedPublisher.auth!(organization || "hexpm", build.meta.name)
+    if not Keyword.get(opts, :dry_run, false) and Hex.WorkloadIdentity.available?() do
+      Hex.Shell.info("Authenticating with Workload Identity...")
+      Hex.WorkloadIdentity.auth!(organization || "hexpm", build.meta.name)
     else
       []
     end
