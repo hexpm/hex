@@ -95,11 +95,76 @@ defmodule Hex.Registry.ServerTest do
     end
   end
 
+  describe "package etags" do
+    setup do
+      Registry.close()
+      bypass = Bypass.open()
+      repos = Hex.State.fetch!(:repos)
+      Hex.State.put(:repos, put_in(repos["hexpm"].url, "http://localhost:#{bypass.port}"))
+      Hex.State.put(:offline, false)
+      Hex.State.put(:shell_process, self())
+      {:ok, bypass: bypass}
+    end
+
+    test "the etag of a fetched package is sent on the next fetch and a 304 keeps the cache",
+         %{bypass: bypass} do
+      test_pid = self()
+
+      Bypass.expect(bypass, "GET", "/packages/etag_package", fn conn ->
+        if_none_match = Plug.Conn.get_req_header(conn, "if-none-match")
+        send(test_pid, {:if_none_match, if_none_match})
+
+        case if_none_match do
+          [] ->
+            conn
+            |> Plug.Conn.put_resp_header("etag", "\"v1\"")
+            |> Plug.Conn.resp(200, signed_package("etag_package", ["1.0.0"]))
+
+          ["\"v1\""] ->
+            Plug.Conn.resp(conn, 304, "")
+        end
+      end)
+
+      in_tmp("registry_package_etag", fn ->
+        registry_path = Path.join(File.cwd!(), "cache.ets")
+        Registry.open(check_version: false, registry_path: registry_path)
+
+        Registry.prefetch([{"hexpm", "etag_package"}])
+        assert {:ok, _versions} = Registry.versions("hexpm", "etag_package")
+        assert_received {:if_none_match, []}
+
+        Registry.close()
+        Registry.open(check_version: false, registry_path: registry_path)
+
+        Registry.prefetch([{"hexpm", "etag_package"}])
+        assert {:ok, versions} = Registry.versions("hexpm", "etag_package")
+        assert Enum.map(versions, &to_string/1) == ["1.0.0"]
+        assert_received {:if_none_match, ["\"v1\""]}
+        refute_received {:mix_shell, :error, ["Failed to fetch record" <> _]}
+      end)
+    end
+  end
+
   test "prefetch raises a helpful error in offline mode when a package is not cached" do
     assert_raise Mix.Error,
                  ~r"Hex is running in offline mode and the registry entry for package missing_package is not cached locally",
                  fn ->
                    Registry.prefetch([{"hexpm", "missing_package"}])
                  end
+  end
+
+  defp signed_package(name, versions) do
+    releases =
+      Enum.map(versions, fn version ->
+        %{
+          version: version,
+          inner_checksum: :crypto.hash(:sha256, "inner #{version}"),
+          outer_checksum: :crypto.hash(:sha256, "outer #{version}"),
+          dependencies: []
+        }
+      end)
+
+    package = %{repository: "hexpm", name: name, releases: releases}
+    :mix_hex_registry.build_package(package, File.read!(fixture_path("test_priv.pem")))
   end
 end
