@@ -124,6 +124,7 @@ defmodule Hex.Registry.Server do
   defp state() do
     %{
       ets: nil,
+      sorted_versions: nil,
       path: nil,
       pending: MapSet.new(),
       fetched: MapSet.new(),
@@ -148,7 +149,8 @@ defmodule Hex.Registry.Server do
       |> check_version()
       |> set_version()
 
-    state = %{state | ets: ets, path: path}
+    sorted_versions = :ets.new(:hex_sorted_versions, [])
+    state = %{state | ets: ets, sorted_versions: sorted_versions, path: path}
 
     {:reply, :ok, state}
   end
@@ -167,6 +169,7 @@ defmodule Hex.Registry.Server do
         if state.ets do
           persist(state.ets, state.path)
           :ets.delete(state.ets)
+          :ets.delete(state.sorted_versions)
         end
 
         GenServer.reply(from, :ok)
@@ -234,17 +237,11 @@ defmodule Hex.Registry.Server do
 
   def handle_call({:versions, repo, package}, from, state) do
     maybe_wait({repo, package}, from, state, fn ->
-      case lookup(state.ets, {:versions, repo || "hexpm", package}) do
-        nil ->
-          :error
+      repo = repo || "hexpm"
 
-        versions ->
-          versions =
-            versions
-            |> Enum.map(&Hex.Solver.parse_constraint!/1)
-            |> Enum.sort(&(Version.compare(&1, &2) in [:lt, :eq]))
-
-          {:ok, versions}
+      case lookup(state.ets, {:versions, repo, package}) do
+        nil -> :error
+        versions -> {:ok, sorted_versions(state.sorted_versions, repo, package, versions)}
       end
     end)
   end
@@ -447,7 +444,7 @@ defmodule Hex.Registry.Server do
     Enum.each(packages, fn {repo, package} ->
       etag = package_etag(repo, package, state)
 
-      Hex.Parallel.run(:hex_fetcher, {:registry, repo, package}, [await: false], fn ->
+      Hex.Parallel.run(:hex_registry_fetcher, {:registry, repo, package}, [await: false], fn ->
         {:get_package, repo, package, Hex.Repo.get_package(repo, package, etag)}
       end)
     end)
@@ -483,7 +480,7 @@ defmodule Hex.Registry.Server do
     Enum.each(refs, fn {repo, name} ->
       etag = policy_etag(repo, name, state)
 
-      Hex.Parallel.run(:hex_fetcher, {:policy, repo, name}, [await: false], fn ->
+      Hex.Parallel.run(:hex_registry_fetcher, {:policy, repo, name}, [await: false], fn ->
         {:get_policy, repo, name, Hex.Repo.get_policy(repo, name, etag)}
       end)
     end)
@@ -751,6 +748,26 @@ defmodule Hex.Registry.Server do
       :ets.delete(tid, {:published_at, repo, package, version})
       :ets.delete(tid, {:deps, repo, package, version})
     end)
+  end
+
+  # The dependency resolver asks for the versions of the same packages
+  # thousands of times, so the parsed and sorted versions are kept for as long
+  # as the registry is open. They are keyed on the versions from the registry
+  # so they are sorted again after the package is fetched again.
+  defp sorted_versions(tid, repo, package, versions) do
+    case :ets.lookup(tid, {repo, package}) do
+      [{_key, ^versions, sorted}] ->
+        sorted
+
+      _ ->
+        sorted =
+          versions
+          |> Enum.map(&Hex.Solver.parse_constraint!/1)
+          |> Enum.sort(&(Version.compare(&1, &2) in [:lt, :eq]))
+
+        :ets.insert(tid, {{repo, package}, versions, sorted})
+        sorted
+    end
   end
 
   defp lookup(tid, key) do

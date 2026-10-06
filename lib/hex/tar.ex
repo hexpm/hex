@@ -34,7 +34,7 @@ defmodule Hex.Tar do
     tarball =
       case path do
         {:binary, tarball} -> tarball
-        _ -> File.read!(path)
+        _ -> {:file, String.to_charlist(path)}
       end
 
     dest = if dest == :memory, do: dest, else: String.to_charlist(dest)
@@ -50,8 +50,23 @@ defmodule Hex.Tar do
 
   # TODO: Add this function to
   def outer_checksum(path) do
-    case File.read(path) do
-      {:ok, tarball} -> {:ok, :crypto.hash(:sha256, tarball)}
+    case :file.open(path, [:read, :raw, :binary]) do
+      {:ok, file} ->
+        try do
+          hash_file(file, :crypto.hash_init(:sha256))
+        after
+          :file.close(file)
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp hash_file(file, hash) do
+    case :file.read(file, 65_536) do
+      {:ok, data} -> hash_file(file, :crypto.hash_update(hash, data))
+      :eof -> {:ok, :crypto.hash_final(hash)}
       {:error, reason} -> {:error, reason}
     end
   end

@@ -146,8 +146,8 @@ defmodule Hex.SCM do
       )
     end
 
-    {fetch_result, staged} =
-      Hex.Parallel.await(:hex_fetcher, {:tarball, repo, name, lock.version}, @fetch_timeout)
+    fetch_id = {:tarball, repo, name, lock.version}
+    {fetch_result, staged} = Hex.Parallel.await(:hex_tarball_fetcher, fetch_id, @fetch_timeout)
 
     case fetch_result do
       {:ok, :cached} ->
@@ -380,7 +380,7 @@ defmodule Hex.SCM do
     Enum.each(fetch, fn {repo, package, version, dest} ->
       repo = repo || "hexpm"
 
-      Hex.Parallel.run(:hex_fetcher, {:tarball, repo, package, version}, fn ->
+      Hex.Parallel.run(:hex_tarball_fetcher, {:tarball, repo, package, version}, fn ->
         case fetch(repo, package, version) do
           {:ok, _} = result -> {result, stage(repo, package, version, dest)}
           {:error, _} = result -> {result, :error}
@@ -479,17 +479,30 @@ defmodule Hex.SCM do
     end
   end
 
+  # The tarball is downloaded to a temporary file that is renamed into the
+  # cache, so an interrupted download doesn't leave a truncated tarball that
+  # the next fetch reports as a checksum mismatch
   defp do_fetch(path, repo, package, version) do
-    case Hex.Repo.get_tarball(repo, package, version) do
-      {:ok, {200, _, body}} ->
-        File.mkdir_p!(Path.dirname(path))
-        File.write!(path, body)
+    File.mkdir_p!(Path.dirname(path))
+    tmp_path = path <> "." <> Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
+
+    try do
+      download(path, tmp_path, repo, package, version)
+    after
+      File.rm(tmp_path)
+    end
+  end
+
+  defp download(path, tmp_path, repo, package, version) do
+    case Hex.Repo.get_tarball_to_file(repo, package, version, tmp_path) do
+      {:ok, {200, _headers}} ->
+        File.rename!(tmp_path, path)
         {:ok, :new}
 
-      {:ok, {304, _headers, _body}} ->
+      {:ok, {304, _headers}} ->
         {:ok, :cached}
 
-      {:ok, {code, _headers, _body}} ->
+      {:ok, {code, _headers}} ->
         {:error, "Request failed (#{code})"}
 
       {:error, :timeout} ->

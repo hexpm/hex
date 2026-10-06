@@ -339,7 +339,8 @@ defmodule HexTest.Case do
       wait_on_exit(Hex.UpdateChecker.start_link())
 
       reset_state()
-      Hex.Parallel.clear(:hex_fetcher)
+      Hex.Parallel.clear(:hex_registry_fetcher)
+      Hex.Parallel.clear(:hex_tarball_fetcher)
       Mix.shell(Hex.Shell.Process)
       Mix.Task.clear()
       Hex.Shell.Process.flush()
