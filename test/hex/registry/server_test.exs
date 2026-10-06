@@ -33,6 +33,24 @@ defmodule Hex.Registry.ServerTest do
     refute_received {:mix_shell, :error, _}
   end
 
+  test "versions/2 sorts the versions again after they change in the registry" do
+    put_versions = fn versions ->
+      :sys.replace_state(Registry, fn %{ets: tid, fetched: fetched} = state ->
+        :ets.insert(tid, {{:versions, "hexpm", "package"}, versions})
+        %{state | fetched: MapSet.put(fetched, {"hexpm", "package"})}
+      end)
+    end
+
+    put_versions.(["1.1.0", "1.0.0", "1.0.0-rc.1"])
+    assert {:ok, versions} = Registry.versions("hexpm", "package")
+    assert Enum.map(versions, &to_string/1) == ["1.0.0-rc.1", "1.0.0", "1.1.0"]
+    assert {:ok, ^versions} = Registry.versions("hexpm", "package")
+
+    put_versions.(["1.1.0", "2.0.0", "1.0.0"])
+    assert {:ok, versions} = Registry.versions("hexpm", "package")
+    assert Enum.map(versions, &to_string/1) == ["1.0.0", "1.1.0", "2.0.0"]
+  end
+
   describe "failed package fetches" do
     setup do
       Registry.close()
