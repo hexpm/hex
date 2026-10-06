@@ -34,6 +34,8 @@ Hex needs to built for every Elixir supported vMAJOR.MINOR version. Currently th
 
 Always build on the latest patch version and make sure tests pass before building the archive.
 
+Only build on OTP versions that CI tests. Archives don't load on an OTP version older than the one they were built on, and the old CSV format used for Elixir v1.12-v1.16 has no OTP column, so the OTP version used for those archives is the minimum OTP version Hex supports on that Elixir version.
+
 ## Places where version is mentioned
 
 * mix.exs `@version` attribute

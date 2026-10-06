@@ -2,6 +2,10 @@
 
 ## v2.5.2-dev
 
+### Backwards incompatible changes
+
+* Require OTP 24 or later. Hex 2.4.2 to 2.5.1 can't unpack packages on OTP 22, so Hex 2.4.1 is the last release that works there. Hex 2.5.1 is the last release for OTP 23
+
 ### Enhancements
 
 * Print warnings to standard error instead of standard output, keeping stdout clean for machine-readable output such as `mix hex.outdated --json`. Warning-colored lines that are part of a command's regular output, such as retirement notices in `mix hex.info` and the `mix deps.get` dependency listing, remain on standard output
