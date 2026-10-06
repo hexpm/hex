@@ -147,8 +147,9 @@ defmodule Hex.SCM do
     end
 
     fetch_id = {:tarball, repo, name, lock.version}
+    {fetch_result, staged} = Hex.Parallel.await(:hex_tarball_fetcher, fetch_id, @fetch_timeout)
 
-    case Hex.Parallel.await(:hex_tarball_fetcher, fetch_id, @fetch_timeout) do
+    case fetch_result do
       {:ok, :cached} ->
         Hex.Shell.debug("  Using locally cached package (#{path})")
 
@@ -170,33 +171,21 @@ defmodule Hex.SCM do
         Hex.Shell.info("  Fetch failed. Using locally cached package (#{path})")
     end
 
-    File.rm_rf!(dest)
-
-    registry_inner_checksum = Registry.inner_checksum(repo, to_string(name), lock.version)
-    registry_outer_checksum = Registry.outer_checksum(repo, to_string(name), lock.version)
-
-    %{
-      inner_checksum: tarball_inner_checksum,
-      outer_checksum: tarball_outer_checksum,
-      metadata: meta
-    } =
-      try do
-        Hex.Tar.unpack!(path, dest)
-      rescue
-        exception ->
-          File.rm(path)
-          reraise(exception, __STACKTRACE__)
+    {staging, unpacked} =
+      case staged do
+        {:ok, staging, unpacked} -> {staging, unpacked}
+        :error -> unpack!(path, staging_path(dest))
       end
 
-    if tarball_inner_checksum != registry_inner_checksum do
-      File.rm(path)
-      raise("Checksum mismatch against registry (inner)")
-    end
-
-    if tarball_outer_checksum != registry_outer_checksum do
-      File.rm(path)
-      raise("Checksum mismatch against registry (outer)")
-    end
+    %{metadata: meta} =
+      try do
+        verify_checksums!(unpacked, path, repo, name, lock.version)
+        File.rm_rf!(dest)
+        File.rename!(staging, dest)
+        unpacked
+      after
+        File.rm_rf(staging)
+      end
 
     build_tools = guess_build_tools(meta)
 
@@ -230,6 +219,28 @@ defmodule Hex.SCM do
 
     {:hex, String.to_atom(lock.name), lock.version, lock.inner_checksum, managers, deps,
      lock.repo, lock.outer_checksum}
+  end
+
+  defp unpack!(path, staging) do
+    File.rm_rf!(staging)
+    {staging, Hex.Tar.unpack!(path, staging)}
+  rescue
+    exception ->
+      File.rm(path)
+      File.rm_rf(staging)
+      reraise(exception, __STACKTRACE__)
+  end
+
+  defp verify_checksums!(unpacked, path, repo, name, version) do
+    if unpacked.inner_checksum != Registry.inner_checksum(repo, to_string(name), version) do
+      File.rm(path)
+      raise("Checksum mismatch against registry (inner)")
+    end
+
+    if unpacked.outer_checksum != Registry.outer_checksum(repo, to_string(name), version) do
+      File.rm(path)
+      raise("Checksum mismatch against registry (outer)")
+    end
   end
 
   def checkout(opts) do
@@ -366,11 +377,38 @@ defmodule Hex.SCM do
   def prefetch(lock) do
     fetch = fetch_from_lock(lock)
 
-    Enum.each(fetch, fn {repo, package, version} ->
-      Hex.Parallel.run(:hex_tarball_fetcher, {:tarball, repo || "hexpm", package, version}, fn ->
-        fetch(repo, package, version)
+    Enum.each(fetch, fn {repo, package, version, dest} ->
+      repo = repo || "hexpm"
+
+      Hex.Parallel.run(:hex_tarball_fetcher, {:tarball, repo, package, version}, fn ->
+        case fetch(repo, package, version) do
+          {:ok, _} = result -> {result, stage(repo, package, version, dest)}
+          {:error, _} = result -> {result, :error}
+        end
       end)
     end)
+  end
+
+  # Mix updates dependencies one at a time, so packages are unpacked in the
+  # fetch jobs, in parallel, into a directory next to the dependency. The
+  # dependency directory is only replaced by update/1, which verifies the
+  # checksums and renames the unpacked directory into place. If unpacking
+  # fails here, update/1 unpacks the package again to report the error.
+  defp stage(repo, package, version, dest) do
+    staging = staging_path(dest)
+
+    try do
+      File.rm_rf!(staging)
+      {:ok, staging, Hex.Tar.unpack!(cache_path(repo, package, version), staging)}
+    rescue
+      _exception ->
+        File.rm_rf(staging)
+        :error
+    end
+  end
+
+  defp staging_path(dest) do
+    Path.join(Path.dirname(dest), "." <> Path.basename(dest) <> ".hex-staging")
   end
 
   defp fetch_from_lock(lock) do
@@ -383,7 +421,7 @@ defmodule Hex.SCM do
 
           case lock_status(dest: dest, lock: info) do
             :ok -> []
-            :mismatch -> [{repo, name, version}]
+            :mismatch -> [{repo, name, version, dest}]
           end
 
         nil ->
