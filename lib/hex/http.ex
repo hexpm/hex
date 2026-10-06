@@ -215,7 +215,6 @@ defmodule Hex.HTTP do
   defp retryable?(%Hex.Mint.TransportError{reason: :enetunreach}), do: true
   defp retryable?(%Hex.Mint.TransportError{reason: :eprotonosupport}), do: true
   defp retryable?(%Hex.Mint.TransportError{reason: :nxdomain}), do: true
-  defp retryable?(:socket_closed_remotely), do: true
   defp retryable?(_), do: false
 
   defp fallback_inet(%Hex.Mint.TransportError{reason: reason}, inet)
@@ -304,7 +303,7 @@ defmodule Hex.HTTP do
     proxy_connect_opts(uri)
   end
 
-  defp proxy_connect_opts(%URI{host: host, scheme: scheme} = uri) do
+  defp proxy_connect_opts(%URI{host: host, scheme: scheme}) do
     no_proxy = no_proxy()
 
     if host_in_no_proxy?(host, no_proxy) do
@@ -330,13 +329,8 @@ defmodule Hex.HTTP do
         _ ->
           []
       end
-      |> Kernel.++(maybe_proxy_ignored(uri))
     end
   end
-
-  defp proxy_connect_opts(_), do: []
-
-  defp maybe_proxy_ignored(_), do: []
 
   defp proxy_uri_for("http") do
     case Hex.State.fetch!(:http_proxy) do
