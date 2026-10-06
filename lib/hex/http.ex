@@ -215,7 +215,6 @@ defmodule Hex.HTTP do
   defp retryable?(%Hex.Mint.TransportError{reason: :enetunreach}), do: true
   defp retryable?(%Hex.Mint.TransportError{reason: :eprotonosupport}), do: true
   defp retryable?(%Hex.Mint.TransportError{reason: :nxdomain}), do: true
-  defp retryable?(:disconnected), do: true
   defp retryable?(:socket_closed_remotely), do: true
   defp retryable?(_), do: false
 

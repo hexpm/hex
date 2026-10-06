@@ -197,8 +197,8 @@ defmodule Hex.HTTPTest do
   test "routes plain HTTP requests through http_proxy when configured" do
     # Bypass (Cowboy) rejects absolute-URI request lines, which is exactly
     # what an HTTP/1 proxy client sends. Spin up a bare-TCP listener that
-    # records the raw request and returns a canned response. The pool opens
-    # two probe connections so we must accept in a loop and respond to each.
+    # records the raw request and returns a canned response, accepting in a
+    # loop since the pool can open more than one connection.
     me = self()
     {:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
     {:ok, port} = :inet.port(listen)

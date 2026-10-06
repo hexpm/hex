@@ -74,7 +74,7 @@ defmodule Hex.HTTP.PoolTest do
     assert pid_inet4 != pid_inet6
   end
 
-  test "Host spawns a replacement Conn after one crashes", %{bypass: bypass} do
+  test "Host keeps serving requests after a Conn crashes", %{bypass: bypass} do
     Bypass.expect(bypass, fn conn -> Plug.Conn.resp(conn, 200, "ok") end)
 
     url = "http://localhost:#{bypass.port}/"
@@ -83,40 +83,54 @@ defmodule Hex.HTTP.PoolTest do
     {:ok, 200, _, "ok"} = Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts)
 
     host_pid = wait_for_host({:http, "localhost", bypass.port, :inet})
-
-    # Wait for both probe Conns to report ready.
-    wait_until(fn ->
-      state = :sys.get_state(host_pid)
-      ready_count = Enum.count(state.conns, fn {_, info} -> info.ready end)
-      if ready_count >= 2, do: {:ok, state}, else: :retry
-    end)
-
-    state_before = :sys.get_state(host_pid)
-    conn_pids_before = Map.keys(state_before.conns)
-    [victim | _] = conn_pids_before
+    [victim] = Map.keys(:sys.get_state(host_pid).conns)
 
     Process.exit(victim, :kill)
 
-    # Host traps exits and must spawn a replacement — pool size stays stable
-    # and the victim pid is no longer a member.
+    # Host traps exits and removes the Conn
     wait_until(fn ->
-      state = :sys.get_state(host_pid)
-      members = Map.keys(state.conns)
-
-      cond do
-        victim in members ->
-          :retry
-
-        map_size(state.conns) != map_size(state_before.conns) ->
-          :retry
-
-        true ->
-          {:ok, state}
-      end
+      if victim in Map.keys(:sys.get_state(host_pid).conns), do: :retry, else: {:ok, nil}
     end)
 
-    # The pool remains functional after the crash.
     {:ok, 200, _, "ok"} = Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts)
+  end
+
+  test "requests fail with the connect error when the host refuses connections" do
+    {:ok, listen} = :gen_tcp.listen(0, [])
+    {:ok, port} = :inet.port(listen)
+    :ok = :gen_tcp.close(listen)
+
+    url = "http://localhost:#{port}/"
+    pool_opts = [timeout: 5_000]
+
+    for _ <- 1..2 do
+      assert {:error, %Hex.Mint.TransportError{reason: :econnrefused}} =
+               Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts)
+    end
+  end
+
+  test "HTTP/1 opens a connection for each concurrent request", %{bypass: bypass} do
+    {:ok, counter} = Agent.start_link(fn -> {0, 0} end)
+
+    Bypass.expect(bypass, fn conn ->
+      Agent.update(counter, fn {current, max} -> {current + 1, max(current + 1, max)} end)
+      Process.sleep(200)
+      Agent.update(counter, fn {current, max} -> {current - 1, max} end)
+      Plug.Conn.resp(conn, 200, "ok")
+    end)
+
+    url = "http://localhost:#{bypass.port}/"
+    pool_opts = [timeout: 5_000, connect_opts: [protocols: [:http1]]]
+
+    results =
+      1..20
+      |> Enum.map(fn _ ->
+        Task.async(fn -> Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts) end)
+      end)
+      |> Task.await_many(10_000)
+
+    assert Enum.reject(results, &match?({:ok, 200, _, "ok"}, &1)) == []
+    assert Agent.get(counter, fn {_current, max} -> max end) == 20
   end
 
   test "request_to_file streams response body to disk without buffering", %{bypass: bypass} do
@@ -211,7 +225,8 @@ defmodule Hex.HTTP.PoolTest do
     pool_opts = [timeout: 5_000]
 
     # Warm the pool to HTTP/1 (bypass is HTTP/1 only), then spawn more
-    # requests than pool capacity (default 8) so the 9th+ must queue.
+    # requests than there are connections so they queue while new connections
+    # are opened.
     {:ok, 200, _, _} = Hex.HTTP.Pool.request(url_base <> "/warmup", "GET", [], nil, pool_opts)
 
     count = 12
@@ -227,6 +242,27 @@ defmodule Hex.HTTP.PoolTest do
 
     assert length(results) == count
     Enum.each(results, fn {:ok, 200, _, "ok"} -> :ok end)
+  end
+
+  test "requests are dispatched again when the server closes connections after each response",
+       %{bypass: bypass} do
+    Bypass.expect(bypass, fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("connection", "close")
+      |> Plug.Conn.resp(200, "ok")
+    end)
+
+    url = "http://localhost:#{bypass.port}/"
+    pool_opts = [timeout: 10_000, connect_opts: [protocols: [:http1]]]
+
+    results =
+      1..40
+      |> Enum.map(fn _ ->
+        Task.async(fn -> Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts) end)
+      end)
+      |> Task.await_many(15_000)
+
+    assert Enum.reject(results, &match?({:ok, 200, _, "ok"}, &1)) == []
   end
 
   defp chunked_body(body, test_pid) do
