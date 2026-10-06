@@ -5,23 +5,25 @@ defmodule Hex.HTTP.SSL do
   alias Hex.HTTP.Certs
   alias Hex.HTTP.VerifyHostname
 
-  # From https://www.ssllabs.com/ssltest/clients.html Android 7
+  # From https://www.ssllabs.com/ssltest/clients.html Android 7. The suites
+  # HTTP/2 allows (RFC 9113, Appendix A) come first so that servers that pick
+  # the client's preferred suite don't negotiate HTTP/2 with a prohibited one.
   @default_ciphers [
-    ~c"AES128-GCM-SHA256",
-    ~c"AES128-SHA",
-    ~c"AES256-GCM-SHA384",
-    ~c"AES256-SHA",
-    ~c"DES-CBC3-SHA",
     ~c"ECDHE-ECDSA-AES128-GCM-SHA256",
-    ~c"ECDHE-ECDSA-AES128-SHA",
-    ~c"ECDHE-ECDSA-AES256-GCM-SHA384",
-    ~c"ECDHE-ECDSA-AES256-SHA",
-    ~c"ECDHE-ECDSA-CHACHA20-POLY1305-SHA256",
     ~c"ECDHE-RSA-AES128-GCM-SHA256",
-    ~c"ECDHE-RSA-AES128-SHA",
+    ~c"ECDHE-ECDSA-AES256-GCM-SHA384",
     ~c"ECDHE-RSA-AES256-GCM-SHA384",
+    ~c"ECDHE-ECDSA-CHACHA20-POLY1305-SHA256",
+    ~c"ECDHE-RSA-CHACHA20-POLY1305-SHA256",
+    ~c"ECDHE-ECDSA-AES128-SHA",
+    ~c"ECDHE-RSA-AES128-SHA",
+    ~c"ECDHE-ECDSA-AES256-SHA",
     ~c"ECDHE-RSA-AES256-SHA",
-    ~c"ECDHE-RSA-CHACHA20-POLY1305-SHA256"
+    ~c"AES128-GCM-SHA256",
+    ~c"AES256-GCM-SHA384",
+    ~c"AES128-SHA",
+    ~c"AES256-SHA",
+    ~c"DES-CBC3-SHA"
   ]
 
   @default_versions [:"tlsv1.2", :"tlsv1.1", :tlsv1]
