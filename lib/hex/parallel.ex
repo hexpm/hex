@@ -7,8 +7,12 @@ defmodule Hex.Parallel do
   use GenServer
   require Logger
 
-  def start_link([name]) do
-    GenServer.start_link(__MODULE__, [], name: name)
+  def child_spec([name, _max_jobs] = args) do
+    %{id: name, start: {__MODULE__, :start_link, [args]}}
+  end
+
+  def start_link([name, max_jobs]) do
+    GenServer.start_link(__MODULE__, max_jobs, name: name)
   end
 
   def run(name, id, opts \\ [], fun) do
@@ -23,8 +27,8 @@ defmodule Hex.Parallel do
     GenServer.call(name, :clear)
   end
 
-  def init([]) do
-    {:ok, new_state()}
+  def init(max_jobs) do
+    {:ok, new_state(max_jobs.())}
   end
 
   def handle_call({:run, id, opts, fun}, {pid, _ref}, state) do
@@ -128,9 +132,9 @@ defmodule Hex.Parallel do
     end
   end
 
-  defp new_state() do
+  defp new_state(max_jobs) do
     %{
-      max_jobs: Hex.State.fetch!(:http_concurrency),
+      max_jobs: max_jobs,
       running: %{},
       finished: %{},
       waiting: :queue.new(),

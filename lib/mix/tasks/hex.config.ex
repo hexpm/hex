@@ -46,8 +46,9 @@ defmodule Mix.Tasks.Hex.Config do
     * `no_proxy` - A comma separated list of hostnames that will not be proxied,
       asterisks can be used as wildcards. Can be overridden by setting the
       environment variable `no_proxy` or `NO_PROXY`
-    * `http_concurrency` - Limits the number of concurrent HTTP requests in
-      flight. Can be overridden by setting the environment variable
+    * `http_concurrency` - Limits the number of package tarballs fetched
+      concurrently. Registry and policy files are fetched with four times this
+      concurrency. Can be overridden by setting the environment variable
       `HEX_HTTP_CONCURRENCY` (Default: `8`)
     * `http_timeout` - Sets the timeout for HTTP requests in seconds. Can be
       overridden by setting the environment variable `HEX_HTTP_TIMEOUT`
