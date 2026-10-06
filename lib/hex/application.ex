@@ -51,7 +51,8 @@ defmodule Hex.Application do
         Hex.Netrc.Cache,
         Hex.State,
         Hex.Server,
-        {Hex.Parallel, [:hex_fetcher]}
+        {Hex.Parallel, [:hex_registry_fetcher, &registry_concurrency/0]},
+        {Hex.Parallel, [:hex_tarball_fetcher, &tarball_concurrency/0]}
       ]
     end
   else
@@ -60,10 +61,17 @@ defmodule Hex.Application do
         Hex.Netrc.Cache,
         Hex.State,
         Hex.Server,
-        {Hex.Parallel, [:hex_fetcher]},
+        {Hex.Parallel, [:hex_registry_fetcher, &registry_concurrency/0]},
+        {Hex.Parallel, [:hex_tarball_fetcher, &tarball_concurrency/0]},
         Hex.Registry.Server,
         Hex.UpdateChecker
       ]
     end
   end
+
+  # Registry and policy files are a few kilobytes each, so more of them are
+  # fetched at a time than package tarballs
+  defp registry_concurrency, do: 4 * Hex.State.fetch!(:http_concurrency)
+
+  defp tarball_concurrency, do: Hex.State.fetch!(:http_concurrency)
 end

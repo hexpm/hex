@@ -447,7 +447,7 @@ defmodule Hex.Registry.Server do
     Enum.each(packages, fn {repo, package} ->
       etag = package_etag(repo, package, state)
 
-      Hex.Parallel.run(:hex_fetcher, {:registry, repo, package}, [await: false], fn ->
+      Hex.Parallel.run(:hex_registry_fetcher, {:registry, repo, package}, [await: false], fn ->
         {:get_package, repo, package, Hex.Repo.get_package(repo, package, etag)}
       end)
     end)
@@ -483,7 +483,7 @@ defmodule Hex.Registry.Server do
     Enum.each(refs, fn {repo, name} ->
       etag = policy_etag(repo, name, state)
 
-      Hex.Parallel.run(:hex_fetcher, {:policy, repo, name}, [await: false], fn ->
+      Hex.Parallel.run(:hex_registry_fetcher, {:policy, repo, name}, [await: false], fn ->
         {:get_policy, repo, name, Hex.Repo.get_policy(repo, name, etag)}
       end)
     end)

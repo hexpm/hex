@@ -146,7 +146,9 @@ defmodule Hex.SCM do
       )
     end
 
-    case Hex.Parallel.await(:hex_fetcher, {:tarball, repo, name, lock.version}, @fetch_timeout) do
+    fetch_id = {:tarball, repo, name, lock.version}
+
+    case Hex.Parallel.await(:hex_tarball_fetcher, fetch_id, @fetch_timeout) do
       {:ok, :cached} ->
         Hex.Shell.debug("  Using locally cached package (#{path})")
 
@@ -365,7 +367,7 @@ defmodule Hex.SCM do
     fetch = fetch_from_lock(lock)
 
     Enum.each(fetch, fn {repo, package, version} ->
-      Hex.Parallel.run(:hex_fetcher, {:tarball, repo || "hexpm", package, version}, fn ->
+      Hex.Parallel.run(:hex_tarball_fetcher, {:tarball, repo || "hexpm", package, version}, fn ->
         fetch(repo, package, version)
       end)
     end)
