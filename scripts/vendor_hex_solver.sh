@@ -32,7 +32,8 @@ for filename in $(find $dir/lib -type f); do
   echo >> $target_path
   cat $filename >> $target_path
 
-  sed -i.bak 's/@moduledoc """/_ = """/g' $target_path
+  sed -i.bak 's/^\( *\)@moduledoc """/\1@moduledoc false\
+\1_ = """/' $target_path
   rm $target_path.bak
 
   sed -i.bak s/HexSolver/Hex.Solver/g $target_path
