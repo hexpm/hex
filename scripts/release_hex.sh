@@ -47,9 +47,9 @@ function main {
   # UPDATE THIS FOR EVERY RELEASE, ORDER MATTERS
 
   # Elixir v1.12-v1.16 (old CSV format)
-  build_old ${hex_version} 22.3      1.12.3 1.12.0 xenial-20200212
-  build_old ${hex_version} 22.3      1.13.4 1.13.0 xenial-20200212
-  build_old ${hex_version} 23.3      1.14.2 1.14.0 xenial-20210114
+  build_old ${hex_version} 24.3.4.17 1.12.3 1.12.0 focal-20240427
+  build_old ${hex_version} 24.3.4.17 1.13.4 1.13.0 focal-20240427
+  build_old ${hex_version} 24.3.4.17 1.14.2 1.14.0 focal-20250404
   build_old ${hex_version} 24.3.4.17 1.15.8 1.15.0 focal-20240427
   build_old ${hex_version} 24.3.4.17 1.16.3 1.16.0 focal-20240427
 
