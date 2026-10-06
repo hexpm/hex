@@ -548,8 +548,8 @@ defmodule Hex.Registry.Server do
     versions = Enum.map(releases, & &1[:version])
     :ets.insert(tid, {{:versions, repo, package}, versions})
 
-    if etag = headers[~c"etag"] do
-      :ets.insert(tid, {{:registry_etag, repo, package}, List.to_string(etag)})
+    if etag = headers["etag"] do
+      :ets.insert(tid, {{:registry_etag, repo, package}, etag})
     end
   end
 
@@ -566,8 +566,8 @@ defmodule Hex.Registry.Server do
        when code in 200..299 and is_map(decoded) do
     :ets.insert(tid, {{:policy, repo, name}, decoded})
 
-    if etag = headers[~c"etag"] do
-      :ets.insert(tid, {{:policy_etag, repo, name}, List.to_string(etag)})
+    if etag = headers["etag"] do
+      :ets.insert(tid, {{:policy_etag, repo, name}, etag})
     end
   end
 

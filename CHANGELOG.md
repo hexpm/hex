@@ -22,6 +22,7 @@
 * Unpack packages when the current working directory isn't writable
 * Unpack file names that end in an incomplete UTF-8 sequence without trailing zero bytes
 * Keep the existing dependency in `deps` when its new version fails to unpack or doesn't match the checksums in the registry
+* Reuse cached registry and policy files in `mix deps.get` and `mix deps.update` when they haven't changed in the repository. Since Hex 2.1.0 every registry file was downloaded in full on each run, even when it was already cached
 
 ## v2.5.1 (2026-07-09)
 
