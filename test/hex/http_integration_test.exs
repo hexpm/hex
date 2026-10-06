@@ -76,7 +76,7 @@ defmodule Hex.HTTPIntegrationTest do
   end
 
   defp lookup_host(host) do
-    case Registry.lookup(Hex.HTTP.Pool.__registry__(), {:https, host, 443, :inet}) do
+    case Registry.lookup(Hex.HTTP.Pool.__registry__(), {:https, host, 443, :inet, []}) do
       [{pid, _}] -> pid
       [] -> flunk("no Hex.HTTP.Pool.Host registered for #{host}")
     end

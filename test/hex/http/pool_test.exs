@@ -1,6 +1,10 @@
 defmodule Hex.HTTP.PoolTest do
   use HexTest.Case, async: false
 
+  import Hex.Mint.HTTP2.Frame, only: [goaway: 1, settings: 1, window_update: 1]
+
+  alias HexTest.H2Server
+
   setup do
     bypass = Bypass.open()
     {:ok, bypass: bypass}
@@ -63,13 +67,13 @@ defmodule Hex.HTTP.PoolTest do
 
     {:ok, 200, _, "ok"} = Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts_inet4)
 
-    pid_inet4 = wait_for_host({:http, "localhost", bypass.port, :inet})
+    pid_inet4 = wait_for_host({:http, "localhost", bypass.port, :inet, []})
 
     # IPv6 connect likely fails since bypass binds to IPv4; the request will
     # error but a separate Host registration must still have been attempted.
     _ = Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts_inet6)
 
-    pid_inet6 = wait_for_host({:http, "localhost", bypass.port, :inet6})
+    pid_inet6 = wait_for_host({:http, "localhost", bypass.port, :inet6, []})
 
     assert pid_inet4 != pid_inet6
   end
@@ -82,7 +86,7 @@ defmodule Hex.HTTP.PoolTest do
 
     {:ok, 200, _, "ok"} = Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts)
 
-    host_pid = wait_for_host({:http, "localhost", bypass.port, :inet})
+    host_pid = wait_for_host({:http, "localhost", bypass.port, :inet, []})
     [victim] = Map.keys(:sys.get_state(host_pid).conns)
 
     Process.exit(victim, :kill)
@@ -357,5 +361,329 @@ defmodule Hex.HTTP.PoolTest do
 
       assert_received {:received, ^expected_protocol, "hello world"}
     end
+  end
+
+  test "connect options other than transport options get separate Host pools", %{
+    bypass: bypass
+  } do
+    Bypass.expect(bypass, fn conn -> Plug.Conn.resp(conn, 200, "ok") end)
+
+    url = "http://localhost:#{bypass.port}/"
+
+    for protocol <- [:http1, :http2] do
+      pool_opts = [timeout: 5_000, connect_opts: [protocols: [protocol]]]
+      assert {:ok, 200, _, "ok"} = Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts)
+    end
+
+    http1 = wait_for_host({:http, "localhost", bypass.port, :inet, [protocols: [:http1]]})
+    http2 = wait_for_host({:http, "localhost", bypass.port, :inet, [protocols: [:http2]]})
+    assert http1 != http2
+  end
+
+  test "sequential HTTP/1 requests reuse one connection", %{bypass: bypass} do
+    Bypass.expect(bypass, fn conn -> Plug.Conn.resp(conn, 200, "ok") end)
+
+    url = "http://localhost:#{bypass.port}/"
+    pool_opts = [timeout: 5_000, connect_opts: [protocols: [:http1]]]
+
+    for _ <- 1..20 do
+      assert {:ok, 200, _, "ok"} = Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts)
+    end
+
+    host_pid = wait_for_host({:http, "localhost", bypass.port, :inet, [protocols: [:http1]]})
+    assert map_size(:sys.get_state(host_pid).conns) == 1
+  end
+
+  test "concurrent requests fail with the connect error when the host refuses connections" do
+    {:ok, listen} = :gen_tcp.listen(0, [])
+    {:ok, port} = :inet.port(listen)
+    :ok = :gen_tcp.close(listen)
+
+    url = "http://localhost:#{port}/"
+    pool_opts = [timeout: 5_000]
+
+    results =
+      1..8
+      |> Enum.map(fn _ ->
+        Task.async(fn -> Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts) end)
+      end)
+      |> Task.await_many(10_000)
+
+    assert Enum.all?(
+             results,
+             &match?({:error, %Hex.Mint.TransportError{reason: :econnrefused}}, &1)
+           )
+  end
+
+  test "concurrent HTTP/1 requests fail with the connect error when connects start failing" do
+    {:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(listen)
+
+    server =
+      Task.async(fn ->
+        {:ok, socket} = :gen_tcp.accept(listen)
+        {:ok, _request} = :gen_tcp.recv(socket, 0)
+        :ok = :gen_tcp.send(socket, "HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nok")
+        :ok = :gen_tcp.close(listen)
+        socket
+      end)
+
+    url = "http://localhost:#{port}/"
+    pool_opts = [timeout: 5_000]
+
+    assert {:ok, 200, _, "ok"} = Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts)
+    socket = Task.await(server)
+    :ok = :gen_tcp.close(socket)
+
+    host_pid = wait_for_host({:http, "localhost", port, :inet, []})
+
+    wait_until(fn ->
+      if map_size(:sys.get_state(host_pid).conns) == 0, do: {:ok, nil}, else: :retry
+    end)
+
+    results =
+      1..8
+      |> Enum.map(fn _ ->
+        Task.async(fn -> Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts) end)
+      end)
+      |> Task.await_many(10_000)
+
+    assert Enum.all?(
+             results,
+             &match?({:error, %Hex.Mint.TransportError{reason: :econnrefused}}, &1)
+           )
+  end
+
+  test "a request is cancelled when its caller exits" do
+    {:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(listen)
+    test_pid = self()
+
+    spawn_link(fn ->
+      {:ok, socket} = :gen_tcp.accept(listen)
+      {:ok, _request} = :gen_tcp.recv(socket, 0)
+      send(test_pid, :server_got_request)
+      send(test_pid, {:server_recv, :gen_tcp.recv(socket, 0)})
+    end)
+
+    url = "http://localhost:#{port}/never"
+
+    tmp =
+      Path.join(System.tmp_dir!(), "hex-http-pool-cancel-#{System.unique_integer([:positive])}")
+
+    pool_opts = [timeout: 500]
+
+    task =
+      Task.async(fn -> Hex.HTTP.Pool.request_to_file(url, "GET", [], nil, tmp, pool_opts) end)
+
+    assert_receive :server_got_request, 1_000
+    assert Task.await(task) == {:error, :timeout}
+
+    assert_receive {:server_recv, {:error, :closed}}, 1_000
+    wait_until(fn -> if File.exists?(tmp), do: :retry, else: {:ok, nil} end)
+  end
+
+  test "a waiting request is dropped when its caller exits" do
+    port = H2Server.start(settings: [max_concurrent_streams: 1], accept: 1)
+    url = "http://localhost:#{port}"
+    connect_opts = [protocols: [:http2], transport_opts: [timeout: 2_000]]
+    pool_opts = [timeout: 5_000, connect_opts: connect_opts]
+
+    first =
+      Task.async(fn -> Hex.HTTP.Pool.request(url <> "/first", "GET", [], nil, pool_opts) end)
+
+    assert_receive {:h2_request, conn, stream_id, _headers}, 1_000
+
+    second_opts = Keyword.put(pool_opts, :timeout, 200)
+
+    second =
+      Task.async(fn -> Hex.HTTP.Pool.request(url <> "/second", "GET", [], nil, second_opts) end)
+
+    assert Task.await(second) == {:error, :timeout}
+
+    host_pid = wait_for_host({:http, "localhost", port, :inet, [protocols: [:http2]]})
+
+    wait_until(fn ->
+      if :queue.is_empty(:sys.get_state(host_pid).waiters), do: {:ok, nil}, else: :retry
+    end)
+
+    H2Server.respond(conn, stream_id, 200, "first")
+    assert {:ok, 200, _, "first"} = Task.await(first)
+    refute_received {:h2_request, _conn, _stream_id, _headers}
+  end
+
+  test "HTTP/2 requests stay within the server's max_concurrent_streams" do
+    port = H2Server.start(settings: [max_concurrent_streams: 1])
+    url = "http://localhost:#{port}/"
+    pool_opts = [timeout: 5_000, connect_opts: [protocols: [:http2]]]
+
+    tasks =
+      for _ <- 1..3 do
+        Task.async(fn -> Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts) end)
+      end
+
+    for _ <- 1..3 do
+      assert_receive {:h2_request, conn, stream_id, _headers}, 2_000
+      H2Server.respond(conn, stream_id, 200, "ok")
+    end
+
+    assert Enum.all?(Task.await_many(tasks), &match?({:ok, 200, _, "ok"}, &1))
+  end
+
+  test "HTTP/2 capacity follows changes to the server's max_concurrent_streams" do
+    port = H2Server.start()
+    url = "http://localhost:#{port}/"
+    pool_opts = [timeout: 5_000, connect_opts: [protocols: [:http2]]]
+
+    first = Task.async(fn -> Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts) end)
+    assert_receive {:h2_request, conn, stream_id, _headers}, 1_000
+    H2Server.respond(conn, stream_id, 200, "ok")
+    assert {:ok, 200, _, "ok"} = Task.await(first)
+
+    host_pid = wait_for_host({:http, "localhost", port, :inet, [protocols: [:http2]]})
+    H2Server.send_frames(conn, [settings(params: [max_concurrent_streams: 1])])
+
+    wait_until(fn ->
+      case Map.values(:sys.get_state(host_pid).conns) do
+        [%{capacity: 1}] -> {:ok, nil}
+        _ -> :retry
+      end
+    end)
+
+    tasks =
+      for _ <- 1..3 do
+        Task.async(fn -> Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts) end)
+      end
+
+    for _ <- 1..3 do
+      assert_receive {:h2_request, conn, stream_id, _headers}, 2_000
+      H2Server.respond(conn, stream_id, 200, "ok")
+    end
+
+    assert Enum.all?(Task.await_many(tasks), &match?({:ok, 200, _, "ok"}, &1))
+  end
+
+  test "GOAWAY fails the requests the server didn't process and completes the others" do
+    port = H2Server.start()
+    url = "http://localhost:#{port}"
+    pool_opts = [timeout: 5_000, connect_opts: [protocols: [:http2]]]
+
+    tasks =
+      for path <- ["/a", "/b"], into: %{} do
+        {path,
+         Task.async(fn -> Hex.HTTP.Pool.request(url <> path, "GET", [], nil, pool_opts) end)}
+      end
+
+    assert_receive {:h2_request, conn, first_stream, first_headers}, 1_000
+    assert_receive {:h2_request, ^conn, second_stream, second_headers}, 1_000
+    assert second_stream > first_stream
+
+    H2Server.send_frames(conn, [
+      goaway(last_stream_id: first_stream, error_code: :no_error, debug_data: "")
+    ])
+
+    H2Server.respond(conn, first_stream, 200, "ok")
+
+    processed = :proplists.get_value(":path", first_headers)
+    unprocessed = :proplists.get_value(":path", second_headers)
+
+    assert {:ok, 200, _, "ok"} = Task.await(tasks[processed])
+
+    assert {:error, %Hex.Mint.HTTPError{reason: :unprocessed}} =
+             Task.await(tasks[unprocessed])
+
+    assert_receive {:h2_closed, ^conn}, 1_000
+  end
+
+  test "a request body that can't be sent after GOAWAY fails only that request" do
+    port = H2Server.start(settings: [initial_window_size: 10])
+    url = "http://localhost:#{port}"
+    pool_opts = [timeout: 5_000, connect_opts: [protocols: [:http2]]]
+    body = String.duplicate("x", 1_000)
+
+    upload =
+      Task.async(fn -> Hex.HTTP.Pool.request(url <> "/upload", "POST", [], body, pool_opts) end)
+
+    download =
+      Task.async(fn -> Hex.HTTP.Pool.request(url <> "/download", "GET", [], nil, pool_opts) end)
+
+    requests =
+      for _ <- 1..2, into: %{} do
+        assert_receive {:h2_request, conn, stream_id, headers}, 1_000
+        {:proplists.get_value(":path", headers), {conn, stream_id}}
+      end
+
+    {conn, upload_stream} = requests["/upload"]
+    {^conn, download_stream} = requests["/download"]
+    assert_receive {:h2_data, ^conn, ^upload_stream, _data}, 1_000
+
+    H2Server.send_frames(conn, [
+      goaway(
+        last_stream_id: max(upload_stream, download_stream),
+        error_code: :no_error,
+        debug_data: ""
+      ),
+      window_update(stream_id: upload_stream, window_size_increment: 1_000)
+    ])
+
+    assert {:error, %Hex.Mint.HTTPError{reason: :closed_for_writing}} = Task.await(upload)
+
+    H2Server.respond(conn, download_stream, 200, "ok")
+    assert {:ok, 200, _, "ok"} = Task.await(download)
+  end
+
+  test "HTTP/2 connections disable server push" do
+    port = H2Server.start()
+    url = "http://localhost:#{port}/"
+    pool_opts = [timeout: 5_000, connect_opts: [protocols: [:http2]]]
+
+    task = Task.async(fn -> Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts) end)
+
+    assert_receive {:h2_settings, conn, params}, 1_000
+    assert Keyword.fetch!(params, :enable_push) == false
+
+    assert_receive {:h2_request, ^conn, stream_id, _headers}, 1_000
+    H2Server.respond(conn, stream_id, 200, "ok")
+    assert {:ok, 200, _, "ok"} = Task.await(task)
+  end
+
+  test "idle connections are closed" do
+    port = H2Server.start()
+    url = "http://localhost:#{port}/"
+    pool_opts = [timeout: 5_000, idle_timeout: 100, connect_opts: [protocols: [:http2]]]
+
+    task = Task.async(fn -> Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts) end)
+    assert_receive {:h2_request, conn, stream_id, _headers}, 1_000
+    H2Server.respond(conn, stream_id, 200, "ok")
+    assert {:ok, 200, _, "ok"} = Task.await(task)
+
+    assert_receive {:h2_closed, ^conn}, 1_000
+  end
+
+  test "requests fail when their Conn exits without replying" do
+    port = H2Server.start()
+    url = "http://localhost:#{port}/"
+    pool_opts = [timeout: 5_000, connect_opts: [protocols: [:http2]]]
+
+    task = Task.async(fn -> Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts) end)
+    assert_receive {:h2_request, _conn, _stream_id, _headers}, 1_000
+
+    host_pid = wait_for_host({:http, "localhost", port, :inet, [protocols: [:http2]]})
+    [victim] = Map.keys(:sys.get_state(host_pid).conns)
+    Process.exit(victim, :kill)
+
+    assert Task.await(task) == {:error, :killed}
+  end
+
+  test "requests fail when the server sends GOAWAY with its SETTINGS" do
+    goaway = goaway(last_stream_id: 0, error_code: :no_error, debug_data: "")
+    port = H2Server.start(after_settings: [goaway])
+    url = "http://localhost:#{port}/"
+    pool_opts = [timeout: 5_000, connect_opts: [protocols: [:http2]]]
+
+    assert {:error, %Hex.Mint.HTTPError{reason: :closed_for_writing}} =
+             Hex.HTTP.Pool.request(url, "GET", [], nil, pool_opts)
+
+    refute_received {:h2_request, _conn, _stream_id, _headers}
   end
 end

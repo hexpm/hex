@@ -8,29 +8,41 @@ defmodule Hex.HTTP.Pool.Conn do
   # transfer is ever needed.
   #
   # After connecting, we report the negotiated protocol and per-conn request
-  # capacity back to the parent `Hex.HTTP.Pool.Host`. Requests arrive as casts
-  # carrying the caller's `from` tuple; when the request completes we reply
-  # directly to that `from` via `GenServer.reply/2` and notify the host so it
-  # can decrement its in-flight count for load-based dispatch.
+  # capacity back to the parent `Hex.HTTP.Pool.Host`. On HTTP/2 that happens
+  # once the server's SETTINGS frame has arrived, so the capacity is the
+  # server's `max_concurrent_streams`, and later changes to it are reported
+  # with `:conn_capacity`.
+  #
+  # Requests arrive as casts carrying the caller's `from` tuple. When a request
+  # completes we cast `:req_done` to the host, so it can dispatch the next
+  # request, and then reply directly to `from` via `GenServer.reply/2`. Callers
+  # are monitored and their requests are cancelled when they exit, for example
+  # when `Hex.HTTP` gives up on a request after its timeout.
   #
   # A Conn holds a single connection. When connecting fails or the connection
   # closes it tells the host, which opens new connections when requests need
-  # them and stops this process with `:stop`.
+  # them and stops this process with `:stop`. A connection without requests
+  # for `idle_timeout` milliseconds is closed.
 
   use GenServer
 
   alias Hex.Mint.HTTP, as: MintHTTP
+  alias Hex.Mint.HTTP2, as: MintHTTP2
 
-  def start_link({host_pid, key, connect_opts}) do
-    GenServer.start_link(__MODULE__, {host_pid, key, connect_opts})
+  @default_connect_timeout 30_000
+
+  def start_link({host_pid, key, connect_opts, idle_timeout}) do
+    GenServer.start_link(__MODULE__, {host_pid, key, connect_opts, idle_timeout})
   end
 
   @impl true
-  def init({host_pid, key, connect_opts}) do
+  def init({host_pid, key, connect_opts, idle_timeout}) do
     state = %{
       host_pid: host_pid,
       key: key,
       connect_opts: connect_opts,
+      idle_timeout: idle_timeout,
+      idle_timer: nil,
       conn: nil,
       protocol: nil,
       capacity: 0,
@@ -49,22 +61,25 @@ defmodule Hex.HTTP.Pool.Conn do
     {:stop, :normal, state}
   end
 
-  def handle_cast({:request, from, method, path, headers, body}, %{status: :ready} = state) do
-    start_request(state, from, method, path, headers, body, nil)
+  def handle_cast(
+        {:request, _from, _method, _path, _headers, _body} = request,
+        %{status: :ready} = state
+      ) do
+    start_request(state, request, nil)
   end
 
   def handle_cast(
-        {:request_to_file, from, method, path, headers, body, filename},
+        {:request_to_file, from, _method, _path, _headers, _body, filename} = request,
         %{status: :ready} = state
       ) do
     case File.open(filename, [:write, :raw, :binary]) do
       {:ok, fd} ->
-        start_request(state, from, method, path, headers, body, %{fd: fd, filename: filename})
+        start_request(state, request, %{fd: fd, filename: filename})
 
       {:error, reason} ->
+        GenServer.cast(state.host_pid, {:req_done, self(), from})
         GenServer.reply(from, {:error, reason})
-        GenServer.cast(state.host_pid, {:req_done, self()})
-        {:noreply, state}
+        noreply(state)
     end
   end
 
@@ -73,29 +88,51 @@ defmodule Hex.HTTP.Pool.Conn do
   # that closed the connection. Hand the request back to be dispatched again.
   def handle_cast(request, state) do
     GenServer.cast(state.host_pid, {:requeue, self(), request})
-    {:noreply, state}
+    noreply(state)
   end
 
   @impl true
+  def handle_info({:DOWN, monitor, :process, _pid, _reason}, state) do
+    case Enum.find(state.requests, fn {_ref, req} -> req.monitor == monitor end) do
+      {ref, _req} -> noreply(cancel_request(state, ref, nil))
+      nil -> noreply(state)
+    end
+  end
+
+  def handle_info(:handshake_timeout, %{status: :handshaking} = state) do
+    noreply(close(state, %Hex.Mint.TransportError{reason: :timeout}))
+  end
+
+  def handle_info({:idle_timeout, token}, %{idle_timer: token, requests: requests} = state)
+      when requests == %{} do
+    noreply(close(state, :idle))
+  end
+
   def handle_info(message, %{conn: conn} = state) when conn != nil do
     case MintHTTP.stream(conn, message) do
       {:ok, conn, responses} ->
         state = %{state | conn: conn}
         state = Enum.reduce(responses, state, &process_response/2)
-        send_bodies(state)
+
+        state
+        |> handshake_done()
+        |> update_capacity()
+        |> send_bodies()
+        |> maybe_draining()
+        |> noreply()
 
       {:error, conn, reason, responses} ->
         state = %{state | conn: conn}
         state = Enum.reduce(responses, state, &process_response/2)
         state = fail_in_flight(state, reason)
-        {:noreply, close(state)}
+        noreply(close(state, reason))
 
       :unknown ->
-        {:noreply, state}
+        noreply(state)
     end
   end
 
-  def handle_info(_, state), do: {:noreply, state}
+  def handle_info(_, state), do: noreply(state)
 
   @impl true
   def terminate(_reason, state) do
@@ -114,7 +151,9 @@ defmodule Hex.HTTP.Pool.Conn do
   # With `expect: 100-continue` the body is held back until the server sends
   # `100 Continue`. If the final response arrives first the body is never sent.
 
-  defp start_request(state, from, method, path, headers, body, sink) do
+  defp start_request(state, request, sink) do
+    {method, path, headers, body} = request_args(request)
+    from = elem(request, 1)
     {headers, body} = request_body(headers, body)
     mint_body = if body, do: :stream
 
@@ -127,15 +166,48 @@ defmodule Hex.HTTP.Pool.Conn do
             true -> {:sending, body}
           end
 
-        req = %{from: from, status: nil, headers: [], data: [], sink: sink, body: body}
+        {pid, _tag} = from
+        monitor = Process.monitor(pid)
+
+        req = %{
+          from: from,
+          monitor: monitor,
+          status: nil,
+          headers: [],
+          data: [],
+          sink: sink,
+          body: body
+        }
+
         state = %{state | conn: conn, requests: Map.put(state.requests, ref, req)}
-        send_bodies(state)
+        state |> send_bodies() |> maybe_draining() |> noreply()
+
+      # The server lowered max_concurrent_streams after the host dispatched
+      # the request, it wasn't sent
+      {:error, conn, %Hex.Mint.HTTPError{reason: :too_many_concurrent_requests}} ->
+        close_sink(%{sink: sink})
+        GenServer.cast(state.host_pid, {:requeue, self(), request})
+        noreply(%{state | conn: conn})
 
       {:error, conn, reason} ->
         close_sink(%{sink: sink})
-        request_error(from, reason, %{state | conn: conn})
+        GenServer.cast(state.host_pid, {:req_done, self(), from})
+        GenServer.reply(from, {:error, reason})
+        state = %{state | conn: conn}
+
+        if MintHTTP.open?(conn, :write) do
+          noreply(state)
+        else
+          state |> fail_in_flight(reason) |> close(reason) |> noreply()
+        end
     end
   end
+
+  defp request_args({:request, _from, method, path, headers, body}),
+    do: {method, path, headers, body}
+
+  defp request_args({:request_to_file, _from, method, path, headers, body, _filename}),
+    do: {method, path, headers, body}
 
   # A body is `{buffer, next}` where `buffer` is the binary still to be sent
   # and `next` is the `{fun, offset}` producer for the rest, or nil.
@@ -160,30 +232,39 @@ defmodule Hex.HTTP.Pool.Conn do
     end)
   end
 
+  defp send_bodies(%{conn: nil} = state), do: state
+
   defp send_bodies(state) do
-    result =
-      Enum.reduce_while(state.requests, {:ok, state}, fn
-        {ref, %{body: {:sending, body}}}, {:ok, state} ->
-          case send_body(state.conn, ref, body) do
-            {:ok, conn, body} ->
-              body = if body, do: {:sending, body}
-              state = %{state | conn: conn}
-              {:cont, {:ok, put_in(state.requests[ref].body, body)}}
+    Enum.reduce(state.requests, state, fn
+      {ref, %{body: {:sending, body}}}, %{conn: conn} = state when conn != nil ->
+        if Map.has_key?(state.requests, ref) do
+          send_request_body(state, ref, body)
+        else
+          state
+        end
 
-            {:error, conn, reason} ->
-              {:halt, {:error, %{state | conn: conn}, reason}}
-          end
+      _other, state ->
+        state
+    end)
+  end
 
-        _other, acc ->
-          {:cont, acc}
-      end)
+  defp send_request_body(state, ref, body) do
+    case send_body(state.conn, ref, body) do
+      {:ok, conn, body} ->
+        body = if body, do: {:sending, body}
+        state = %{state | conn: conn}
+        put_in(state.requests[ref].body, body)
 
-    case result do
-      {:ok, state} ->
-        {:noreply, maybe_draining(state)}
+      {:error, conn, reason} ->
+        state = %{state | conn: conn}
 
-      {:error, state, reason} ->
-        {:noreply, state |> fail_in_flight(reason) |> close()}
+        # After GOAWAY Mint refuses to send more of the body but the
+        # connection still delivers the responses to the other requests
+        if MintHTTP.open?(conn, :read) do
+          cancel_request(state, ref, reason)
+        else
+          state |> fail_in_flight(reason) |> close(reason)
+        end
     end
   end
 
@@ -221,54 +302,88 @@ defmodule Hex.HTTP.Pool.Conn do
     end
   end
 
-  defp request_error(from, reason, state) do
-    GenServer.reply(from, {:error, reason})
-    GenServer.cast(state.host_pid, {:req_done, self()})
-
-    if MintHTTP.open?(state.conn, :write) do
-      {:noreply, state}
-    else
-      {:noreply, state |> fail_in_flight(reason) |> close()}
-    end
-  end
-
   ## Connect
 
-  defp do_connect(%{key: {scheme, host, port, _inet}, connect_opts: opts} = state) do
+  defp do_connect(%{key: {scheme, host, port, _inet, _opts}, connect_opts: opts} = state) do
     # Negotiate HTTP/2 via ALPN when the server supports it; fall back to HTTP/1.
     # Both protocols are equivalent on `mix deps.get` wall time and HTTP/2 uses
     # slightly less CPU (fewer TLS handshakes). Mint's default HTTP/2 receive
     # windows (4 MB per stream, 16 MB per connection) are already tuned for bulk
-    # downloads, so no extra tuning is needed here.
-    opts = Keyword.merge([protocols: [:http1, :http2]], opts)
+    # downloads, so no extra tuning is needed here. Hex has no use for server
+    # push.
+    opts =
+      [protocols: [:http1, :http2]]
+      |> Keyword.merge(opts)
+      |> Keyword.update(:client_settings, [enable_push: false], &[{:enable_push, false} | &1])
 
     case MintHTTP.connect(scheme, host, port, opts) do
       {:ok, conn} ->
-        protocol = MintHTTP.protocol(conn)
-        capacity = compute_capacity(conn, protocol)
-        GenServer.cast(state.host_pid, {:conn_ready, self(), protocol, capacity})
+        state = %{state | conn: conn, protocol: MintHTTP.protocol(conn)}
 
-        {:noreply, %{state | conn: conn, protocol: protocol, capacity: capacity, status: :ready}}
+        case state.protocol do
+          :http1 ->
+            noreply(ready(state, 1))
+
+          :http2 ->
+            timeout = get_in(opts, [:transport_opts, :timeout]) || @default_connect_timeout
+            Process.send_after(self(), :handshake_timeout, timeout)
+            noreply(handshake_done(%{state | status: :handshaking}))
+        end
 
       {:error, reason} ->
         GenServer.cast(state.host_pid, {:conn_failed, self(), reason})
-        {:noreply, %{state | status: :closed}}
+        noreply(%{state | status: :closed})
     end
   end
 
-  defp close(state) do
+  # Mint returns from connect before the server's SETTINGS frame has arrived,
+  # its connection stays in the `:handshaking` state until then
+  defp handshake_done(%{status: :handshaking, conn: %MintHTTP2{state: :handshaking}} = state) do
+    state
+  end
+
+  # A server that sends GOAWAY right after its SETTINGS frame takes no requests
+  defp handshake_done(%{status: :handshaking, conn: conn} = state) do
+    if MintHTTP.open?(conn, :write) do
+      ready(state, MintHTTP2.get_server_setting(conn, :max_concurrent_streams))
+    else
+      close(state, %Hex.Mint.HTTPError{module: MintHTTP2, reason: :closed_for_writing})
+    end
+  end
+
+  defp handshake_done(state), do: state
+
+  defp ready(state, capacity) do
+    GenServer.cast(state.host_pid, {:conn_ready, self(), state.protocol, capacity})
+    %{state | status: :ready, capacity: capacity}
+  end
+
+  defp update_capacity(%{protocol: :http2, status: status, conn: conn} = state)
+       when status in [:ready, :draining] and conn != nil do
+    case MintHTTP2.get_server_setting(conn, :max_concurrent_streams) do
+      capacity when capacity == state.capacity ->
+        state
+
+      capacity ->
+        GenServer.cast(state.host_pid, {:conn_capacity, self(), capacity})
+        %{state | capacity: capacity}
+    end
+  end
+
+  defp update_capacity(state), do: state
+
+  # A connection that closes before it was ready counts as a failed connect so
+  # the host doesn't keep replacing it
+  defp close(state, reason) do
     if state.conn, do: safe_close(state.conn)
-    GenServer.cast(state.host_pid, {:conn_closed, self()})
-    %{state | conn: nil, status: :closed}
-  end
 
-  defp compute_capacity(_conn, :http1), do: 1
-
-  defp compute_capacity(conn, :http2) do
-    case Hex.Mint.HTTP2.get_server_setting(conn, :max_concurrent_streams) do
-      n when is_integer(n) and n > 0 -> n
-      _ -> 100
+    if state.status in [:connecting, :handshaking] do
+      GenServer.cast(state.host_pid, {:conn_failed, self(), reason})
+    else
+      GenServer.cast(state.host_pid, {:conn_closed, self()})
     end
+
+    %{state | conn: nil, status: :closed}
   end
 
   ## Draining (server sent GOAWAY)
@@ -284,7 +399,7 @@ defmodule Hex.HTTP.Pool.Conn do
   defp maybe_draining(state), do: drain_if_done(state)
 
   defp drain_if_done(%{status: :draining, requests: reqs} = state) when reqs == %{} do
-    close(state)
+    close(state, :closed)
   end
 
   defp drain_if_done(state), do: state
@@ -294,6 +409,24 @@ defmodule Hex.HTTP.Pool.Conn do
     %{state | status: :draining}
   end
 
+  ## Idle connections
+
+  defp noreply(state), do: {:noreply, idle_timer(state)}
+
+  defp idle_timer(%{status: :ready, requests: requests, idle_timer: nil} = state)
+       when requests == %{} do
+    token = make_ref()
+    Process.send_after(self(), {:idle_timeout, token}, state.idle_timeout)
+    %{state | idle_timer: token}
+  end
+
+  defp idle_timer(%{requests: requests, idle_timer: token} = state)
+       when requests != %{} and token != nil do
+    %{state | idle_timer: nil}
+  end
+
+  defp idle_timer(state), do: state
+
   ## Response handling
 
   defp process_response({:status, ref, status}, state) do
@@ -302,10 +435,7 @@ defmodule Hex.HTTP.Pool.Conn do
     # bleed headers into the final response that follows on the same ref.
     # When streaming to a file, rewind the sink so any partial writes from a
     # prior response on this ref are discarded.
-    update_in(state.requests[ref], fn
-      nil ->
-        nil
-
+    update_request(state, ref, fn
       %{sink: %{fd: fd}} = req ->
         _ = :file.position(fd, 0)
         _ = :file.truncate(fd)
@@ -317,55 +447,52 @@ defmodule Hex.HTTP.Pool.Conn do
   end
 
   defp process_response({:headers, ref, headers}, state) do
-    update_in(state.requests[ref], fn req ->
-      req && %{req | headers: req.headers ++ headers}
-    end)
+    update_request(state, ref, fn req -> %{req | headers: req.headers ++ headers} end)
   end
 
   defp process_response({:data, ref, chunk}, state) do
-    case state.requests[ref] do
-      %{sink: %{fd: fd}} ->
+    case Map.fetch(state.requests, ref) do
+      {:ok, %{sink: %{fd: fd}}} ->
         case :file.write(fd, chunk) do
           :ok -> state
-          {:error, reason} -> abort_request(state, ref, reason)
+          {:error, reason} -> cancel_request(state, ref, reason)
         end
 
-      %{} = _req ->
-        update_in(state.requests[ref], fn req -> %{req | data: [req.data | chunk]} end)
+      {:ok, req} ->
+        put_in(state.requests[ref], %{req | data: [req.data | chunk]})
 
-      nil ->
+      :error ->
         state
     end
   end
 
   defp process_response({:done, ref}, state) do
-    case Map.pop(state.requests, ref) do
-      {nil, _} ->
-        state
-
-      {req, requests} ->
-        state = %{state | requests: requests}
+    case Map.fetch(state.requests, ref) do
+      {:ok, req} ->
         state = if req.body, do: close_unfinished_request(state), else: state
-        GenServer.reply(req.from, {:ok, req.status, req.headers, response_body(req)})
-        GenServer.cast(state.host_pid, {:req_done, self()})
+        finish_request(state, ref, {:ok, req.status, req.headers, response_body(req)})
+
+      :error ->
         state
     end
   end
 
   defp process_response({:error, ref, reason}, state) do
-    case Map.pop(state.requests, ref) do
-      {nil, _} ->
-        state
-
-      {req, requests} ->
-        close_sink(req)
-        GenServer.reply(req.from, {:error, reason})
-        GenServer.cast(state.host_pid, {:req_done, self()})
-        %{state | requests: requests}
+    if Map.has_key?(state.requests, ref) do
+      finish_request(state, ref, {:error, reason})
+    else
+      state
     end
   end
 
   defp process_response(_other, state), do: state
+
+  defp update_request(state, ref, fun) do
+    case Map.fetch(state.requests, ref) do
+      {:ok, req} -> put_in(state.requests[ref], fun.(req))
+      :error -> state
+    end
+  end
 
   defp response_body(%{sink: %{fd: fd}}) do
     _ = File.close(fd)
@@ -396,17 +523,43 @@ defmodule Hex.HTTP.Pool.Conn do
     %{req | status: status, headers: [], data: [], body: body}
   end
 
-  defp abort_request(state, ref, reason) do
-    case Map.pop(state.requests, ref) do
-      {nil, _} ->
-        state
+  ## Finishing requests
 
-      {req, requests} ->
-        close_sink(req)
-        GenServer.reply(req.from, {:error, reason})
-        GenServer.cast(state.host_pid, {:req_done, self()})
-        %{state | requests: requests}
-    end
+  # Ends a request whose response hasn't finished. On HTTP/2 the stream is
+  # reset, an HTTP/1 connection can't be reused in the middle of a response so
+  # it's closed. The caller gets `{:error, reason}`, unless reason is nil
+  # because the caller is gone.
+  defp cancel_request(state, ref, reason) do
+    state =
+      case state.protocol do
+        :http2 ->
+          case MintHTTP2.cancel_request(state.conn, ref) do
+            {:ok, conn} -> %{state | conn: conn}
+            {:error, conn, _reason} -> %{state | conn: conn}
+          end
+
+        :http1 ->
+          {req, requests} = Map.pop(state.requests, ref)
+          state = %{state | requests: requests}
+          state = state |> fail_in_flight(reason || :closed) |> close(:closed)
+          %{state | requests: %{ref => req}}
+      end
+
+    finish_request(state, ref, reason && {:error, reason})
+  end
+
+  # `req_done` is cast before the reply so that the host knows the conn has
+  # capacity again before the caller sends its next request
+  defp finish_request(state, ref, result) do
+    {req, requests} = Map.pop(state.requests, ref)
+    Process.demonitor(req.monitor, [:flush])
+
+    if result == nil or match?({:error, _}, result), do: close_sink(req)
+
+    GenServer.cast(state.host_pid, {:req_done, self(), req.from})
+    if result, do: GenServer.reply(req.from, result)
+
+    %{state | requests: requests}
   end
 
   defp close_sink(%{sink: %{fd: fd, filename: filename}}) do
@@ -418,13 +571,9 @@ defmodule Hex.HTTP.Pool.Conn do
   defp close_sink(_), do: :ok
 
   defp fail_in_flight(state, reason) do
-    Enum.each(state.requests, fn {_ref, req} ->
-      close_sink(req)
-      GenServer.reply(req.from, {:error, reason})
-      GenServer.cast(state.host_pid, {:req_done, self()})
+    Enum.reduce(Map.keys(state.requests), state, fn ref, state ->
+      finish_request(state, ref, {:error, reason})
     end)
-
-    %{state | requests: %{}}
   end
 
   defp safe_close(conn) do

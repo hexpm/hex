@@ -3,8 +3,8 @@ defmodule Hex.HTTP.Pool do
 
   # Top-level Mint-based HTTP connection pool.
   #
-  # Owns a Registry and a DynamicSupervisor. Each {scheme, host, port} maps to
-  # one `Hex.HTTP.Pool.Host` child which owns its own pool of
+  # Owns a Registry and a DynamicSupervisor. Each {scheme, host, port, inet,
+  # opts} maps to one `Hex.HTTP.Pool.Host` child which owns its own pool of
   # `Hex.HTTP.Pool.Conn` processes. Protocol (HTTP/1 vs HTTP/2) is discovered
   # inside the Conn on its first connect, so this layer is protocol-agnostic.
 
@@ -14,6 +14,8 @@ defmodule Hex.HTTP.Pool do
 
   @registry Hex.HTTP.Pool.Registry
   @dyn_sup Hex.HTTP.Pool.DynamicSupervisor
+  @default_timeout 15_000
+  @default_idle_timeout 120_000
 
   def start_link(_opts \\ []) do
     Supervisor.start_link(__MODULE__, [], name: __MODULE__)
@@ -40,22 +42,22 @@ defmodule Hex.HTTP.Pool do
     * `opts` - keyword list, supports:
         * `:timeout` - total timeout ms (default 15_000)
         * `:connect_opts` - keyword list passed to `Hex.Mint.HTTP.connect/4`
+        * `:idle_timeout` - ms after which idle connections are closed
+          (default 120_000), only used when the host's pool is started
 
   The pool key includes the IPv4/IPv6 variant (derived from `connect_opts`'
   `:inet4`/`:inet6` transport flags) so `Hex.HTTP`'s IPv4↔IPv6 retry fallback
   actually takes effect: a retry with the opposite inet variant gets its own
   Host pool and connects with the new flags, rather than being routed to the
-  existing pool that still carries the original variant's connect_opts.
+  existing pool that still carries the original variant's connect_opts. The
+  other connect options except `:transport_opts`, such as the proxy, are part
+  of the key for the same reason.
   """
   def request(url, method, headers, body, opts) do
-    {scheme, host, port, path} = parse_url(url)
-    connect_opts = Keyword.get(opts, :connect_opts, [])
-    inet = inet_variant(connect_opts)
-    key = {scheme, host, port, inet}
+    {key, path} = key(url, opts)
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
 
-    timeout = Keyword.get(opts, :timeout, 15_000)
-
-    pid = get_or_start_host(key, connect_opts)
+    pid = get_or_start_host(key, opts)
     Host.request(pid, method, path, headers, body, timeout)
   end
 
@@ -67,15 +69,18 @@ defmodule Hex.HTTP.Pool do
   truncated/removed so the caller never sees a half-written payload.
   """
   def request_to_file(url, method, headers, body, filename, opts) do
+    {key, path} = key(url, opts)
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
+
+    pid = get_or_start_host(key, opts)
+    Host.request_to_file(pid, method, path, headers, body, filename, timeout)
+  end
+
+  defp key(url, opts) do
     {scheme, host, port, path} = parse_url(url)
     connect_opts = Keyword.get(opts, :connect_opts, [])
     inet = inet_variant(connect_opts)
-    key = {scheme, host, port, inet}
-
-    timeout = Keyword.get(opts, :timeout, 15_000)
-
-    pid = get_or_start_host(key, connect_opts)
-    Host.request_to_file(pid, method, path, headers, body, filename, timeout)
+    {{scheme, host, port, inet, Keyword.delete(connect_opts, :transport_opts)}, path}
   end
 
   defp inet_variant(connect_opts) do
@@ -88,16 +93,18 @@ defmodule Hex.HTTP.Pool do
     end
   end
 
-  defp get_or_start_host(key, connect_opts) do
+  defp get_or_start_host(key, opts) do
     case Registry.lookup(@registry, key) do
       [{pid, _}] -> pid
-      [] -> start_host(key, connect_opts)
+      [] -> start_host(key, opts)
     end
   end
 
-  defp start_host(key, connect_opts) do
+  defp start_host(key, opts) do
     via = {:via, Registry, {@registry, key}}
-    arg = {key, connect_opts, [name: via]}
+    connect_opts = Keyword.get(opts, :connect_opts, [])
+    idle_timeout = Keyword.get(opts, :idle_timeout, @default_idle_timeout)
+    arg = {key, connect_opts, [name: via, idle_timeout: idle_timeout]}
 
     spec = %{
       id: {Host, key},
