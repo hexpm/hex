@@ -7,6 +7,7 @@ defmodule Hex.HTTP do
   @request_redirects 3
   @request_retries 2
   @chunk_size 10_000
+  @unreachable_errors [:ehostunreach, :enetunreach, :eprotonosupport, :nxdomain]
 
   alias Hex.HTTP.Pool
 
@@ -82,8 +83,9 @@ defmodule Hex.HTTP do
   end
 
   defp run_request(method, url, headers, body, timeout, filename) do
-    # Start with :inet (IPv4); retry will swap to :inet6 on network failures.
-    inet = :inet
+    # Start with IPv4 until a request fails with an unreachable-network error,
+    # retry switches the address family for this and later requests.
+    inet = Hex.State.get(:http_inet) || :inet
 
     retry(method, url, headers, body, timeout, inet, @request_retries, fn url, headers, inet ->
       redirect(method, url, headers, body, timeout, inet, @request_redirects, fn url,
@@ -99,7 +101,8 @@ defmodule Hex.HTTP do
   ## Core request via Mint-backed pool
 
   defp do_request(method, url, headers, body, timeout, inet, filename) do
-    connect_opts = build_connect_opts(url, inet)
+    connect_opts = build_connect_opts(url, inet, timeout)
+    headers = put_userinfo_auth(headers, url)
 
     mint_method = method |> Atom.to_string() |> String.upcase()
 
@@ -159,42 +162,66 @@ defmodule Hex.HTTP do
     end
   end
 
+  # A header sent more than once keeps its last value
   defp headers_to_map(headers) when is_list(headers) do
-    Enum.reduce(headers, %{}, fn {name, value}, acc ->
-      name = String.downcase(to_string(name))
-      value = to_string(value)
-
-      Map.update(acc, name, value, fn existing -> existing <> ", " <> value end)
+    Map.new(headers, fn {name, value} ->
+      {String.downcase(to_string(name)), to_string(value)}
     end)
   end
 
-  defp build_connect_opts(url, inet) do
-    uri = URI.parse(url)
+  # Credentials in the URL take precedence over other authorization, they're
+  # only sent to the URL they're part of and not to redirects
+  defp put_userinfo_auth(headers, url) do
+    case URI.parse(url).userinfo do
+      nil ->
+        headers
 
-    # Convert our :inet / :inet6 marker into Mint's transport flags.
-    inet_opts =
-      case inet do
-        :inet -> [inet4: true, inet6: false]
-        :inet6 -> [inet4: false, inet6: true]
-      end
+      userinfo ->
+        {user, password} = split_userinfo(userinfo)
+        credentials = Base.encode64(percent_decode(user) <> ":" <> percent_decode(password))
+        Map.put(headers, "authorization", "Basic " <> credentials)
+    end
+  end
+
+  defp split_userinfo(userinfo) do
+    case String.split(userinfo, ":", parts: 2) do
+      [user, password] -> {user, password}
+      [user] -> {user, ""}
+    end
+  end
+
+  defp percent_decode(string) do
+    URI.decode(string)
+  rescue
+    ArgumentError -> string
+  end
+
+  defp build_connect_opts(url, inet, timeout) do
+    uri = URI.parse(url)
+    socket_opts = socket_opts(inet, timeout)
 
     transport_opts =
       case uri.scheme do
-        "https" -> inet_opts ++ Hex.HTTP.SSL.ssl_opts(url)
-        _ -> inet_opts
+        "https" -> socket_opts ++ Hex.HTTP.SSL.ssl_opts(url)
+        _ -> socket_opts
       end
 
-    [transport_opts: transport_opts] ++ proxy_connect_opts(uri)
+    [transport_opts: transport_opts] ++ proxy_connect_opts(uri, socket_opts, timeout)
   end
+
+  # Mint's transport flags for the address family, and the timeout for
+  # connecting and the TLS handshake
+  defp socket_opts(:inet, timeout), do: [inet4: true, inet6: false, timeout: timeout]
+  defp socket_opts(:inet6, timeout), do: [inet4: false, inet6: true, timeout: timeout]
 
   ## Retry
 
-  defp retry(:get, url, headers, body, timeout, inet, times, fun) do
+  defp retry(method, url, headers, body, timeout, inet, times, fun) do
     case fun.(url, headers, inet) do
       {:error, reason} = error ->
-        if retryable?(reason) and times > 0 do
+        if retryable?(method, reason) and times > 0 do
           new_inet = fallback_inet(reason, inet)
-          retry(:get, url, headers, body, timeout, new_inet, times - 1, fun)
+          retry(method, url, headers, body, timeout, new_inet, times - 1, fun)
         else
           error
         end
@@ -204,25 +231,38 @@ defmodule Hex.HTTP do
     end
   end
 
-  defp retry(_method, url, headers, _body, _timeout, inet, _times, fun) do
-    fun.(url, headers, inet)
+  # Requests that failed before the server could process them are retried for
+  # every method, other failures only for GET requests
+  @doc false
+  def retryable?(method, reason) do
+    unprocessed?(reason) or (method == :get and retryable_get?(reason))
   end
 
-  defp retryable?(%Hex.Mint.TransportError{reason: :closed}), do: true
-  defp retryable?(%Hex.Mint.TransportError{reason: :timeout}), do: true
-  defp retryable?(%Hex.Mint.TransportError{reason: :econnrefused}), do: true
-  defp retryable?(%Hex.Mint.TransportError{reason: :ehostunreach}), do: true
-  defp retryable?(%Hex.Mint.TransportError{reason: :enetunreach}), do: true
-  defp retryable?(%Hex.Mint.TransportError{reason: :eprotonosupport}), do: true
-  defp retryable?(%Hex.Mint.TransportError{reason: :nxdomain}), do: true
-  defp retryable?(_), do: false
+  defp unprocessed?(%Hex.Mint.TransportError{reason: reason}),
+    do: reason in [:econnrefused | @unreachable_errors]
+
+  defp unprocessed?(%Hex.Mint.HTTPError{reason: :unprocessed}), do: true
+
+  defp unprocessed?(%Hex.Mint.HTTPError{reason: {:server_closed_request, :refused_stream}}),
+    do: true
+
+  defp unprocessed?(_), do: false
+
+  defp retryable_get?(%Hex.Mint.TransportError{reason: reason}),
+    do: reason in [:closed, :timeout]
+
+  defp retryable_get?(_), do: false
 
   defp fallback_inet(%Hex.Mint.TransportError{reason: reason}, inet)
-       when reason in [:ehostunreach, :enetunreach, :eprotonosupport, :nxdomain] do
-    case inet do
-      :inet -> :inet6
-      :inet6 -> :inet
-    end
+       when reason in @unreachable_errors do
+    new_inet =
+      case inet do
+        :inet -> :inet6
+        :inet6 -> :inet
+      end
+
+    Hex.State.put(:http_inet, new_inet)
+    new_inet
   end
 
   defp fallback_inet(_reason, inet), do: inet
@@ -299,32 +339,29 @@ defmodule Hex.HTTP do
   ## Proxy
 
   def proxy_config(url) do
-    uri = URI.parse(url)
-    proxy_connect_opts(uri)
+    proxy_connect_opts(URI.parse(url), socket_opts(:inet, @request_timeout), @request_timeout)
   end
 
-  defp proxy_connect_opts(%URI{host: host, scheme: scheme}) do
-    no_proxy = no_proxy()
-
-    if host_in_no_proxy?(host, no_proxy) do
+  defp proxy_connect_opts(%URI{host: host, scheme: scheme}, socket_opts, timeout) do
+    if host_in_no_proxy?(host, no_proxy()) do
       []
     else
       case proxy_uri_for(scheme) do
-        nil ->
-          []
-
         %URI{host: phost, port: pport} = proxy when not is_nil(phost) and not is_nil(pport) ->
+          proxy_opts = [transport_opts: socket_opts, tunnel_timeout: timeout]
+
           proxy_headers =
             case proxy.userinfo do
               nil ->
                 []
 
               userinfo ->
-                encoded = Base.encode64(userinfo)
+                {user, password} = split_userinfo(userinfo)
+                encoded = Base.encode64(user <> ":" <> password)
                 [proxy_headers: [{"proxy-authorization", "Basic #{encoded}"}]]
             end
 
-          [proxy: {:http, phost, pport, []}] ++ proxy_headers
+          [proxy: {:http, phost, pport, proxy_opts}] ++ proxy_headers
 
         _ ->
           []
@@ -332,35 +369,53 @@ defmodule Hex.HTTP do
     end
   end
 
-  defp proxy_uri_for("http") do
-    case Hex.State.fetch!(:http_proxy) do
-      nil -> nil
-      str -> URI.parse(str)
-    end
-  end
+  defp proxy_uri_for("http"), do: parse_proxy(Hex.State.fetch!(:http_proxy))
 
+  # HTTPS requests go through http_proxy when https_proxy isn't set
   defp proxy_uri_for("https") do
-    case Hex.State.fetch!(:https_proxy) do
-      nil -> nil
-      str -> URI.parse(str)
-    end
+    parse_proxy(Hex.State.fetch!(:https_proxy) || Hex.State.fetch!(:http_proxy))
   end
 
   defp proxy_uri_for(_), do: nil
 
+  defp parse_proxy(nil), do: nil
+  defp parse_proxy(proxy), do: URI.parse(proxy)
+
   defp no_proxy do
     (Hex.State.fetch!(:no_proxy) || "")
     |> String.split(",", trim: true)
-    |> Enum.map(&String.trim/1)
+    |> Enum.map(&(&1 |> String.trim() |> String.downcase()))
+    |> Enum.reject(&(&1 == ""))
   end
 
-  defp host_in_no_proxy?(_host, []), do: false
-
   defp host_in_no_proxy?(host, patterns) do
-    Enum.any?(patterns, fn pattern ->
-      pattern = String.trim_leading(pattern, ".")
-      host == pattern or String.ends_with?(host, "." <> pattern)
-    end)
+    host = String.downcase(host)
+    Enum.any?(patterns, &no_proxy_match?(host, &1))
+  end
+
+  # `*` matches every host, `*.example.com` and `.example.com` match
+  # example.com and its subdomains, an IP address prefix such as `10.` or
+  # `fd00:` matches the addresses that start with it, and any other entry
+  # matches that host and its subdomains
+  defp no_proxy_match?(_host, "*"), do: true
+  defp no_proxy_match?(host, "*." <> domain), do: domain_match?(host, domain)
+  defp no_proxy_match?(host, "." <> domain), do: domain_match?(host, domain)
+
+  defp no_proxy_match?(host, pattern) do
+    if address_prefix?(pattern) do
+      String.starts_with?(host, pattern)
+    else
+      domain_match?(host, pattern)
+    end
+  end
+
+  defp domain_match?(host, domain) do
+    host == domain or String.ends_with?(host, "." <> domain)
+  end
+
+  defp address_prefix?(pattern) do
+    String.contains?(pattern, ":") or
+      pattern |> String.to_charlist() |> Enum.all?(&(&1 in ?0..?9 or &1 == ?.))
   end
 
   ## Hex messages
