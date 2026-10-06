@@ -1,4 +1,6 @@
 # Vendored from hpax v1.1.0, do not edit manually
+# Copyright 2021 Eric Meadows-Jönsson and Andrea Leopardi
+# Licensed under the Apache License, Version 2.0, modified by scripts/vendor_mint.sh
 
 defmodule Hex.Mint.HPAX.Table do
   @moduledoc false

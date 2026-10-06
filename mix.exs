@@ -49,8 +49,16 @@ defmodule Hex.MixProject do
     []
   end
 
-  defp elixirc_options(:prod), do: [debug_info: false]
-  defp elixirc_options(_), do: []
+  # Vendored Mint only calls these when Hex doesn't pass CA certificates or
+  # ciphers, which it always does
+  @no_warn_undefined [
+    {CAStore, :file_path, 0},
+    {:public_key, :cacerts_get, 0},
+    {:ssl, :cipher_suites, 1}
+  ]
+
+  defp elixirc_options(:prod), do: [debug_info: false, no_warn_undefined: @no_warn_undefined]
+  defp elixirc_options(_), do: [no_warn_undefined: @no_warn_undefined]
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]

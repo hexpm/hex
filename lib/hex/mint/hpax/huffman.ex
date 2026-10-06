@@ -1,7 +1,11 @@
 # Vendored from hpax v1.1.0, do not edit manually
+# Copyright 2021 Eric Meadows-Jönsson and Andrea Leopardi
+# Licensed under the Apache License, Version 2.0, modified by scripts/vendor_mint.sh
 
 defmodule Hex.Mint.HPAX.Huffman do
   @moduledoc false
+
+  require Hex.Mint.Compat
 
   import Bitwise, only: [>>>: 2]
 
@@ -80,7 +84,7 @@ defmodule Hex.Mint.HPAX.Huffman do
   # Use binary syntax for single match context optimization.
   defp decode(<<padding::bitstring>>, acc) when bit_size(padding) in 1..7 do
     padding_size = bit_size(padding)
-    <<padding::size(padding_size)>> = padding
+    <<padding::size(Hex.Mint.Compat.pin(padding_size))>> = padding
 
     if take_significant_bits(unquote(eos_bits), unquote(eos_bit_count), padding_size) == padding do
       acc

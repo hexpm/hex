@@ -1,6 +1,9 @@
 # Vendored from mint v1.11.0 (fb850d3), do not edit manually
+# Copyright 2018 Eric Meadows-Jönsson and Andrea Leopardi
+# Licensed under the Apache License, Version 2.0, modified by scripts/vendor_mint.sh
 
 defmodule Hex.Mint.HTTP do
+  @moduledoc false
   _ = """
   Process-less HTTP connection data structure and functions.
 
@@ -85,7 +88,7 @@ defmodule Hex.Mint.HTTP do
 
   ## SSL certificates
 
-  When using SSL, you can pass in your own CA certificate store or use one provided by Hex.Mint. Mint
+  When using SSL, you can pass in your own CA certificate store or use one provided by Mint. Mint
   doesn't ship with the certificate store itself, but it has an optional dependency on
   [CAStore](https://github.com/elixir-mint/castore), which provides an up-to-date certificate store. If
   you don't want to use your own certificate store, just add `:castore` to your dependencies.
@@ -370,7 +373,7 @@ defmodule Hex.Mint.HTTP do
 
   Options for `:https` only:
 
-    * `:alpn_advertised_protocols` - managed by Hex.Mint. Cannot be overridden.
+    * `:alpn_advertised_protocols` - managed by Mint. Cannot be overridden.
 
     * `:cacerts` - certificates of types `:ssl.client_cacerts()`.
       If `:verify` is set to `:verify_peer` (the default) and

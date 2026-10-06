@@ -1,7 +1,11 @@
 # Vendored from mint v1.11.0 (fb850d3), do not edit manually
+# Copyright 2018 Eric Meadows-Jönsson and Andrea Leopardi
+# Licensed under the Apache License, Version 2.0, modified by scripts/vendor_mint.sh
 
 defmodule Hex.Mint.HTTP1.Parse do
   @moduledoc false
+
+  require Hex.Mint.Compat
 
   alias Hex.Mint.ParsingTools
 
@@ -125,7 +129,7 @@ defmodule Hex.Mint.HTTP1.Parse do
     prefix_size = byte_size(string) - 1
 
     case string do
-      <<prefix::binary-size(prefix_size), char>> when is_whitespace(char) ->
+      <<prefix::binary-size(Hex.Mint.Compat.pin(prefix_size)), char>> when is_whitespace(char) ->
         trim_trailing_whitespace(prefix)
 
       _other ->

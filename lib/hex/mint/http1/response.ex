@@ -1,7 +1,11 @@
 # Vendored from mint v1.11.0 (fb850d3), do not edit manually
+# Copyright 2018 Eric Meadows-Jönsson and Andrea Leopardi
+# Licensed under the Apache License, Version 2.0, modified by scripts/vendor_mint.sh
 
 defmodule Hex.Mint.HTTP1.Response do
   @moduledoc false
+
+  require Hex.Mint.Compat
 
   import Bitwise, only: [|||: 2]
   import Hex.Mint.HTTP1.Parse
@@ -119,7 +123,7 @@ defmodule Hex.Mint.HTTP1.Response do
         :error
 
       {:ok, name_size} ->
-        <<name::binary-size(name_size), ?:, rest::binary>> = binary
+        <<name::binary-size(Hex.Mint.Compat.pin(name_size)), ?:, rest::binary>> = binary
         decode_header_value(rest, [], emit_at_end?, Headers.lower_raw(name))
 
       other ->
@@ -129,7 +133,7 @@ defmodule Hex.Mint.HTTP1.Response do
 
   defp decode_header_value(data, segments, emit_at_end?, name) do
     with {:ok, size} <- find_line_end(data, 0) do
-      <<segment::binary-size(size), rest::binary>> = data
+      <<segment::binary-size(Hex.Mint.Compat.pin(size)), rest::binary>> = data
 
       with {:ok, rest} <- skip_line_end(rest) do
         segments = [segment | segments]

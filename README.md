@@ -37,3 +37,7 @@ Exclude integration tests with `mix test --exclude integration`.
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+### Vendored code
+
+`lib/hex/mint/` and `src/hex_mint_shims.erl` contain copies of [Mint](https://github.com/elixir-mint/mint) (Copyright 2018 Eric Meadows-Jönsson and Andrea Leopardi) and [HPAX](https://github.com/elixir-mint/hpax) (Copyright 2021 Eric Meadows-Jönsson and Andrea Leopardi), modified by `scripts/vendor_mint.sh`. They're licensed under the Apache License, Version 2.0.

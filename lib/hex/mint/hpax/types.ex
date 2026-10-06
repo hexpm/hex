@@ -1,7 +1,11 @@
 # Vendored from hpax v1.1.0, do not edit manually
+# Copyright 2021 Eric Meadows-Jönsson and Andrea Leopardi
+# Licensed under the Apache License, Version 2.0, modified by scripts/vendor_mint.sh
 
 defmodule Hex.Mint.HPAX.Types do
   @moduledoc false
+
+  require Hex.Mint.Compat
 
   import Bitwise, only: [<<<: 2]
 
@@ -58,7 +62,7 @@ defmodule Hex.Mint.HPAX.Types do
 
   @spec decode_integer(bitstring, 1..8) :: {:ok, non_neg_integer(), binary()} | :error
   def decode_integer(bitstring, prefix) when is_bitstring(bitstring) and prefix in 1..8 do
-    with <<value::size(prefix), rest::binary>> <- bitstring do
+    with <<value::size(Hex.Mint.Compat.pin(prefix)), rest::binary>> <- bitstring do
       if value < power_of_two(prefix) - 1 do
         {:ok, value, rest}
       else
@@ -88,7 +92,7 @@ defmodule Hex.Mint.HPAX.Types do
   def decode_binary(binary) when is_binary(binary) do
     with <<huffman_bit::1, rest::bitstring>> <- binary,
          {:ok, length, rest} <- decode_integer(rest, 7),
-         <<contents::binary-size(length), rest::binary>> <- rest do
+         <<contents::binary-size(Hex.Mint.Compat.pin(length)), rest::binary>> <- rest do
       contents =
         case huffman_bit do
           0 -> contents

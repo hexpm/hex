@@ -1,6 +1,9 @@
 # Vendored from mint v1.11.0 (fb850d3), do not edit manually
+# Copyright 2018 Eric Meadows-Jönsson and Andrea Leopardi
+# Licensed under the Apache License, Version 2.0, modified by scripts/vendor_mint.sh
 
 defmodule Hex.Mint.HTTP2 do
+  @moduledoc false
   _ = """
   Process-less HTTP/2 client connection.
 
