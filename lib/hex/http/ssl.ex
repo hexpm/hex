@@ -49,20 +49,31 @@ defmodule Hex.HTTP.SSL do
     hostname = String.to_charlist(URI.parse(url).host)
     ciphers = filter_ciphers(@default_ciphers)
 
-    partial_chain = &partial_chain(Certs.cacerts(), &1)
+    if Hex.State.fetch!(:unsafe_https) do
+      [
+        verify: :verify_none,
+        server_name_indication: hostname,
+        secure_renegotiate: true,
+        reuse_sessions: true,
+        versions: @default_versions,
+        ciphers: ciphers
+      ]
+    else
+      partial_chain = &partial_chain(Certs.cacerts(), &1)
 
-    [
-      verify: :verify_peer,
-      depth: 4,
-      partial_chain: partial_chain,
-      cacerts: get_ca_certs(),
-      server_name_indication: hostname,
-      secure_renegotiate: true,
-      reuse_sessions: true,
-      versions: @default_versions,
-      ciphers: ciphers
-    ]
-    |> customize_hostname_check()
+      [
+        verify: :verify_peer,
+        depth: 4,
+        partial_chain: partial_chain,
+        cacerts: get_ca_certs(),
+        server_name_indication: hostname,
+        secure_renegotiate: true,
+        reuse_sessions: true,
+        versions: @default_versions,
+        ciphers: ciphers
+      ]
+      |> customize_hostname_check()
+    end
   end
 
   def partial_chain(cacerts, certs) do
