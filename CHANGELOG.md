@@ -5,27 +5,23 @@
 ### Enhancements
 
 * Print warnings to standard error instead of standard output, keeping stdout clean for machine-readable output such as `mix hex.outdated --json`. Warning-colored lines that are part of a command's regular output, such as retirement notices in `mix hex.info` and the `mix deps.get` dependency listing, remain on standard output
-* Fetch registry and policy files with four times the `http_concurrency` limit, 32 by default. `http_concurrency` now only limits how many package tarballs are fetched at a time
 * Add `--format sarif` and `--output PATH` options to `mix hex.audit` to render the audit result as a SARIF v2.1.0 document that can be uploaded to GitHub code scanning and other SARIF consumers. Findings are anchored to the dependency's `mix.lock` entry and ignored findings are included as suppressed results. Requires OTP 27 or later
 * Link to the hex.pm diffs page (`https://hex.pm/diffs`) in `mix hex.outdated` now that package diffs have moved from diff.hex.pm into hex.pm
-* Write fetched package tarballs straight to the cache and unpack them from there instead of holding each tarball in memory, which lowers peak memory use when fetching large packages
 * Record whether the key given to `mix hex.organization auth ORGANIZATION --key KEY` is owned by the organization or by a user. Organization keys no longer trigger the stored-key deprecation warning, while user keys warn that they will stop working in Hex 2.6. Re-run the command on this Hex version to record the owner of an already stored organization key and silence the warning
 * Stop listing unchanged dependencies after `mix deps.get` and `mix deps.update` resolve dependencies. Unchanged dependencies that are retired or have security advisories are still listed under "Unchanged:"
-* Speed up dependency resolution by parsing and sorting each package's versions once instead of on every lookup by the resolver
 
 * Add the `policy_enforce_lock` config. When it's enabled and a policy is active, `mix deps.get` and `mix deps.update` fail if a Hex package in `mix.lock` is rejected by the policy, using the same check as `mix hex.audit --policy`. Findings acknowledged with `ignore_advisories` or `ignore_retirements` pass, and a package matched by a DENY override fails until the policy changes. Configure it in the `mix.exs` `:hex` block, with the `HEX_POLICY_ENFORCE_LOCK` environment variable, or with `mix hex.config`
 * End every error caused by the active dependency policy with how to run without it (`HEX_POLICY= mix deps.get`). This covers an invalid policy configuration, a policy that can't be fetched or loaded, a resolution failure where the policy hid versions, and the `policy_enforce_lock` check, which also names `HEX_POLICY_ENFORCE_LOCK` to skip only that check
-* Resolve repository credentials without taking a global lock unless an OAuth token has to be exchanged or refreshed. Every registry and package request took the lock, so concurrent fetches in `mix deps.get` and `mix deps.update` waited on each other
-* Unpack packages in parallel as they are fetched instead of one at a time when Mix updates each dependency
+* Speed up `mix deps.get` and `mix deps.update` and lower their memory use when fetching large packages. `http_concurrency` now limits how many packages are downloaded at a time, and registry files are fetched with four times that limit, 32 by default
 ### Bug fixes
 
 * Report locked packages matched by a DENY override in `mix hex.audit --policy` and `mix hex.audit --policy-overrides`. Denied packages are listed in a "Denied:" section, fail the audit, and appear in SARIF output under the `HEX0006` rule. `ignore_advisories` and `ignore_retirements` do not apply to denied packages
 * Identify `mix hex.audit --format sarif` results by repository and package instead of package alone, so a package locked from both hexpm and an organization repository under two app names points each result at its own `mix.lock` line. SARIF fingerprints now include the repository, so existing code scanning alerts are re-keyed once
 * Only say `(using cache instead)` when a package or policy fails to fetch from the registry and a cached copy exists. Without a cached copy the message claimed a fallback that didn't happen
 * Reject `mix hex.publish --revert VERSION --dry-run` instead of reverting the release. `--dry-run` was ignored by `--revert`, so the package or docs were deleted from the repository
-* Create the temporary directory used while unpacking a package inside the output directory instead of the current working directory, so unpacking no longer fails when the working directory isn't writable
-* Unpack file names in a package's inner tarball that end partway through a UTF-8 sequence without the zero padding of the tar header field. Only tarballs built by tools other than Hex have such names
-* Keep the existing dependency directory when a fetched package fails to unpack or doesn't match the checksums in the registry. The directory was removed before the package was unpacked and verified
+* Unpack packages when the current working directory isn't writable
+* Unpack file names that end in an incomplete UTF-8 sequence without trailing zero bytes
+* Keep the existing dependency in `deps` when its new version fails to unpack or doesn't match the checksums in the registry
 
 ## v2.5.1 (2026-07-09)
 
