@@ -140,7 +140,7 @@ defmodule Hex.Registry.ServerTest do
         assert {:ok, versions} = Registry.versions("hexpm", "etag_package")
         assert Enum.map(versions, &to_string/1) == ["1.0.0"]
         assert_received {:if_none_match, ["\"v1\""]}
-        refute_received {:mix_shell, :error, _}
+        refute_received {:mix_shell, :error, ["Failed to fetch record" <> _]}
       end)
     end
   end

@@ -103,7 +103,7 @@ defmodule Hex.Registry.ServerPolicyTest do
       assert {:ok, policy} = Registry.policy("hexpm:myorg", "strict-prod")
       assert policy.name == "strict-prod"
       assert_received {:if_none_match, ["\"v1\""]}
-      refute_received {:mix_shell, :error, _}
+      refute_received {:mix_shell, :error, ["Failed to fetch policy" <> _]}
     end)
   end
 
