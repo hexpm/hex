@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (6f7aa49), do not edit manually
+%% Vendored from hex_core v0.19.0 (4fbc5d1), do not edit manually
 
 %% @doc
 %% Pure-Erlang raw DEFLATE (RFC 1951) encoder. The output only depends on the

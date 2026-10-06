@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (6f7aa49), do not edit manually
+%% Vendored from hex_core v0.19.0 (4fbc5d1), do not edit manually
 
 %% @doc
 %% Authentication handling with callback functions for build-tool-specific operations.
@@ -628,16 +628,25 @@ resolve_repo_auth(#{repo_key := RepoKey}, _Renew) when is_binary(RepoKey) ->
     {ok, RepoKey, #{has_refresh_token => false}};
 resolve_repo_auth(Config, Renew) ->
     RepoName = repo_name(Config),
-    global:trans(
-        {{?MODULE, repo, RepoName}, self()},
-        fun() ->
-            do_resolve_repo_auth(RepoName, RepoName, Config, Renew)
-        end,
-        [node()],
-        infinity
-    ).
+    %% Most requests resolve to a stored credential, or to none, without
+    %% exchanging a token. Those are answered without the repo lock so that
+    %% concurrent requests don't queue on it; only an exchange takes the lock and
+    %% resolves again under it.
+    case do_resolve_repo_auth(RepoName, RepoName, Config, Renew, unlocked) of
+        needs_lock ->
+            global:trans(
+                {{?MODULE, repo, RepoName}, self()},
+                fun() ->
+                    do_resolve_repo_auth(RepoName, RepoName, Config, Renew, locked)
+                end,
+                [node()],
+                infinity
+            );
+        Result ->
+            Result
+    end.
 
-do_resolve_repo_auth(RepoName, LookupRepo, Config, Renew) ->
+do_resolve_repo_auth(RepoName, LookupRepo, Config, Renew, Lock) ->
     Trusted = maps:get(trusted, Config, false),
     OAuthExchange = maps:get(oauth_exchange, Config, false),
     case call_callback(Config, get_auth_config, [LookupRepo]) of
@@ -648,10 +657,13 @@ do_resolve_repo_auth(RepoName, LookupRepo, Config, Renew) ->
             is_binary(AuthKey) and OAuthExchange, Trusted
         ->
             %% 2. trusted + oauth_token + auth_key + oauth_exchange => use/refresh existing token
-            resolve_repo_oauth_token(RepoName, Config, AuthKey, OAuthToken, Renew);
+            resolve_repo_oauth_token(RepoName, Config, AuthKey, OAuthToken, Renew, Lock);
         #{auth_key := AuthKey} when is_binary(AuthKey) and OAuthExchange, Trusted ->
             %% 3. trusted + auth_key + oauth_exchange => exchange for new OAuth token
-            exchange_for_oauth_token(RepoName, Config, AuthKey, <<"repositories">>);
+            case Lock of
+                unlocked -> needs_lock;
+                locked -> exchange_for_oauth_token(RepoName, Config, AuthKey, <<"repositories">>)
+            end;
         #{auth_key := AuthKey} when is_binary(AuthKey), Trusted ->
             %% 4. trusted + auth_key => use directly
             {ok, AuthKey, #{has_refresh_token => false}};
@@ -659,7 +671,7 @@ do_resolve_repo_auth(RepoName, LookupRepo, Config, Renew) ->
             %% 5. Check parent repo (for "hexpm:org" organizations)
             case binary:split(LookupRepo, <<":">>) of
                 [ParentName, _OrgName] ->
-                    do_resolve_repo_auth(RepoName, ParentName, Config, Renew);
+                    do_resolve_repo_auth(RepoName, ParentName, Config, Renew, Lock);
                 _ ->
                     %% 6. trusted Hex.pm or child repository + global OAuth tokens => use those
                     resolve_global_oauth_for_repo(RepoName, Config, Renew)
@@ -694,14 +706,17 @@ resolve_repo_oauth_token(
     Config,
     AuthKey,
     #{access_token := AccessToken, expires_at := ExpiresAt},
-    Renew
+    Renew,
+    Lock
 ) ->
-    case Renew orelse is_token_expired(ExpiresAt) of
-        false ->
+    case {Renew orelse is_token_expired(ExpiresAt), Lock} of
+        {false, _} ->
             %% Token is still valid, use it
             BearerToken = <<"Bearer ", AccessToken/binary>>,
             {ok, BearerToken, #{has_refresh_token => false}};
-        true ->
+        {true, unlocked} ->
+            needs_lock;
+        {true, locked} ->
             %% Token expired, do a new exchange
             exchange_for_oauth_token(RepoName, Config, AuthKey, <<"repositories">>)
     end.
@@ -749,20 +764,38 @@ get_parent_repo_key(Config, RepoName, KeyType) ->
 %% Resolve OAuth token with global lock to prevent concurrent refresh attempts.
 %% Renew refreshes a token that has not run out of time, for when the server
 %% has rejected it anyway.
-resolve_oauth_token_with_context(Config, Renew) ->
-    Resolve = fun(#{access_token := AccessToken, expires_at := ExpiresAt} = Tokens) ->
+%%
+%% A stored token that is still valid, or no stored token, is answered without
+%% the lock. Only a refresh takes it, and the tokens are read again under the
+%% lock in case another caller refreshed them while this one waited.
+resolve_oauth_token_with_context(Config, false) ->
+    case call_callback(Config, get_oauth_tokens, []) of
+        {ok, #{expires_at := ExpiresAt} = Tokens} ->
+            case is_token_expired(ExpiresAt) of
+                false -> bearer_token(Tokens);
+                true -> resolve_oauth_token_with_lock(Config, false)
+            end;
+        error ->
+            {error, no_auth}
+    end;
+resolve_oauth_token_with_context(Config, true) ->
+    resolve_oauth_token_with_lock(Config, true).
+
+resolve_oauth_token_with_lock(Config, Renew) ->
+    Resolve = fun(#{expires_at := ExpiresAt} = Tokens) ->
         case Renew orelse is_token_expired(ExpiresAt) of
-            true ->
-                refresh_or_clear(Config, Tokens);
-            false ->
-                BearerToken = <<"Bearer ", AccessToken/binary>>,
-                {ok, BearerToken, #{has_refresh_token => has_refresh_token(Tokens)}}
+            true -> refresh_or_clear(Config, Tokens);
+            false -> bearer_token(Tokens)
         end
     end,
     case with_token_refresh_lock(Config, Resolve) of
         error -> {error, no_auth};
         Result -> Result
     end.
+
+bearer_token(#{access_token := AccessToken} = Tokens) ->
+    BearerToken = <<"Bearer ", AccessToken/binary>>,
+    {ok, BearerToken, #{has_refresh_token => has_refresh_token(Tokens)}}.
 
 %% @private
 %% Fetch the stored global tokens and hand them to Fun under the token-refresh
