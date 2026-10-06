@@ -234,6 +234,17 @@ defmodule Hex.Repo do
     Hex.Auth.with_repo(config, &:mix_hex_repo.get_tarball(&1, package, version), optional: true)
   end
 
+  def get_tarball_to_file(repo, package, version, filename) do
+    repo_config = get_repo(repo)
+    config = build_hex_core_config(repo_config, repo)
+
+    Hex.Auth.with_repo(
+      config,
+      &:mix_hex_repo.get_tarball_to_file(&1, package, version, filename),
+      optional: true
+    )
+  end
+
   def get_public_key(repo_config) when is_map(repo_config) do
     config = build_hex_core_config(repo_config, "")
 

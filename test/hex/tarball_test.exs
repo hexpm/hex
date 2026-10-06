@@ -102,6 +102,22 @@ defmodule Hex.TarballTest do
     end)
   end
 
+  test "Hex.Tar.unpack! reads a tarball path from disk" do
+    metadata = %{name: "foo", version: "1.0.0"}
+
+    in_tmp(fn ->
+      %{outer_checksum: outer_checksum} =
+        Hex.Tar.create!(metadata, [{"file.txt", "contents"}], "foo-1.0.0.tar")
+
+      assert %{outer_checksum: ^outer_checksum, metadata: %{"name" => "foo"}} =
+               Hex.Tar.unpack!("foo-1.0.0.tar", "unpacked")
+
+      assert File.read!("unpacked/file.txt") == "contents"
+      assert Hex.Tar.outer_checksum("foo-1.0.0.tar") == {:ok, outer_checksum}
+      assert Hex.Tar.outer_checksum("missing.tar") == {:error, :enoent}
+    end)
+  end
+
   test "create rejects unsupported file types" do
     if mkfifo = System.find_executable("mkfifo") do
       metadata = %{name: "foo", version: "1.0.0"}
