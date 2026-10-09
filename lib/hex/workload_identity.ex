@@ -21,8 +21,48 @@ defmodule Hex.WorkloadIdentity do
         []
 
       {:error, reason} ->
-        Mix.raise("Workload Identity authentication failed, " <> describe(reason, scope))
+        Mix.raise(error_message(reason, scope))
     end
+  end
+
+  @doc """
+  Whether the job can authenticate with a workload identity.
+  """
+  def available? do
+    :mix_hex_oidc.detect_provider() != :none
+  end
+
+  @doc """
+  Exchanges the CI job's OIDC token for each organization's repository token.
+
+  The fetches from the repository reuse the token, or the failure. A failure
+  is reported by each fetch the repository refuses without credentials.
+  """
+  def repository_auth(organizations) do
+    Enum.each(organizations, fn organization ->
+      case Hex.Repo.resolve_auth("hexpm:#{organization}") do
+        {:ok, _repo_key, _auth_context} ->
+          Hex.Shell.info(
+            "Authenticated to the #{organization} organization with Workload Identity"
+          )
+
+        _other ->
+          :ok
+      end
+    end)
+  end
+
+  @doc """
+  The message for a failed exchange for an organization's repository.
+  """
+  def repository_error_message("hexpm:" <> organization, reason) do
+    error_message(reason, "repository:#{organization}") <>
+      ". To fetch without Workload Identity, authenticate with " <>
+      "`mix hex.organization auth #{organization} --key KEY`"
+  end
+
+  defp error_message(reason, scope) do
+    "Workload Identity authentication failed, " <> describe(reason, scope)
   end
 
   defp describe({:oidc_audience_failed, response}, _scope) do

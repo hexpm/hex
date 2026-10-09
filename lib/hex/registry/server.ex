@@ -600,7 +600,13 @@ defmodule Hex.Registry.Server do
     end
 
     if not (missing? or unauthorized?) or Mix.debug?() do
-      Hex.Utils.print_error_result(result)
+      case result do
+        {:error, {:auth_error, {:workload_identity_failed, reason}}} ->
+          Hex.Shell.error(Hex.WorkloadIdentity.repository_error_message(repo, reason))
+
+        _other ->
+          Hex.Utils.print_error_result(result)
+      end
     end
   end
 
@@ -636,6 +642,9 @@ defmodule Hex.Registry.Server do
               "later or check if a new public key has been released #{public_key_message(repo)}. " <>
               "Set HEX_UNSAFE_REGISTRY=1 to disable this check and allow insecure package downloads."
           )
+
+        {:error, {:auth_error, {:workload_identity_failed, reason}}} ->
+          Hex.Shell.error(Hex.WorkloadIdentity.repository_error_message(repo, reason))
 
         {:error, :bad_repo_name} ->
           Hex.Shell.error(

@@ -996,37 +996,50 @@ defmodule Hex.RemoteConverger do
   # ahead of use the session; an API key would resolve here and leave the
   # session to be refreshed mid-fetch, past the point where anything can be
   # asked.
+  #
+  # Without a session, a CI job that can authenticate with a workload identity
+  # fetches with that instead, so there is nothing to ask for. It is exchanged
+  # here so the output says once that the job authenticated with it.
   @doc false
   def check_and_refresh_auth([]), do: :ok
 
-  def check_and_refresh_auth(_organizations) do
-    if Hex.State.fetch!(:offline) do
-      :ok
-    else
-      config = Hex.API.Client.config([])
+  def check_and_refresh_auth(organizations) do
+    cond do
+      Hex.State.fetch!(:offline) ->
+        :ok
 
-      case Hex.Auth.with_session_api(:read, config, fn _config -> :ok end, auth_inline: true) do
-        :ok ->
-          :ok
+      not Hex.OAuth.has_tokens?() and Hex.WorkloadIdentity.available?() ->
+        Hex.WorkloadIdentity.repository_auth(organizations)
 
-        {:error, {:auth_error, :auth_declined}} ->
-          Hex.Shell.warn(
-            "Private packages will not be available. " <>
-              "Run `mix hex.user auth` to authenticate."
-          )
+      true ->
+        check_and_refresh_session()
+    end
+  end
 
-        {:error, {:auth_error, :token_refresh_unavailable}} ->
-          Hex.Shell.warn(
-            "Could not reach Hex to renew your authentication. " <>
-              "Private packages will not be available."
-          )
+  defp check_and_refresh_session do
+    config = Hex.API.Client.config([])
 
-        {:error, _reason} ->
-          Hex.Shell.warn(
-            "Authentication failed. Private packages will not be available. " <>
-              "Run `mix hex.user auth` to authenticate."
-          )
-      end
+    case Hex.Auth.with_session_api(:read, config, fn _config -> :ok end, auth_inline: true) do
+      :ok ->
+        :ok
+
+      {:error, {:auth_error, :auth_declined}} ->
+        Hex.Shell.warn(
+          "Private packages will not be available. " <>
+            "Run `mix hex.user auth` to authenticate."
+        )
+
+      {:error, {:auth_error, :token_refresh_unavailable}} ->
+        Hex.Shell.warn(
+          "Could not reach Hex to renew your authentication. " <>
+            "Private packages will not be available."
+        )
+
+      {:error, _reason} ->
+        Hex.Shell.warn(
+          "Authentication failed. Private packages will not be available. " <>
+            "Run `mix hex.user auth` to authenticate."
+        )
     end
   end
 
