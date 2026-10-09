@@ -412,6 +412,42 @@ defmodule Mix.Tasks.Hex.PublishTest do
     purge([ReleaseName.MixProject])
   end
 
+  for {name, args} <- [{"package", ["package"]}, {"docs", ["docs"]}, {"package and docs", []}] do
+    test "revert #{name} with dry run raises without sending a request" do
+      Process.put(:hex_test_app_name, :publish_revert_dry_run)
+      Mix.Project.push(ReleaseSimple.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+        File.write!("mix.exs", "mix.exs")
+        File.write!("myfile.txt", "hello")
+
+        bypass = Bypass.open()
+        Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+        Hex.State.put(:api_key, "key")
+        test_pid = self()
+
+        for path <- [
+              "/api/packages/publish_revert_dry_run/releases/0.0.1",
+              "/api/packages/publish_revert_dry_run/releases/0.0.1/docs"
+            ] do
+          Bypass.stub(bypass, "DELETE", path, fn conn ->
+            send(test_pid, {:delete, conn.request_path})
+            Plug.Conn.resp(conn, 204, "")
+          end)
+        end
+
+        assert_raise Mix.Error, "--dry-run can't be used with --revert", fn ->
+          Mix.Tasks.Hex.Publish.run(unquote(args) ++ ["--revert", "0.0.1", "--dry-run"])
+        end
+
+        refute_received {:delete, _path}
+      end)
+    after
+      purge([ReleaseSimple.MixProject])
+    end
+  end
+
   test "create with key" do
     Process.put(:hex_test_app_name, :publish_with_key)
     Mix.Project.push(ReleaseSimple.MixProject)

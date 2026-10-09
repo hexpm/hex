@@ -1,6 +1,7 @@
 # Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
 
 defmodule Hex.Solver.Registry do
+  @moduledoc false
   _ = """
   The registry is used by the solver to discover package versions and their dependencies.
   """

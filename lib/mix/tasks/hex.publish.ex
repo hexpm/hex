@@ -57,7 +57,8 @@ defmodule Mix.Tasks.Hex.Publish do
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
     * `--yes` - Publishes the package without any confirmation prompts
     * `--dry-run` - Builds package and performs local checks without publishing,
-      use `mix hex.build --unpack` to inspect package contents before publishing
+      use `mix hex.build --unpack` to inspect package contents before publishing.
+      Can't be used with `--revert`
     * `--replace` - Allows overwriting an existing package version if it exists.
       Private packages can always be overwritten, public packages can only be
       overwritten within one hour after they were initially published.
@@ -83,6 +84,10 @@ defmodule Mix.Tasks.Hex.Publish do
     Mix.Tasks.Deps.Loadpaths.run(["--no-compile", "--no-listeners"])
     Hex.start()
     {opts, args} = OptionParser.parse!(args, strict: @switches)
+
+    if opts[:revert] && opts[:dry_run] do
+      Mix.raise("--dry-run can't be used with --revert")
+    end
 
     build = Build.prepare_package()
     revert_version = opts[:revert]

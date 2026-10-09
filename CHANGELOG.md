@@ -2,6 +2,10 @@
 
 ## v2.5.2-dev
 
+### Backwards incompatible changes
+
+* Require OTP 24 or later. Hex 2.4.2 to 2.5.1 can't unpack packages on OTP 22, so Hex 2.4.1 is the last release that works there. Hex 2.5.1 is the last release for OTP 23
+
 ### Enhancements
 
 * Support Workload Identity, sometimes also known as Trusted Publishing, in `mix hex.publish`. In a GitHub Actions job with the `id-token: write` permission and no `HEX_API_KEY` or other Hex credential configured, the job's OIDC token is exchanged for a short-lived token that can only publish the package, so CI can publish without storing an API key. A workload identity must be configured for the package on hex.pm first
@@ -13,12 +17,19 @@
 
 * Add the `policy_enforce_lock` config. When it's enabled and a policy is active, `mix deps.get` and `mix deps.update` fail if a Hex package in `mix.lock` is rejected by the policy, using the same check as `mix hex.audit --policy`. Findings acknowledged with `ignore_advisories` or `ignore_retirements` pass, and a package matched by a DENY override fails until the policy changes. Configure it in the `mix.exs` `:hex` block, with the `HEX_POLICY_ENFORCE_LOCK` environment variable, or with `mix hex.config`
 * End every error caused by the active dependency policy with how to run without it (`HEX_POLICY= mix deps.get`). This covers an invalid policy configuration, a policy that can't be fetched or loaded, a resolution failure where the policy hid versions, and the `policy_enforce_lock` check, which also names `HEX_POLICY_ENFORCE_LOCK` to skip only that check
+* Speed up `mix deps.get` and `mix deps.update` and lower their memory use when fetching large packages. `http_concurrency` now limits how many packages are downloaded at a time, and registry files are fetched with four times that limit, 32 by default
 ### Bug fixes
 
 * Only look up the authenticated user's organizations in `mix hex.publish` when the owner prompt can be shown, that is when publishing a new public package without `--yes`. Publishing with a key that cannot read the user, such as a workload identity token, no longer prints an error
 * Report locked packages matched by a DENY override in `mix hex.audit --policy` and `mix hex.audit --policy-overrides`. Denied packages are listed in a "Denied:" section, fail the audit, and appear in SARIF output under the `HEX0006` rule. `ignore_advisories` and `ignore_retirements` do not apply to denied packages
 * Identify `mix hex.audit --format sarif` results by repository and package instead of package alone, so a package locked from both hexpm and an organization repository under two app names points each result at its own `mix.lock` line. SARIF fingerprints now include the repository, so existing code scanning alerts are re-keyed once
 * Only say `(using cache instead)` when a package or policy fails to fetch from the registry and a cached copy exists. Without a cached copy the message claimed a fallback that didn't happen
+* Reject `mix hex.publish --revert VERSION --dry-run` instead of reverting the release. `--dry-run` was ignored by `--revert`, so the package or docs were deleted from the repository
+* Unpack packages when the current working directory isn't writable
+* Unpack file names that end in an incomplete UTF-8 sequence without trailing zero bytes
+* Keep the existing dependency in `deps` when its new version fails to unpack or doesn't match the checksums in the registry
+* Reuse cached registry and policy files in `mix deps.get` and `mix deps.update` when they haven't changed in the repository. Since Hex 2.1.0 every registry file was downloaded in full on each run, even when it was already cached
+* Skip HTTPS certificate verification when the `unsafe_https` config or the `HEX_UNSAFE_HTTPS` environment variable is set. Since Hex 2.3.0 the setting had no effect and certificates were always verified
 
 ## v2.5.1 (2026-07-09)
 

@@ -382,6 +382,94 @@ defmodule Hex.MixTaskTest do
     ])
   end
 
+  test "deps.get leaves no staging directories" do
+    Mix.Project.push(Simple)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+      Mix.Task.run("deps.get")
+
+      assert File.exists?("deps/ecto/.hex")
+      assert File.exists?("deps/postgrex/.hex")
+      assert File.exists?("deps/ex_doc/.hex")
+      assert Path.wildcard("deps/.*.hex-staging", match_dot: true) == []
+    end)
+  after
+    purge([
+      Ecto.NoConflict.MixProject,
+      Postgrex.NoConflict.MixProject,
+      Ex_doc.NoConflict.MixProject
+    ])
+  end
+
+  test "deps.get keeps the dependency directory when the checksums don't match" do
+    Mix.Project.push(Simple)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+      Mix.Task.run("deps.get")
+
+      lock = Mix.Dep.Lock.read()
+      %{version: version} = Hex.Utils.lock(lock[:postgrex])
+      File.rm!("deps/postgrex/.hex")
+      File.write!("deps/postgrex/marker", "")
+
+      Hex.SCM.prefetch(Map.take(lock, [:postgrex]))
+
+      :sys.replace_state(Hex.Registry.Server, fn state ->
+        :ets.insert(state.ets, {{:inner_checksum, "hexpm", "postgrex", version}, <<0::256>>})
+        state
+      end)
+
+      assert_raise RuntimeError, "Checksum mismatch against registry (inner)", fn ->
+        Hex.SCM.update(hex: "postgrex", dest: Path.expand("deps/postgrex"), lock: lock[:postgrex])
+      end
+
+      assert File.exists?("deps/postgrex/marker")
+      assert Path.wildcard("deps/.*.hex-staging", match_dot: true) == []
+    end)
+  after
+    purge([
+      Ecto.NoConflict.MixProject,
+      Postgrex.NoConflict.MixProject,
+      Ex_doc.NoConflict.MixProject
+    ])
+  end
+
+  test "deps.get keeps the dependency directory when the cached package can't be unpacked" do
+    Mix.Project.push(Simple)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+      Mix.Task.run("deps.get")
+
+      lock = Mix.Dep.Lock.read()
+      %{version: version} = Hex.Utils.lock(lock[:postgrex])
+      File.rm!("deps/postgrex/.hex")
+      File.write!("deps/postgrex/marker", "")
+
+      cache_path = Hex.SCM.cache_path("hexpm", "postgrex", version)
+      File.write!(cache_path, "not a tarball")
+      Hex.State.put(:offline, true)
+
+      Hex.SCM.prefetch(Map.take(lock, [:postgrex]))
+
+      assert_raise Mix.Error, ~r"Unpacking tarball failed", fn ->
+        Hex.SCM.update(hex: "postgrex", dest: Path.expand("deps/postgrex"), lock: lock[:postgrex])
+      end
+
+      assert File.exists?("deps/postgrex/marker")
+      refute File.exists?(cache_path)
+      assert Path.wildcard("deps/.*.hex-staging", match_dot: true) == []
+    end)
+  after
+    purge([
+      Ecto.NoConflict.MixProject,
+      Postgrex.NoConflict.MixProject,
+      Ex_doc.NoConflict.MixProject
+    ])
+  end
+
   test "deps.get with lock" do
     Mix.Project.push(Simple)
 
