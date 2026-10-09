@@ -152,12 +152,8 @@ defmodule Hex.WorkloadIdentityTest do
       for package <- packages do
         assert Hex.Registry.Server.versions("hexpm:acme", package) == :error
 
-        assert_received {:mix_shell, :error,
-                         [
-                           "Failed to fetch record for hexpm:acme/" <>
-                             ^package <> " from registry"
-                         ]}
-
+        message = "Failed to fetch record for hexpm:acme/#{package} from registry"
+        assert_received {:mix_shell, :error, [^message]}
         assert_received {:mix_shell, :error, [@refusal_message]}
       end
 
