@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (6f7aa49), do not edit manually
+%% Vendored from hex_core v0.19.0 (69f91eb), do not edit manually
 
 %% This file is a copy of erl_tar.erl from OTP with the following modifications:
 %% 1. Module renamed from erl_tar to mix_hex_erl_tar
@@ -12,6 +12,10 @@
 %%    reading them from disk
 %% 7. PAX record lengths are counted in bytes instead of characters
 %% 8. The ustar prefix check counts the separator between path components
+%% 9. parse_string/1 drops the zero padding of names that end in an incomplete
+%%    UTF-8 sequence
+%% 10. Extraction reads and writes files and file info with the raw option so
+%%     concurrent extractions are not serialized through the file server
 %%
 %% OTP commit: ad05823719d77c8faee87348ea39513d4e2f99c5 (OTP-29.1.1)
 %%
@@ -282,7 +286,7 @@ stream_to_file(Name, Reader0, Opts) ->
     Write =
         case Opts#read_opts.keep_old_files of
             true ->
-                case file:read_file_info(Name) of
+                case file:read_file_info(Name, [raw]) of
                     {ok, _} -> false;
                     _ -> true
                 end;
@@ -1495,7 +1499,7 @@ parse_string(Bin) when is_binary(Bin) ->
         Str when is_list(Str) ->
             Str;
         {incomplete, _Str, _Rest} ->
-            binary_to_list(Bin);
+            binary_to_list(Prefix);
         {error, _Str, _Rest} ->
             throw({error, {bad_header, invalid_string}})
     end.
@@ -1924,7 +1928,7 @@ write_extracted_file(Name, Bin, Opts) ->
     Write =
         case Opts#read_opts.keep_old_files of
             true ->
-                case file:read_file_info(Name) of
+                case file:read_file_info(Name, [raw]) of
                     {ok, _} -> false;
                     _ -> true
                 end;
@@ -1936,7 +1940,7 @@ write_extracted_file(Name, Bin, Opts) ->
     end.
 
 write_file(Name, Bin) ->
-    case file:write_file(Name, Bin) of
+    case file:write_file(Name, Bin, [raw]) of
         ok -> ok;
         {error,enoent} ->
             case make_dirs(Name, file) of
@@ -1957,7 +1961,7 @@ set_extracted_file_info(Name, #tar_header{typeflag = ?TYPE_BLOCK}=Header) ->
     set_device_info(Name, Header);
 set_extracted_file_info(Name, #tar_header{mtime=Mtime,mode=Mode}) ->
     Info = #file_info{mode=Mode, mtime=Mtime},
-    file:write_file_info(Name, Info, [{time, posix}]).
+    file:write_file_info(Name, Info, [raw, {time, posix}]).
 
 set_device_info(Name, #tar_header{}=Header) ->
     Mtime = Header#tar_header.mtime,
@@ -1970,7 +1974,7 @@ set_device_info(Name, #tar_header{}=Header) ->
               major_device=Devmajor,
               minor_device=Devminor
              },
-    file:write_file_info(Name, Info).
+    file:write_file_info(Name, Info, [raw]).
 
 %% Makes all directories leading up to the file.
 

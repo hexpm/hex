@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (6f7aa49), do not edit manually
+%% Vendored from hex_core v0.19.0 (69f91eb), do not edit manually
 
 %% @doc
 %% Authentication handling with callback functions for build-tool-specific operations.
@@ -88,6 +88,13 @@
 %%
 %% OAuth access tokens are automatically prefixed with `<<"Bearer ">>' when used
 %% as `api_key' or `repo_key' in the config.
+%%
+%% == Workload Identity ==
+%%
+%% Workload Identity, sometimes also known as "Trusted Publishing", lets a
+%% supported CI job (currently GitHub Actions) publish without a stored API key.
+%% `workload_identity_auth/2' exchanges the job's OIDC token for API auth
+%% scoped to one package. See its documentation for details.
 -module(mix_hex_cli_auth).
 
 -export([
@@ -98,7 +105,8 @@
     resolve_api_auth/2,
     resolve_repo_auth/1,
     refresh_tokens/1,
-    is_token_expired/1
+    is_token_expired/1,
+    workload_identity_auth/2
 ]).
 
 -export_type([
@@ -108,7 +116,8 @@
     auth_context/0,
     repo_auth_config/0,
     auth_prompt_reason/0,
-    opts/0
+    opts/0,
+    workload_identity_error/0
 ]).
 
 %% 5 minute buffer before expiry
@@ -182,6 +191,11 @@
 -type auth_context() :: #{
     has_refresh_token => boolean()
 }.
+
+-type workload_identity_error() ::
+    mix_hex_oidc:fetch_error()
+    | {oidc_audience_failed, mix_hex_api:response()}
+    | {token_exchange_failed, mix_hex_api:response()}.
 
 %% How much of each retry budget a request has already spent.
 -type retries() :: #{
@@ -542,6 +556,54 @@ is_token_expired(ExpiresAt) ->
     Now = erlang:system_time(second),
     ExpiresAt - Now < ?EXPIRY_BUFFER_SECONDS.
 
+%% @doc
+%% Authenticates with a workload identity, exchanging the CI job's OIDC token
+%% for API auth scoped to Scope (for example `<<"package:hexpm/my_package">>').
+%%
+%% Returns `none' when credentials already resolve through
+%% `resolve_api_auth/2' (any credential the user configured takes precedence)
+%% or when no supported CI provider is detected, in which case the caller
+%% falls back to its ordinary auth resolution. Call this once per publish and
+%% reuse the resulting key for every request the publish makes; do not call
+%% it from inside `with_api/3,4'.
+-spec workload_identity_auth(mix_hex_core:config(), Scope :: binary()) ->
+    {ok, binary()} | none | {error, workload_identity_error()}.
+workload_identity_auth(Config, Scope) ->
+    case resolve_api_auth(write, Config) of
+        {ok, _ApiKey, _AuthContext} ->
+            none;
+        _NoUsableCredentials ->
+            case mix_hex_oidc:detect_provider() of
+                {ok, Provider} ->
+                    authenticate_workload_identity(Config, Provider, Scope);
+                none ->
+                    none
+            end
+    end.
+
+%% @private
+authenticate_workload_identity(Config, Provider, Scope) ->
+    case mix_hex_api_oauth:oidc_audience(Config) of
+        {ok, {200, _Headers, #{<<"audience">> := Audience}}} when is_binary(Audience) ->
+            case mix_hex_oidc:fetch_token(Config, Provider, Audience) of
+                {ok, OidcToken} ->
+                    exchange_workload_identity_token(Config, OidcToken, Scope);
+                {error, _Reason} = Error ->
+                    Error
+            end;
+        Response ->
+            {error, {oidc_audience_failed, Response}}
+    end.
+
+%% @private
+exchange_workload_identity_token(Config, OidcToken, Scope) ->
+    case mix_hex_api_oauth:jwt_bearer_token(Config, OidcToken, Scope) of
+        {ok, {200, _Headers, #{<<"access_token">> := AccessToken}}} when is_binary(AccessToken) ->
+            {ok, <<"Bearer ", AccessToken/binary>>};
+        Response ->
+            {error, {token_exchange_failed, Response}}
+    end.
+
 %%====================================================================
 %% Internal functions - Device Auth
 %%====================================================================
@@ -628,16 +690,25 @@ resolve_repo_auth(#{repo_key := RepoKey}, _Renew) when is_binary(RepoKey) ->
     {ok, RepoKey, #{has_refresh_token => false}};
 resolve_repo_auth(Config, Renew) ->
     RepoName = repo_name(Config),
-    global:trans(
-        {{?MODULE, repo, RepoName}, self()},
-        fun() ->
-            do_resolve_repo_auth(RepoName, RepoName, Config, Renew)
-        end,
-        [node()],
-        infinity
-    ).
+    %% Most requests resolve to a stored credential, or to none, without
+    %% exchanging a token. Those are answered without the repo lock so that
+    %% concurrent requests don't queue on it; only an exchange takes the lock and
+    %% resolves again under it.
+    case do_resolve_repo_auth(RepoName, RepoName, Config, Renew, unlocked) of
+        needs_lock ->
+            global:trans(
+                {{?MODULE, repo, RepoName}, self()},
+                fun() ->
+                    do_resolve_repo_auth(RepoName, RepoName, Config, Renew, locked)
+                end,
+                [node()],
+                infinity
+            );
+        Result ->
+            Result
+    end.
 
-do_resolve_repo_auth(RepoName, LookupRepo, Config, Renew) ->
+do_resolve_repo_auth(RepoName, LookupRepo, Config, Renew, Lock) ->
     Trusted = maps:get(trusted, Config, false),
     OAuthExchange = maps:get(oauth_exchange, Config, false),
     case call_callback(Config, get_auth_config, [LookupRepo]) of
@@ -648,10 +719,13 @@ do_resolve_repo_auth(RepoName, LookupRepo, Config, Renew) ->
             is_binary(AuthKey) and OAuthExchange, Trusted
         ->
             %% 2. trusted + oauth_token + auth_key + oauth_exchange => use/refresh existing token
-            resolve_repo_oauth_token(RepoName, Config, AuthKey, OAuthToken, Renew);
+            resolve_repo_oauth_token(RepoName, Config, AuthKey, OAuthToken, Renew, Lock);
         #{auth_key := AuthKey} when is_binary(AuthKey) and OAuthExchange, Trusted ->
             %% 3. trusted + auth_key + oauth_exchange => exchange for new OAuth token
-            exchange_for_oauth_token(RepoName, Config, AuthKey, <<"repositories">>);
+            case Lock of
+                unlocked -> needs_lock;
+                locked -> exchange_for_oauth_token(RepoName, Config, AuthKey, <<"repositories">>)
+            end;
         #{auth_key := AuthKey} when is_binary(AuthKey), Trusted ->
             %% 4. trusted + auth_key => use directly
             {ok, AuthKey, #{has_refresh_token => false}};
@@ -659,7 +733,7 @@ do_resolve_repo_auth(RepoName, LookupRepo, Config, Renew) ->
             %% 5. Check parent repo (for "hexpm:org" organizations)
             case binary:split(LookupRepo, <<":">>) of
                 [ParentName, _OrgName] ->
-                    do_resolve_repo_auth(RepoName, ParentName, Config, Renew);
+                    do_resolve_repo_auth(RepoName, ParentName, Config, Renew, Lock);
                 _ ->
                     %% 6. trusted Hex.pm or child repository + global OAuth tokens => use those
                     resolve_global_oauth_for_repo(RepoName, Config, Renew)
@@ -694,14 +768,17 @@ resolve_repo_oauth_token(
     Config,
     AuthKey,
     #{access_token := AccessToken, expires_at := ExpiresAt},
-    Renew
+    Renew,
+    Lock
 ) ->
-    case Renew orelse is_token_expired(ExpiresAt) of
-        false ->
+    case {Renew orelse is_token_expired(ExpiresAt), Lock} of
+        {false, _} ->
             %% Token is still valid, use it
             BearerToken = <<"Bearer ", AccessToken/binary>>,
             {ok, BearerToken, #{has_refresh_token => false}};
-        true ->
+        {true, unlocked} ->
+            needs_lock;
+        {true, locked} ->
             %% Token expired, do a new exchange
             exchange_for_oauth_token(RepoName, Config, AuthKey, <<"repositories">>)
     end.
@@ -749,20 +826,38 @@ get_parent_repo_key(Config, RepoName, KeyType) ->
 %% Resolve OAuth token with global lock to prevent concurrent refresh attempts.
 %% Renew refreshes a token that has not run out of time, for when the server
 %% has rejected it anyway.
-resolve_oauth_token_with_context(Config, Renew) ->
-    Resolve = fun(#{access_token := AccessToken, expires_at := ExpiresAt} = Tokens) ->
+%%
+%% A stored token that is still valid, or no stored token, is answered without
+%% the lock. Only a refresh takes it, and the tokens are read again under the
+%% lock in case another caller refreshed them while this one waited.
+resolve_oauth_token_with_context(Config, false) ->
+    case call_callback(Config, get_oauth_tokens, []) of
+        {ok, #{expires_at := ExpiresAt} = Tokens} ->
+            case is_token_expired(ExpiresAt) of
+                false -> bearer_token(Tokens);
+                true -> resolve_oauth_token_with_lock(Config, false)
+            end;
+        error ->
+            {error, no_auth}
+    end;
+resolve_oauth_token_with_context(Config, true) ->
+    resolve_oauth_token_with_lock(Config, true).
+
+resolve_oauth_token_with_lock(Config, Renew) ->
+    Resolve = fun(#{expires_at := ExpiresAt} = Tokens) ->
         case Renew orelse is_token_expired(ExpiresAt) of
-            true ->
-                refresh_or_clear(Config, Tokens);
-            false ->
-                BearerToken = <<"Bearer ", AccessToken/binary>>,
-                {ok, BearerToken, #{has_refresh_token => has_refresh_token(Tokens)}}
+            true -> refresh_or_clear(Config, Tokens);
+            false -> bearer_token(Tokens)
         end
     end,
     case with_token_refresh_lock(Config, Resolve) of
         error -> {error, no_auth};
         Result -> Result
     end.
+
+bearer_token(#{access_token := AccessToken} = Tokens) ->
+    BearerToken = <<"Bearer ", AccessToken/binary>>,
+    {ok, BearerToken, #{has_refresh_token => has_refresh_token(Tokens)}}.
 
 %% @private
 %% Fetch the stored global tokens and hand them to Fun under the token-refresh

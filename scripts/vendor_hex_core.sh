@@ -33,6 +33,7 @@ filenames="hex_api_auth.erl \
            hex_http.erl \
            hex_http_httpc.erl \
            hex_licenses.erl \
+           hex_oidc.erl \
            hex_pb_names.erl \
            hex_pb_package.erl \
            hex_pb_policy.erl \
@@ -51,6 +52,7 @@ search_to_replace="hex_core: \
                    hex_erl_tar \
                    hex_filename \
                    hex_licenses \
+                   hex_oidc \
                    hex_pb_names \
                    hex_pb_package \
                    hex_pb_policy \

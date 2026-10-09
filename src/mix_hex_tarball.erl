@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (6f7aa49), do not edit manually
+%% Vendored from hex_core v0.19.0 (69f91eb), do not edit manually
 
 %% @doc
 %% Functions for creating and unpacking Hex tarballs.
@@ -12,7 +12,9 @@
     format_error/1
 ]).
 -ifdef(TEST).
--export([do_decode_metadata/1, do_decode_metadata/2, gzip/1, normalize_requirements/1]).
+-export([
+    do_decode_metadata/1, do_decode_metadata/2, gzip/1, make_tmp_dir/1, normalize_requirements/1
+]).
 -endif.
 -define(VERSION, <<"3">>).
 -define(HASH_CHUNK_SIZE, 65536).
@@ -268,22 +270,30 @@ unpack(Input, Output, Config) ->
         true ->
             OuterChecksum = outer_checksum(Input),
             Source = tar_source(Input),
-            TmpDir = tmp_path(),
-            ok = file:make_dir(TmpDir),
-            try
-                case mix_hex_erl_tar:extract(Source, [{cwd, TmpDir}]) of
-                    ok ->
-                        case read_outer_files(TmpDir) of
-                            {ok, Files} ->
-                                do_unpack(Files, OuterChecksum, Output, Config);
-                            {error, _} = Error ->
-                                Error
-                        end;
-                    {error, Reason} ->
-                        {error, {tarball, Reason}}
-                end
-            after
-                remove_dir(TmpDir)
+            TmpDir = filename:join(tmp_parent(Output), tmp_path()),
+            case make_tmp_dir(TmpDir) of
+                ok ->
+                    try
+                        case mix_hex_erl_tar:extract(Source, [{cwd, TmpDir}]) of
+                            ok ->
+                                case read_outer_files(TmpDir) of
+                                    {ok, Files} ->
+                                        do_unpack(Files, OuterChecksum, Output, Config);
+                                    {error, _} = Error ->
+                                        Error
+                                end;
+                            {error, Reason} ->
+                                {error, {tarball, Reason}}
+                        end
+                    after
+                        remove_dir(TmpDir)
+                    end;
+                {error, Reason} when Output =:= none ->
+                    {error, {tarball, Reason}};
+                {error, Reason} ->
+                    %% The output directory can't be written to, which is
+                    %% reported the same as failing to extract into it.
+                    {error, {inner_tarball, Reason}}
             end;
         false ->
             {error, {tarball, too_big}}
@@ -666,7 +676,7 @@ unpack_contents(Contents, Output, MaxSize) ->
 
 %% @private
 copy_metadata_config(Output, MetadataBinary) ->
-    ok = file:write_file(filename:join(Output, "hex_metadata.config"), MetadataBinary).
+    ok = file:write_file(filename:join(Output, "hex_metadata.config"), MetadataBinary, [raw]).
 
 %% @private
 check_files(#{files := Files} = State) ->
@@ -1010,12 +1020,25 @@ normalize_metadata(Metadata1) ->
 
 %% @private
 normalize_requirements(Requirements) ->
-    case is_list(Requirements) andalso (Requirements /= []) andalso is_list(hd(Requirements)) of
+    case is_legacy_requirements(Requirements) of
         true ->
             maps:from_list(lists:map(fun normalize_legacy_requirement/1, Requirements));
         false ->
             try_into_map(fun normalize_normal_requirement/1, Requirements)
     end.
+
+%% @private
+%% Legacy requirements are property lists that each name their dependency.
+%% Anything else is left as it is for the caller to reject.
+is_legacy_requirements([_ | _] = Requirements) ->
+    lists:all(
+        fun(Requirement) ->
+            has_map_shape(Requirement) andalso lists:keymember(<<"name">>, 1, Requirement)
+        end,
+        Requirements
+    );
+is_legacy_requirements(_) ->
+    false.
 
 %% @private
 normalize_normal_requirement({Name, Requirement}) ->
@@ -1030,10 +1053,12 @@ normalize_legacy_requirement(Requirement) ->
 %% @private
 guess_build_tools(#{<<"build_tools">> := BuildTools} = Metadata) when is_list(BuildTools) ->
     Metadata;
-guess_build_tools(#{<<"files">> := Filenames} = Metadata) ->
+guess_build_tools(#{<<"files">> := Filenames} = Metadata) when is_list(Filenames) ->
     BaseFiles = [
         Filename
-     || Filename <- Filenames, filename:dirname(binary_to_list(Filename)) == "."
+     || Filename <- Filenames,
+        is_binary(Filename),
+        filename:dirname(binary_to_list(Filename)) == "."
     ],
     BuildTools = lists:usort([
         Tool
@@ -1374,12 +1399,12 @@ update_mtimes(Dir, Time) ->
     end.
 
 update_mtime(Path, Time) ->
-    case file:read_link_info(Path, [{time, universal}]) of
+    case file:read_link_info(Path, [raw, {time, universal}]) of
         {ok, #file_info{type = directory}} ->
-            _ = file:write_file_info(Path, #file_info{mtime = Time}, [{time, universal}]),
+            _ = file:write_file_info(Path, #file_info{mtime = Time}, [raw, {time, universal}]),
             update_mtimes(Path, Time);
         {ok, #file_info{type = regular}} ->
-            _ = file:write_file_info(Path, #file_info{mtime = Time}, [{time, universal}]),
+            _ = file:write_file_info(Path, #file_info{mtime = Time}, [raw, {time, universal}]),
             ok;
         _ ->
             ok
@@ -1402,6 +1427,67 @@ create_memory_tarball(Files) ->
         Tarball
     after
         ok = file:close(Fd)
+    end.
+
+%% @private
+%% The outer tarball is extracted inside the output directory, so unpacking
+%% needs no write access outside it and doesn't depend on the current
+%% directory. Without an output it goes to the system temporary directory.
+tmp_parent(none) ->
+    system_tmp_dir();
+tmp_parent(Output) ->
+    Output.
+
+%% @private
+%% The first writable directory of TMPDIR, TEMP, TMP and /tmp, the same
+%% candidates as Elixir's System.tmp_dir/0, falling back to the current
+%% directory.
+system_tmp_dir() ->
+    EnvDirs = [Dir || Var <- ["TMPDIR", "TEMP", "TMP"], Dir <- [os:getenv(Var)], is_list(Dir)],
+    case lists:search(fun is_writable_dir/1, EnvDirs ++ ["/tmp"]) of
+        {value, Dir} ->
+            Dir;
+        false ->
+            case file:get_cwd() of
+                {ok, Cwd} -> Cwd;
+                {error, _} -> "."
+            end
+    end.
+
+is_writable_dir(Dir) ->
+    case file:read_file_info(Dir, [raw]) of
+        {ok, #file_info{type = directory, access = Access}} ->
+            Access =:= read_write orelse Access =:= write;
+        _ ->
+            false
+    end.
+
+%% @private
+%% Readable only by the owner, since with the none output it is in a shared
+%% temporary directory and holds the package contents.
+make_tmp_dir(TmpDir) ->
+    case create_dir(TmpDir) of
+        ok ->
+            case file:write_file_info(TmpDir, #file_info{mode = 8#700}, [raw]) of
+                ok ->
+                    ok;
+                {error, _} = Error ->
+                    _ = file:del_dir(TmpDir),
+                    Error
+            end;
+        {error, _} = Error ->
+            Error
+    end.
+
+create_dir(Dir) ->
+    case file:make_dir(Dir) of
+        {error, enoent} ->
+            case filelib:ensure_dir(Dir) of
+                ok -> file:make_dir(Dir);
+                {error, _} = Error -> Error
+            end;
+        Result ->
+            Result
     end.
 
 %% @private
