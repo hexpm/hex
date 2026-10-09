@@ -75,6 +75,7 @@ defmodule Hex.WorkloadIdentityTest do
       {:ok, bypass: bypass}
     end
 
+    @tag :requires_json
     test "returns OAuth auth for the minted token", %{bypass: bypass} do
       Bypass.expect(bypass, fn conn ->
         case conn.request_path do
@@ -93,6 +94,7 @@ defmodule Hex.WorkloadIdentityTest do
       assert Hex.WorkloadIdentity.auth!("hexpm", "foo") == [key: "minted_token", oauth: true]
     end
 
+    @tag :requires_json
     test "raises when GitHub Actions refuses the OIDC token", %{bypass: bypass} do
       Bypass.expect(bypass, fn conn ->
         case conn.request_path do
