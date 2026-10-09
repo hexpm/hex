@@ -70,6 +70,7 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
 
     assert docs_auth == ["Bearer minted_token"]
 
+    assert_received {:mix_shell, :info, ["Authenticated with Workload Identity"]}
     refute_received {:exchange, _}
     refute_received {:request, _method, "/api/users/me", _, _}
   end
@@ -106,8 +107,31 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
 
     refute_received {:exchange, _}
     refute_received {:request, "GET", "/github/token", _, _}
+    refute_received {:mix_shell, :info, ["Authenticated with Workload Identity"]}
 
     assert_received {:request, "POST", "/api/packages/#{@package}/releases", _, ["api_key"]}
+  end
+
+  @tag :requires_json
+  test "an empty HEX_API_KEY publishes with the workload identity", %{bypass: bypass} do
+    stub_api(bypass)
+    original = System.get_env("HEX_API_KEY")
+    System.put_env("HEX_API_KEY", "")
+
+    on_exit(fn ->
+      if original,
+        do: System.put_env("HEX_API_KEY", original),
+        else: System.delete_env("HEX_API_KEY")
+    end)
+
+    Hex.State.put_all(Map.merge(Hex.State.get_all(), Map.take(Hex.State.init([]), [:api_key])))
+
+    publish(["package", "--yes", "--no-progress"])
+
+    assert_received {:exchange, %{"scope" => "package:hexpm/#{@package}"}}
+
+    assert_received {:request, "POST", "/api/packages/#{@package}/releases", _,
+                     ["Bearer minted_token"]}
   end
 
   test "a dry run does not exchange the OIDC token" do

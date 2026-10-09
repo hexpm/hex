@@ -30,23 +30,4 @@ defmodule Hex.WorkloadIdentityTest do
       assert Hex.WorkloadIdentity.auth!("hexpm", "foo") == []
     end
   end
-
-  test "ignores an empty HEX_API_KEY" do
-    original = System.get_env("HEX_API_KEY")
-
-    try do
-      System.put_env("HEX_API_KEY", "")
-      Hex.State.refresh()
-      refute Hex.State.fetch_source!(:api_key) == {:env, "HEX_API_KEY"}
-    after
-      if original do
-        System.put_env("HEX_API_KEY", original)
-      else
-        System.delete_env("HEX_API_KEY")
-      end
-
-      Hex.State.refresh()
-      HexTest.Case.reset_state()
-    end
-  end
 end
