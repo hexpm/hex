@@ -14,6 +14,7 @@ defmodule Hex.WorkloadIdentity do
 
     case :mix_hex_cli_auth.workload_identity_auth(Client.config(), scope) do
       {:ok, "Bearer " <> token} ->
+        Hex.Shell.info("Authenticated with Workload Identity")
         [key: token, oauth: true]
 
       :none ->
