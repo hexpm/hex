@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (4fbc5d1), do not edit manually
+%% Vendored from hex_core v0.19.0 (69f91eb), do not edit manually
 
 %% @hidden
 %% Safe deserialization of Erlang terms from binary.

@@ -15,6 +15,11 @@ defmodule Hex.API.Package do
     )
   end
 
+  def get_anonymous(repo, name) when name != "" do
+    config = Client.build_config(repo, [])
+    :mix_hex_api_package.get(config, to_string(name))
+  end
+
   def search(repo, search, auth \\ []) do
     config = Client.build_config(repo, auth)
     search_params = [{:sort, "downloads"}]

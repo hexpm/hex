@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (4fbc5d1), do not edit manually
+%% Vendored from hex_core v0.19.0 (69f91eb), do not edit manually
 
 %% @doc
 %% Hex HTTP API - OAuth.
@@ -15,6 +15,8 @@
     revoke_token/3,
     client_credentials_token/4,
     client_credentials_token/5,
+    jwt_bearer_token/3,
+    oidc_audience/1,
     win_cmd_args/1
 ]).
 
@@ -374,6 +376,45 @@ client_credentials_token(Config, ClientId, ApiKey, Scope, Opts) ->
             Name -> Params0#{<<"name">> => Name}
         end,
     mix_hex_api:post(Config, Path, Params).
+
+%% @doc
+%% Exchanges an OIDC token from a CI provider for an access token scoped to
+%% one package, using the JWT bearer grant (RFC 7523). This is what Workload
+%% Identity uses in place of a stored API key.
+%%
+%% Examples:
+%%
+%% ```
+%% 1> Config = mix_hex_core:default_config().
+%% 2> mix_hex_api_oauth:jwt_bearer_token(Config, OidcToken, <<"package:hexpm/my_package">>).
+%% {ok, {200, _, #{<<"access_token">> => <<"...">>, <<"expires_in">> => 900}}}
+%% '''
+%% @end
+-spec jwt_bearer_token(mix_hex_core:config(), Assertion :: binary(), Scope :: binary()) ->
+    mix_hex_api:response().
+jwt_bearer_token(Config, Assertion, Scope) ->
+    Path = <<"oauth/token">>,
+    Params = #{
+        <<"grant_type">> => <<"urn:ietf:params:oauth:grant-type:jwt-bearer">>,
+        <<"assertion">> => Assertion,
+        <<"scope">> => Scope
+    },
+    mix_hex_api:post(Config, Path, Params).
+
+%% @doc
+%% Fetches the audience Workload Identity OIDC tokens must be issued for.
+%%
+%% Examples:
+%%
+%% ```
+%% 1> Config = mix_hex_core:default_config().
+%% 2> mix_hex_api_oauth:oidc_audience(Config).
+%% {ok, {200, _, #{<<"audience">> => <<"hexpm">>}}}
+%% '''
+%% @end
+-spec oidc_audience(mix_hex_core:config()) -> mix_hex_api:response().
+oidc_audience(Config) ->
+    mix_hex_api:get(Config, <<"oidc/audience">>).
 
 %% @doc
 %% Revokes an OAuth token (RFC 7009).

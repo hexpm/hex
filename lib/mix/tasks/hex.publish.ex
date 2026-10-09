@@ -31,6 +31,18 @@ defmodule Mix.Tasks.Hex.Publish do
   without documentation run `mix hex.publish package` or to only publish documentation
   run `mix hex.publish docs`.
 
+  ## Workload Identity
+
+  Workload Identity is sometimes also known as "Trusted Publishing". In a GitHub
+  Actions job with the `id-token: write` permission, and when no `HEX_API_KEY` or
+  other Hex credential is configured, the job's OIDC token is exchanged for a
+  short-lived token that can only publish this package. Configure a workload
+  identity on hex.pm first. A public package's workload identity is configured
+  on the package, so the package must already exist and its first release has
+  to be published with a regular account. A package in an organization's
+  repository uses the organization's workload identities, and one with the
+  `write` role can also create the package.
+
   ## Reverting a package
 
   A new package can be reverted or updated within 24 hours of its initial publish.
@@ -98,9 +110,10 @@ defmodule Mix.Tasks.Hex.Publish do
       ["package"] ->
         case proceed_with_owner(build, organization, opts) do
           {:ok, owner} ->
+            auth = publish_auth(build, organization, opts)
             Hex.Shell.info("Publishing package...")
 
-            case create_release(build, organization, opts) do
+            case create_release(build, organization, auth, opts) do
               :ok -> transfer_owner(build, owner, opts)
               _ -> Mix.Tasks.Hex.set_exit_code(1)
             end
@@ -111,7 +124,8 @@ defmodule Mix.Tasks.Hex.Publish do
 
       ["docs"] ->
         docs_task()
-        create_docs(build, organization, opts)
+        auth = publish_auth(build, organization, opts)
+        create_docs(build, organization, auth, opts)
 
       [] ->
         create(build, organization, opts)
@@ -144,12 +158,13 @@ defmodule Mix.Tasks.Hex.Publish do
       {:ok, owner} ->
         Hex.Shell.info("Building docs...")
         docs_task()
+        auth = publish_auth(build, organization, opts)
         Hex.Shell.info("Publishing package...")
 
-        case create_release(build, organization, opts) do
+        case create_release(build, organization, auth, opts) do
           :ok ->
             Hex.Shell.info("Publishing docs...")
-            create_docs(build, organization, opts)
+            create_docs(build, organization, auth, opts)
             transfer_owner(build, owner, opts)
 
           _ ->
@@ -161,7 +176,15 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp create_docs(build, organization, opts) do
+  defp publish_auth(build, organization, opts) do
+    if Keyword.get(opts, :dry_run, false) do
+      []
+    else
+      Hex.WorkloadIdentity.auth!(organization || "hexpm", build.meta.name)
+    end
+  end
+
+  defp create_docs(build, organization, auth, opts) do
     directory = docs_dir()
     name = build.meta.name
     version = build.meta.version
@@ -177,7 +200,7 @@ defmodule Mix.Tasks.Hex.Publish do
     if dry_run? do
       :ok
     else
-      send_tarball(organization, name, version, tarball, progress?)
+      send_tarball(organization, name, version, tarball, auth, progress?)
     end
   end
 
@@ -249,20 +272,21 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp print_owner_prompt(build, organization, opts) do
-    organizations = user_organizations()
+    yes? = Keyword.get(opts, :yes, false)
 
-    owner_prompt? =
-      public_organization?(organization) and
-        not Keyword.get(opts, :yes, false) and
-        organizations != [] and
-        not package_exists?(build)
+    organizations =
+      if public_organization?(organization) and not yes? and not package_exists?(build) do
+        user_organizations()
+      else
+        []
+      end
 
     Hex.Shell.info("")
 
-    if owner_prompt? do
+    if organizations != [] do
       do_print_owner_prompt(organizations)
     else
-      if Keyword.get(opts, :yes, false) or Hex.Shell.yes?("Proceed?") do
+      if yes? or Hex.Shell.yes?("Proceed?") do
         {:ok, nil}
       else
         :error
@@ -306,7 +330,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp package_exists?(build) do
-    case Hex.API.Package.get("hexpm", build.meta.name) do
+    case Hex.API.Package.get_anonymous("hexpm", build.meta.name) do
       {:ok, {200, _headers, _body}} ->
         true
 
@@ -419,10 +443,10 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp send_tarball(organization, name, version, tarball, progress?) do
+  defp send_tarball(organization, name, version, tarball, auth, progress?) do
     progress = progress_fun(progress?, byte_size(tarball))
 
-    case Hex.API.ReleaseDocs.publish(organization, name, version, tarball, [], progress) do
+    case Hex.API.ReleaseDocs.publish(organization, name, version, tarball, auth, progress) do
       {:ok, {code, headers, _body}} when code in 200..299 ->
         api_url = Hex.State.fetch!(:api_url)
         default_api_url? = api_url == Hex.State.default_api_url()
@@ -492,7 +516,7 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp create_release(build, organization, opts) do
+  defp create_release(build, organization, auth, opts) do
     meta = build.meta
 
     %{tarball: tarball, outer_checksum: checksum} =
@@ -504,17 +528,17 @@ defmodule Mix.Tasks.Hex.Publish do
     if dry_run? do
       :ok
     else
-      send_release(tarball, checksum, organization, opts)
+      send_release(tarball, checksum, organization, auth, opts)
     end
   end
 
-  defp send_release(tarball, checksum, organization, opts) do
+  defp send_release(tarball, checksum, organization, auth, opts) do
     progress? = Keyword.get(opts, :progress, true)
     progress = progress_fun(progress?, byte_size(tarball))
 
     replace? = Keyword.get(opts, :replace, false)
 
-    case Hex.API.Release.publish(organization, tarball, [], progress, replace?) do
+    case Hex.API.Release.publish(organization, tarball, auth, progress, replace?) do
       {:ok, {code, _, body}} when code in 200..299 ->
         location = body["html_url"] || body["url"]
         checksum = String.downcase(Base.encode16(checksum, case: :lower))

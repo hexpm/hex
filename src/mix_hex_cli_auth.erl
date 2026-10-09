@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (4fbc5d1), do not edit manually
+%% Vendored from hex_core v0.19.0 (69f91eb), do not edit manually
 
 %% @doc
 %% Authentication handling with callback functions for build-tool-specific operations.
@@ -88,6 +88,13 @@
 %%
 %% OAuth access tokens are automatically prefixed with `<<"Bearer ">>' when used
 %% as `api_key' or `repo_key' in the config.
+%%
+%% == Workload Identity ==
+%%
+%% Workload Identity, sometimes also known as "Trusted Publishing", lets a
+%% supported CI job (currently GitHub Actions) publish without a stored API key.
+%% `workload_identity_auth/2' exchanges the job's OIDC token for API auth
+%% scoped to one package. See its documentation for details.
 -module(mix_hex_cli_auth).
 
 -export([
@@ -98,7 +105,8 @@
     resolve_api_auth/2,
     resolve_repo_auth/1,
     refresh_tokens/1,
-    is_token_expired/1
+    is_token_expired/1,
+    workload_identity_auth/2
 ]).
 
 -export_type([
@@ -108,7 +116,8 @@
     auth_context/0,
     repo_auth_config/0,
     auth_prompt_reason/0,
-    opts/0
+    opts/0,
+    workload_identity_error/0
 ]).
 
 %% 5 minute buffer before expiry
@@ -182,6 +191,11 @@
 -type auth_context() :: #{
     has_refresh_token => boolean()
 }.
+
+-type workload_identity_error() ::
+    mix_hex_oidc:fetch_error()
+    | {oidc_audience_failed, mix_hex_api:response()}
+    | {token_exchange_failed, mix_hex_api:response()}.
 
 %% How much of each retry budget a request has already spent.
 -type retries() :: #{
@@ -541,6 +555,54 @@ refresh_tokens(Config) ->
 is_token_expired(ExpiresAt) ->
     Now = erlang:system_time(second),
     ExpiresAt - Now < ?EXPIRY_BUFFER_SECONDS.
+
+%% @doc
+%% Authenticates with a workload identity, exchanging the CI job's OIDC token
+%% for API auth scoped to Scope (for example `<<"package:hexpm/my_package">>').
+%%
+%% Returns `none' when credentials already resolve through
+%% `resolve_api_auth/2' (any credential the user configured takes precedence)
+%% or when no supported CI provider is detected, in which case the caller
+%% falls back to its ordinary auth resolution. Call this once per publish and
+%% reuse the resulting key for every request the publish makes; do not call
+%% it from inside `with_api/3,4'.
+-spec workload_identity_auth(mix_hex_core:config(), Scope :: binary()) ->
+    {ok, binary()} | none | {error, workload_identity_error()}.
+workload_identity_auth(Config, Scope) ->
+    case resolve_api_auth(write, Config) of
+        {ok, _ApiKey, _AuthContext} ->
+            none;
+        _NoUsableCredentials ->
+            case mix_hex_oidc:detect_provider() of
+                {ok, Provider} ->
+                    authenticate_workload_identity(Config, Provider, Scope);
+                none ->
+                    none
+            end
+    end.
+
+%% @private
+authenticate_workload_identity(Config, Provider, Scope) ->
+    case mix_hex_api_oauth:oidc_audience(Config) of
+        {ok, {200, _Headers, #{<<"audience">> := Audience}}} when is_binary(Audience) ->
+            case mix_hex_oidc:fetch_token(Config, Provider, Audience) of
+                {ok, OidcToken} ->
+                    exchange_workload_identity_token(Config, OidcToken, Scope);
+                {error, _Reason} = Error ->
+                    Error
+            end;
+        Response ->
+            {error, {oidc_audience_failed, Response}}
+    end.
+
+%% @private
+exchange_workload_identity_token(Config, OidcToken, Scope) ->
+    case mix_hex_api_oauth:jwt_bearer_token(Config, OidcToken, Scope) of
+        {ok, {200, _Headers, #{<<"access_token">> := AccessToken}}} when is_binary(AccessToken) ->
+            {ok, <<"Bearer ", AccessToken/binary>>};
+        Response ->
+            {error, {token_exchange_failed, Response}}
+    end.
 
 %%====================================================================
 %% Internal functions - Device Auth

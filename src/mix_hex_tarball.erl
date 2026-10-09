@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (4fbc5d1), do not edit manually
+%% Vendored from hex_core v0.19.0 (69f91eb), do not edit manually
 
 %% @doc
 %% Functions for creating and unpacking Hex tarballs.
@@ -1020,12 +1020,25 @@ normalize_metadata(Metadata1) ->
 
 %% @private
 normalize_requirements(Requirements) ->
-    case is_list(Requirements) andalso (Requirements /= []) andalso is_list(hd(Requirements)) of
+    case is_legacy_requirements(Requirements) of
         true ->
             maps:from_list(lists:map(fun normalize_legacy_requirement/1, Requirements));
         false ->
             try_into_map(fun normalize_normal_requirement/1, Requirements)
     end.
+
+%% @private
+%% Legacy requirements are property lists that each name their dependency.
+%% Anything else is left as it is for the caller to reject.
+is_legacy_requirements([_ | _] = Requirements) ->
+    lists:all(
+        fun(Requirement) ->
+            has_map_shape(Requirement) andalso lists:keymember(<<"name">>, 1, Requirement)
+        end,
+        Requirements
+    );
+is_legacy_requirements(_) ->
+    false.
 
 %% @private
 normalize_normal_requirement({Name, Requirement}) ->
@@ -1040,10 +1053,12 @@ normalize_legacy_requirement(Requirement) ->
 %% @private
 guess_build_tools(#{<<"build_tools">> := BuildTools} = Metadata) when is_list(BuildTools) ->
     Metadata;
-guess_build_tools(#{<<"files">> := Filenames} = Metadata) ->
+guess_build_tools(#{<<"files">> := Filenames} = Metadata) when is_list(Filenames) ->
     BaseFiles = [
         Filename
-     || Filename <- Filenames, filename:dirname(binary_to_list(Filename)) == "."
+     || Filename <- Filenames,
+        is_binary(Filename),
+        filename:dirname(binary_to_list(Filename)) == "."
     ],
     BuildTools = lists:usort([
         Tool

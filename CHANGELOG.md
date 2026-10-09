@@ -8,6 +8,7 @@
 
 ### Enhancements
 
+* Support Workload Identity, sometimes also known as Trusted Publishing, in `mix hex.publish`. In a GitHub Actions job with the `id-token: write` permission and no `HEX_API_KEY` or other Hex credential configured, the job's OIDC token is exchanged for a short-lived token that can only publish the package, so CI can publish without storing an API key. A workload identity must be configured on hex.pm first, on the package for a public package and on the organization for a package in an organization's repository. An organization's workload identity with the `write` role can also create packages
 * Print warnings to standard error instead of standard output, keeping stdout clean for machine-readable output such as `mix hex.outdated --json`. Warning-colored lines that are part of a command's regular output, such as retirement notices in `mix hex.info` and the `mix deps.get` dependency listing, remain on standard output
 * Add `--format sarif` and `--output PATH` options to `mix hex.audit` to render the audit result as a SARIF v2.1.0 document that can be uploaded to GitHub code scanning and other SARIF consumers. Findings are anchored to the dependency's `mix.lock` entry and ignored findings are included as suppressed results. Requires OTP 27 or later
 * Link to the hex.pm diffs page (`https://hex.pm/diffs`) in `mix hex.outdated` now that package diffs have moved from diff.hex.pm into hex.pm
@@ -19,6 +20,7 @@
 * Speed up `mix deps.get` and `mix deps.update` and lower their memory use when fetching large packages. `http_concurrency` now limits how many packages are downloaded at a time, and registry files are fetched with four times that limit, 32 by default
 ### Bug fixes
 
+* Only look up the authenticated user's organizations in `mix hex.publish` when the owner prompt can be shown, that is when publishing a new public package without `--yes`. Publishing with a key that cannot read the user, such as a workload identity token, no longer prints an error
 * Report locked packages matched by a DENY override in `mix hex.audit --policy` and `mix hex.audit --policy-overrides`. Denied packages are listed in a "Denied:" section, fail the audit, and appear in SARIF output under the `HEX0006` rule. `ignore_advisories` and `ignore_retirements` do not apply to denied packages
 * Identify `mix hex.audit --format sarif` results by repository and package instead of package alone, so a package locked from both hexpm and an organization repository under two app names points each result at its own `mix.lock` line. SARIF fingerprints now include the repository, so existing code scanning alerts are re-keyed once
 * Only say `(using cache instead)` when a package or policy fails to fetch from the registry and a cached copy exists. Without a cached copy the message claimed a fallback that didn't happen
