@@ -8,28 +8,23 @@ defmodule Hex.WorkloadIdentityTest do
     end)
   end
 
-  describe "available?/0" do
+  describe "auth!/2 without a workload identity" do
     test "outside GitHub Actions OIDC" do
-      refute Hex.WorkloadIdentity.available?()
-    end
-
-    test "in GitHub Actions OIDC without credentials" do
-      put_github_oidc_env("http://localhost/token")
-      assert Hex.WorkloadIdentity.available?()
+      assert Hex.WorkloadIdentity.auth!("hexpm", "foo") == []
     end
 
     test "when either GitHub Actions OIDC variable is empty" do
       put_github_oidc_env("")
-      refute Hex.WorkloadIdentity.available?()
+      assert Hex.WorkloadIdentity.auth!("hexpm", "foo") == []
 
       put_github_oidc_env("http://localhost/token", "")
-      refute Hex.WorkloadIdentity.available?()
+      assert Hex.WorkloadIdentity.auth!("hexpm", "foo") == []
     end
 
     test "when HEX_API_KEY is set" do
       put_github_oidc_env("http://localhost/token")
       Hex.State.put(:api_key, "api_key")
-      refute Hex.WorkloadIdentity.available?()
+      assert Hex.WorkloadIdentity.auth!("hexpm", "foo") == []
     end
 
     test "ignores an empty HEX_API_KEY" do
@@ -55,19 +50,24 @@ defmodule Hex.WorkloadIdentityTest do
       in_tmp(fn ->
         set_home_cwd()
         put_github_oidc_env("http://localhost/token")
-        Hex.OAuth.store_token(%{access_token: "token", expires_at: 0})
-        refute Hex.WorkloadIdentity.available?()
+
+        Hex.OAuth.store_token(%{
+          access_token: "token",
+          expires_at: System.os_time(:second) + 3600
+        })
+
+        assert Hex.WorkloadIdentity.auth!("hexpm", "foo") == []
       end)
     end
 
     test "when the hexpm repository has an API key" do
       put_github_oidc_env("http://localhost/token")
       Hex.State.update!(:repos, &put_in(&1["hexpm"][:api_key], "repo_api_key"))
-      refute Hex.WorkloadIdentity.available?()
+      assert Hex.WorkloadIdentity.auth!("hexpm", "foo") == []
     end
   end
 
-  describe "auth!/2" do
+  describe "auth!/2 with a workload identity" do
     setup do
       bypass = Bypass.open()
       Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")

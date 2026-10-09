@@ -8,12 +8,4 @@ defmodule Hex.Stdlib do
       apply(Mix, :ensure_application!, [app])
     end
   end
-
-  def json_decode(binary) do
-    if Code.ensure_loaded?(:json) do
-      {:ok, apply(:json, :decode, [binary])}
-    else
-      :unavailable
-    end
-  end
 end

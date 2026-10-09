@@ -174,11 +174,10 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp publish_auth(build, organization, opts) do
-    if not Keyword.get(opts, :dry_run, false) and Hex.WorkloadIdentity.available?() do
-      Hex.Shell.info("Authenticating with Workload Identity...")
-      Hex.WorkloadIdentity.auth!(organization || "hexpm", build.meta.name)
-    else
+    if Keyword.get(opts, :dry_run, false) do
       []
+    else
+      Hex.WorkloadIdentity.auth!(organization || "hexpm", build.meta.name)
     end
   end
 

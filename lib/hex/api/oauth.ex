@@ -61,25 +61,6 @@ defmodule Hex.API.OAuth do
   end
 
   @doc """
-  Exchanges an OIDC token from a CI provider for an access token scoped to one
-  package, using the JWT bearer grant.
-
-  ## Examples
-
-      iex> Hex.API.OAuth.jwt_bearer_token(oidc_token, "package:hexpm/my_package")
-      {:ok, {200, _headers, %{"access_token" => "...", "expires_in" => 900}}}
-  """
-  def jwt_bearer_token(assertion, scope) do
-    params = %{
-      "grant_type" => "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      "assertion" => assertion,
-      "scope" => scope
-    }
-
-    :mix_hex_api.post(Client.config(), "oauth/token", params)
-  end
-
-  @doc """
   Revokes an OAuth token (access or refresh token).
 
   ## Examples
