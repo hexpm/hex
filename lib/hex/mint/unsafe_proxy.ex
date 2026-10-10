@@ -1,0 +1,242 @@
+# Vendored from mint v1.11.0 (fb850d3), do not edit manually
+
+defmodule Hex.Mint.UnsafeProxy do
+  @moduledoc false
+
+  alias Hex.Mint.{Types, UnsafeProxy}
+  alias Hex.Mint.Core.Util
+
+  @behaviour Hex.Mint.Core.Conn
+
+  defstruct [
+    :hostname,
+    :port,
+    :scheme,
+    :module,
+    :proxy_headers,
+    :state
+  ]
+
+  @opaque t() :: %UnsafeProxy{}
+
+  @type host_tuple() ::
+          {Types.scheme(), address :: Types.address(), :inet.port_number(), opts :: keyword()}
+
+  @spec connect(host_tuple(), host_tuple()) :: {:ok, t()} | {:error, Types.error()}
+  def connect(proxy, host) do
+    {proxy_scheme, proxy_address, proxy_port, proxy_opts} = proxy
+    {scheme, address, port, opts} = host
+    hostname = Hex.Mint.Core.Util.hostname(opts, address)
+
+    # The proxy connection is the one returned to the caller, so it defaults to
+    # the caller's :mode.
+    proxy_opts = Keyword.merge(Keyword.take(opts, [:mode]), proxy_opts)
+
+    with {:ok, state} <- Hex.Mint.HTTP1.connect(proxy_scheme, proxy_address, proxy_port, proxy_opts) do
+      conn = %UnsafeProxy{
+        scheme: scheme,
+        hostname: hostname,
+        port: port,
+        module: Hex.Mint.HTTP1,
+        proxy_headers: Keyword.get(opts, :proxy_headers, []),
+        state: state
+      }
+
+      {:ok, conn}
+    end
+  end
+
+  @impl true
+  @spec initiate(
+          module(),
+          Hex.Mint.Types.socket(),
+          String.t(),
+          :inet.port_number(),
+          keyword()
+        ) :: no_return()
+  def initiate(_transport, _transport_state, _hostname, _port, _opts) do
+    raise "initiate/5 does not apply for #{inspect(__MODULE__)}"
+  end
+
+  @impl true
+  @spec close(t()) :: {:ok, t()}
+  def close(%UnsafeProxy{module: module, state: state} = _conn) do
+    module.close(state)
+  end
+
+  @impl true
+  @spec open?(t(), :read | :write) :: boolean()
+  def open?(%UnsafeProxy{module: module, state: state}, type \\ :write) do
+    module.open?(state, type)
+  end
+
+  @impl true
+  @spec request(
+          t(),
+          method :: String.t(),
+          path :: String.t(),
+          Types.headers(),
+          body :: iodata() | nil | :stream
+        ) ::
+          {:ok, t(), Types.request_ref()}
+          | {:error, t(), Types.error()}
+  def request(
+        %UnsafeProxy{module: module, state: state} = conn,
+        method,
+        path,
+        headers,
+        body \\ nil
+      ) do
+    path = request_line(conn, path)
+    headers = put_new_host_header(headers, conn) ++ conn.proxy_headers
+
+    case module.request(state, method, path, headers, body) do
+      {:ok, state, request} -> {:ok, %{conn | state: state}, request}
+      {:error, state, reason} -> {:error, %{conn | state: state}, reason}
+    end
+  end
+
+  @impl true
+  @spec stream_request_body(
+          t(),
+          Types.request_ref(),
+          iodata() | :eof | {:eof, trailer_headers :: Types.headers()}
+        ) ::
+          {:ok, t()} | {:error, t(), Types.error()}
+  def stream_request_body(%UnsafeProxy{module: module, state: state} = conn, ref, body) do
+    case module.stream_request_body(state, ref, body) do
+      {:ok, state} -> {:ok, %{conn | state: state}}
+      {:error, state, reason} -> {:error, %{conn | state: state}, reason}
+    end
+  end
+
+  @impl true
+  @spec stream(t(), term()) ::
+          {:ok, t(), [Types.response()]}
+          | {:error, t(), Types.error(), [Types.response()]}
+          | :unknown
+  def stream(%UnsafeProxy{module: module, state: state} = conn, message) do
+    case module.stream(state, message) do
+      {:ok, state, responses} -> {:ok, %{conn | state: state}, responses}
+      {:error, state, reason, responses} -> {:error, %{conn | state: state}, reason, responses}
+      :unknown -> :unknown
+    end
+  end
+
+  @impl true
+  @spec open_request_count(t()) :: non_neg_integer()
+  def open_request_count(%UnsafeProxy{module: module, state: state} = _conn) do
+    module.open_request_count(state)
+  end
+
+  @impl true
+  @spec recv(t(), non_neg_integer(), timeout()) ::
+          {:ok, t(), [Types.response()]}
+          | {:error, t(), Types.error(), [Types.response()]}
+  def recv(%UnsafeProxy{module: module, state: state} = conn, byte_count, timeout) do
+    case module.recv(state, byte_count, timeout) do
+      {:ok, state, responses} -> {:ok, %{conn | state: state}, responses}
+      {:error, state, reason, responses} -> {:error, %{conn | state: state}, reason, responses}
+    end
+  end
+
+  @impl true
+  @spec set_mode(t(), :active | :passive) :: {:ok, t()} | {:error, Types.error()}
+  def set_mode(%UnsafeProxy{module: module, state: state} = conn, mode) do
+    with {:ok, state} <- module.set_mode(state, mode) do
+      {:ok, %{conn | state: state}}
+    end
+  end
+
+  @impl true
+  @spec controlling_process(t(), pid()) :: {:ok, t()} | {:error, Types.error()}
+  def controlling_process(%UnsafeProxy{module: module, state: state} = conn, new_pid) do
+    with {:ok, _} <- module.controlling_process(state, new_pid) do
+      {:ok, conn}
+    end
+  end
+
+  @impl true
+  @spec put_private(t(), atom(), term()) :: t()
+  def put_private(%UnsafeProxy{module: module, state: state} = conn, key, value) do
+    state = module.put_private(state, key, value)
+    %{conn | state: state}
+  end
+
+  @impl true
+  @spec get_private(t(), atom(), term()) :: term()
+  def get_private(%UnsafeProxy{module: module, state: state}, key, default \\ nil) do
+    module.get_private(state, key, default)
+  end
+
+  @impl true
+  @spec delete_private(t(), atom()) :: t()
+  def delete_private(%UnsafeProxy{module: module, state: state} = conn, key) do
+    state = module.delete_private(state, key)
+    %{conn | state: state}
+  end
+
+  defp request_line(%UnsafeProxy{scheme: scheme, hostname: hostname, port: port}, path) do
+    host = Util.uri_host_without_brackets(hostname)
+
+    %URI{scheme: Atom.to_string(scheme), host: host, port: port, path: path}
+    |> URI.to_string()
+  end
+
+  @impl true
+  @spec get_socket(t()) :: Hex.Mint.Types.socket()
+  def get_socket(%UnsafeProxy{module: module, state: state}) do
+    module.get_socket(state)
+  end
+
+  @impl true
+  @spec put_log(t(), boolean()) :: t()
+  def put_log(%UnsafeProxy{module: module, state: state} = conn, log) do
+    state = module.put_log(state, log)
+    %{conn | state: state}
+  end
+
+  # The `%__MODULE__{proxy_headers: value}` here is the request headers,
+  # not the proxy response ones. Unsafe proxy mixes its headers (if any)
+  # with the regular response headers, so you can get them there.
+  @impl true
+  @spec get_proxy_headers(t()) :: Hex.Mint.Types.headers()
+  def get_proxy_headers(%__MODULE__{}), do: []
+
+  @impl true
+  @spec put_proxy_headers(t(), Hex.Mint.Types.headers()) :: no_return()
+  def put_proxy_headers(%__MODULE__{}, _headers) do
+    raise "invalid function for proxy unsafe proxy connections"
+  end
+
+  @impl true
+  def request_body_window(%__MODULE__{module: module, state: state}, ref) do
+    module.request_body_window(state, ref)
+  end
+
+  # When proxying over plain HTTP, the request is sent to the proxy but its Host
+  # header must identify the origin server, not the proxy (RFC 7230, sec. 5.4).
+  # Hex.Mint.HTTP1 would otherwise default the Host header to the proxy's address,
+  # since its connection points at the proxy. We set it here (unless the caller
+  # already provided one) so Hex.Mint.HTTP1's `put_new` leaves the origin's Host in
+  # place.
+  defp put_new_host_header(headers, conn) do
+    if Enum.any?(headers, fn {name, _value} -> Hex.Mint.Core.Headers.lower_raw(name) == "host" end) do
+      headers
+    else
+      [{"Host", host_header_value(conn)} | headers]
+    end
+  end
+
+  # Mirrors the default-port handling in Hex.Mint.HTTP1: omit the port when it is the
+  # default for the scheme.
+  defp host_header_value(%UnsafeProxy{scheme: scheme, hostname: hostname, port: port}) do
+    hostname = Util.uri_host(hostname)
+
+    if URI.default_port(Atom.to_string(scheme)) == port do
+      hostname
+    else
+      "#{hostname}:#{port}"
+    end
+  end
+end

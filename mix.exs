@@ -29,7 +29,7 @@ defmodule Hex.MixProject do
 
   def application do
     [
-      extra_applications: [:ssl, :inets, :logger],
+      extra_applications: [:ssl, :logger],
       mod: {Hex.Application, []}
     ]
   end
