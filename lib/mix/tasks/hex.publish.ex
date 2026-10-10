@@ -33,15 +33,16 @@ defmodule Mix.Tasks.Hex.Publish do
 
   ## Workload Identity
 
-  Workload Identity is sometimes also known as "Trusted Publishing". In a GitHub
-  Actions job with the `id-token: write` permission, and when no `HEX_API_KEY` or
-  other Hex credential is configured, the job's OIDC token is exchanged for a
-  short-lived token that can only publish this package. Configure a workload
-  identity on hex.pm first. A public package's workload identity is configured
-  on the package, so the package must already exist and its first release has
-  to be published with a regular account. A package in an organization's
-  repository uses the organization's workload identities, and one with the
-  `write` role can also create the package.
+  Workload Identity, sometimes also known as "Trusted Publishing", lets a GitHub
+  Actions job publish without storing an API key. When the job has the
+  `id-token: write` permission and no `HEX_API_KEY` or other Hex credential is
+  configured, `mix hex.publish` exchanges the job's OIDC token for a short-lived
+  token that can only publish this package. Configure a workload identity on
+  hex.pm first. A public package's workload identity is configured on the
+  package, so the package must already exist and its first release has to be
+  published with a regular account. A package in an organization's repository
+  uses the organization's workload identities, and one with the `write` role can
+  also create the package.
 
   ## Reverting a package
 

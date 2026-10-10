@@ -18,11 +18,11 @@ defmodule Mix.Tasks.Hex.Organization do
   and pass it with `mix hex.organization auth ORGANIZATION --key KEY`.
 
   A GitHub Actions job with the `id-token: write` permission can fetch the
-  organization's packages without a key, with Workload Identity, sometimes also
+  organization's packages without a key, using Workload Identity, sometimes also
   known as "Trusted Publishing". Configure a workload identity with the `read`
   or `write` role for the organization on hex.pm. When neither an organization
-  key nor an authenticated user is configured, the job's OIDC token is exchanged
-  for a short-lived token that can fetch the organization's packages.
+  key nor an authenticated user is configured, Hex exchanges the job's OIDC
+  token for a short-lived token that can fetch the organization's packages.
 
   > #### Deprecation {: .warning}
   >
