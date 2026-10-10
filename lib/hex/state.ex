@@ -208,7 +208,8 @@ defmodule Hex.State do
       active_policy: {:computed, nil},
       policy_filtered_versions: {:computed, []},
       policy_locked_versions: {:computed, %{}},
-      unsatisfiable_requirements: {:computed, MapSet.new()}
+      unsatisfiable_requirements: {:computed, MapSet.new()},
+      workload_identity_tokens: {:computed, %{}}
     })
   end
 

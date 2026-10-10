@@ -245,6 +245,15 @@ defmodule Hex.Repo do
     )
   end
 
+  # Resolves the repository's credentials without making a request, so one
+  # that has to be exchanged is exchanged once, ahead of the parallel fetches
+  # that use it.
+  def resolve_auth(repo) do
+    repo_config = get_repo(repo)
+    config = build_hex_core_config(repo_config, repo)
+    :mix_hex_cli_auth.resolve_repo_auth(config)
+  end
+
   def get_public_key(repo_config) when is_map(repo_config) do
     config = build_hex_core_config(repo_config, "")
 

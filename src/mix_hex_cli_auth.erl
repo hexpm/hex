@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (69f91eb), do not edit manually
+%% Vendored from hex_core v0.19.0 (6ded3af), do not edit manually
 
 %% @doc
 %% Authentication handling with callback functions for build-tool-specific operations.
@@ -45,6 +45,20 @@
 %%     %% that is the build tool's job.
 %%     organization_reauth => fun(([map()]) -> ok),
 %%
+%%     %% Outcome of the last Workload Identity exchange for a repository
+%%     %% (optional, both or neither). Hex.pm organization repositories are
+%%     %% only fetched with a workload identity when the build tool keeps the
+%%     %% outcome, so concurrent and later requests reuse a token, or the
+%%     %% failure, instead of each exchanging a new OIDC token. Keep it in
+%%     %% memory for the rest of the run, the token expires in minutes.
+%%     get_workload_identity_token => fun((RepoName :: binary()) ->
+%%         {ok, #{access_token := binary(), expires_at := integer()}}
+%%         | {error, workload_identity_error()}
+%%         | error),
+%%     persist_workload_identity_token => fun((RepoName :: binary(),
+%%         {ok, #{access_token := binary(), expires_at := integer()}}
+%%         | {error, workload_identity_error()}) -> ok),
+%%
 %%     %% User interaction
 %%     prompt_otp => fun((Message :: binary()) -> {ok, OtpCode :: binary()} | cancelled),
 %%     should_authenticate => fun((Reason :: no_credentials | token_refresh_failed) -> boolean()),
@@ -69,6 +83,7 @@
 %% <li>Per-repo `auth_key' with optional OAuth exchange (default true for hex.pm)</li>
 %% <li>Parent repo `auth_key'</li>
 %% <li>Global OAuth token</li>
+%% <li>Workload Identity token (for "hexpm:org" organizations)</li>
 %% </ol>
 %%
 %% == OAuth Exchange ==
@@ -92,9 +107,15 @@
 %% == Workload Identity ==
 %%
 %% Workload Identity, sometimes also known as "Trusted Publishing", lets a
-%% supported CI job (currently GitHub Actions) publish without a stored API key.
-%% `workload_identity_auth/2' exchanges the job's OIDC token for API auth
-%% scoped to one package. See its documentation for details.
+%% supported CI job (currently GitHub Actions) publish and fetch without a
+%% stored key. `workload_identity_auth/2' exchanges the job's OIDC token for API
+%% auth scoped to one package. See its documentation for details.
+%%
+%% A repository request to a Hex.pm organization ("hexpm:org") that resolves
+%% no other credentials exchanges the job's OIDC token for a token scoped to
+%% the organization's repository, when the build tool provides the
+%% `get_workload_identity_token' and `persist_workload_identity_token'
+%% callbacks. A failed exchange isn't repeated in the same run.
 -module(mix_hex_cli_auth).
 
 -export([
@@ -151,6 +172,12 @@
     ),
     clear_oauth_tokens => fun(() -> ok),
     organization_reauth => fun((Organizations :: [map()]) -> ok),
+    get_workload_identity_token => fun(
+        (RepoName :: binary()) -> {ok, oauth_tokens()} | {error, workload_identity_error()} | error
+    ),
+    persist_workload_identity_token => fun(
+        (RepoName :: binary(), {ok, oauth_tokens()} | {error, workload_identity_error()}) -> ok
+    ),
     prompt_otp := fun((Message :: binary()) -> {ok, OtpCode :: binary()} | cancelled),
     should_authenticate := fun((Reason :: auth_prompt_reason()) -> boolean()),
     get_client_id := fun(() -> binary())
@@ -186,6 +213,7 @@
     | {auth_error, device_auth_timeout}
     | {auth_error, device_auth_denied}
     | {auth_error, oauth_exchange_failed}
+    | {auth_error, {workload_identity_failed, workload_identity_error()}}
     | {auth_error, term()}.
 
 -type auth_context() :: #{
@@ -333,13 +361,18 @@ with_repo(BaseConfig, Fun) ->
 %% <li>`auth_key' from `get_auth_config' when `trusted' is true and `oauth_exchange' is true - exchange for OAuth token</li>
 %% <li>`auth_key' from `get_auth_config' when `trusted' is true - use directly</li>
 %% <li>Global OAuth token from `get_oauth_tokens' callback for Hex.pm repositories</li>
+%% <li>Workload Identity token for Hex.pm organization repositories, when the
+%%     build tool provides the Workload Identity callbacks and the CI job can
+%%     issue OIDC tokens. After a failed exchange the function runs without
+%%     credentials when `optional' is true, and a 401 or 403 is returned as
+%%     `{error, {auth_error, {workload_identity_failed, Reason}}}'.</li>
 %% <li>No auth when `optional' is true (with retry on 401)</li>
 %% <li>Prompt via `should_authenticate' when `auth_inline' is true</li>
 %% </ol>
 %%
 %% A resolved token the server answers with a `token_expired' 401 is renewed at
-%% its source (a per-repo token is exchanged again, the global token is
-%% refreshed) and the request is run once more.
+%% its source (a per-repo or Workload Identity token is exchanged again, the
+%% global token is refreshed) and the request is run once more.
 %%
 %% The repository name is taken from the config (`repo_name' or `repo_organization').
 %%
@@ -383,8 +416,22 @@ with_repo(BaseConfig, Fun, Opts) ->
         {error, {auth_error, Reason}} when Optional =:= true, ?IS_REFRESH_FAILURE(Reason) ->
             %% Token refresh failed but auth is optional, fall back to no credentials
             execute_optional_with_retry(repo, BaseConfig, Fun, AuthInline, Opts);
+        {error, {auth_error, {workload_identity_failed, _Reason}}} = Error when Optional =:= true ->
+            execute_without_workload_identity(BaseConfig, Fun, Error);
         {error, _} = Error ->
             Error
+    end.
+
+%% @private
+%% The workload identity was only picked up from the CI job, so a failed
+%% exchange leaves the request to run the way it does outside CI: a mirror
+%% that authenticates another way still works. A refusal is answered with why
+%% the exchange failed.
+execute_without_workload_identity(BaseConfig, Fun, Error) ->
+    case Fun(BaseConfig) of
+        {ok, {Status, _Headers, _Body}} when Status =:= 401; Status =:= 403 -> Error;
+        {ok, {Status, _Headers}} when Status =:= 401; Status =:= 403 -> Error;
+        Other -> Other
     end.
 
 %% @private
@@ -520,9 +567,11 @@ execute_repo_with_retry(BaseConfig, Fun, RepoKey) ->
 
 %% @private
 renew_repo_auth_and_retry(BaseConfig, Fun, RepoKey, Response) ->
-    case resolve_repo_auth(BaseConfig, true) of
+    case resolve_repo_auth(BaseConfig, {rejected, RepoKey}) of
         {ok, NewRepoKey, _AuthContext} when is_binary(NewRepoKey), NewRepoKey =/= RepoKey ->
             Fun(BaseConfig#{repo_key => NewRepoKey});
+        {error, {auth_error, {workload_identity_failed, _Reason}}} = Error ->
+            Error;
         _Other ->
             Response
     end.
@@ -575,13 +624,20 @@ workload_identity_auth(Config, Scope) ->
         _NoUsableCredentials ->
             case mix_hex_oidc:detect_provider() of
                 {ok, Provider} ->
-                    authenticate_workload_identity(Config, Provider, Scope);
+                    case authenticate_workload_identity(Config, Provider, Scope) of
+                        {ok, #{access_token := AccessToken}} ->
+                            {ok, <<"Bearer ", AccessToken/binary>>};
+                        {error, _Reason} = Error ->
+                            Error
+                    end;
                 none ->
                     none
             end
     end.
 
 %% @private
+-spec authenticate_workload_identity(mix_hex_core:config(), mix_hex_oidc:provider(), binary()) ->
+    {ok, oauth_tokens()} | {error, workload_identity_error()}.
 authenticate_workload_identity(Config, Provider, Scope) ->
     case mix_hex_api_oauth:oidc_audience(Config) of
         {ok, {200, _Headers, #{<<"audience">> := Audience}}} when is_binary(Audience) ->
@@ -598,8 +654,13 @@ authenticate_workload_identity(Config, Provider, Scope) ->
 %% @private
 exchange_workload_identity_token(Config, OidcToken, Scope) ->
     case mix_hex_api_oauth:jwt_bearer_token(Config, OidcToken, Scope) of
-        {ok, {200, _Headers, #{<<"access_token">> := AccessToken}}} when is_binary(AccessToken) ->
-            {ok, <<"Bearer ", AccessToken/binary>>};
+        {ok,
+            {200, _Headers, #{<<"access_token">> := AccessToken, <<"expires_in">> := ExpiresIn}}} when
+            is_binary(AccessToken), is_integer(ExpiresIn)
+        ->
+            {ok, #{
+                access_token => AccessToken, expires_at => erlang:system_time(second) + ExpiresIn
+            }};
         Response ->
             {error, {token_exchange_failed, Response}}
     end.
@@ -676,15 +737,17 @@ resolve_api_auth(_Permission, Config) ->
 %% 2. trusted + auth_key + oauth_exchange => exchange for OAuth token
 %% 3. trusted + auth_key => use directly
 %% 4. trusted Hex.pm or child repository + global OAuth tokens => use those
-%% 5. Fallthrough to no_auth (handled by with_repo/3 for optional/auth_inline)
+%% 5. trusted Hex.pm child repository + Workload Identity => use or exchange
+%% 6. Fallthrough to no_auth (handled by with_repo/3 for optional/auth_inline)
 -spec resolve_repo_auth(mix_hex_core:config()) ->
     {ok, binary(), auth_context()} | no_auth | {error, auth_error()}.
 resolve_repo_auth(Config) ->
     resolve_repo_auth(Config, false).
 
 %% @private
-%% Renew says the credential we already have was rejected, so a stored token
-%% that has not run out of time is exchanged or refreshed anyway.
+%% Renew is `{rejected, RepoKey}' when the server rejected the credential we
+%% have, so a stored token that has not run out of time is exchanged or
+%% refreshed anyway, and `false' otherwise.
 resolve_repo_auth(#{repo_key := RepoKey}, _Renew) when is_binary(RepoKey) ->
     %% repo_key already in config, pass through directly
     {ok, RepoKey, #{has_refresh_token => false}};
@@ -736,10 +799,16 @@ do_resolve_repo_auth(RepoName, LookupRepo, Config, Renew, Lock) ->
                     do_resolve_repo_auth(RepoName, ParentName, Config, Renew, Lock);
                 _ ->
                     %% 6. trusted Hex.pm or child repository + global OAuth tokens => use those
-                    resolve_global_oauth_for_repo(RepoName, Config, Renew)
+                    case resolve_global_oauth_for_repo(RepoName, Config, Renew) of
+                        no_auth ->
+                            %% 7. trusted Hex.pm child repository + Workload Identity
+                            resolve_workload_identity_for_repo(RepoName, Config, Renew, Lock);
+                        Result ->
+                            Result
+                    end
             end;
         _ ->
-            %% 7. Not trusted, no auth
+            %% 8. Not trusted, no auth
             no_auth
     end.
 
@@ -752,13 +821,77 @@ resolve_global_oauth_for_repo(_RepoName, _Config, _Renew) ->
     no_auth.
 
 resolve_global_oauth_for_repo(Config, Renew) ->
-    case resolve_oauth_token_with_context(Config, Renew) of
+    case resolve_oauth_token_with_context(Config, Renew =/= false) of
         {ok, Token, AuthContext} ->
             {ok, Token, AuthContext};
         {error, no_auth} ->
             no_auth;
         {error, _} = Error ->
             Error
+    end.
+
+%% @private
+%% A Hex.pm organization's repository fetched from a CI job. The build tool
+%% keeps the outcome, so a token is reused until it is about to expire, and
+%% only an exchange takes the repo lock, like resolve_repo_oauth_token/6. A
+%% renewal uses a token another caller exchanged while this one waited for the
+%% lock instead of exchanging again. A failure is kept too: each failed
+%% exchange counts against the CI job's limit at Hex, and the next one would
+%% fail the same way.
+resolve_workload_identity_for_repo(
+    <<"hexpm:", Organization/binary>> = RepoName, Config, Renew, Lock
+) ->
+    case workload_identity_provider(Config) of
+        {ok, Provider} ->
+            case call_callback(Config, get_workload_identity_token, [RepoName]) of
+                {ok, #{access_token := AccessToken, expires_at := ExpiresAt}} ->
+                    BearerToken = <<"Bearer ", AccessToken/binary>>,
+                    case Renew =:= {rejected, BearerToken} orelse is_token_expired(ExpiresAt) of
+                        false ->
+                            {ok, BearerToken, #{has_refresh_token => false}};
+                        true ->
+                            exchange_workload_identity_for_repo(
+                                RepoName, Organization, Config, Provider, Lock
+                            )
+                    end;
+                {error, Reason} ->
+                    {error, {auth_error, {workload_identity_failed, Reason}}};
+                error ->
+                    exchange_workload_identity_for_repo(
+                        RepoName, Organization, Config, Provider, Lock
+                    )
+            end;
+        none ->
+            no_auth
+    end;
+resolve_workload_identity_for_repo(_RepoName, _Config, _Renew, _Lock) ->
+    no_auth.
+
+%% @private
+%% Without somewhere to keep the token every request would exchange a new OIDC
+%% token, so a build tool that provides no Workload Identity callbacks doesn't
+%% get Workload Identity for repositories.
+workload_identity_provider(#{cli_auth_callbacks := Callbacks}) ->
+    case
+        is_map_key(get_workload_identity_token, Callbacks) andalso
+            is_map_key(persist_workload_identity_token, Callbacks)
+    of
+        true -> mix_hex_oidc:detect_provider();
+        false -> none
+    end.
+
+%% @private
+exchange_workload_identity_for_repo(_RepoName, _Organization, _Config, _Provider, unlocked) ->
+    needs_lock;
+exchange_workload_identity_for_repo(RepoName, Organization, Config, Provider, locked) ->
+    Scope = <<"repository:", Organization/binary>>,
+    Result = authenticate_workload_identity(exchange_config(Config), Provider, Scope),
+    ok = call_callback(Config, persist_workload_identity_token, [RepoName, Result]),
+    case Result of
+        {ok, #{access_token := AccessToken}} ->
+            {ok, <<"Bearer ", AccessToken/binary>>, #{has_refresh_token => false}};
+        {error, Reason} ->
+            {error, {auth_error, {workload_identity_failed, Reason}}}
     end.
 
 %% @private
@@ -771,7 +904,7 @@ resolve_repo_oauth_token(
     Renew,
     Lock
 ) ->
-    case {Renew orelse is_token_expired(ExpiresAt), Lock} of
+    case {Renew =/= false orelse is_token_expired(ExpiresAt), Lock} of
         {false, _} ->
             %% Token is still valid, use it
             BearerToken = <<"Bearer ", AccessToken/binary>>,
@@ -788,11 +921,7 @@ resolve_repo_oauth_token(
 %% Persists the token with the repo name for per-repo token storage.
 exchange_for_oauth_token(RepoName, Config, AuthKey, Scope) ->
     ClientId = call_callback(Config, get_client_id, []),
-    ExchangeConfig =
-        case maps:get(oauth_exchange_url, Config, undefined) of
-            undefined -> Config;
-            OAuthUrl -> Config#{api_url => OAuthUrl}
-        end,
+    ExchangeConfig = exchange_config(Config),
     case mix_hex_api_oauth:client_credentials_token(ExchangeConfig, ClientId, AuthKey, Scope) of
         {ok, {200, _, #{<<"access_token">> := AccessToken, <<"expires_in">> := ExpiresIn}}} ->
             Tokens = #{
@@ -806,6 +935,14 @@ exchange_for_oauth_token(RepoName, Config, AuthKey, Scope) ->
             {error, {auth_error, oauth_exchange_failed}};
         {error, _} ->
             {error, {auth_error, oauth_exchange_failed}}
+    end.
+
+%% @private
+%% Repository tokens are exchanged at `oauth_exchange_url' when it is set.
+exchange_config(Config) ->
+    case maps:get(oauth_exchange_url, Config, undefined) of
+        undefined -> Config;
+        OAuthUrl -> Config#{api_url => OAuthUrl}
     end.
 
 %% @private

@@ -515,6 +515,9 @@ defmodule Hex.SCM do
 
         {:error, reason}
 
+      {:error, {:auth_error, {:workload_identity_failed, reason}}} ->
+        {:error, Hex.WorkloadIdentity.repository_error_message(repo, reason)}
+
       {:error, reason} ->
         {:error, "Request failed (#{inspect(reason)})"}
     end
