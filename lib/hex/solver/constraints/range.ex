@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
+# Vendored from hex_solver v0.3.1 (c9aa383), do not edit manually
 
 defmodule Hex.Solver.Constraints.Range do
   @moduledoc false
@@ -442,7 +442,7 @@ defmodule Hex.Solver.Constraints.Range do
 
   defimpl Inspect do
     def inspect(range, _opts) do
-      "#Range<#{range}>"
+      "#Range<#{Hex.Solver.Constraints.Range.to_string(range)}>"
     end
   end
 end

@@ -1,9 +1,9 @@
-# Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
+# Vendored from hex_solver v0.3.1 (c9aa383), do not edit manually
 
 defmodule Hex.Solver.Assignment do
   @moduledoc false
 
-  alias Hex.Solver.{Assignment, Term}
+  alias Hex.Solver.{Assignment, Incompatibility, Term}
 
   defstruct term: nil,
             decision_level: nil,
@@ -19,7 +19,7 @@ defmodule Hex.Solver.Assignment do
   end
 
   def to_string(%Assignment{term: term}) do
-    Kernel.to_string(term)
+    Term.to_string(term)
   end
 
   defimpl String.Chars do
@@ -36,10 +36,10 @@ defmodule Hex.Solver.Assignment do
           },
           _opts
         ) do
-      "#Assignment<term: #{term}#{maybe(", cause: ", cause)}, level: #{decision_level}, index: #{index}>"
+      "#Assignment<term: #{Term.to_string(term)}#{maybe(", cause: ", cause)}, level: #{decision_level}, index: #{index}>"
     end
 
     defp maybe(_prefix, nil), do: ""
-    defp maybe(prefix, value), do: "#{prefix}#{value}"
+    defp maybe(prefix, value), do: "#{prefix}#{Incompatibility.to_string(value)}"
   end
 end

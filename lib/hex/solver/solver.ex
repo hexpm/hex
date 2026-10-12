@@ -1,9 +1,10 @@
-# Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
+# Vendored from hex_solver v0.3.1 (c9aa383), do not edit manually
 
 defmodule Hex.Solver.Solver do
   @moduledoc false
 
   alias Hex.Solver.{
+    Assignment,
     Incompatibility,
     PackageLister,
     PackageRange,
@@ -98,7 +99,7 @@ defmodule Hex.Solver.Solver do
   defp propagate_incompatibility([], unsatisfied, incompatibility, state, _opts) do
     # Only one term in the incompatibility was unsatisfied
     unsatisfied = %{unsatisfied | positive: not unsatisfied.positive}
-    Logger.debug("RESOLVER: derived #{unsatisfied}")
+    Logger.debug("RESOLVER: derived #{Term.to_string(unsatisfied)}")
 
     solution = PartialSolution.derive(state.solution, unsatisfied, incompatibility)
     {:ok, unsatisfied.package_range.name, %{state | solution: solution}}
@@ -148,7 +149,7 @@ defmodule Hex.Solver.Solver do
               state.solution
             else
               package_range = %PackageRange{package_range | constraint: version}
-              Logger.debug("RESOLVER: selecting #{package_range}")
+              Logger.debug("RESOLVER: selecting #{PackageRange.to_string(package_range)}")
               PartialSolution.decide(state.solution, package_range)
             end
 
@@ -166,7 +167,7 @@ defmodule Hex.Solver.Solver do
   end
 
   defp add_incompatibility(state, incompatibility) do
-    Logger.debug("RESOLVER: fact #{incompatibility}")
+    Logger.debug("RESOLVER: fact #{Incompatibility.to_string(incompatibility)}")
 
     incompatibilities =
       Enum.reduce(incompatibility.terms, state.incompatibilities, fn term, incompatibilities ->
@@ -191,7 +192,7 @@ defmodule Hex.Solver.Solver do
   # incompatibility that encapsulates the root cause of the conflict and backtracks
   # until the new incompatibility will allow propagation to deduce new assignments.
   defp conflict_resolution(state, incompatibility) do
-    Logger.debug("RESOLVER: conflict #{incompatibility}")
+    Logger.debug("RESOLVER: conflict #{Incompatibility.to_string(incompatibility)}")
     do_conflict_resolution(state, incompatibility, false)
   catch
     :throw, {__MODULE__, :conflict_resolution, incompatibility, state} ->
@@ -321,9 +322,9 @@ defmodule Hex.Solver.Solver do
 
       Logger.debug("""
       RESOLVER: conflict resolution
-        #{resolution.most_recent_term} is#{partially} satisfied by #{resolution.most_recent_satisfier}
-        which is caused by #{resolution.most_recent_satisfier.cause}
-        thus #{incompatibility}\
+        #{Term.to_string(resolution.most_recent_term)} is#{partially} satisfied by #{Assignment.to_string(resolution.most_recent_satisfier)}
+        which is caused by #{Incompatibility.to_string(resolution.most_recent_satisfier.cause)}
+        thus #{Incompatibility.to_string(incompatibility)}\
       """)
 
       do_conflict_resolution(state, incompatibility, true)

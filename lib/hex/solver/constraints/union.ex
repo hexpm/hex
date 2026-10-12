@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
+# Vendored from hex_solver v0.3.1 (c9aa383), do not edit manually
 
 defmodule Hex.Solver.Constraints.Union do
   @moduledoc false
@@ -159,7 +159,7 @@ defmodule Hex.Solver.Constraints.Union do
   end
 
   def to_string(%Union{ranges: ranges}) do
-    Enum.map_join(ranges, " or ", &Kernel.to_string/1)
+    Enum.map_join(ranges, " or ", &Constraint.to_string/1)
   end
 
   defimpl String.Chars do
@@ -168,7 +168,7 @@ defmodule Hex.Solver.Constraints.Union do
 
   defimpl Inspect do
     def inspect(union, _opts) do
-      "#Union<#{union}>"
+      "#Union<#{Hex.Solver.Constraints.Union.to_string(union)}>"
     end
   end
 end

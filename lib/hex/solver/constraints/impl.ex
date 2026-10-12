@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
+# Vendored from hex_solver v0.3.1 (c9aa383), do not edit manually
 
 defmodule Hex.Solver.Constraints.Impl do
   @moduledoc false
@@ -37,6 +37,9 @@ defmodule Hex.Solver.Constraints.Impl do
 
         def to_requirement(constraint),
           do: unquote(__CALLER__.module).to_requirement(constraint)
+
+        def to_string(constraint),
+          do: unquote(__CALLER__.module).to_string(constraint)
       end
     end
   end

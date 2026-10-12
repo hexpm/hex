@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
+# Vendored from hex_solver v0.3.1 (c9aa383), do not edit manually
 
 defprotocol Hex.Solver.Constraint do
   @moduledoc false
@@ -13,4 +13,5 @@ defprotocol Hex.Solver.Constraint do
   def union(left, right)
   def compare(left, right)
   def to_requirement(constraint)
+  def to_string(constraint)
 end

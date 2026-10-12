@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
+# Vendored from hex_solver v0.3.1 (c9aa383), do not edit manually
 
 defmodule Hex.Solver.PackageLister do
   @moduledoc false
@@ -135,7 +135,8 @@ defmodule Hex.Solver.PackageLister do
     lister = %{
       lister
       | already_prefetched: MapSet.union(lister.already_prefetched, prefetch),
-        already_returned: Map.put(lister.already_returned, package, already_returned)
+        already_returned:
+          Map.put(lister.already_returned, {package_repo, package}, already_returned)
     }
 
     {lister, incompatibilities}
