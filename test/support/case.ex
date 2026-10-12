@@ -335,6 +335,12 @@ defmodule HexTest.Case do
 
   setup context do
     unless context[:async] do
+      # A test killed on timeout doesn't run the File.cd!/2 that restores the
+      # working directory. Restore it here so the next test doesn't start in,
+      # and possibly delete, the killed test's tmp directory.
+      cwd = File.cwd!()
+      on_exit(fn -> File.cd!(cwd) end)
+
       wait_on_exit(Hex.Registry.Server.start_link())
       wait_on_exit(Hex.UpdateChecker.start_link())
 
