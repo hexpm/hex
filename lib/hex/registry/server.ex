@@ -49,8 +49,71 @@ defmodule Hex.Registry.Server do
     GenServer.call(@name, {:versions, repo, package}, @timeout)
   end
 
+  # The solver reads the dependencies of every release of a package, so a
+  # dependency with an invalid application name becomes a required dependency
+  # that no version satisfies. The solver can't select the release, and
+  # resolution only fails when no other release fits
   def dependencies(repo, package, version) do
-    GenServer.call(@name, {:dependencies, repo, package, version}, @timeout)
+    case GenServer.call(@name, {:dependencies, repo, package, version}, @timeout) do
+      {:ok, deps} -> {:ok, Enum.map(deps, &solver_dependency(package, version, &1))}
+      :error -> :error
+    end
+  end
+
+  # Raises on a dependency with an invalid application name, for callers that
+  # use the application names as lock keys, atoms or directories
+  def app_dependencies(repo, package, version) do
+    case GenServer.call(@name, {:dependencies, repo, package, version}, @timeout) do
+      {:ok, deps} -> {:ok, Enum.map(deps, &app_dependency(package, version, &1))}
+      :error -> :error
+    end
+  end
+
+  # No version is lower than 0.0.0-0, so no version satisfies the constraint
+  defp solver_dependency(package, version, %{name: name, label: app} = dependency) do
+    if valid_app_name?(app) do
+      dependency
+    else
+      warn_invalid_app_name(package, version, name, app)
+      %{dependency | constraint: Hex.Solver.parse_constraint!("< 0.0.0-0"), optional: false}
+    end
+  end
+
+  defp app_dependency(package, version, %{name: name, label: app} = dependency) do
+    unless valid_app_name?(app) do
+      Mix.raise(invalid_app_name_message(package, version, name, app))
+    end
+
+    dependency
+  end
+
+  # The application name becomes the dependency's directory under deps/, so
+  # Hex only accepts a letter followed by letters, digits, "_" and "-"
+  defp valid_app_name?(<<char, rest::binary>>) when char in ?a..?z or char in ?A..?Z,
+    do: valid_app_name_rest?(rest)
+
+  defp valid_app_name?(_app), do: false
+
+  defp valid_app_name_rest?(<<char, rest::binary>>)
+       when char in ?a..?z or char in ?A..?Z or char in ?0..?9 or char in [?_, ?-],
+       do: valid_app_name_rest?(rest)
+
+  defp valid_app_name_rest?(<<>>), do: true
+  defp valid_app_name_rest?(_rest), do: false
+
+  defp warn_invalid_app_name(package, version, name, app) do
+    key = {package, to_string(version), name}
+    warned = Hex.State.fetch!(:invalid_app_names)
+
+    unless key in warned do
+      Hex.State.put(:invalid_app_names, MapSet.put(warned, key))
+      Hex.Shell.warn(invalid_app_name_message(package, version, name, app))
+    end
+  end
+
+  defp invalid_app_name_message(package, version, name, app) do
+    "Package #{package} #{version} can't be used because its dependency #{name} " <>
+      "has the invalid application name #{inspect(app)}"
   end
 
   def inner_checksum(repo, package, version) do

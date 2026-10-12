@@ -199,7 +199,8 @@ defmodule Hex.State do
       shell_process: {:computed, nil},
       active_policy: {:computed, nil},
       policy_filtered_versions: {:computed, []},
-      policy_locked_versions: {:computed, %{}}
+      policy_locked_versions: {:computed, %{}},
+      invalid_app_names: {:computed, MapSet.new()}
     })
   end
 
