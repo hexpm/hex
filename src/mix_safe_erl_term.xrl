@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.18.0 (d6a6a5a), do not edit manually
+%% Vendored from hex_core v0.20.0 (a036d35), do not edit manually
 
 %%% Author  : Robert Virding
 %%% Purpose : Token definitions for Erlang.
@@ -14,8 +14,10 @@ WS = ([\000-\s])
 Rules.
 
 {L}{A}*             : tokenize_atom(TokenChars, TokenLine).
-'(\\\^.|\\.|[^'])*' : tokenize_atom(escape(unquote(TokenChars, TokenLen)), TokenLine).
-"(\\\^.|\\.|[^"])*" : {token, {string, TokenLine, escape(unquote(TokenChars, TokenLen))}}.
+% A backslash always starts an escape, so the closing quote in "a\\" can't be
+% read as escaped. \\\n is listed because . doesn't match a newline.
+'(\\\^.|\\.|\\\n|[^'\\])*' : tokenize_atom(escape(unquote(TokenChars, TokenLen)), TokenLine).
+"(\\\^.|\\.|\\\n|[^"\\])*" : {token, {string, TokenLine, escape(unquote(TokenChars, TokenLen))}}.
 {D}+                : {token, {integer, TokenLine, list_to_integer(TokenChars)}}.
 [\#\[\]}{,+-]       : {token, {list_to_atom(TokenChars), TokenLine}}.
 (<<|>>|=>)          : {token, {list_to_atom(TokenChars), TokenLine}}.

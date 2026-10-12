@@ -109,15 +109,19 @@ defmodule Hex.TerminalOutputTest do
           "verification_uri" => "ftp://hex.pm/device\e[2K\rFORGED",
           "verification_uri_complete" => "ftp://hex.pm/device\e[2K\rFORGED",
           "expires_in" => 600,
-          "interval" => 5
+          "interval" => 0
         })
       end)
 
-      # hex_core only opens http and https URIs in a browser, so the flow stops
-      # after printing the prompt
-      assert {:invalid_url, _uri} = catch_throw(Mix.Tasks.Hex.User.run(["auth"]))
+      Bypass.expect_once(bypass, "POST", "/api/oauth/token", fn conn ->
+        reply(conn, 400, %{"error" => "access_denied"})
+      end)
+
+      # hex_core only opens http and https URIs in a browser
+      Mix.Tasks.Hex.User.run(["auth"])
 
       output = shell_output()
+      assert output =~ "Authentication was denied."
       assert output =~ "To authenticate, visit: ftp://hex.pm/device[2KFORGED"
       assert output =~ "  ABC-[2KD"
       refute output =~ "\e[2K"
