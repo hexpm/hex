@@ -459,7 +459,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp maybe_get_short_link(long_url) do
     case Hex.API.ShortURL.create(long_url) do
       :error -> long_url
-      {:ok, short_url} -> short_url
+      {:ok, short_url} -> Hex.Utils.printable_ascii(short_url)
     end
   end
 
