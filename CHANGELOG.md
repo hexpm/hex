@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v2.5.2-dev
+## v2.6.0-dev
 
 ### Backwards incompatible changes
 
