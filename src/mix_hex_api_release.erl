@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (6ded3af), do not edit manually
+%% Vendored from hex_core v0.20.0 (a036d35), do not edit manually
 
 %% @doc
 %% Hex HTTP API - Releases.
