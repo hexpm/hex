@@ -407,7 +407,7 @@ defmodule Hex.RemoteConverger do
 
             header =
               "Conflicting OTP application names in dependency definition of " <>
-                "\"#{name} {version}\", in the following packages:\n\n"
+                "\"#{name} #{version}\", in the following packages:\n\n"
 
             list =
               Enum.map_join(apps, "\n", fn {parent_repo, parent_package, app} ->
