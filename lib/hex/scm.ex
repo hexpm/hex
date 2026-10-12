@@ -158,9 +158,13 @@ defmodule Hex.SCM do
         Hex.Shell.debug("  Fetched package (#{tarball_url})")
 
       {:error, reason} ->
+        if Hex.State.fetch!(:offline) do
+          Mix.raise(reason)
+        end
+
         Hex.Shell.error(reason)
 
-        unless File.exists?(path) do
+        if check_cache(path, repo, name, lock.version) != :ok do
           tarball_url = tarball_url(repo, name, lock.version)
           Mix.raise("Package fetch failed and no cached copy available (#{tarball_url})")
         end
@@ -409,45 +413,76 @@ defmodule Hex.SCM do
   end
 
   def fetch(repo, package, version) do
-    if Hex.State.fetch!(:offline) do
-      {:ok, :offline}
-    else
-      outer_checksum = Registry.outer_checksum(repo, package, version)
-      path = cache_path(repo, package, version)
+    path = cache_path(repo, package, version)
+    offline? = Hex.State.fetch!(:offline)
 
-      case Hex.Tar.outer_checksum(path) do
-        {:ok, ^outer_checksum} ->
-          {:ok, :cached}
+    case check_cache(path, repo, package, version) do
+      :ok when offline? ->
+        {:ok, :offline}
 
-        {:ok, other_outer_checksum} ->
+      :ok ->
+        {:ok, :cached}
+
+      {:mismatch, _outer_checksum, _cached_checksum} when offline? ->
+        {:error,
+         "Hex is running in offline mode and the cached package for #{package} #{version} " <>
+           "doesn't match the registry checksum"}
+
+      {:error, _reason} when offline? ->
+        {:error,
+         "Hex is running in offline mode and the package #{package} #{version} " <>
+           "is not cached locally"}
+
+      {:mismatch, outer_checksum, cached_checksum} ->
+        # The registry has no checksum for a version it doesn't list
+        if outer_checksum do
           Hex.Shell.warn("""
           Checksum mismatch between registry and the cached package for #{package} #{version}
 
           Registry checksum: #{Base.encode16(outer_checksum, case: :lower)}
-          Package checksum:  #{Base.encode16(other_outer_checksum, case: :lower)}
+          Package checksum:  #{Base.encode16(cached_checksum, case: :lower)}
 
           This may happen when the previously cached package got re-published, but it may also indicate a security issue so verify the new package.
 
           Re-fetching...\
           """)
+        end
 
-          do_fetch(path, repo, package, version)
+        do_fetch(path, repo, package, version)
 
-        {:error, _reason} ->
-          do_fetch(path, repo, package, version)
-      end
+      {:error, _reason} ->
+        do_fetch(path, repo, package, version)
+    end
+  end
+
+  # A cached tarball is only used when its checksum matches the registry, and
+  # one that doesn't is removed
+  defp check_cache(path, repo, package, version) do
+    outer_checksum = Registry.outer_checksum(repo, package, version)
+
+    case Hex.Tar.outer_checksum(path) do
+      {:ok, ^outer_checksum} ->
+        :ok
+
+      {:ok, cached_checksum} ->
+        File.rm(path)
+        {:mismatch, outer_checksum, cached_checksum}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
   defp do_fetch(path, repo, package, version) do
     case Hex.Repo.get_tarball(repo, package, version) do
       {:ok, {200, _, body}} ->
-        File.mkdir_p!(Path.dirname(path))
-        File.write!(path, body)
-        {:ok, :new}
-
-      {:ok, {304, _headers, _body}} ->
-        {:ok, :cached}
+        if :crypto.hash(:sha256, body) == Registry.outer_checksum(repo, package, version) do
+          File.mkdir_p!(Path.dirname(path))
+          File.write!(path, body)
+          {:ok, :new}
+        else
+          {:error, "Checksum mismatch against registry (outer)"}
+        end
 
       {:ok, {code, _headers, _body}} ->
         {:error, "Request failed (#{code})"}
