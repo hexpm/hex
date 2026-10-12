@@ -139,6 +139,39 @@ defmodule Hex.Registry.ServerTest do
     assert Enum.map(versions, &to_string/1) == ["1.0.0", "1.1.0", "2.0.0"]
   end
 
+  test "a version removed from the registry leaves no entries behind" do
+    release = fn version ->
+      %{
+        version: version,
+        inner_checksum: "inner",
+        outer_checksum: "outer",
+        retired: nil,
+        published_at: %{seconds: 1_700_000_000, nanos: 0},
+        advisory_indexes: [],
+        dependencies: [%{package: "child", requirement: "~> 1.0"}]
+      }
+    end
+
+    send_releases = fn releases ->
+      send(Registry, {:get_package, "hexpm", "package", {:ok, {200, %{}, %{releases: releases}}}})
+    end
+
+    entries = fn version ->
+      %{ets: tid} = :sys.get_state(Registry)
+      for {{kind, "hexpm", "package", ^version}, _value} <- :ets.tab2list(tid), do: kind
+    end
+
+    send_releases.([release.("1.0.0"), release.("1.1.0")])
+
+    assert Enum.sort(entries.("1.1.0")) ==
+             ~w(advisories deps inner_checksum outer_checksum published_at retired timestamp)a
+
+    send_releases.([release.("1.0.0")])
+    assert entries.("1.1.0") == []
+    assert Registry.outer_checksum("hexpm", "package", "1.1.0") == nil
+    assert Registry.outer_checksum("hexpm", "package", "1.0.0") == "outer"
+  end
+
   describe "failed package fetches" do
     setup do
       Registry.close()

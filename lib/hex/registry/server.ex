@@ -836,11 +836,14 @@ defmodule Hex.Registry.Server do
 
   defp delete_package(repo, package, tid) do
     :ets.delete(tid, {:registry_etag, repo, package})
+    :ets.delete(tid, {:timestamp, repo, package})
     versions = lookup(tid, {:versions, repo, package}) || []
     :ets.delete(tid, {:versions, repo, package})
 
     Enum.each(versions, fn version ->
-      :ets.delete(tid, {:checksum, repo, package, version})
+      :ets.delete(tid, {:timestamp, repo, package, version})
+      :ets.delete(tid, {:inner_checksum, repo, package, version})
+      :ets.delete(tid, {:outer_checksum, repo, package, version})
       :ets.delete(tid, {:retired, repo, package, version})
       :ets.delete(tid, {:advisories, repo, package, version})
       :ets.delete(tid, {:published_at, repo, package, version})
