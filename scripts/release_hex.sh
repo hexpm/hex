@@ -112,13 +112,14 @@ function build_old {
   ubuntu_version=$5
 
   echo "Building ${elixir_version} ${otp_version} ${ubuntu_version} (old format)"
-  rm -rf _build src/mix_safe_erl_term.erl
   hex_ez=hex-${hex_version}.ez
 
   mkdir -p "$installs_dir/${saved_elixir_version}"
   docker run -v $(pwd):/hex hexpm/elixir:${elixir_version}-erlang-${otp_version}-ubuntu-${ubuntu_version} sh -c " \
-    cd /hex && \
-    MIX_ENV=prod mix archive.build -o ${hex_ez}"
+    mkdir /build && \
+    tar -C /hex --exclude=./_build --exclude=./deps --exclude=./tmp --exclude=./src/mix_safe_erl_term.erl -cf - . | tar -C /build -xf - && \
+    cd /build && \
+    MIX_ENV=prod mix archive.build -o /hex/${hex_ez}"
 
   mv "${hex_ez}" "${installs_dir}/${saved_elixir_version}/${hex_ez}"
   sha=$(shasum -a 512 "${installs_dir}/${saved_elixir_version}/${hex_ez}")
@@ -140,14 +141,15 @@ function build {
   ubuntu_version=$5
 
   echo "Building ${elixir_version} ${otp_version} ${ubuntu_version}"
-  rm -rf _build src/mix_safe_erl_term.erl
   archive_ez=hex-${hex_version}.ez
   hex_ez=hex-${hex_version}-otp-${otp_release}.ez
 
   mkdir -p "$installs_dir/${saved_elixir_version}"
   docker run -v $(pwd):/hex hexpm/elixir:${elixir_version}-erlang-${otp_version}-ubuntu-${ubuntu_version} sh -c " \
-    cd /hex && \
-    MIX_ENV=prod mix archive.build -o ${archive_ez}"
+    mkdir /build && \
+    tar -C /hex --exclude=./_build --exclude=./deps --exclude=./tmp --exclude=./src/mix_safe_erl_term.erl -cf - . | tar -C /build -xf - && \
+    cd /build && \
+    MIX_ENV=prod mix archive.build -o /hex/${archive_ez}"
 
   mv "${archive_ez}" "${installs_dir}/${saved_elixir_version}/${hex_ez}"
   sha=$(shasum -a 512 "${installs_dir}/${saved_elixir_version}/${hex_ez}")
