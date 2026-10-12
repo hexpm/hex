@@ -80,8 +80,11 @@ function main {
   if [ "${dry_run}" = true ]; then
     echo "Dry run complete, archives in ${installs_dir}"
   elif [ -n "${ELIXIR_PEM}" ]; then
-    openssl dgst -sha512 -sign "${ELIXIR_PEM}" "${hex_csv}" | openssl base64 > "${hex_csv}.signed"
-    openssl dgst -sha512 -sign "${ELIXIR_PEM}" "${hex_1x_csv}" | openssl base64 > "${hex_1x_csv}.signed"
+    # Decrypt the key once so its pass phrase is only asked for once
+    elixir_key=$(openssl pkey -in "${ELIXIR_PEM}")
+    openssl dgst -sha512 -sign <(printf "%s\n" "${elixir_key}") "${hex_csv}" | openssl base64 > "${hex_csv}.signed"
+    openssl dgst -sha512 -sign <(printf "%s\n" "${elixir_key}") "${hex_1x_csv}" | openssl base64 > "${hex_1x_csv}.signed"
+    unset elixir_key
 
     cd $installs_dir
     for path in $(find . -type f | sort); do
