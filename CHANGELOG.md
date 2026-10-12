@@ -31,6 +31,7 @@
 * Reuse cached registry and policy files in `mix deps.get` and `mix deps.update` when they haven't changed in the repository. Since Hex 2.1.0 every registry file was downloaded in full on each run, even when it was already cached
 * Skip HTTPS certificate verification when the `unsafe_https` config or the `HEX_UNSAFE_HTTPS` environment variable is set. Since Hex 2.3.0 the setting had no effect and certificates were always verified
 * Print the package version in the error raised when resolved Hex packages give the same dependency different OTP application names. Since Hex 0.21.3 the error showed a literal `{version}` instead
+* Resolve dependencies after compiling in the same command, such as `mix do compile + deps.get`, on Elixir 1.15 and later. Since Hex 2.4.1 this raised `UndefinedFunctionError` for `Hex.Stdlib.ensure_application!/1`
 
 ## v2.5.2 (2026-10-12)
 

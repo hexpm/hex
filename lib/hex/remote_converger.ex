@@ -35,8 +35,11 @@ defmodule Hex.RemoteConverger do
   end
 
   def converge(deps, lock) do
+    # Compiling prunes code paths, including the Hex archive's. Restore them
+    # through Mix because other Hex modules, such as Hex.Stdlib, may not be
+    # loaded yet. Elixir 1.15 added both pruning and Mix.ensure_application!/1.
     unless Code.ensure_loaded?(Hex.Mix) do
-      Hex.Stdlib.ensure_application!(:hex)
+      apply(Mix, :ensure_application!, [:hex])
     end
 
     Registry.open()
