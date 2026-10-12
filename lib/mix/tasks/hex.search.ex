@@ -240,10 +240,10 @@ defmodule Mix.Tasks.Hex.Search do
 
       Hex.Shell.info([
         :bright,
-        ["# ", title, " (", Integer.to_string(index), "/", total, ")"],
+        ["# ", Hex.Utils.escape_terminal(title), " (", Integer.to_string(index), "/", total, ")"],
         :reset,
         ["\n", document_url(package, ref), "\n\n"],
-        [strip_html_comments(doc), "\n\n"]
+        [doc |> strip_html_comments() |> Hex.Utils.escape_terminal(), "\n\n"]
       ])
     end)
   end
@@ -251,7 +251,7 @@ defmodule Mix.Tasks.Hex.Search do
   defp document_url(package, ref) do
     case :binary.split(package, "-") do
       [name, version] ->
-        "https://#{name}.hexdocs.pm/#{version}/#{ref}"
+        "https://#{Hex.Utils.printable_ascii(name)}.hexdocs.pm/#{Hex.Utils.printable_ascii(version)}/#{Hex.Utils.printable_ascii(ref)}"
 
       _ ->
         Mix.raise("Unexpected package search result format: #{inspect(package)}")

@@ -228,6 +228,44 @@ defmodule Mix.Tasks.Hex.SearchTest do
       end)
     end
 
+    @tag :requires_json
+    test "escapes terminal control sequences in results" do
+      in_tmp(fn ->
+        set_home_tmp()
+
+        hit =
+          %{
+            "doc" => "Doc\e[2K\rFAKE OUTPUT\e]52;c;cGF5bG9hZA==\a",
+            "package" => "evil\e[31m-1.0.0",
+            "ref" => "Evil.html#\e[1mfake",
+            "title" => "cast/4\e[31m and \u{202E}reversed"
+          }
+
+        mock_search_http(fn _url ->
+          {:ok,
+           {200, %{},
+            :json.encode(%{"found" => 1, "hits" => [%{"document" => hit}]})
+            |> IO.iodata_to_binary()}}
+        end)
+
+        Mix.Tasks.Hex.Search.run(["query", "--packages", "foo"])
+
+        assert_received {:mix_shell, :info, [message]}
+
+        refute message =~ "\e"
+        refute message =~ "\r"
+        refute message =~ "\a"
+        refute message =~ "\u{202E}"
+
+        # The title and doc keep their text, with the control bytes made visible.
+        assert message =~ "cast/4\\e[31m and \\u{202E}reversed"
+        assert message =~ "Doc\\e[2K\\rFAKE OUTPUT\\e]52;c;cGF5bG9hZA==\\a"
+
+        # The URL drops them outright rather than showing them.
+        assert message =~ "https://evil[31m.hexdocs.pm/1.0.0/Evil.html#[1mfake"
+      end)
+    end
+
     test "rejects incompatible query arguments" do
       assert_raise Mix.Error, ~r/mix hex.search QUERY/, fn ->
         Mix.Tasks.Hex.Search.run(["query", "--print-url"])

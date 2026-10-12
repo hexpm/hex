@@ -789,6 +789,35 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end)
   end
 
+  test "outdated drops terminal controls from the short diff URL" do
+    Mix.Project.push(OutdatedDeps.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      bypass = Bypass.open()
+      Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+      Bypass.expect_once(bypass, "POST", "/api/short_url", fn conn ->
+        body = %{"url" => "https://hex.pm/l/abc\e[2K\rFORGED"}
+
+        conn
+        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+        |> Plug.Conn.resp(201, Hex.Utils.safe_serialize_erlang(body))
+      end)
+
+      assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+      output = shell_output()
+      assert output =~ "https://hex.pm/l/abc[2KFORGED"
+      refute output =~ "\e[2K"
+    end)
+  end
+
   defp extract_statuses(lines) do
     Enum.flat_map(lines, fn {_, _, [line]} ->
       ~r/Up-to-date|Update not possible|Update possible/

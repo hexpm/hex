@@ -445,7 +445,7 @@ defmodule Mix.Tasks.Hex.Outdated do
   defp maybe_get_short_link(long_url) do
     case Hex.API.ShortURL.create(long_url) do
       :error -> long_url
-      {:ok, short_url} -> short_url
+      {:ok, short_url} -> Hex.Utils.printable_ascii(short_url)
     end
   end
 
@@ -506,7 +506,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   defp encode_json!(term) do
     if Code.ensure_loaded?(:json) do
-      term |> :json.encode() |> IO.iodata_to_binary()
+      term |> :json.encode() |> IO.iodata_to_binary() |> Hex.Utils.escape_terminal_json()
     else
       Mix.raise(":json module is not available, upgrade OTP to use this feature")
     end

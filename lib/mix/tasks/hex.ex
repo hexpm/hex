@@ -132,7 +132,7 @@ defmodule Mix.Tasks.Hex do
     revoke_and_cleanup_old_api_keys()
 
     prompt_user = fn verification_uri, user_code ->
-      Hex.Shell.info("To authenticate, visit: #{verification_uri}")
+      Hex.Shell.info("To authenticate, visit: #{Hex.Utils.printable_ascii(verification_uri)}")
       Hex.Shell.info("")
       Hex.Shell.info("Your verification code:")
       Hex.Shell.info("")
@@ -171,6 +171,7 @@ defmodule Mix.Tasks.Hex do
   end
 
   defp format_user_code(user_code) do
+    user_code = Hex.Utils.printable_ascii(user_code)
     mid = div(String.length(user_code), 2)
 
     String.slice(user_code, 0, mid) <>

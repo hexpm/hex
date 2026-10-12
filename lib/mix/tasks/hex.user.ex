@@ -68,7 +68,7 @@ defmodule Mix.Tasks.Hex.User do
   defp whoami() do
     case Hex.API.User.me() do
       {:ok, {code, _, body}} when code in 200..299 ->
-        Hex.Shell.info(body["username"])
+        Hex.Shell.info(Hex.Utils.escape_terminal(body["username"] || ""))
 
       other ->
         Hex.Shell.error("Failed to auth")

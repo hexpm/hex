@@ -418,11 +418,14 @@ defmodule Mix.Tasks.Hex.Package do
     values =
       Enum.map(packages, fn package ->
         [
-          if(package["repository"] != "hexpm", do: package["repository"]),
-          package["name"],
-          package["meta"]["description"] |> trim_heredoc() |> Hex.Utils.truncate(),
+          organization_cell(package["repository"]),
+          Hex.Utils.escape_terminal(package["name"]),
+          package["meta"]["description"]
+          |> trim_heredoc()
+          |> Hex.Utils.truncate()
+          |> Hex.Utils.escape_terminal(),
           latest_stable_release(package["releases"]),
-          package["html_url"] || package["url"]
+          Hex.Utils.printable_ascii(package["html_url"] || package["url"] || "")
         ]
       end)
 
@@ -436,10 +439,13 @@ defmodule Mix.Tasks.Hex.Package do
     values =
       Enum.map(packages, fn package ->
         [
-          package["name"],
-          package["meta"]["description"] |> trim_heredoc() |> Hex.Utils.truncate(),
+          Hex.Utils.escape_terminal(package["name"]),
+          package["meta"]["description"]
+          |> trim_heredoc()
+          |> Hex.Utils.truncate()
+          |> Hex.Utils.escape_terminal(),
           latest_stable_release(package["releases"]),
-          package["html_url"] || package["url"]
+          Hex.Utils.printable_ascii(package["html_url"] || package["url"] || "")
         ]
       end)
 
@@ -448,6 +454,10 @@ defmodule Mix.Tasks.Hex.Package do
       values
     )
   end
+
+  defp organization_cell("hexpm"), do: nil
+  defp organization_cell(nil), do: nil
+  defp organization_cell(repository), do: Hex.Utils.escape_terminal(repository)
 
   defp latest_stable_release(releases) do
     %{"version" => version} =

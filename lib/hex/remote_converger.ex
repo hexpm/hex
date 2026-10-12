@@ -375,7 +375,7 @@ defmodule Hex.RemoteConverger do
                 "  * #{name} defined application :#{app}"
               end)
 
-            Mix.raise(header <> list)
+            Mix.raise(Hex.Utils.escape_terminal(header <> list))
         end
       end)
 
@@ -396,7 +396,7 @@ defmodule Hex.RemoteConverger do
             "  * #{name} #{version}"
           end)
 
-        Mix.raise(header <> list)
+        Mix.raise(Hex.Utils.escape_terminal(header <> list))
       end
     end)
 
@@ -671,7 +671,9 @@ defmodule Hex.RemoteConverger do
   end
 
   defp print_status(retired, advisories, mod, name, previous_version, version, warning) do
-    version_str = version_string(mod, name, previous_version, version)
+    version_str =
+      version_string(mod, name, previous_version, version) |> Hex.Utils.escape_terminal()
+
     retired_tag = if retired, do: [:yellow, " RETIRED!", :reset], else: []
     vulnerable_tag = if advisories != [], do: [:red, " VULNERABLE!", :reset], else: []
     warning_tag = if warning, do: [:red, warning, :reset], else: []

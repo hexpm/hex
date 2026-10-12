@@ -222,7 +222,7 @@ defmodule Hex.Cooldown do
         [
           "  ",
           :bright,
-          pkg,
+          Hex.Utils.escape_terminal(pkg),
           :reset,
           " ",
           :yellow,
