@@ -229,4 +229,63 @@ defmodule Hex.SolverTest do
   test "do not override locked deps" do
     assert solve([{:foo, "~> 0.2.0", override: true}], [{:foo, "0.2.0"}]) == %{:foo => "0.2.0"}
   end
+
+  describe "release with an invalid application name" do
+    setup do
+      setup_registry(tmp_path("cache_invalid_app.ets"), [
+        {:hexpm, :parent, ["1.0.0"], [child: "~> 1.0"]},
+        {:hexpm, :parent, ["2.0.0"], [{:child, "~> 1.0", true, :"../child"}]},
+        {:hexpm, :child, ["1.0.0"], []}
+      ])
+
+      Hex.State.put(:cooldown_cutoff, :disabled)
+      Hex.State.put(:cooldown_bypass_packages, MapSet.new())
+
+      %{registries: [Registry, Hex.Registry.Cooldown, Hex.Registry.Policy]}
+    end
+
+    test "is skipped", %{registries: registries} do
+      for registry <- registries do
+        assert solve([parent: nil], [], registry) == %{parent: "1.0.0", child: "1.0.0"}
+        assert solve([parent: "~> 1.0"], [], registry) == %{parent: "1.0.0", child: "1.0.0"}
+      end
+
+      assert_invalid_app_warning()
+    end
+
+    test "is skipped with a lock", %{registries: registries} do
+      for registry <- registries do
+        assert solve([parent: nil], [parent: "1.0.0"], registry) ==
+                 %{parent: "1.0.0", child: "1.0.0"}
+
+        assert solve([parent: "~> 1.0"], [parent: "1.0.0"], registry) ==
+                 %{parent: "1.0.0", child: "1.0.0"}
+      end
+
+      assert_invalid_app_warning()
+    end
+
+    test "is skipped and resolution fails when no other release matches", %{
+      registries: registries
+    } do
+      for registry <- registries do
+        assert solve([parent: "2.0.0"], [], registry) == """
+               Because "parent >= 2.0.0" depends on "child empty" which doesn't match any versions, "parent >= 2.0.0" is forbidden.
+               So, because "your app" depends on "parent 2.0.0", version solving failed.\
+               """
+      end
+
+      assert_invalid_app_warning()
+    end
+
+    defp assert_invalid_app_warning() do
+      assert_received {:mix_shell, :error,
+                       [
+                         "\e[33mPackage parent 2.0.0 can't be used because its dependency child " <>
+                           "has the invalid application name \"../child\"" <> _
+                       ]}
+
+      refute_received {:mix_shell, :error, _}
+    end
+  end
 end

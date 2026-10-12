@@ -391,7 +391,7 @@ defmodule Hex.RemoteConverger do
   defp add_apps_to_resolved(resolved, requests) do
     dependencies =
       for {repo, package, version} <- resolved,
-          {:ok, deps} <- [Registry.dependencies(repo, package, version)],
+          {:ok, deps} <- [Registry.app_dependencies(repo, package, version)],
           do: {repo, package, deps}
 
     resolved =
@@ -516,7 +516,7 @@ defmodule Hex.RemoteConverger do
 
   defp get_deps(repo, name, version) do
     deps =
-      case Registry.dependencies(repo, name, version) do
+      case Registry.app_dependencies(repo, name, version) do
         {:ok, deps} -> deps
         :error -> []
       end
@@ -887,7 +887,7 @@ defmodule Hex.RemoteConverger do
       end)
 
     registry_deps =
-      case Registry.dependencies(repo, name, version) do
+      case Registry.app_dependencies(repo, name, version) do
         {:ok, deps} -> deps
         :error -> []
       end
@@ -936,7 +936,7 @@ defmodule Hex.RemoteConverger do
         %{name: name, version: version, deps: nil, repo: repo} ->
           # Do not error on bad data in the old lock because we should just
           # fix it automatically
-          case Registry.dependencies(repo, name, version) do
+          case Registry.app_dependencies(repo, name, version) do
             {:ok, deps} ->
               apps = Enum.map(deps, fn %{label: app} -> app end)
               [apps, do_with_children(apps, lock)]

@@ -450,6 +450,53 @@ defmodule Hex.MixTaskTest do
     ])
   end
 
+  test "deps.get rejects a dependency application name outside deps/" do
+    Mix.Project.push(Simple)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+      File.mkdir_p!("escape")
+      File.write!("escape/marker", "")
+
+      Hex.Registry.Server.open()
+      Hex.Registry.Server.prefetch([{"hexpm", "ecto"}])
+      {:ok, _versions} = Hex.Registry.Server.versions("hexpm", "ecto")
+
+      :sys.replace_state(Hex.Registry.Server, fn state ->
+        :ets.insert(
+          state.ets,
+          {{:deps, "hexpm", "ecto", "0.2.0"},
+           [
+             {"hexpm", "postgrex", "../escape", "~> 0.2.0", false},
+             {"hexpm", "ex_doc", "ex_doc", "~> 0.0.1", false}
+           ]}
+        )
+
+        state
+      end)
+
+      assert_raise Mix.Error, "Hex dependency resolution failed", fn ->
+        Mix.Task.run("deps.get")
+      end
+
+      assert_received {:mix_shell, :error,
+                       [
+                         "\e[33mPackage ecto 0.2.0 can't be used because its dependency " <>
+                           "postgrex has the invalid application name \"../escape\"" <> _
+                       ]}
+
+      assert File.ls!("escape") == ["marker"]
+      refute File.exists?(".escape.hex-staging")
+      refute File.exists?("mix.lock")
+    end)
+  after
+    purge([
+      Ecto.NoConflict.MixProject,
+      Postgrex.NoConflict.MixProject,
+      Ex_doc.NoConflict.MixProject
+    ])
+  end
+
   test "deps.get keeps the dependency directory when the cached package can't be unpacked" do
     Mix.Project.push(Simple)
 

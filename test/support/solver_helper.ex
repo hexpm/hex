@@ -1,7 +1,7 @@
 defmodule HexTest.SolverHelper do
   alias Hex.Registry.Server, as: Registry
 
-  def solve(deps, locked \\ []) do
+  def solve(deps, locked \\ [], registry \\ Registry) do
     dependencies = dependencies(deps)
     locked = locked(locked)
     overridden = overridden(deps)
@@ -10,7 +10,7 @@ defmodule HexTest.SolverHelper do
     |> Enum.map(fn %{repo: repo, name: name} -> {repo, name} end)
     |> Registry.prefetch()
 
-    case Hex.Solver.run(Registry, dependencies, locked, overridden) do
+    case Hex.Solver.run(registry, dependencies, locked, overridden) do
       {:ok, result} ->
         Map.new(result, fn
           {package, {version, nil}} ->
