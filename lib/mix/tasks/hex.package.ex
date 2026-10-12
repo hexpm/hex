@@ -147,83 +147,98 @@ defmodule Mix.Tasks.Hex.Package do
     ]
   end
 
+  defp fetch(_repo, _package, _version, true, "-") do
+    Mix.raise("Cannot unpack the package while output destination is stdout")
+  end
+
+  defp fetch(repo, package, version, false, "-") do
+    shell = Mix.shell()
+    Mix.shell(Hex.Shell.Stderr)
+
+    try do
+      version = version || find_package_latest_version(repo, package)
+
+      # The update checker prints from its own process when its request
+      # finishes, which can be after the shell is restored
+      Hex.Registry.Server.open(check_version: false)
+
+      try do
+        Hex.Registry.Server.prefetch([{repo, package}])
+        tarball = fetch_tarball!(repo, package, version)
+        IO.binwrite(tarball)
+      after
+        Hex.Registry.Server.close()
+      end
+    after
+      Mix.shell(shell)
+    end
+  end
+
   defp fetch(repo, package, nil, unpack?, output) do
     version = find_package_latest_version(repo, package)
     fetch(repo, package, version, unpack?, output)
   end
 
-  defp fetch(repo, package, version, false, "-") do
-    Hex.Registry.Server.open()
-    Hex.Registry.Server.prefetch([{repo, package}])
-
-    tarball = fetch_tarball!(repo, package, version)
-    IO.binwrite(tarball)
-
-    Hex.Registry.Server.close()
-  end
-
-  defp fetch(_repo, _package, _version, true, "-") do
-    Mix.raise("Cannot unpack the package while output destination is stdout")
-  end
-
   defp fetch(repo, package, version, unpack?, output) do
     Hex.Registry.Server.open()
-    Hex.Registry.Server.prefetch([{repo, package}])
 
-    tarball = fetch_tarball!(repo, package, version)
-    if output, do: File.mkdir_p!(output)
+    try do
+      Hex.Registry.Server.prefetch([{repo, package}])
 
-    abs_name = Path.absname("#{package}-#{version}")
+      tarball = fetch_tarball!(repo, package, version)
+      if output, do: File.mkdir_p!(output)
 
-    {abs_path, tar_path} =
-      if output do
-        {output, Path.join(output, "#{package}-#{version}.tar")}
-      else
-        {abs_name, "#{abs_name}.tar"}
-      end
+      abs_name = Path.absname("#{package}-#{version}")
 
-    File.write!(tar_path, tarball)
+      {abs_path, tar_path} =
+        if output do
+          {output, Path.join(output, "#{package}-#{version}.tar")}
+        else
+          {abs_name, "#{abs_name}.tar"}
+        end
 
-    if unpack? do
-      %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
-        Hex.Tar.unpack!(tar_path, abs_path)
+      File.write!(tar_path, tarball)
 
-      verify_inner_checksum!(repo, package, version, inner_checksum)
-      verify_outer_checksum!(repo, package, version, outer_checksum)
-    else
-      {:ok, outer_checksum} = Hex.Tar.outer_checksum(tar_path)
-      verify_outer_checksum!(repo, package, version, outer_checksum)
-    end
-
-    message =
       if unpack? do
-        File.rm!(tar_path)
-        "#{package} v#{version} extracted to #{abs_path}"
-      else
-        "#{package} v#{version} downloaded to #{tar_path}"
+        %{inner_checksum: inner_checksum} = Hex.Tar.unpack!(tar_path, abs_path)
+        verify_inner_checksum!(repo, package, version, inner_checksum)
       end
 
-    Hex.Shell.info(message)
-    Hex.Registry.Server.close()
+      message =
+        if unpack? do
+          File.rm!(tar_path)
+          "#{package} v#{version} extracted to #{abs_path}"
+        else
+          "#{package} v#{version} downloaded to #{tar_path}"
+        end
+
+      Hex.Shell.info(message)
+    after
+      Hex.Registry.Server.close()
+    end
   end
 
   defp fetch_tarball!(repo, package, version) do
     path = Hex.SCM.cache_path(repo, package, version)
 
-    case Hex.SCM.fetch(repo, package, version) do
-      {:ok, _} ->
-        File.read!(path)
-
-      {:error, reason} ->
-        if File.exists?(path) do
+    tarball =
+      case Hex.SCM.fetch(repo, package, version) do
+        {:ok, _} ->
           File.read!(path)
-        else
-          Mix.raise(
-            "Downloading " <>
-              Hex.Repo.tarball_url(repo, package, version) <> " failed:\n\n" <> reason
-          )
-        end
-    end
+
+        {:error, reason} ->
+          if File.exists?(path) do
+            File.read!(path)
+          else
+            Mix.raise(
+              "Downloading " <>
+                Hex.Repo.tarball_url(repo, package, version) <> " failed:\n\n" <> reason
+            )
+          end
+      end
+
+    verify_outer_checksum!(repo, package, version, :crypto.hash(:sha256, tarball))
+    tarball
   end
 
   defp verify_inner_checksum!(repo, package, version, checksum) do
@@ -295,11 +310,8 @@ defmodule Mix.Tasks.Hex.Package do
       Enum.each(versions, fn {path, version} ->
         tarball = fetch_tarball!(repo, package, version)
 
-        %{inner_checksum: inner_checksum, outer_checksum: outer_checksum} =
-          Hex.Tar.unpack!({:binary, tarball}, path)
-
+        %{inner_checksum: inner_checksum} = Hex.Tar.unpack!({:binary, tarball}, path)
         verify_inner_checksum!(repo, package, version, inner_checksum)
-        verify_outer_checksum!(repo, package, version, outer_checksum)
       end)
     after
       Hex.Registry.Server.close()
