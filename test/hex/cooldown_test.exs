@@ -291,16 +291,16 @@ defmodule Hex.CooldownTest do
     end
   end
 
-  describe "format_summary/2" do
+  describe "format_summary/3" do
     test "returns nil for an empty list" do
       Hex.State.put(:cooldown, "7d")
       cutoff = Cooldown.build_cutoff()
-      assert Cooldown.format_summary([], cutoff) == nil
+      assert Cooldown.format_summary([], cutoff, %{}) == nil
     end
 
     test "returns nil when cutoff is :disabled" do
       now = System.system_time(:second)
-      assert Cooldown.format_summary([{"hexpm", "foo", "1.0.0", now}], :disabled) == nil
+      assert Cooldown.format_summary([{"hexpm", "foo", "1.0.0", now}], :disabled, %{}) == nil
     end
 
     test "renders a single entry with days ago and eligible date" do
@@ -309,7 +309,8 @@ defmodule Hex.CooldownTest do
       now = System.system_time(:second)
       published_at = now - 3 * 86_400
 
-      summary = Cooldown.format_summary([{"hexpm", "castore", "1.0.19", published_at}], cutoff)
+      summary =
+        Cooldown.format_summary([{"hexpm", "castore", "1.0.19", published_at}], cutoff, %{})
 
       assert summary =~ "Versions filtered by cooldown:"
       assert summary =~ "castore 1.0.19"
@@ -329,7 +330,7 @@ defmodule Hex.CooldownTest do
         {"hexpm", "castore", "1.0.18", young}
       ]
 
-      summary = Cooldown.format_summary(entries, cutoff)
+      summary = Cooldown.format_summary(entries, cutoff, %{})
 
       # Packages alphabetically, versions newest-first; dedup keeps one castore 1.0.19.
       [_header, line1, line2, line3 | _] = String.split(summary, "\n", trim: true)
@@ -348,7 +349,7 @@ defmodule Hex.CooldownTest do
 
       entries = for minor <- 0..7, do: {"hexpm", "castore", "1.#{minor}.0", young}
 
-      summary = Cooldown.format_summary(entries, cutoff)
+      summary = Cooldown.format_summary(entries, cutoff, %{})
 
       assert summary =~ "castore 1.7.0"
       assert summary =~ "castore 1.3.0"
@@ -366,7 +367,7 @@ defmodule Hex.CooldownTest do
         {"hexpm", "castore", "1.0.19", now - 1 * 86_400}
       ]
 
-      summary = Cooldown.format_summary(entries, cutoff)
+      summary = Cooldown.format_summary(entries, cutoff, %{})
 
       assert summary =~ "castore 1.0.19"
       refute summary =~ "legacy"
@@ -375,7 +376,44 @@ defmodule Hex.CooldownTest do
     test "returns nil when every entry has nil published_at" do
       Hex.State.put(:cooldown, "7d")
       cutoff = Cooldown.build_cutoff()
-      assert Cooldown.format_summary([{"hexpm", "legacy", "1.0.0", nil}], cutoff) == nil
+      assert Cooldown.format_summary([{"hexpm", "legacy", "1.0.0", nil}], cutoff, %{}) == nil
+    end
+
+    test "tells how to update a retired locked release past newer filtered versions" do
+      Hex.State.put(:cooldown, "7d")
+      cutoff = Cooldown.build_cutoff()
+      young = System.system_time(:second) - 1 * 86_400
+
+      entries = [
+        {"hexpm", "castore", "1.0.19", young},
+        {"hexpm", "plug", "1.16.5", young}
+      ]
+
+      retired_locks = %{{"hexpm", "castore"} => {"my_castore", "1.0.18"}}
+      summary = Cooldown.format_summary(entries, cutoff, retired_locks)
+
+      [_header, castore, hint, plug] = String.split(summary, "\n", trim: true)
+      assert castore =~ "castore 1.0.19"
+
+      assert hint ==
+               "    Locked version 1.0.18 is retired. To update without the cooldown, " <>
+                 "run `HEX_COOLDOWN=0 mix deps.update my_castore`"
+
+      assert plug =~ "plug 1.16.5"
+    end
+
+    test "doesn't mention a retired locked release when only older versions were filtered" do
+      Hex.State.put(:cooldown, "7d")
+      cutoff = Cooldown.build_cutoff()
+      young = System.system_time(:second) - 1 * 86_400
+
+      retired_locks = %{{"hexpm", "castore"} => {"castore", "1.1.0"}}
+
+      summary =
+        Cooldown.format_summary([{"hexpm", "castore", "1.0.19", young}], cutoff, retired_locks)
+
+      assert summary =~ "castore 1.0.19"
+      refute summary =~ "Locked version"
     end
   end
 end

@@ -105,7 +105,7 @@ defmodule Hex.RemoteConverger do
     case solution do
       {:ok, resolved} ->
         resolved = normalize_resolved(resolved)
-        print_cooldown_summary()
+        print_cooldown_summary(old_lock)
         print_policy_summary()
         solver_success(resolved, requests, lock, old_lock)
 
@@ -116,7 +116,7 @@ defmodule Hex.RemoteConverger do
           Hex.Shell.info("\n" <> note)
         end
 
-        print_cooldown_summary()
+        print_cooldown_summary(old_lock)
         # The failure note above already lists the hidden versions, so the
         # summary here contributes only the active-policy header.
         print_policy_summary(list_filtered: false)
@@ -168,11 +168,14 @@ defmodule Hex.RemoteConverger do
     #    cooldown. Matches the design's "cooldown does not apply when
     #    proceeding from the lockfile" promise.
     #
-    # 2. Packages in `old_lock` whose locked version is known-unsafe (retired
-    #    or carrying a security advisory): the user re-resolving is trying
-    #    to escape that version; cooldown must not block the escape. Walks
-    #    `old_lock` rather than `locked` because `mix deps.update foo` to
-    #    escape an unsafe foo removes foo from `locked`.
+    # 2. Packages in `old_lock` whose locked version carries a security
+    #    advisory: the user re-resolving is trying to escape that version;
+    #    cooldown must not block the escape. Walks `old_lock` rather than
+    #    `locked` because `mix deps.update foo` to escape an unsafe foo
+    #    removes foo from `locked`. Retirement doesn't lift the cooldown
+    #    because retiring a release takes the same package owner permission
+    #    as publishing one, so an attacker who publishes a release could
+    #    otherwise retire the locked release to get past the cooldown.
     #
     # 3. The currently-locked children of any package in (2): escaping an
     #    unsafe parent typically requires re-resolving its dependency
@@ -180,22 +183,24 @@ defmodule Hex.RemoteConverger do
     #    those children. Mirroring `mix deps.update`'s behavior of unlocking
     #    the children alongside the explicit target, we lift cooldown on the
     #    same set.
-    lock_satisfied = for %{name: name} <- locked, into: MapSet.new(), do: name
+    lock_satisfied = for %{repo: repo, name: name} <- locked, into: MapSet.new(), do: {repo, name}
+
     MapSet.union(lock_satisfied, unsafe_lock_bypass(old_lock))
   end
 
   @doc """
-  Set of package names whose cooldown should be lifted because the lock
-  currently points at an unsafe version of that package, plus the names
-  of that package's lock-children.
+  Set of `{repo, package}` pairs whose cooldown should be lifted because the
+  lock currently points at a version of that package with a security
+  advisory, plus that package's lock-children.
   """
   def unsafe_lock_bypass(lock) do
     Enum.reduce(lock, MapSet.new(), fn {_app, lock_entry}, acc ->
       case Hex.Utils.lock(lock_entry) do
         %{repo: repo, name: name, version: version, deps: deps} ->
-          if locked_version_unsafe?(repo || "hexpm", name, to_string(version)) do
-            children = for {_app, _req, opts} <- deps || [], do: opts[:hex]
-            acc |> MapSet.put(name) |> MapSet.union(MapSet.new(children))
+          if Registry.advisories(repo, name, to_string(version)) not in [nil, []] do
+            children = for {_app, _req, opts} <- deps || [], do: {opts[:repo], opts[:hex]}
+
+            acc |> MapSet.put({repo, name}) |> MapSet.union(MapSet.new(children))
           else
             acc
           end
@@ -206,19 +211,31 @@ defmodule Hex.RemoteConverger do
     end)
   end
 
-  defp locked_version_unsafe?(repo, name, version) do
-    Registry.retired(repo, name, version) != nil or
-      Registry.advisories(repo, name, version) not in [nil, []]
-  end
-
   @doc false
-  def print_cooldown_summary() do
+  def print_cooldown_summary(old_lock) do
     cutoff = Hex.State.fetch!(:cooldown_cutoff)
     entries = Hex.State.fetch!(:cooldown_filtered_versions)
+    retired_locks = retired_locks(old_lock, entries)
 
-    if summary = Hex.Cooldown.format_summary(entries, cutoff) do
+    if summary = Hex.Cooldown.format_summary(entries, cutoff, retired_locks) do
       Hex.Shell.info(summary)
     end
+  end
+
+  # Retired locked releases of the packages that had versions filtered by the
+  # cooldown. Retirements acknowledged with ignore_retirements are left out, as
+  # they are in the dependency listing.
+  defp retired_locks(old_lock, entries) do
+    filtered =
+      MapSet.new(entries, fn {repo, package, _version, _published_at} -> {repo, package} end)
+
+    ignore_retirements = Hex.State.fetch!(:ignore_retirements)
+
+    for %{repo: repo, name: name, app: app, version: version} <- Hex.Mix.from_lock(old_lock),
+        MapSet.member?(filtered, {repo, name}),
+        reported_retirement(repo, name, version, ignore_retirements),
+        into: %{},
+        do: {{repo, name}, {app, version}}
   end
 
   defp request_to_dependency(request) do
@@ -558,18 +575,7 @@ defmodule Hex.RemoteConverger do
     Enum.map(dep_changes, fn {mod, deps} ->
       annotated =
         Enum.map(deps, fn {name, repo, _prev, version, _warning} = dep ->
-          retired =
-            case Registry.retired(repo, name, version) do
-              %{} = retired ->
-                if Hex.Ignores.retirement_ignored?(name, version, ignore_retirements) do
-                  nil
-                else
-                  retired
-                end
-
-              nil ->
-                nil
-            end
+          retired = reported_retirement(repo, name, version, ignore_retirements)
 
           advisories =
             (Registry.advisories(repo, name, version) || [])
@@ -580,6 +586,20 @@ defmodule Hex.RemoteConverger do
 
       {mod, annotated}
     end)
+  end
+
+  defp reported_retirement(repo, name, version, ignore_retirements) do
+    case Registry.retired(repo, name, version) do
+      %{} = retired ->
+        if Hex.Ignores.retirement_ignored?(name, version, ignore_retirements) do
+          nil
+        else
+          retired
+        end
+
+      nil ->
+        nil
+    end
   end
 
   defp group_dependency_changes(resolved, previously_locked_versions) do

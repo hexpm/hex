@@ -9,7 +9,8 @@ defmodule Hex.Registry.CooldownTest do
     registry = [
       {:hexpm, :foo, "1.0.0", []},
       {:hexpm, :foo, "1.1.0", []},
-      {:hexpm, :foo, "1.2.0", []}
+      {:hexpm, :foo, "1.2.0", []},
+      {:"hexpm:myorg", :foo, "1.0.0", []}
     ]
 
     publish_times = %{
@@ -24,7 +25,7 @@ defmodule Hex.Registry.CooldownTest do
 
     Hex.State.put(:offline, true)
     Server.open(registry_path: path)
-    Server.prefetch([{"hexpm", "foo"}])
+    Server.prefetch([{"hexpm", "foo"}, {"hexpm:myorg", "foo"}])
 
     %{now: now}
   end
@@ -56,10 +57,37 @@ defmodule Hex.Registry.CooldownTest do
     Hex.State.put(:cooldown, "60d")
     cutoff = Hex.Cooldown.build_cutoff()
     Hex.State.put(:cooldown_cutoff, cutoff)
-    Hex.State.put(:cooldown_bypass_packages, MapSet.new(["foo"]))
+    Hex.State.put(:cooldown_bypass_packages, MapSet.new([{"hexpm", "foo"}]))
 
     {:ok, versions} = Cooldown.versions("hexpm", "foo")
     assert Enum.map(versions, &to_string/1) == ["1.0.0", "1.1.0", "1.2.0"]
+  end
+
+  test "a package locked from an organization doesn't lift the cooldown for hexpm" do
+    old_lock = %{
+      foo: {:hex, :foo, "1.0.0", "checksum", [:mix], [], "hexpm:myorg", "outer_checksum"}
+    }
+
+    locked = [%{repo: "hexpm:myorg", name: "foo", app: "foo", version: "1.0.0"}]
+
+    Hex.State.put(:cooldown, "7d")
+    cutoff = Hex.Cooldown.build_cutoff()
+    Hex.State.put(:cooldown_cutoff, cutoff)
+
+    Hex.State.put(
+      :cooldown_bypass_packages,
+      Hex.RemoteConverger.build_cooldown_bypass(old_lock, locked, cutoff)
+    )
+
+    Hex.State.put(
+      :cooldown_locked_versions,
+      Hex.RemoteConverger.build_cooldown_locked_versions(old_lock)
+    )
+
+    Hex.State.put(:cooldown_filtered_versions, [])
+
+    {:ok, versions} = Cooldown.versions("hexpm", "foo")
+    assert Enum.map(versions, &to_string/1) == ["1.0.0", "1.1.0"]
   end
 
   test "cooldown_exclude_repos short-circuits filtering for repos in the list" do
