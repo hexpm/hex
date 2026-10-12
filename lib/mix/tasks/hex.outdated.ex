@@ -522,7 +522,7 @@ defmodule Mix.Tasks.Hex.Outdated do
 
   defp encode_json!(term) do
     if Code.ensure_loaded?(:json) do
-      term |> :json.encode() |> IO.iodata_to_binary()
+      term |> :json.encode() |> IO.iodata_to_binary() |> Hex.Utils.escape_terminal_json()
     else
       Mix.raise(":json module is not available, upgrade OTP to use this feature")
     end

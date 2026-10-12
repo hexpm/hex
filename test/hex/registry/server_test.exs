@@ -233,6 +233,64 @@ defmodule Hex.Registry.ServerTest do
     end
   end
 
+  test "dependencies/3 rejects dependency names the registry format does not allow" do
+    deps = [
+      {"hexpm", "child\e[2K\rFORGED", "child", ">= 0.0.0", false},
+      {"hexpm", "Child", "child", ">= 0.0.0", false},
+      {"hexpm", "1child", "child", ">= 0.0.0", false},
+      {"hexpm", "", "child", ">= 0.0.0", false},
+      {"hexpm", "child\u{202E}", "child", ">= 0.0.0", false},
+      {"hexpm", "child-1", "child", ">= 0.0.0", false},
+      {"hexpm", "child.1", "child", ">= 0.0.0", false}
+    ]
+
+    for {_repo, name, _app, _requirement, _optional} = dep <- deps do
+      insert_deps([dep])
+
+      error =
+        assert_raise Mix.Error, fn -> Registry.dependencies("hexpm", "parent", "1.0.0") end
+
+      assert error.message ==
+               "Package parent 1.0.0 declares a dependency with an invalid package name " <>
+                 inspect(name)
+    end
+  end
+
+  test "dependencies/3 rejects repository names the registry format does not allow" do
+    for repo <- ["acme\e[2K\rFORGED", "acme\u{202E}", "", "acme corp", "acme/corp"] do
+      insert_deps([{repo, "child", "child", ">= 0.0.0", false}])
+
+      error =
+        assert_raise Mix.Error, fn -> Registry.dependencies("hexpm", "parent", "1.0.0") end
+
+      assert error.message ==
+               "Package parent 1.0.0 declares a dependency with an invalid repository name " <>
+                 inspect(repo)
+    end
+  end
+
+  test "dependencies/3 accepts registry and custom repository names" do
+    insert_deps([
+      {"hexpm", "child", "child", ">= 0.0.0", false},
+      {"hexpm:acme", "child_2", "child_2", ">= 0.0.0", false},
+      {"my-Repo.v2", "child3", "child3", ">= 0.0.0", false}
+    ])
+
+    assert {:ok, [hexpm, organization, custom]} =
+             Registry.dependencies("hexpm", "parent", "1.0.0")
+
+    assert hexpm.repo == nil
+    assert organization.repo == "hexpm:acme"
+    assert custom.repo == "my-Repo.v2"
+  end
+
+  defp insert_deps(deps) do
+    :sys.replace_state(Registry, fn %{ets: tid, fetched: fetched} = state ->
+      :ets.insert(tid, {{:deps, "hexpm", "parent", "1.0.0"}, deps})
+      %{state | fetched: MapSet.put(fetched, {"hexpm", "parent"})}
+    end)
+  end
+
   test "prefetch raises a helpful error in offline mode when a package is not cached" do
     assert_raise Mix.Error,
                  ~r"Hex is running in offline mode and the registry entry for package missing_package is not cached locally",

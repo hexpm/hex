@@ -328,4 +328,23 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       assert {:ok, {200, _, []}} = Hex.API.Key.Organization.get("orgkeyrevokeallrepo", auth)
     end)
   end
+
+  test "escapes timestamps in organization key listings" do
+    bypass = Bypass.open()
+    Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+    Hex.State.put(:api_key, "test-key")
+    body = [%{"name" => "ci", "inserted_at" => "2026-09-13T12:00:00Z\e[2K\rFORGED"}]
+
+    Bypass.expect(bypass, "GET", "/api/orgs/private/keys", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+      |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
+    end)
+
+    Mix.Tasks.Hex.Organization.run(["key", "private", "list"])
+    output = Case.shell_output()
+    assert output =~ "2026-09-13T12:00:00Z\\e[2K\\rFORGED"
+    refute output =~ "\e"
+    refute output =~ "\r"
+  end
 end

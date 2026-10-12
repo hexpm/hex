@@ -91,15 +91,17 @@ defmodule Hex.WorkloadIdentity do
 
   defp describe_response({:ok, {status, _headers, %{"error" => error} = body}}) do
     case body["error_description"] do
-      nil -> "#{error} (HTTP #{status})"
-      description -> "#{error}: #{description} (HTTP #{status})"
+      nil -> "#{escape(error)} (HTTP #{status})"
+      description -> "#{escape(error)}: #{escape(description)} (HTTP #{status})"
     end
   end
 
   defp describe_response({:ok, {status, _headers, %{"message" => message}}}) do
-    "#{message} (HTTP #{status})"
+    "#{escape(message)} (HTTP #{status})"
   end
 
   defp describe_response({:ok, {status, _headers, _body}}), do: "HTTP #{status}"
   defp describe_response({:error, reason}), do: inspect(reason)
+
+  defp escape(field), do: Hex.Utils.escape_terminal(to_string(field))
 end

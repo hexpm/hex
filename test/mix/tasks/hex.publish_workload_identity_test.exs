@@ -159,6 +159,44 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
     refute_received {:request, "POST", "/api/packages/" <> _, _, _}
   end
 
+  @tag :requires_json
+  test "escapes the reason Hex refused the exchange", %{bypass: bypass} do
+    stub_api(bypass,
+      exchange:
+        {403,
+         %{
+           "error" => "access_denied\e[2K\rFORGED",
+           "error_description" => "No matching workload identity\e[2K\rFORGED"
+         }}
+    )
+
+    error =
+      assert_raise Mix.Error, fn ->
+        publish(["package", "--yes", "--no-progress"])
+      end
+
+    assert error.message =~
+             "access_denied\\e[2K\\rFORGED: No matching workload identity\\e[2K\\rFORGED (HTTP 403)"
+
+    refute error.message =~ "\e"
+    refute error.message =~ "\r"
+  end
+
+  test "escapes the message of a failed OIDC audience request", %{bypass: bypass} do
+    stub_api(bypass, audience: {500, %{"message" => "Internal error\e[2K\rFORGED"}})
+
+    error =
+      assert_raise Mix.Error, fn ->
+        publish(["package", "--yes", "--no-progress"])
+      end
+
+    assert error.message ==
+             "Workload Identity authentication failed, could not fetch the OIDC audience " <>
+               "from Hex: Internal error\\e[2K\\rFORGED (HTTP 500)"
+
+    refute_received {:request, "GET", "/github/token", _, _}
+  end
+
   defp publish(args) do
     in_tmp(fn ->
       File.write!("myfile.txt", "hello")
@@ -182,6 +220,8 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
          }}
       )
 
+    {audience_status, audience} = Keyword.get(opts, :audience, {200, %{"audience" => "hexpm"}})
+
     Bypass.expect(bypass, fn conn ->
       {:ok, body, conn} = Plug.Conn.read_body(conn, length: 100_000_000)
       auth = Plug.Conn.get_req_header(conn, "authorization")
@@ -189,7 +229,7 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
 
       case {conn.method, conn.request_path} do
         {"GET", "/api/oidc/audience"} ->
-          erlang_resp(conn, 200, %{"audience" => "hexpm"})
+          erlang_resp(conn, audience_status, audience)
 
         {"GET", "/github/token"} ->
           conn

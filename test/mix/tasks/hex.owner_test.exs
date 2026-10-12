@@ -169,4 +169,50 @@ defmodule Mix.Tasks.Hex.OwnerTest do
     assert Map.keys(packages_a) == []
     assert Map.keys(packages_b) == ["owner_package6"]
   end
+
+  test "escapes ownership levels in owner listings" do
+    bypass = Bypass.open()
+    Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+    Hex.State.put(:api_key, "test-key")
+    body = [%{"email" => "owner@example.com", "level" => "full\e[2K\rFORGED"}]
+
+    Bypass.expect(bypass, "GET", "/api/packages/evil/owners", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+      |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
+    end)
+
+    Mix.Tasks.Hex.Owner.run(["list", "evil"])
+    output = Case.shell_output()
+    assert output =~ "full\\e[2K\\rFORGED"
+    refute output =~ "\e"
+    refute output =~ "\r"
+  end
+
+  test "escapes package and repository names in owned package listings" do
+    bypass = Bypass.open()
+    Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+    Hex.State.put(:api_key, "test-key")
+
+    body = %{
+      "packages" => [
+        %{"repository" => "hexpm", "name" => "evil\e[2K\rFORGED"},
+        %{"repository" => "private\e[31m", "name" => "evil\u{202E}"}
+      ]
+    }
+
+    Bypass.expect(bypass, "GET", "/api/users/me", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+      |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
+    end)
+
+    Mix.Tasks.Hex.Owner.run(["packages"])
+    output = Case.shell_output()
+    assert output =~ "evil\\e[2K\\rFORGED - "
+    assert output =~ "private\\e[31m/evil\\u{202E} - "
+    refute output =~ "\e"
+    refute output =~ "\r"
+    refute output =~ "\u{202E}"
+  end
 end

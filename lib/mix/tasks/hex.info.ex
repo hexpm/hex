@@ -108,10 +108,10 @@ defmodule Mix.Tasks.Hex.Info do
   defp print_package(package, locked_package) do
     meta = package["meta"]
     desc = meta["description"] || "No description provided"
-    Hex.Shell.info(desc <> "\n")
+    Hex.Shell.info(Hex.Utils.escape_terminal(desc) <> "\n")
     releases = package["releases"] || []
     retirements = package["retirements"] || %{}
-    Hex.Shell.info("Config: " <> package["configs"]["mix.exs"])
+    Hex.Shell.info("Config: " <> Hex.Utils.escape_terminal(package["configs"]["mix.exs"]))
     print_locked_package(locked_package)
 
     Hex.Shell.info(["\nRecent releases:\n" | format_releases(releases, Map.keys(retirements))])
@@ -131,7 +131,10 @@ defmodule Mix.Tasks.Hex.Info do
   defp format_version(%{"version" => version} = release, retirements) do
     date = format_release_date(release["inserted_at"])
 
-    if version in retirements do
+    retired? = version in retirements
+    version = Hex.Utils.escape_terminal(version)
+
+    if retired? do
       [:yellow, version, date, " (retired)", :reset]
     else
       [version, date]
@@ -190,11 +193,12 @@ defmodule Mix.Tasks.Hex.Info do
     version = release["version"]
 
     print_retirement(release)
-    Hex.Shell.info("Config: " <> release["configs"]["mix.exs"])
+    Hex.Shell.info("Config: " <> Hex.Utils.escape_terminal(release["configs"]["mix.exs"]))
     print_release_published_at(release["inserted_at"])
 
     if release["has_docs"] do
-      Hex.Shell.info("Documentation at: #{Hex.Utils.hexdocs_url(organization, package, version)}")
+      url = Hex.Utils.hexdocs_url(organization, package, version)
+      Hex.Shell.info("Documentation at: #{Hex.Utils.printable_ascii(url)}")
     end
 
     print_release_downloads(release["downloads"])
@@ -204,9 +208,13 @@ defmodule Mix.Tasks.Hex.Info do
 
       Enum.each(requirements, fn {name, req} ->
         app = req["app"]
-        app = if app && app != name, do: " (app: #{app})"
+        app = if app && app != name, do: " (app: #{Hex.Utils.escape_terminal(app)})"
         optional = if req["optional"], do: " (optional)"
-        Hex.Shell.info("  #{name} #{req["requirement"]}#{app}#{optional}")
+
+        requirement = req["requirement"]
+        requirement = if requirement, do: Hex.Utils.escape_terminal(requirement), else: ""
+
+        Hex.Shell.info("  #{Hex.Utils.escape_terminal(name)} #{requirement}#{app}#{optional}")
       end)
     end
 
@@ -263,10 +271,15 @@ defmodule Mix.Tasks.Hex.Info do
   end
 
   defp print_publisher(release) do
-    publisher_username = release["publisher"]["username"]
+    publisher_username =
+      if username = release["publisher"]["username"],
+        do: Hex.Utils.escape_terminal(username),
+        else: ""
 
     publisher_email = release["publisher"]["email"]
-    email_or_empty = if publisher_email, do: " (#{publisher_email})", else: ""
+
+    email_or_empty =
+      if publisher_email, do: " (#{Hex.Utils.escape_terminal(publisher_email)})", else: ""
 
     Hex.Shell.info("Published by: #{publisher_username}#{email_or_empty}")
   end
@@ -275,6 +288,7 @@ defmodule Mix.Tasks.Hex.Info do
     list = Map.get(meta, name, [])
 
     if list != [] do
+      list = Enum.map(list, &Hex.Utils.escape_terminal/1)
       Hex.Shell.info(String.capitalize(name) <> ": " <> Enum.join(list, ", "))
     end
   end
@@ -287,7 +301,8 @@ defmodule Mix.Tasks.Hex.Info do
       Hex.Shell.info(title <> ":")
 
       Enum.each(dict, fn {key, val} ->
-        Hex.Shell.info("  #{key}: #{val}")
+        val = if is_binary(val), do: Hex.Utils.printable_ascii(val), else: val
+        Hex.Shell.info("  #{Hex.Utils.escape_terminal(key)}: #{val}")
       end)
     end
   end

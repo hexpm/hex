@@ -310,7 +310,7 @@ defmodule Mix.Tasks.Hex.Publish do
     organizations = Stream.zip(numbers, organizations)
 
     Enum.each(organizations, fn {ix, organization} ->
-      Hex.Shell.info("  [#{ix}] #{organization}")
+      Hex.Shell.info("  [#{ix}] #{Hex.Utils.escape_terminal(organization)}")
     end)
 
     Hex.Shell.info("")
@@ -365,7 +365,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp transfer_owner(build, owner, opts) do
-    Hex.Shell.info("Transferring ownership to #{owner}...")
+    Hex.Shell.info("Transferring ownership to #{Hex.Utils.escape_terminal(owner)}...")
     dry_run? = Keyword.get(opts, :dry_run, false)
 
     if dry_run? do
@@ -460,7 +460,7 @@ defmodule Mix.Tasks.Hex.Publish do
           end
 
         Hex.Shell.info("")
-        Hex.Shell.info(["Docs will soon be available at ", location])
+        Hex.Shell.info(["Docs will soon be available at ", Hex.Utils.printable_ascii(location)])
         :ok
 
       {:ok, {404, _, _}} ->
@@ -541,7 +541,7 @@ defmodule Mix.Tasks.Hex.Publish do
 
     case Hex.API.Release.publish(organization, tarball, auth, progress, replace?) do
       {:ok, {code, _, body}} when code in 200..299 ->
-        location = body["html_url"] || body["url"]
+        location = Hex.Utils.printable_ascii(body["html_url"] || body["url"] || "")
         checksum = String.downcase(Base.encode16(checksum, case: :lower))
         Hex.Shell.info("")
         Hex.Shell.info("Package published to #{location} (#{checksum})")

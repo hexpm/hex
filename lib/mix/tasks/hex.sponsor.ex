@@ -53,7 +53,7 @@ defmodule Mix.Tasks.Hex.Sponsor do
     Enum.flat_map(packages, fn {_repo, package_name} ->
       case Hex.Sponsor.get_link(package_name, deps_path) do
         nil -> []
-        value -> [[package_name, value]]
+        value -> [[package_name, Hex.Utils.printable_ascii(value)]]
       end
     end)
   end

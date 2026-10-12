@@ -30,14 +30,14 @@ defmodule Hex.Registry.Server do
   def prefetch(packages) do
     case GenServer.call(@name, {:prefetch, packages}, @timeout) do
       :ok -> :ok
-      {:error, message} -> Mix.raise(message)
+      {:error, message} -> Mix.raise(Hex.Utils.escape_terminal(message))
     end
   end
 
   def prefetch_policies(refs) do
     case GenServer.call(@name, {:prefetch_policies, refs}, @timeout) do
       :ok -> :ok
-      {:error, message} -> Mix.raise(message)
+      {:error, message} -> Mix.raise(Hex.Utils.escape_terminal(message))
     end
   end
 
@@ -97,6 +97,9 @@ defmodule Hex.Registry.Server do
   end
 
   defp dependency(package, version, {repo, name, app, requirement, optional}) do
+    validate_name(package, version, "repository", repo, &valid_repo_name?/1)
+    validate_name(package, version, "package", name, &valid_package_name?/1)
+
     %{
       repo: if(repo != "hexpm", do: repo),
       name: name,
@@ -148,6 +151,31 @@ defmodule Hex.Registry.Server do
           "#{inspect(error.left)} and #{inspect(error.right)} are disjoint"
       )
     end
+  end
+
+  defp validate_name(package, version, kind, name, valid?) do
+    unless valid?.(name) do
+      Mix.raise(
+        "Package #{package} #{version} declares a dependency with an invalid " <>
+          "#{kind} name #{inspect(name)}"
+      )
+    end
+  end
+
+  defp valid_package_name?(<<first, rest::binary>>) when first in ?a..?z do
+    Enum.all?(:binary.bin_to_list(rest), &(&1 in ?a..?z or &1 in ?0..?9 or &1 == ?_))
+  end
+
+  defp valid_package_name?(_name), do: false
+
+  defp valid_repo_name?(name) when is_binary(name) and name != "" do
+    Enum.all?(:binary.bin_to_list(name), &repo_name_byte?/1)
+  end
+
+  defp valid_repo_name?(_name), do: false
+
+  defp repo_name_byte?(byte) do
+    byte in ?a..?z or byte in ?A..?Z or byte in ?0..?9 or byte in [?_, ?., ?:, ?-]
   end
 
   def inner_checksum(repo, package, version) do
@@ -675,7 +703,7 @@ defmodule Hex.Registry.Server do
     cached_message = if cached?, do: " (using cache instead)"
 
     Hex.Shell.error(
-      "Failed to fetch record for #{Hex.Utils.package_name(repo, package)} from registry#{cached_message}"
+      "Failed to fetch record for #{Hex.Utils.escape_terminal(Hex.Utils.package_name(repo, package))} from registry#{cached_message}"
     )
 
     missing? = missing_status?(result)
@@ -709,7 +737,7 @@ defmodule Hex.Registry.Server do
 
         {:error, :bad_repo_name} ->
           Hex.Shell.error(
-            "The configured repository name for your dependency #{Hex.Utils.package_name(repo, package)} does not " <>
+            "The configured repository name for your dependency #{Hex.Utils.escape_terminal(Hex.Utils.package_name(repo, package))} does not " <>
               "match the repository name in the registry. This could be because the repository name is incorrect or " <>
               "because the registry has not been updated to the latest registry format. " <>
               "Set HEX_NO_VERIFY_REPO_ORIGIN=1 to disable this check and allow insecure package downloads."

@@ -26,7 +26,11 @@ defmodule Hex.Tar do
         result
 
       {:error, reason} ->
-        Mix.raise("Creating tarball failed: #{:mix_hex_tarball.format_error(reason)}")
+        Mix.raise(
+          Hex.Utils.escape_terminal(
+            "Creating tarball failed: #{:mix_hex_tarball.format_error(reason)}"
+          )
+        )
     end
   end
 
@@ -44,7 +48,11 @@ defmodule Hex.Tar do
         result
 
       {:error, reason} ->
-        Mix.raise("Unpacking tarball failed: #{:mix_hex_tarball.format_error(reason)}")
+        Mix.raise(
+          Hex.Utils.escape_terminal(
+            "Unpacking tarball failed: #{:mix_hex_tarball.format_error(reason)}"
+          )
+        )
     end
   end
 

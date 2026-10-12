@@ -263,7 +263,7 @@ defmodule Mix.Tasks.Hex.Organization do
       {:ok, {code, _headers, body}} when code in 200..299 ->
         values =
           Enum.map(body, fn %{"name" => name, "inserted_at" => time} ->
-            [name, time]
+            [Hex.Utils.escape_terminal(name), Hex.Utils.escape_terminal(time)]
           end)
 
         Mix.Tasks.Hex.print_table(["Name", "Created at"], values)
@@ -288,7 +288,7 @@ defmodule Mix.Tasks.Hex.Organization do
       )
 
     case result do
-      {:ok, secret} -> Hex.Shell.info(secret)
+      {:ok, secret} -> Hex.Shell.info(Hex.Utils.escape_terminal(secret))
       :error -> :ok
     end
   end
@@ -311,6 +311,8 @@ defmodule Mix.Tasks.Hex.Organization do
         key_owner(body)
 
       {:ok, {code, _, %{"message" => message}}} when code in [401, 403] ->
+        message = Hex.Utils.escape_terminal(message)
+
         Hex.Shell.error(
           "Failed to authenticate against organization repository with given key because of: #{message}"
         )
