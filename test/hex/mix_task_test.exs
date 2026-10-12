@@ -212,6 +212,20 @@ defmodule Hex.MixTaskTest do
     end
   end
 
+  defmodule WithConflictingDependNames do
+    def project do
+      [
+        app: :with_conflicting_depend_names,
+        version: "0.1.0",
+        consolidate_protocols: false,
+        deps: [
+          {:depend_name, ">= 0.0.0"},
+          {:depend_other_name, ">= 0.0.0"}
+        ]
+      ]
+    end
+  end
+
   defmodule WithIncorrectDepVersion do
     def project do
       [
@@ -813,6 +827,23 @@ defmodule Hex.MixTaskTest do
     end)
   after
     purge([Ecto.Fixture.MixProject, Postgrex.NoConflict.MixProject, Ex_doc.NoConflict.MixProject])
+  end
+
+  test "hex dependencies define conflicting app names for the same package" do
+    Mix.Project.push(WithConflictingDependNames)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+
+      message = """
+      Conflicting OTP application names in dependency definition of "package_name 0.1.0", in the following packages:
+
+        * depend_name defined application :app_name
+        * depend_other_name defined application :other_name\
+      """
+
+      assert_raise Mix.Error, message, fn -> Mix.Task.run("deps.get") end
+    end)
   end
 
   test "do not fetch git children of hex dependencies" do
