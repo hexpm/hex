@@ -1188,7 +1188,45 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       end)
     end
 
-    test "does not annotate when locked version is retired (unsafe-lock bypass)" do
+    test "does not annotate when locked version has an advisory (unsafe-lock bypass)" do
+      Mix.Project.push(UnsafeLockedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+
+        Mix.Dep.Lock.write(%{
+          tired: {:hex, :tired, "0.1.0"},
+          foo: {:hex, :foo, "0.1.0"}
+        })
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        :sys.replace_state(Hex.Registry.Server, fn state ->
+          :ets.insert(
+            state.ets,
+            {{:advisories, "hexpm", "tired", "0.1.0"},
+             [%{id: "GHSA-test-aaaa-bbbb", summary: "test", severity: :SEVERITY_HIGH}]}
+          )
+
+          state
+        end)
+
+        clear_all_published_at()
+        inject_published_at("hexpm", "tired", "0.2.0", System.system_time(:second) - 86_400)
+        inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
+        Hex.State.put(:cooldown, "7d")
+
+        assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+        lines = collect_shell_lines()
+
+        refute Enum.any?(lines, &(&1 =~ "tired" and &1 =~ "(cooldown)"))
+        assert Enum.any?(lines, &(&1 =~ "foo" and &1 =~ "(cooldown)"))
+      end)
+    end
+
+    test "annotates when locked version is retired" do
       Mix.Project.push(UnsafeLockedDeps.MixProject)
 
       in_tmp(fn ->
@@ -1207,11 +1245,11 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
         Hex.State.put(:cooldown, "7d")
 
-        assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+        assert Mix.Task.run("hex.outdated", ["--all"]) == nil
 
         lines = collect_shell_lines()
 
-        refute Enum.any?(lines, &(&1 =~ "tired" and &1 =~ "(cooldown)"))
+        assert Enum.any?(lines, &(&1 =~ "tired" and &1 =~ "(cooldown)"))
         assert Enum.any?(lines, &(&1 =~ "foo" and &1 =~ "(cooldown)"))
       end)
     end

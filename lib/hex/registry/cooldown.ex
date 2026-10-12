@@ -25,7 +25,7 @@ defmodule Hex.Registry.Cooldown do
           Hex.Cooldown.repo_excluded?(repo) ->
             {:ok, versions}
 
-          MapSet.member?(bypass, package) ->
+          MapSet.member?(bypass, {repo || "hexpm", package}) ->
             {:ok, versions}
 
           true ->
