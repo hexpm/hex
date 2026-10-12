@@ -370,17 +370,16 @@ defmodule Hex.RemoteConverger do
   end
 
   defp add_apps_to_resolved(resolved, requests) do
+    dependencies =
+      for {repo, package, version} <- resolved,
+          {:ok, deps} <- [Registry.dependencies(repo, package, version)],
+          do: {repo, package, deps}
+
     resolved =
       Enum.map(resolved, fn {repo, package, version} ->
         apps =
-          Enum.flat_map(resolved, fn {parent_repo, parent_package, parent_version} ->
+          Enum.flat_map(dependencies, fn {parent_repo, parent_package, deps} ->
             repo = if repo != "hexpm", do: repo
-
-            deps =
-              case Registry.dependencies(parent_repo, parent_package, parent_version) do
-                {:ok, deps} -> deps
-                :error -> []
-              end
 
             app =
               Enum.find_value(deps, fn
