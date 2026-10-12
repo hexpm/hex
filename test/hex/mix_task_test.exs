@@ -466,6 +466,13 @@ defmodule Hex.MixTaskTest do
       File.write!(cache_path, "not a tarball")
       Hex.State.put(:offline, true)
 
+      # Only a cached package that matches the registry is unpacked
+      :sys.replace_state(Hex.Registry.Server, fn state ->
+        checksum = :crypto.hash(:sha256, "not a tarball")
+        :ets.insert(state.ets, {{:outer_checksum, "hexpm", "postgrex", version}, checksum})
+        state
+      end)
+
       Hex.SCM.prefetch(Map.take(lock, [:postgrex]))
 
       assert_raise Mix.Error, ~r"Unpacking tarball failed", fn ->

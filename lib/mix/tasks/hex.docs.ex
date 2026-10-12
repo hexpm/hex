@@ -94,7 +94,16 @@ defmodule Mix.Tasks.Hex.Docs do
     end
 
     Enum.each(deps_in_lock(), fn package ->
-      fetch_docs([package.name, package.version], organization: package.repo)
+      case repo_to_org(package.repo) do
+        {:ok, organization} ->
+          fetch_docs([package.name, package.version], organization: organization)
+
+        :error ->
+          Hex.Shell.warn(
+            "Skipping docs for #{package.name} #{package.version}, docs can only be " <>
+              "fetched from hexpm and its organizations, not from #{package.repo}"
+          )
+      end
     end)
   end
 
@@ -108,6 +117,9 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp fetch_docs([name, version], opts) do
+    validate_package!(opts[:organization], name)
+    validate_version!(version)
+
     target_dir = Path.join([docs_dir(), org_to_path(opts[:organization]), name, version])
     fallback_dir = Path.join([docs_dir(), name, version])
 
@@ -119,11 +131,18 @@ defmodule Mix.Tasks.Hex.Docs do
         Hex.Shell.info("Docs already fetched: #{fallback_dir}")
 
       true ->
-        target = Path.join(target_dir, "#{name}-#{version}.tar.gz")
-        success? = download_docs(opts[:organization], name, version, target)
+        # The docs are unpacked into a new directory that is renamed to
+        # target_dir, so a failed fetch only removes what it created
+        random = Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
+        tmp_dir = Path.join(docs_dir(), ".#{name}-#{version}.#{random}")
+        target = Path.join(tmp_dir, "#{name}-#{version}.tar.gz")
 
-        if success? do
-          extract_docs(target, target_dir)
+        try do
+          if download_docs(opts[:organization], name, version, target) do
+            extract_docs(target, tmp_dir, target_dir)
+          end
+        after
+          File.rm_rf(tmp_dir)
         end
     end
   end
@@ -211,6 +230,8 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp open_docs_offline([name, version], opts) do
+    validate_package!(opts[:organization], name)
+    validate_version!(version)
     docs_location = docs_location(opts[:organization], name, version, opts)
 
     if docs_location do
@@ -226,6 +247,7 @@ defmodule Mix.Tasks.Hex.Docs do
   end
 
   defp open_latest_docs_offline(name, opts) do
+    validate_package!(opts[:organization], name)
     latest_version = find_package_version(opts[:organization], name)
 
     if latest_version do
@@ -381,11 +403,26 @@ defmodule Mix.Tasks.Hex.Docs do
     end
   end
 
-  defp extract_docs(target, target_dir) do
-    File.mkdir_p!(target_dir)
-    :ok = :mix_hex_erl_tar.extract(target, [:compressed, cwd: Path.dirname(target)])
-    Hex.Shell.info("Docs fetched: #{target_dir}")
+  # Unpacking from a binary limits the decompressed size of the whole tarball,
+  # including tar metadata records, which unpacking from a file doesn't count
+  defp extract_docs(target, tmp_dir, target_dir) do
+    case :mix_hex_tarball.unpack_docs(File.read!(target), tmp_dir) do
+      :ok ->
+        File.mkdir_p!(Path.dirname(target_dir))
+        File.rename!(tmp_dir, target_dir)
+        Hex.Shell.info("Docs fetched: #{target_dir}")
+
+      {:error, reason} ->
+        Hex.Shell.error("Unpacking docs failed: #{format_unpack_error(reason)}")
+    end
   end
+
+  # unpack_docs returns its own errors tagged and tar errors untagged
+  defp format_unpack_error({:tarball, {:too_big_uncompressed, size}}),
+    do: "docs exceed max uncompressed size of #{div(size, 1024 * 1024)} MiB"
+
+  defp format_unpack_error({:tarball, _} = reason), do: :mix_hex_tarball.format_error(reason)
+  defp format_unpack_error(reason), do: :mix_hex_tarball.format_error({:tarball, reason})
 
   defp docs_dir() do
     Path.join(Hex.State.fetch!(:data_home), "docs")
@@ -409,6 +446,40 @@ defmodule Mix.Tasks.Hex.Docs do
     |> org_to_repo()
     |> Hex.Utils.windows_repo_path_fix()
   end
+
+  defp repo_to_org("hexpm"), do: {:ok, nil}
+  defp repo_to_org("hexpm:" <> organization), do: {:ok, organization}
+  defp repo_to_org(_repo), do: :error
+
+  # The organization, package name and version are directory names under
+  # docs_dir(), so they have to be what hex.pm accepts
+  defp validate_package!(organization, name) do
+    unless is_nil(organization) or organization_name?(organization) do
+      Mix.raise("Invalid organization name: #{inspect(organization)}")
+    end
+
+    unless package_name?(name) do
+      Mix.raise("Invalid package name: #{inspect(name)}")
+    end
+  end
+
+  defp validate_version!(version) do
+    unless is_binary(version) and match?({:ok, _}, Version.parse(version)) do
+      Mix.raise("Invalid version: #{inspect(version)}")
+    end
+  end
+
+  defp package_name?(<<char, rest::binary>>) when char in ?a..?z, do: name_chars?(rest)
+  defp package_name?(_name), do: false
+
+  defp organization_name?(""), do: false
+  defp organization_name?(name), do: name_chars?(name)
+
+  defp name_chars?(<<char, rest::binary>>) when char in ?a..?z or char in ?0..?9 or char == ?_,
+    do: name_chars?(rest)
+
+  defp name_chars?(<<>>), do: true
+  defp name_chars?(_name), do: false
 
   defp pre_release?(%{"version" => version}), do: do_pre_release?(version)
   defp pre_release?(version), do: do_pre_release?(version)

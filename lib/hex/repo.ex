@@ -14,6 +14,12 @@ defmodule Hex.Repo do
   -----END PUBLIC KEY-----
   """
 
+  # Responses from a repository, which can be an untrusted mirror, are limited
+  # to the largest file Hex downloads from one, a package or docs tarball,
+  # which hex_core limits to 16 MiB with tarball_max_size and
+  # docs_tarball_max_size
+  @max_body_size 16 * 1024 * 1024
+
   def fetch_repo(repo) do
     repo = repo || "hexpm"
     repos = Hex.State.fetch!(:repos)
@@ -329,7 +335,8 @@ defmodule Hex.Repo do
 
     config = %{
       Hex.API.Client.config()
-      | repo_name: repo_name,
+      | http_adapter: {Hex.HTTP, %{max_body_size: @max_body_size}},
+        repo_name: repo_name,
         repo_organization: Map.get(repo_config, :repo_organization, :undefined),
         repo_url: repo_config.url,
         repo_public_key: Map.get(repo_config, :public_key),

@@ -8,6 +8,13 @@ defmodule Hex.HTTP do
   @request_retries 2
   @chunk_size 10_000
 
+  # Limits the decompressed body of gzip-encoded responses to requests without
+  # :max_body_size, such as API requests, whose bodies aren't limited otherwise.
+  # A page of 100 search results is about 18 MB under hex.pm's metadata limits.
+  @max_decompressed_size 64 * 1024 * 1024
+
+  @request_opts [sync: false, stream: {:self, :once}, body_format: :binary]
+
   @spec config() :: :mix_hex_core.config()
   def config do
     %{
@@ -26,10 +33,17 @@ defmodule Hex.HTTP do
     request(method, url, headers, body, adapter_config)
   end
 
+  # The :max_body_size adapter config limits the body of 200 responses, the
+  # body of other responses when httpc supports it, and the decompressed body
+  # of gzip-encoded responses. Without it the body isn't limited, and the
+  # decompressed body is limited to @max_decompressed_size.
   @impl :mix_hex_http
   def request(method, url, headers, body, adapter_config) when is_map(adapter_config) do
     {method, url, request, http_opts, timeout, profile} =
       prepare_request(method, url, headers, body, adapter_config)
+
+    max_body_size = adapter_config[:max_body_size]
+    request_opts = request_opts(max_body_size)
 
     Hex.Shell.debug("Hex.HTTP.request(#{inspect(method)}, #{inspect(url)})")
 
@@ -37,8 +51,9 @@ defmodule Hex.HTTP do
       retry(method, request, http_opts, @request_retries, profile, fn request, http_opts ->
         redirect(request, http_opts, @request_redirects, fn request, http_opts ->
           timeout(request, http_opts, timeout, fn request, http_opts ->
-            :httpc.request(method, request, http_opts, [body_format: :binary], profile)
-            |> handle_response(method, url)
+            :httpc.request(method, request, http_opts, request_opts, profile)
+            |> receive_response(profile, :memory, max_body_size)
+            |> handle_response(method, url, max_body_size)
           end)
         end)
       end)
@@ -61,15 +76,17 @@ defmodule Hex.HTTP do
     {method, url, request, http_opts, timeout, profile} =
       prepare_request(method, url, headers, body, adapter_config)
 
-    Hex.Shell.debug("Hex.HTTP.request_to_file(#{inspect(method)}, #{inspect(url)})")
+    max_body_size = adapter_config[:max_body_size]
+    request_opts = request_opts(max_body_size)
 
-    filename_charlist = String.to_charlist(filename)
+    Hex.Shell.debug("Hex.HTTP.request_to_file(#{inspect(method)}, #{inspect(url)})")
 
     result =
       retry(method, request, http_opts, @request_retries, profile, fn request, http_opts ->
         redirect(request, http_opts, @request_redirects, fn request, http_opts ->
           timeout(request, http_opts, timeout, fn request, http_opts ->
-            :httpc.request(method, request, http_opts, [{:stream, filename_charlist}], profile)
+            :httpc.request(method, request, http_opts, request_opts, profile)
+            |> receive_response(profile, {:file, filename}, max_body_size)
             |> handle_response_to_file(method, url)
           end)
         end)
@@ -83,6 +100,9 @@ defmodule Hex.HTTP do
         {:ok, {status, headers}}
 
       {:error, reason} ->
+        # The request task removes a partial file itself, unless the timeout
+        # killed it first
+        File.rm(filename)
         {:error, reason}
     end
   end
@@ -125,9 +145,29 @@ defmodule Hex.HTTP do
     {method, url, request, http_opts, timeout, profile}
   end
 
-  defp handle_response_to_file({:ok, :saved_to_file}, method, url) do
-    Hex.Shell.debug("Hex.HTTP.request_to_file(#{inspect(method)}, #{inspect(url)}) => 200")
-    {:ok, 200, %{}}
+  # httpc reads the body of the responses it doesn't stream whole. Its
+  # max_body_size request option limits them, but only when they have a
+  # Content-Length or are chunked. The option was added in inets 9.3.2.7,
+  # 9.6.2.3, 9.7.2 and 9.8, and earlier versions log options they don't know
+  defp request_opts(max_body_size) do
+    if max_body_size && httpc_max_body_size?() do
+      [{:max_body_size, max_body_size} | @request_opts]
+    else
+      @request_opts
+    end
+  end
+
+  def httpc_max_body_size?(vsn \\ Application.spec(:inets, :vsn)) do
+    version = vsn |> List.to_string() |> String.split(".") |> Enum.map(&String.to_integer/1)
+
+    case version do
+      [major | _] when major > 9 -> true
+      [9, minor | _] when minor >= 8 -> true
+      [9, 7 | _] -> version >= [9, 7, 2]
+      [9, 6 | _] -> version >= [9, 6, 2, 3]
+      [9, 3 | _] -> version >= [9, 3, 2, 7]
+      _ -> false
+    end
   end
 
   defp handle_response_to_file({:ok, {{_version, code, _reason}, headers, _body}}, method, url) do
@@ -143,6 +183,113 @@ defmodule Hex.HTTP do
     )
 
     {:error, term}
+  end
+
+  # httpc streams the body of 200 and 206 responses to the caller and sends
+  # other responses whole. Hex doesn't send range requests, so a streamed
+  # response is a 200. httpc sends the next chunk only when asked with
+  # :httpc.stream_next/1, so at most one chunk is waiting at a time, and the
+  # request is cancelled once the body exceeds max_body_size.
+  defp receive_response({:ok, request_id}, profile, sink, max_body_size) do
+    receive do
+      {:http, {^request_id, :stream_start, _headers, pid}} ->
+        case open_sink(sink) do
+          {:ok, sink} ->
+            :ok = :httpc.stream_next(pid)
+            receive_stream(request_id, pid, profile, sink, 0, max_body_size)
+
+          {:error, reason} ->
+            :httpc.cancel_request(request_id, profile)
+            {:error, reason}
+        end
+
+      {:http, {^request_id, {:error, reason}}} ->
+        {:error, request_error(reason)}
+
+      {:http, {^request_id, {status_line, headers, body}}} ->
+        {:ok, {status_line, headers, body}}
+    end
+  end
+
+  defp receive_response({:error, reason}, _profile, _sink, _max_body_size) do
+    {:error, reason}
+  end
+
+  defp receive_stream(request_id, pid, profile, sink, size, max_body_size) do
+    receive do
+      {:http, {^request_id, :stream, chunk}} ->
+        size = size + byte_size(chunk)
+
+        with :ok <- check_body_size(size, max_body_size),
+             {:ok, sink} <- write_sink(sink, chunk) do
+          :ok = :httpc.stream_next(pid)
+          receive_stream(request_id, pid, profile, sink, size, max_body_size)
+        else
+          {:error, reason} ->
+            :httpc.cancel_request(request_id, profile)
+            discard_sink(sink)
+            {:error, reason}
+        end
+
+      {:http, {^request_id, :stream_end, headers}} ->
+        case close_sink(sink) do
+          {:ok, body} ->
+            {:ok, {{~c"HTTP/1.1", 200, ~c"OK"}, headers, body}}
+
+          {:error, reason} ->
+            discard_sink(sink)
+            {:error, reason}
+        end
+
+      {:http, {^request_id, {:error, reason}}} ->
+        discard_sink(sink)
+        {:error, request_error(reason)}
+    end
+  end
+
+  # Errors for responses that exceed httpc's max_body_size or max_header_size
+  defp request_error({:body_too_long, _max}), do: :body_too_big
+  defp request_error({:header_too_long, _max}), do: :header_too_big
+  defp request_error(reason), do: reason
+
+  defp check_body_size(size, max_body_size)
+       when is_integer(max_body_size) and size > max_body_size,
+       do: {:error, :body_too_big}
+
+  defp check_body_size(_size, _max_body_size), do: :ok
+
+  defp open_sink(:memory), do: {:ok, {:memory, []}}
+
+  defp open_sink({:file, filename}) do
+    case File.open(filename, [:write, :raw, :binary]) do
+      {:ok, device} -> {:ok, {:file, filename, device}}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp write_sink({:memory, body}, chunk), do: {:ok, {:memory, [body | chunk]}}
+
+  defp write_sink({:file, _filename, device} = sink, chunk) do
+    case :file.write(device, chunk) do
+      :ok -> {:ok, sink}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp close_sink({:memory, body}), do: {:ok, IO.iodata_to_binary(body)}
+
+  defp close_sink({:file, _filename, device}) do
+    case File.close(device) do
+      :ok -> {:ok, nil}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp discard_sink({:memory, _body}), do: :ok
+
+  defp discard_sink({:file, filename, device}) do
+    File.close(device)
+    File.rm(filename)
   end
 
   defp fallback(:inet), do: :inet6
@@ -297,15 +444,24 @@ defmodule Hex.HTTP do
     end
   end
 
-  defp handle_response({:ok, {{_version, code, _reason}, headers, body}}, method, url) do
+  defp handle_response(
+         {:ok, {{_version, code, _reason}, headers, body}},
+         method,
+         url,
+         max_body_size
+       ) do
     Hex.Shell.debug("Hex.HTTP.request(#{inspect(method)}, #{inspect(url)}) => #{code}")
 
     headers = Map.new(headers, &decode_header/1)
     handle_hex_message(headers["x-hex-message"])
-    {:ok, code, headers, unzip(body, headers)}
+
+    case unzip(body, headers, max_body_size) do
+      {:ok, body} -> {:ok, code, headers, body}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
-  defp handle_response({:error, term}, method, url) do
+  defp handle_response({:error, term}, method, url, _max_body_size) do
     Hex.Shell.debug(
       "Hex.HTTP.request(#{inspect(method)}, #{inspect(url)}) => #{inspect(term, limit: :infinity, pretty: true)}"
     )
@@ -317,13 +473,44 @@ defmodule Hex.HTTP do
     {List.to_string(name), List.to_string(value)}
   end
 
-  defp unzip(body, headers) do
+  defp unzip(body, headers, max_body_size) do
     content_encoding = headers["content-encoding"] || ""
 
     if String.contains?(content_encoding, "gzip") do
-      :zlib.gunzip(body)
+      gunzip(body, max_body_size || @max_decompressed_size)
     else
-      body
+      {:ok, body}
+    end
+  end
+
+  # Decompresses incrementally and stops once the output exceeds max_body_size.
+  # :zlib.safeInflate/2 returns at the end of every gzip member, so the output
+  # is appended to a binary instead of kept in a list with an element per call
+  defp gunzip(body, max_body_size) do
+    z = :zlib.open()
+
+    try do
+      :ok = :zlib.inflateInit(z, 31, :reset)
+      inflate(z, :zlib.safeInflate(z, body), max_body_size, <<>>)
+    after
+      :zlib.close(z)
+    end
+  end
+
+  defp inflate(z, {status, output}, max_body_size, acc) do
+    acc = <<acc::binary, IO.iodata_to_binary(output)::binary>>
+
+    case check_body_size(byte_size(acc), max_body_size) do
+      :ok when status == :continue ->
+        inflate(z, :zlib.safeInflate(z, []), max_body_size, acc)
+
+      :ok when status == :finished ->
+        # Raises data_error when the body ends before the gzip stream does
+        :zlib.inflateEnd(z)
+        {:ok, acc}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 

@@ -157,6 +157,178 @@ defmodule Mix.Tasks.Hex.DocsTest do
         Mix.Tasks.Hex.Docs.run(["fetch", package])
       end
     end
+
+    test "fetch rejects docs that unpack to more than 128 MiB", %{docs_home: docs_home} do
+      bypass = Bypass.open()
+      repos = Hex.State.fetch!(:repos)
+      Hex.State.put(:repos, put_in(repos["hexpm"].url, "http://localhost:#{bypass.port}"))
+
+      tar_file = tmp_path("big_docs-1.0.0.tar.gz")
+      contents = :binary.copy(<<0>>, 128 * 1024 * 1024 + 1)
+      :ok = :mix_hex_erl_tar.create(tar_file, [{~c"index.html", contents}], [:compressed])
+      docs = File.read!(tar_file)
+
+      Bypass.expect_once(bypass, "GET", "/docs/big_docs-1.0.0.tar.gz", fn conn ->
+        Plug.Conn.resp(conn, 200, docs)
+      end)
+
+      Mix.Tasks.Hex.Docs.run(["fetch", "big_docs", "1.0.0"])
+
+      message = "Unpacking docs failed: docs exceed max uncompressed size of 128 MiB"
+      assert_received {:mix_shell, :error, [^message]}
+      refute File.exists?(Path.join([docs_home, @org_dir, "big_docs", "1.0.0"]))
+    end
+
+    test "fetch reports docs that aren't a tarball", %{docs_home: docs_home} do
+      bypass = Bypass.open()
+      repos = Hex.State.fetch!(:repos)
+      Hex.State.put(:repos, put_in(repos["hexpm"].url, "http://localhost:#{bypass.port}"))
+
+      Bypass.expect_once(bypass, "GET", "/docs/bad_docs-1.0.0.tar.gz", fn conn ->
+        Plug.Conn.resp(conn, 200, "invalid tar")
+      end)
+
+      Mix.Tasks.Hex.Docs.run(["fetch", "bad_docs", "1.0.0"])
+
+      assert_received {:mix_shell, :error, ["Unpacking docs failed: tarball error, " <> _]}
+      refute File.exists?(Path.join([docs_home, @org_dir, "bad_docs", "1.0.0"]))
+    end
+
+    test "fetch rejects docs with a tar metadata record larger than 128 MiB", %{
+      docs_home: docs_home
+    } do
+      bypass = Bypass.open()
+      repos = Hex.State.fetch!(:repos)
+      Hex.State.put(:repos, put_in(repos["hexpm"].url, "http://localhost:#{bypass.port}"))
+
+      size = 128 * 1024 * 1024 + 1
+
+      docs =
+        :zlib.gzip([
+          tar_header("PaxHeader/index.html", "x", size),
+          :binary.copy(<<0>>, size + 511),
+          tar_header("index.html", "0", 0),
+          :binary.copy(<<0>>, 1024)
+        ])
+
+      Bypass.expect_once(bypass, "GET", "/docs/pax_docs-1.0.0.tar.gz", fn conn ->
+        Plug.Conn.resp(conn, 200, docs)
+      end)
+
+      Mix.Tasks.Hex.Docs.run(["fetch", "pax_docs", "1.0.0"])
+
+      message = "Unpacking docs failed: docs exceed max uncompressed size of 128 MiB"
+      assert_received {:mix_shell, :error, [^message]}
+      refute File.exists?(Path.join([docs_home, @org_dir, "pax_docs", "1.0.0"]))
+    end
+
+    test "fetch keeps a docs directory it didn't create when unpacking fails", %{
+      docs_home: docs_home
+    } do
+      bypass = Bypass.open()
+      repos = Hex.State.fetch!(:repos)
+      Hex.State.put(:repos, put_in(repos["hexpm"].url, "http://localhost:#{bypass.port}"))
+      target_dir = Path.join([docs_home, @org_dir, "race_docs", "1.0.0"])
+
+      # Another fetch unpacks the same docs while this one downloads them
+      Bypass.expect_once(bypass, "GET", "/docs/race_docs-1.0.0.tar.gz", fn conn ->
+        File.mkdir_p!(target_dir)
+        File.write!(Path.join(target_dir, "index.html"), "")
+        Plug.Conn.resp(conn, 200, "invalid tar")
+      end)
+
+      Mix.Tasks.Hex.Docs.run(["fetch", "race_docs", "1.0.0"])
+
+      assert_received {:mix_shell, :error, ["Unpacking docs failed: " <> _]}
+      assert File.exists?(Path.join(target_dir, "index.html"))
+      assert Enum.filter(File.ls!(docs_home), &String.starts_with?(&1, ".")) == []
+    end
+
+    test "fetch rejects versions that aren't valid", %{docs_home: docs_home} do
+      bypass = Bypass.open()
+      repos = Hex.State.fetch!(:repos)
+      Hex.State.put(:repos, put_in(repos["hexpm"].url, "http://localhost:#{bypass.port}"))
+
+      for path <- ["/docs/a-b/../../../../victim.tar.gz", "/victim.tar.gz"] do
+        Bypass.stub(bypass, "GET", path, &Plug.Conn.resp(&1, 200, "invalid tar"))
+      end
+
+      victim = Path.join(Path.dirname(docs_home), "victim")
+      File.mkdir_p!(victim)
+
+      assert_raise Mix.Error, ~s(Invalid version: "b/../../../../victim"), fn ->
+        Mix.Tasks.Hex.Docs.run(["fetch", "a", "b/../../../../victim"])
+      end
+
+      assert File.dir?(victim)
+    end
+
+    test "fetch and offline reject names hex.pm doesn't accept and invalid versions" do
+      assert_raise Mix.Error, ~s(Invalid package name: "../docs_package"), fn ->
+        Mix.Tasks.Hex.Docs.run(["fetch", "../docs_package", "1.1.2"])
+      end
+
+      assert_raise Mix.Error, ~s(Invalid package name: "Docs_package"), fn ->
+        Mix.Tasks.Hex.Docs.run(["fetch", "Docs_package", "1.1.2"])
+      end
+
+      assert_raise Mix.Error, ~s(Invalid organization name: "../hexpm"), fn ->
+        Mix.Tasks.Hex.Docs.run(["fetch", "docs_package", "1.1.2", "--organization", "../hexpm"])
+      end
+
+      assert_raise Mix.Error, ~s(Invalid package name: "../docs_package"), fn ->
+        Mix.Tasks.Hex.Docs.run(["offline", "../docs_package"])
+      end
+
+      assert_raise Mix.Error, ~s(Invalid version: "../1.1.2"), fn ->
+        Mix.Tasks.Hex.Docs.run(["offline", "docs_package", "../1.1.2"])
+      end
+    end
+
+    test "fetch rejects versions in this apps lock file that aren't valid" do
+      Mix.Project.push(ExampleDeps.MixProject)
+
+      in_tmp("docs", fn ->
+        Mix.Dep.Lock.write(%{docs_package: {:hex, :docs_package, "1.1.2/../../x"}})
+
+        assert_raise Mix.Error, ~s(Invalid version: "1.1.2/../../x"), fn ->
+          Mix.Tasks.Hex.Docs.run(["fetch"])
+        end
+      end)
+    end
+
+    test "fetch the docs of an organization package in this apps lock file", %{
+      docs_home: docs_home
+    } do
+      Mix.Project.push(ExampleDeps.MixProject)
+      bypass = Bypass.open()
+      repos = Hex.State.fetch!(:repos)
+      Hex.State.put(:repos, put_in(repos["hexpm"].url, "http://localhost:#{bypass.port}"))
+      {:ok, docs} = :mix_hex_tarball.create_docs([{~c"index.html", ""}])
+
+      Bypass.expect_once(bypass, "GET", "/repos/myorg/docs/org_docs-1.0.0.tar.gz", fn conn ->
+        Plug.Conn.resp(conn, 200, docs)
+      end)
+
+      in_tmp("docs", fn ->
+        org_lock = {:hex, :org_docs, "1.0.0", "", [:mix], [], "hexpm:myorg", ""}
+        custom_lock = {:hex, :custom_docs, "1.0.0", "", [:mix], [], "my-repo", ""}
+        Mix.Dep.Lock.write(%{org_docs: org_lock, custom_docs: custom_lock})
+        Mix.Tasks.Hex.Docs.run(["fetch"])
+
+        target_dir = Path.join([docs_home, "hexpm:myorg", "org_docs", "1.0.0"])
+        fetched_msg = "Docs fetched: #{target_dir}"
+        assert_received {:mix_shell, :info, [^fetched_msg]}
+        assert File.exists?(Path.join(target_dir, "index.html"))
+
+        skipped_msg =
+          "Skipping docs for custom_docs 1.0.0, docs can only be fetched from hexpm " <>
+            "and its organizations, not from my-repo"
+
+        assert_received {:mix_shell, :error, [message]}
+        assert message =~ skipped_msg
+      end)
+    end
   end
 
   describe "arguments" do
@@ -398,5 +570,28 @@ defmodule Mix.Tasks.Hex.DocsTest do
         assert Enum.fetch!(browser_open_cmd, -1) == browser_open_msg
       end)
     end
+  end
+
+  defp tar_header(name, type, size) do
+    header =
+      IO.iodata_to_binary([
+        String.pad_trailing(name, 100, <<0>>),
+        "0000644\0",
+        "0000000\0",
+        "0000000\0",
+        String.pad_leading(Integer.to_string(size, 8), 11, "0"),
+        <<0>>,
+        "00000000000\0",
+        "        ",
+        type,
+        :binary.copy(<<0>>, 100),
+        "ustar\0",
+        "00",
+        :binary.copy(<<0>>, 247)
+      ])
+
+    checksum = header |> :binary.bin_to_list() |> Enum.sum()
+    <<before::binary-148, _::binary-8, rest::binary>> = header
+    before <> String.pad_leading(Integer.to_string(checksum, 8), 6, "0") <> <<0, ?\s>> <> rest
   end
 end

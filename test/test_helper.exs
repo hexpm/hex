@@ -1,5 +1,7 @@
 exclude =
-  [:skip] ++ if(Code.ensure_loaded?(:json), do: [], else: [:requires_json])
+  [:skip] ++
+    if(Code.ensure_loaded?(:json), do: [], else: [:requires_json]) ++
+    if(Hex.HTTP.httpc_max_body_size?(), do: [], else: [:requires_httpc_max_body_size])
 
 ExUnit.configure(exclude: exclude ++ ExUnit.configuration()[:exclude])
 ExUnit.start()
