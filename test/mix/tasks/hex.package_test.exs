@@ -3,6 +3,17 @@ defmodule Mix.Tasks.Hex.PackageTest do
 
   @git_diff_command "git diff --no-index --no-color --no-ext-diff __PATH1__ __PATH2__"
 
+  defp put_registry_outer_checksum(package, version, checksum) do
+    Hex.Registry.Server.open()
+    Hex.Registry.Server.prefetch([{"hexpm", package}])
+    {:ok, _versions} = Hex.Registry.Server.versions("hexpm", package)
+
+    :sys.replace_state(Hex.Registry.Server, fn state ->
+      :ets.insert(state.ets, {{:outer_checksum, "hexpm", package, version}, checksum})
+      state
+    end)
+  end
+
   defp in_diff_fixture(fun) do
     in_fixture("diff", fn ->
       Mix.Project.push(ReleaseDeps.MixProject)
@@ -85,6 +96,36 @@ defmodule Mix.Tasks.Hex.PackageTest do
   #     Hex.Tar.unpack!({:binary, tarball}, :memory)
   #   end)
   # end
+
+  test "fetch: to folder rejects a tarball that doesn't match the registry checksum" do
+    in_tmp(fn ->
+      cwd = File.cwd!()
+      Hex.State.put(:cache_home, cwd)
+      put_registry_outer_checksum("ex_doc", "0.0.1", <<0::256>>)
+
+      assert_raise Mix.Error, ~r/Checksum mismatch against registry \(outer\)/, fn ->
+        Mix.Tasks.Hex.Package.run(["fetch", "ex_doc", "--output", "#{cwd}/test", "0.0.1"])
+      end
+
+      refute File.exists?("#{cwd}/test/ex_doc-0.0.1.tar")
+    end)
+  end
+
+  test "fetch: to stdout rejects a tarball that doesn't match the registry checksum" do
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+      put_registry_outer_checksum("ex_doc", "0.0.1", <<0::256>>)
+
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          assert_raise Mix.Error, ~r/Checksum mismatch against registry \(outer\)/, fn ->
+            Mix.Tasks.Hex.Package.run(["fetch", "ex_doc", "--output", "-", "0.0.1"])
+          end
+        end)
+
+      assert output == ""
+    end)
+  end
 
   test "fetch: to stdout with unpack flag" do
     assert_raise Mix.Error,
@@ -191,6 +232,26 @@ defmodule Mix.Tasks.Hex.PackageTest do
 
       assert_received {:mix_shell, :run, [out]}
       assert out =~ "hex_metadata.config\nmix.exs"
+    end)
+  after
+    purge([ReleaseDeps.MixProject])
+  end
+
+  test "diff: rejects a tarball that doesn't match the registry checksum before unpacking it" do
+    in_diff_fixture(fn ->
+      Hex.State.put(:diff_command, @git_diff_command)
+      File.write!(Hex.SCM.cache_path("hexpm", "ex_doc", "0.1.0"), "not a tarball")
+      Hex.State.put(:offline, true)
+
+      # Unpacking first would fail with "Unpacking tarball failed" instead
+      message =
+        ~r/Checksum mismatch against registry \(outer\)|doesn't match the registry checksum/
+
+      assert_raise Mix.Error, message, fn ->
+        Mix.Tasks.Hex.Package.run(["diff", "ex_doc", "0.0.1..0.1.0"])
+      end
+
+      refute_received {:mix_shell, :run, _}
     end)
   after
     purge([ReleaseDeps.MixProject])
