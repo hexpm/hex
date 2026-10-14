@@ -176,6 +176,31 @@ defmodule Hex.Policy.Filter do
   end
 
   @doc """
+  Returns whether the policy has rules for the repository. Releases from
+  other repositories are always allowed.
+  """
+  @spec restricts_repo?(policy(), String.t() | nil) :: boolean()
+  def restricts_repo?(policy, repo) do
+    repository_policy(policy, %{repo: repo || "hexpm"}) != nil
+  end
+
+  @doc """
+  Narrows a policy to the valid overrides for the package. Releases of the
+  package classify the same against the narrowed policy, so classifying many
+  releases of one package doesn't scan and validate every override for each.
+  """
+  @spec for_package(policy(), String.t()) :: policy()
+  def for_package(policy, package) do
+    Map.update(policy, :repositories, [], fn repositories ->
+      Enum.map(repositories, fn repo_policy ->
+        Map.update(repo_policy, :overrides, [], fn overrides ->
+          Enum.filter(overrides, &(valid_override?(&1) and &1.ref.package == package))
+        end)
+      end)
+    end)
+  end
+
+  @doc """
   Builds a candidate map for `classify/3` from the registry. Carries the
   metadata the restriction reads: advisories, retirement status, and publish
   time.

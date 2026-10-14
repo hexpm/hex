@@ -42,30 +42,34 @@ defmodule Hex.Registry.Cooldown do
 
   defp filter(versions, repo, package, cutoff, locked) do
     {eligible, filtered_out} =
-      Enum.split_with(versions, fn version ->
+      Enum.reduce(versions, {[], []}, fn version, {eligible, filtered_out} ->
         version_str = to_string(version)
 
         if version_str in locked do
-          true
+          {[version | eligible], filtered_out}
         else
           published_at = Server.published_at(repo, package, version_str)
-          Hex.Cooldown.eligible?(published_at, cutoff)
+
+          if Hex.Cooldown.eligible?(published_at, cutoff) do
+            {[version | eligible], filtered_out}
+          else
+            {eligible, [{version_str, published_at} | filtered_out]}
+          end
         end
       end)
 
-    record_filtered(repo, package, filtered_out)
-    eligible
+    record_filtered(repo, package, Enum.reverse(filtered_out))
+    Enum.reverse(eligible)
   end
 
   defp record_filtered(_repo, _package, []), do: :ok
 
-  defp record_filtered(repo, package, versions) do
+  defp record_filtered(repo, package, filtered_out) do
     repo_key = repo || "hexpm"
 
     entries =
-      Enum.map(versions, fn version ->
-        version_str = to_string(version)
-        {repo_key, package, version_str, Server.published_at(repo, package, version_str)}
+      Enum.map(filtered_out, fn {version_str, published_at} ->
+        {repo_key, package, version_str, published_at}
       end)
 
     Hex.State.update!(:cooldown_filtered_versions, &(entries ++ &1))
