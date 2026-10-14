@@ -934,34 +934,37 @@ defmodule Hex.RemoteConverger do
     end
   end
 
+  # The apps and every app they depend on in the lock, visiting each app once
   defp with_children(apps, lock) do
-    [apps, do_with_children(apps, lock)]
-    |> List.flatten()
+    Enum.reduce(apps, MapSet.new(), &add_with_children(&1, &2, lock))
   end
 
-  defp do_with_children(names, lock) do
-    Enum.map(names, fn name ->
-      case Hex.Utils.lock(lock[String.to_atom(name)]) do
-        %{name: name, version: version, deps: nil, repo: repo} ->
-          # Do not error on bad data in the old lock because we should just
-          # fix it automatically
-          case Registry.app_dependencies(repo, name, version) do
-            {:ok, deps} ->
-              apps = Enum.map(deps, fn %{label: app} -> app end)
-              [apps, do_with_children(apps, lock)]
+  defp add_with_children(app, apps, lock) do
+    if MapSet.member?(apps, app) do
+      apps
+    else
+      app
+      |> lock_children(lock)
+      |> Enum.reduce(MapSet.put(apps, app), &add_with_children(&1, &2, lock))
+    end
+  end
 
-            :error ->
-              []
-          end
+  defp lock_children(app, lock) do
+    case Hex.Utils.lock(lock[String.to_atom(app)]) do
+      %{name: name, version: version, deps: nil, repo: repo} ->
+        # Do not error on bad data in the old lock because we should just
+        # fix it automatically
+        case Registry.app_dependencies(repo, name, version) do
+          {:ok, deps} -> Enum.map(deps, fn %{label: app} -> app end)
+          :error -> []
+        end
 
-        %{deps: deps} ->
-          apps = Enum.map(deps, &Atom.to_string(elem(&1, 0)))
-          [apps, do_with_children(apps, lock)]
+      %{deps: deps} ->
+        Enum.map(deps, &Atom.to_string(elem(&1, 0)))
 
-        nil ->
-          []
-      end
-    end)
+      nil ->
+        []
+    end
   end
 
   defp prepare_locked(lock, old_lock, deps) do
@@ -975,15 +978,11 @@ defmodule Hex.RemoteConverger do
           not Map.has_key?(lock, app),
           do: Atom.to_string(app)
 
-    unlock =
-      (unlock_deps(deps, old_lock) ++ unlock_without_children)
-      |> Enum.uniq()
-      |> with_children(old_lock)
-      |> Enum.uniq()
+    unlock = with_children(unlock_deps(deps, old_lock) ++ unlock_without_children, old_lock)
 
     old_lock
     |> Hex.Mix.from_lock()
-    |> Enum.reject(fn %{app: app} -> app in unlock end)
+    |> Enum.reject(fn %{app: app} -> MapSet.member?(unlock, app) end)
   end
 
   defp unlock_deps(deps, old_lock) do
