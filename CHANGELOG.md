@@ -33,6 +33,16 @@
 * Print the package version in the error raised when resolved Hex packages give the same dependency different OTP application names. Since Hex 0.21.3 the error showed a literal `{version}` instead
 * Resolve dependencies after compiling in the same command, such as `mix do compile + deps.get`, on Elixir 1.15 and later. Since Hex 2.4.1 this raised `UndefinedFunctionError` for `Hex.Stdlib.ensure_application!/1`
 
+## v2.5.3 (2026-10-14)
+
+### Bug fixes
+
+* Percent-encode package names, versions and other values in the URLs of API and repository requests, so a `/`, `?`, `#` or `..` in a value can't change the request path
+
+### Security fixes
+
+* Fix unpacking a package or docs tarball that contains a GNU sparse file in `mix deps.get`, `mix hex.package fetch --unpack`, `mix hex.docs fetch` and `mix hex.docs offline`. A sparse file that ends in a hole made the task loop forever, and a sparse hole that crosses a 64 KiB boundary in the file made it fail ([GHSA-phm5-m6cj-5382](https://github.com/erlang/otp/security/advisories/GHSA-phm5-m6cj-5382), CVE-2026-96596)
+
 ## v2.5.2 (2026-10-12)
 
 ### Bug fixes
