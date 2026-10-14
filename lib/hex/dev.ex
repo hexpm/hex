@@ -3,12 +3,12 @@ if Mix.env() == :dev do
     @moduledoc false
 
     @ets_name __MODULE__
-    @registry_filename "cache.ets"
+    @registry_filename "cache.bin"
     @repo "hexpm"
     @ets_version 5
 
     def extract_registry(packages, new_path) do
-      {:ok, original_ets} = :ets.file2tab(String.to_charlist(ets_path()))
+      {:ok, original_ets} = Hex.Registry.Server.read_cache(cache_path())
       new_ets = :ets.new(@ets_name, [])
 
       try do
@@ -19,7 +19,7 @@ if Mix.env() == :dev do
           copy_package(original_ets, new_ets, package)
         end)
 
-        :ok = :ets.tab2file(new_ets, String.to_charlist(new_path))
+        Hex.Registry.Server.write_cache(new_ets, new_path)
       after
         :ets.delete(original_ets)
         :ets.delete(new_ets)
@@ -63,7 +63,7 @@ if Mix.env() == :dev do
       :ets.insert(new_ets, tuples)
     end
 
-    defp ets_path() do
+    defp cache_path() do
       Path.join(Hex.State.fetch!(:cache_home), @registry_filename)
     end
   end

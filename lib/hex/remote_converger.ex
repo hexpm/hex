@@ -43,9 +43,7 @@ defmodule Hex.RemoteConverger do
     end
 
     Registry.open()
-
-    {:ok, policy} = Hex.Policy.load()
-    Hex.State.put(:active_policy, policy)
+    policy_ref = Hex.Policy.configured_ref()
 
     # We cannot use given lock here, because all deps that are being
     # converged have been removed from the lock by Mix
@@ -67,7 +65,12 @@ defmodule Hex.RemoteConverger do
     organizations = user_oauth_organizations(prefetches)
     check_and_refresh_auth(organizations)
     check_organization_reauth(organizations)
+
+    # Queue the policy ahead of the packages so they are fetched together
+    if policy_ref, do: Registry.prefetch_policies([policy_ref])
     Registry.prefetch(prefetches)
+    {:ok, policy} = Hex.Policy.load(policy_ref)
+    Hex.State.put(:active_policy, policy)
 
     locked = prepare_locked(lock, old_lock, deps)
 
@@ -302,8 +305,8 @@ defmodule Hex.RemoteConverger do
     resolved = add_apps_to_resolved(resolved, requests)
     print_success(resolved, old_lock)
     verify_resolved(resolved, old_lock)
-    new_lock = Hex.Mix.to_lock(resolved)
-    merged_lock = lock_merge(lock, new_lock)
+    new_lock = Hex.Mix.to_lock(resolved, lock)
+    merged_lock = Map.merge(lock, new_lock)
     enforce_policy_on_lock(merged_lock)
     Hex.SCM.prefetch(new_lock)
 
@@ -319,8 +322,8 @@ defmodule Hex.RemoteConverger do
           |> Enum.sort(&(Version.compare(&1, &2) == :gt))
 
         with [latest_version | _] <- versions,
-             {:hex, _name, version, _checksum1, _managers, _, ^repo, _checksum2} <-
-               Map.fetch!(new_lock, String.to_atom(app)),
+             %{version: version, repo: ^repo} <-
+               Hex.Utils.lock(Map.fetch!(new_lock, String.to_atom(app))),
              :gt <- Version.compare(latest_version, version) do
           {name, latest_version}
         else
@@ -397,26 +400,13 @@ defmodule Hex.RemoteConverger do
           {:ok, deps} <- [Registry.app_dependencies(repo, package, version)],
           do: {repo, package, deps}
 
+    dependents = dependents(dependencies)
+    root_apps = root_apps(requests, %{})
+
     resolved =
       Enum.map(resolved, fn {repo, package, version} ->
-        apps =
-          Enum.flat_map(dependencies, fn {parent_repo, parent_package, deps} ->
-            repo = if repo != "hexpm", do: repo
-
-            app =
-              Enum.find_value(deps, fn
-                %{repo: ^repo, name: ^package, label: app} -> app
-                %{} -> nil
-              end)
-
-            if app do
-              [{parent_repo, parent_package, app}]
-            else
-              []
-            end
-          end)
-
-        root_app = find_root_app_in_requests(requests, repo, package)
+        apps = Map.get(dependents, {if(repo != "hexpm", do: repo), package}, [])
+        root_app = Map.get(root_apps, {repo, package})
         apps = Enum.uniq_by(List.wrap(root_app) ++ apps, fn {_repo, _package, app} -> app end)
 
         case apps do
@@ -440,12 +430,10 @@ defmodule Hex.RemoteConverger do
         end
       end)
 
+    by_app = Enum.group_by(resolved, fn {_repo, _package, app, _version} -> app end)
+
     Enum.each(resolved, fn {_repo, _package, app, _version} ->
-      conflicting =
-        Enum.filter(resolved, fn
-          {_repo, _package, ^app, _version} -> true
-          {_repo, _package, _app, _version} -> false
-        end)
+      conflicting = Map.fetch!(by_app, app)
 
       unless length(conflicting) == 1 do
         header =
@@ -464,11 +452,30 @@ defmodule Hex.RemoteConverger do
     resolved
   end
 
-  defp find_root_app_in_requests(requests, repo, package) do
-    Enum.find_value(requests, fn
-      %{repo: ^repo, name: ^package, app: app} -> {"hexpm", "myapp", app}
-      %{dependencies: dependencies} -> find_root_app_in_requests(dependencies, repo, package)
-      %{} -> nil
+  # The packages that depend on each package, with the application name they
+  # give it, in the order of the parents. A parent that declares a package
+  # more than once gives it the application name of its first declaration.
+  defp dependents(dependencies) do
+    dependencies
+    |> Enum.reverse()
+    |> Enum.reduce(%{}, fn {parent_repo, parent_package, deps}, dependents ->
+      deps
+      |> Enum.uniq_by(&{&1.repo, &1.name})
+      |> Enum.reduce(dependents, fn %{repo: repo, name: name, label: app}, dependents ->
+        dependent = {parent_repo, parent_package, app}
+        Map.update(dependents, {repo, name}, [dependent], &[dependent | &1])
+      end)
+    end)
+  end
+
+  # The application name the project gives each package, from the first
+  # request for it in depth-first order
+  defp root_apps(requests, root_apps) do
+    Enum.reduce(requests, root_apps, fn request, root_apps ->
+      root_apps =
+        Map.put_new(root_apps, {request.repo, request.name}, {"hexpm", "myapp", request.app})
+
+      root_apps(request.dependencies, root_apps)
     end)
   end
 
@@ -477,29 +484,6 @@ defmodule Hex.RemoteConverger do
       %{repo: repo, name: package, dependencies: []} -> [{repo, package}]
       %{dependencies: dependencies} -> packages_from_requests(dependencies)
     end)
-  end
-
-  defp lock_merge(old, new) do
-    Map.merge(old, new, fn _key, old_tuple, new_tuple ->
-      if lock_tuple_needs_update?(old_tuple, new_tuple) do
-        new_tuple
-      else
-        old_tuple
-      end
-    end)
-  end
-
-  defp lock_tuple_needs_update?(old_tuple, new_tuple) do
-    old_info = Hex.Utils.lock(old_tuple)
-    new_info = Hex.Utils.lock(new_tuple)
-
-    not (old_info != nil and
-           new_info != nil and
-           old_info.name == new_info.name and
-           old_info.version == new_info.version and
-           old_info.inner_checksum == new_info.inner_checksum and
-           old_info.outer_checksum == new_info.outer_checksum and
-           old_info.repo == new_info.repo)
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
@@ -657,7 +641,7 @@ defmodule Hex.RemoteConverger do
           retired = reported_retirement(candidate, policy, ignore_retirements)
 
           advisories =
-            (Registry.advisories(repo, name, version) || [])
+            candidate.advisories
             |> Enum.reject(&policy_accepts_finding?(policy, candidate, {:advisory, &1}))
             |> Hex.Ignores.reject_ignored_advisories(ignore_advisories)
 
@@ -714,8 +698,9 @@ defmodule Hex.RemoteConverger do
 
       change = categorize_dependency_change(previous_version, version)
       warning = warning_message(previous_version, version)
-      Map.put(acc, change, acc[change] ++ [{name, repo, previous_version, version, warning}])
+      Map.update!(acc, change, &[{name, repo, previous_version, version, warning} | &1])
     end)
+    |> Map.new(fn {change, changes} -> {change, Enum.reverse(changes)} end)
   end
 
   defp dep_info_from_lock(lock) do
@@ -930,34 +915,37 @@ defmodule Hex.RemoteConverger do
     end
   end
 
+  # The apps and every app they depend on in the lock, visiting each app once
   defp with_children(apps, lock) do
-    [apps, do_with_children(apps, lock)]
-    |> List.flatten()
+    Enum.reduce(apps, MapSet.new(), &add_with_children(&1, &2, lock))
   end
 
-  defp do_with_children(names, lock) do
-    Enum.map(names, fn name ->
-      case Hex.Utils.lock(lock[String.to_atom(name)]) do
-        %{name: name, version: version, deps: nil, repo: repo} ->
-          # Do not error on bad data in the old lock because we should just
-          # fix it automatically
-          case Registry.app_dependencies(repo, name, version) do
-            {:ok, deps} ->
-              apps = Enum.map(deps, fn %{label: app} -> app end)
-              [apps, do_with_children(apps, lock)]
+  defp add_with_children(app, apps, lock) do
+    if MapSet.member?(apps, app) do
+      apps
+    else
+      app
+      |> lock_children(lock)
+      |> Enum.reduce(MapSet.put(apps, app), &add_with_children(&1, &2, lock))
+    end
+  end
 
-            :error ->
-              []
-          end
+  defp lock_children(app, lock) do
+    case Hex.Utils.lock(lock[String.to_atom(app)]) do
+      %{name: name, version: version, deps: nil, repo: repo} ->
+        # Do not error on bad data in the old lock because we should just
+        # fix it automatically
+        case Registry.app_dependencies(repo, name, version) do
+          {:ok, deps} -> Enum.map(deps, fn %{label: app} -> app end)
+          :error -> []
+        end
 
-        %{deps: deps} ->
-          apps = Enum.map(deps, &Atom.to_string(elem(&1, 0)))
-          [apps, do_with_children(apps, lock)]
+      %{deps: deps} ->
+        Enum.map(deps, &Atom.to_string(elem(&1, 0)))
 
-        nil ->
-          []
-      end
-    end)
+      nil ->
+        []
+    end
   end
 
   defp prepare_locked(lock, old_lock, deps) do
@@ -971,15 +959,11 @@ defmodule Hex.RemoteConverger do
           not Map.has_key?(lock, app),
           do: Atom.to_string(app)
 
-    unlock =
-      (unlock_deps(deps, old_lock) ++ unlock_without_children)
-      |> Enum.uniq()
-      |> with_children(old_lock)
-      |> Enum.uniq()
+    unlock = with_children(unlock_deps(deps, old_lock) ++ unlock_without_children, old_lock)
 
     old_lock
     |> Hex.Mix.from_lock()
-    |> Enum.reject(fn %{app: app} -> app in unlock end)
+    |> Enum.reject(fn %{app: app} -> MapSet.member?(unlock, app) end)
   end
 
   defp unlock_deps(deps, old_lock) do

@@ -5,9 +5,11 @@ defmodule Hex.Registry.Server do
 
   @behaviour Hex.Solver.Registry
   @name __MODULE__
-  @filename "cache.ets"
+  @filename "cache.bin"
+  @ets_filename "cache.ets"
   @timeout 60_000
   @ets_version 5
+  @cache_header "HEX REGISTRY CACHE 1"
   @public_keys_html "https://hex.pm/docs/public_keys"
 
   def start_link(opts \\ []) do
@@ -49,7 +51,7 @@ defmodule Hex.Registry.Server do
     GenServer.call(@name, {:versions, repo, package}, @timeout)
   end
 
-  # The solver reads the dependencies of every release of a package, so a
+  # The solver also reads the dependencies of releases it doesn't select, so a
   # dependency with an invalid application name becomes a required dependency
   # that no version satisfies. The solver can't select the release, and
   # resolution only fails when no other release fits
@@ -69,8 +71,22 @@ defmodule Hex.Registry.Server do
     end
   end
 
+  # Registries repeat the same few hundred requirements across thousands of
+  # releases, so keep the constraints parsed in this process. Unsatisfiable
+  # requirements aren't kept so they still warn for each release.
   def dependency_constraint(package, version, name, requirement) do
-    Hex.Solver.parse_constraint!(requirement || ">= 0.0.0")
+    requirement = requirement || ">= 0.0.0"
+    key = {__MODULE__, :constraint, requirement}
+
+    case Process.get(key) do
+      nil ->
+        constraint = Hex.Solver.parse_constraint!(requirement)
+        Process.put(key, constraint)
+        constraint
+
+      constraint ->
+        constraint
+    end
   rescue
     error in Hex.Solver.UnsatisfiableRequirementError ->
       warn_unsatisfiable(package, version, name, error)
@@ -213,6 +229,7 @@ defmodule Hex.Registry.Server do
   defp state() do
     %{
       ets: nil,
+      dirty: false,
       sorted_versions: nil,
       path: nil,
       pending: MapSet.new(),
@@ -231,15 +248,13 @@ defmodule Hex.Registry.Server do
     end
 
     path = opts[:registry_path] || path()
-
-    ets =
-      String.to_charlist(path)
-      |> open_ets()
-      |> check_version()
-      |> set_version()
-
+    {ets, migrated?} = open_ets(path, !opts[:registry_path])
+    # A new or migrated cache, or one from another cache version that's
+    # replaced, needs to be written
+    dirty = migrated? or :ets.lookup(ets, :version) != [{:version, @ets_version}]
+    ets = ets |> check_version() |> set_version()
     sorted_versions = :ets.new(:hex_sorted_versions, [])
-    state = %{state | ets: ets, sorted_versions: sorted_versions, path: path}
+    state = %{state | ets: ets, dirty: dirty, sorted_versions: sorted_versions, path: path}
 
     {:reply, :ok, state}
   end
@@ -256,7 +271,7 @@ defmodule Hex.Registry.Server do
     state =
       wait_pending(state, fn state ->
         if state.ets do
-          persist(state.ets, state.path)
+          if state.dirty, do: write_cache(state.ets, state.path)
           :ets.delete(state.ets)
           :ets.delete(state.sorted_versions)
         end
@@ -271,11 +286,11 @@ defmodule Hex.Registry.Server do
   def handle_call(:persist, _from, state) do
     state =
       wait_pending(state, fn state ->
-        if state.ets do
-          persist(state.ets, state.path)
+        if state.ets && state.dirty do
+          write_cache(state.ets, state.path)
         end
 
-        state
+        %{state | dirty: false}
       end)
 
     {:reply, :ok, state}
@@ -289,7 +304,7 @@ defmodule Hex.Registry.Server do
       |> Enum.reject(&(&1 in state.fetched))
       |> Enum.reject(&(&1 in state.pending))
 
-    purge_repo_from_cache(packages, state)
+    state = purge_repo_from_cache(packages, state)
 
     if Hex.State.fetch!(:offline) do
       prefetch_offline(packages, state)
@@ -306,7 +321,7 @@ defmodule Hex.Registry.Server do
       |> Enum.reject(&(&1 in state.fetched_policies))
       |> Enum.reject(&(&1 in state.pending_policies))
 
-    purge_repo_from_cache(refs, state)
+    state = purge_repo_from_cache(refs, state)
 
     if Hex.State.fetch!(:offline) do
       prefetch_policies_offline(refs, state)
@@ -384,7 +399,7 @@ defmodule Hex.Registry.Server do
 
   def handle_call({:last_update, time}, _from, state) do
     :ets.insert(state.ets, {:last_update, time})
-    {:reply, :ok, state}
+    {:reply, :ok, %{state | dirty: true}}
   end
 
   def handle_info({:DOWN, _ref, :process, _pid, :normal}, state) do
@@ -398,13 +413,20 @@ defmodule Hex.Registry.Server do
     fetched = MapSet.put(state.fetched, repo_package)
     {replys, waiting} = Map.pop(state.waiting, repo_package, [])
 
-    write_result(result, repo, package, state)
+    written? = write_result(result, repo, package, state)
 
     Enum.each(replys, fn {from, fun} ->
       GenServer.reply(from, fun.())
     end)
 
-    state = %{state | pending: pending, waiting: waiting, fetched: fetched}
+    state = %{
+      state
+      | pending: pending,
+        waiting: waiting,
+        fetched: fetched,
+        dirty: state.dirty or written?
+    }
+
     state = maybe_run_pending(state)
     {:noreply, state}
   end
@@ -416,7 +438,7 @@ defmodule Hex.Registry.Server do
     fetched = MapSet.put(state.fetched_policies, ref)
     {replys, waiting} = Map.pop(state.waiting_policies, ref, [])
 
-    write_policy_result(result, repo, name, state)
+    written? = write_policy_result(result, repo, name, state)
 
     Enum.each(replys, fn {from, fun} ->
       GenServer.reply(from, fun.())
@@ -426,25 +448,109 @@ defmodule Hex.Registry.Server do
       state
       | pending_policies: pending,
         waiting_policies: waiting,
-        fetched_policies: fetched
+        fetched_policies: fetched,
+        dirty: state.dirty or written?
     }
 
     state = maybe_run_pending(state)
     {:noreply, state}
   end
 
-  defp open_ets(path) do
-    case :ets.file2tab(path, verify: true) do
+  # Hex 2.5 and earlier kept the cache in an ETS file. Start from it when
+  # there's no cache yet and leave it for those versions.
+  defp open_ets(path, default_path?) do
+    case read_cache(path) do
       {:ok, tid} ->
-        tid
+        {tid, false}
 
-      {:error, {:read_error, {:file_error, _path, :enoent}}} ->
-        :ets.new(@name, [])
+      {:error, :enoent} when default_path? ->
+        case read_cache(ets_path()) do
+          {:ok, tid} ->
+            {tid, true}
+
+          {:error, :enoent} ->
+            {:ets.new(@name, []), false}
+
+          {:error, reason} ->
+            Hex.Shell.error("Error opening registry cache #{ets_path()}: #{inspect(reason)}")
+            {:ets.new(@name, []), false}
+        end
+
+      {:error, :enoent} ->
+        {:ets.new(@name, []), false}
 
       {:error, reason} ->
-        Hex.Shell.error("Error opening ETS file #{path}: #{inspect(reason)}")
+        Hex.Shell.error("Error opening registry cache #{path}: #{inspect(reason)}")
         File.rm(path)
-        :ets.new(@name, [])
+        {:ets.new(@name, []), false}
+    end
+  end
+
+  # The cache is a header, a CRC32 of the data and the data, the cache's
+  # objects as one term. Reading and writing one term is several times
+  # faster than an ETS file with one term and checksum per object.
+  @doc false
+  def read_cache(path) do
+    case File.read(path) do
+      {:ok, <<@cache_header, checksum::32, data::binary>>} ->
+        if :erlang.crc32(data) == checksum do
+          decode_cache(data)
+        else
+          {:error, :checksum_mismatch}
+        end
+
+      {:ok, _binary} ->
+        read_ets_file(path)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # A matching checksum doesn't guarantee that the data decodes to a list of
+  # ETS objects
+  defp decode_cache(data) do
+    tid = :ets.new(@name, [])
+
+    try do
+      :ets.insert(tid, :erlang.binary_to_term(data))
+      {:ok, tid}
+    rescue
+      ArgumentError ->
+        :ets.delete(tid)
+        {:error, :invalid_data}
+    end
+  end
+
+  defp read_ets_file(path) do
+    case :ets.file2tab(String.to_charlist(path), verify: true) do
+      {:ok, tid} -> {:ok, tid}
+      {:error, {:read_error, {:file_error, _path, :enoent}}} -> {:error, :enoent}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # Written to a temporary file that replaces the cache, so other Mix
+  # processes never read a partly written cache
+  @doc false
+  def write_cache(tid, path) do
+    File.mkdir_p!(Path.dirname(path))
+    data = :erlang.term_to_binary(:ets.tab2list(tid))
+    tmp_path = "#{path}.#{:os.getpid()}.tmp"
+
+    try do
+      {:ok, file} = :file.open(tmp_path, [:write, :raw, :binary])
+
+      try do
+        :ok = :file.write(file, [@cache_header, <<:erlang.crc32(data)::32>>, data])
+        :ok = :file.sync(file)
+      after
+        :file.close(file)
+      end
+
+      File.rename!(tmp_path, path)
+    after
+      File.rm(tmp_path)
     end
   end
 
@@ -464,30 +570,23 @@ defmodule Hex.Registry.Server do
     ets
   end
 
-  defp persist(tid, path) do
-    dir = Path.dirname(path)
-    File.mkdir_p!(dir)
-
-    :ok =
-      :ets.tab2file(tid, String.to_charlist(path),
-        extended_info: [:object_count, :md5sum],
-        sync: true
-      )
-  end
-
-  defp purge_repo_from_cache(packages, %{ets: ets}) do
-    Enum.each(packages, fn {repo, _package} ->
-      repo = repo || "hexpm"
+  defp purge_repo_from_cache(packages, %{ets: ets} = state) do
+    packages
+    |> Enum.map(fn {repo, _package} -> repo || "hexpm" end)
+    |> Enum.uniq()
+    |> Enum.reduce(state, fn repo, state ->
       config = Hex.Repo.get_repo(repo)
       url = config.url
 
       case :ets.lookup(ets, {:repo, repo}) do
-        [{_key, ^url}] -> :ok
-        [] -> :ok
-        _ -> purge_repo(repo, ets)
-      end
+        [{_key, ^url}] ->
+          state
 
-      :ets.insert(ets, {{:repo, repo}, url})
+        cached ->
+          if cached != [], do: purge_repo(repo, ets)
+          :ets.insert(ets, {{:repo, repo}, url})
+          %{state | dirty: true}
+      end
     end)
   end
 
@@ -640,15 +739,18 @@ defmodule Hex.Registry.Server do
     if etag = headers["etag"] do
       :ets.insert(tid, {{:registry_etag, repo, package}, etag})
     end
+
+    true
   end
 
   defp write_result({:ok, {304, _, _}}, _repo, _package, _state) do
-    :ok
+    false
   end
 
   defp write_result(other, repo, package, %{ets: tid}) do
     cached? = :ets.lookup(tid, {:versions, repo, package}) != []
     print_error(other, repo, package, cached?)
+    false
   end
 
   defp write_policy_result({:ok, {code, headers, decoded}}, repo, name, %{ets: tid})
@@ -658,15 +760,18 @@ defmodule Hex.Registry.Server do
     if etag = headers["etag"] do
       :ets.insert(tid, {{:policy_etag, repo, name}, etag})
     end
+
+    true
   end
 
   defp write_policy_result({:ok, {304, _, _}}, _repo, _name, _state) do
-    :ok
+    false
   end
 
   defp write_policy_result(other, repo, name, %{ets: tid}) do
     cached? = :ets.lookup(tid, {:policy, repo, name}) != []
     print_policy_error(other, repo, name, cached?)
+    false
   end
 
   defp print_policy_error(result, repo, name, cached?) do
@@ -832,6 +937,10 @@ defmodule Hex.Registry.Server do
 
   defp path do
     Path.join(Hex.State.fetch!(:cache_home), @filename)
+  end
+
+  defp ets_path do
+    Path.join(Hex.State.fetch!(:cache_home), @ets_filename)
   end
 
   defp delete_package(repo, package, tid) do

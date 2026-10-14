@@ -12,7 +12,7 @@ defmodule Hex.Solver.RegressionTest do
   end
 
   # How to create snapshot of registry:
-  # Hex.Dev.extract_registry(top_level_packages, "test/fixtures/registries/CURRENT_DATE.ets")
+  # Hex.Dev.extract_registry(top_level_packages, "test/fixtures/registries/CURRENT_DATE.bin")
 
   # https://elixirforum.com/t/mix-deps-update-working-as-mix-deps-downgrade/27099/10
   test "20200917" do

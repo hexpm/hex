@@ -33,6 +33,34 @@ defmodule Hex.Registry.ServerTest do
     refute_received {:mix_shell, :error, _}
   end
 
+  test "dependencies/3 warns about an unsatisfiable requirement in each release" do
+    :sys.replace_state(Registry, fn %{ets: tid, fetched: fetched} = state ->
+      for package <- ["parent", "other_parent"] do
+        :ets.insert(
+          tid,
+          {{:deps, "hexpm", package, "1.0.0"},
+           [
+             {"hexpm", "child", "child", "~> 1.0", false},
+             {"hexpm", "other_child", "other_child", "~> 1.0 and >= 2.0.0", false}
+           ]}
+        )
+      end
+
+      %{
+        state
+        | fetched:
+            MapSet.union(fetched, MapSet.new([{"hexpm", "parent"}, {"hexpm", "other_parent"}]))
+      }
+    end)
+
+    assert {:ok, [child, other_child]} = Registry.dependencies("hexpm", "parent", "1.0.0")
+    assert {:ok, [^child, ^other_child]} = Registry.dependencies("hexpm", "other_parent", "1.0.0")
+    assert other_child.constraint == %Hex.Solver.Constraints.Empty{}
+
+    assert_received {:mix_shell, :error, ["\e[33mPackage parent 1.0.0 can't be used" <> _]}
+    assert_received {:mix_shell, :error, ["\e[33mPackage other_parent 1.0.0 can't be used" <> _]}
+  end
+
   test "app_dependencies/3 accepts application names" do
     :sys.replace_state(Registry, fn %{ets: tid, fetched: fetched} = state ->
       :ets.insert(
@@ -139,6 +167,19 @@ defmodule Hex.Registry.ServerTest do
     assert Enum.map(versions, &to_string/1) == ["1.0.0", "1.1.0", "2.0.0"]
   end
 
+  test "persist/0 writes the cache only when it changed" do
+    path = tmp_path("cache.ets")
+    Registry.persist()
+    File.rm!(path)
+
+    Registry.persist()
+    refute File.exists?(path)
+
+    Registry.last_update(:calendar.universal_time())
+    Registry.persist()
+    assert File.exists?(path)
+  end
+
   test "a version removed from the registry leaves no entries behind" do
     release = fn version ->
       %{
@@ -170,6 +211,100 @@ defmodule Hex.Registry.ServerTest do
     assert entries.("1.1.0") == []
     assert Registry.outer_checksum("hexpm", "package", "1.1.0") == nil
     assert Registry.outer_checksum("hexpm", "package", "1.0.0") == "outer"
+  end
+
+  describe "cache file" do
+    setup do
+      Registry.close()
+      cache_home = tmp_path("registry_cache_file")
+      File.rm_rf!(cache_home)
+      File.mkdir_p!(cache_home)
+      Hex.State.put(:cache_home, cache_home)
+      Hex.State.put(:shell_process, self())
+      {:ok, cache_home: cache_home}
+    end
+
+    test "starts from the ETS file of earlier Hex versions and keeps it", %{
+      cache_home: cache_home
+    } do
+      ets_path = Path.join(cache_home, "cache.ets")
+      tid = :ets.new(:registry, [])
+      :ets.insert(tid, [{:version, 5}, {{:versions, "hexpm", "package"}, ["1.0.0"]}])
+      :ok = :ets.tab2file(tid, String.to_charlist(ets_path))
+      :ets.delete(tid)
+      ets_file = File.read!(ets_path)
+
+      Registry.open(check_version: false)
+      Registry.prefetch([{"hexpm", "package"}])
+      assert {:ok, [version]} = Registry.versions("hexpm", "package")
+      assert to_string(version) == "1.0.0"
+      Registry.close()
+
+      assert {:ok, tid} = Registry.read_cache(Path.join(cache_home, "cache.bin"))
+
+      assert :ets.lookup(tid, {:versions, "hexpm", "package"}) == [
+               {{:versions, "hexpm", "package"}, ["1.0.0"]}
+             ]
+
+      assert File.read!(ets_path) == ets_file
+    end
+
+    test "starts empty from a corrupt ETS file of earlier Hex versions and keeps it", %{
+      cache_home: cache_home
+    } do
+      ets_path = Path.join(cache_home, "cache.ets")
+      File.write!(ets_path, "not an ETS file")
+
+      Registry.open(check_version: false)
+      assert_received {:mix_shell, :error, ["Error opening registry cache " <> message]}
+      assert String.starts_with?(message, ets_path <> ": ")
+      %{ets: tid} = :sys.get_state(Registry)
+      assert :ets.tab2list(tid) == [{:version, 5}]
+      Registry.close()
+
+      assert File.read!(ets_path) == "not an ETS file"
+    end
+
+    test "starts empty from a corrupt cache", %{cache_home: cache_home} do
+      path = Path.join(cache_home, "cache.bin")
+      File.write!(path, ["HEX REGISTRY CACHE 1", <<0::32>>, :erlang.term_to_binary([])])
+
+      Registry.open(check_version: false)
+      assert_received {:mix_shell, :error, [message]}
+      assert message == "Error opening registry cache #{path}: :checksum_mismatch"
+      %{ets: tid} = :sys.get_state(Registry)
+      assert :ets.tab2list(tid) == [{:version, 5}]
+      Registry.close()
+
+      assert {:ok, _tid} = Registry.read_cache(path)
+    end
+
+    test "starts empty from a cache with a matching checksum but unreadable data", %{
+      cache_home: cache_home
+    } do
+      path = Path.join(cache_home, "cache.bin")
+
+      for data <- [<<0>>, :erlang.term_to_binary([:invalid])] do
+        File.write!(path, ["HEX REGISTRY CACHE 1", <<:erlang.crc32(data)::32>>, data])
+
+        Registry.open(check_version: false)
+        assert_received {:mix_shell, :error, [message]}
+        assert message == "Error opening registry cache #{path}: :invalid_data"
+        %{ets: tid} = :sys.get_state(Registry)
+        assert :ets.tab2list(tid) == [{:version, 5}]
+        Registry.close()
+
+        assert {:ok, _tid} = Registry.read_cache(path)
+      end
+    end
+
+    test "writes the cache without leaving a temporary file", %{cache_home: cache_home} do
+      Registry.open(check_version: false)
+      Registry.last_update(:calendar.universal_time())
+      Registry.close()
+
+      assert File.ls!(cache_home) == ["cache.bin"]
+    end
   end
 
   describe "failed package fetches" do

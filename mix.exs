@@ -58,6 +58,7 @@ defmodule Hex.MixProject do
   defp aliases do
     [
       "compile.elixir": [&unload_hex/1, "compile.elixir"],
+      "archive.build": &build_archive/1,
       run: [&unload_hex/1, "run"],
       install: ["archive.build -o hex.ez", "archive.install hex.ez --force"],
       certdata: [&certdata/1]
@@ -88,6 +89,27 @@ defmodule Hex.MixProject do
         end
       end)
     end)
+  end
+
+  # Mix doesn't consolidate the protocols of archives, so the archive ships
+  # Hex's protocols consolidated. Only Hex implements them.
+  defp build_archive(args) do
+    {opts, _args, _invalid} = OptionParser.parse(args, switches: [compile: :boolean])
+
+    if Keyword.get(opts, :compile, true) do
+      Mix.Task.run("compile", args)
+    end
+
+    ebin = Mix.Project.compile_path()
+
+    for protocol <- Protocol.extract_protocols([ebin]) do
+      impls = Protocol.extract_impls(protocol, [ebin])
+      {:ok, binary} = Protocol.consolidate(protocol, impls)
+      File.write!(Path.join(ebin, "#{protocol}.beam"), binary)
+    end
+
+    # Runs the task itself, since this alias is already running
+    Mix.Task.run("archive.build", args)
   end
 
   defp update_cached_deps(module) do

@@ -141,8 +141,12 @@ defmodule Hex.Mix do
   Takes a map of `{name, version}` and returns them as a
   lock of Hex packages.
   """
-  def to_lock(result) do
+  # Keeps the entry of the given lock for the same release, so only new and
+  # updated entries read their dependencies and manifest
+  def to_lock(result, lock \\ %{}) do
     Map.new(result, fn {repo, name, app, version} ->
+      app = String.to_atom(app)
+
       inner_checksum =
         Hex.Registry.Server.inner_checksum(repo, name, version)
         |> Base.encode16(case: :lower)
@@ -151,19 +155,32 @@ defmodule Hex.Mix do
         Hex.Registry.Server.outer_checksum(repo, name, version)
         |> encode_outer_checksum()
 
-      deps =
-        Hex.Registry.Server.app_dependencies(repo, name, version)
-        |> case(do: ({:ok, deps} -> deps))
-        |> Enum.map(&registry_dep_to_def/1)
-        |> Enum.sort()
+      case Hex.Utils.lock(lock[app]) do
+        %{
+          name: ^name,
+          version: ^version,
+          repo: ^repo,
+          inner_checksum: ^inner_checksum,
+          outer_checksum: ^outer_checksum
+        } ->
+          {app, lock[app]}
 
-      managers =
-        managers(app)
-        |> Enum.sort()
-        |> Enum.uniq()
+        _ ->
+          deps =
+            Hex.Registry.Server.app_dependencies(repo, name, version)
+            |> case(do: ({:ok, deps} -> deps))
+            |> Enum.map(&registry_dep_to_def/1)
+            |> Enum.sort()
 
-      {String.to_atom(app),
-       {:hex, String.to_atom(name), version, inner_checksum, managers, deps, repo, outer_checksum}}
+          managers =
+            managers(Atom.to_string(app))
+            |> Enum.sort()
+            |> Enum.uniq()
+
+          {app,
+           {:hex, String.to_atom(name), version, inner_checksum, managers, deps, repo,
+            outer_checksum}}
+      end
     end)
   end
 
@@ -178,8 +195,6 @@ defmodule Hex.Mix do
   # We need to get managers from manifest if a dependency is not in the lock
   # but it's already fetched. Without the manifest we would only get managers
   # from metadata during checkout or from the lock entry.
-  defp managers(nil), do: []
-
   defp managers(app) do
     path = Path.join([Mix.Project.deps_path(), app, ".hex"])
 
