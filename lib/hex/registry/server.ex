@@ -71,29 +71,33 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  # Registries repeat the same few hundred requirements across thousands of
-  # releases, so keep the constraints parsed in this process. Unsatisfiable
-  # requirements aren't kept so they still warn for each release.
   def dependency_constraint(package, version, name, requirement) do
-    requirement = requirement || ">= 0.0.0"
-    key = {__MODULE__, :constraint, requirement}
-
-    case Process.get(key) do
-      nil ->
-        constraint = Hex.Solver.parse_constraint!(requirement)
-        Process.put(key, constraint)
-        constraint
-
-      constraint ->
-        constraint
-    end
-  rescue
-    error in Hex.Solver.UnsatisfiableRequirementError ->
-      warn_unsatisfiable(package, version, name, error)
-      %Hex.Solver.Constraints.Empty{}
+    constraint(package, version, name, parse_requirement(requirement))
   end
 
-  defp solver_dependency(package, version, {_repo, name, app, _requirement, _optional} = dep) do
+  defp constraint(_package, _version, _name, {:ok, constraint}), do: constraint
+
+  # Unsatisfiable requirements warn for each release that has them
+  defp constraint(
+         package,
+         version,
+         name,
+         {:error, %Hex.Solver.UnsatisfiableRequirementError{} = error}
+       ) do
+    warn_unsatisfiable(package, version, name, error)
+    %Hex.Solver.Constraints.Empty{}
+  end
+
+  defp constraint(_package, _version, _name, {:error, error}), do: raise(error)
+
+  defp parse_requirement(requirement) do
+    {:ok, Hex.Solver.parse_constraint!(requirement || ">= 0.0.0")}
+  rescue
+    error in [Hex.Solver.UnsatisfiableRequirementError, Version.InvalidRequirementError] ->
+      {:error, error}
+  end
+
+  defp solver_dependency(package, version, {_repo, name, app, _parsed, _optional} = dep) do
     dependency = dependency(package, version, dep)
 
     if valid_app_name?(app) do
@@ -104,7 +108,7 @@ defmodule Hex.Registry.Server do
     end
   end
 
-  defp app_dependency(package, version, {_repo, name, app, _requirement, _optional} = dep) do
+  defp app_dependency(package, version, {_repo, name, app, _parsed, _optional} = dep) do
     unless valid_app_name?(app) do
       Mix.raise(invalid_app_name_message(package, version, name, app))
     end
@@ -112,14 +116,14 @@ defmodule Hex.Registry.Server do
     dependency(package, version, dep)
   end
 
-  defp dependency(package, version, {repo, name, app, requirement, optional}) do
+  defp dependency(package, version, {repo, name, app, parsed, optional}) do
     validate_name(package, version, "repository", repo, &valid_repo_name?/1)
     validate_name(package, version, "package", name, &valid_package_name?/1)
 
     %{
       repo: if(repo != "hexpm", do: repo),
       name: name,
-      constraint: dependency_constraint(package, version, name, requirement),
+      constraint: constraint(package, version, name, parsed),
       optional: optional,
       label: app
     }
@@ -238,7 +242,8 @@ defmodule Hex.Registry.Server do
       pending_fun: nil,
       pending_policies: MapSet.new(),
       fetched_policies: MapSet.new(),
-      waiting_policies: %{}
+      waiting_policies: %{},
+      constraints: %{}
     }
   end
 
@@ -351,13 +356,14 @@ defmodule Hex.Registry.Server do
   end
 
   def handle_call({:dependencies, repo, package, version}, from, state) do
-    maybe_wait({repo, package}, from, state, fn ->
+    maybe_wait({repo, package}, from, state, fn state ->
       case lookup(state.ets, {:deps, repo || "hexpm", package, to_string(version)}) do
         nil ->
-          :error
+          {:error, state}
 
         deps ->
-          {:ok, deps}
+          {deps, constraints} = Enum.map_reduce(deps, state.constraints, &parse_dependency/2)
+          {{:ok, deps}, %{state | constraints: constraints}}
       end
     end)
   end
@@ -415,9 +421,12 @@ defmodule Hex.Registry.Server do
 
     written? = write_result(result, repo, package, state)
 
-    Enum.each(replys, fn {from, fun} ->
-      GenServer.reply(from, fun.())
-    end)
+    state =
+      Enum.reduce(replys, state, fn {from, fun}, state ->
+        {reply, state} = run_waiting(fun, state)
+        GenServer.reply(from, reply)
+        state
+      end)
 
     state = %{
       state
@@ -873,7 +882,8 @@ defmodule Hex.Registry.Server do
 
     cond do
       {repo, package} in state.fetched ->
-        {:reply, fun.(), state}
+        {reply, state} = run_waiting(fun, state)
+        {:reply, reply, state}
 
       {repo, package} in state.pending ->
         tuple = {from, fun}
@@ -883,6 +893,24 @@ defmodule Hex.Registry.Server do
 
       true ->
         Mix.raise("Package #{repo}/#{package} not prefetched, please report this issue")
+    end
+  end
+
+  # A fun that needs the state, such as one parsing dependencies, takes it
+  # and returns it with the reply
+  defp run_waiting(fun, state) when is_function(fun, 0), do: {fun.(), state}
+  defp run_waiting(fun, state) when is_function(fun, 1), do: fun.(state)
+
+  # Registries repeat the same few hundred requirements across thousands of
+  # releases, so keep them parsed while the registry is open
+  defp parse_dependency({repo, name, app, requirement, optional}, constraints) do
+    case constraints do
+      %{^requirement => parsed} ->
+        {{repo, name, app, parsed, optional}, constraints}
+
+      %{} ->
+        parsed = parse_requirement(requirement)
+        {{repo, name, app, parsed, optional}, Map.put(constraints, requirement, parsed)}
     end
   end
 

@@ -61,6 +61,43 @@ defmodule Hex.Registry.ServerTest do
     assert_received {:mix_shell, :error, ["\e[33mPackage other_parent 1.0.0 can't be used" <> _]}
   end
 
+  test "dependencies/3 keeps parsed requirements in the registry, not the calling process" do
+    :sys.replace_state(Registry, fn %{ets: tid, fetched: fetched} = state ->
+      :ets.insert(
+        tid,
+        {{:deps, "hexpm", "parent", "1.0.0"}, [{"hexpm", "child", "child", "~> 1.0", false}]}
+      )
+
+      %{state | fetched: MapSet.put(fetched, {"hexpm", "parent"})}
+    end)
+
+    keys = Enum.sort(Process.get_keys())
+    assert {:ok, [dependency]} = Registry.dependencies("hexpm", "parent", "1.0.0")
+    assert Enum.sort(Process.get_keys()) == keys
+
+    assert %{constraints: %{"~> 1.0" => {:ok, constraint}}} = :sys.get_state(Registry)
+    assert dependency.constraint == constraint
+  end
+
+  test "dependencies/3 raises for an invalid requirement and keeps the registry running" do
+    :sys.replace_state(Registry, fn %{ets: tid, fetched: fetched} = state ->
+      :ets.insert(
+        tid,
+        {{:deps, "hexpm", "parent", "1.0.0"}, [{"hexpm", "child", "child", "~> foo", false}]}
+      )
+
+      %{state | fetched: MapSet.put(fetched, {"hexpm", "parent"})}
+    end)
+
+    registry = Process.whereis(Registry)
+
+    assert_raise Version.InvalidRequirementError, fn ->
+      Registry.dependencies("hexpm", "parent", "1.0.0")
+    end
+
+    assert Process.whereis(Registry) == registry
+  end
+
   test "app_dependencies/3 accepts application names" do
     :sys.replace_state(Registry, fn %{ets: tid, fetched: fetched} = state ->
       :ets.insert(
