@@ -49,7 +49,7 @@ defmodule Hex.Registry.Server do
     GenServer.call(@name, {:versions, repo, package}, @timeout)
   end
 
-  # The solver reads the dependencies of every release of a package, so a
+  # The solver also reads the dependencies of releases it doesn't select, so a
   # dependency with an invalid application name becomes a required dependency
   # that no version satisfies. The solver can't select the release, and
   # resolution only fails when no other release fits
