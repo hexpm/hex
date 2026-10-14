@@ -193,7 +193,7 @@ defmodule HexTest.Case do
     )
 
     File.mkdir_p!(Path.dirname(path))
-    :ok = :ets.tab2file(tid, String.to_charlist(path))
+    Hex.Registry.Server.write_cache(tid, path)
     :ets.delete(tid)
   end
 

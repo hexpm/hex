@@ -5,9 +5,11 @@ defmodule Hex.Registry.Server do
 
   @behaviour Hex.Solver.Registry
   @name __MODULE__
-  @filename "cache.ets"
+  @filename "cache.bin"
+  @ets_filename "cache.ets"
   @timeout 60_000
   @ets_version 5
+  @cache_header "HEX REGISTRY CACHE 1"
   @public_keys_html "https://hex.pm/docs/public_keys"
 
   def start_link(opts \\ []) do
@@ -246,10 +248,10 @@ defmodule Hex.Registry.Server do
     end
 
     path = opts[:registry_path] || path()
-    ets = open_ets(String.to_charlist(path))
-    # A new cache, or one from another cache version that's replaced, needs
-    # to be written
-    dirty = :ets.lookup(ets, :version) != [{:version, @ets_version}]
+    {ets, migrated?} = open_ets(path, !opts[:registry_path])
+    # A new or migrated cache, or one from another cache version that's
+    # replaced, needs to be written
+    dirty = migrated? or :ets.lookup(ets, :version) != [{:version, @ets_version}]
     ets = ets |> check_version() |> set_version()
     sorted_versions = :ets.new(:hex_sorted_versions, [])
     state = %{state | ets: ets, dirty: dirty, sorted_versions: sorted_versions, path: path}
@@ -269,7 +271,7 @@ defmodule Hex.Registry.Server do
     state =
       wait_pending(state, fn state ->
         if state.ets do
-          if state.dirty, do: persist(state.ets, state.path)
+          if state.dirty, do: write_cache(state.ets, state.path)
           :ets.delete(state.ets)
           :ets.delete(state.sorted_versions)
         end
@@ -285,7 +287,7 @@ defmodule Hex.Registry.Server do
     state =
       wait_pending(state, fn state ->
         if state.ets && state.dirty do
-          persist(state.ets, state.path)
+          write_cache(state.ets, state.path)
         end
 
         %{state | dirty: false}
@@ -454,18 +456,88 @@ defmodule Hex.Registry.Server do
     {:noreply, state}
   end
 
-  defp open_ets(path) do
-    case :ets.file2tab(path, verify: true) do
+  # Hex 2.5 and earlier kept the cache in an ETS file. Start from it when
+  # there's no cache yet and leave it for those versions.
+  defp open_ets(path, default_path?) do
+    case read_cache(path) do
       {:ok, tid} ->
-        tid
+        {tid, false}
 
-      {:error, {:read_error, {:file_error, _path, :enoent}}} ->
-        :ets.new(@name, [])
+      {:error, :enoent} when default_path? ->
+        case read_cache(ets_path()) do
+          {:ok, tid} ->
+            {tid, true}
+
+          {:error, :enoent} ->
+            {:ets.new(@name, []), false}
+
+          {:error, reason} ->
+            Hex.Shell.error("Error opening registry cache #{ets_path()}: #{inspect(reason)}")
+            {:ets.new(@name, []), false}
+        end
+
+      {:error, :enoent} ->
+        {:ets.new(@name, []), false}
 
       {:error, reason} ->
-        Hex.Shell.error("Error opening ETS file #{path}: #{inspect(reason)}")
+        Hex.Shell.error("Error opening registry cache #{path}: #{inspect(reason)}")
         File.rm(path)
-        :ets.new(@name, [])
+        {:ets.new(@name, []), false}
+    end
+  end
+
+  # The cache is a header, a CRC32 of the data and the data, the cache's
+  # objects as one term. Reading and writing one term is several times
+  # faster than an ETS file with one term and checksum per object.
+  @doc false
+  def read_cache(path) do
+    case File.read(path) do
+      {:ok, <<@cache_header, checksum::32, data::binary>>} ->
+        if :erlang.crc32(data) == checksum do
+          tid = :ets.new(@name, [])
+          :ets.insert(tid, :erlang.binary_to_term(data))
+          {:ok, tid}
+        else
+          {:error, :checksum_mismatch}
+        end
+
+      {:ok, _binary} ->
+        read_ets_file(path)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp read_ets_file(path) do
+    case :ets.file2tab(String.to_charlist(path), verify: true) do
+      {:ok, tid} -> {:ok, tid}
+      {:error, {:read_error, {:file_error, _path, :enoent}}} -> {:error, :enoent}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # Written to a temporary file that replaces the cache, so other Mix
+  # processes never read a partly written cache
+  @doc false
+  def write_cache(tid, path) do
+    File.mkdir_p!(Path.dirname(path))
+    data = :erlang.term_to_binary(:ets.tab2list(tid))
+    tmp_path = "#{path}.#{:os.getpid()}.tmp"
+
+    try do
+      {:ok, file} = :file.open(tmp_path, [:write, :raw, :binary])
+
+      try do
+        :ok = :file.write(file, [@cache_header, <<:erlang.crc32(data)::32>>, data])
+        :ok = :file.sync(file)
+      after
+        :file.close(file)
+      end
+
+      File.rename!(tmp_path, path)
+    after
+      File.rm(tmp_path)
     end
   end
 
@@ -483,17 +555,6 @@ defmodule Hex.Registry.Server do
   defp set_version(ets) do
     :ets.insert(ets, {:version, @ets_version})
     ets
-  end
-
-  defp persist(tid, path) do
-    dir = Path.dirname(path)
-    File.mkdir_p!(dir)
-
-    :ok =
-      :ets.tab2file(tid, String.to_charlist(path),
-        extended_info: [:object_count, :md5sum],
-        sync: true
-      )
   end
 
   defp purge_repo_from_cache(packages, %{ets: ets} = state) do
@@ -863,6 +924,10 @@ defmodule Hex.Registry.Server do
 
   defp path do
     Path.join(Hex.State.fetch!(:cache_home), @filename)
+  end
+
+  defp ets_path do
+    Path.join(Hex.State.fetch!(:cache_home), @ets_filename)
   end
 
   defp delete_package(repo, package, tid) do
