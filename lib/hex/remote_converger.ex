@@ -718,8 +718,9 @@ defmodule Hex.RemoteConverger do
 
       change = categorize_dependency_change(previous_version, version)
       warning = warning_message(previous_version, version)
-      Map.put(acc, change, acc[change] ++ [{name, repo, previous_version, version, warning}])
+      Map.update!(acc, change, &[{name, repo, previous_version, version, warning} | &1])
     end)
+    |> Map.new(fn {change, changes} -> {change, Enum.reverse(changes)} end)
   end
 
   defp dep_info_from_lock(lock) do
