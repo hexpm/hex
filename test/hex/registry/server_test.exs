@@ -279,6 +279,25 @@ defmodule Hex.Registry.ServerTest do
       assert {:ok, _tid} = Registry.read_cache(path)
     end
 
+    test "starts empty from a cache with a matching checksum but unreadable data", %{
+      cache_home: cache_home
+    } do
+      path = Path.join(cache_home, "cache.bin")
+
+      for data <- [<<0>>, :erlang.term_to_binary([:invalid])] do
+        File.write!(path, ["HEX REGISTRY CACHE 1", <<:erlang.crc32(data)::32>>, data])
+
+        Registry.open(check_version: false)
+        assert_received {:mix_shell, :error, [message]}
+        assert message == "Error opening registry cache #{path}: :invalid_data"
+        %{ets: tid} = :sys.get_state(Registry)
+        assert :ets.tab2list(tid) == [{:version, 5}]
+        Registry.close()
+
+        assert {:ok, _tid} = Registry.read_cache(path)
+      end
+    end
+
     test "writes the cache without leaving a temporary file", %{cache_home: cache_home} do
       Registry.open(check_version: false)
       Registry.last_update(:calendar.universal_time())

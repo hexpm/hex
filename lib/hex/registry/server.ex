@@ -494,9 +494,7 @@ defmodule Hex.Registry.Server do
     case File.read(path) do
       {:ok, <<@cache_header, checksum::32, data::binary>>} ->
         if :erlang.crc32(data) == checksum do
-          tid = :ets.new(@name, [])
-          :ets.insert(tid, :erlang.binary_to_term(data))
-          {:ok, tid}
+          decode_cache(data)
         else
           {:error, :checksum_mismatch}
         end
@@ -506,6 +504,21 @@ defmodule Hex.Registry.Server do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  # A matching checksum doesn't guarantee that the data decodes to a list of
+  # ETS objects
+  defp decode_cache(data) do
+    tid = :ets.new(@name, [])
+
+    try do
+      :ets.insert(tid, :erlang.binary_to_term(data))
+      {:ok, tid}
+    rescue
+      ArgumentError ->
+        :ets.delete(tid)
+        {:error, :invalid_data}
     end
   end
 
