@@ -397,26 +397,13 @@ defmodule Hex.RemoteConverger do
           {:ok, deps} <- [Registry.app_dependencies(repo, package, version)],
           do: {repo, package, deps}
 
+    dependents = dependents(dependencies)
+    root_apps = root_apps(requests, %{})
+
     resolved =
       Enum.map(resolved, fn {repo, package, version} ->
-        apps =
-          Enum.flat_map(dependencies, fn {parent_repo, parent_package, deps} ->
-            repo = if repo != "hexpm", do: repo
-
-            app =
-              Enum.find_value(deps, fn
-                %{repo: ^repo, name: ^package, label: app} -> app
-                %{} -> nil
-              end)
-
-            if app do
-              [{parent_repo, parent_package, app}]
-            else
-              []
-            end
-          end)
-
-        root_app = find_root_app_in_requests(requests, repo, package)
+        apps = Map.get(dependents, {if(repo != "hexpm", do: repo), package}, [])
+        root_app = Map.get(root_apps, {repo, package})
         apps = Enum.uniq_by(List.wrap(root_app) ++ apps, fn {_repo, _package, app} -> app end)
 
         case apps do
@@ -440,12 +427,10 @@ defmodule Hex.RemoteConverger do
         end
       end)
 
+    by_app = Enum.group_by(resolved, fn {_repo, _package, app, _version} -> app end)
+
     Enum.each(resolved, fn {_repo, _package, app, _version} ->
-      conflicting =
-        Enum.filter(resolved, fn
-          {_repo, _package, ^app, _version} -> true
-          {_repo, _package, _app, _version} -> false
-        end)
+      conflicting = Map.fetch!(by_app, app)
 
       unless length(conflicting) == 1 do
         header =
@@ -464,11 +449,30 @@ defmodule Hex.RemoteConverger do
     resolved
   end
 
-  defp find_root_app_in_requests(requests, repo, package) do
-    Enum.find_value(requests, fn
-      %{repo: ^repo, name: ^package, app: app} -> {"hexpm", "myapp", app}
-      %{dependencies: dependencies} -> find_root_app_in_requests(dependencies, repo, package)
-      %{} -> nil
+  # The packages that depend on each package, with the application name they
+  # give it, in the order of the parents. A parent that declares a package
+  # more than once gives it the application name of its first declaration.
+  defp dependents(dependencies) do
+    dependencies
+    |> Enum.reverse()
+    |> Enum.reduce(%{}, fn {parent_repo, parent_package, deps}, dependents ->
+      deps
+      |> Enum.uniq_by(&{&1.repo, &1.name})
+      |> Enum.reduce(dependents, fn %{repo: repo, name: name, label: app}, dependents ->
+        dependent = {parent_repo, parent_package, app}
+        Map.update(dependents, {repo, name}, [dependent], &[dependent | &1])
+      end)
+    end)
+  end
+
+  # The application name the project gives each package, from the first
+  # request for it in depth-first order
+  defp root_apps(requests, root_apps) do
+    Enum.reduce(requests, root_apps, fn request, root_apps ->
+      root_apps =
+        Map.put_new(root_apps, {request.repo, request.name}, {"hexpm", "myapp", request.app})
+
+      root_apps(request.dependencies, root_apps)
     end)
   end
 
