@@ -483,8 +483,10 @@ defmodule Hex.Registry.Server do
   end
 
   defp purge_repo_from_cache(packages, %{ets: ets} = state) do
-    Enum.reduce(packages, state, fn {repo, _package}, state ->
-      repo = repo || "hexpm"
+    packages
+    |> Enum.map(fn {repo, _package} -> repo || "hexpm" end)
+    |> Enum.uniq()
+    |> Enum.reduce(state, fn repo, state ->
       config = Hex.Repo.get_repo(repo)
       url = config.url
 
