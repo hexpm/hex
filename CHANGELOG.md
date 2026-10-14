@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## v2.5.3 (2026-10-14)
+
+### Bug fixes
+
+* Percent-encode package names, versions and other values in the URLs of API and repository requests, so a `/`, `?`, `#` or `..` in a value can't change the request path
+
+### Security fixes
+
+* Fix unpacking a package or docs tarball that contains a GNU sparse file in `mix deps.get`, `mix hex.package fetch --unpack`, `mix hex.docs fetch` and `mix hex.docs offline`. A sparse file that ends in a hole made the task loop forever, and a sparse hole that crosses a 64 KiB boundary in the file made it fail ([GHSA-phm5-m6cj-5382](https://github.com/erlang/otp/security/advisories/GHSA-phm5-m6cj-5382), CVE-2026-96596)
+
 ## v2.5.2 (2026-10-12)
 
 ### Bug fixes
