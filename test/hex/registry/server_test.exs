@@ -139,6 +139,19 @@ defmodule Hex.Registry.ServerTest do
     assert Enum.map(versions, &to_string/1) == ["1.0.0", "1.1.0", "2.0.0"]
   end
 
+  test "persist/0 writes the cache only when it changed" do
+    path = tmp_path("cache.ets")
+    Registry.persist()
+    File.rm!(path)
+
+    Registry.persist()
+    refute File.exists?(path)
+
+    Registry.last_update(:calendar.universal_time())
+    Registry.persist()
+    assert File.exists?(path)
+  end
+
   test "a version removed from the registry leaves no entries behind" do
     release = fn version ->
       %{

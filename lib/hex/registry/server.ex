@@ -213,6 +213,7 @@ defmodule Hex.Registry.Server do
   defp state() do
     %{
       ets: nil,
+      dirty: false,
       sorted_versions: nil,
       path: nil,
       pending: MapSet.new(),
@@ -231,15 +232,13 @@ defmodule Hex.Registry.Server do
     end
 
     path = opts[:registry_path] || path()
-
-    ets =
-      String.to_charlist(path)
-      |> open_ets()
-      |> check_version()
-      |> set_version()
-
+    ets = open_ets(String.to_charlist(path))
+    # A new cache, or one from another cache version that's replaced, needs
+    # to be written
+    dirty = :ets.lookup(ets, :version) != [{:version, @ets_version}]
+    ets = ets |> check_version() |> set_version()
     sorted_versions = :ets.new(:hex_sorted_versions, [])
-    state = %{state | ets: ets, sorted_versions: sorted_versions, path: path}
+    state = %{state | ets: ets, dirty: dirty, sorted_versions: sorted_versions, path: path}
 
     {:reply, :ok, state}
   end
@@ -256,7 +255,7 @@ defmodule Hex.Registry.Server do
     state =
       wait_pending(state, fn state ->
         if state.ets do
-          persist(state.ets, state.path)
+          if state.dirty, do: persist(state.ets, state.path)
           :ets.delete(state.ets)
           :ets.delete(state.sorted_versions)
         end
@@ -271,11 +270,11 @@ defmodule Hex.Registry.Server do
   def handle_call(:persist, _from, state) do
     state =
       wait_pending(state, fn state ->
-        if state.ets do
+        if state.ets && state.dirty do
           persist(state.ets, state.path)
         end
 
-        state
+        %{state | dirty: false}
       end)
 
     {:reply, :ok, state}
@@ -289,7 +288,7 @@ defmodule Hex.Registry.Server do
       |> Enum.reject(&(&1 in state.fetched))
       |> Enum.reject(&(&1 in state.pending))
 
-    purge_repo_from_cache(packages, state)
+    state = purge_repo_from_cache(packages, state)
 
     if Hex.State.fetch!(:offline) do
       prefetch_offline(packages, state)
@@ -306,7 +305,7 @@ defmodule Hex.Registry.Server do
       |> Enum.reject(&(&1 in state.fetched_policies))
       |> Enum.reject(&(&1 in state.pending_policies))
 
-    purge_repo_from_cache(refs, state)
+    state = purge_repo_from_cache(refs, state)
 
     if Hex.State.fetch!(:offline) do
       prefetch_policies_offline(refs, state)
@@ -384,7 +383,7 @@ defmodule Hex.Registry.Server do
 
   def handle_call({:last_update, time}, _from, state) do
     :ets.insert(state.ets, {:last_update, time})
-    {:reply, :ok, state}
+    {:reply, :ok, %{state | dirty: true}}
   end
 
   def handle_info({:DOWN, _ref, :process, _pid, :normal}, state) do
@@ -398,13 +397,20 @@ defmodule Hex.Registry.Server do
     fetched = MapSet.put(state.fetched, repo_package)
     {replys, waiting} = Map.pop(state.waiting, repo_package, [])
 
-    write_result(result, repo, package, state)
+    written? = write_result(result, repo, package, state)
 
     Enum.each(replys, fn {from, fun} ->
       GenServer.reply(from, fun.())
     end)
 
-    state = %{state | pending: pending, waiting: waiting, fetched: fetched}
+    state = %{
+      state
+      | pending: pending,
+        waiting: waiting,
+        fetched: fetched,
+        dirty: state.dirty or written?
+    }
+
     state = maybe_run_pending(state)
     {:noreply, state}
   end
@@ -416,7 +422,7 @@ defmodule Hex.Registry.Server do
     fetched = MapSet.put(state.fetched_policies, ref)
     {replys, waiting} = Map.pop(state.waiting_policies, ref, [])
 
-    write_policy_result(result, repo, name, state)
+    written? = write_policy_result(result, repo, name, state)
 
     Enum.each(replys, fn {from, fun} ->
       GenServer.reply(from, fun.())
@@ -426,7 +432,8 @@ defmodule Hex.Registry.Server do
       state
       | pending_policies: pending,
         waiting_policies: waiting,
-        fetched_policies: fetched
+        fetched_policies: fetched,
+        dirty: state.dirty or written?
     }
 
     state = maybe_run_pending(state)
@@ -475,19 +482,21 @@ defmodule Hex.Registry.Server do
       )
   end
 
-  defp purge_repo_from_cache(packages, %{ets: ets}) do
-    Enum.each(packages, fn {repo, _package} ->
+  defp purge_repo_from_cache(packages, %{ets: ets} = state) do
+    Enum.reduce(packages, state, fn {repo, _package}, state ->
       repo = repo || "hexpm"
       config = Hex.Repo.get_repo(repo)
       url = config.url
 
       case :ets.lookup(ets, {:repo, repo}) do
-        [{_key, ^url}] -> :ok
-        [] -> :ok
-        _ -> purge_repo(repo, ets)
-      end
+        [{_key, ^url}] ->
+          state
 
-      :ets.insert(ets, {{:repo, repo}, url})
+        cached ->
+          if cached != [], do: purge_repo(repo, ets)
+          :ets.insert(ets, {{:repo, repo}, url})
+          %{state | dirty: true}
+      end
     end)
   end
 
@@ -640,15 +649,18 @@ defmodule Hex.Registry.Server do
     if etag = headers["etag"] do
       :ets.insert(tid, {{:registry_etag, repo, package}, etag})
     end
+
+    true
   end
 
   defp write_result({:ok, {304, _, _}}, _repo, _package, _state) do
-    :ok
+    false
   end
 
   defp write_result(other, repo, package, %{ets: tid}) do
     cached? = :ets.lookup(tid, {:versions, repo, package}) != []
     print_error(other, repo, package, cached?)
+    false
   end
 
   defp write_policy_result({:ok, {code, headers, decoded}}, repo, name, %{ets: tid})
@@ -658,15 +670,18 @@ defmodule Hex.Registry.Server do
     if etag = headers["etag"] do
       :ets.insert(tid, {{:policy_etag, repo, name}, etag})
     end
+
+    true
   end
 
   defp write_policy_result({:ok, {304, _, _}}, _repo, _name, _state) do
-    :ok
+    false
   end
 
   defp write_policy_result(other, repo, name, %{ets: tid}) do
     cached? = :ets.lookup(tid, {:policy, repo, name}) != []
     print_policy_error(other, repo, name, cached?)
+    false
   end
 
   defp print_policy_error(result, repo, name, cached?) do
