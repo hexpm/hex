@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.3.1 (2a24512), do not edit manually
+# Vendored from hex_solver v0.3.2 (510bdd5), do not edit manually
 
 defmodule Hex.Solver.PackageRange do
   @moduledoc false
