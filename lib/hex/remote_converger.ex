@@ -302,8 +302,8 @@ defmodule Hex.RemoteConverger do
     resolved = add_apps_to_resolved(resolved, requests)
     print_success(resolved, old_lock)
     verify_resolved(resolved, old_lock)
-    new_lock = Hex.Mix.to_lock(resolved)
-    merged_lock = lock_merge(lock, new_lock)
+    new_lock = Hex.Mix.to_lock(resolved, lock)
+    merged_lock = Map.merge(lock, new_lock)
     enforce_policy_on_lock(merged_lock)
     Hex.SCM.prefetch(new_lock)
 
@@ -319,8 +319,8 @@ defmodule Hex.RemoteConverger do
           |> Enum.sort(&(Version.compare(&1, &2) == :gt))
 
         with [latest_version | _] <- versions,
-             {:hex, _name, version, _checksum1, _managers, _, ^repo, _checksum2} <-
-               Map.fetch!(new_lock, String.to_atom(app)),
+             %{version: version, repo: ^repo} <-
+               Hex.Utils.lock(Map.fetch!(new_lock, String.to_atom(app))),
              :gt <- Version.compare(latest_version, version) do
           {name, latest_version}
         else
@@ -483,29 +483,6 @@ defmodule Hex.RemoteConverger do
     end)
   end
 
-  defp lock_merge(old, new) do
-    Map.merge(old, new, fn _key, old_tuple, new_tuple ->
-      if lock_tuple_needs_update?(old_tuple, new_tuple) do
-        new_tuple
-      else
-        old_tuple
-      end
-    end)
-  end
-
-  defp lock_tuple_needs_update?(old_tuple, new_tuple) do
-    old_info = Hex.Utils.lock(old_tuple)
-    new_info = Hex.Utils.lock(new_tuple)
-
-    not (old_info != nil and
-           new_info != nil and
-           old_info.name == new_info.name and
-           old_info.version == new_info.version and
-           old_info.inner_checksum == new_info.inner_checksum and
-           old_info.outer_checksum == new_info.outer_checksum and
-           old_info.repo == new_info.repo)
-  end
-
   def deps(%Mix.Dep{app: app}, lock) do
     case Hex.Utils.lock(lock[app]) do
       %{name: name, version: version, deps: nil, repo: repo} ->
@@ -661,7 +638,7 @@ defmodule Hex.RemoteConverger do
           retired = reported_retirement(candidate, policy, ignore_retirements)
 
           advisories =
-            (Registry.advisories(repo, name, version) || [])
+            candidate.advisories
             |> Enum.reject(&policy_accepts_finding?(policy, candidate, {:advisory, &1}))
             |> Hex.Ignores.reject_ignored_advisories(ignore_advisories)
 
