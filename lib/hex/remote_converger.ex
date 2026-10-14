@@ -43,9 +43,7 @@ defmodule Hex.RemoteConverger do
     end
 
     Registry.open()
-
-    {:ok, policy} = Hex.Policy.load()
-    Hex.State.put(:active_policy, policy)
+    policy_ref = Hex.Policy.configured_ref()
 
     # We cannot use given lock here, because all deps that are being
     # converged have been removed from the lock by Mix
@@ -67,7 +65,12 @@ defmodule Hex.RemoteConverger do
     organizations = user_oauth_organizations(prefetches)
     check_and_refresh_auth(organizations)
     check_organization_reauth(organizations)
+
+    # Queue the policy ahead of the packages so they are fetched together
+    if policy_ref, do: Registry.prefetch_policies([policy_ref])
     Registry.prefetch(prefetches)
+    {:ok, policy} = Hex.Policy.load(policy_ref)
+    Hex.State.put(:active_policy, policy)
 
     locked = prepare_locked(lock, old_lock, deps)
 
