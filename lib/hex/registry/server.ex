@@ -69,8 +69,22 @@ defmodule Hex.Registry.Server do
     end
   end
 
+  # Registries repeat the same few hundred requirements across thousands of
+  # releases, so keep the constraints parsed in this process. Unsatisfiable
+  # requirements aren't kept so they still warn for each release.
   def dependency_constraint(package, version, name, requirement) do
-    Hex.Solver.parse_constraint!(requirement || ">= 0.0.0")
+    requirement = requirement || ">= 0.0.0"
+    key = {__MODULE__, :constraint, requirement}
+
+    case Process.get(key) do
+      nil ->
+        constraint = Hex.Solver.parse_constraint!(requirement)
+        Process.put(key, constraint)
+        constraint
+
+      constraint ->
+        constraint
+    end
   rescue
     error in Hex.Solver.UnsatisfiableRequirementError ->
       warn_unsatisfiable(package, version, name, error)

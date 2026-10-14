@@ -33,6 +33,34 @@ defmodule Hex.Registry.ServerTest do
     refute_received {:mix_shell, :error, _}
   end
 
+  test "dependencies/3 warns about an unsatisfiable requirement in each release" do
+    :sys.replace_state(Registry, fn %{ets: tid, fetched: fetched} = state ->
+      for package <- ["parent", "other_parent"] do
+        :ets.insert(
+          tid,
+          {{:deps, "hexpm", package, "1.0.0"},
+           [
+             {"hexpm", "child", "child", "~> 1.0", false},
+             {"hexpm", "other_child", "other_child", "~> 1.0 and >= 2.0.0", false}
+           ]}
+        )
+      end
+
+      %{
+        state
+        | fetched:
+            MapSet.union(fetched, MapSet.new([{"hexpm", "parent"}, {"hexpm", "other_parent"}]))
+      }
+    end)
+
+    assert {:ok, [child, other_child]} = Registry.dependencies("hexpm", "parent", "1.0.0")
+    assert {:ok, [^child, ^other_child]} = Registry.dependencies("hexpm", "other_parent", "1.0.0")
+    assert other_child.constraint == %Hex.Solver.Constraints.Empty{}
+
+    assert_received {:mix_shell, :error, ["\e[33mPackage parent 1.0.0 can't be used" <> _]}
+    assert_received {:mix_shell, :error, ["\e[33mPackage other_parent 1.0.0 can't be used" <> _]}
+  end
+
   test "app_dependencies/3 accepts application names" do
     :sys.replace_state(Registry, fn %{ets: tid, fetched: fetched} = state ->
       :ets.insert(
