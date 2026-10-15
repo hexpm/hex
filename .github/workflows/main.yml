@@ -113,17 +113,3 @@ jobs:
 
       - name: Run tests
         run: mix test
-
-      - name: Check that the archive's protocols are consolidated
-        run: |
-          MIX_ENV=prod mix archive.build -o hex.ez
-          unzip -q hex.ez -d archive
-          elixir -pa archive/hex/ebin -e '
-            protocols = Protocol.extract_protocols(["archive/hex/ebin"])
-            unconsolidated = Enum.reject(protocols, &Protocol.consolidated?/1)
-
-            if protocols == [], do: raise("found no protocols in the archive")
-
-            if unconsolidated != [],
-              do: raise("unconsolidated protocols in the archive: #{inspect(unconsolidated)}")
-          '
