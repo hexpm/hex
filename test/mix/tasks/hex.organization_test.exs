@@ -122,13 +122,14 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
   test "deauth" do
     in_tmp(fn ->
       set_home_cwd()
-      auth = Hexpm.new_user("orgdeauth", "orgdeauth@mail.com", "password", "key")
-      Hex.State.put(:api_key, auth[:key])
+      auth = Hexpm.new_tfa_user("orgdeauth", "orgdeauth@mail.com", "password")
+      Hexpm.sign_in(auth)
       Hexpm.new_repo("myorgdeauth", auth)
 
       send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "password"})
       Mix.Tasks.Hex.Organization.run(["auth", "myorgdeauth"])
+      assert Hex.Config.read_repos(Hex.Config.read())["hexpm:myorgdeauth"]
 
       Mix.Tasks.Hex.Organization.run(["deauth", "myorgdeauth"])
       refute Hex.Config.read_repos(Hex.Config.read())["hexpm:myorgdeauth"]
