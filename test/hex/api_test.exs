@@ -69,10 +69,10 @@ defmodule Hex.APITest do
 
   test "keys" do
     permissions = [%{"domain" => "api"}]
-    auth = Hexpm.new_key("user", "keys_test")
+    sign_in = Hexpm.new_tfa_user("keys_user", "keys_user@mail.com", "hunter42")
 
-    assert {:ok, {201, _, %{"secret" => key_a}}} = Hex.API.Key.new("key_a", permissions, auth)
-    assert {:ok, {201, _, %{"secret" => key_b}}} = Hex.API.Key.new("key_b", permissions, auth)
+    assert {:ok, {201, _, %{"secret" => key_a}}} = Hex.API.Key.new("key_a", permissions, sign_in)
+    assert {:ok, {201, _, %{"secret" => key_b}}} = Hex.API.Key.new("key_b", permissions, sign_in)
     assert is_binary(key_a) and byte_size(key_a) > 0
     assert is_binary(key_b) and byte_size(key_b) > 0
     auth = [key: key_a]
@@ -88,9 +88,8 @@ defmodule Hex.APITest do
     assert {:ok, {401, _, _}} = Hex.API.Key.get(auth)
 
     # Delete all keys
-    auth = Hexpm.new_key("user", "keys_test")
-    assert {:ok, {201, _, %{"secret" => key_c}}} = Hex.API.Key.new("key_c", permissions, auth)
-    assert {:ok, {201, _, %{"secret" => key_d}}} = Hex.API.Key.new("key_d", permissions, auth)
+    assert {:ok, {201, _, %{"secret" => key_c}}} = Hex.API.Key.new("key_c", permissions, sign_in)
+    assert {:ok, {201, _, %{"secret" => key_d}}} = Hex.API.Key.new("key_d", permissions, sign_in)
     assert is_binary(key_c) and byte_size(key_c) > 0
     assert is_binary(key_d) and byte_size(key_d) > 0
     auth_c = [key: key_c]
