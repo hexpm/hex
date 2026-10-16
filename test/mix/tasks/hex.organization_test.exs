@@ -4,8 +4,8 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
   test "auth" do
     in_tmp(fn ->
       set_home_cwd()
-      auth = Hexpm.new_user("orgauth", "orgauth@mail.com", "password", "key")
-      Hex.State.put(:api_key, auth[:key])
+      auth = Hexpm.new_tfa_user("orgauth", "orgauth@mail.com", "password")
+      Hexpm.sign_in(auth)
       Hexpm.new_repo("myorgauth", auth)
 
       send(self(), {:mix_shell_input, :yes?, true})
@@ -30,10 +30,8 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       set_home_cwd()
 
-      auth =
-        Hexpm.new_user("orgauthwithkeyname", "orgauthwithkeyname@mail.com", "password", "key")
-
-      Hex.State.put(:api_key, auth[:key])
+      auth = Hexpm.new_tfa_user("orgauthwithkeyname", "orgauthwithkeyname@mail.com", "password")
+      Hexpm.sign_in(auth)
 
       Hexpm.new_repo("myorgauthwithkeyname", auth)
 
@@ -62,7 +60,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
   test "auth --key" do
     in_tmp(fn ->
       set_home_cwd()
-      auth = Hexpm.new_user("orgauthkey", "orgauthkey@mail.com", "password", "key")
+      auth = Hexpm.new_tfa_user("orgauthkey", "orgauthkey@mail.com", "password")
       Hexpm.new_repo("myorgauthkey", auth)
 
       parameters = [%{"domain" => "repository", "resource" => "myorgauthkey"}]
@@ -121,8 +119,8 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       set_home_cwd()
 
-      auth = Hexpm.new_user("orgkeygenuser", "orgkeygenuser@mail.com", "password", "key")
-      Hex.State.put(:api_key, auth[:key])
+      auth = Hexpm.new_tfa_user("orgkeygenuser", "orgkeygenuser@mail.com", "password")
+      Hexpm.sign_in(auth)
 
       Hexpm.new_repo("orgkeygenrepo", auth)
 
@@ -150,8 +148,8 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       set_home_cwd()
 
-      auth = Hexpm.new_user("orgkeylistuser", "orgkeylistuser@mail.com", "password", "key")
-      Hex.State.put(:api_key, auth[:key])
+      auth = Hexpm.new_tfa_user("orgkeylistuser", "orgkeylistuser@mail.com", "password")
+      Hexpm.sign_in(auth)
 
       Hexpm.new_repo("orgkeylistrepo", auth)
 
@@ -172,8 +170,8 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       set_home_cwd()
 
-      auth = Hexpm.new_user("orgkeyrevokeyuser", "orgkeyrevokeyuser@mail.com", "password", "key")
-      Hex.State.put(:api_key, auth[:key])
+      auth = Hexpm.new_tfa_user("orgkeyrevokeyuser", "orgkeyrevokeyuser@mail.com", "password")
+      Hexpm.sign_in(auth)
 
       Hexpm.new_repo("orgkeyrevokerepo", auth)
       Hexpm.new_organization_key("orgkeyrevokerepo", "orgkeyrevokerepo2", auth)
@@ -195,9 +193,9 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       set_home_cwd()
 
       auth =
-        Hexpm.new_user("orgkeyrevokealluser", "orgkeyrevokealluser@mail.com", "password", "key")
+        Hexpm.new_tfa_user("orgkeyrevokealluser", "orgkeyrevokealluser@mail.com", "password")
 
-      Hex.State.put(:api_key, auth[:key])
+      Hexpm.sign_in(auth)
 
       Hexpm.new_repo("orgkeyrevokeallrepo", auth)
       Hexpm.new_organization_key("orgkeyrevokeallrepo", "orgkeyrevokeallrepo2", auth)
