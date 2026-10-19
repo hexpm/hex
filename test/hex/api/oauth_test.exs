@@ -195,12 +195,14 @@ defmodule Hex.API.OAuthTest do
       assert is_binary(response["access_token"])
     end
 
+    # RFC 6749 section 5.2 answers invalid_client with a 400, or with a 401
+    # when the client authenticated with the Authorization header
     test "returns error for invalid API key" do
-      assert {:ok, {401, _headers, response}} =
+      assert {:ok, {status, _headers, response}} =
                Hex.API.OAuth.exchange_api_key("invalid_api_key", "api")
 
-      assert is_map(response)
-      assert Map.has_key?(response, "message") or Map.has_key?(response, "error")
+      assert status in [400, 401]
+      assert response["error"] == "invalid_client"
     end
 
     test "returns error for empty API key" do
@@ -209,8 +211,11 @@ defmodule Hex.API.OAuthTest do
     end
 
     test "handles malformed API key" do
-      assert {:ok, {401, _headers, _response}} =
+      assert {:ok, {status, _headers, response}} =
                Hex.API.OAuth.exchange_api_key("malformed-key", "api")
+
+      assert status in [400, 401]
+      assert response["error"] == "invalid_client"
     end
   end
 end
