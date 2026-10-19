@@ -115,7 +115,7 @@ defmodule Hex.Mix do
   @doc """
   Normalises a dependency definition to its 3-tuple form.
   """
-  @spec dep(tuple) :: {String.t(), String.t(), Keyword.t()}
+  @spec dep(tuple) :: {atom, String.t() | nil, Keyword.t()}
   def dep({app, opts}) when is_list(opts), do: {app, nil, opts}
   def dep({app, req}) when is_binary(req), do: {app, req, []}
   def dep({app, req, opts}), do: {app, req, opts}
