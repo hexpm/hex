@@ -34,6 +34,12 @@
 * Print the package version in the error raised when resolved Hex packages give the same dependency different OTP application names. Since Hex 0.21.3 the error showed a literal `{version}` instead
 * Resolve dependencies after compiling in the same command, such as `mix do compile + deps.get`, on Elixir 1.15 and later. Since Hex 2.4.1 this raised `UndefinedFunctionError` for `Hex.Stdlib.ensure_application!/1`
 
+## v2.5.4 (2026-10-20)
+
+### Security fixes
+
+* Stop trusting the emSign ECC Root CA - G3, emSign Root CA - C1 and emSign ECC Root CA - C3 root certificates, which Mozilla removed from its root store. The private keys of eight eMudhra intermediate CAs that chain to emSign ECC Root CA - G3 were compromised, so whoever holds them could impersonate the HTTPS servers Hex connects to ([eMudhra intermediate CA compromise](https://emudhra.we-have-a-problem.com))
+
 ## v2.5.3 (2026-10-14)
 
 ### Bug fixes
