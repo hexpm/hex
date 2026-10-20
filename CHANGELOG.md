@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v2.5.4 (2026-10-20)
+
+### Security fixes
+
+* Stop trusting the emSign ECC Root CA - G3, emSign Root CA - C1 and emSign ECC Root CA - C3 root certificates, which Mozilla removed from its root store. The private keys of eight eMudhra intermediate CAs that chain to emSign ECC Root CA - G3 were compromised, so whoever holds them could impersonate the HTTPS servers Hex connects to ([eMudhra intermediate CA compromise](https://emudhra.we-have-a-problem.com))
+
 ## v2.5.3 (2026-10-14)
 
 ### Bug fixes
