@@ -129,6 +129,7 @@ defmodule Hex.MixProject do
 
   @mk_ca_bundle_url "https://raw.githubusercontent.com/bagder/curl/master/scripts/mk-ca-bundle.pl"
   @mk_ca_bundle_cmd "mk-ca-bundle.pl"
+  @certdata_url "https://raw.githubusercontent.com/nss-dev/nss/refs/heads/master/lib/ckfw/builtins/certdata.txt"
   @ca_bundle "ca-bundle.crt"
   @ca_bundle_target Path.join("lib/hex/http", @ca_bundle)
 
@@ -136,7 +137,7 @@ defmodule Hex.MixProject do
     cmd("wget", [@mk_ca_bundle_url])
     File.chmod!(@mk_ca_bundle_cmd, 0o755)
 
-    cmd(Path.expand(@mk_ca_bundle_cmd), ["-u"])
+    cmd(Path.expand(@mk_ca_bundle_cmd), ["-u", "-d", @certdata_url])
 
     File.cp!(@ca_bundle, @ca_bundle_target)
     File.rm!(@ca_bundle)
