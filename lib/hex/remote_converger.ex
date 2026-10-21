@@ -35,14 +35,15 @@ defmodule Hex.RemoteConverger do
   end
 
   def converge(deps, lock) do
+    # Compiling prunes code paths, including the Hex archive's. Restore them
+    # through Mix because other Hex modules, such as Hex.Stdlib, may not be
+    # loaded yet. Elixir 1.15 added both pruning and Mix.ensure_application!/1.
     unless Code.ensure_loaded?(Hex.Mix) do
-      Hex.Stdlib.ensure_application!(:hex)
+      apply(Mix, :ensure_application!, [:hex])
     end
 
     Registry.open()
-
-    {:ok, policy} = Hex.Policy.load()
-    Hex.State.put(:active_policy, policy)
+    policy_ref = Hex.Policy.configured_ref()
 
     # We cannot use given lock here, because all deps that are being
     # converged have been removed from the lock by Mix
@@ -64,7 +65,12 @@ defmodule Hex.RemoteConverger do
     organizations = user_oauth_organizations(prefetches)
     check_and_refresh_auth(organizations)
     check_organization_reauth(organizations)
+
+    # Queue the policy ahead of the packages so they are fetched together
+    if policy_ref, do: Registry.prefetch_policies([policy_ref])
     Registry.prefetch(prefetches)
+    {:ok, policy} = Hex.Policy.load(policy_ref)
+    Hex.State.put(:active_policy, policy)
 
     locked = prepare_locked(lock, old_lock, deps)
 
@@ -107,7 +113,7 @@ defmodule Hex.RemoteConverger do
     case solution do
       {:ok, resolved} ->
         resolved = normalize_resolved(resolved)
-        print_cooldown_summary()
+        print_cooldown_summary(old_lock)
         print_policy_summary()
         solver_success(resolved, requests, lock, old_lock)
 
@@ -120,7 +126,7 @@ defmodule Hex.RemoteConverger do
           Hex.Shell.info("\n" <> note)
         end
 
-        print_cooldown_summary()
+        print_cooldown_summary(old_lock)
         # The failure note above already lists the hidden versions, so the
         # summary here contributes only the active-policy header.
         print_policy_summary(list_filtered: false)
@@ -177,11 +183,14 @@ defmodule Hex.RemoteConverger do
     #    cooldown. Matches the design's "cooldown does not apply when
     #    proceeding from the lockfile" promise.
     #
-    # 2. Packages in `old_lock` whose locked version is known-unsafe (retired
-    #    or carrying a security advisory): the user re-resolving is trying
-    #    to escape that version; cooldown must not block the escape. Walks
-    #    `old_lock` rather than `locked` because `mix deps.update foo` to
-    #    escape an unsafe foo removes foo from `locked`.
+    # 2. Packages in `old_lock` whose locked version carries a security
+    #    advisory: the user re-resolving is trying to escape that version;
+    #    cooldown must not block the escape. Walks `old_lock` rather than
+    #    `locked` because `mix deps.update foo` to escape an unsafe foo
+    #    removes foo from `locked`. Retirement doesn't lift the cooldown
+    #    because retiring a release takes the same package owner permission
+    #    as publishing one, so an attacker who publishes a release could
+    #    otherwise retire the locked release to get past the cooldown.
     #
     # 3. The currently-locked children of any package in (2): escaping an
     #    unsafe parent typically requires re-resolving its dependency
@@ -189,22 +198,24 @@ defmodule Hex.RemoteConverger do
     #    those children. Mirroring `mix deps.update`'s behavior of unlocking
     #    the children alongside the explicit target, we lift cooldown on the
     #    same set.
-    lock_satisfied = for %{name: name} <- locked, into: MapSet.new(), do: name
+    lock_satisfied = for %{repo: repo, name: name} <- locked, into: MapSet.new(), do: {repo, name}
+
     MapSet.union(lock_satisfied, unsafe_lock_bypass(old_lock))
   end
 
   @doc """
-  Set of package names whose cooldown should be lifted because the lock
-  currently points at an unsafe version of that package, plus the names
-  of that package's lock-children.
+  Set of `{repo, package}` pairs whose cooldown should be lifted because the
+  lock currently points at a version of that package with a security
+  advisory, plus that package's lock-children.
   """
   def unsafe_lock_bypass(lock) do
     Enum.reduce(lock, MapSet.new(), fn {_app, lock_entry}, acc ->
       case Hex.Utils.lock(lock_entry) do
         %{repo: repo, name: name, version: version, deps: deps} ->
-          if locked_version_unsafe?(repo || "hexpm", name, to_string(version)) do
-            children = for {_app, _req, opts} <- deps || [], do: opts[:hex]
-            acc |> MapSet.put(name) |> MapSet.union(MapSet.new(children))
+          if Registry.advisories(repo, name, to_string(version)) not in [nil, []] do
+            children = for {_app, _req, opts} <- deps || [], do: {opts[:repo], opts[:hex]}
+
+            acc |> MapSet.put({repo, name}) |> MapSet.union(MapSet.new(children))
           else
             acc
           end
@@ -215,19 +226,33 @@ defmodule Hex.RemoteConverger do
     end)
   end
 
-  defp locked_version_unsafe?(repo, name, version) do
-    Registry.retired(repo, name, version) != nil or
-      Registry.advisories(repo, name, version) not in [nil, []]
-  end
-
   @doc false
-  def print_cooldown_summary() do
+  def print_cooldown_summary(old_lock) do
     cutoff = Hex.State.fetch!(:cooldown_cutoff)
     entries = Hex.State.fetch!(:cooldown_filtered_versions)
+    retired_locks = retired_locks(old_lock, entries)
 
-    if summary = Hex.Cooldown.format_summary(entries, cutoff) do
+    if summary = Hex.Cooldown.format_summary(entries, cutoff, retired_locks) do
       Hex.Shell.info(summary)
     end
+  end
+
+  # Retired locked releases of the packages that had versions filtered by the
+  # cooldown. Retirements acknowledged with ignore_retirements or accepted by
+  # the policy are left out, as they are in the dependency listing.
+  defp retired_locks(old_lock, entries) do
+    filtered =
+      MapSet.new(entries, fn {repo, package, _version, _published_at} -> {repo, package} end)
+
+    policy = Hex.State.fetch!(:active_policy)
+    ignore_retirements = Hex.State.fetch!(:ignore_retirements)
+
+    for %{repo: repo, name: name, app: app, version: version} <- Hex.Mix.from_lock(old_lock),
+        MapSet.member?(filtered, {repo, name}),
+        candidate = Hex.Policy.Filter.candidate_from_registry(repo, name, version),
+        reported_retirement(candidate, policy, ignore_retirements),
+        into: %{},
+        do: {{repo, name}, {app, version}}
   end
 
   defp request_to_dependency(request) do
@@ -280,8 +305,8 @@ defmodule Hex.RemoteConverger do
     resolved = add_apps_to_resolved(resolved, requests)
     print_success(resolved, old_lock)
     verify_resolved(resolved, old_lock)
-    new_lock = Hex.Mix.to_lock(resolved)
-    merged_lock = lock_merge(lock, new_lock)
+    new_lock = Hex.Mix.to_lock(resolved, lock)
+    merged_lock = Map.merge(lock, new_lock)
     enforce_policy_on_lock(merged_lock)
     Hex.SCM.prefetch(new_lock)
 
@@ -297,8 +322,8 @@ defmodule Hex.RemoteConverger do
           |> Enum.sort(&(Version.compare(&1, &2) == :gt))
 
         with [latest_version | _] <- versions,
-             {:hex, _name, version, _checksum1, _managers, _, ^repo, _checksum2} <-
-               Map.fetch!(new_lock, String.to_atom(app)),
+             %{version: version, repo: ^repo} <-
+               Hex.Utils.lock(Map.fetch!(new_lock, String.to_atom(app))),
              :gt <- Version.compare(latest_version, version) do
           {name, latest_version}
         else
@@ -370,32 +395,18 @@ defmodule Hex.RemoteConverger do
   end
 
   defp add_apps_to_resolved(resolved, requests) do
+    dependencies =
+      for {repo, package, version} <- resolved,
+          {:ok, deps} <- [Registry.app_dependencies(repo, package, version)],
+          do: {repo, package, deps}
+
+    dependents = dependents(dependencies)
+    root_apps = root_apps(requests, %{})
+
     resolved =
       Enum.map(resolved, fn {repo, package, version} ->
-        apps =
-          Enum.flat_map(resolved, fn {parent_repo, parent_package, parent_version} ->
-            repo = if repo != "hexpm", do: repo
-
-            deps =
-              case Registry.dependencies(parent_repo, parent_package, parent_version) do
-                {:ok, deps} -> deps
-                :error -> []
-              end
-
-            app =
-              Enum.find_value(deps, fn
-                %{repo: ^repo, name: ^package, label: app} -> app
-                %{} -> nil
-              end)
-
-            if app do
-              [{parent_repo, parent_package, app}]
-            else
-              []
-            end
-          end)
-
-        root_app = find_root_app_in_requests(requests, repo, package)
+        apps = Map.get(dependents, {if(repo != "hexpm", do: repo), package}, [])
+        root_app = Map.get(root_apps, {repo, package})
         apps = Enum.uniq_by(List.wrap(root_app) ++ apps, fn {_repo, _package, app} -> app end)
 
         case apps do
@@ -407,7 +418,7 @@ defmodule Hex.RemoteConverger do
 
             header =
               "Conflicting OTP application names in dependency definition of " <>
-                "\"#{name} {version}\", in the following packages:\n\n"
+                "\"#{name} #{version}\", in the following packages:\n\n"
 
             list =
               Enum.map_join(apps, "\n", fn {parent_repo, parent_package, app} ->
@@ -415,16 +426,14 @@ defmodule Hex.RemoteConverger do
                 "  * #{name} defined application :#{app}"
               end)
 
-            Mix.raise(header <> list)
+            Mix.raise(Hex.Utils.escape_terminal(header <> list))
         end
       end)
 
+    by_app = Enum.group_by(resolved, fn {_repo, _package, app, _version} -> app end)
+
     Enum.each(resolved, fn {_repo, _package, app, _version} ->
-      conflicting =
-        Enum.filter(resolved, fn
-          {_repo, _package, ^app, _version} -> true
-          {_repo, _package, _app, _version} -> false
-        end)
+      conflicting = Map.fetch!(by_app, app)
 
       unless length(conflicting) == 1 do
         header =
@@ -436,18 +445,37 @@ defmodule Hex.RemoteConverger do
             "  * #{name} #{version}"
           end)
 
-        Mix.raise(header <> list)
+        Mix.raise(Hex.Utils.escape_terminal(header <> list))
       end
     end)
 
     resolved
   end
 
-  defp find_root_app_in_requests(requests, repo, package) do
-    Enum.find_value(requests, fn
-      %{repo: ^repo, name: ^package, app: app} -> {"hexpm", "myapp", app}
-      %{dependencies: dependencies} -> find_root_app_in_requests(dependencies, repo, package)
-      %{} -> nil
+  # The packages that depend on each package, with the application name they
+  # give it, in the order of the parents. A parent that declares a package
+  # more than once gives it the application name of its first declaration.
+  defp dependents(dependencies) do
+    dependencies
+    |> Enum.reverse()
+    |> Enum.reduce(%{}, fn {parent_repo, parent_package, deps}, dependents ->
+      deps
+      |> Enum.uniq_by(&{&1.repo, &1.name})
+      |> Enum.reduce(dependents, fn %{repo: repo, name: name, label: app}, dependents ->
+        dependent = {parent_repo, parent_package, app}
+        Map.update(dependents, {repo, name}, [dependent], &[dependent | &1])
+      end)
+    end)
+  end
+
+  # The application name the project gives each package, from the first
+  # request for it in depth-first order
+  defp root_apps(requests, root_apps) do
+    Enum.reduce(requests, root_apps, fn request, root_apps ->
+      root_apps =
+        Map.put_new(root_apps, {request.repo, request.name}, {"hexpm", "myapp", request.app})
+
+      root_apps(request.dependencies, root_apps)
     end)
   end
 
@@ -456,29 +484,6 @@ defmodule Hex.RemoteConverger do
       %{repo: repo, name: package, dependencies: []} -> [{repo, package}]
       %{dependencies: dependencies} -> packages_from_requests(dependencies)
     end)
-  end
-
-  defp lock_merge(old, new) do
-    Map.merge(old, new, fn _key, old_tuple, new_tuple ->
-      if lock_tuple_needs_update?(old_tuple, new_tuple) do
-        new_tuple
-      else
-        old_tuple
-      end
-    end)
-  end
-
-  defp lock_tuple_needs_update?(old_tuple, new_tuple) do
-    old_info = Hex.Utils.lock(old_tuple)
-    new_info = Hex.Utils.lock(new_tuple)
-
-    not (old_info != nil and
-           new_info != nil and
-           old_info.name == new_info.name and
-           old_info.version == new_info.version and
-           old_info.inner_checksum == new_info.inner_checksum and
-           old_info.outer_checksum == new_info.outer_checksum and
-           old_info.repo == new_info.repo)
   end
 
   def deps(%Mix.Dep{app: app}, lock) do
@@ -498,7 +503,7 @@ defmodule Hex.RemoteConverger do
 
   defp get_deps(repo, name, version) do
     deps =
-      case Registry.dependencies(repo, name, version) do
+      case Registry.app_dependencies(repo, name, version) do
         {:ok, deps} -> deps
         :error -> []
       end
@@ -633,22 +638,10 @@ defmodule Hex.RemoteConverger do
         Enum.map(deps, fn {name, repo, _prev, version, _warning} = dep ->
           candidate = Hex.Policy.Filter.candidate_from_registry(repo, name, version)
 
-          retired =
-            case Registry.retired(repo, name, version) do
-              %{} = retired ->
-                if policy_accepts_finding?(policy, candidate, {:retirement, retired}) or
-                     Hex.Ignores.retirement_ignored?(name, version, ignore_retirements) do
-                  nil
-                else
-                  retired
-                end
-
-              nil ->
-                nil
-            end
+          retired = reported_retirement(candidate, policy, ignore_retirements)
 
           advisories =
-            (Registry.advisories(repo, name, version) || [])
+            candidate.advisories
             |> Enum.reject(&policy_accepts_finding?(policy, candidate, {:advisory, &1}))
             |> Hex.Ignores.reject_ignored_advisories(ignore_advisories)
 
@@ -657,6 +650,19 @@ defmodule Hex.RemoteConverger do
 
       {mod, annotated}
     end)
+  end
+
+  defp reported_retirement(%{retired: nil}, _policy, _ignore_retirements), do: nil
+
+  defp reported_retirement(candidate, policy, ignore_retirements) do
+    %{package: name, version: version, retired: retired} = candidate
+
+    if policy_accepts_finding?(policy, candidate, {:retirement, retired}) or
+         Hex.Ignores.retirement_ignored?(name, version, ignore_retirements) do
+      nil
+    else
+      retired
+    end
   end
 
   # Unchanged dependencies are only listed when they are retired or have advisories
@@ -692,8 +698,9 @@ defmodule Hex.RemoteConverger do
 
       change = categorize_dependency_change(previous_version, version)
       warning = warning_message(previous_version, version)
-      Map.put(acc, change, acc[change] ++ [{name, repo, previous_version, version, warning}])
+      Map.update!(acc, change, &[{name, repo, previous_version, version, warning} | &1])
     end)
+    |> Map.new(fn {change, changes} -> {change, Enum.reverse(changes)} end)
   end
 
   defp dep_info_from_lock(lock) do
@@ -747,7 +754,9 @@ defmodule Hex.RemoteConverger do
   end
 
   defp print_status(retired, advisories, mod, name, previous_version, version, warning) do
-    version_str = version_string(mod, name, previous_version, version)
+    version_str =
+      version_string(mod, name, previous_version, version) |> Hex.Utils.escape_terminal()
+
     retired_tag = if retired, do: [:yellow, " RETIRED!", :reset], else: []
     vulnerable_tag = if advisories != [], do: [:red, " VULNERABLE!", :reset], else: []
     warning_tag = if warning, do: [:red, warning, :reset], else: []
@@ -868,7 +877,7 @@ defmodule Hex.RemoteConverger do
       end)
 
     registry_deps =
-      case Registry.dependencies(repo, name, version) do
+      case Registry.app_dependencies(repo, name, version) do
         {:ok, deps} -> deps
         :error -> []
       end
@@ -906,34 +915,37 @@ defmodule Hex.RemoteConverger do
     end
   end
 
+  # The apps and every app they depend on in the lock, visiting each app once
   defp with_children(apps, lock) do
-    [apps, do_with_children(apps, lock)]
-    |> List.flatten()
+    Enum.reduce(apps, MapSet.new(), &add_with_children(&1, &2, lock))
   end
 
-  defp do_with_children(names, lock) do
-    Enum.map(names, fn name ->
-      case Hex.Utils.lock(lock[String.to_atom(name)]) do
-        %{name: name, version: version, deps: nil, repo: repo} ->
-          # Do not error on bad data in the old lock because we should just
-          # fix it automatically
-          case Registry.dependencies(repo, name, version) do
-            {:ok, deps} ->
-              apps = Enum.map(deps, fn %{label: app} -> app end)
-              [apps, do_with_children(apps, lock)]
+  defp add_with_children(app, apps, lock) do
+    if MapSet.member?(apps, app) do
+      apps
+    else
+      app
+      |> lock_children(lock)
+      |> Enum.reduce(MapSet.put(apps, app), &add_with_children(&1, &2, lock))
+    end
+  end
 
-            :error ->
-              []
-          end
+  defp lock_children(app, lock) do
+    case Hex.Utils.lock(lock[String.to_atom(app)]) do
+      %{name: name, version: version, deps: nil, repo: repo} ->
+        # Do not error on bad data in the old lock because we should just
+        # fix it automatically
+        case Registry.app_dependencies(repo, name, version) do
+          {:ok, deps} -> Enum.map(deps, fn %{label: app} -> app end)
+          :error -> []
+        end
 
-        %{deps: deps} ->
-          apps = Enum.map(deps, &Atom.to_string(elem(&1, 0)))
-          [apps, do_with_children(apps, lock)]
+      %{deps: deps} ->
+        Enum.map(deps, &Atom.to_string(elem(&1, 0)))
 
-        nil ->
-          []
-      end
-    end)
+      nil ->
+        []
+    end
   end
 
   defp prepare_locked(lock, old_lock, deps) do
@@ -947,15 +959,11 @@ defmodule Hex.RemoteConverger do
           not Map.has_key?(lock, app),
           do: Atom.to_string(app)
 
-    unlock =
-      (unlock_deps(deps, old_lock) ++ unlock_without_children)
-      |> Enum.uniq()
-      |> with_children(old_lock)
-      |> Enum.uniq()
+    unlock = with_children(unlock_deps(deps, old_lock) ++ unlock_without_children, old_lock)
 
     old_lock
     |> Hex.Mix.from_lock()
-    |> Enum.reject(fn %{app: app} -> app in unlock end)
+    |> Enum.reject(fn %{app: app} -> MapSet.member?(unlock, app) end)
   end
 
   defp unlock_deps(deps, old_lock) do
@@ -996,37 +1004,50 @@ defmodule Hex.RemoteConverger do
   # ahead of use the session; an API key would resolve here and leave the
   # session to be refreshed mid-fetch, past the point where anything can be
   # asked.
+  #
+  # Without a session, a CI job that can authenticate with a workload identity
+  # fetches with that instead, so there is nothing to ask for. It is exchanged
+  # here so the output says once that the job authenticated with it.
   @doc false
   def check_and_refresh_auth([]), do: :ok
 
-  def check_and_refresh_auth(_organizations) do
-    if Hex.State.fetch!(:offline) do
-      :ok
-    else
-      config = Hex.API.Client.config([])
+  def check_and_refresh_auth(organizations) do
+    cond do
+      Hex.State.fetch!(:offline) ->
+        :ok
 
-      case Hex.Auth.with_session_api(:read, config, fn _config -> :ok end, auth_inline: true) do
-        :ok ->
-          :ok
+      not Hex.OAuth.has_tokens?() and Hex.WorkloadIdentity.available?() ->
+        Hex.WorkloadIdentity.repository_auth(organizations)
 
-        {:error, {:auth_error, :auth_declined}} ->
-          Hex.Shell.warn(
-            "Private packages will not be available. " <>
-              "Run `mix hex.user auth` to authenticate."
-          )
+      true ->
+        check_and_refresh_session()
+    end
+  end
 
-        {:error, {:auth_error, :token_refresh_unavailable}} ->
-          Hex.Shell.warn(
-            "Could not reach Hex to renew your authentication. " <>
-              "Private packages will not be available."
-          )
+  defp check_and_refresh_session do
+    config = Hex.API.Client.config([])
 
-        {:error, _reason} ->
-          Hex.Shell.warn(
-            "Authentication failed. Private packages will not be available. " <>
-              "Run `mix hex.user auth` to authenticate."
-          )
-      end
+    case Hex.Auth.with_session_api(:read, config, fn _config -> :ok end, auth_inline: true) do
+      :ok ->
+        :ok
+
+      {:error, {:auth_error, :auth_declined}} ->
+        Hex.Shell.warn(
+          "Private packages will not be available. " <>
+            "Run `mix hex.user auth` to authenticate."
+        )
+
+      {:error, {:auth_error, :token_refresh_unavailable}} ->
+        Hex.Shell.warn(
+          "Could not reach Hex to renew your authentication. " <>
+            "Private packages will not be available."
+        )
+
+      {:error, _reason} ->
+        Hex.Shell.warn(
+          "Authentication failed. Private packages will not be available. " <>
+            "Run `mix hex.user auth` to authenticate."
+        )
     end
   end
 

@@ -212,6 +212,20 @@ defmodule Hex.MixTaskTest do
     end
   end
 
+  defmodule WithConflictingDependNames do
+    def project do
+      [
+        app: :with_conflicting_depend_names,
+        version: "0.1.0",
+        consolidate_protocols: false,
+        deps: [
+          {:depend_name, ">= 0.0.0"},
+          {:depend_other_name, ">= 0.0.0"}
+        ]
+      ]
+    end
+  end
+
   defmodule WithIncorrectDepVersion do
     def project do
       [
@@ -373,6 +387,148 @@ defmodule Hex.MixTaskTest do
       assert_received {:mix_shell, :info, ["* ex_doc 0.0.1 (Hex package)" <> _]}
       assert_received {:mix_shell, :info, ["  locked at 0.0.1 (ex_doc)" <> _]}
       assert_received {:mix_shell, :info, ["  ok"]}
+    end)
+  after
+    purge([
+      Ecto.NoConflict.MixProject,
+      Postgrex.NoConflict.MixProject,
+      Ex_doc.NoConflict.MixProject
+    ])
+  end
+
+  test "deps.get leaves no staging directories" do
+    Mix.Project.push(Simple)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+      Mix.Task.run("deps.get")
+
+      assert File.exists?("deps/ecto/.hex")
+      assert File.exists?("deps/postgrex/.hex")
+      assert File.exists?("deps/ex_doc/.hex")
+      assert Path.wildcard("deps/.*.hex-staging", match_dot: true) == []
+    end)
+  after
+    purge([
+      Ecto.NoConflict.MixProject,
+      Postgrex.NoConflict.MixProject,
+      Ex_doc.NoConflict.MixProject
+    ])
+  end
+
+  test "deps.get keeps the dependency directory when the checksums don't match" do
+    Mix.Project.push(Simple)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+      Mix.Task.run("deps.get")
+
+      lock = Mix.Dep.Lock.read()
+      %{version: version} = Hex.Utils.lock(lock[:postgrex])
+      File.rm!("deps/postgrex/.hex")
+      File.write!("deps/postgrex/marker", "")
+
+      Hex.SCM.prefetch(Map.take(lock, [:postgrex]))
+
+      :sys.replace_state(Hex.Registry.Server, fn state ->
+        :ets.insert(state.ets, {{:inner_checksum, "hexpm", "postgrex", version}, <<0::256>>})
+        state
+      end)
+
+      assert_raise RuntimeError, "Checksum mismatch against registry (inner)", fn ->
+        Hex.SCM.update(hex: "postgrex", dest: Path.expand("deps/postgrex"), lock: lock[:postgrex])
+      end
+
+      assert File.exists?("deps/postgrex/marker")
+      assert Path.wildcard("deps/.*.hex-staging", match_dot: true) == []
+    end)
+  after
+    purge([
+      Ecto.NoConflict.MixProject,
+      Postgrex.NoConflict.MixProject,
+      Ex_doc.NoConflict.MixProject
+    ])
+  end
+
+  test "deps.get rejects a dependency application name outside deps/" do
+    Mix.Project.push(Simple)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+      File.mkdir_p!("escape")
+      File.write!("escape/marker", "")
+
+      Hex.Registry.Server.open()
+      Hex.Registry.Server.prefetch([{"hexpm", "ecto"}])
+      {:ok, _versions} = Hex.Registry.Server.versions("hexpm", "ecto")
+
+      :sys.replace_state(Hex.Registry.Server, fn state ->
+        :ets.insert(
+          state.ets,
+          {{:deps, "hexpm", "ecto", "0.2.0"},
+           [
+             {"hexpm", "postgrex", "../escape", "~> 0.2.0", false},
+             {"hexpm", "ex_doc", "ex_doc", "~> 0.0.1", false}
+           ]}
+        )
+
+        state
+      end)
+
+      assert_raise Mix.Error, "Hex dependency resolution failed", fn ->
+        Mix.Task.run("deps.get")
+      end
+
+      assert_received {:mix_shell, :error,
+                       [
+                         "\e[33mPackage ecto 0.2.0 can't be used because its dependency " <>
+                           "postgrex has the invalid application name \"../escape\"" <> _
+                       ]}
+
+      assert File.ls!("escape") == ["marker"]
+      refute File.exists?(".escape.hex-staging")
+      refute File.exists?("mix.lock")
+    end)
+  after
+    purge([
+      Ecto.NoConflict.MixProject,
+      Postgrex.NoConflict.MixProject,
+      Ex_doc.NoConflict.MixProject
+    ])
+  end
+
+  test "deps.get keeps the dependency directory when the cached package can't be unpacked" do
+    Mix.Project.push(Simple)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+      Mix.Task.run("deps.get")
+
+      lock = Mix.Dep.Lock.read()
+      %{version: version} = Hex.Utils.lock(lock[:postgrex])
+      File.rm!("deps/postgrex/.hex")
+      File.write!("deps/postgrex/marker", "")
+
+      cache_path = Hex.SCM.cache_path("hexpm", "postgrex", version)
+      File.write!(cache_path, "not a tarball")
+      Hex.State.put(:offline, true)
+
+      # Only a cached package that matches the registry is unpacked
+      :sys.replace_state(Hex.Registry.Server, fn state ->
+        checksum = :crypto.hash(:sha256, "not a tarball")
+        :ets.insert(state.ets, {{:outer_checksum, "hexpm", "postgrex", version}, checksum})
+        state
+      end)
+
+      Hex.SCM.prefetch(Map.take(lock, [:postgrex]))
+
+      assert_raise Mix.Error, ~r"Unpacking tarball failed", fn ->
+        Hex.SCM.update(hex: "postgrex", dest: Path.expand("deps/postgrex"), lock: lock[:postgrex])
+      end
+
+      assert File.exists?("deps/postgrex/marker")
+      refute File.exists?(cache_path)
+      assert Path.wildcard("deps/.*.hex-staging", match_dot: true) == []
     end)
   after
     purge([
@@ -725,6 +881,23 @@ defmodule Hex.MixTaskTest do
     end)
   after
     purge([Ecto.Fixture.MixProject, Postgrex.NoConflict.MixProject, Ex_doc.NoConflict.MixProject])
+  end
+
+  test "hex dependencies define conflicting app names for the same package" do
+    Mix.Project.push(WithConflictingDependNames)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+
+      message = """
+      Conflicting OTP application names in dependency definition of "package_name 0.1.0", in the following packages:
+
+        * depend_name defined application :app_name
+        * depend_other_name defined application :other_name\
+      """
+
+      assert_raise Mix.Error, message, fn -> Mix.Task.run("deps.get") end
+    end)
   end
 
   test "do not fetch git children of hex dependencies" do
@@ -1240,20 +1413,61 @@ defmodule Hex.MixTaskTest do
       end
     end
 
-    test "retired locked version escapes cooldown via bypass on deps.update" do
+    test "locked version with an advisory escapes cooldown via bypass on deps.update" do
       # setup_hexpm.exs publishes the `tired` package with versions 0.1.0
-      # (retired) and 0.2.0. Both were published in the test session, so a
-      # 1-day cooldown filters BOTH from the candidate set. Without the
-      # unsafe-locked-version bypass, `mix deps.update tired` would fail
-      # resolution because every matching version is in cooldown. The
-      # bypass detects the locked 0.1.0 is retired and lets the resolver
-      # see the full set, so it picks 0.2.0.
+      # and 0.2.0. Both were published in the test session, so a 1-day
+      # cooldown filters BOTH from the candidate set. Without the
+      # unsafe-locked-version bypass, `mix deps.update tired` would keep the
+      # locked 0.1.0 because every newer version is in cooldown. The bypass
+      # detects the locked 0.1.0 has an advisory and lets the resolver see
+      # the full set, so it picks 0.2.0.
       Mix.Project.push(TiredPin)
 
       in_tmp(fn ->
         Hex.State.put(:cache_home, File.cwd!())
 
-        # Lock at the retired 0.1.0 — cooldown off so this resolves cleanly.
+        # Lock at 0.1.0 — cooldown off so this resolves cleanly.
+        Mix.Task.run("deps.get")
+        assert %{tired: {:hex, :tired, "0.1.0", _, _, _, _, _}} = Mix.Dep.Lock.read()
+
+        :sys.replace_state(Hex.Registry.Server, fn state ->
+          :ets.insert(
+            state.ets,
+            {{:advisories, "hexpm", "tired", "0.1.0"},
+             [%{id: "GHSA-test-aaaa-bbbb", summary: "test", severity: :SEVERITY_HIGH}]}
+          )
+
+          state
+        end)
+
+        purge([Tired.NoConflict.MixProject])
+        Mix.State.clear_cache()
+        Mix.Project.pop()
+        Mix.Project.push(TiredRange)
+        Mix.Task.clear()
+
+        # Now turn on cooldown that would filter every version of tired —
+        # only the advisory bypass can let the upgrade succeed.
+        Hex.State.put(:cooldown, "1d")
+
+        Mix.Task.run("deps.update", ["tired"])
+
+        assert %{tired: {:hex, :tired, "0.2.0", _, _, _, _, _}} = Mix.Dep.Lock.read()
+      end)
+    after
+      Hex.State.put(:cooldown, "0d")
+      purge([Tired.NoConflict.MixProject])
+    end
+
+    test "retired locked version doesn't escape cooldown on deps.update" do
+      # tired 0.1.0 is retired in setup_hexpm.exs. Retiring a release takes
+      # the same permission as publishing one, so retirement must not let a
+      # release that is still in cooldown replace the locked version.
+      Mix.Project.push(TiredPin)
+
+      in_tmp(fn ->
+        Hex.State.put(:cache_home, File.cwd!())
+
         Mix.Task.run("deps.get")
         assert %{tired: {:hex, :tired, "0.1.0", _, _, _, _, _}} = Mix.Dep.Lock.read()
 
@@ -1263,13 +1477,18 @@ defmodule Hex.MixTaskTest do
         Mix.Project.push(TiredRange)
         Mix.Task.clear()
 
-        # Now turn on cooldown that would filter every version of tired —
-        # only the retirement bypass can let the upgrade succeed.
         Hex.State.put(:cooldown, "1d")
 
         Mix.Task.run("deps.update", ["tired"])
 
-        assert %{tired: {:hex, :tired, "0.2.0", _, _, _, _, _}} = Mix.Dep.Lock.read()
+        assert %{tired: {:hex, :tired, "0.1.0", _, _, _, _, _}} = Mix.Dep.Lock.read()
+
+        summary = drain_shell_info_matching("Versions filtered by cooldown:")
+        assert summary =~ "tired 0.2.0"
+
+        assert summary =~
+                 "Locked version 0.1.0 is retired. To update without the cooldown, " <>
+                   "run `HEX_COOLDOWN=0 mix deps.update tired`"
       end)
     after
       Hex.State.put(:cooldown, "0d")

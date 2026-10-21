@@ -27,11 +27,13 @@ filenames="hex_api_auth.erl \
            hex_cli_auth.erl \
            hex_core.hrl \
            hex_core.erl \
+           hex_deflate.erl \
            hex_erl_tar.erl \
            hex_erl_tar.hrl \
            hex_http.erl \
            hex_http_httpc.erl \
            hex_licenses.erl \
+           hex_oidc.erl \
            hex_pb_names.erl \
            hex_pb_package.erl \
            hex_pb_policy.erl \
@@ -46,9 +48,11 @@ filenames="hex_api_auth.erl \
 search_to_replace="hex_core: \
                    hex_core) \
                    hex_core.hrl \
+                   hex_deflate \
                    hex_erl_tar \
                    hex_filename \
                    hex_licenses \
+                   hex_oidc \
                    hex_pb_names \
                    hex_pb_package \
                    hex_pb_policy \

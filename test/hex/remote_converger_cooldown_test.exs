@@ -12,7 +12,9 @@ defmodule Hex.RemoteConvergerCooldownTest do
       {:hexpm, :retired_dep, "1.0.0", []},
       {:hexpm, :retired_dep, "2.0.0", []},
       {:hexpm, :advised_dep, "1.0.0", []},
-      {:hexpm, :advised_dep, "2.0.0", []}
+      {:hexpm, :advised_dep, "2.0.0", []},
+      {:"hexpm:myorg", :advised_dep, "1.0.0", []},
+      {:"hexpm:myorg", :advised_dep, "2.0.0", []}
     ]
 
     retired = %{
@@ -24,17 +26,33 @@ defmodule Hex.RemoteConvergerCooldownTest do
     # a list; non-empty means the version is known-unsafe.
     advisories = [
       {{"hexpm", "advised_dep", "1.0.0"},
-       [%{id: "GHSA-test-aaaa-bbbb", summary: "test", severity: :SEVERITY_HIGH}]}
+       [%{id: "GHSA-test-aaaa-bbbb", summary: "test", severity: :SEVERITY_HIGH}]},
+      {{"hexpm:myorg", "advised_dep", "1.0.0"},
+       [%{id: "GHSA-test-cccc-dddd", summary: "test", severity: :SEVERITY_HIGH}]}
     ]
+
+    # The 2.0.0 releases are inside the 7-day cooldown, so the wrapper only
+    # returns them when the package is bypassed.
+    publish_times = %{
+      {:hexpm, :retired_dep, "2.0.0"} => System.system_time(:second) - 86_400,
+      {:hexpm, :advised_dep, "2.0.0"} => System.system_time(:second) - 86_400,
+      {:"hexpm:myorg", :advised_dep, "2.0.0"} => System.system_time(:second) - 86_400
+    }
 
     path = tmp_path("cache_bypass.ets")
     File.rm(path)
-    create_test_registry(path, registry, advisories, %{}, retired)
+    create_test_registry(path, registry, advisories, publish_times, retired)
 
     Server.close()
     Hex.State.put(:offline, true)
     Server.open(registry_path: path)
-    Server.prefetch([{"hexpm", "good"}, {"hexpm", "retired_dep"}, {"hexpm", "advised_dep"}])
+
+    Server.prefetch([
+      {"hexpm", "good"},
+      {"hexpm", "retired_dep"},
+      {"hexpm", "advised_dep"},
+      {"hexpm:myorg", "advised_dep"}
+    ])
 
     :ok
   end
@@ -58,6 +76,23 @@ defmodule Hex.RemoteConvergerCooldownTest do
 
   @cutoff {:cutoff, System.system_time(:second) - 7 * 86_400, 7 * 86_400}
 
+  # Puts the cooldown state RemoteConverger.converge/2 sets up before resolving.
+  defp put_cooldown_state(old_lock) do
+    Hex.State.put(:cooldown_cutoff, @cutoff)
+
+    Hex.State.put(
+      :cooldown_bypass_packages,
+      RemoteConverger.build_cooldown_bypass(old_lock, [], @cutoff)
+    )
+
+    Hex.State.put(
+      :cooldown_locked_versions,
+      RemoteConverger.build_cooldown_locked_versions(old_lock)
+    )
+
+    Hex.State.put(:cooldown_filtered_versions, [])
+  end
+
   describe "build_cooldown_bypass/3 — disabled" do
     test "returns empty set when cutoff is :disabled" do
       old_lock = %{retired_dep: lock_tuple("retired_dep", "1.0.0")}
@@ -66,33 +101,47 @@ defmodule Hex.RemoteConvergerCooldownTest do
   end
 
   describe "build_cooldown_bypass/3 — unsafe-locked-version bypass" do
-    test "includes packages whose locked version is retired" do
+    test "excludes packages whose locked version is retired" do
+      # Retiring a release takes the same package owner permission as
+      # publishing one, so retirement can't lift the cooldown.
       old_lock = %{
         retired_dep: lock_tuple("retired_dep", "1.0.0"),
         good: lock_tuple("good", "1.0.0")
       }
 
-      bypass = RemoteConverger.build_cooldown_bypass(old_lock, [], @cutoff)
-
-      assert MapSet.member?(bypass, "retired_dep")
-      refute MapSet.member?(bypass, "good")
+      assert MapSet.new() == RemoteConverger.build_cooldown_bypass(old_lock, [], @cutoff)
     end
 
-    test "regression: unsafe-bypass walks old_lock so updates can escape retirement" do
+    test "regression: unsafe-bypass walks old_lock so updates can escape an advisory" do
       # Guards against the bug where the bypass was built from the post-
       # prepare_locked value, which removes the package being `mix deps.update`d
       # — exactly the package that needs bypass.
-      old_lock = %{retired_dep: lock_tuple("retired_dep", "1.0.0")}
+      old_lock = %{advised_dep: lock_tuple("advised_dep", "1.0.0")}
       # locked is empty because deps.update unlocked the package
       bypass = RemoteConverger.build_cooldown_bypass(old_lock, [], @cutoff)
 
-      assert MapSet.member?(bypass, "retired_dep")
+      assert MapSet.member?(bypass, {"hexpm", "advised_dep"})
     end
 
     test "includes packages whose locked version carries a security advisory" do
+      old_lock = %{
+        advised_dep: lock_tuple("advised_dep", "1.0.0"),
+        good: lock_tuple("good", "1.0.0")
+      }
+
+      bypass = RemoteConverger.build_cooldown_bypass(old_lock, [], @cutoff)
+
+      assert MapSet.member?(bypass, {"hexpm", "advised_dep"})
+      refute MapSet.member?(bypass, {"hexpm", "good"})
+    end
+
+    test "entries are qualified by the locked repository" do
       old_lock = %{advised_dep: lock_tuple("advised_dep", "1.0.0")}
       bypass = RemoteConverger.build_cooldown_bypass(old_lock, [], @cutoff)
-      assert MapSet.member?(bypass, "advised_dep")
+
+      assert MapSet.member?(bypass, {"hexpm", "advised_dep"})
+      refute MapSet.member?(bypass, {"hexpm:myorg", "advised_dep"})
+      refute MapSet.member?(bypass, "advised_dep")
     end
 
     test "locked versions with empty advisory list are not bypassed via unsafe-set" do
@@ -106,15 +155,23 @@ defmodule Hex.RemoteConvergerCooldownTest do
       # versions of those children. Mirror `mix deps.update`'s behavior of
       # unlocking the children alongside the explicit target.
       old_lock = %{
-        retired_dep: lock_tuple_with_deps("retired_dep", "1.0.0", ["good", "advised_dep"]),
+        advised_dep: lock_tuple_with_deps("advised_dep", "1.0.0", ["good", "retired_dep"]),
         good: lock_tuple("good", "1.0.0")
       }
 
       bypass = RemoteConverger.build_cooldown_bypass(old_lock, [], @cutoff)
 
-      assert MapSet.member?(bypass, "retired_dep")
-      assert MapSet.member?(bypass, "good")
-      assert MapSet.member?(bypass, "advised_dep")
+      assert MapSet.member?(bypass, {"hexpm", "advised_dep"})
+      assert MapSet.member?(bypass, {"hexpm", "good"})
+      assert MapSet.member?(bypass, {"hexpm", "retired_dep"})
+    end
+
+    test "children of retired parents are not bypassed" do
+      old_lock = %{
+        retired_dep: lock_tuple_with_deps("retired_dep", "1.0.0", ["good"])
+      }
+
+      assert MapSet.new() == RemoteConverger.build_cooldown_bypass(old_lock, [], @cutoff)
     end
 
     test "children of safe parents are not bypassed" do
@@ -137,7 +194,7 @@ defmodule Hex.RemoteConvergerCooldownTest do
 
       bypass = RemoteConverger.build_cooldown_bypass(old_lock, locked, @cutoff)
 
-      assert MapSet.member?(bypass, "good")
+      assert MapSet.member?(bypass, {"hexpm", "good"})
     end
 
     test "packages in old_lock but not in locked (being updated) are not bypassed by lock-satisfied" do
@@ -158,7 +215,7 @@ defmodule Hex.RemoteConvergerCooldownTest do
     end
   end
 
-  describe "print_cooldown_summary/0" do
+  describe "print_cooldown_summary/1" do
     test "prints the summary when filtered versions were recorded" do
       now = System.system_time(:second)
       Hex.State.put(:cooldown, "7d")
@@ -168,7 +225,7 @@ defmodule Hex.RemoteConvergerCooldownTest do
         {"hexpm", "castore", "1.0.19", now - 6 * 86_400}
       ])
 
-      RemoteConverger.print_cooldown_summary()
+      RemoteConverger.print_cooldown_summary(%{})
 
       assert_received {:mix_shell, :info, [output]}
       assert output =~ "Versions filtered by cooldown:"
@@ -180,7 +237,7 @@ defmodule Hex.RemoteConvergerCooldownTest do
       Hex.State.put(:cooldown_cutoff, Hex.Cooldown.build_cutoff())
       Hex.State.put(:cooldown_filtered_versions, [])
 
-      RemoteConverger.print_cooldown_summary()
+      RemoteConverger.print_cooldown_summary(%{})
 
       refute_received {:mix_shell, :info, _}
     end
@@ -189,9 +246,39 @@ defmodule Hex.RemoteConvergerCooldownTest do
       Hex.State.put(:cooldown_cutoff, :disabled)
       Hex.State.put(:cooldown_filtered_versions, [])
 
-      RemoteConverger.print_cooldown_summary()
+      RemoteConverger.print_cooldown_summary(%{})
 
       refute_received {:mix_shell, :info, _}
+    end
+
+    test "tells how to update when the locked release is retired" do
+      old_lock = %{retired_dep: lock_tuple("retired_dep", "1.0.0")}
+      put_cooldown_state(old_lock)
+
+      # The resolver's lookup records the filtered 2.0.0 for the summary.
+      {:ok, _versions} = Hex.Registry.Cooldown.versions("hexpm", "retired_dep")
+      RemoteConverger.print_cooldown_summary(old_lock)
+
+      assert_received {:mix_shell, :info, [output]}
+      assert output =~ "retired_dep 2.0.0"
+
+      assert output =~
+               "Locked version 1.0.0 is retired. To update without the cooldown, " <>
+                 "run `HEX_COOLDOWN=0 mix deps.update retired_dep`"
+    end
+
+    test "doesn't mention a retirement acknowledged with ignore_retirements" do
+      old_lock = %{retired_dep: lock_tuple("retired_dep", "1.0.0")}
+
+      Hex.State.put(:ignore_retirements, [{"retired_dep", nil}])
+      put_cooldown_state(old_lock)
+
+      {:ok, _versions} = Hex.Registry.Cooldown.versions("hexpm", "retired_dep")
+      RemoteConverger.print_cooldown_summary(old_lock)
+
+      assert_received {:mix_shell, :info, [output]}
+      assert output =~ "retired_dep 2.0.0"
+      refute output =~ "Locked version"
     end
   end
 
@@ -211,15 +298,44 @@ defmodule Hex.RemoteConvergerCooldownTest do
       Hex.State.put(:cooldown_locked_versions, %{})
       Hex.State.put(:cooldown_filtered_versions, [])
 
-      # Without bypass the wrapper would filter every version (no published_at
-      # in the fixture means eligible, but if we'd populated young
-      # published_at the bypass is what saves us). Either way, the wrapper
+      # Without bypass the wrapper would filter the young 2.0.0. The wrapper
       # must return the full version list because the package is bypassed.
       {:ok, versions} = Hex.Registry.Cooldown.versions("hexpm", "advised_dep")
       assert Enum.map(versions, &to_string/1) == ["1.0.0", "2.0.0"]
     end
 
-    test "retired locked version unblocks the upgrade through the wrapper" do
+    test "advisory on an organization lock entry only lifts the cooldown in the locked repositories" do
+      old_lock = %{
+        advised_dep:
+          {:hex, :advised_dep, "1.0.0", "checksum", [:mix],
+           [
+             {:good, "~> 1.0", [hex: "good", repo: "hexpm:myorg", optional: false]},
+             {:retired_dep, "~> 1.0", [hex: "retired_dep", repo: "hexpm", optional: false]}
+           ], "hexpm:myorg", "outer_checksum"}
+      }
+
+      bypass = RemoteConverger.build_cooldown_bypass(old_lock, [], @cutoff)
+
+      assert bypass ==
+               MapSet.new([
+                 {"hexpm:myorg", "advised_dep"},
+                 {"hexpm:myorg", "good"},
+                 {"hexpm", "retired_dep"}
+               ])
+
+      put_cooldown_state(old_lock)
+
+      {:ok, versions} = Hex.Registry.Cooldown.versions("hexpm:myorg", "advised_dep")
+      assert Enum.map(versions, &to_string/1) == ["1.0.0", "2.0.0"]
+
+      {:ok, versions} = Hex.Registry.Cooldown.versions("hexpm", "retired_dep")
+      assert Enum.map(versions, &to_string/1) == ["1.0.0", "2.0.0"]
+
+      {:ok, versions} = Hex.Registry.Cooldown.versions("hexpm", "advised_dep")
+      assert Enum.map(versions, &to_string/1) == ["1.0.0"]
+    end
+
+    test "retired locked version doesn't unblock the upgrade through the wrapper" do
       old_lock = %{retired_dep: lock_tuple("retired_dep", "1.0.0")}
       locked = []
 
@@ -230,7 +346,7 @@ defmodule Hex.RemoteConvergerCooldownTest do
       Hex.State.put(:cooldown_filtered_versions, [])
 
       {:ok, versions} = Hex.Registry.Cooldown.versions("hexpm", "retired_dep")
-      assert Enum.map(versions, &to_string/1) == ["1.0.0", "2.0.0"]
+      assert Enum.map(versions, &to_string/1) == ["1.0.0"]
     end
   end
 end

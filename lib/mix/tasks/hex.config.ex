@@ -46,8 +46,9 @@ defmodule Mix.Tasks.Hex.Config do
     * `no_proxy` - A comma separated list of hostnames that will not be proxied,
       asterisks can be used as wildcards. Can be overridden by setting the
       environment variable `no_proxy` or `NO_PROXY`
-    * `http_concurrency` - Limits the number of concurrent HTTP requests in
-      flight. Can be overridden by setting the environment variable
+    * `http_concurrency` - Limits the number of package tarballs fetched
+      concurrently. Registry and policy files are fetched with four times this
+      concurrency. Can be overridden by setting the environment variable
       `HEX_HTTP_CONCURRENCY` (Default: `8`)
     * `http_timeout` - Sets the timeout for HTTP requests in seconds. Can be
       overridden by setting the environment variable `HEX_HTTP_TIMEOUT`
@@ -67,8 +68,11 @@ defmodule Mix.Tasks.Hex.Config do
       during dependency resolution, e.g. `"7d"`, `"2w"`, `"1mo"`. Releases
       published more recently are filtered out of the candidate set when
       resolving dependencies. Does not apply to installs from an existing
-      lockfile. Can be overridden by setting the environment variable
-      `HEX_COOLDOWN` (Default: `"0d"` — no cooldown). See
+      lockfile. When the locked release of a package has a security
+      advisory, the cooldown doesn't apply to that package or to the direct
+      dependencies of the locked release. A retired locked release doesn't
+      lift the cooldown. Can be overridden by setting the environment
+      variable `HEX_COOLDOWN` (Default: `"0d"` — no cooldown). See
       https://hex.pm/docs/dependency-policies for the full guide.
     * `cooldown_exclude_repos` - List of repository names for which
       `cooldown` does not apply, e.g. `["hexpm:myorg"]`. Useful when an

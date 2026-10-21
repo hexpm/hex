@@ -1,9 +1,14 @@
 # CHANGELOG
 
-## v2.5.2-dev
+## v2.6.0-dev
+
+### Backwards incompatible changes
+
+* Require OTP 24 or later. Hex 2.4.2 to 2.5.1 can't unpack packages on OTP 22, so Hex 2.4.1 is the last release that works there. Hex 2.5.1 is the last release for OTP 23
 
 ### Enhancements
 
+* Support Workload Identity, sometimes also known as Trusted Publishing, so a GitHub Actions job with the `id-token: write` permission can publish packages and fetch an organization's packages without storing a key. When no `HEX_API_KEY` or other Hex credential is configured, `mix hex.publish` exchanges the job's OIDC token for a short-lived token that can only publish the package. When no organization key or authenticated user is configured, fetching packages from an organization's repository exchanges it for a short-lived token that can fetch them. Configure a workload identity on hex.pm first, on the package for a public package and on the organization for a package in an organization's repository. An organization's workload identity with the `read` role can fetch its packages, and one with the `write` role can also publish and create packages
 * Print warnings to standard error instead of standard output, keeping stdout clean for machine-readable output such as `mix hex.outdated --json`. Warning-colored lines that are part of a command's regular output, such as retirement notices in `mix hex.info` and the `mix deps.get` dependency listing, remain on standard output
 * Add `--format sarif` and `--output PATH` options to `mix hex.audit` to render the audit result as a SARIF v2.1.0 document that can be uploaded to GitHub code scanning and other SARIF consumers. Findings are anchored to the dependency's `mix.lock` entry and ignored findings are included as suppressed results. Requires OTP 27 or later
 * Link to the hex.pm diffs page (`https://hex.pm/diffs`) in `mix hex.outdated` now that package diffs have moved from diff.hex.pm into hex.pm
@@ -12,12 +17,62 @@
 
 * Add the `policy_enforce_lock` config. When it's enabled and a policy is active, `mix deps.get` and `mix deps.update` fail if a Hex package in `mix.lock` is rejected by the policy, using the same check as `mix hex.audit --policy`. Findings acknowledged with `ignore_advisories` or `ignore_retirements` pass, and a package matched by a DENY override fails until the policy changes. Configure it in the `mix.exs` `:hex` block, with the `HEX_POLICY_ENFORCE_LOCK` environment variable, or with `mix hex.config`
 * End every error caused by the active dependency policy with how to run without it (`HEX_POLICY= mix deps.get`). This covers an invalid policy configuration, a policy that can't be fetched or loaded, a resolution failure where the policy hid versions, and the `policy_enforce_lock` check, which also names `HEX_POLICY_ENFORCE_LOCK` to skip only that check
+* Speed up `mix deps.get` and `mix deps.update` and lower their memory use when fetching large packages. `http_concurrency` now limits how many packages are downloaded at a time, and registry files are fetched with four times that limit, 32 by default
+* Speed up resolving dependencies in `mix deps.get` and `mix deps.update`, most in projects with many dependencies and when the registry hasn't changed. The registry cache is now `cache.bin` in the Hex cache directory. The first run reads the `cache.ets` of earlier Hex versions and leaves it in place for them
 ### Bug fixes
 
+* Only look up the authenticated user's organizations in `mix hex.publish` when the owner prompt can be shown, that is when publishing a new public package without `--yes`. Publishing with a key that cannot read the user, such as a workload identity token, no longer prints an error
 * Report locked packages matched by a DENY override in `mix hex.audit --policy` and `mix hex.audit --policy-overrides`. Denied packages are listed in a "Denied:" section, fail the audit, and appear in SARIF output under the `HEX0006` rule. `ignore_advisories` and `ignore_retirements` do not apply to denied packages
 * Identify `mix hex.audit --format sarif` results by repository and package instead of package alone, so a package locked from both hexpm and an organization repository under two app names points each result at its own `mix.lock` line. SARIF fingerprints now include the repository, so existing code scanning alerts are re-keyed once
 * Only say `(using cache instead)` when a package or policy fails to fetch from the registry and a cached copy exists. Without a cached copy the message claimed a fallback that didn't happen
+* Reject `mix hex.publish --revert VERSION --dry-run` instead of reverting the release. `--dry-run` was ignored by `--revert`, so the package or docs were deleted from the repository
+* Unpack packages when the current working directory isn't writable
+* Unpack file names that end in an incomplete UTF-8 sequence without trailing zero bytes
+* Keep the existing dependency in `deps` when its new version fails to unpack or doesn't match the checksums in the registry
+* Reuse cached registry and policy files in `mix deps.get` and `mix deps.update` when they haven't changed in the repository. Since Hex 2.1.0 every registry file was downloaded in full on each run, even when it was already cached
+* Skip HTTPS certificate verification when the `unsafe_https` config or the `HEX_UNSAFE_HTTPS` environment variable is set. Since Hex 2.3.0 the setting had no effect and certificates were always verified
+* Print the package version in the error raised when resolved Hex packages give the same dependency different OTP application names. Since Hex 0.21.3 the error showed a literal `{version}` instead
+* Resolve dependencies after compiling in the same command, such as `mix do compile + deps.get`, on Elixir 1.15 and later. Since Hex 2.4.1 this raised `UndefinedFunctionError` for `Hex.Stdlib.ensure_application!/1`
 * Fail `mix hex.audit` when the registry entry for a locked package version can't be fetched. Without a cached copy the audit reported "No retired or security advisory packages found" and exited with 0 without checking the package. With a cached copy it audited against the cache, which can miss advisories published since. Set `HEX_OFFLINE=1` to audit against the cache. `mix deps.get` and `mix deps.update` still use the cache when a fetch fails
+
+## v2.5.4 (2026-10-20)
+
+### Security fixes
+
+* Stop trusting the emSign ECC Root CA - G3, emSign Root CA - C1 and emSign ECC Root CA - C3 root certificates, which Mozilla removed from its root store. The private keys of eight eMudhra intermediate CAs that chain to emSign ECC Root CA - G3 were compromised, so whoever holds them could impersonate the HTTPS servers Hex connects to ([eMudhra intermediate CA compromise](https://emudhra.we-have-a-problem.com))
+
+## v2.5.3 (2026-10-14)
+
+### Bug fixes
+
+* Percent-encode package names, versions and other values in the URLs of API and repository requests, so a `/`, `?`, `#` or `..` in a value can't change the request path
+
+### Security fixes
+
+* Fix unpacking a package or docs tarball that contains a GNU sparse file in `mix deps.get`, `mix hex.package fetch --unpack`, `mix hex.docs fetch` and `mix hex.docs offline`. A sparse file that ends in a hole made the task loop forever, and a sparse hole that crosses a 64 KiB boundary in the file made it fail ([GHSA-phm5-m6cj-5382](https://github.com/erlang/otp/security/advisories/GHSA-phm5-m6cj-5382), CVE-2026-96596)
+
+## v2.5.2 (2026-10-12)
+
+### Bug fixes
+
+* Fail with the download error instead of crashing in `mix hex.package fetch` when the version isn't in the registry but a copy of it is cached
+* Fetch the docs of organization packages in `mix.lock` with `mix hex.docs fetch`. They were requested from an organization named after the repository, such as `hexpm:myorg`, and never found. Packages from other repositories are skipped with a warning
+* Reject package and organization names that hex.pm doesn't accept and invalid versions in `mix hex.docs`. A version such as `1.0.0/../../x` on the command line or in `mix.lock` made `mix hex.docs fetch` write docs outside the docs directory
+
+### Security fixes
+
+* Trust only the CA certificates in `cacerts_path` (`HEX_CACERTS_PATH`) when it's set. Hex also accepted a server certificate chain that led to a CA in its bundled store, so every bundled CA could still authenticate Hex's servers ([GHSA-rw8q-hg7m-cxgr](https://github.com/hexpm/hex/security/advisories/GHSA-rw8q-hg7m-cxgr), CVE-2026-103503)
+* Don't trust copies of CA certificates sent by the server. Hex accepted a server-sent certificate with the same public key as a CA in the CA store in place of that CA, so a server could send a copy of an expired CA certificate with a later expiry date ([GHSA-rw8q-hg7m-cxgr](https://github.com/hexpm/hex/security/advisories/GHSA-rw8q-hg7m-cxgr), CVE-2026-103503)
+* Verify the registry checksum of the package tarball that `mix hex.package fetch PACKAGE VERSION --output -` writes to standard output, so a mirror can't substitute the package, and print the command's messages to standard error, so standard output only carries the tarball. Error responses and warnings from the mirror were printed to standard output before the tarball. With `--output DIR` the tarball is no longer written when its checksum doesn't match ([GHSA-98jr-23pm-vj7c](https://github.com/hexpm/hex/security/advisories/GHSA-98jr-23pm-vj7c), CVE-2026-105280)
+* Keep applying the release-age cooldown to a package when its locked release is retired. Retiring a release takes the same package owner permission as publishing one, so retiring the locked release let a new release skip the cooldown. A locked release with a security advisory still lifts the cooldown for its package and for the direct dependencies of the locked release. When newer versions of a retired locked release are filtered by the cooldown, `mix deps.get` and `mix deps.update` say that the locked release is retired and show the command to update without the cooldown, and `mix hex.outdated` marks the update with `(cooldown)` and no longer exits with a non-zero status for it ([GHSA-pqhp-5x9x-69h7](https://github.com/hexpm/hex/security/advisories/GHSA-pqhp-5x9x-69h7), CVE-2026-105668)
+* Only lift the release-age cooldown for a locked package in the repository it's locked from. A locked package also lifted the cooldown for packages with the same name in other repositories, such as an organization repository and hexpm ([GHSA-pqhp-5x9x-69h7](https://github.com/hexpm/hex/security/advisories/GHSA-pqhp-5x9x-69h7), CVE-2026-105668)
+* Stop downloading a registry file, package, docs tarball or other file from a repository or mirror once it's larger than 16 MiB, including after decompressing a gzip-encoded response. A package mirror could make Hex use any amount of memory or disk before the registry signature or package checksum was checked. Responses with a status other than 200 are limited the same way on OTP 27.3.4.17, 28.5.0.6, 29.0.6, 29.1 or later when they have a `Content-Length` header or chunked encoding, and are otherwise still read in full ([GHSA-gf42-pg2f-63jp](https://github.com/hexpm/hex/security/advisories/GHSA-gf42-pg2f-63jp), CVE-2026-96618)
+* Stop decompressing a gzip-encoded API response once it's larger than 64 MiB. A small response could make Hex use any amount of memory ([GHSA-gf42-pg2f-63jp](https://github.com/hexpm/hex/security/advisories/GHSA-gf42-pg2f-63jp), CVE-2026-96618)
+* Check a package against the registry checksum before writing it to the package cache and before unpacking a cached copy, including in offline mode and when fetching the package fails. A cached package that doesn't match the registry is removed instead of being unpacked ([GHSA-gf42-pg2f-63jp](https://github.com/hexpm/hex/security/advisories/GHSA-gf42-pg2f-63jp), CVE-2026-96618)
+* Apply the 16 MiB compressed and 128 MiB uncompressed size limits for docs to `mix hex.docs fetch` and `mix hex.docs offline` ([GHSA-gf42-pg2f-63jp](https://github.com/hexpm/hex/security/advisories/GHSA-gf42-pg2f-63jp), CVE-2026-96618)
+* Stop decompressing a registry file once its contents are larger than 16 MiB, before its signature is checked, and reject compressed Erlang terms in API responses. A mirror could send a small registry file, and an API server a small response, that decompressed to any size ([GHSA-7c4r-cgf9-9jmq](https://github.com/hexpm/hex_core/security/advisories/GHSA-7c4r-cgf9-9jmq), CVE-2026-105274)
+* Skip package releases that give a dependency an application name other than a letter followed by letters, digits, `_` and `-`, such as `../name`, and warn about them when resolving dependencies. Resolution fails if no other release of the package fits the requirements. Hex used the application name as the dependency's directory, so such a release could make `mix deps.get` delete and replace a directory outside `deps/` ([GHSA-2vjj-c5hr-6xc3](https://github.com/hexpm/hex/security/advisories/GHSA-2vjj-c5hr-6xc3), CVE-2026-96612)
+* Escape terminal control characters in text from hex.pm and the registry before printing it, such as package descriptions and links, retirement messages, security advisories, search results and error messages. A package publisher could otherwise send escape sequences that clear the screen, rewrite earlier output or set the clipboard in terminals that support it. A dependency in the registry whose package or repository name isn't a valid name is now rejected ([GHSA-fpmj-3cxg-p766](https://github.com/hexpm/hex/security/advisories/GHSA-fpmj-3cxg-p766), CVE-2026-81856)
 
 ## v2.5.1 (2026-07-09)
 

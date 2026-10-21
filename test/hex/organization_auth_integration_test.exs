@@ -59,7 +59,7 @@ defmodule Hex.OrganizationAuthIntegrationTest do
                  "scope" => "api repositories"
                })
 
-      auth = [key: response["access_token"], oauth: true, otp: totp(secret)]
+      auth = [key: response["access_token"], oauth: true, otp: Hexpm.totp(secret)]
       assert {:ok, {204, _, _}} = Hexpm.new_repo(organization, auth)
 
       assert {:ok, {204, _, _}} =
@@ -80,18 +80,5 @@ defmodule Hex.OrganizationAuthIntegrationTest do
       assert {:ok, decoded} = Base.url_decode64(payload, padding: false)
       assert decoded =~ "repository:#{organization}"
     end)
-  end
-
-  defp totp(secret) do
-    counter = div(System.system_time(:second), 30) + 1
-    digest = :crypto.mac(:hmac, :sha, Base.decode32!(secret), <<counter::64>>)
-    offset = Bitwise.band(:binary.last(digest), 15)
-    <<code::32>> = :binary.part(digest, offset, 4)
-
-    code
-    |> Bitwise.band(0x7FFFFFFF)
-    |> rem(1_000_000)
-    |> Integer.to_string()
-    |> String.pad_leading(6, "0")
   end
 end

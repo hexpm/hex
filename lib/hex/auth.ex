@@ -66,6 +66,8 @@ defmodule Hex.Auth do
       persist_oauth_tokens: &persist_oauth_tokens/4,
       clear_oauth_tokens: &clear_oauth_tokens/0,
       organization_reauth: &organization_reauth/1,
+      get_workload_identity_token: &get_workload_identity_token/1,
+      persist_workload_identity_token: &persist_workload_identity_token/2,
       prompt_otp: &prompt_otp/1,
       get_client_id: &Hex.API.OAuth.client_id/0,
       should_authenticate: &should_authenticate/1
@@ -160,6 +162,18 @@ defmodule Hex.Auth do
 
   defp put_organization_reauth(token_data, organizations),
     do: Map.put(token_data, :organization_reauth_required, organizations)
+
+  # The outcome of a repository's Workload Identity exchange, a token or why
+  # there is none, is kept in memory only. Tokens expire in 15 minutes and come
+  # from the CI job rather than from anything the user configured, so they
+  # don't belong in the Hex config.
+  defp get_workload_identity_token(repo) do
+    Map.get(Hex.State.fetch!(:workload_identity_tokens), repo, :error)
+  end
+
+  defp persist_workload_identity_token(repo, result) do
+    Hex.State.update!(:workload_identity_tokens, &Map.put(&1, repo, result))
+  end
 
   # A prompt answers :eof when there is nothing on stdin to read, which is what
   # an OTP challenge in CI gets.

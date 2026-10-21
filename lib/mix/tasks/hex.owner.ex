@@ -151,7 +151,15 @@ defmodule Mix.Tasks.Hex.Owner do
     case Hex.API.Package.Owner.get(organization, package) do
       {:ok, {code, _headers, body}} when code in 200..299 ->
         header = ["Email", "Level"]
-        owners = Enum.map(body, &[&1["email"], &1["level"]])
+
+        owners =
+          Enum.map(body, fn owner ->
+            [
+              Hex.Utils.escape_terminal(owner["email"] || ""),
+              Hex.Utils.escape_terminal(owner["level"] || "")
+            ]
+          end)
+
         Mix.Tasks.Hex.print_table(header, owners)
 
       other ->
@@ -165,7 +173,8 @@ defmodule Mix.Tasks.Hex.Owner do
       {:ok, {code, _headers, body}} when code in 200..299 ->
         Enum.each(body["packages"], fn package ->
           name = package_name(package["repository"], package["name"])
-          Hex.Shell.info("#{name} - #{package["html_url"]}")
+          url = Hex.Utils.printable_ascii(package["html_url"] || "")
+          Hex.Shell.info("#{Hex.Utils.escape_terminal(name)} - #{url}")
         end)
 
       other ->

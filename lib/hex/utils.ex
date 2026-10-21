@@ -151,6 +151,17 @@ defmodule Hex.Utils do
     for <<byte <- binary>>, byte in 0x20..0x7E, into: "", do: <<byte>>
   end
 
+  # Escapes terminal controls in encoded JSON without changing decoded strings.
+  def escape_terminal_json(binary) when is_binary(binary) do
+    for <<cp::utf8 <- binary>>, into: "" do
+      if cp in @bidi_controls or cp in 0x7F..0x9F do
+        "\\u" <> (cp |> Integer.to_string(16) |> String.pad_leading(4, "0"))
+      else
+        <<cp::utf8>>
+      end
+    end
+  end
+
   def binarify(term, opts \\ [])
 
   def binarify(binary, _opts) when is_binary(binary) do
@@ -199,7 +210,7 @@ defmodule Hex.Utils do
   end
 
   def print_error_result({:ok, {_status, _headers, body}}) when is_binary(body) do
-    Hex.Shell.info(body)
+    Hex.Shell.info(escape_terminal(body))
   end
 
   def print_error_result({:ok, {status, _headers, body}}) when is_map(body) do
@@ -207,7 +218,7 @@ defmodule Hex.Utils do
     errors = body["errors"]
 
     if message do
-      Hex.Shell.info(message)
+      Hex.Shell.info(escape_terminal(message))
     end
 
     if errors do
@@ -223,16 +234,18 @@ defmodule Hex.Utils do
   defp pretty_errors(errors, depth \\ 0) do
     Enum.each(errors, fn
       {key, map} when is_map(map) ->
-        Hex.Shell.info(indent(depth) <> key <> ":")
+        Hex.Shell.info(indent(depth) <> escape_terminal(key) <> ":")
         pretty_errors(map, depth + 1)
 
       {key, value} ->
         message = pretty_error_message(value, depth)
-        Hex.Shell.info(indent(depth) <> key <> ": " <> message)
+        Hex.Shell.info(indent(depth) <> escape_terminal(key) <> ": " <> message)
     end)
   end
 
   defp pretty_error_message(message, depth) do
+    message = escape_terminal(message)
+
     if message =~ "\n" do
       message =
         message
@@ -295,10 +308,12 @@ defmodule Hex.Utils do
   def package_retirement_reason(:RETIRED_SECURITY), do: "security"
   def package_retirement_reason(:RETIRED_DEPRECATED), do: "deprecated"
   def package_retirement_reason(:RETIRED_RENAMED), do: "renamed"
+  def package_retirement_reason(other) when is_binary(other), do: escape_terminal(other)
   def package_retirement_reason(other), do: other
 
-  def package_retirement_message(%{reason: reason_code, message: message}) do
-    "(#{package_retirement_reason(reason_code)}) #{message}"
+  def package_retirement_message(%{reason: reason_code, message: message})
+      when is_binary(message) do
+    "(#{package_retirement_reason(reason_code)}) #{escape_terminal(message)}"
   end
 
   def package_retirement_message(%{reason: reason_code}) do
@@ -310,6 +325,7 @@ defmodule Hex.Utils do
   def advisory_severity(:SEVERITY_MEDIUM), do: "MEDIUM"
   def advisory_severity(:SEVERITY_HIGH), do: "HIGH"
   def advisory_severity(:SEVERITY_CRITICAL), do: "CRITICAL"
+  def advisory_severity(other) when is_binary(other), do: escape_terminal(other)
   def advisory_severity(other), do: other
 
   def advisory_severity_color(:SEVERITY_LOW), do: :yellow
@@ -319,6 +335,9 @@ defmodule Hex.Utils do
   def advisory_severity_color(_), do: []
 
   def format_advisory_ansi(%{id: id, summary: summary} = advisory, line_prefix \\ "") do
+    id = escape_terminal(id)
+    summary = escape_terminal(summary)
+
     severity =
       case advisory do
         %{severity: s} ->
@@ -340,15 +359,15 @@ defmodule Hex.Utils do
 
     url =
       case advisory do
-        %{html_url: url} -> ["\n", line_prefix, :underline, url, :reset]
+        %{html_url: url} -> ["\n", line_prefix, :underline, printable_ascii(url), :reset]
         _ -> []
       end
 
     [id, severity, aliases, "\n", line_prefix, summary, url]
   end
 
-  defp alias_id(%{id: id}), do: id
-  defp alias_id(id) when is_binary(id), do: id
+  defp alias_id(%{id: id}), do: escape_terminal(id)
+  defp alias_id(id) when is_binary(id), do: escape_terminal(id)
 
   # From https://github.com/fishcakez/dialyze/blob/6698ae582c77940ee10b4babe4adeff22f1b7779/lib/mix/tasks/dialyze.ex#L168
   def otp_version do

@@ -1,9 +1,9 @@
-# Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
+# Vendored from hex_solver v0.3.2 (510bdd5), do not edit manually
 
 defmodule Hex.Solver.PackageRange do
   @moduledoc false
 
-  alias Hex.Solver.PackageRange
+  alias Hex.Solver.{Constraint, PackageRange}
   alias Hex.Solver.Constraints.Range
 
   defstruct repo: nil,
@@ -20,7 +20,7 @@ defmodule Hex.Solver.PackageRange do
     do: "#{repo}/#{name}#{constraint(constraint)}"
 
   defp constraint(%Range{min: nil, max: nil}), do: ""
-  defp constraint(constraint), do: " #{constraint}"
+  defp constraint(constraint), do: " " <> Constraint.to_string(constraint)
 
   defimpl String.Chars do
     defdelegate to_string(package_range), to: Hex.Solver.PackageRange
@@ -28,9 +28,9 @@ defmodule Hex.Solver.PackageRange do
 
   defimpl Inspect do
     def inspect(%{repo: nil, name: name, constraint: constraint}, _opts),
-      do: "#PackageRange<#{name} #{constraint}>"
+      do: "#PackageRange<#{name} #{Constraint.to_string(constraint)}>"
 
     def inspect(%{repo: repo, name: name, constraint: constraint}, _opts),
-      do: "#PackageRange<#{repo}/#{name} #{constraint}>"
+      do: "#PackageRange<#{repo}/#{name} #{Constraint.to_string(constraint)}>"
   end
 end

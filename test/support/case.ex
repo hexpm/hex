@@ -193,7 +193,7 @@ defmodule HexTest.Case do
     )
 
     File.mkdir_p!(Path.dirname(path))
-    :ok = :ets.tab2file(tid, String.to_charlist(path))
+    Hex.Registry.Server.write_cache(tid, path)
     :ets.delete(tid)
   end
 
@@ -335,11 +335,18 @@ defmodule HexTest.Case do
 
   setup context do
     unless context[:async] do
+      # A test killed on timeout doesn't run the File.cd!/2 that restores the
+      # working directory. Restore it here so the next test doesn't start in,
+      # and possibly delete, the killed test's tmp directory.
+      cwd = File.cwd!()
+      on_exit(fn -> File.cd!(cwd) end)
+
       wait_on_exit(Hex.Registry.Server.start_link())
       wait_on_exit(Hex.UpdateChecker.start_link())
 
       reset_state()
-      Hex.Parallel.clear(:hex_fetcher)
+      Hex.Parallel.clear(:hex_registry_fetcher)
+      Hex.Parallel.clear(:hex_tarball_fetcher)
       Mix.shell(Hex.Shell.Process)
       Mix.Task.clear()
       Hex.Shell.Process.flush()

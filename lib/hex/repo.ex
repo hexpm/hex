@@ -14,6 +14,12 @@ defmodule Hex.Repo do
   -----END PUBLIC KEY-----
   """
 
+  # Responses from a repository, which can be an untrusted mirror, are limited
+  # to the largest file Hex downloads from one, a package or docs tarball,
+  # which hex_core limits to 16 MiB with tarball_max_size and
+  # docs_tarball_max_size
+  @max_body_size 16 * 1024 * 1024
+
   def fetch_repo(repo) do
     repo = repo || "hexpm"
     repos = Hex.State.fetch!(:repos)
@@ -234,6 +240,26 @@ defmodule Hex.Repo do
     Hex.Auth.with_repo(config, &:mix_hex_repo.get_tarball(&1, package, version), optional: true)
   end
 
+  def get_tarball_to_file(repo, package, version, filename) do
+    repo_config = get_repo(repo)
+    config = build_hex_core_config(repo_config, repo)
+
+    Hex.Auth.with_repo(
+      config,
+      &:mix_hex_repo.get_tarball_to_file(&1, package, version, filename),
+      optional: true
+    )
+  end
+
+  # Resolves the repository's credentials without making a request, so one
+  # that has to be exchanged is exchanged once, ahead of the parallel fetches
+  # that use it.
+  def resolve_auth(repo) do
+    repo_config = get_repo(repo)
+    config = build_hex_core_config(repo_config, repo)
+    :mix_hex_cli_auth.resolve_repo_auth(config)
+  end
+
   def get_public_key(repo_config) when is_map(repo_config) do
     config = build_hex_core_config(repo_config, "")
 
@@ -309,7 +335,8 @@ defmodule Hex.Repo do
 
     config = %{
       Hex.API.Client.config()
-      | repo_name: repo_name,
+      | http_adapter: {Hex.HTTP, %{max_body_size: @max_body_size}},
+        repo_name: repo_name,
         repo_organization: Map.get(repo_config, :repo_organization, :undefined),
         repo_url: repo_config.url,
         repo_public_key: Map.get(repo_config, :public_key),

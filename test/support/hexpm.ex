@@ -238,6 +238,62 @@ defmodule HexTest.Hexpm do
     [key: secret]
   end
 
+  @doc """
+  Creates a user with two-factor authentication and an OAuth token for it, the
+  sign-in `mix hex.user auth` gives. The auth carries the user's current TOTP
+  code, which writes made with an OAuth token need.
+  """
+  def new_tfa_user(username, email, password) do
+    secret = Base.encode32(:crypto.strong_rand_bytes(10))
+    config = Hex.API.Client.config()
+
+    {:ok, {201, _, _}} =
+      :mix_hex_api.post(config, ["user"], %{
+        "username" => to_string(username),
+        "email" => to_string(email),
+        "password" => to_string(password),
+        "tfa" => %{"secret" => secret}
+      })
+
+    {:ok, {200, _, response}} =
+      :mix_hex_api.post(config, ["oauth_token"], %{
+        "username" => to_string(username),
+        "scope" => "api repositories"
+      })
+
+    [
+      key: response["access_token"],
+      oauth: true,
+      otp: totp(secret),
+      "$oauth_token": %{
+        access_token: response["access_token"],
+        refresh_token: response["refresh_token"],
+        expires_at: System.system_time(:second) + response["expires_in"]
+      }
+    ]
+  end
+
+  @doc """
+  Signs Hex in with an auth from `new_tfa_user/3`, as `mix hex.user auth` does.
+  """
+  def sign_in(auth) do
+    Hex.OAuth.store_token(auth[:"$oauth_token"])
+    Hex.State.put(:api_otp, auth[:otp])
+  end
+
+  def totp(secret) do
+    counter = div(System.system_time(:second), 30) + 1
+    digest = :crypto.mac(:hmac, :sha, Base.decode32!(secret), <<counter::64>>)
+    offset = Bitwise.band(:binary.last(digest), 15)
+    <<code::32>> = :binary.part(digest, offset, 4)
+
+    code
+    |> Bitwise.band(0x7FFFFFFF)
+    |> rem(1_000_000)
+    |> Integer.to_string()
+    |> String.pad_leading(6, "0")
+  end
+
   def new_organization_key(organization, key, auth) do
     permissions = [%{"domain" => "api"}]
 
@@ -267,12 +323,13 @@ defmodule HexTest.Hexpm do
 
     meta =
       meta
-      |> Map.merge(%{name: name, version: version, requirements: reqs})
-      |> Map.put_new(:description, "empty")
-      |> Map.put_new(:licenses, ["MIT"])
-      |> Map.put_new(:app, name)
-      |> Map.put_new(:build_tools, ["mix"])
-      |> Map.put_new(:files, ["mix.exs"])
+      |> Map.new(fn {key, value} -> {to_string(key), value} end)
+      |> Map.merge(%{"name" => name, "version" => version, "requirements" => reqs})
+      |> Map.put_new("description", "empty")
+      |> Map.put_new("licenses", ["MIT"])
+      |> Map.put_new("app", name)
+      |> Map.put_new("build_tools", ["mix"])
+      |> Map.put_new("files", ["mix.exs"])
 
     deps = inspect(deps, pretty: true)
     module = String.capitalize(name)

@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
+# Vendored from hex_solver v0.3.2 (510bdd5), do not edit manually
 
 defmodule Hex.Solver.Constraints.Version do
   @moduledoc false
@@ -102,6 +102,10 @@ defmodule Hex.Solver.Constraints.Version do
   end
 
   def to_requirement(%Version{} = version) do
+    Kernel.to_string(version)
+  end
+
+  def to_string(%Version{} = version) do
     Kernel.to_string(version)
   end
 

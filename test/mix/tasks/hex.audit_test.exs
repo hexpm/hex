@@ -89,6 +89,43 @@ defmodule Mix.Tasks.Hex.AuditTest do
     end)
   end
 
+  test "audit (escapes terminal controls in retirement messages and advisories)", context do
+    with_test_package("1.5.0", context, fn ->
+      advisory = %{
+        @advisory
+        | id: "GHSA-test-0002\e[2K",
+          summary: "Summary\e]52;c;Y3VybA==\a\e[2K\rFORGED",
+          html_url: "https://github.com/advisories/GHSA-test-0002\e[2J"
+      }
+
+      :sys.replace_state(Hex.Registry.Server, fn %{ets: tid} = state ->
+        :ets.insert(
+          tid,
+          {{:retired, "hexpm", @package_name, "1.5.0"},
+           %{reason: :RETIRED_SECURITY, message: "Use 2.0\e[2K\rFORGED"}}
+        )
+
+        :ets.insert(tid, {{:advisories, "hexpm", @package_name, "1.5.0"}, [advisory]})
+        state
+      end)
+
+      assert catch_throw(Mix.Task.run("hex.audit")) == {:exit_code, 1}
+
+      output =
+        for {:mix_shell, :info, [message]} <- flush(), into: "" do
+          message |> IO.chardata_to_string() |> String.replace(~r/\e\[[0-9;]*m/, "")
+        end
+
+      refute output =~ "\e"
+      refute output =~ "\r"
+      refute output =~ "\a"
+      assert output =~ "(security) Use 2.0\\e[2K\\rFORGED"
+      assert output =~ "GHSA-test-0002\\e[2K"
+      assert output =~ "Summary\\e]52;c;Y3VybA==\\a\\e[2K\\rFORGED"
+      assert output =~ "https://github.com/advisories/GHSA-test-0002[2J"
+    end)
+  end
+
   test "audit (package with multiple advisories)", context do
     other_advisory = %{
       id: "GHSA-test-0002",

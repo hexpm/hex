@@ -554,4 +554,57 @@ defmodule Hex.Policy.FilterTest do
       assert {:blocked, _} = Filter.classify(p, c)
     end
   end
+
+  describe "for_package/2" do
+    test "classifies the package's releases like the full policy" do
+      overrides = [
+        %{action: :OVERRIDE_ACTION_DENY, ref: %{package: "phoenix"}},
+        %{action: :OVERRIDE_ACTION_ALLOW, ref: %{package: "phoenix", requirement: "== 1.7.10"}},
+        %{action: :OVERRIDE_ACTION_ALLOW, ref: %{package: "phoenix", requirement: "not valid"}},
+        %{action: :OVERRIDE_ACTION_COOLDOWN, ref: %{package: "ecto"}},
+        %{action: :OVERRIDE_ACTION_DENY, ref: %{package: "plug"}},
+        %{action: 99, ref: %{package: "phoenix"}},
+        %{action: :OVERRIDE_ACTION_ADVISORY, ref: %{package: "ecto"}, advisory_id: "GHSA-1"}
+      ]
+
+      p =
+        policy(
+          tab(
+            restriction: %{advisory_min_severity: :SEVERITY_LOW, cooldown: "7d"},
+            overrides: overrides
+          )
+        )
+
+      now = System.system_time(:second)
+
+      candidates =
+        for package <- ["phoenix", "ecto", "plug", "jason"],
+            version <- ["1.7.10", "1.7.11"],
+            advisories <- [[], [%{id: "GHSA-1", severity: :SEVERITY_HIGH}]],
+            published_at <- [nil, now, now - 30 * 86_400] do
+          candidate(
+            package: package,
+            version: version,
+            advisories: advisories,
+            published_at: published_at
+          )
+        end
+
+      for c <- candidates do
+        assert Filter.explain(Filter.for_package(p, c.package), c, now: now) ==
+                 Filter.explain(p, c, now: now)
+      end
+    end
+  end
+
+  describe "restricts_repo?/2" do
+    test "matches the repositories the policy has rules for" do
+      p = policy(tab(repository: "myorg"))
+
+      assert Filter.restricts_repo?(p, "hexpm:myorg")
+      refute Filter.restricts_repo?(p, "hexpm")
+      refute Filter.restricts_repo?(p, nil)
+      assert Filter.restricts_repo?(policy(tab([])), nil)
+    end
+  end
 end

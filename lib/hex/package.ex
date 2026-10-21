@@ -42,8 +42,18 @@ defmodule Hex.Package do
          name.
       * `:files` - List of files and directories to include in the package,
         can include wildcards. Defaults to `#{inspect(default_files())}`.
+        Files created by operating systems, editors and version control (such
+        as `.DS_Store`, `*~` and `.git`) are excluded unless they are listed
+        without wildcards. The build and dependency directories, and the
+        package tarball and unpack directory are always excluded.
       * `:exclude_patterns` - List of patterns matching files and directories to
         exclude from the package.
+      * `:executables` - List of files and directories in the package whose
+        files are executable, can include wildcards. By default a file is
+        executable in the package if the owner execute permission is set on
+        disk. When this option is set the permissions on disk are not used, use
+        it when the file system doesn't store execute permissions, such as on
+        Windows.
       * `:licenses` - List of licenses used by the package. Use SPDX license
         identifiers or `LicenseRef-<idstring>` for custom licenses included in
         the package.

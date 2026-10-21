@@ -10,7 +10,9 @@ defmodule Hex.Tar do
   def create!(metadata, files, output) do
     files =
       Enum.map(files, fn
-        {filename, contents} -> {String.to_charlist(filename), contents}
+        {filename, path} when is_list(path) -> {String.to_charlist(filename), path}
+        {filename, path, options} -> {String.to_charlist(filename), path, options}
+        {filename, contents} when is_binary(contents) -> {String.to_charlist(filename), contents}
         filename -> String.to_charlist(filename)
       end)
 
@@ -24,7 +26,11 @@ defmodule Hex.Tar do
         result
 
       {:error, reason} ->
-        Mix.raise("Creating tarball failed: #{:mix_hex_tarball.format_error(reason)}")
+        Mix.raise(
+          Hex.Utils.escape_terminal(
+            "Creating tarball failed: #{:mix_hex_tarball.format_error(reason)}"
+          )
+        )
     end
   end
 
@@ -32,7 +38,7 @@ defmodule Hex.Tar do
     tarball =
       case path do
         {:binary, tarball} -> tarball
-        _ -> File.read!(path)
+        _ -> {:file, String.to_charlist(path)}
       end
 
     dest = if dest == :memory, do: dest, else: String.to_charlist(dest)
@@ -42,14 +48,33 @@ defmodule Hex.Tar do
         result
 
       {:error, reason} ->
-        Mix.raise("Unpacking tarball failed: #{:mix_hex_tarball.format_error(reason)}")
+        Mix.raise(
+          Hex.Utils.escape_terminal(
+            "Unpacking tarball failed: #{:mix_hex_tarball.format_error(reason)}"
+          )
+        )
     end
   end
 
   # TODO: Add this function to
   def outer_checksum(path) do
-    case File.read(path) do
-      {:ok, tarball} -> {:ok, :crypto.hash(:sha256, tarball)}
+    case :file.open(path, [:read, :raw, :binary]) do
+      {:ok, file} ->
+        try do
+          hash_file(file, :crypto.hash_init(:sha256))
+        after
+          :file.close(file)
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp hash_file(file, hash) do
+    case :file.read(file, 65_536) do
+      {:ok, data} -> hash_file(file, :crypto.hash_update(hash, data))
+      :eof -> {:ok, :crypto.hash_final(hash)}
       {:error, reason} -> {:error, reason}
     end
   end

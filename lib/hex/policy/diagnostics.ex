@@ -39,6 +39,7 @@ defmodule Hex.Policy.Diagnostics do
     ([header, cooldown_line] ++ hidden_lines)
     |> Enum.reject(&is_nil/1)
     |> Enum.join("\n")
+    |> Hex.Utils.escape_terminal()
   end
 
   defp version_lines(filtered) do
@@ -146,7 +147,7 @@ defmodule Hex.Policy.Diagnostics do
           Enum.join(package_lines(package, entries), "\n")
       end)
 
-    Enum.join(blocks, "\n\n")
+    blocks |> Enum.join("\n\n") |> Hex.Utils.escape_terminal()
   end
 
   @doc """

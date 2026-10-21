@@ -47,9 +47,9 @@ function main {
   # UPDATE THIS FOR EVERY RELEASE, ORDER MATTERS
 
   # Elixir v1.12-v1.16 (old CSV format)
-  build_old ${hex_version} 22.3      1.12.3 1.12.0 xenial-20200212
-  build_old ${hex_version} 22.3      1.13.4 1.13.0 xenial-20200212
-  build_old ${hex_version} 23.3      1.14.2 1.14.0 xenial-20210114
+  build_old ${hex_version} 24.3.4.17 1.12.3 1.12.0 focal-20240427
+  build_old ${hex_version} 24.3.4.17 1.13.4 1.13.0 focal-20240427
+  build_old ${hex_version} 24.3.4.17 1.14.2 1.14.0 focal-20250404
   build_old ${hex_version} 24.3.4.17 1.15.8 1.15.0 focal-20240427
   build_old ${hex_version} 24.3.4.17 1.16.3 1.16.0 focal-20240427
 
@@ -80,8 +80,11 @@ function main {
   if [ "${dry_run}" = true ]; then
     echo "Dry run complete, archives in ${installs_dir}"
   elif [ -n "${ELIXIR_PEM}" ]; then
-    openssl dgst -sha512 -sign "${ELIXIR_PEM}" "${hex_csv}" | openssl base64 > "${hex_csv}.signed"
-    openssl dgst -sha512 -sign "${ELIXIR_PEM}" "${hex_1x_csv}" | openssl base64 > "${hex_1x_csv}.signed"
+    # Decrypt the key once so its pass phrase is only asked for once
+    elixir_key=$(openssl pkey -in "${ELIXIR_PEM}")
+    openssl dgst -sha512 -sign <(printf "%s\n" "${elixir_key}") "${hex_csv}" | openssl base64 > "${hex_csv}.signed"
+    openssl dgst -sha512 -sign <(printf "%s\n" "${elixir_key}") "${hex_1x_csv}" | openssl base64 > "${hex_1x_csv}.signed"
+    unset elixir_key
 
     cd $installs_dir
     for path in $(find . -type f | sort); do
@@ -112,13 +115,14 @@ function build_old {
   ubuntu_version=$5
 
   echo "Building ${elixir_version} ${otp_version} ${ubuntu_version} (old format)"
-  rm -rf _build src/mix_safe_erl_term.erl
   hex_ez=hex-${hex_version}.ez
 
   mkdir -p "$installs_dir/${saved_elixir_version}"
   docker run -v $(pwd):/hex hexpm/elixir:${elixir_version}-erlang-${otp_version}-ubuntu-${ubuntu_version} sh -c " \
-    cd /hex && \
-    MIX_ENV=prod mix archive.build -o ${hex_ez}"
+    mkdir /build && \
+    tar -C /hex --exclude=./_build --exclude=./deps --exclude=./tmp --exclude=./src/mix_safe_erl_term.erl -cf - . | tar -C /build -xf - && \
+    cd /build && \
+    MIX_ENV=prod mix archive.build -o /hex/${hex_ez}"
 
   mv "${hex_ez}" "${installs_dir}/${saved_elixir_version}/${hex_ez}"
   sha=$(shasum -a 512 "${installs_dir}/${saved_elixir_version}/${hex_ez}")
@@ -140,14 +144,15 @@ function build {
   ubuntu_version=$5
 
   echo "Building ${elixir_version} ${otp_version} ${ubuntu_version}"
-  rm -rf _build src/mix_safe_erl_term.erl
   archive_ez=hex-${hex_version}.ez
   hex_ez=hex-${hex_version}-otp-${otp_release}.ez
 
   mkdir -p "$installs_dir/${saved_elixir_version}"
   docker run -v $(pwd):/hex hexpm/elixir:${elixir_version}-erlang-${otp_version}-ubuntu-${ubuntu_version} sh -c " \
-    cd /hex && \
-    MIX_ENV=prod mix archive.build -o ${archive_ez}"
+    mkdir /build && \
+    tar -C /hex --exclude=./_build --exclude=./deps --exclude=./tmp --exclude=./src/mix_safe_erl_term.erl -cf - . | tar -C /build -xf - && \
+    cd /build && \
+    MIX_ENV=prod mix archive.build -o /hex/${archive_ez}"
 
   mv "${archive_ez}" "${installs_dir}/${saved_elixir_version}/${hex_ez}"
   sha=$(shasum -a 512 "${installs_dir}/${saved_elixir_version}/${hex_ez}")

@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (68d8345), do not edit manually
+%% Vendored from hex_core v0.20.1 (465ade4), do not edit manually
 
 %% @doc
 %% Hex HTTP API - Authentication.
@@ -18,5 +18,5 @@
 %% @end
 -spec test(mix_hex_core:config(), map()) -> mix_hex_api:response().
 test(Config, #{domain := Domain, resource := Resource}) ->
-    URI = ["auth", "?domain=", Domain, "&resource=", Resource],
-    mix_hex_api:get(Config, list_to_binary(URI)).
+    QueryString = mix_hex_api:encode_query_string([{domain, Domain}, {resource, Resource}]),
+    mix_hex_api:get(Config, <<"auth?", QueryString/binary>>).

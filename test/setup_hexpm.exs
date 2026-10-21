@@ -83,6 +83,15 @@ Hexpm.new_package(
   auth
 )
 
+Hexpm.new_package(
+  "hexpm",
+  "depend_other_name",
+  "0.1.0",
+  [{:other_name, ">= 0.0.0", hex: :package_name}],
+  pkg_meta,
+  auth
+)
+
 {:ok, _} = Hex.API.Release.retire("hexpm", "tired", "0.1.0", %{reason: "invalid"}, auth)
 
 Hexpm.new_repo("testorg", auth)

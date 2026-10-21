@@ -75,9 +75,39 @@ defmodule Hex.Policy do
   """
   @spec load() :: {:ok, map() | nil}
   def load() do
+    load(configured_ref())
+  end
+
+  @doc """
+  Loads the policy with the ref from `configured_ref/0`, see `load/0`. The
+  fetch can be started earlier with `Hex.Registry.Server.prefetch_policies/1`.
+  """
+  @spec load(ref() | nil) :: {:ok, map() | nil}
+  def load(nil), do: {:ok, nil}
+
+  def load({repo, name} = ref) do
+    Registry.open()
+    Registry.prefetch_policies([ref])
+
+    case Registry.policy(repo, name) do
+      {:ok, decoded} ->
+        warn_unknown_override_actions(decoded)
+        {:ok, decoded}
+
+      :error ->
+        Mix.raise("Failed to load policy #{repo}/#{name}. " <> disable_hint())
+    end
+  end
+
+  @doc """
+  Returns the ref of the configured policy, or `nil` when none is configured.
+  Raises for an invalid configuration.
+  """
+  @spec configured_ref() :: ref() | nil
+  def configured_ref() do
     case Hex.State.fetch!(:policy) do
       nil ->
-        {:ok, nil}
+        nil
 
       {:invalid, value} ->
         Mix.raise(
@@ -88,18 +118,8 @@ defmodule Hex.Policy do
         )
 
       string when is_binary(string) ->
-        {:ok, {repo, name} = ref} = parse_ref(string)
-        Registry.open()
-        Registry.prefetch_policies([ref])
-
-        case Registry.policy(repo, name) do
-          {:ok, decoded} ->
-            warn_unknown_override_actions(decoded)
-            {:ok, decoded}
-
-          :error ->
-            Mix.raise("Failed to load policy #{repo}/#{name}. " <> disable_hint())
-        end
+        {:ok, ref} = parse_ref(string)
+        ref
     end
   end
 

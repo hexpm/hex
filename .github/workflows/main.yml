@@ -8,7 +8,11 @@ permissions:
 jobs:
   format:
     name: Format
+    # A pull request from a branch in this repository tests the same commit
+    # as the branch's push, so only pull requests from forks run here.
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -29,11 +33,13 @@ jobs:
 
   test:
     name: Test
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-22.04
+    timeout-minutes: 20
 
     services:
       postgres:
-        image: postgres:14
+        image: postgres:18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -99,11 +105,40 @@ jobs:
           PATH=$(pwd)/${HEXPM_ELIXIR_PATH}/bin:$(pwd)/${HEXPM_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/${HEXPM_MIX_HOME} MIX_ARCHIVES=$(pwd)/${HEXPM_MIX_HOME} mix local.hex --force
           PATH=$(pwd)/${HEXPM_ELIXIR_PATH}/bin:$(pwd)/${HEXPM_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/${HEXPM_MIX_HOME} MIX_ARCHIVES=$(pwd)/${HEXPM_MIX_HOME} mix local.rebar --force
 
+      - name: Clone hexpm
+        run: git clone --depth 1 -b ${HEXPM_BRANCH} https://github.com/hexpm/hexpm.git hexpm
+
+      # Every matrix entry builds the same hexpm with the same OTP and Elixir,
+      # so they share one entry, and only main writes it. A branch's entries
+      # would only be read by that branch, and count toward the repository's
+      # 10 GB cache limit along with main's.
+      - name: Restore hexpm build
+        id: hexpm-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            hexpm/deps
+            hexpm/_build
+          key: ${{ runner.os }}-hexpm-${{ env.HEXPM_OTP }}-${{ env.HEXPM_ELIXIR }}-${{ hashFiles('hexpm/mix.lock', 'hexpm/config/config.exs', 'hexpm/config/hex.exs') }}
+          restore-keys: ${{ runner.os }}-hexpm-${{ env.HEXPM_OTP }}-${{ env.HEXPM_ELIXIR }}-
+
       - name: Set up hexpm
+        env:
+          # Compile dependencies across multiple OS processes
+          # https://mix.hexdocs.pm/Mix.Tasks.Deps.Compile.html#module-compiling-dependencies-across-multiple-os-processes
+          MIX_OS_DEPS_COMPILE_PARTITION_COUNT: 2
         run: |
-          git clone -b ${HEXPM_BRANCH} https://github.com/hexpm/hexpm.git hexpm
           cd hexpm; PATH=$(pwd)/../${HEXPM_ELIXIR_PATH}/bin:$(pwd)/../${HEXPM_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/../${HEXPM_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXPM_MIX_HOME} MIX_ENV=hex ../${HEXPM_ELIXIR_PATH}/bin/mix deps.get; cd ..
           cd hexpm; PATH=$(pwd)/../${HEXPM_ELIXIR_PATH}/bin:$(pwd)/../${HEXPM_OTP_PATH}/bin:${PATH} MIX_HOME=$(pwd)/../${HEXPM_MIX_HOME} MIX_ARCHIVES=$(pwd)/../${HEXPM_MIX_HOME} MIX_ENV=hex ../${HEXPM_ELIXIR_PATH}/bin/mix compile; cd ..
+
+      - name: Save hexpm build
+        if: ${{ github.ref == 'refs/heads/main' && steps.hexpm-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            hexpm/deps
+            hexpm/_build
+          key: ${{ steps.hexpm-cache.outputs.cache-primary-key }}
 
       - name: Install dependencies
         run: |

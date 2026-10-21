@@ -4,8 +4,8 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
   test "auth" do
     in_tmp(fn ->
       set_home_cwd()
-      auth = Hexpm.new_user("orgauth", "orgauth@mail.com", "password", "key")
-      Hex.State.put(:api_key, auth[:key])
+      auth = Hexpm.new_tfa_user("orgauth", "orgauth@mail.com", "password")
+      Hexpm.sign_in(auth)
       Hexpm.new_repo("myorgauth", auth)
 
       send(self(), {:mix_shell_input, :yes?, true})
@@ -29,8 +29,8 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
   test "auth without --key warns about deprecation" do
     in_tmp(fn ->
       set_home_cwd()
-      auth = Hexpm.new_user("orgauthdeprecated", "orgauthdeprecated@mail.com", "password", "key")
-      Hex.State.put(:api_key, auth[:key])
+      auth = Hexpm.new_tfa_user("orgauthdeprecated", "orgauthdeprecated@mail.com", "password")
+      Hexpm.sign_in(auth)
       Hexpm.new_repo("myorgauthdeprecated", auth)
 
       send(self(), {:mix_shell_input, :yes?, true})
@@ -55,10 +55,8 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       set_home_cwd()
 
-      auth =
-        Hexpm.new_user("orgauthwithkeyname", "orgauthwithkeyname@mail.com", "password", "key")
-
-      Hex.State.put(:api_key, auth[:key])
+      auth = Hexpm.new_tfa_user("orgauthwithkeyname", "orgauthwithkeyname@mail.com", "password")
+      Hexpm.sign_in(auth)
 
       Hexpm.new_repo("myorgauthwithkeyname", auth)
 
@@ -87,7 +85,7 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
   test "auth --key" do
     in_tmp(fn ->
       set_home_cwd()
-      auth = Hexpm.new_user("orgauthkey", "orgauthkey@mail.com", "password", "key")
+      auth = Hexpm.new_tfa_user("orgauthkey", "orgauthkey@mail.com", "password")
       Hexpm.new_repo("myorgauthkey", auth)
 
       parameters = [%{"domain" => "repository", "resource" => "myorgauthkey"}]
@@ -219,13 +217,14 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
   test "deauth" do
     in_tmp(fn ->
       set_home_cwd()
-      auth = Hexpm.new_user("orgdeauth", "orgdeauth@mail.com", "password", "key")
-      Hex.State.put(:api_key, auth[:key])
+      auth = Hexpm.new_tfa_user("orgdeauth", "orgdeauth@mail.com", "password")
+      Hexpm.sign_in(auth)
       Hexpm.new_repo("myorgdeauth", auth)
 
       send(self(), {:mix_shell_input, :yes?, true})
       send(self(), {:mix_shell_input, :prompt, "password"})
       Mix.Tasks.Hex.Organization.run(["auth", "myorgdeauth"])
+      assert Hex.Config.read_repos(Hex.Config.read())["hexpm:myorgdeauth"]
 
       Mix.Tasks.Hex.Organization.run(["deauth", "myorgdeauth"])
       refute Hex.Config.read_repos(Hex.Config.read())["hexpm:myorgdeauth"]
@@ -236,8 +235,8 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       set_home_cwd()
 
-      auth = Hexpm.new_user("orgkeygenuser", "orgkeygenuser@mail.com", "password", "key")
-      Hex.State.put(:api_key, auth[:key])
+      auth = Hexpm.new_tfa_user("orgkeygenuser", "orgkeygenuser@mail.com", "password")
+      Hexpm.sign_in(auth)
 
       Hexpm.new_repo("orgkeygenrepo", auth)
 
@@ -265,8 +264,8 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       set_home_cwd()
 
-      auth = Hexpm.new_user("orgkeylistuser", "orgkeylistuser@mail.com", "password", "key")
-      Hex.State.put(:api_key, auth[:key])
+      auth = Hexpm.new_tfa_user("orgkeylistuser", "orgkeylistuser@mail.com", "password")
+      Hexpm.sign_in(auth)
 
       Hexpm.new_repo("orgkeylistrepo", auth)
 
@@ -287,8 +286,8 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       set_home_cwd()
 
-      auth = Hexpm.new_user("orgkeyrevokeyuser", "orgkeyrevokeyuser@mail.com", "password", "key")
-      Hex.State.put(:api_key, auth[:key])
+      auth = Hexpm.new_tfa_user("orgkeyrevokeyuser", "orgkeyrevokeyuser@mail.com", "password")
+      Hexpm.sign_in(auth)
 
       Hexpm.new_repo("orgkeyrevokerepo", auth)
       Hexpm.new_organization_key("orgkeyrevokerepo", "orgkeyrevokerepo2", auth)
@@ -310,9 +309,9 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       set_home_cwd()
 
       auth =
-        Hexpm.new_user("orgkeyrevokealluser", "orgkeyrevokealluser@mail.com", "password", "key")
+        Hexpm.new_tfa_user("orgkeyrevokealluser", "orgkeyrevokealluser@mail.com", "password")
 
-      Hex.State.put(:api_key, auth[:key])
+      Hexpm.sign_in(auth)
 
       Hexpm.new_repo("orgkeyrevokeallrepo", auth)
       Hexpm.new_organization_key("orgkeyrevokeallrepo", "orgkeyrevokeallrepo2", auth)
@@ -327,5 +326,24 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
 
       assert {:ok, {200, _, []}} = Hex.API.Key.Organization.get("orgkeyrevokeallrepo", auth)
     end)
+  end
+
+  test "escapes timestamps in organization key listings" do
+    bypass = Bypass.open()
+    Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+    Hex.State.put(:api_key, "test-key")
+    body = [%{"name" => "ci", "inserted_at" => "2026-09-13T12:00:00Z\e[2K\rFORGED"}]
+
+    Bypass.expect(bypass, "GET", "/api/orgs/private/keys", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+      |> Plug.Conn.resp(200, Hex.Utils.safe_serialize_erlang(body))
+    end)
+
+    Mix.Tasks.Hex.Organization.run(["key", "private", "list"])
+    output = Case.shell_output()
+    assert output =~ "2026-09-13T12:00:00Z\\e[2K\\rFORGED"
+    refute output =~ "\e"
+    refute output =~ "\r"
   end
 end

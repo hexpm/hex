@@ -846,6 +846,35 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
     end)
   end
 
+  test "outdated drops terminal controls from the short diff URL" do
+    Mix.Project.push(OutdatedDeps.MixProject)
+
+    in_tmp(fn ->
+      set_home_tmp()
+      Mix.Dep.Lock.write(%{bar: {:hex, :bar, "0.1.0"}, foo: {:hex, :foo, "0.1.0"}})
+
+      Mix.Task.run("deps.get")
+      flush()
+
+      bypass = Bypass.open()
+      Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+      Bypass.expect_once(bypass, "POST", "/api/short_url", fn conn ->
+        body = %{"url" => "https://hex.pm/l/abc\e[2K\rFORGED"}
+
+        conn
+        |> Plug.Conn.put_resp_header("content-type", "application/vnd.hex+erlang")
+        |> Plug.Conn.resp(201, Hex.Utils.safe_serialize_erlang(body))
+      end)
+
+      assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+      output = shell_output()
+      assert output =~ "https://hex.pm/l/abc[2KFORGED"
+      refute output =~ "\e[2K"
+    end)
+  end
+
   defp extract_statuses(lines) do
     Enum.flat_map(lines, fn {_, _, [line]} ->
       ~r/Up-to-date|Update not possible|Update possible/
@@ -1188,7 +1217,45 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       end)
     end
 
-    test "does not annotate when locked version is retired (unsafe-lock bypass)" do
+    test "does not annotate when locked version has an advisory (unsafe-lock bypass)" do
+      Mix.Project.push(UnsafeLockedDeps.MixProject)
+
+      in_tmp(fn ->
+        set_home_tmp()
+
+        Mix.Dep.Lock.write(%{
+          tired: {:hex, :tired, "0.1.0"},
+          foo: {:hex, :foo, "0.1.0"}
+        })
+
+        Mix.Task.run("deps.get")
+        flush()
+
+        :sys.replace_state(Hex.Registry.Server, fn state ->
+          :ets.insert(
+            state.ets,
+            {{:advisories, "hexpm", "tired", "0.1.0"},
+             [%{id: "GHSA-test-aaaa-bbbb", summary: "test", severity: :SEVERITY_HIGH}]}
+          )
+
+          state
+        end)
+
+        clear_all_published_at()
+        inject_published_at("hexpm", "tired", "0.2.0", System.system_time(:second) - 86_400)
+        inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
+        Hex.State.put(:cooldown, "7d")
+
+        assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+
+        lines = collect_shell_lines()
+
+        refute Enum.any?(lines, &(&1 =~ "tired" and &1 =~ "(cooldown)"))
+        assert Enum.any?(lines, &(&1 =~ "foo" and &1 =~ "(cooldown)"))
+      end)
+    end
+
+    test "annotates when locked version is retired" do
       Mix.Project.push(UnsafeLockedDeps.MixProject)
 
       in_tmp(fn ->
@@ -1207,11 +1274,11 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
         inject_published_at("hexpm", "foo", "0.1.1", System.system_time(:second) - 86_400)
         Hex.State.put(:cooldown, "7d")
 
-        assert catch_throw(Mix.Task.run("hex.outdated", ["--all"])) == {:exit_code, 1}
+        assert Mix.Task.run("hex.outdated", ["--all"]) == nil
 
         lines = collect_shell_lines()
 
-        refute Enum.any?(lines, &(&1 =~ "tired" and &1 =~ "(cooldown)"))
+        assert Enum.any?(lines, &(&1 =~ "tired" and &1 =~ "(cooldown)"))
         assert Enum.any?(lines, &(&1 =~ "foo" and &1 =~ "(cooldown)"))
       end)
     end

@@ -118,7 +118,7 @@ defmodule Mix.Tasks.Hex.Policy do
   defp render_show(policy) do
     Hex.Shell.info([
       "Active policy: ",
-      [:cyan, "#{policy.repository}/#{policy.name}"],
+      [:cyan, Hex.Utils.escape_terminal("#{policy.repository}/#{policy.name}")],
       " ",
       visibility_tag(policy.visibility),
       "\n"
@@ -156,7 +156,7 @@ defmodule Mix.Tasks.Hex.Policy do
     restriction = Map.get(rp, :restriction)
     overrides = Map.get(rp, :overrides, [])
 
-    Hex.Shell.info(["    ", [:bright, "#{rp.repository}:"]])
+    Hex.Shell.info(["    ", [:bright, Hex.Utils.escape_terminal("#{rp.repository}:")]])
     Hex.Shell.info(["      Cooldown:        ", cooldown_label(restriction)])
     Hex.Shell.info(["      Advisory rule:   ", advisory_label(restriction)])
     Hex.Shell.info(["      Retirement rule: ", retirement_label(restriction)])
@@ -340,13 +340,15 @@ defmodule Mix.Tasks.Hex.Policy do
     do: [:red, "denied by override: #{Filter.acceptance_message(acceptance)}"]
 
   defp cooldown_source(:local), do: "local"
-  defp cooldown_source({repo, name}), do: "#{repo}/#{name}"
+  defp cooldown_source({repo, name}), do: Hex.Utils.escape_terminal("#{repo}/#{name}")
 
   defp visibility_tag(:VISIBILITY_PUBLIC), do: [:green, "[public]"]
   defp visibility_tag(:VISIBILITY_PRIVATE), do: [:yellow, "[private]"]
-  defp visibility_tag(other), do: ["[", to_string(other), "]"]
+  defp visibility_tag(other), do: ["[", Hex.Utils.escape_terminal(to_string(other)), "]"]
 
-  defp cooldown_label(%{cooldown: duration}) when is_binary(duration), do: [:cyan, duration]
+  defp cooldown_label(%{cooldown: duration}) when is_binary(duration),
+    do: [:cyan, Hex.Utils.escape_terminal(duration)]
+
   defp cooldown_label(_restriction), do: [:faint, "(none)"]
 
   defp advisory_label(%{advisory_min_severity: :SEVERITY_NONE}), do: [:red, "block any advisory"]

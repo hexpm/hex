@@ -10,7 +10,8 @@ defmodule Hex.State do
   @config %{
     api_key: %{
       env: ["HEX_API_KEY"],
-      config: [:api_key]
+      config: [:api_key],
+      skip_env_if_empty: true
     },
     api_otp: %{
       env: ["HEX_OTP"]
@@ -207,7 +208,9 @@ defmodule Hex.State do
       active_policy: {:computed, nil},
       policy_filtered_versions: {:computed, []},
       policy_locked_versions: {:computed, %{}},
-      unsatisfiable_requirements: {:computed, MapSet.new()}
+      unsatisfiable_requirements: {:computed, MapSet.new()},
+      invalid_app_names: {:computed, MapSet.new()},
+      workload_identity_tokens: {:computed, %{}}
     })
   end
 

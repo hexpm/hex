@@ -464,3 +464,78 @@ defmodule ReleaseInUmbrellaDeps.MixProject do
     ]
   end
 end
+
+defmodule ReleaseDefaultFiles.MixProject do
+  def project do
+    [
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
+      version: "0.0.1",
+      description: "foo",
+      package: [
+        licenses: ["MIT"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
+defmodule ReleaseAllFiles.MixProject do
+  def project do
+    [
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
+      version: "0.0.1",
+      description: "foo",
+      package: [
+        files: ["*"],
+        licenses: ["MIT"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
+defmodule ReleaseLiteralJunk.MixProject do
+  def project do
+    [
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
+      version: "0.0.1",
+      description: "foo",
+      package: [
+        files: ["myfile.txt", "priv", "priv/patch.orig", "priv/*.bak"],
+        licenses: ["MIT"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
+defmodule ReleaseCaseMismatch.MixProject do
+  def project do
+    [
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
+      version: "0.0.1",
+      description: "foo",
+      package: [
+        files: ["myfile.txt", "License", "Dir/*.txt"],
+        licenses: ["MIT"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
+defmodule ReleaseExecutables.MixProject do
+  def project do
+    [
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
+      version: "0.0.1",
+      description: "foo",
+      package: [
+        files: ["myfile.txt", "run.sh", "bin"],
+        executables: Process.get(:hex_test_executables),
+        licenses: ["MIT"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end

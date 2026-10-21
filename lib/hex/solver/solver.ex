@@ -1,9 +1,10 @@
-# Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
+# Vendored from hex_solver v0.3.2 (510bdd5), do not edit manually
 
 defmodule Hex.Solver.Solver do
   @moduledoc false
 
   alias Hex.Solver.{
+    Assignment,
     Incompatibility,
     PackageLister,
     PackageRange,
@@ -98,7 +99,7 @@ defmodule Hex.Solver.Solver do
   defp propagate_incompatibility([], unsatisfied, incompatibility, state, _opts) do
     # Only one term in the incompatibility was unsatisfied
     unsatisfied = %{unsatisfied | positive: not unsatisfied.positive}
-    Logger.debug("RESOLVER: derived #{unsatisfied}")
+    Logger.debug("RESOLVER: derived #{Term.to_string(unsatisfied)}")
 
     solution = PartialSolution.derive(state.solution, unsatisfied, incompatibility)
     {:ok, unsatisfied.package_range.name, %{state | solution: solution}}
@@ -111,17 +112,18 @@ defmodule Hex.Solver.Solver do
       :done
     else
       case PackageLister.pick_package(state.lister, unsatisfied) do
-        {:ok, package_range, nil} ->
+        {:ok, lister, package_range, nil} ->
           # If no version satisfies the constraint then add an incompatibility that indicates that
+          state = %{state | lister: lister}
           term = %Term{positive: true, package_range: package_range}
           incompatibility = Incompatibility.new([term], :no_versions)
           state = add_incompatibility(state, incompatibility)
           {:choice, package_range.name, state}
 
-        {:ok, %PackageRange{} = package_range, version} ->
+        {:ok, lister, %PackageRange{} = package_range, version} ->
           {lister, incompatibilities} =
             PackageLister.dependencies_as_incompatibilities(
-              state.lister,
+              lister,
               package_range.repo,
               package_range.name,
               version
@@ -148,14 +150,15 @@ defmodule Hex.Solver.Solver do
               state.solution
             else
               package_range = %PackageRange{package_range | constraint: version}
-              Logger.debug("RESOLVER: selecting #{package_range}")
+              Logger.debug("RESOLVER: selecting #{PackageRange.to_string(package_range)}")
               PartialSolution.decide(state.solution, package_range)
             end
 
           state = %{state | solution: solution}
           {:choice, package_range.name, state}
 
-        {:error, %PackageRange{} = package_range} ->
+        {:error, lister, %PackageRange{} = package_range} ->
+          state = %{state | lister: lister}
           package_range = %PackageRange{package_range | constraint: Util.any()}
           term = %Term{positive: true, package_range: package_range}
           incompatibility = Incompatibility.new([term], :package_not_found)
@@ -166,7 +169,7 @@ defmodule Hex.Solver.Solver do
   end
 
   defp add_incompatibility(state, incompatibility) do
-    Logger.debug("RESOLVER: fact #{incompatibility}")
+    Logger.debug("RESOLVER: fact #{Incompatibility.to_string(incompatibility)}")
 
     incompatibilities =
       Enum.reduce(incompatibility.terms, state.incompatibilities, fn term, incompatibilities ->
@@ -191,7 +194,7 @@ defmodule Hex.Solver.Solver do
   # incompatibility that encapsulates the root cause of the conflict and backtracks
   # until the new incompatibility will allow propagation to deduce new assignments.
   defp conflict_resolution(state, incompatibility) do
-    Logger.debug("RESOLVER: conflict #{incompatibility}")
+    Logger.debug("RESOLVER: conflict #{Incompatibility.to_string(incompatibility)}")
     do_conflict_resolution(state, incompatibility, false)
   catch
     :throw, {__MODULE__, :conflict_resolution, incompatibility, state} ->
@@ -321,9 +324,9 @@ defmodule Hex.Solver.Solver do
 
       Logger.debug("""
       RESOLVER: conflict resolution
-        #{resolution.most_recent_term} is#{partially} satisfied by #{resolution.most_recent_satisfier}
-        which is caused by #{resolution.most_recent_satisfier.cause}
-        thus #{incompatibility}\
+        #{Term.to_string(resolution.most_recent_term)} is#{partially} satisfied by #{Assignment.to_string(resolution.most_recent_satisfier)}
+        which is caused by #{Incompatibility.to_string(resolution.most_recent_satisfier.cause)}
+        thus #{Incompatibility.to_string(incompatibility)}\
       """)
 
       do_conflict_resolution(state, incompatibility, true)
@@ -362,12 +365,7 @@ defmodule Hex.Solver.Solver do
         %{repo: repo, name: package, constraint: version, label: label}
       end)
 
-    lister = %PackageLister{
-      registry: registry,
-      root_dependencies: root_dependencies,
-      locked: locked,
-      overrides: overrides
-    }
+    lister = PackageLister.new(registry, root_dependencies, locked, overrides)
 
     %{
       solution: %PartialSolution{},

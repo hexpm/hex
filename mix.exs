@@ -1,7 +1,7 @@
 defmodule Hex.MixProject do
   use Mix.Project
 
-  @version "2.5.2-dev"
+  @version "2.6.0-dev"
 
   def project do
     [
@@ -58,6 +58,7 @@ defmodule Hex.MixProject do
   defp aliases do
     [
       "compile.elixir": [&unload_hex/1, "compile.elixir"],
+      "archive.build": &build_archive/1,
       run: [&unload_hex/1, "run"],
       install: ["archive.build -o hex.ez", "archive.install hex.ez --force"],
       certdata: [&certdata/1]
@@ -90,6 +91,27 @@ defmodule Hex.MixProject do
     end)
   end
 
+  # Mix doesn't consolidate the protocols of archives, so the archive ships
+  # Hex's protocols consolidated. Only Hex implements them.
+  defp build_archive(args) do
+    {opts, _args, _invalid} = OptionParser.parse(args, switches: [compile: :boolean])
+
+    if Keyword.get(opts, :compile, true) do
+      Mix.Task.run("compile", args)
+    end
+
+    ebin = Mix.Project.compile_path()
+
+    for protocol <- Protocol.extract_protocols([ebin]) do
+      impls = Protocol.extract_impls(protocol, [ebin])
+      {:ok, binary} = Protocol.consolidate(protocol, impls)
+      File.write!(Path.join(ebin, "#{protocol}.beam"), binary)
+    end
+
+    # Runs the task itself, since this alias is already running
+    Mix.Task.run("archive.build", args)
+  end
+
   defp update_cached_deps(module) do
     case Mix.State.read_cache({:cached_deps, module}) do
       nil ->
@@ -107,6 +129,7 @@ defmodule Hex.MixProject do
 
   @mk_ca_bundle_url "https://raw.githubusercontent.com/bagder/curl/master/scripts/mk-ca-bundle.pl"
   @mk_ca_bundle_cmd "mk-ca-bundle.pl"
+  @certdata_url "https://raw.githubusercontent.com/nss-dev/nss/refs/heads/master/lib/ckfw/builtins/certdata.txt"
   @ca_bundle "ca-bundle.crt"
   @ca_bundle_target Path.join("lib/hex/http", @ca_bundle)
 
@@ -114,7 +137,7 @@ defmodule Hex.MixProject do
     cmd("wget", [@mk_ca_bundle_url])
     File.chmod!(@mk_ca_bundle_cmd, 0o755)
 
-    cmd(Path.expand(@mk_ca_bundle_cmd), ["-u"])
+    cmd(Path.expand(@mk_ca_bundle_cmd), ["-u", "-d", @certdata_url])
 
     File.cp!(@ca_bundle, @ca_bundle_target)
     File.rm!(@ca_bundle)

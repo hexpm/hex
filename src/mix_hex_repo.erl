@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.19.0 (68d8345), do not edit manually
+%% Vendored from hex_core v0.20.1 (465ade4), do not edit manually
 
 %% @doc
 %% Repo API.
@@ -40,7 +40,7 @@ get_names(Config) when is_map(Config) ->
     Decoder = fun(Data) ->
         mix_hex_registry:decode_names(Data, verify_repo(Config))
     end,
-    get_protobuf(Config, <<"names">>, Decoder).
+    get_protobuf(Config, ["names"], Decoder).
 
 %% @doc
 %% Gets versions resource from the repository.
@@ -62,7 +62,7 @@ get_versions(Config) when is_map(Config) ->
     Decoder = fun(Data) ->
         mix_hex_registry:decode_versions(Data, verify_repo(Config))
     end,
-    get_protobuf(Config, <<"versions">>, Decoder).
+    get_protobuf(Config, ["versions"], Decoder).
 
 %% @doc
 %% Gets package resource from the repository.
@@ -89,7 +89,7 @@ get_package(Config, Name) when is_binary(Name) and is_map(Config) ->
             false -> mix_hex_registry:decode_package(Data, no_verify, no_verify)
         end
     end,
-    get_protobuf(Config, <<"packages/", Name/binary>>, Decoder).
+    get_protobuf(Config, ["packages", Name], Decoder).
 
 %% @doc
 %% Gets policy resource from the repository.
@@ -118,7 +118,7 @@ get_policy(Config, Name) when is_binary(Name) and is_map(Config) ->
             false -> mix_hex_registry:decode_policy(Data, no_verify, no_verify)
         end
     end,
-    get_protobuf(Config, <<"policies/", Name/binary>>, Decoder).
+    get_protobuf(Config, ["policies", Name], Decoder).
 
 %% @doc
 %% Gets tarball from the repository.
@@ -210,7 +210,7 @@ get_docs_to_file(Config, Name, Version, Filename) ->
 %% '''
 get_public_key(Config) ->
     ReqHeaders = make_headers(Config),
-    URI = build_url(Config, <<"public_key">>),
+    URI = build_url(Config, ["public_key"]),
 
     case get(Config, URI, ReqHeaders) of
         {ok, {200, RespHeaders, PublicKey}} ->
@@ -231,7 +231,7 @@ get_public_key(Config) ->
 %% @end
 get_hex_installs(Config) ->
     ReqHeaders = make_headers(Config),
-    URI = build_url(Config, <<"installs/hex-1.x.csv">>),
+    URI = build_url(Config, ["installs", "hex-1.x.csv"]),
 
     case get(Config, URI, ReqHeaders) of
         {ok, {200, RespHeaders, CSV}} ->
@@ -313,16 +313,20 @@ get_to_file(Config, URI, Headers, Filename) ->
     mix_hex_http:request_to_file(Config, get, URI, Headers, undefined, Filename).
 
 %% @private
-get_protobuf(Config, Path, Decoder) ->
+get_protobuf(Config, Segments, Decoder) ->
     PublicKey = maps:get(repo_public_key, Config),
     ReqHeaders = make_headers(Config),
 
-    case get(Config, build_url(Config, Path), ReqHeaders) of
+    case get(Config, build_url(Config, Segments), ReqHeaders) of
         {ok, {200, RespHeaders, Compressed}} ->
-            Signed = zlib:gunzip(Compressed),
-            case decode(Signed, PublicKey, Decoder, Config) of
-                {ok, Decoded} ->
-                    {ok, {200, RespHeaders, Decoded}};
+            case mix_hex_registry:gunzip(Compressed, registry_max_uncompressed_size(Config)) of
+                {ok, Signed} ->
+                    case decode(Signed, PublicKey, Decoder, Config) of
+                        {ok, Decoded} ->
+                            {ok, {200, RespHeaders, Decoded}};
+                        {error, _} = Error ->
+                            Error
+                    end;
                 {error, _} = Error ->
                     Error
             end;
@@ -348,6 +352,13 @@ decode(Signed, PublicKey, Decoder, Config) ->
     end.
 
 %% @private
+%% Configs aren't always built from mix_hex_core:default_config/0, for example
+%% rebar3 builds configs for custom repositories from the user's settings
+registry_max_uncompressed_size(Config) ->
+    Default = maps:get(registry_max_uncompressed_size, mix_hex_core:default_config()),
+    maps:get(registry_max_uncompressed_size, Config, Default).
+
+%% @private
 verify_repo(Config) ->
     case maps:get(repo_verify_origin, Config, true) of
         true -> repo_name(Config);
@@ -361,20 +372,22 @@ repo_name(#{repo_name := Name}) when is_binary(Name) -> Name.
 %% @private
 tarball_url(Config, Name, Version) ->
     Filename = tarball_filename(Name, Version),
-    build_url(Config, <<"tarballs/", Filename/binary>>).
+    build_url(Config, ["tarballs", Filename]).
 
 %% @private
 docs_url(Config, Name, Version) ->
     Filename = docs_filename(Name, Version),
-    build_url(Config, <<"docs/", Filename/binary>>).
+    build_url(Config, ["docs", Filename]).
 
 %% @private
-build_url(#{repo_url := URI, repo_organization := Org}, Path) when is_binary(Org) ->
-    <<URI/binary, "/repos/", Org/binary, "/", Path/binary>>;
-build_url(#{repo_url := URI, repo_organization := undefined}, Path) ->
+build_url(#{repo_url := URI, repo_organization := Org}, Segments) when is_binary(Org) ->
+    Path = mix_hex_api:join_path_segments(["repos", Org | Segments]),
     <<URI/binary, "/", Path/binary>>;
-build_url(Config, Path) ->
-    build_url(Config#{repo_organization => undefined}, Path).
+build_url(#{repo_url := URI, repo_organization := undefined}, Segments) ->
+    Path = mix_hex_api:join_path_segments(Segments),
+    <<URI/binary, "/", Path/binary>>;
+build_url(Config, Segments) ->
+    build_url(Config#{repo_organization => undefined}, Segments).
 
 %% @private
 tarball_filename(Name, Version) ->

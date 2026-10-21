@@ -34,6 +34,28 @@ defmodule Hex.MixTest do
     assert Hex.Solver.parse_constraint!(requirement) == %Hex.Solver.Constraints.Empty{}
   end
 
+  test "to_lock/2 keeps the entry of the lock for the same release" do
+    Hex.Registry.Server.open()
+    put_dependency("kept_parent", "1.0.0", "~> 1.0", false)
+
+    [kept_parent: fresh] =
+      Map.to_list(Hex.Mix.to_lock([{"hexpm", "kept_parent", "kept_parent", "1.0.0"}]))
+
+    kept = put_elem(fresh, 4, [:kept_manager])
+
+    assert Hex.Mix.to_lock([{"hexpm", "kept_parent", "kept_parent", "1.0.0"}], %{
+             kept_parent: kept
+           }) ==
+             %{kept_parent: kept}
+
+    stale = put_elem(kept, 2, "0.9.0")
+
+    assert Hex.Mix.to_lock([{"hexpm", "kept_parent", "kept_parent", "1.0.0"}], %{
+             kept_parent: stale
+           }) ==
+             %{kept_parent: fresh}
+  end
+
   test "from_lock/1" do
     lock = [ex_doc: {:hex, :ex_doc, "0.1.0"}, postgrex: {:hex, :fork, "0.2.1"}]
 

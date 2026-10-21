@@ -1,4 +1,4 @@
-# Vendored from hex_solver v0.3.0 (c4f8f89), do not edit manually
+# Vendored from hex_solver v0.3.2 (510bdd5), do not edit manually
 
 defmodule Hex.Solver.Term do
   @moduledoc false
@@ -124,7 +124,7 @@ defmodule Hex.Solver.Term do
   end
 
   def to_string(%Term{package_range: package_range, positive: positive}) do
-    "#{positive(positive)}#{package_range}"
+    "#{positive(positive)}#{PackageRange.to_string(package_range)}"
   end
 
   defp positive(true), do: ""
@@ -139,7 +139,7 @@ defmodule Hex.Solver.Term do
           %Term{package_range: package_range, positive: positive, optional: optional},
           _opts
         ) do
-      "#Term<#{positive(positive)}#{package_range}#{optional(optional)}>"
+      "#Term<#{positive(positive)}#{PackageRange.to_string(package_range)}#{optional(optional)}>"
     end
 
     defp positive(true), do: ""

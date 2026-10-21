@@ -17,6 +17,13 @@ defmodule Mix.Tasks.Hex.Organization do
   For CI, generate an organization key with `mix hex.organization key ORGANIZATION generate`
   and pass it with `mix hex.organization auth ORGANIZATION --key KEY`.
 
+  A GitHub Actions job with the `id-token: write` permission can fetch the
+  organization's packages without a key, using Workload Identity, sometimes also
+  known as "Trusted Publishing". Configure a workload identity with the `read`
+  or `write` role for the organization on hex.pm. When neither an organization
+  key nor an authenticated user is configured, Hex exchanges the job's OIDC
+  token for a short-lived token that can fetch the organization's packages.
+
   > #### Deprecation {: .warning}
   >
   > Authorizing an organization without `--key` is deprecated and will be removed.
@@ -256,7 +263,7 @@ defmodule Mix.Tasks.Hex.Organization do
       {:ok, {code, _headers, body}} when code in 200..299 ->
         values =
           Enum.map(body, fn %{"name" => name, "inserted_at" => time} ->
-            [name, time]
+            [Hex.Utils.escape_terminal(name), Hex.Utils.escape_terminal(time)]
           end)
 
         Mix.Tasks.Hex.print_table(["Name", "Created at"], values)
@@ -281,7 +288,7 @@ defmodule Mix.Tasks.Hex.Organization do
       )
 
     case result do
-      {:ok, secret} -> Hex.Shell.info(secret)
+      {:ok, secret} -> Hex.Shell.info(Hex.Utils.escape_terminal(secret))
       :error -> :ok
     end
   end
@@ -304,6 +311,8 @@ defmodule Mix.Tasks.Hex.Organization do
         key_owner(body)
 
       {:ok, {code, _, %{"message" => message}}} when code in [401, 403] ->
+        message = Hex.Utils.escape_terminal(message)
+
         Hex.Shell.error(
           "Failed to authenticate against organization repository with given key because of: #{message}"
         )

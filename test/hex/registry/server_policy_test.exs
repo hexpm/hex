@@ -67,6 +67,46 @@ defmodule Hex.Registry.ServerPolicyTest do
     end)
   end
 
+  test "the etag of a fetched policy is sent on the next fetch and a 304 keeps the cache",
+       %{bypass: bypass} do
+    test_pid = self()
+
+    Bypass.expect(bypass, "GET", "/repos/myorg/policies/strict-prod", fn conn ->
+      if_none_match = Plug.Conn.get_req_header(conn, "if-none-match")
+      send(test_pid, {:if_none_match, if_none_match})
+
+      case if_none_match do
+        [] ->
+          conn
+          |> Plug.Conn.put_resp_header("etag", "\"v1\"")
+          |> Plug.Conn.resp(200, fresh_policy([]))
+
+        ["\"v1\""] ->
+          Plug.Conn.resp(conn, 304, "")
+      end
+    end)
+
+    in_tmp("registry_policy_etag", fn ->
+      Hex.State.put(:cache_home, File.cwd!())
+      Hex.State.put(:shell_process, self())
+      registry_path = Path.join(File.cwd!(), "cache.ets")
+      Registry.open(check_version: false, registry_path: registry_path)
+
+      assert :ok = Registry.prefetch_policies([{"hexpm:myorg", "strict-prod"}])
+      assert {:ok, _policy} = Registry.policy("hexpm:myorg", "strict-prod")
+      assert_received {:if_none_match, []}
+
+      Registry.close()
+      Registry.open(check_version: false, registry_path: registry_path)
+
+      assert :ok = Registry.prefetch_policies([{"hexpm:myorg", "strict-prod"}])
+      assert {:ok, policy} = Registry.policy("hexpm:myorg", "strict-prod")
+      assert policy.name == "strict-prod"
+      assert_received {:if_none_match, ["\"v1\""]}
+      refute_received {:mix_shell, :error, ["Failed to fetch policy" <> _]}
+    end)
+  end
+
   test "policy load warns once about unsupported override actions", %{bypass: bypass} do
     repositories = [
       %{

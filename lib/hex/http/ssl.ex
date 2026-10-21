@@ -1,7 +1,6 @@
 defmodule Hex.HTTP.SSL do
   @moduledoc false
 
-  require Record
   alias Hex.HTTP.Certs
   alias Hex.HTTP.VerifyHostname
 
@@ -26,18 +25,6 @@ defmodule Hex.HTTP.SSL do
 
   @default_versions [:"tlsv1.2", :"tlsv1.1", :tlsv1]
 
-  Record.defrecordp(
-    :certificate,
-    :OTPCertificate,
-    Record.extract(:OTPCertificate, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
-  )
-
-  Record.defrecordp(
-    :tbs_certificate,
-    :OTPTBSCertificate,
-    Record.extract(:OTPTBSCertificate, from_lib: "public_key/include/OTP-PUB-KEY.hrl")
-  )
-
   def get_ca_certs do
     case Hex.State.fetch!(:cacerts_path) do
       nil -> Certs.cacerts()
@@ -49,47 +36,28 @@ defmodule Hex.HTTP.SSL do
     hostname = String.to_charlist(URI.parse(url).host)
     ciphers = filter_ciphers(@default_ciphers)
 
-    partial_chain = &partial_chain(Certs.cacerts(), &1)
-
-    [
-      verify: :verify_peer,
-      depth: 4,
-      partial_chain: partial_chain,
-      cacerts: get_ca_certs(),
-      server_name_indication: hostname,
-      secure_renegotiate: true,
-      reuse_sessions: true,
-      versions: @default_versions,
-      ciphers: ciphers
-    ]
-    |> customize_hostname_check()
-  end
-
-  def partial_chain(cacerts, certs) do
-    certs = Enum.map(certs, &{&1, :public_key.pkix_decode_cert(&1, :otp)})
-    cacerts = Enum.map(cacerts, &:public_key.pkix_decode_cert(&1, :otp))
-
-    trusted =
-      Enum.find_value(certs, fn {der, cert} ->
-        trusted? =
-          Enum.find(cacerts, fn cacert ->
-            extract_public_key_info(cacert) == extract_public_key_info(cert)
-          end)
-
-        if trusted?, do: der
-      end)
-
-    if trusted do
-      {:trusted_ca, trusted}
+    if Hex.State.fetch!(:unsafe_https) do
+      [
+        verify: :verify_none,
+        server_name_indication: hostname,
+        secure_renegotiate: true,
+        reuse_sessions: true,
+        versions: @default_versions,
+        ciphers: ciphers
+      ]
     else
-      :unknown_ca
+      [
+        verify: :verify_peer,
+        depth: 4,
+        cacerts: get_ca_certs(),
+        server_name_indication: hostname,
+        secure_renegotiate: true,
+        reuse_sessions: true,
+        versions: @default_versions,
+        ciphers: ciphers
+      ]
+      |> customize_hostname_check()
     end
-  end
-
-  defp extract_public_key_info(cert) do
-    cert
-    |> certificate(:tbsCertificate)
-    |> tbs_certificate(:subjectPublicKeyInfo)
   end
 
   defp filter_ciphers(allowed) do

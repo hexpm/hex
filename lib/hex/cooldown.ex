@@ -171,13 +171,20 @@ defmodule Hex.Cooldown do
   Entries are deduplicated and grouped by package; within a package versions
   are listed newest-first, capped at #{@versions_listed_per_package} with an
   overflow line. Repo is used for keying only; it is not rendered.
-  """
-  @spec format_summary([{String.t(), String.t(), String.t(), integer() | nil}], cutoff()) ::
-          String.t() | nil
-  def format_summary(_entries, :disabled), do: nil
-  def format_summary([], _cutoff), do: nil
 
-  def format_summary(entries, cutoff) do
+  `retired_locks` maps `{repo, package}` to the `{app, version}` of a retired
+  locked release. When versions newer than that release were filtered, the
+  package's listing ends with how to update it without the cooldown.
+  """
+  @spec format_summary(
+          [{String.t(), String.t(), String.t(), integer() | nil}],
+          cutoff(),
+          %{{String.t(), String.t()} => {String.t(), String.t()}}
+        ) :: String.t() | nil
+  def format_summary(_entries, :disabled, _retired_locks), do: nil
+  def format_summary([], _cutoff, _retired_locks), do: nil
+
+  def format_summary(entries, cutoff, retired_locks) do
     entries =
       entries
       |> Enum.reject(fn {_repo, _pkg, _vsn, published_at} -> is_nil(published_at) end)
@@ -192,7 +199,10 @@ defmodule Hex.Cooldown do
           entries
           |> Enum.group_by(fn {repo, pkg, _vsn, _} -> {repo, pkg} end)
           |> Enum.sort()
-          |> Enum.flat_map(fn {_key, entries} -> package_lines(entries, cutoff) end)
+          |> Enum.flat_map(fn {key, entries} ->
+            package_lines(entries, cutoff) ++
+              retired_lock_lines(entries, Map.get(retired_locks, key))
+          end)
 
         iodata = ["\nVersions filtered by cooldown:\n", Enum.intersperse(lines, "\n"), "\n"]
         IO.chardata_to_string(Hex.Shell.format(iodata))
@@ -212,7 +222,7 @@ defmodule Hex.Cooldown do
         [
           "  ",
           :bright,
-          pkg,
+          Hex.Utils.escape_terminal(pkg),
           :reset,
           " ",
           :yellow,
@@ -228,6 +238,31 @@ defmodule Hex.Cooldown do
     case rest do
       [] -> lines
       rest -> lines ++ ["  ...and #{length(rest)} more"]
+    end
+  end
+
+  defp retired_lock_lines(_entries, nil), do: []
+
+  defp retired_lock_lines(entries, {app, locked_version}) do
+    newer? =
+      Enum.any?(entries, fn {_repo, _pkg, vsn, _} ->
+        Version.compare(vsn, locked_version) == :gt
+      end)
+
+    if newer? do
+      command = "HEX_COOLDOWN=0 mix deps.update #{app}"
+
+      [
+        [
+          "    Locked version ",
+          :yellow,
+          locked_version,
+          :reset,
+          " is retired. To update without the cooldown, run `#{command}`"
+        ]
+      ]
+    else
+      []
     end
   end
 end

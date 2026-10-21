@@ -146,7 +146,10 @@ defmodule Hex.SCM do
       )
     end
 
-    case Hex.Parallel.await(:hex_fetcher, {:tarball, repo, name, lock.version}, @fetch_timeout) do
+    fetch_id = {:tarball, repo, name, lock.version}
+    {fetch_result, staged} = Hex.Parallel.await(:hex_tarball_fetcher, fetch_id, @fetch_timeout)
+
+    case fetch_result do
       {:ok, :cached} ->
         Hex.Shell.debug("  Using locally cached package (#{path})")
 
@@ -158,9 +161,13 @@ defmodule Hex.SCM do
         Hex.Shell.debug("  Fetched package (#{tarball_url})")
 
       {:error, reason} ->
+        if Hex.State.fetch!(:offline) do
+          Mix.raise(reason)
+        end
+
         Hex.Shell.error(reason)
 
-        unless File.exists?(path) do
+        if check_cache(path, repo, name, lock.version) != :ok do
           tarball_url = tarball_url(repo, name, lock.version)
           Mix.raise("Package fetch failed and no cached copy available (#{tarball_url})")
         end
@@ -168,33 +175,21 @@ defmodule Hex.SCM do
         Hex.Shell.info("  Fetch failed. Using locally cached package (#{path})")
     end
 
-    File.rm_rf!(dest)
-
-    registry_inner_checksum = Registry.inner_checksum(repo, to_string(name), lock.version)
-    registry_outer_checksum = Registry.outer_checksum(repo, to_string(name), lock.version)
-
-    %{
-      inner_checksum: tarball_inner_checksum,
-      outer_checksum: tarball_outer_checksum,
-      metadata: meta
-    } =
-      try do
-        Hex.Tar.unpack!(path, dest)
-      rescue
-        exception ->
-          File.rm(path)
-          reraise(exception, __STACKTRACE__)
+    {staging, unpacked} =
+      case staged do
+        {:ok, staging, unpacked} -> {staging, unpacked}
+        :error -> unpack!(path, staging_path(dest))
       end
 
-    if tarball_inner_checksum != registry_inner_checksum do
-      File.rm(path)
-      raise("Checksum mismatch against registry (inner)")
-    end
-
-    if tarball_outer_checksum != registry_outer_checksum do
-      File.rm(path)
-      raise("Checksum mismatch against registry (outer)")
-    end
+    %{metadata: meta} =
+      try do
+        verify_checksums!(unpacked, path, repo, name, lock.version)
+        File.rm_rf!(dest)
+        File.rename!(staging, dest)
+        unpacked
+      after
+        File.rm_rf(staging)
+      end
 
     build_tools = guess_build_tools(meta)
 
@@ -228,6 +223,28 @@ defmodule Hex.SCM do
 
     {:hex, String.to_atom(lock.name), lock.version, lock.inner_checksum, managers, deps,
      lock.repo, lock.outer_checksum}
+  end
+
+  defp unpack!(path, staging) do
+    File.rm_rf!(staging)
+    {staging, Hex.Tar.unpack!(path, staging)}
+  rescue
+    exception ->
+      File.rm(path)
+      File.rm_rf(staging)
+      reraise(exception, __STACKTRACE__)
+  end
+
+  defp verify_checksums!(unpacked, path, repo, name, version) do
+    if unpacked.inner_checksum != Registry.inner_checksum(repo, to_string(name), version) do
+      File.rm(path)
+      raise("Checksum mismatch against registry (inner)")
+    end
+
+    if unpacked.outer_checksum != Registry.outer_checksum(repo, to_string(name), version) do
+      File.rm(path)
+      raise("Checksum mismatch against registry (outer)")
+    end
   end
 
   def checkout(opts) do
@@ -364,11 +381,38 @@ defmodule Hex.SCM do
   def prefetch(lock) do
     fetch = fetch_from_lock(lock)
 
-    Enum.each(fetch, fn {repo, package, version} ->
-      Hex.Parallel.run(:hex_fetcher, {:tarball, repo || "hexpm", package, version}, fn ->
-        fetch(repo, package, version)
+    Enum.each(fetch, fn {repo, package, version, dest} ->
+      repo = repo || "hexpm"
+
+      Hex.Parallel.run(:hex_tarball_fetcher, {:tarball, repo, package, version}, fn ->
+        case fetch(repo, package, version) do
+          {:ok, _} = result -> {result, stage(repo, package, version, dest)}
+          {:error, _} = result -> {result, :error}
+        end
       end)
     end)
+  end
+
+  # Mix updates dependencies one at a time, so packages are unpacked in the
+  # fetch jobs, in parallel, into a directory next to the dependency. The
+  # dependency directory is only replaced by update/1, which verifies the
+  # checksums and renames the unpacked directory into place. If unpacking
+  # fails here, update/1 unpacks the package again to report the error.
+  defp stage(repo, package, version, dest) do
+    staging = staging_path(dest)
+
+    try do
+      File.rm_rf!(staging)
+      {:ok, staging, Hex.Tar.unpack!(cache_path(repo, package, version), staging)}
+    rescue
+      _exception ->
+        File.rm_rf(staging)
+        :error
+    end
+  end
+
+  defp staging_path(dest) do
+    Path.join(Path.dirname(dest), "." <> Path.basename(dest) <> ".hex-staging")
   end
 
   defp fetch_from_lock(lock) do
@@ -381,7 +425,7 @@ defmodule Hex.SCM do
 
           case lock_status(dest: dest, lock: info) do
             :ok -> []
-            :mismatch -> [{repo, name, version}]
+            :mismatch -> [{repo, name, version, dest}]
           end
 
         nil ->
@@ -409,47 +453,92 @@ defmodule Hex.SCM do
   end
 
   def fetch(repo, package, version) do
-    if Hex.State.fetch!(:offline) do
-      {:ok, :offline}
-    else
-      outer_checksum = Registry.outer_checksum(repo, package, version)
-      path = cache_path(repo, package, version)
+    path = cache_path(repo, package, version)
+    offline? = Hex.State.fetch!(:offline)
 
-      case Hex.Tar.outer_checksum(path) do
-        {:ok, ^outer_checksum} ->
-          {:ok, :cached}
+    case check_cache(path, repo, package, version) do
+      :ok when offline? ->
+        {:ok, :offline}
 
-        {:ok, other_outer_checksum} ->
+      :ok ->
+        {:ok, :cached}
+
+      {:mismatch, _outer_checksum, _cached_checksum} when offline? ->
+        {:error,
+         "Hex is running in offline mode and the cached package for #{package} #{version} " <>
+           "doesn't match the registry checksum"}
+
+      {:error, _reason} when offline? ->
+        {:error,
+         "Hex is running in offline mode and the package #{package} #{version} " <>
+           "is not cached locally"}
+
+      {:mismatch, outer_checksum, cached_checksum} ->
+        # The registry has no checksum for a version it doesn't list
+        if outer_checksum do
           Hex.Shell.warn("""
           Checksum mismatch between registry and the cached package for #{package} #{version}
 
           Registry checksum: #{Base.encode16(outer_checksum, case: :lower)}
-          Package checksum:  #{Base.encode16(other_outer_checksum, case: :lower)}
+          Package checksum:  #{Base.encode16(cached_checksum, case: :lower)}
 
           This may happen when the previously cached package got re-published, but it may also indicate a security issue so verify the new package.
 
           Re-fetching...\
           """)
+        end
 
-          do_fetch(path, repo, package, version)
+        do_fetch(path, repo, package, version)
 
-        {:error, _reason} ->
-          do_fetch(path, repo, package, version)
-      end
+      {:error, _reason} ->
+        do_fetch(path, repo, package, version)
     end
   end
 
+  # A cached tarball is only used when its checksum matches the registry, and
+  # one that doesn't is removed
+  defp check_cache(path, repo, package, version) do
+    outer_checksum = Registry.outer_checksum(repo, package, version)
+
+    case Hex.Tar.outer_checksum(path) do
+      {:ok, ^outer_checksum} ->
+        :ok
+
+      {:ok, cached_checksum} ->
+        File.rm(path)
+        {:mismatch, outer_checksum, cached_checksum}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # The tarball is downloaded to a temporary file that is renamed into the
+  # cache, so an interrupted download doesn't leave a truncated tarball that
+  # the next fetch reports as a checksum mismatch
   defp do_fetch(path, repo, package, version) do
-    case Hex.Repo.get_tarball(repo, package, version) do
-      {:ok, {200, _, body}} ->
-        File.mkdir_p!(Path.dirname(path))
-        File.write!(path, body)
-        {:ok, :new}
+    File.mkdir_p!(Path.dirname(path))
+    tmp_path = path <> "." <> Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
 
-      {:ok, {304, _headers, _body}} ->
-        {:ok, :cached}
+    try do
+      download(path, tmp_path, repo, package, version)
+    after
+      File.rm(tmp_path)
+    end
+  end
 
-      {:ok, {code, _headers, _body}} ->
+  defp download(path, tmp_path, repo, package, version) do
+    case Hex.Repo.get_tarball_to_file(repo, package, version, tmp_path) do
+      {:ok, {200, _headers}} ->
+        if Hex.Tar.outer_checksum(tmp_path) ==
+             {:ok, Registry.outer_checksum(repo, package, version)} do
+          File.rename!(tmp_path, path)
+          {:ok, :new}
+        else
+          {:error, "Checksum mismatch against registry (outer)"}
+        end
+
+      {:ok, {code, _headers}} ->
         {:error, "Request failed (#{code})"}
 
       {:error, :timeout} ->
@@ -461,6 +550,9 @@ defmodule Hex.SCM do
         ]
 
         {:error, reason}
+
+      {:error, {:auth_error, {:workload_identity_failed, reason}}} ->
+        {:error, Hex.WorkloadIdentity.repository_error_message(repo, reason)}
 
       {:error, reason} ->
         {:error, "Request failed (#{inspect(reason)})"}
