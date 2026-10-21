@@ -503,19 +503,4 @@ defmodule Hex.Registry.ServerTest do
                    Registry.prefetch([{"hexpm", "missing_package"}])
                  end
   end
-
-  defp signed_package(name, versions) do
-    releases =
-      Enum.map(versions, fn version ->
-        %{
-          version: version,
-          inner_checksum: :crypto.hash(:sha256, "inner #{version}"),
-          outer_checksum: :crypto.hash(:sha256, "outer #{version}"),
-          dependencies: []
-        }
-      end)
-
-    package = %{repository: "hexpm", name: name, releases: releases}
-    :mix_hex_registry.build_package(package, File.read!(fixture_path("test_priv.pem")))
-  end
 end

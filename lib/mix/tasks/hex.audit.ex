@@ -18,8 +18,10 @@ defmodule Mix.Tasks.Hex.Audit do
   if any packages with advisories are found.
 
   The task fails when the registry entry of a locked package can't be
-  fetched, because a cached entry can miss advisories published since. Set
-  `HEX_OFFLINE=1` to audit against the cached registry entries instead.
+  fetched or doesn't include the locked version. A cached entry can miss
+  advisories published since it was fetched, so the task doesn't fall back
+  to it. Set `HEX_OFFLINE=1` to audit against the cached registry entries
+  instead.
 
   ## Ignoring advisories and retirements
 
@@ -166,7 +168,7 @@ defmodule Mix.Tasks.Hex.Audit do
     |> Hex.Mix.packages_from_lock()
     |> Registry.prefetch()
 
-    Hex.Audit.ensure_fetched!(lock)
+    Hex.Audit.ensure_registry_entries!(lock)
     result = Hex.Audit.run(lock, policy, mode)
 
     case format do
