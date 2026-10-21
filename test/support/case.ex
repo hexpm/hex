@@ -132,6 +132,22 @@ defmodule HexTest.Case do
 
   @ets_table :hex_index
 
+  # A hexpm registry entry for `name` with `versions`, signed with the test key
+  def signed_package(name, versions) do
+    releases =
+      Enum.map(versions, fn version ->
+        %{
+          version: version,
+          inner_checksum: :crypto.hash(:sha256, "inner #{version}"),
+          outer_checksum: :crypto.hash(:sha256, "outer #{version}"),
+          dependencies: []
+        }
+      end)
+
+    package = %{repository: "hexpm", name: name, releases: releases}
+    :mix_hex_registry.build_package(package, File.read!(fixture_path("test_priv.pem")))
+  end
+
   def create_test_registry(path, registry, advisories \\ [], publish_times \\ %{}, retired \\ %{}) do
     registry = Enum.sort(registry)
 

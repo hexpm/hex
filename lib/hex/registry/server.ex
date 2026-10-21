@@ -226,6 +226,14 @@ defmodule Hex.Registry.Server do
     GenServer.call(@name, {:fetch_failed?, repo, package}, @timeout)
   end
 
+  @doc """
+  Returns whether fetching the policy `name` from the registry failed since
+  the registry was opened, so `policy/2` returns the cached policy, if any.
+  """
+  def policy_fetch_failed?(repo, name) do
+    GenServer.call(@name, {:policy_fetch_failed?, repo, name}, @timeout)
+  end
+
   def last_update() do
     GenServer.call(@name, :last_update, @timeout)
   end
@@ -246,13 +254,14 @@ defmodule Hex.Registry.Server do
       path: nil,
       pending: MapSet.new(),
       fetched: MapSet.new(),
-      # Kept out of the ETS table, which is persisted, so a failed fetch only
-      # counts for the run that saw it.
+      # failed and failed_policies are kept out of the ETS table, which is
+      # persisted, so a failed fetch only counts for the run that saw it.
       failed: MapSet.new(),
       waiting: %{},
       pending_fun: nil,
       pending_policies: MapSet.new(),
       fetched_policies: MapSet.new(),
+      failed_policies: MapSet.new(),
       waiting_policies: %{},
       constraints: %{}
     }
@@ -415,6 +424,12 @@ defmodule Hex.Registry.Server do
     end)
   end
 
+  def handle_call({:policy_fetch_failed?, repo, name}, from, state) do
+    maybe_wait_policy({repo, name}, from, state, fn state ->
+      {{repo || "hexpm", name} in state.failed_policies, state}
+    end)
+  end
+
   def handle_call(:last_update, _from, state) do
     time = lookup(state.ets, :last_update)
     {:reply, time, state}
@@ -469,18 +484,26 @@ defmodule Hex.Registry.Server do
     fetched = MapSet.put(state.fetched_policies, ref)
     {replys, waiting} = Map.pop(state.waiting_policies, ref, [])
 
-    written? = write_policy_result(result, repo, name, state)
+    outcome = write_policy_result(result, repo, name, state)
 
-    Enum.each(replys, fn {from, fun} ->
-      GenServer.reply(from, fun.())
-    end)
+    state =
+      if outcome == :failed,
+        do: %{state | failed_policies: MapSet.put(state.failed_policies, ref)},
+        else: state
+
+    state =
+      Enum.reduce(replys, state, fn {from, fun}, state ->
+        {reply, state} = run_waiting(fun, state)
+        GenServer.reply(from, reply)
+        state
+      end)
 
     state = %{
       state
       | pending_policies: pending,
         waiting_policies: waiting,
         fetched_policies: fetched,
-        dirty: state.dirty or written?
+        dirty: state.dirty or outcome == :written
     }
 
     state = maybe_run_pending(state)
@@ -792,17 +815,17 @@ defmodule Hex.Registry.Server do
       :ets.insert(tid, {{:policy_etag, repo, name}, etag})
     end
 
-    true
+    :written
   end
 
   defp write_policy_result({:ok, {304, _, _}}, _repo, _name, _state) do
-    false
+    :not_modified
   end
 
   defp write_policy_result(other, repo, name, %{ets: tid}) do
     cached? = :ets.lookup(tid, {:policy, repo, name}) != []
     print_policy_error(other, repo, name, cached?)
-    false
+    :failed
   end
 
   defp print_policy_error(result, repo, name, cached?) do
@@ -941,7 +964,8 @@ defmodule Hex.Registry.Server do
 
     cond do
       {repo, name} in state.fetched_policies ->
-        {:reply, fun.(), state}
+        {reply, state} = run_waiting(fun, state)
+        {:reply, reply, state}
 
       {repo, name} in state.pending_policies ->
         tuple = {from, fun}

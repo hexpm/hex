@@ -40,36 +40,59 @@ defmodule Hex.AuditTest do
     registry_path = tmp_path("audit_cache.ets")
     File.rm(registry_path)
     Registry.open(check_version: false, registry_path: registry_path)
-    :ok
+    {:ok, bypass: bypass}
   end
 
-  test "fails when a locked package can't be fetched and isn't cached" do
+  test "fails without the offline hint when a locked package can't be fetched and isn't cached" do
     Registry.prefetch([{"hexpm", "mint"}])
 
-    assert_raise Mix.Error, ~r"Could not audit mint 1.10.1,", fn ->
-      Hex.Audit.run(@lock, nil, :default)
-    end
+    assert unaudited_message() ==
+             "Could not audit these locked packages:\n\n" <>
+               "  mint 1.10.1: the registry entry could not be fetched"
   end
 
-  test "fails when the cached registry entry doesn't include the locked version" do
-    :sys.replace_state(Registry, fn %{ets: tid} = state ->
-      :ets.insert(tid, {{:versions, "hexpm", "mint"}, ["1.9.0"]})
-      state
+  test "fails without the offline hint when the cached entry doesn't include the locked version" do
+    cache_mint_versions(["1.9.0"])
+    Registry.prefetch([{"hexpm", "mint"}])
+
+    assert unaudited_message() ==
+             "Could not audit these locked packages:\n\n" <>
+               "  mint 1.10.1: the registry entry could not be fetched"
+  end
+
+  test "fails when the fetched registry entry doesn't include the locked version",
+       %{bypass: bypass} do
+    Bypass.up(bypass)
+
+    Bypass.expect_once(bypass, "GET", "/packages/mint", fn conn ->
+      Plug.Conn.resp(conn, 200, signed_package("mint", ["1.9.0"]))
     end)
 
     Registry.prefetch([{"hexpm", "mint"}])
 
-    assert_raise Mix.Error, ~r"Could not audit mint 1.10.1,", fn ->
-      Hex.Audit.run(@lock, nil, :default)
-    end
+    assert unaudited_message() ==
+             "Could not audit these locked packages:\n\n" <>
+               "  mint 1.10.1: the locked version is not in the registry"
+  end
+
+  test "fails in offline mode when the cached entry doesn't include the locked version" do
+    Hex.State.put(:offline, true)
+    cache_mint_versions(["1.9.0"])
+    Registry.prefetch([{"hexpm", "mint"}])
+
+    assert unaudited_message() ==
+             "Could not audit these locked packages:\n\n" <>
+               "  mint 1.10.1: the locked version is not cached locally"
   end
 
   test "mix hex.audit fails when mint 1.10.1 can't be fetched, even with a cached entry" do
     cache_mint_advisory()
 
-    assert_raise Mix.Error, ~r"Could not audit mint 1.10.1, .*HEX_OFFLINE=1", fn ->
-      audit_locked_mint()
-    end
+    assert_raise Mix.Error,
+                 "Could not audit these locked packages:\n\n" <>
+                   "  mint 1.10.1: the registry entry could not be fetched\n\n" <>
+                   "Set HEX_OFFLINE=1 to audit against the local cache instead",
+                 fn -> audit_locked_mint() end
   end
 
   test "mix hex.audit with HEX_OFFLINE=1 reports the cached advisory of mint 1.10.1" do
@@ -77,6 +100,28 @@ defmodule Hex.AuditTest do
     cache_mint_advisory()
 
     assert catch_throw(audit_locked_mint()) == {:exit_code, 1}
+    assert shell_output() =~ "EEF-CVE-2026-91043"
+  end
+
+  test "mix hex.audit --policy fails when the policy can't be fetched, even with a cached policy",
+       %{bypass: bypass} do
+    put_cached_policy(bypass)
+    cache_mint_advisory()
+
+    assert_raise Mix.Error,
+                 "Could not audit against the policy hexpm:myorg/strict-prod because it " <>
+                   "could not be fetched\n\n" <>
+                   "Set HEX_OFFLINE=1 to audit against the local cache instead",
+                 fn -> audit_locked_mint(["--policy"]) end
+  end
+
+  test "mix hex.audit --policy with HEX_OFFLINE=1 audits against the cached policy",
+       %{bypass: bypass} do
+    Hex.State.put(:offline, true)
+    put_cached_policy(bypass)
+    cache_mint_advisory()
+
+    assert catch_throw(audit_locked_mint(["--policy"])) == {:exit_code, 1}
     assert shell_output() =~ "EEF-CVE-2026-91043"
   end
 
@@ -88,20 +133,52 @@ defmodule Hex.AuditTest do
              Hex.Audit.run(@lock, @policy, :policy).advisories
   end
 
-  defp cache_mint_advisory() do
+  defp unaudited_message() do
+    assert_raise(Mix.Error, fn -> Hex.Audit.ensure_registry_entries!(@lock) end).message
+  end
+
+  defp cache_mint_versions(versions) do
     :sys.replace_state(Registry, fn %{ets: tid} = state ->
-      :ets.insert(tid, {{:versions, "hexpm", "mint"}, ["1.10.1"]})
+      :ets.insert(tid, {{:versions, "hexpm", "mint"}, versions})
+      state
+    end)
+  end
+
+  defp cache_mint_advisory() do
+    cache_mint_versions(["1.10.1"])
+
+    :sys.replace_state(Registry, fn %{ets: tid} = state ->
       :ets.insert(tid, {{:advisories, "hexpm", "mint", "1.10.1"}, [@advisory]})
       state
     end)
   end
 
-  defp audit_locked_mint() do
+  defp put_cached_policy(bypass) do
+    repos = Hex.State.fetch!(:repos)
+
+    Hex.State.put(
+      :repos,
+      Map.put(repos, "hexpm:myorg", %{
+        repos["hexpm"]
+        | url: "http://localhost:#{bypass.port}",
+          public_key: File.read!(fixture_path("test_pub.pem"))
+      })
+    )
+
+    Hex.State.put(:policy, "hexpm:myorg/strict-prod")
+
+    :sys.replace_state(Registry, fn %{ets: tid} = state ->
+      :ets.insert(tid, {{:policy, "hexpm:myorg", "strict-prod"}, @policy})
+      state
+    end)
+  end
+
+  defp audit_locked_mint(args \\ []) do
     Mix.Project.push(LockedMint.MixProject)
 
     in_tmp(fn ->
       Mix.Dep.Lock.write(@lock)
-      Mix.Task.run("hex.audit")
+      Mix.Task.run("hex.audit", args)
     end)
   end
 end

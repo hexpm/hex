@@ -18,8 +18,11 @@ defmodule Mix.Tasks.Hex.Audit do
   if any packages with advisories are found.
 
   The task fails when the registry entry of a locked package can't be
-  fetched, because a cached entry can miss advisories published since. Set
-  `HEX_OFFLINE=1` to audit against the cached registry entries instead.
+  fetched or doesn't include the locked version, and with `--policy` or
+  `--policy-overrides` when the active policy can't be fetched. A cached
+  entry can miss advisories published since it was fetched, and a cached
+  policy can miss changes to the policy, so the task doesn't fall back to
+  them. Set `HEX_OFFLINE=1` to audit against the cache instead.
 
   ## Ignoring advisories and retirements
 
@@ -166,7 +169,7 @@ defmodule Mix.Tasks.Hex.Audit do
     |> Hex.Mix.packages_from_lock()
     |> Registry.prefetch()
 
-    Hex.Audit.ensure_fetched!(lock)
+    Hex.Audit.ensure_registry_entries!(lock)
     result = Hex.Audit.run(lock, policy, mode)
 
     case format do
@@ -221,7 +224,27 @@ defmodule Mix.Tasks.Hex.Audit do
         Mix.raise("#{flag} requires an active dependency policy")
 
       {:ok, policy} ->
+        ensure_policy_fetched!()
         policy
+    end
+  end
+
+  defp ensure_policy_fetched!() do
+    case Hex.Policy.configured_ref() do
+      nil ->
+        :ok
+
+      {repo, name} = ref ->
+        Registry.prefetch_policies([ref])
+
+        # Hex.Policy.active/0 raised if the policy isn't cached, so offline
+        # mode can audit against it
+        if Registry.policy_fetch_failed?(repo, name) do
+          Mix.raise(
+            "Could not audit against the policy #{repo}/#{name} because it could not " <>
+              "be fetched\n\nSet HEX_OFFLINE=1 to audit against the local cache instead"
+          )
+        end
     end
   end
 

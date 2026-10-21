@@ -102,6 +102,7 @@ defmodule Hex.Registry.ServerPolicyTest do
       assert :ok = Registry.prefetch_policies([{"hexpm:myorg", "strict-prod"}])
       assert {:ok, policy} = Registry.policy("hexpm:myorg", "strict-prod")
       assert policy.name == "strict-prod"
+      refute Registry.policy_fetch_failed?("hexpm:myorg", "strict-prod")
       assert_received {:if_none_match, ["\"v1\""]}
       refute_received {:mix_shell, :error, ["Failed to fetch policy" <> _]}
     end)
@@ -177,6 +178,7 @@ defmodule Hex.Registry.ServerPolicyTest do
 
       assert :ok = Registry.prefetch_policies([{"hexpm:myorg", "strict-prod"}])
       assert {:ok, _} = Registry.policy("hexpm:myorg", "strict-prod")
+      refute Registry.policy_fetch_failed?("hexpm:myorg", "strict-prod")
 
       Registry.persist()
       Registry.close()
@@ -184,6 +186,7 @@ defmodule Hex.Registry.ServerPolicyTest do
 
       Registry.open(check_version: false, registry_path: registry_path)
       assert :ok = Registry.prefetch_policies([{"hexpm:myorg", "strict-prod"}])
+      assert Registry.policy_fetch_failed?("hexpm:myorg", "strict-prod")
       assert {:ok, policy} = Registry.policy("hexpm:myorg", "strict-prod")
       assert policy.name == "strict-prod"
 
