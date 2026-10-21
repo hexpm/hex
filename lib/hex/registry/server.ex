@@ -233,7 +233,7 @@ defmodule Hex.Registry.Server do
   end
 
   def handle_call({:versions, repo, package}, from, state) do
-    maybe_wait({repo, package}, from, state, fn ->
+    maybe_wait({repo, package}, from, state, fn state ->
       case lookup(state.ets, {:versions, repo || "hexpm", package}) do
         nil ->
           :error
@@ -250,7 +250,7 @@ defmodule Hex.Registry.Server do
   end
 
   def handle_call({:dependencies, repo, package, version}, from, state) do
-    maybe_wait({repo, package}, from, state, fn ->
+    maybe_wait({repo, package}, from, state, fn state ->
       case lookup(state.ets, {:deps, repo || "hexpm", package, to_string(version)}) do
         nil ->
           :error
@@ -262,31 +262,31 @@ defmodule Hex.Registry.Server do
   end
 
   def handle_call({:inner_checksum, repo, package, version}, from, state) do
-    maybe_wait({repo, package}, from, state, fn ->
+    maybe_wait({repo, package}, from, state, fn state ->
       lookup(state.ets, {:inner_checksum, repo || "hexpm", package, version})
     end)
   end
 
   def handle_call({:outer_checksum, repo, package, version}, from, state) do
-    maybe_wait({repo, package}, from, state, fn ->
+    maybe_wait({repo, package}, from, state, fn state ->
       lookup(state.ets, {:outer_checksum, repo || "hexpm", package, version})
     end)
   end
 
   def handle_call({:retired, repo, package, version}, from, state) do
-    maybe_wait({repo, package}, from, state, fn ->
+    maybe_wait({repo, package}, from, state, fn state ->
       lookup(state.ets, {:retired, repo || "hexpm", package, version})
     end)
   end
 
   def handle_call({:advisories, repo, package, version}, from, state) do
-    maybe_wait({repo, package}, from, state, fn ->
+    maybe_wait({repo, package}, from, state, fn state ->
       lookup(state.ets, {:advisories, repo || "hexpm", package, version})
     end)
   end
 
   def handle_call({:published_at, repo, package, version}, from, state) do
-    maybe_wait({repo, package}, from, state, fn ->
+    maybe_wait({repo, package}, from, state, fn state ->
       lookup(state.ets, {:published_at, repo || "hexpm", package, version})
     end)
   end
@@ -313,12 +313,12 @@ defmodule Hex.Registry.Server do
     {replys, waiting} = Map.pop(state.waiting, repo_package, [])
 
     write_result(result, repo, package, state)
+    state = %{state | pending: pending, waiting: waiting, fetched: fetched}
 
     Enum.each(replys, fn {from, fun} ->
-      GenServer.reply(from, fun.())
+      GenServer.reply(from, fun.(state))
     end)
 
-    state = %{state | pending: pending, waiting: waiting, fetched: fetched}
     state = maybe_run_pending(state)
     {:noreply, state}
   end
@@ -673,7 +673,7 @@ defmodule Hex.Registry.Server do
 
     cond do
       {repo, package} in state.fetched ->
-        {:reply, fun.(), state}
+        {:reply, fun.(state), state}
 
       {repo, package} in state.pending ->
         tuple = {from, fun}
