@@ -103,6 +103,28 @@ defmodule Hex.AuditTest do
     assert shell_output() =~ "EEF-CVE-2026-91043"
   end
 
+  test "mix hex.audit --policy fails when the policy can't be fetched, even with a cached policy",
+       %{bypass: bypass} do
+    put_cached_policy(bypass)
+    cache_mint_advisory()
+
+    assert_raise Mix.Error,
+                 "Could not audit against the policy hexpm:myorg/strict-prod because it " <>
+                   "could not be fetched\n\n" <>
+                   "Set HEX_OFFLINE=1 to audit against the local cache instead",
+                 fn -> audit_locked_mint(["--policy"]) end
+  end
+
+  test "mix hex.audit --policy with HEX_OFFLINE=1 audits against the cached policy",
+       %{bypass: bypass} do
+    Hex.State.put(:offline, true)
+    put_cached_policy(bypass)
+    cache_mint_advisory()
+
+    assert catch_throw(audit_locked_mint(["--policy"])) == {:exit_code, 1}
+    assert shell_output() =~ "EEF-CVE-2026-91043"
+  end
+
   test "the deps.get policy check rejects mint 1.10.1 from the cache when the fetch fails" do
     cache_mint_advisory()
     Registry.prefetch([{"hexpm", "mint"}])
@@ -131,12 +153,32 @@ defmodule Hex.AuditTest do
     end)
   end
 
-  defp audit_locked_mint() do
+  defp put_cached_policy(bypass) do
+    repos = Hex.State.fetch!(:repos)
+
+    Hex.State.put(
+      :repos,
+      Map.put(repos, "hexpm:myorg", %{
+        repos["hexpm"]
+        | url: "http://localhost:#{bypass.port}",
+          public_key: File.read!(fixture_path("test_pub.pem"))
+      })
+    )
+
+    Hex.State.put(:policy, "hexpm:myorg/strict-prod")
+
+    :sys.replace_state(Registry, fn %{ets: tid} = state ->
+      :ets.insert(tid, {{:policy, "hexpm:myorg", "strict-prod"}, @policy})
+      state
+    end)
+  end
+
+  defp audit_locked_mint(args \\ []) do
     Mix.Project.push(LockedMint.MixProject)
 
     in_tmp(fn ->
       Mix.Dep.Lock.write(@lock)
-      Mix.Task.run("hex.audit")
+      Mix.Task.run("hex.audit", args)
     end)
   end
 end

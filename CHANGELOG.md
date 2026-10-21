@@ -36,6 +36,7 @@
 * Print the package version in the error raised when resolved Hex packages give the same dependency different OTP application names. Since Hex 0.21.3 the error showed a literal `{version}` instead
 * Resolve dependencies after compiling in the same command, such as `mix do compile + deps.get`, on Elixir 1.15 and later. Since Hex 2.4.1 this raised `UndefinedFunctionError` for `Hex.Stdlib.ensure_application!/1`
 * Fail `mix hex.audit` when the registry entry for a locked package version can't be fetched. Without a cached copy the audit reported "No retired or security advisory packages found" and exited with 0 without checking the package. With a cached copy it audited against the cache, which can miss advisories published since. Set `HEX_OFFLINE=1` to audit against the cache. `mix deps.get` and `mix deps.update` still use the cache when a fetch fails
+* Fail `mix hex.audit --policy` and `mix hex.audit --policy-overrides` when the active policy can't be fetched. They audited against the cached policy, which can miss changes made to the policy since. Set `HEX_OFFLINE=1` to audit against the cache
 
 ## v2.5.4 (2026-10-20)
 
