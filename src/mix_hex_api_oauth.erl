@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.20.1 (465ade4), do not edit manually
+%% Vendored from hex_core v0.21.0 (564a33e), do not edit manually
 
 %% @doc
 %% Hex HTTP API - OAuth.
@@ -87,7 +87,7 @@ device_authorization(Config, ClientId, Scope, Opts) ->
         <<"scope">> => Scope,
         <<"name">> => Name
     },
-    mix_hex_api:post(Config, Path, Params).
+    mix_hex_api:post(grant_config(Config), Path, Params).
 
 %% @doc
 %% Runs the complete OAuth device authorization flow.
@@ -268,7 +268,7 @@ poll_device_token(Config, ClientId, DeviceCode) ->
         <<"device_code">> => DeviceCode,
         <<"client_id">> => ClientId
     },
-    mix_hex_api:post(Config, Path, Params).
+    mix_hex_api:post(grant_config(Config), Path, Params).
 
 %% @doc
 %% Refreshes an access token using a refresh token.
@@ -294,7 +294,7 @@ refresh_token(Config, ClientId, RefreshToken) ->
         <<"refresh_token">> => RefreshToken,
         <<"client_id">> => ClientId
     },
-    mix_hex_api:post(Config, Path, Params).
+    mix_hex_api:post(grant_config(Config), Path, Params).
 
 %% @doc
 %% Requests a browser URL to verify the organizations' SSO and 2FA requirements
@@ -375,7 +375,7 @@ client_credentials_token(Config, ClientId, ApiKey, Scope, Opts) ->
             undefined -> Params0;
             Name -> Params0#{<<"name">> => Name}
         end,
-    mix_hex_api:post(Config, Path, Params).
+    mix_hex_api:post(grant_config(Config), Path, Params).
 
 %% @doc
 %% Exchanges an OIDC token from a CI provider for an access token scoped to
@@ -399,7 +399,7 @@ jwt_bearer_token(Config, Assertion, Scope) ->
         <<"assertion">> => Assertion,
         <<"scope">> => Scope
     },
-    mix_hex_api:post(Config, Path, Params).
+    mix_hex_api:post(grant_config(Config), Path, Params).
 
 %% @doc
 %% Fetches the audience Workload Identity OIDC tokens must be issued for.
@@ -414,7 +414,7 @@ jwt_bearer_token(Config, Assertion, Scope) ->
 %% @end
 -spec oidc_audience(mix_hex_core:config()) -> mix_hex_api:response().
 oidc_audience(Config) ->
-    mix_hex_api:get(Config, <<"oidc/audience">>).
+    mix_hex_api:get(grant_config(Config), <<"oidc/audience">>).
 
 %% @doc
 %% Revokes an OAuth token (RFC 7009).
@@ -489,6 +489,15 @@ valid_requirements(_) ->
 %%====================================================================
 %% Internal functions
 %%====================================================================
+
+%% @private
+%% The device authorization and token endpoints and the OIDC audience take no
+%% credential: a grant is authenticated by what's in the request body. hexpm
+%% refuses a request whose credential it refuses before it looks at the
+%% grant, and the `api_key' in the config is often the token being renewed,
+%% so it isn't sent.
+grant_config(Config) ->
+    maps:remove(api_key, Config).
 
 %% @private
 %% Opens a URL in the default browser using the platform's opener: `open' on

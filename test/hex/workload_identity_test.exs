@@ -115,6 +115,23 @@ defmodule Hex.WorkloadIdentityTest do
     end
 
     @tag :requires_json
+    test "an API that advertises another audience gets no OIDC token", %{bypass: bypass} do
+      stub_repository(bypass, audience: "sts.amazonaws.com", repository: {401, ""})
+
+      assert {:error, {:auth_error, {:workload_identity_failed, reason}}} =
+               Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+
+      assert Hex.WorkloadIdentity.repository_error_message("hexpm:acme", reason) ==
+               "Workload Identity authentication failed, Hex advertised the OIDC audience " <>
+                 "\"sts.amazonaws.com\" instead of \"hexpm\", so no OIDC token was requested " <>
+                 "from GitHub Actions. To fetch without Workload Identity, authenticate with " <>
+                 "`mix hex.organization auth acme --key KEY`"
+
+      refute_received :oidc_token_request
+      refute_received {:exchange, _exchange}
+    end
+
+    @tag :requires_json
     test "a refused exchange leaves the request to .netrc credentials", %{bypass: bypass} do
       on_exit(fn -> System.delete_env("NETRC") end)
 
@@ -205,6 +222,7 @@ defmodule Hex.WorkloadIdentityTest do
       )
 
     {repository_status, repository_body} = Keyword.get(opts, :repository, {200, "tarball"})
+    audience = Keyword.get(opts, :audience, "hexpm")
 
     Bypass.expect(bypass, fn conn ->
       {:ok, body, conn} = Plug.Conn.read_body(conn)
@@ -212,9 +230,11 @@ defmodule Hex.WorkloadIdentityTest do
 
       case {conn.method, conn.request_path} do
         {"GET", "/api/oidc/audience"} ->
-          erlang_resp(conn, 200, %{"audience" => "hexpm"})
+          erlang_resp(conn, 200, %{"audience" => audience})
 
         {"GET", "/github/token"} ->
+          send(test_pid, :oidc_token_request)
+
           conn
           |> Plug.Conn.put_resp_content_type("application/json")
           |> Plug.Conn.resp(200, ~s({"count":1,"value":"oidc_token"}))
