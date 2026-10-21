@@ -109,6 +109,14 @@ defmodule Hex.Registry.Server do
     GenServer.call(@name, {:published_at, repo, package, version}, @timeout)
   end
 
+  @doc """
+  Returns whether fetching `package` from the registry failed since the
+  registry was opened, so its lookups come from the cache, if any.
+  """
+  def fetch_failed?(repo, package) do
+    GenServer.call(@name, {:fetch_failed?, repo, package}, @timeout)
+  end
+
   def last_update() do
     GenServer.call(@name, :last_update, @timeout)
   end
@@ -127,6 +135,9 @@ defmodule Hex.Registry.Server do
       path: nil,
       pending: MapSet.new(),
       fetched: MapSet.new(),
+      # Kept out of the ETS table, which is persisted, so a failed fetch only
+      # counts for the run that saw it.
+      failed: MapSet.new(),
       waiting: %{},
       pending_fun: nil,
       pending_policies: MapSet.new(),
@@ -291,6 +302,12 @@ defmodule Hex.Registry.Server do
     end)
   end
 
+  def handle_call({:fetch_failed?, repo, package}, from, state) do
+    maybe_wait({repo, package}, from, state, fn state ->
+      {repo || "hexpm", package} in state.failed
+    end)
+  end
+
   def handle_call(:last_update, _from, state) do
     time = lookup(state.ets, :last_update)
     {:reply, time, state}
@@ -312,8 +329,13 @@ defmodule Hex.Registry.Server do
     fetched = MapSet.put(state.fetched, repo_package)
     {replys, waiting} = Map.pop(state.waiting, repo_package, [])
 
-    write_result(result, repo, package, state)
-    state = %{state | pending: pending, waiting: waiting, fetched: fetched}
+    failed =
+      case write_result(result, repo, package, state) do
+        :ok -> state.failed
+        :error -> MapSet.put(state.failed, repo_package)
+      end
+
+    state = %{state | pending: pending, waiting: waiting, fetched: fetched, failed: failed}
 
     Enum.each(replys, fn {from, fun} ->
       GenServer.reply(from, fun.(state))
@@ -554,6 +576,8 @@ defmodule Hex.Registry.Server do
     if etag = headers[~c"etag"] do
       :ets.insert(tid, {{:registry_etag, repo, package}, List.to_string(etag)})
     end
+
+    :ok
   end
 
   defp write_result({:ok, {304, _, _}}, _repo, _package, _state) do
@@ -563,6 +587,7 @@ defmodule Hex.Registry.Server do
   defp write_result(other, repo, package, %{ets: tid}) do
     cached? = :ets.lookup(tid, {:versions, repo, package}) != []
     print_error(other, repo, package, cached?)
+    :error
   end
 
   defp write_policy_result({:ok, {code, headers, decoded}}, repo, name, %{ets: tid})
