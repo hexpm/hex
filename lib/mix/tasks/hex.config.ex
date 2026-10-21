@@ -25,6 +25,12 @@ defmodule Mix.Tasks.Hex.Config do
       setting the environment variable `HEX_API_KEY`
     * `api_url` - Hex API URL. Can be overridden by setting the environment
       variable `HEX_API_URL` (Default: `#{inspect(Hex.State.default_api_url())}`)
+    * `workload_identity_audience` - The audience Workload Identity asks the CI
+      provider to issue the OIDC token for. Hex doesn't request a token when
+      the API advertises a different audience, so set this when `api_url`
+      points to a Hex server that uses another one. Can be overridden by
+      setting the environment variable `HEX_WORKLOAD_IDENTITY_AUDIENCE`
+      (Default: `"hexpm"`)
     * `offline` - If set to true Hex will not fetch the registry or packages and
       will instead use locally cached files if they are available. Can be
       overridden by setting the environment variable `HEX_OFFLINE` (Default:

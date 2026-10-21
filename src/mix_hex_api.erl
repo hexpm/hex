@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.20.1 (465ade4), do not edit manually
+%% Vendored from hex_core v0.21.0 (564a33e), do not edit manually
 
 %% @doc
 %% Hex HTTP API
@@ -175,10 +175,10 @@ to_list(Str) -> unicode:characters_to_list(Str).
 %% TODO: not needed after exdoc is fixed
 %% @private
 detect_otp_error({ok, {401, Headers, Body}}) ->
-    case maps:get(<<"www-authenticate">>, Headers, nil) of
-        <<"Bearer realm=\"hex\", error=\"totp_required\"", _/binary>> ->
+    case mix_hex_http:bearer_error(Headers) of
+        <<"totp_required">> ->
             {error, otp_required};
-        <<"Bearer realm=\"hex\", error=\"invalid_totp\"", _/binary>> ->
+        <<"invalid_totp">> ->
             {error, invalid_totp};
         _ ->
             {ok, {401, Headers, Body}}

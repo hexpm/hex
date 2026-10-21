@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.20.1 (465ade4), do not edit manually
+%% Vendored from hex_core v0.21.0 (564a33e), do not edit manually
 
 %% @doc
 %% `hex_core' entrypoint module.
@@ -87,6 +87,11 @@
 %%   When set to a list, the metadata decoder streams past unrequested fields without
 %%   buffering their tokens, which keeps peak memory bounded for packages with very
 %%   large fields like `<<"files">>'. Defaults to `all'.
+%%
+%% * `workload_identity_audience' - The OIDC audience Workload Identity requests
+%%   the CI job's token for. The audience the API advertises must be this one, so
+%%   the configured API can't get a token for another service that accepts the
+%%   job's tokens (default: `hexpm').
 
 -module(mix_hex_core).
 -export([default_config/0]).
@@ -134,7 +139,8 @@
     trusted => boolean(),
     oauth_exchange => boolean(),
     oauth_exchange_url => binary() | undefined,
-    cli_auth_callbacks => mix_hex_cli_auth:callbacks() | undefined
+    cli_auth_callbacks => mix_hex_cli_auth:callbacks() | undefined,
+    workload_identity_audience => binary()
 }.
 
 -spec default_config() -> config().
@@ -167,5 +173,6 @@ default_config() ->
         trusted => true,
         oauth_exchange => true,
         oauth_exchange_url => undefined,
-        cli_auth_callbacks => undefined
+        cli_auth_callbacks => undefined,
+        workload_identity_audience => <<"hexpm">>
     }.

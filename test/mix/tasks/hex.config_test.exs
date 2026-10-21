@@ -26,9 +26,35 @@ defmodule Mix.Tasks.Hex.ConfigTest do
       assert_received {:mix_shell, :info, ["config_home:" <> _]}
       assert_received {:mix_shell, :info, ["no_short_urls: false (default)"]}
       assert_received {:mix_shell, :info, ["cooldown: \"0d\" (default)"]}
+      assert_received {:mix_shell, :info, ["workload_identity_audience: \"hexpm\" (default)"]}
     end)
   after
     purge([ReleaseCustomApiUrl.MixProject])
+  end
+
+  test "workload_identity_audience config key" do
+    in_tmp(fn ->
+      System.put_env("HEX_HOME", File.cwd!())
+      Hex.State.refresh()
+
+      Mix.Tasks.Hex.Config.run(["workload_identity_audience", "hexpm-staging"])
+      Hex.State.refresh()
+      Mix.Tasks.Hex.Config.run(["workload_identity_audience"])
+      assert_received {:mix_shell, :info, ["\"hexpm-staging\""]}
+
+      System.put_env("HEX_WORKLOAD_IDENTITY_AUDIENCE", "hexpm-dev")
+      Hex.State.refresh()
+      Mix.Tasks.Hex.Config.run(["workload_identity_audience"])
+      assert_received {:mix_shell, :info, ["\"hexpm-dev\""]}
+      assert Hex.API.Client.config().workload_identity_audience == "hexpm-dev"
+
+      System.put_env("HEX_WORKLOAD_IDENTITY_AUDIENCE", "")
+      Hex.State.refresh()
+      assert Hex.API.Client.config().workload_identity_audience == "hexpm-staging"
+    end)
+  after
+    System.delete_env("HEX_WORKLOAD_IDENTITY_AUDIENCE")
+    Hex.State.refresh()
   end
 
   test "cooldown config key" do

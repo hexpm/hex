@@ -69,6 +69,13 @@ defmodule Hex.WorkloadIdentity do
     "could not fetch the OIDC audience from Hex: " <> describe_response(response)
   end
 
+  defp describe({:oidc_audience_not_allowed, audience}, _scope) do
+    expected = Client.config().workload_identity_audience
+
+    "Hex advertised the OIDC audience \"#{escape(audience)}\" instead of \"#{expected}\", " <>
+      "so no OIDC token was requested from GitHub Actions"
+  end
+
   defp describe({:token_exchange_failed, response}, scope) do
     "Hex did not grant a token for #{scope}: " <> describe_response(response)
   end

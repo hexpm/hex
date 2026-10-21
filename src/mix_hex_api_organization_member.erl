@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.20.1 (465ade4), do not edit manually
+%% Vendored from hex_core v0.21.0 (564a33e), do not edit manually
 
 %% @doc
 %% Hex HTTP API - Organization Members.
@@ -54,14 +54,16 @@ get(Config, UsernameOrEmail) when is_map(Config) and is_binary(UsernameOrEmail) 
     mix_hex_api:get(Config, Path).
 
 %% @doc
-%% Adds an organization member.
+%% Invites a user to the organization. The user becomes a member once they
+%% accept the invitation, and the invitation expires at `expires_at'.
 %%
 %% Examples:
 %%
 %% ```
 %% > mix_hex_api_organization_member:add(mix_hex_core:default_config(), #{api_organization => <<"acme">>}, <<"user">>, write).
-%% {ok, {200, ..., #{
+%% {ok, {202, ..., #{
 %%      <<"email">> => <<"user@example.com">>,
+%%      <<"expires_at">> => <<"2026-10-23T14:00:00.000000Z">>,
 %%      <<"role">> => <<"write">>,
 %%      <<"url">> => <<"https://hex.pm/api/users/user">>,
 %%      <<"username">> => <<"user">>

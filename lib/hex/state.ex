@@ -25,6 +25,12 @@ defmodule Hex.State do
       default: @api_url,
       fun: {__MODULE__, :trim_slash}
     },
+    workload_identity_audience: %{
+      env: ["HEX_WORKLOAD_IDENTITY_AUDIENCE"],
+      config: [:workload_identity_audience],
+      default: "hexpm",
+      skip_env_if_empty: true
+    },
     cache_home: %{
       default: :user_cache,
       fun: {Hex.Config, :find_config_home}
