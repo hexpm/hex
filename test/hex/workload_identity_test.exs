@@ -72,6 +72,8 @@ defmodule Hex.WorkloadIdentityTest do
                  "scope" => "repository:acme"
                }
 
+        assert_received {:oidc_token_request, "hexpm"}
+
         assert_received {:mix_shell, :info,
                          ["Authenticated to the acme organization with Workload Identity"]}
 
@@ -127,8 +129,19 @@ defmodule Hex.WorkloadIdentityTest do
                  "from GitHub Actions. To fetch without Workload Identity, authenticate with " <>
                  "`mix hex.organization auth acme --key KEY`"
 
-      refute_received :oidc_token_request
+      refute_received {:oidc_token_request, _audience}
       refute_received {:exchange, _exchange}
+    end
+
+    @tag :requires_json
+    test "requests the OIDC token for the configured audience", %{bypass: bypass} do
+      Hex.State.put(:workload_identity_audience, "hexpm-staging")
+      stub_repository(bypass, audience: "hexpm-staging")
+
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+
+      assert_received {:oidc_token_request, "hexpm-staging"}
+      assert_received {:repository, "tarballs/foo-1.0.0.tar", ["Bearer minted_token"]}
     end
 
     @tag :requires_json
@@ -233,7 +246,7 @@ defmodule Hex.WorkloadIdentityTest do
           erlang_resp(conn, 200, %{"audience" => audience})
 
         {"GET", "/github/token"} ->
-          send(test_pid, :oidc_token_request)
+          send(test_pid, {:oidc_token_request, URI.decode_query(conn.query_string)["audience"]})
 
           conn
           |> Plug.Conn.put_resp_content_type("application/json")

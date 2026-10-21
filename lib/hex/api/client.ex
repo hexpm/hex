@@ -6,6 +6,7 @@ defmodule Hex.API.Client do
       :mix_hex_core.default_config()
       | http_adapter: {Hex.HTTP, %{}},
         api_url: Hex.State.fetch!(:api_url),
+        workload_identity_audience: Hex.State.fetch!(:workload_identity_audience),
         http_user_agent_fragment: user_agent_fragment(),
         cli_auth_callbacks: Hex.Auth.callbacks()
     }
