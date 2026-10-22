@@ -9,26 +9,24 @@ defmodule Mix.Tasks.Hex.Organization do
   Organizations is a feature of Hex.pm to host and manage private packages. See
   <https://hex.pm/docs/private> for more information.
 
-  By default you will be authorized to all your applications when running
-  `mix hex.user auth` and this is the recommended approach. This task is mainly
-  provided for CI and build systems where access to an organization is needed
-  without authorizing a user.
+  By default you will be authorized to all your organizations when running
+  `mix hex.user auth` and this is the recommended approach for development. This
+  task is mainly provided for CI and build systems where access to an organization
+  is needed without authorizing a user.
 
   For CI, generate an organization key with `mix hex.organization key ORGANIZATION generate`
-  and pass it with `mix hex.organization auth ORGANIZATION --key KEY`.
+  and authenticate with it right before fetching dependencies. Hex exchanges the key
+  for a short-lived token and stores only the token:
+
+      mix hex.organization auth ORGANIZATION --key KEY
 
   A GitHub Actions job with the `id-token: write` permission can fetch the
   organization's packages without a key, using Workload Identity, sometimes also
   known as "Trusted Publishing". Configure a workload identity with the `read`
-  or `write` role for the organization on hex.pm. When neither an organization
-  key nor an authenticated user is configured, Hex exchanges the job's OIDC
-  token for a short-lived token that can fetch the organization's packages.
-
-  > #### Deprecation {: .warning}
-  >
-  > Authorizing an organization without `--key` is deprecated and will be removed.
-  > It creates a user key tied to your account; use `mix hex.user auth` for
-  > development instead, or pass a pre-generated organization key with `--key` for CI.
+  or `write` role for the organization on hex.pm. When there's no token from
+  `mix hex.organization auth --key` and no authenticated user, Hex exchanges the
+  job's OIDC token for a short-lived token that can fetch the organization's
+  packages.
 
   To use a package from an organization add `organization: "my_organization"` to the
   dependency declaration in `mix.exs`:
@@ -37,10 +35,12 @@ defmodule Mix.Tasks.Hex.Organization do
 
   ## Authorize an organization
 
-  This command will generate an API key used to authenticate access to the organization.
-  See the `hex.user` tasks to list and control all your active API keys.
+  Exchanges an organization key for a short-lived token used to fetch the
+  organization's packages. Hex uses the token for about 25 minutes and doesn't
+  refresh it, so in CI run this command right before fetching dependencies. For
+  development use `mix hex.user auth` instead.
 
-      $ mix hex.organization auth ORGANIZATION  [--key KEY] [--key-name KEY_NAME]
+      $ mix hex.organization auth ORGANIZATION --key KEY
 
   ## Deauthorize and remove an organization
 
@@ -88,14 +88,12 @@ defmodule Mix.Tasks.Hex.Organization do
 
   ## Command line options
 
-    * `--key KEY` - Hash of key used to authenticate HTTP requests to repository, if
-      omitted will generate a new key with your account credentials. This flag
-      is useful if you have a key pre-generated with `mix hex.organization key`
-      and want to authenticate on a CI server or similar system. Omitting `--key`
-      is deprecated; authenticate as a user with `mix hex.user auth` instead
+    * `--key KEY` - Required for `auth`. An organization key, generated with
+      `mix hex.organization key ORGANIZATION generate`, that is exchanged for a
+      short-lived token
 
-    * `--key-name KEY_NAME` - By default Hex will base the key name on your machine's
-      hostname and the organization name, use this option to give your own name.
+    * `--key-name KEY_NAME` - The name of the key created by `key generate`. By
+      default Hex bases the key name on your machine's hostname.
 
     * `--permission PERMISSION` - Sets the permissions on the key, this option can be given
       multiple times, possibly values are:
@@ -147,7 +145,7 @@ defmodule Mix.Tasks.Hex.Organization do
   @impl true
   def tasks() do
     [
-      {"auth ORGANIZATION", "Authorize an organization"},
+      {"auth ORGANIZATION --key KEY", "Authorize an organization"},
       {"deauth ORGANIZATION", "Deauthorize and remove organization"},
       {"list", "List all authorized organizations"},
       {"key ORGANIZATION generate", "Generate organization key"},
@@ -161,7 +159,7 @@ defmodule Mix.Tasks.Hex.Organization do
     Mix.raise("""
     Invalid arguments, expected one of:
 
-    mix hex.organization auth ORGANIZATION
+    mix hex.organization auth ORGANIZATION --key KEY
     mix hex.organization deauth ORGANIZATION
     mix hex.organization list
     mix hex.organization key ORGANIZATION generate
@@ -172,56 +170,71 @@ defmodule Mix.Tasks.Hex.Organization do
   end
 
   defp auth(organization, opts) do
-    if key = opts[:key] do
-      owner = test_key(key, organization)
+    case opts[:key] do
+      nil ->
+        Mix.raise("""
+        Authorizing an organization requires an organization key passed with --key.
 
-      if owner == :user do
-        Hex.Shell.warn("""
-        The given key is owned by your user account, not the organization. Authenticating \
-        to organization repositories with user keys is deprecated and will stop working \
-        in Hex 2.6.
+        For development authenticate as a user instead, which gives you access to \
+        all your organizations:
 
-        For development authenticate as a user with `mix hex.user auth`. For CI generate \
-        an organization key with `mix hex.organization key #{organization} generate` and \
-        pass it with `--key`.
+            mix hex.user auth
+
+        For CI generate an organization key and pass it with --key:
+
+            mix hex.organization key #{organization} generate
+            mix hex.organization auth #{organization} --key KEY
         """)
+
+      key ->
+        with {:ok, owner} <- test_key(key, organization),
+             {:ok, token} <- exchange_key(key, organization) do
+          if owner == :user do
+            Hex.Shell.warn("""
+            The given key is owned by your user account, not the organization. hex.pm \
+            will stop accepting user keys for organization repositories.
+
+            For development authenticate as a user with `mix hex.user auth`. For CI generate \
+            an organization key with `mix hex.organization key #{organization} generate` and \
+            pass it with `--key`.
+            """)
+          end
+
+          Mix.Tasks.Hex.auth_organization("hexpm:#{organization}", token)
+        end
+    end
+  end
+
+  # Exchanges the key at the organization repository's OAuth exchange URL, or
+  # the API URL when it has none.
+  defp exchange_key(key, organization) do
+    repo = Hex.Repo.get_repo("hexpm:#{organization}")
+    config = Hex.API.Client.config()
+
+    config =
+      case Map.get(repo, :oauth_exchange_url) do
+        url when is_binary(url) -> %{config | api_url: url}
+        _ -> config
       end
 
-      Mix.Tasks.Hex.auth_organization("hexpm:#{organization}", key, owner)
+    client_id = Hex.API.OAuth.client_id()
 
-      if owner == :organization do
-        Hex.Shell.info("""
-        Starting with Hex 2.6 this command will exchange the organization key for a \
-        short-lived token instead of storing the key. In CI, run it right before \
-        fetching dependencies.
-        """)
-      end
-    else
-      Hex.Shell.warn("""
-      Authorizing an organization without --key is deprecated and will be removed.
+    case :mix_hex_api_oauth.client_credentials_token(config, client_id, key, "repositories") do
+      {:ok, {200, _, %{"access_token" => access_token, "expires_in" => expires_in}}} ->
+        expires_at = System.system_time(:second) + expires_in
+        {:ok, %{access_token: access_token, expires_at: expires_at}}
 
-      For development authenticate as a user instead, which gives you access to \
-      all your organizations:
+      {:ok, {_status, _headers, %{"error" => error} = body}} ->
+        description = Hex.Utils.escape_terminal(body["error_description"] || error)
+        Hex.Shell.error("Failed to exchange the key for a token: #{description}")
+        Mix.Tasks.Hex.set_exit_code(1)
+        :error
 
-          mix hex.user auth
-
-      For CI generate an organization key and pass it with --key:
-
-          mix hex.organization key #{organization} generate
-          mix hex.organization auth #{organization} --key KEY
-      """)
-
-      key_name = Mix.Tasks.Hex.repository_key_name(organization, opts[:key_name])
-      permissions = [%{"domain" => "repository", "resource" => organization}]
-
-      case Hex.API.Key.new(key_name, permissions) do
-        {:ok, {201, _, body}} ->
-          Mix.Tasks.Hex.auth_organization("hexpm:#{organization}", body["secret"], :user)
-
-        other ->
-          Mix.shell().error("Generation of key failed")
-          Hex.Utils.print_error_result(other)
-      end
+      other ->
+        Hex.Utils.print_error_result(other)
+        Hex.Shell.error("Failed to exchange the key for a token")
+        Mix.Tasks.Hex.set_exit_code(1)
+        :error
     end
   end
 
@@ -308,7 +321,7 @@ defmodule Mix.Tasks.Hex.Organization do
   defp test_key(key, name) do
     case Hex.API.Auth.get("repository", name, key: key) do
       {:ok, {code, _, body}} when code in 200..299 ->
-        key_owner(body)
+        {:ok, key_owner(body)}
 
       {:ok, {code, _, %{"message" => message}}} when code in [401, 403] ->
         message = Hex.Utils.escape_terminal(message)
@@ -318,13 +331,13 @@ defmodule Mix.Tasks.Hex.Organization do
         )
 
         Mix.Tasks.Hex.set_exit_code(1)
-        nil
+        :error
 
       other ->
         Hex.Utils.print_error_result(other)
         Hex.Shell.error("Failed to verify authentication key")
         Mix.Tasks.Hex.set_exit_code(1)
-        nil
+        :error
     end
   end
 

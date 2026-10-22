@@ -822,15 +822,13 @@ defmodule Mix.Tasks.Hex.OutdatedTest do
       suffix = System.unique_integer([:positive])
 
       auth =
-        Hexpm.new_user(
+        Hexpm.new_tfa_user(
           "outdated_org_#{suffix}",
           "outdated_org_#{suffix}@mail.com",
-          "password",
-          "outdated_org_key_#{suffix}"
+          "password"
         )
 
-      repos = Hex.State.fetch!(:repos)
-      Hex.State.put(:repos, put_in(repos["hexpm"].auth_key, auth[:key]))
+      Hexpm.sign_in(auth)
 
       Mix.Dep.Lock.write(%{foo: {:hex, :foo, "0.1.0", nil, nil, nil, "hexpm:testorg", nil}})
 

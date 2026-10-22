@@ -184,25 +184,22 @@ defmodule Mix.Tasks.Hex.UserTest do
     in_tmp(fn ->
       set_home_cwd()
 
-      # Create OAuth tokens
-      auth = Hexpm.new_oauth_user("userdeauth1", "userdeauth1@mail.com", "password")
-      Hexpm.new_repo("myorguserdeauth1", auth)
-
-      # Store OAuth tokens
-      tokens = %{
-        access_token: auth[:access_token],
-        refresh_token: auth[:refresh_token],
-        expires_at: System.system_time(:second) + 3600
-      }
-
-      Hex.OAuth.store_token(tokens)
+      # Sign in, which stores OAuth tokens
+      auth = Hexpm.new_tfa_user("userdeauth1", "userdeauth1@mail.com", "password")
+      Hexpm.sign_in(auth)
+      {:ok, {204, _, _}} = Hexpm.new_repo("myorguserdeauth1", auth)
 
       # Verify OAuth tokens exist
       assert Hex.Config.read()[:"$oauth_token"]
 
       # Create organization auth
-      send(self(), {:mix_shell_input, :prompt, "password"})
-      Mix.Tasks.Hex.Organization.run(["auth", "myorguserdeauth1"])
+      permissions = [%{"domain" => "repository", "resource" => "myorguserdeauth1"}]
+
+      {:ok, {201, _, %{"secret" => secret}}} =
+        Hex.API.Key.Organization.new("myorguserdeauth1", "ci", permissions, auth)
+
+      Mix.Tasks.Hex.Organization.run(["auth", "myorguserdeauth1", "--key", secret])
+      assert Hex.Config.read()[:"$repos"]["hexpm:myorguserdeauth1"]
 
       Mix.Tasks.Hex.User.run(["deauth"])
 

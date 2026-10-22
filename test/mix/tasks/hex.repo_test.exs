@@ -176,6 +176,16 @@ defmodule Mix.Tasks.Hex.RepoTest do
     end)
   end
 
+  test "refuses a key for a Hex.pm organization repository" do
+    assert_raise Mix.Error, ~r"mix hex.organization auth acme --key KEY", fn ->
+      Mix.Tasks.Hex.Repo.run(["add", "hexpm:acme", "http://example.com", "--auth-key", "key"])
+    end
+
+    assert_raise Mix.Error, ~r"mix hex.organization auth acme --key KEY", fn ->
+      Mix.Tasks.Hex.Repo.run(["set", "hexpm:acme", "--auth-key", "key"])
+    end
+  end
+
   test "set url" do
     in_tmp(fn ->
       Hex.State.put(:config_home, File.cwd!())

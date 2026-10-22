@@ -4,6 +4,11 @@
 
 ### Backwards incompatible changes
 
+* Require `--key` in `mix hex.organization auth ORGANIZATION`. For development authenticate with `mix hex.user auth`, which gives access to all your organizations. For CI generate an organization key with `mix hex.organization key ORGANIZATION generate` and pass it with `--key`
+* Exchange the key given to `mix hex.organization auth ORGANIZATION --key KEY` for a short-lived token and store only the token. Hex uses the token for about 25 minutes and doesn't refresh it, so in CI run the command right before fetching dependencies
+* Stop authenticating to organization repositories with keys that earlier Hex versions stored in `~/.hex/hex.config`. Authenticate again with `mix hex.user auth` or `mix hex.organization auth ORGANIZATION --key KEY`. `mix hex.repo add` and `mix hex.repo set` refuse `--auth-key` for an organization repository
+* Stop authenticating to organization repositories with `HEX_REPOS_KEY` or a key set with `mix hex.repo set hexpm --auth-key`. Use `mix hex.organization auth ORGANIZATION --key KEY` instead. `HEX_REPOS_KEY` still authenticates to the hexpm repository and to mirrors set with `HEX_TRUSTED_MIRROR`
+* Fetch packages from organization repositories on hex.pm from the hexpm repository's URL, `https://repo.hex.pm` by default, when a mirror is set with `HEX_MIRROR`, and through the mirror when it's set with `HEX_TRUSTED_MIRROR`. Before, where they were fetched from depended on whether the organization was in `~/.hex/hex.config` when the command started
 * Require OTP 24 or later. Hex 2.4.2 to 2.5.1 can't unpack packages on OTP 22, so Hex 2.4.1 is the last release that works there. Hex 2.5.1 is the last release for OTP 23
 
 ### Enhancements
@@ -13,7 +18,6 @@
 * Print warnings to standard error instead of standard output, keeping stdout clean for machine-readable output such as `mix hex.outdated --json`. Warning-colored lines that are part of a command's regular output, such as retirement notices in `mix hex.info` and the `mix deps.get` dependency listing, remain on standard output
 * Add `--format sarif` and `--output PATH` options to `mix hex.audit` to render the audit result as a SARIF v2.1.0 document that can be uploaded to GitHub code scanning and other SARIF consumers. Findings are anchored to the dependency's `mix.lock` entry. Findings acknowledged with `ignore_advisories` or `ignore_retirements`, and with `--policy` or `--policy-overrides` findings the active policy accepts, are left out, so GitHub code scanning closes their alerts as fixed. Requires OTP 27 or later
 * Link to the hex.pm diffs page (`https://hex.pm/diffs`) in `mix hex.outdated` now that package diffs have moved from diff.hex.pm into hex.pm
-* Record whether the key given to `mix hex.organization auth ORGANIZATION --key KEY` is owned by the organization or by a user. Organization keys no longer trigger the stored-key deprecation warning, while user keys warn that they will stop working in Hex 2.6. Re-run the command on this Hex version to record the owner of an already stored organization key and silence the warning
 * Stop listing unchanged dependencies after `mix deps.get` and `mix deps.update` resolve dependencies. Unchanged dependencies that are retired or have security advisories are still listed under "Unchanged:"
 
 * Add the `policy_enforce_lock` config. When it's enabled and a policy is active, `mix deps.get` and `mix deps.update` fail if a Hex package in `mix.lock` is rejected by the policy, using the same check as `mix hex.audit --policy`. Findings acknowledged with `ignore_advisories` or `ignore_retirements` pass, and a package matched by a DENY override fails until the policy changes. Configure it in the `mix.exs` `:hex` block, with the `HEX_POLICY_ENFORCE_LOCK` environment variable, or with `mix hex.config`
@@ -22,7 +26,7 @@
 * Speed up resolving dependencies in `mix deps.get` and `mix deps.update`, most in projects with many dependencies and when the registry hasn't changed. The registry cache is now `cache.bin` in the Hex cache directory. The first run reads the `cache.ets` of earlier Hex versions and leaves it in place for them
 ### Bug fixes
 
-* Refresh the `mix hex.user auth` session and retry the request when Hex.pm rejects its access token, for example after it was revoked, and exchange again when it rejects the short-lived token Hex exchanged an organization key from `mix hex.organization auth` or Workload Identity for. When the session can't be refreshed, a session another command stored in the meantime is used before asking to authenticate again. Hex didn't recognize Hex.pm's answer for a rejected token, so the request failed until the token expired
+* Refresh the `mix hex.user auth` session and retry the request when Hex.pm rejects its access token, for example after it was revoked, and exchange again when it rejects the short-lived token Hex exchanged Workload Identity for. When it rejects a token from `mix hex.organization auth ORGANIZATION --key KEY`, use the session or Workload Identity instead. When the session can't be refreshed, a session another command stored in the meantime is used before asking to authenticate again. Hex didn't recognize Hex.pm's answer for a rejected token, so the request failed until the token expired
 * Only look up the authenticated user's organizations in `mix hex.publish` when the owner prompt can be shown, that is when publishing a new public package without `--yes`. Publishing with a key that cannot read the user, such as a workload identity token, no longer prints an error
 * Report locked packages matched by a DENY override in `mix hex.audit --policy` and `mix hex.audit --policy-overrides`. Denied packages are listed in a "Denied:" section, fail the audit, and appear in SARIF output under the `HEX0006` rule. `ignore_advisories` and `ignore_retirements` do not apply to denied packages
 * Identify `mix hex.audit --format sarif` results by repository and package instead of package alone, so a package locked from both hexpm and an organization repository under two app names points each result at its own `mix.lock` line. SARIF fingerprints now include the repository, so existing code scanning alerts are re-keyed once
@@ -36,6 +40,10 @@
 * Print the package version in the error raised when resolved Hex packages give the same dependency different OTP application names. Since Hex 0.21.3 the error showed a literal `{version}` instead
 * Resolve dependencies after compiling in the same command, such as `mix do compile + deps.get`, on Elixir 1.15 and later. Since Hex 2.4.1 this raised `UndefinedFunctionError` for `Hex.Stdlib.ensure_application!/1`
 * Fail `mix hex.audit` when the registry entry for a locked package version can't be fetched, and with `--policy` or `--policy-overrides` when the active policy can't be fetched. Without a cached copy of the entry the audit reported "No retired or security advisory packages found" and exited with 0 without checking the package. With a cached copy it audited against the cache, which can miss advisories and policy changes made since. Set `HEX_OFFLINE=1` to audit against the cache. `mix deps.get` and `mix deps.update` still use the cache when a fetch fails
+
+### Deprecations
+
+* Warn when the key given to `mix hex.organization auth ORGANIZATION --key KEY` is owned by a user account instead of the organization. hex.pm stops accepting user keys with repository permissions on 20 January 2027, whatever Hex version you run. Use `mix hex.user auth` for development and an organization key from `mix hex.organization key ORGANIZATION generate` for CI
 
 ## v2.5.4 (2026-10-20)
 

@@ -176,15 +176,19 @@ defmodule Hex.RemoteConvergerTest do
     end)
   end
 
-  test "deps.get does not prompt when repo auth is already available" do
+  test "deps.get does not prompt when the organization has an unexpired token" do
     in_tmp(fn ->
       set_home_cwd()
 
       auth = new_repo_auth_user("remote_converger_repo_auth_deps_get")
+      config = Hex.API.Client.config()
+      client_id = Hex.API.OAuth.client_id()
 
-      repos = Hex.State.fetch!(:repos)
-      repos = put_in(repos["hexpm"].auth_key, auth[:key])
-      Hex.State.put(:repos, repos)
+      {:ok, {200, _, %{"access_token" => access_token, "expires_in" => expires_in}}} =
+        :mix_hex_api_oauth.client_credentials_token(config, client_id, auth[:key], "repositories")
+
+      token = %{access_token: access_token, expires_at: System.system_time(:second) + expires_in}
+      Mix.Tasks.Hex.auth_organization("hexpm:remote_converger_org", token)
 
       store_expired_oauth_token()
 

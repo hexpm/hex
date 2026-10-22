@@ -213,21 +213,39 @@ defmodule Hex.AuthTest do
       end)
     end
 
-    test "asks nothing about an organization authenticated with its own key" do
+    test "asks nothing about an organization authenticated with an organization key" do
       in_tmp("organization_reauth", fn ->
         set_home_cwd()
         store_token()
         Hex.Auth.callbacks().organization_reauth.(requirements(["acme"]))
         repos = Hex.State.fetch!(:repos)
         hexpm = repos["hexpm"]
+        token = %{access_token: "org-token", expires_at: System.system_time(:second) + 3600}
 
         Hex.State.put(
           :repos,
-          Map.put(repos, "hexpm:acme", %{hexpm | auth_key: "org-key"})
+          Map.put(repos, "hexpm:acme", Map.put(hexpm, :oauth_token, token))
         )
 
         assert check_organization_reauth([{"hexpm:acme", "foo"}]) == :ok
         assert Case.shell_output() == ""
+      end)
+    end
+
+    test "asks about an organization with a stored key, which fetches with the user's session" do
+      in_tmp("organization_reauth", fn ->
+        set_home_cwd()
+        store_token()
+        Hex.Auth.callbacks().organization_reauth.(requirements(["acme"]))
+        repos = Hex.State.fetch!(:repos)
+        hexpm = repos["hexpm"]
+        Hex.State.put(:repos, Map.put(repos, "hexpm:acme", %{hexpm | auth_key: "org-key"}))
+
+        send(self(), {:mix_shell_input, :yes?, false})
+        check_organization_reauth([{"hexpm:acme", "foo"}])
+
+        assert_received {:mix_shell, :yes?, _question}
+        assert Case.shell_output() =~ "Packages from acme will not be available"
       end)
     end
 

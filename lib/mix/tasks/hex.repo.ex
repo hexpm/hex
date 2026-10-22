@@ -38,6 +38,8 @@ defmodule Mix.Tasks.Hex.Repo do
     * `--public-key PATH` - Path to public key used to verify the registry (optional).
 
     * `--auth-key KEY` - Key used to authenticate HTTP requests to repository (optional).
+      Hex.pm organization repositories (`hexpm:ORGANIZATION`) don't use it, authenticate
+      to them with `mix hex.organization auth ORGANIZATION --key KEY` instead.
 
     * `--fetch-public-key FINGERPRINT` - Download public key from the repository and verify against the fingerprint (optional).
 
@@ -149,6 +151,7 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp add(name, url, opts) do
+    check_organization_auth_key(name, opts)
     # Default oauth_exchange to true for hexpm/repo.hex.pm, false for others
     default_oauth_exchange = name == "hexpm"
     oauth_exchange = Keyword.get(opts, :oauth_exchange, default_oauth_exchange)
@@ -181,6 +184,8 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp set(name, opts) do
+    check_organization_auth_key(name, opts)
+
     opts =
       if public_key = opts[:public_key] do
         Keyword.put(opts, :public_key, read_public_key(public_key))
@@ -192,6 +197,17 @@ defmodule Mix.Tasks.Hex.Repo do
     |> Map.update!(name, &Map.merge(&1, Map.new(opts)))
     |> Hex.Config.update_repos()
   end
+
+  defp check_organization_auth_key("hexpm:" <> organization, opts) do
+    if opts[:auth_key] do
+      Mix.raise(
+        "Hex doesn't use keys for Hex.pm organization repositories. Authenticate " <>
+          "with `mix hex.organization auth #{organization} --key KEY` instead"
+      )
+    end
+  end
+
+  defp check_organization_auth_key(_name, _opts), do: :ok
 
   defp remove(name) do
     Hex.State.fetch!(:repos)
