@@ -162,145 +162,246 @@ defmodule Hex.RepoTest do
     end)
   end
 
-  test "auth_key_owner persists through config round-trip" do
-    in_tmp(fn ->
-      Hex.State.put(:config_home, File.cwd!())
+  describe "Hex.pm organization repository authentication" do
+    setup do
+      Hex.Server.reset()
+      bypass = Bypass.open()
+      test_pid = self()
 
-      repos = Hex.State.fetch!(:repos)
+      Bypass.expect(bypass, fn conn ->
+        authorization = Plug.Conn.get_req_header(conn, "authorization")
+        send(test_pid, {:request, conn.request_path, authorization})
+        Plug.Conn.resp(conn, 200, "tarball")
+      end)
 
-      org_repo = %{auth_key: "org_key_value", auth_key_owner: :organization}
-
-      repos
-      |> Map.put("hexpm:roundtriporg", org_repo)
-      |> Hex.Config.update_repos()
-
-      # Reload config from disk to simulate a fresh session
-      config = Hex.Config.read()
-      repos = Hex.Config.read_repos(config)
-
-      assert repos["hexpm:roundtriporg"].auth_key == "org_key_value"
-      assert repos["hexpm:roundtriporg"].auth_key_owner == :organization
-    end)
-  end
-
-  test "warns about deprecation when a stored key authenticates to an organization repository" do
-    Hex.Server.reset()
-
-    repos = Hex.State.fetch!(:repos)
-    hexpm = repos["hexpm"]
-
-    org_repo = %{
-      url: hexpm.url <> "/repos/storedkeyorg",
-      public_key: hexpm.public_key,
-      auth_key: "stored_key_value",
-      oauth_exchange: true,
-      trusted: true
-    }
-
-    Hex.State.put(:repos, Map.put(repos, "hexpm:storedkeyorg", org_repo))
-
-    # The exchange outcome is irrelevant; the warning is emitted before the
-    # stored key is exchanged.
-    try do
-      Hex.Repo.get_package("hexpm:storedkeyorg", "pkg", "")
-    rescue
-      _ -> :ok
+      %{bypass: bypass}
     end
 
-    output = Case.shell_output()
-    assert output =~ "stored key is deprecated and will stop working in Hex 2.6"
-    assert output =~ "mix hex.user auth"
+    test "uses the token from mix hex.organization auth --key over the user's session", %{
+      bypass: bypass
+    } do
+      store_user_token()
+      put_organization_repo(bypass, %{oauth_token: token("org-token", 3600)})
 
-    assert output =~
-             "re-run `mix hex.organization auth storedkeyorg --key KEY` on this Hex version"
-  end
-
-  test "warns about deprecation when a user-owned key authenticates to an organization repository" do
-    Hex.Server.reset()
-
-    repos = Hex.State.fetch!(:repos)
-    hexpm = repos["hexpm"]
-
-    org_repo = %{
-      url: hexpm.url <> "/repos/userkeyorg",
-      public_key: hexpm.public_key,
-      auth_key: "user_key_value",
-      auth_key_owner: :user,
-      oauth_exchange: true,
-      trusted: true
-    }
-
-    Hex.State.put(:repos, Map.put(repos, "hexpm:userkeyorg", org_repo))
-
-    try do
-      Hex.Repo.get_package("hexpm:userkeyorg", "pkg", "")
-    rescue
-      _ -> :ok
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+      assert_received {:request, "/repos/acme/tarballs/foo-1.0.0.tar", ["Bearer org-token"]}
     end
 
-    output = Case.shell_output()
+    test "uses the user's session when the organization's token has expired", %{bypass: bypass} do
+      store_user_token()
+      put_organization_repo(bypass, %{oauth_token: token("org-token", -100)})
 
-    assert output =~
-             "key owned by your user account is deprecated and will stop working in Hex 2.6"
-
-    assert output =~ "mix hex.user auth"
-    refute output =~ "re-run"
-  end
-
-  test "does not warn when an organization-owned key authenticates to an organization repository" do
-    Hex.Server.reset()
-
-    repos = Hex.State.fetch!(:repos)
-    hexpm = repos["hexpm"]
-
-    org_repo = %{
-      url: hexpm.url <> "/repos/orgkeyorg",
-      public_key: hexpm.public_key,
-      auth_key: "org_key_value",
-      auth_key_owner: :organization,
-      oauth_exchange: true,
-      trusted: true
-    }
-
-    Hex.State.put(:repos, Map.put(repos, "hexpm:orgkeyorg", org_repo))
-
-    try do
-      Hex.Repo.get_package("hexpm:orgkeyorg", "pkg", "")
-    rescue
-      _ -> :ok
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+      assert_received {:request, _path, ["Bearer hexpm-user-token"]}
+      refute Case.shell_output() =~ "has expired"
     end
 
-    output = Case.shell_output()
-    refute output =~ "deprecated"
-  end
+    test "uses the user's session when the server rejects the organization's token", %{
+      bypass: bypass
+    } do
+      test_pid = self()
 
-  test "warns about deprecation when HEX_REPOS_KEY authenticates to an organization repository" do
-    Hex.Server.reset()
+      Bypass.expect(bypass, fn conn ->
+        authorization = Plug.Conn.get_req_header(conn, "authorization")
+        send(test_pid, {:request, conn.request_path, authorization})
 
-    repos = Hex.State.fetch!(:repos)
-    hexpm = repos["hexpm"]
-    Hex.State.put(:repos_key, "repos_key_value")
+        case authorization do
+          ["Bearer org-token"] ->
+            conn
+            |> Plug.Conn.put_resp_header(
+              "www-authenticate",
+              ~s(Bearer realm="hex", error="invalid_token")
+            )
+            |> Plug.Conn.resp(401, "")
 
-    org_repo = %{
-      url: hexpm.url <> "/repos/reposkeyorg",
-      public_key: hexpm.public_key,
-      auth_key: "repos_key_value",
-      oauth_exchange: true,
-      trusted: true
-    }
+          _other ->
+            Plug.Conn.resp(conn, 200, "tarball")
+        end
+      end)
 
-    Hex.State.put(:repos, Map.put(repos, "hexpm:reposkeyorg", org_repo))
+      store_user_token()
+      put_organization_repo(bypass, %{oauth_token: token("org-token", 3600)})
 
-    try do
-      Hex.Repo.get_package("hexpm:reposkeyorg", "pkg", "")
-    rescue
-      _ -> :ok
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+      assert_received {:request, "/repos/acme/tarballs/foo-1.0.0.tar", ["Bearer org-token"]}
+
+      assert_received {:request, "/repos/acme/tarballs/foo-1.0.0.tar",
+                       ["Bearer hexpm-user-token"]}
     end
 
-    output = Case.shell_output()
+    test "doesn't authenticate with a stored key", %{bypass: bypass} do
+      store_user_token()
+      put_organization_repo(bypass, %{auth_key: "stored-key"})
 
-    assert output =~
-             "the reposkeyorg repository with HEX_REPOS_KEY is deprecated and will stop working in Hex 2.6"
+      # Exchanging the key with the test server would fail and raise
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+      assert_received {:request, _path, ["Bearer hexpm-user-token"]}
+      refute Case.shell_output() =~ "Hex doesn't use the key stored"
+    end
+
+    test "warns when only a stored key is configured", %{bypass: bypass} do
+      put_organization_repo(bypass, %{auth_key: "stored-key"})
+
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+      assert_received {:request, _path, []}
+
+      output = Case.shell_output()
+      assert output =~ "Hex doesn't use the key stored for the acme repository"
+      assert output =~ "mix hex.organization deauth acme"
+      assert output =~ "mix hex.user auth"
+      assert output =~ "mix hex.organization auth acme --key KEY"
+    end
+
+    test "names the stored key, not its expired token, for a Hex 2.5 config", %{bypass: bypass} do
+      put_organization_repo(bypass, %{
+        auth_key: "stored-key",
+        auth_key_owner: :organization,
+        oauth_token: token("token-from-stored-key", -100)
+      })
+
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+      assert_received {:request, _path, []}
+
+      output = Case.shell_output()
+      assert output =~ "Hex doesn't use the key stored for the acme repository"
+      refute output =~ "has expired"
+    end
+
+    test "doesn't authenticate with HEX_REPOS_KEY", %{bypass: bypass} do
+      Hex.State.put(:repos_key, "repos-key")
+      put_organization_repo(bypass, %{})
+      assert Hex.Repo.get_repo("hexpm:acme").auth_key == "repos-key"
+
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+      assert_received {:request, "/repos/acme/tarballs/foo-1.0.0.tar", []}
+
+      output = Case.shell_output()
+      assert output =~ "Hex doesn't use HEX_REPOS_KEY for organization repositories"
+      assert output =~ "mix hex.organization auth acme --key KEY"
+    end
+
+    test "doesn't authenticate with the hexpm repository's key", %{bypass: bypass} do
+      Hex.State.update!(:repos, &put_in(&1["hexpm"].auth_key, "hexpm-key"))
+      put_organization_repo(bypass, %{})
+      assert Hex.Repo.get_repo("hexpm:acme").auth_key == "hexpm-key"
+
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+      assert_received {:request, "/repos/acme/tarballs/foo-1.0.0.tar", []}
+
+      output = Case.shell_output()
+      assert output =~ "Hex doesn't use the hexpm repository's key for organization repositories"
+      refute output =~ "mix hex.organization deauth acme"
+    end
+
+    test "sends the user's session to the hexpm repository's URL under an untrusted mirror", %{
+      bypass: bypass
+    } do
+      mirror = Bypass.open()
+      Hex.State.put(:mirror_url, "http://localhost:#{mirror.port}")
+      store_user_token()
+      put_organization_repo(bypass, %{})
+
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+
+      assert_received {:request, "/repos/acme/tarballs/foo-1.0.0.tar",
+                       ["Bearer hexpm-user-token"]}
+    end
+
+    test "doesn't authenticate an organization repository when the hexpm URL is the HEX_MIRROR URL",
+         %{bypass: bypass} do
+      Hex.State.put(:mirror_url, "http://localhost:#{bypass.port}")
+      store_user_token()
+      put_organization_repo(bypass, %{oauth_token: token("org-token", 3600)})
+      assert Hex.Repo.get_repo("hexpm:acme").trusted == false
+
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+      assert_received {:request, "/repos/acme/tarballs/foo-1.0.0.tar", []}
+    end
+
+    test "warns about HEX_REPOS_KEY for an organization loaded when Hex starts", %{
+      bypass: bypass
+    } do
+      Hex.State.put(:repos_key, "repos-key")
+      Hex.State.update!(:repos, &put_in(&1["hexpm"].url, "http://localhost:#{bypass.port}"))
+      repos = Map.put(Hex.State.fetch!(:repos), "hexpm:acme", %{})
+
+      # Hex.State.init loads the repos in the Hex.State process
+      repos = Agent.get(Hex.State, fn _state -> Hex.Repo.update_organizations(repos) end)
+      Hex.State.put(:repos, repos)
+
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+      assert_received {:request, "/repos/acme/tarballs/foo-1.0.0.tar", []}
+      assert Case.shell_output() =~ "Hex doesn't use HEX_REPOS_KEY for organization repositories"
+    end
+
+    test "names HEX_REPOS_KEY when the hexpm repository also has a key", %{bypass: bypass} do
+      Hex.State.put(:repos_key, "repos-key")
+      Hex.State.update!(:repos, &put_in(&1["hexpm"].auth_key, "hexpm-key"))
+      put_organization_repo(bypass, %{})
+
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+      assert_received {:request, _path, []}
+
+      output = Case.shell_output()
+      assert output =~ "Hex doesn't use HEX_REPOS_KEY for organization repositories"
+      refute output =~ "mix hex.organization deauth acme"
+    end
+
+    test "warns when the organization's token has expired and there is no user session", %{
+      bypass: bypass
+    } do
+      put_organization_repo(bypass, %{oauth_token: token("org-token", -100)})
+
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+      assert_received {:request, _path, []}
+      assert Case.shell_output() =~ "The token for the acme repository has expired"
+    end
+
+    test "fetches an organization repository from the hexpm repository's URL under an untrusted mirror",
+         %{bypass: bypass} do
+      mirror = Bypass.open()
+      Hex.State.put(:mirror_url, "http://localhost:#{mirror.port}")
+      put_organization_repo(bypass, %{oauth_token: token("org-token", 3600)})
+
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+      assert_received {:request, "/repos/acme/tarballs/foo-1.0.0.tar", ["Bearer org-token"]}
+    end
+
+    test "authenticates an organization repository under a trusted mirror", %{bypass: bypass} do
+      Hex.State.put(:trusted_mirror_url, "http://localhost:#{bypass.port}")
+      put_organization_repo(%{oauth_token: token("org-token", 3600)})
+
+      assert {:ok, {200, _, "tarball"}} = Hex.Repo.get_tarball("hexpm:acme", "foo", "1.0.0")
+      assert_received {:request, "/repos/acme/tarballs/foo-1.0.0.tar", ["Bearer org-token"]}
+    end
+  end
+
+  # Points the hexpm repository at the bypass, so the organization's URL is
+  # derived from it the way a hex.pm organization's is.
+  defp put_organization_repo(bypass, config) do
+    Hex.State.update!(:repos, &put_in(&1["hexpm"].url, "http://localhost:#{bypass.port}"))
+    put_organization_repo(config)
+  end
+
+  defp put_organization_repo(config) do
+    repos =
+      Hex.State.fetch!(:repos)
+      |> Map.put("hexpm:acme", config)
+      |> Hex.Repo.update_organizations()
+
+    Hex.State.put(:repos, repos)
+  end
+
+  defp store_user_token do
+    Hex.OAuth.store_token(%{
+      access_token: "hexpm-user-token",
+      refresh_token: "hexpm-refresh-token",
+      expires_at: System.system_time(:second) + 3600
+    })
+  end
+
+  defp token(access_token, expires_in) do
+    %{access_token: access_token, expires_at: System.system_time(:second) + expires_in}
   end
 
   test "does not warn for the base hexpm repository authenticated with HEX_REPOS_KEY" do
@@ -461,8 +562,8 @@ defmodule Hex.RepoTest do
               auth_key: "key",
               oauth_exchange: true,
               public_key: _,
-              trusted: false,
-              url: "http://example.com"
+              trusted: true,
+              url: "http://localhost:4043/repo"
             }} = Hex.Repo.fetch_repo("hexpm:acme")
   end
 
@@ -516,6 +617,180 @@ defmodule Hex.RepoTest do
     refute Map.has_key?(updated["hexpm:acme"], :repo_organization)
   end
 
+  test "update_organizations/1 normalizes an org URL saved as the hexpm repository's URL" do
+    repos = Hex.State.fetch!(:repos)
+    source_url = repos["hexpm"].url
+    repos = Map.put(repos, "hexpm:acme", %{url: source_url})
+
+    updated = Hex.Repo.update_organizations(repos)
+
+    assert updated["hexpm:acme"].url == source_url
+    assert updated["hexpm:acme"].repo_organization == "acme"
+  end
+
+  test "update_organizations/1 derives org URLs from a trusted mirror" do
+    Hex.State.put(:trusted_mirror_url, "http://mirror.example")
+    repos = Hex.State.fetch!(:repos)
+    source_url = repos["hexpm"].url
+
+    repos =
+      repos
+      |> Map.put("hexpm:acme", %{})
+      |> Map.put("hexpm:saved", %{url: source_url})
+      |> Map.put("hexpm:legacy", %{url: source_url <> "/repos/legacy"})
+      |> Map.put("hexpm:mirror", %{url: "http://mirror.example"})
+
+    updated = Hex.Repo.update_organizations(repos)
+
+    for name <- ["acme", "saved", "legacy", "mirror"] do
+      assert updated["hexpm:#{name}"].url == "http://mirror.example"
+      assert updated["hexpm:#{name}"].repo_organization == name
+      assert updated["hexpm:#{name}"].trusted
+    end
+  end
+
+  describe "organization repositories loaded from the config" do
+    setup do
+      env = Map.new(["HEX_HOME", "HEX_MIRROR", "HEX_TRUSTED_MIRROR"], &{&1, System.get_env(&1)})
+
+      on_exit(fn ->
+        Enum.each(env, fn
+          {name, nil} -> System.delete_env(name)
+          {name, value} -> System.put_env(name, value)
+        end)
+      end)
+
+      in_tmp(fn ->
+        Hex.State.put(:config_home, File.cwd!())
+        System.put_env("HEX_HOME", File.cwd!())
+        System.delete_env("HEX_MIRROR")
+        System.delete_env("HEX_TRUSTED_MIRROR")
+
+        Hex.State.fetch!(:repos)
+        |> Map.put("hexpm:acme", %{oauth_token: token("org-token", 3600)})
+        |> Hex.Config.update_repos()
+
+        %{hexpm_url: Hex.State.fetch!(:repos)["hexpm"].url}
+      end)
+    end
+
+    test "use the hexpm repository's URL under an untrusted mirror", %{hexpm_url: hexpm_url} do
+      System.put_env("HEX_MIRROR", "http://mirror.example")
+      Hex.State.refresh()
+
+      assert %{url: ^hexpm_url, repo_organization: "acme", trusted: true} =
+               Hex.Repo.get_repo("hexpm:acme")
+
+      Hex.Config.update_repos(Hex.State.fetch!(:repos))
+
+      refute Map.has_key?(Hex.Config.read()[:"$repos"]["hexpm:acme"], :url)
+
+      assert %{url: ^hexpm_url, repo_organization: "acme", trusted: true} =
+               Hex.Repo.get_repo("hexpm:acme")
+    end
+
+    test "use a trusted mirror" do
+      System.put_env("HEX_TRUSTED_MIRROR", "http://mirror.example")
+      Hex.State.refresh()
+
+      assert %{url: "http://mirror.example", repo_organization: "acme", trusted: true} =
+               Hex.Repo.get_repo("hexpm:acme")
+
+      Hex.Config.update_repos(Hex.State.fetch!(:repos))
+
+      refute Map.has_key?(Hex.Config.read()[:"$repos"]["hexpm:acme"], :url)
+    end
+
+    test "use the hexpm repository's URL for a stored untrusted mirror URL", %{
+      hexpm_url: hexpm_url
+    } do
+      Hex.State.fetch!(:repos)
+      |> Map.put("hexpm:root", %{url: "http://mirror.example"})
+      |> Map.put("hexpm:slash", %{url: "http://mirror.example/"})
+      |> Map.put("hexpm:legacy", %{url: "http://mirror.example/repos/legacy"})
+      |> Hex.Config.update_repos()
+
+      System.put_env("HEX_MIRROR", "http://mirror.example")
+      Hex.State.refresh()
+
+      for name <- ["root", "slash", "legacy"] do
+        assert %{url: ^hexpm_url, repo_organization: ^name, trusted: true} =
+                 Hex.Repo.get_repo("hexpm:#{name}")
+      end
+    end
+
+    test "don't trust a custom URL under an untrusted mirror" do
+      Hex.State.fetch!(:repos)
+      |> Map.put("hexpm:custom", %{url: "http://custom.example/acme"})
+      |> Hex.Config.update_repos()
+
+      System.put_env("HEX_MIRROR", "http://mirror.example")
+      Hex.State.refresh()
+
+      assert %{url: "http://custom.example/acme", trusted: false} =
+               repo = Hex.Repo.get_repo("hexpm:custom")
+
+      refute Map.has_key?(repo, :repo_organization)
+
+      Hex.Config.update_repos(Hex.State.fetch!(:repos))
+
+      assert %{url: "http://custom.example/acme", trusted: false} =
+               Hex.Repo.get_repo("hexpm:custom")
+    end
+
+    test "keep an organization pinned to repo.hex.pm" do
+      Hex.State.refresh()
+      Mix.Tasks.Hex.Repo.run(["set", "hexpm", "--url", "http://proxy.example"])
+      Mix.Tasks.Hex.Repo.run(["set", "hexpm:acme", "--url", "https://repo.hex.pm/repos/acme"])
+
+      assert %{url: "https://repo.hex.pm", repo_organization: "acme", trusted: true} =
+               Hex.Repo.get_repo("hexpm:acme")
+
+      Hex.State.refresh()
+
+      assert %{url: "https://repo.hex.pm", repo_organization: "acme", trusted: true} =
+               Hex.Repo.get_repo("hexpm:acme")
+    end
+
+    test "follow a change to the hexpm repository's URL" do
+      Hex.State.refresh()
+      Mix.Tasks.Hex.Repo.run(["set", "hexpm", "--url", "http://new.example"])
+
+      assert %{url: "http://new.example", repo_organization: "acme"} =
+               Hex.Repo.get_repo("hexpm:acme")
+
+      refute Map.has_key?(Hex.Config.read()[:"$repos"]["hexpm:acme"], :url)
+
+      Hex.State.refresh()
+
+      assert %{url: "http://new.example", repo_organization: "acme", trusted: true} =
+               Hex.Repo.get_repo("hexpm:acme")
+    end
+  end
+
+  test "update_organizations/1 loads another repository's organization in Hex.State" do
+    repos =
+      Hex.State.fetch!(:repos)
+      |> Map.put("private", %{
+        url: "http://private.example",
+        public_key: nil,
+        auth_key: nil,
+        oauth_exchange: false
+      })
+      |> Map.put("private:acme", %{url: "http://private.example/repos/acme", auth_key: "org-key"})
+
+    # Hex.State.init loads the repos in the Hex.State process, from a config
+    # that doesn't store whether a repository is trusted
+    updated = Agent.get(Hex.State, fn _state -> Hex.Repo.update_organizations(repos) end)
+
+    assert %{
+             url: "http://private.example",
+             repo_organization: "acme",
+             auth_key: "org-key",
+             trusted: true
+           } = updated["private:acme"]
+  end
+
   test "clean_organizations/1 round-trips derived and custom org URLs" do
     repos = Hex.State.fetch!(:repos)
     source_url = repos["hexpm"].url
@@ -546,47 +821,6 @@ defmodule Hex.RepoTest do
   end
 
   describe "automatic API key to OAuth token exchange" do
-    test "organization repo inherits oauth_exchange from parent" do
-      auth =
-        HexTest.Hexpm.new_user(
-          "org_oauth_user",
-          "org_oauth@example.com",
-          "password",
-          "org_oauth_key"
-        )
-
-      repos = Hex.State.fetch!(:repos)
-      repos = put_in(repos["hexpm"].auth_key, auth[:key])
-      Hex.State.put(:repos, repos)
-
-      assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm:testorg", "foo", "")
-
-      repos_after = Hex.State.fetch!(:repos)
-      token_data = repos_after["hexpm:testorg"].oauth_token
-      assert is_binary(token_data[:access_token])
-    end
-
-    test "organization repo skips oauth_exchange when disabled on parent" do
-      auth =
-        HexTest.Hexpm.new_user(
-          "org_no_oauth_user",
-          "org_no_oauth@example.com",
-          "password",
-          "org_no_oauth_key"
-        )
-
-      repos = Hex.State.fetch!(:repos)
-      repos = put_in(repos["hexpm"].auth_key, auth[:key])
-      repos = put_in(repos["hexpm"], Map.put(repos["hexpm"], :oauth_exchange, false))
-      Hex.State.put(:repos, repos)
-
-      assert {:ok, {200, _, _}} = Hex.Repo.get_package("hexpm:testorg", "foo", "")
-
-      repos_after = Hex.State.fetch!(:repos)
-      org_repo = Map.get(repos_after, "hexpm:testorg")
-      assert org_repo == nil or Map.get(org_repo, :oauth_token) == nil
-    end
-
     test "automatically exchanges API key for OAuth token when making request" do
       auth =
         HexTest.Hexpm.new_user(

@@ -211,18 +211,6 @@ defmodule Mix.Tasks.Hex do
   end
 
   @doc false
-  def repository_key_name(organization, key) do
-    {:ok, hostname} = :inet.gethostname()
-    "#{key || hostname}-repository-#{organization}"
-  end
-
-  @doc false
-  def repositories_key_name(key) do
-    {:ok, hostname} = :inet.gethostname()
-    "#{key || hostname}-repositories"
-  end
-
-  @doc false
   def clear_credentials do
     revoke_existing_oauth_tokens()
     Hex.OAuth.clear_tokens()
@@ -287,18 +275,14 @@ defmodule Mix.Tasks.Hex do
   end
 
   @doc false
-  def auth_organization(name, key, owner) do
-    repo = Hex.Repo.get_repo(name) || Hex.Repo.default_hexpm_repo()
-    repo = Map.put(repo, :auth_key, key)
-    repo = put_auth_key_owner(repo, owner)
-
-    Hex.State.fetch!(:repos)
-    |> Map.put(name, repo)
-    |> Hex.Config.update_repos()
+  def auth_organization(name, token) do
+    Hex.Config.update_repo(name, fn repo ->
+      repo
+      |> Map.put(:auth_key, nil)
+      |> Map.delete(:auth_key_owner)
+      |> Map.put(:oauth_token, token)
+    end)
   end
-
-  defp put_auth_key_owner(repo, nil), do: Map.delete(repo, :auth_key_owner)
-  defp put_auth_key_owner(repo, owner), do: Map.put(repo, :auth_key_owner, owner)
 
   @doc false
   def required_opts(opts, required) do

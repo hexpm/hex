@@ -1152,8 +1152,9 @@ defmodule Hex.RemoteConverger do
   defp names(entries), do: Enum.map_join(entries, ", ", & &1.organization)
 
   # The organizations among the prefetched repositories that the stored user
-  # session authenticates for. An organization with its own key does not touch
-  # that session, so nothing about it is worth asking or refreshing for.
+  # session authenticates for. An organization with a token from
+  # `mix hex.organization auth --key` doesn't use that session, so nothing
+  # about it is worth asking or refreshing for.
   @doc false
   def user_oauth_organizations(prefetches) do
     prefetches
@@ -1169,7 +1170,7 @@ defmodule Hex.RemoteConverger do
   end
 
   defp repo_uses_user_oauth?(repo_config) do
-    Map.get(repo_config, :trusted, true) && !repo_config.auth_key
+    Map.get(repo_config, :trusted, true) and Hex.Auth.organization_token(repo_config) == :error
   end
 
   @doc false
