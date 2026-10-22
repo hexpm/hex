@@ -95,25 +95,10 @@ defmodule Mix.Tasks.Hex.Organization do
     * `--key-name KEY_NAME` - The name of the key created by `key generate`. By
       default Hex bases the key name on your machine's hostname.
 
-    * `--permission PERMISSION` - Sets the permissions on the key, this option can be given
-      multiple times, possibly values are:
-      * `api:read` - API read access.
-      * `api:write` - API write access, which includes every permission below except
-        repository access.
-      * `repository:organization_name` - Access to the organization's repository (this is the default permission).
-      * `publish` - Publish, revert, retire and unretire releases and publish docs of the
-        organization's packages.
-      * `publish:organization_name/package_name` - The same as `publish`, for one package.
-      * `keys` - Create keys with a subset of the key's own permissions, and revoke keys.
-      * `owners` - Add and remove package owners.
-      * `owners:organization_name/package_name` - The same as `owners`, for one package.
-      * `members` - Add and remove members and change their roles.
-      * `administration` - Change the organization's number of seats.
-
-      Members can only grant the permissions their organization role allows. Read members
-      can grant `api:read` and `repository:organization_name`, write members can also grant
-      `publish` and `keys`, and admins can grant everything. When a write member asks for
-      `api:write` the key gets `api:read`, `publish` and `keys` instead.
+    * `--permission PERMISSION` - Sets a permission on the key, this option can be given
+      multiple times. The default is `repository:organization_name`, access to the
+      organization's repository. See https://hex.pm/docs/keys#organization-keys for the
+      available permissions and which organization roles can grant them.
   """
   @behaviour Hex.Mix.TaskDescription
 
