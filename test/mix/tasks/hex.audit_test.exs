@@ -658,12 +658,11 @@ defmodule Mix.Tasks.Hex.AuditTest do
                  "policy: 'Replaced by the internal fork'."
 
       assert result["partialFingerprints"] == %{"hexAudit/v1" => "denied:hexpm/test_package"}
-      refute Map.has_key?(result, "suppressions")
     end)
   end
 
   @tag :requires_json
-  test "policy-accepted SARIF findings identify their source and include comments", context do
+  test "audit --format sarif leaves out policy-accepted findings", context do
     with_test_package("2.14.0", context, fn ->
       inject_advisory(@package_name, "2.14.0", [@advisory])
 
@@ -681,10 +680,9 @@ defmodule Mix.Tasks.Hex.AuditTest do
 
       Mix.Task.run("hex.audit", ["--policy", "--format", "sarif"])
 
-      [result] = decode_sarif()["runs"] |> hd() |> Map.fetch!("results")
-      [suppression] = result["suppressions"]
-      assert suppression["justification"] == "Compensating control is active"
-      assert suppression["properties"]["source"] == "policy"
+      [run] = decode_sarif()["runs"]
+      assert run["results"] == []
+      assert run["tool"]["driver"]["rules"] == []
     end)
   end
 
@@ -840,9 +838,6 @@ defmodule Mix.Tasks.Hex.AuditTest do
                ]
              } = decode_sarif()
 
-      refute Map.has_key?(retired_result, "suppressions")
-      refute Map.has_key?(advisory_result, "suppressions")
-
       # The test runs inside the Hex repository checkout, so git-derived
       # version control provenance is available.
       assert String.starts_with?(src_root, "file:///")
@@ -965,19 +960,75 @@ defmodule Mix.Tasks.Hex.AuditTest do
   end
 
   @tag :requires_json
-  test "audit --format sarif (ignored findings are suppressed)", context do
+  test "audit --format sarif leaves out ignored findings", context do
     with_test_package("3.1.0", context, fn ->
+      :sys.replace_state(Hex.Registry.Server, fn %{ets: tid} = state ->
+        :ets.insert(
+          tid,
+          {{:retired, "hexpm", @package_name, "3.1.0"}, %{reason: :RETIRED_SECURITY}}
+        )
+
+        state
+      end)
+
       inject_advisory(@package_name, "3.1.0", [@advisory])
       Hex.State.put(:ignore_advisories, ["GHSA-test-0001"])
+      Hex.State.put(:ignore_retirements, [{@package_name, nil}])
 
       Mix.Task.run("hex.audit", ["--format", "sarif"])
 
-      sarif = decode_sarif()
-      [run] = sarif["runs"]
-      [result] = run["results"]
+      [run] = decode_sarif()["runs"]
+      assert run["results"] == []
+      assert run["tool"]["driver"]["rules"] == []
+    end)
+  end
 
-      assert result["ruleId"] == "GHSA-test-0001"
-      assert [%{"kind" => "external"}] = result["suppressions"]
+  @tag :requires_json
+  test "audit --format sarif keeps findings that aren't ignored", context do
+    with_test_package("3.8.0", context, fn ->
+      :sys.replace_state(Hex.Registry.Server, fn %{ets: tid} = state ->
+        :ets.insert(
+          tid,
+          {{:retired, "hexpm", @package_name, "3.8.0"}, %{reason: :RETIRED_SECURITY}}
+        )
+
+        state
+      end)
+
+      inject_advisory(@package_name, "3.8.0", [@advisory])
+      Hex.State.put(:ignore_advisories, ["GHSA-test-0001"])
+
+      assert catch_throw(Mix.Task.run("hex.audit", ["--format", "sarif"])) == {:exit_code, 1}
+
+      [run] = decode_sarif()["runs"]
+      assert [%{"ruleId" => rule_id}] = run["results"]
+      assert [%{"id" => ^rule_id}] = run["tool"]["driver"]["rules"]
+      refute rule_id == "GHSA-test-0001"
+    end)
+  end
+
+  @tag :requires_json
+  test "audit --policy-overrides --format sarif leaves out findings an override accepts",
+       context do
+    with_test_package("3.7.0", context, fn ->
+      inject_advisory(@package_name, "3.7.0", [@advisory])
+
+      put_policy(
+        overrides: [
+          %{
+            action: :OVERRIDE_ACTION_ADVISORY,
+            ref: %{package: @package_name},
+            advisory_id: @advisory.id,
+            comment: "Compensating control is active"
+          }
+        ]
+      )
+
+      Mix.Task.run("hex.audit", ["--policy-overrides", "--format", "sarif"])
+
+      [run] = decode_sarif()["runs"]
+      assert run["results"] == []
+      assert run["tool"]["driver"]["rules"] == []
     end)
   end
 

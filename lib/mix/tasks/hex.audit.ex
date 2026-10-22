@@ -82,11 +82,13 @@ defmodule Mix.Tasks.Hex.Audit do
   With `--format sarif` the audit result is rendered as a
   [SARIF](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html)
   v2.1.0 document that code scanning services can ingest. Each finding is
-  anchored to the dependency's entry in `mix.lock`, advisory severities are
-  mapped to SARIF levels and GitHub `security-severity` scores, and ignored
-  findings are included with a suppression so they show up as closed
-  alerts. The exit code behaves the same as with the human format, so CI
-  jobs still fail while findings are open.
+  anchored to the dependency's entry in `mix.lock`, and advisory severities
+  are mapped to SARIF levels and GitHub `security-severity` scores. Findings
+  acknowledged with `ignore_advisories` or `ignore_retirements`, and with
+  `--policy` or `--policy-overrides` findings the active policy accepts, are
+  left out, so GitHub code scanning closes their alerts as fixed.
+  The exit code behaves the same as with the human format, so CI jobs still
+  fail while findings are open.
 
   ### Usage with GitHub Actions
 
@@ -268,13 +270,9 @@ defmodule Mix.Tasks.Hex.Audit do
 
   defp output_sarif(result, output) do
     findings =
-      sarif_findings(:denied, result.denied, false) ++
-        sarif_findings(:retired, result.retired, false) ++
-        sarif_findings(:retired, result.ignored_retired, :project) ++
-        sarif_findings(:retired, result.policy_accepted_retired, :policy) ++
-        sarif_findings(:advisory, result.advisories, false) ++
-        sarif_findings(:advisory, result.ignored_advisories, :project) ++
-        sarif_findings(:advisory, result.policy_accepted_advisories, :policy)
+      sarif_findings(:denied, result.denied) ++
+        sarif_findings(:retired, result.retired) ++
+        sarif_findings(:advisory, result.advisories)
 
     lockfile = Mix.Project.config()[:lockfile] || "mix.lock"
     sarif = Hex.Sarif.encode_audit(findings, lockfile)
@@ -285,16 +283,8 @@ defmodule Mix.Tasks.Hex.Audit do
     end
   end
 
-  defp sarif_findings(type, entries, suppression) do
-    Enum.map(entries, fn entry ->
-      suppression =
-        case suppression do
-          :policy -> {:policy, Hex.Policy.Filter.acceptance_message(entry.acceptance)}
-          other -> other
-        end
-
-      {type, entry.repo, entry.package, entry.version, entry.detail, suppression}
-    end)
+  defp sarif_findings(type, entries) do
+    Enum.map(entries, &{type, &1.repo, &1.package, &1.version, &1.detail})
   end
 
   defp warn_unused_ignores(all_retired, raw_advisories, ignore_advisories, ignore_retirements) do
