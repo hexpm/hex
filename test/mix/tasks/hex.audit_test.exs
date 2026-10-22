@@ -984,6 +984,55 @@ defmodule Mix.Tasks.Hex.AuditTest do
   end
 
   @tag :requires_json
+  test "audit --format sarif keeps findings that aren't ignored", context do
+    with_test_package("3.8.0", context, fn ->
+      :sys.replace_state(Hex.Registry.Server, fn %{ets: tid} = state ->
+        :ets.insert(
+          tid,
+          {{:retired, "hexpm", @package_name, "3.8.0"}, %{reason: :RETIRED_SECURITY}}
+        )
+
+        state
+      end)
+
+      inject_advisory(@package_name, "3.8.0", [@advisory])
+      Hex.State.put(:ignore_advisories, ["GHSA-test-0001"])
+
+      assert catch_throw(Mix.Task.run("hex.audit", ["--format", "sarif"])) == {:exit_code, 1}
+
+      [run] = decode_sarif()["runs"]
+      assert [%{"ruleId" => rule_id}] = run["results"]
+      assert [%{"id" => ^rule_id}] = run["tool"]["driver"]["rules"]
+      refute rule_id == "GHSA-test-0001"
+    end)
+  end
+
+  @tag :requires_json
+  test "audit --policy-overrides --format sarif leaves out findings an override accepts",
+       context do
+    with_test_package("3.7.0", context, fn ->
+      inject_advisory(@package_name, "3.7.0", [@advisory])
+
+      put_policy(
+        overrides: [
+          %{
+            action: :OVERRIDE_ACTION_ADVISORY,
+            ref: %{package: @package_name},
+            advisory_id: @advisory.id,
+            comment: "Compensating control is active"
+          }
+        ]
+      )
+
+      Mix.Task.run("hex.audit", ["--policy-overrides", "--format", "sarif"])
+
+      [run] = decode_sarif()["runs"]
+      assert run["results"] == []
+      assert run["tool"]["driver"]["rules"] == []
+    end)
+  end
+
+  @tag :requires_json
   test "audit --format sarif --output writes a file", context do
     with_test_package("3.2.0", context, fn ->
       Mix.Task.run("hex.audit", ["--format", "sarif", "--output", "hex-audit.sarif"])

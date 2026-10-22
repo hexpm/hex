@@ -84,8 +84,9 @@ defmodule Mix.Tasks.Hex.Audit do
   v2.1.0 document that code scanning services can ingest. Each finding is
   anchored to the dependency's entry in `mix.lock`, and advisory severities
   are mapped to SARIF levels and GitHub `security-severity` scores. Findings
-  acknowledged with `ignore_advisories` or `ignore_retirements`, or accepted
-  by the active policy, are left out, so code scanning closes their alerts.
+  acknowledged with `ignore_advisories` or `ignore_retirements`, and with
+  `--policy` or `--policy-overrides` findings the active policy accepts, are
+  left out, so GitHub code scanning closes their alerts as fixed.
   The exit code behaves the same as with the human format, so CI jobs still
   fail while findings are open.
 
