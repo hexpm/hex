@@ -42,15 +42,14 @@ defmodule Hex.Sarif do
   @doc """
   Encodes audit findings as a SARIF JSON document.
 
-  Findings are `{:retired, repo, package, version, retired, suppression}`,
-  `{:advisory, repo, package, version, advisory, suppression}`, or
-  `{:denied, repo, package, version, acceptance, false}` tuples, where `repo`
-  is the repository the package is locked from, `retired` is the retirement
-  status map from the registry, `advisory` is a display group returned by
+  Findings are `{:retired, repo, package, version, retired}`,
+  `{:advisory, repo, package, version, advisory}`, or
+  `{:denied, repo, package, version, acceptance}` tuples, where `repo` is the
+  repository the package is locked from, `retired` is the retirement status
+  map from the registry, `advisory` is a display group returned by
   `:mix_hex_advisory.group_for_display/1`, and `acceptance` describes the
-  policy DENY override. Project-ignored and policy-accepted findings are
-  included with a SARIF suppression. `lockfile` is the path of the lock file
-  the results are anchored to, relative to the working directory.
+  policy DENY override. `lockfile` is the path of the lock file the results
+  are anchored to, relative to the working directory.
 
   Requires the `:json` module (OTP 27 or later).
   """
@@ -236,15 +235,15 @@ defmodule Hex.Sarif do
 
   defp rules(findings) do
     denied_rules =
-      if Enum.any?(findings, &match?({:denied, _repo, _package, _version, _acceptance, _}, &1)),
+      if Enum.any?(findings, &match?({:denied, _repo, _package, _version, _acceptance}, &1)),
         do: [denied_rule()],
         else: []
 
     retired_rules =
       findings
       |> Enum.flat_map(fn
-        {:retired, _repo, _package, _version, retired, _ignored?} -> [Map.get(retired, :reason)]
-        {_type, _repo, _package, _version, _detail, _ignored?} -> []
+        {:retired, _repo, _package, _version, retired} -> [Map.get(retired, :reason)]
+        {_type, _repo, _package, _version, _detail} -> []
       end)
       |> Enum.uniq_by(fn reason -> elem(retired_rule_info(reason), 0) end)
       |> Enum.map(&retired_rule/1)
@@ -252,8 +251,8 @@ defmodule Hex.Sarif do
     advisory_rules =
       findings
       |> Enum.flat_map(fn
-        {:advisory, _repo, _package, _version, advisory, _ignored?} -> [advisory]
-        {_type, _repo, _package, _version, _detail, _ignored?} -> []
+        {:advisory, _repo, _package, _version, advisory} -> [advisory]
+        {_type, _repo, _package, _version, _detail} -> []
       end)
       |> Enum.uniq_by(& &1.id)
       |> Enum.map(&advisory_rule/1)
@@ -353,7 +352,7 @@ defmodule Hex.Sarif do
   end
 
   defp result(
-         {:denied, repo, package, version, acceptance, _suppression},
+         {:denied, repo, package, version, acceptance},
          rule_indexes,
          artifact,
          lock_lines
@@ -372,7 +371,7 @@ defmodule Hex.Sarif do
   end
 
   defp result(
-         {:retired, repo, package, version, retired, ignored?},
+         {:retired, repo, package, version, retired},
          rule_indexes,
          artifact,
          lock_lines
@@ -389,11 +388,10 @@ defmodule Hex.Sarif do
       "locations" => [location(repo, package, artifact, lock_lines)],
       "partialFingerprints" => %{"hexAudit/v1" => "retired:#{repo}/#{package}"}
     }
-    |> put_suppressions(ignored?)
   end
 
   defp result(
-         {:advisory, repo, package, version, advisory, ignored?},
+         {:advisory, repo, package, version, advisory},
          rule_indexes,
          artifact,
          lock_lines
@@ -408,7 +406,6 @@ defmodule Hex.Sarif do
         "hexAudit/v1" => "advisory:#{repo}/#{package}:#{advisory.id}"
       }
     }
-    |> put_suppressions(ignored?)
   end
 
   defp advisory_help(advisory) do
@@ -453,31 +450,6 @@ defmodule Hex.Sarif do
     id
     |> String.split(["-", "_", ".", ":", "/"], trim: true)
     |> Enum.map_join(&String.capitalize/1)
-  end
-
-  defp put_suppressions(result, false), do: result
-
-  defp put_suppressions(result, true), do: put_suppressions(result, :project)
-
-  defp put_suppressions(result, :project) do
-    Map.put(result, "suppressions", [
-      %{
-        "kind" => "external",
-        "justification" =>
-          "Ignored by the ignore_advisories/ignore_retirements Hex configuration",
-        "properties" => %{"source" => "project"}
-      }
-    ])
-  end
-
-  defp put_suppressions(result, {:policy, explanation}) do
-    Map.put(result, "suppressions", [
-      %{
-        "kind" => "external",
-        "justification" => explanation,
-        "properties" => %{"source" => "policy"}
-      }
-    ])
   end
 
   defp advisory_result_message(package, version, advisory) do
