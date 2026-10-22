@@ -233,6 +233,26 @@ defmodule Mix.Tasks.Hex.BuildTest do
     purge([ReleaseExcludePatterns.MixProject])
   end
 
+  test "create with the project directory in files" do
+    Process.put(:hex_test_app_name, :build_with_project_dir)
+    Mix.Project.push(ReleaseProjectDir.MixProject)
+
+    in_tmp(fn ->
+      Hex.State.put(:cache_home, tmp_path())
+
+      File.write!("myfile.txt", "hello")
+      File.mkdir!("dir")
+      File.write!("dir/test.txt", "world")
+
+      Mix.Tasks.Hex.Build.run([])
+
+      extract("build_with_project_dir-0.0.1.tar", "unzip")
+      assert extracted_files("unzip") == ["dir/test.txt", "myfile.txt"]
+    end)
+  after
+    purge([ReleaseProjectDir.MixProject])
+  end
+
   test "excludes junk files at any depth" do
     Process.put(:hex_test_app_name, :build_junk_files)
     Mix.Project.push(ReleaseDefaultFiles.MixProject)

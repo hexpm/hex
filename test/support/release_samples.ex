@@ -209,6 +209,21 @@ defmodule ReleaseExcludePatterns.MixProject do
   end
 end
 
+defmodule ReleaseProjectDir.MixProject do
+  def project do
+    [
+      app: Process.get(:hex_test_app_name) || raise("missing app name"),
+      version: "0.0.1",
+      description: "foo",
+      package: [
+        files: ["."],
+        licenses: ["MIT"],
+        links: %{"a" => "http://a"}
+      ]
+    ]
+  end
+end
+
 defmodule ReleaseEscapingFiles.MixProject do
   def project do
     [
