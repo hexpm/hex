@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.21.0 (564a33e), do not edit manually
+%% Vendored from hex_core v0.21.1 (d366662), do not edit manually
 
 %% @doc
 %% Functions for creating and unpacking Hex tarballs.
@@ -1130,8 +1130,16 @@ validate_create_files([], _FilesRoot, Acc) ->
     {ok, lists:reverse(Acc)};
 validate_create_files([File | Rest], FilesRoot, Acc) ->
     case validate_create_file(File, FilesRoot) of
-        {ok, ValidatedFile} -> validate_create_files(Rest, FilesRoot, [ValidatedFile | Acc]);
-        {error, _} = Error -> Error
+        {ok, {ArchiveName, Entry} = ValidatedFile} ->
+            %% The archive root always exists, so a directory named after it
+            %% isn't stored and other entries can't take its name
+            case {archive_path_parts(ArchiveName), Entry} of
+                {[], directory} -> validate_create_files(Rest, FilesRoot, Acc);
+                {[], _} -> {error, {tarball, {unsafe_path, ArchiveName}}};
+                _ -> validate_create_files(Rest, FilesRoot, [ValidatedFile | Acc])
+            end;
+        {error, _} = Error ->
+            Error
     end.
 
 validate_create_file({Filename, Source, Options}, FilesRoot) when is_map(Options) ->

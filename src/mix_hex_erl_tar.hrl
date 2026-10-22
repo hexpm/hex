@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.21.0 (564a33e), do not edit manually
+%% Vendored from hex_core v0.21.1 (d366662), do not edit manually
 
 %% This file is a copy of erl_tar.hrl from OTP without modifications.
 %%
