@@ -312,6 +312,44 @@ defmodule Mix.Tasks.Hex.AuditTest do
     end)
   end
 
+  test "audit --check-unused-ignores (stale ignore entries fail)", context do
+    with_test_package("3.9.0", context, fn ->
+      Hex.State.put(:ignore_advisories, ["CVE-2020-00000"])
+
+      assert catch_throw(Mix.Task.run("hex.audit", ["--check-unused-ignores"])) ==
+               {:exit_code, 1}
+
+      output = shell_output()
+      assert output =~ ~s(ignore_advisories entry "CVE-2020-00000" does not match any advisory)
+      assert output =~ "Found unused ignore entries"
+    end)
+  end
+
+  test "audit --check-unused-ignores (matching ignore entries pass)", context do
+    with_test_package("3.10.0", context, fn ->
+      :sys.replace_state(Hex.Registry.Server, fn %{ets: tid} = state ->
+        :ets.insert(
+          tid,
+          {{:retired, "hexpm", @package_name, "3.10.0"}, %{reason: :RETIRED_SECURITY}}
+        )
+
+        :ets.insert(tid, {{:advisories, "hexpm", @package_name, "3.10.0"}, [@advisory]})
+        state
+      end)
+
+      Hex.State.put(:ignore_advisories, ["GHSA-test-0001"])
+      Hex.State.put(:ignore_retirements, [{@package_name, nil}])
+
+      Mix.Task.run("hex.audit", ["--check-unused-ignores"])
+
+      output = shell_output()
+      assert output =~ "Ignored advisories:"
+      assert output =~ "Ignored retired:"
+      refute output =~ "can be removed"
+      refute output =~ "Found unused ignore entries"
+    end)
+  end
+
   test "audit (ignoring one advisory of an aliased group suppresses the group)", context do
     eef_advisory = %{
       id: "EEF-test-0001",

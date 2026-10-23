@@ -47,7 +47,8 @@ defmodule Mix.Tasks.Hex.Audit do
 
   Ignored findings are listed in separate "Ignored" sections and do not cause
   a non-zero exit code. Entries that do not match anything in the lock file
-  produce a warning so they can be cleaned up. The same configuration
+  produce a warning so they can be cleaned up, and a non-zero exit code with
+  `--check-unused-ignores`. The same configuration
   silences the advisory and retirement warnings printed by `mix deps.get`
   and `mix deps.update`.
 
@@ -67,6 +68,9 @@ defmodule Mix.Tasks.Hex.Audit do
       `human` (default) and `sarif`. SARIF output requires OTP 27 or later
     * `--output PATH` - writes the report to the given file instead of
       printing it. Can only be used with `--format sarif`
+    * `--check-unused-ignores` - exits with a non-zero code when an
+      `ignore_advisories` or `ignore_retirements` entry does not match anything
+      in the lock file
 
   Both policy modes list locked packages matched by a DENY override in a
   "Denied:" section and exit with a non-zero code when any are found.
@@ -142,7 +146,13 @@ defmodule Mix.Tasks.Hex.Audit do
 
   @behaviour Hex.Mix.TaskDescription
 
-  @switches [format: :string, output: :string, policy_overrides: :boolean, policy: :boolean]
+  @switches [
+    format: :string,
+    output: :string,
+    policy_overrides: :boolean,
+    policy: :boolean,
+    check_unused_ignores: :boolean
+  ]
 
   @impl true
   def run(args) do
@@ -179,12 +189,13 @@ defmodule Mix.Tasks.Hex.Audit do
       "sarif" -> output_sarif(result, opts[:output])
     end
 
-    warn_unused_ignores(
-      result.all_retired,
-      result.raw_advisories,
-      Hex.State.fetch!(:ignore_advisories),
-      Hex.State.fetch!(:ignore_retirements)
-    )
+    unused_ignores? =
+      warn_unused_ignores(
+        result.all_retired,
+        result.raw_advisories,
+        Hex.State.fetch!(:ignore_advisories),
+        Hex.State.fetch!(:ignore_retirements)
+      )
 
     if Hex.Audit.active_findings?(result) do
       if format == "human", do: Hex.Shell.info("")
@@ -196,6 +207,11 @@ defmodule Mix.Tasks.Hex.Audit do
 
       Mix.Tasks.Hex.set_exit_code(1)
     end
+
+    if opts[:check_unused_ignores] && unused_ignores? do
+      Hex.Shell.error("Found unused ignore entries")
+      Mix.Tasks.Hex.set_exit_code(1)
+    end
   end
 
   @impl true
@@ -204,7 +220,8 @@ defmodule Mix.Tasks.Hex.Audit do
       {"", "Shows retired Hex deps and security advisories for the current project"},
       {"--policy-overrides", "Applies the active policy's overrides"},
       {"--policy", "Shows findings rejected by the active policy"},
-      {"--format sarif", "Outputs the audit result as a SARIF document"}
+      {"--format sarif", "Outputs the audit result as a SARIF document"},
+      {"--check-unused-ignores", "Fails when an ignore entry matches nothing"}
     ]
   end
 
@@ -316,11 +333,12 @@ defmodule Mix.Tasks.Hex.Audit do
 
     case advisory_warnings ++ retirement_warnings do
       [] ->
-        :ok
+        false
 
       warnings ->
         Hex.Shell.warn("")
         Enum.each(warnings, &Hex.Shell.warn/1)
+        true
     end
   end
 
