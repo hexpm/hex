@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Hex.OrganizationTest do
   use HexTest.IntegrationCase
 
-  test "auth" do
+  test "auth without --key fails because hex.pm doesn't create user repository keys" do
     in_tmp(fn ->
       set_home_cwd()
       auth = Hexpm.new_tfa_user("orgauth", "orgauth@mail.com", "password")
@@ -12,21 +12,17 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       send(self(), {:mix_shell_input, :prompt, "password"})
       Mix.Tasks.Hex.Organization.run(["auth", "myorgauth"])
 
-      myorg = Hex.Repo.get_repo("hexpm:myorgauth")
-      hexpm = Hex.Repo.get_repo("hexpm")
-
-      assert myorg.public_key == hexpm.public_key
-      assert myorg.url == "http://localhost:4043/repo/repos/myorgauth"
-      assert is_binary(myorg.auth_key)
+      assert_received {:mix_shell, :error, ["Generation of key failed"]}
+      refute Hex.Repo.get_repo("hexpm:myorgauth").auth_key
 
       {:ok, hostname} = :inet.gethostname()
       name = "#{hostname}-repository-myorgauth"
       assert {:ok, {200, _, body}} = Hex.API.Key.get(auth)
-      assert name in Enum.map(body, & &1["name"])
+      refute name in Enum.map(body, & &1["name"])
     end)
   end
 
-  test "auth with --keyname" do
+  test "auth with --keyname fails because hex.pm doesn't create user repository keys" do
     in_tmp(fn ->
       set_home_cwd()
 
@@ -45,15 +41,11 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
         "orgauthkeyname"
       ])
 
-      myorg = Hex.Repo.get_repo("hexpm:myorgauthwithkeyname")
-      hexpm = Hex.Repo.get_repo("hexpm")
-
-      assert myorg.public_key == hexpm.public_key
-      assert myorg.url == "http://localhost:4043/repo/repos/myorgauthwithkeyname"
-      assert is_binary(myorg.auth_key)
+      assert_received {:mix_shell, :error, ["Generation of key failed"]}
+      refute Hex.Repo.get_repo("hexpm:myorgauthwithkeyname").auth_key
 
       assert {:ok, {200, _, body}} = Hex.API.Key.get(auth)
-      assert "orgauthkeyname-repository-myorgauthwithkeyname" in Enum.map(body, & &1["name"])
+      refute "orgauthkeyname-repository-myorgauthwithkeyname" in Enum.map(body, & &1["name"])
     end)
   end
 
@@ -64,16 +56,16 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
       Hexpm.new_repo("myorgauthkey", auth)
 
       parameters = [%{"domain" => "repository", "resource" => "myorgauthkey"}]
-      {:ok, {201, _, body}} = Hex.API.Key.new("orgauthkey", parameters, auth)
+      [key: secret] = Hexpm.new_key("orgauthkey", "orgauthkey", parameters)
 
-      Mix.Tasks.Hex.Organization.run(["auth", "myorgauthkey", "--key", body["secret"]])
+      Mix.Tasks.Hex.Organization.run(["auth", "myorgauthkey", "--key", secret])
 
       myorg = Hex.Repo.get_repo("hexpm:myorgauthkey")
       hexpm = Hex.Repo.get_repo("hexpm")
 
       assert myorg.public_key == hexpm.public_key
       assert myorg.url == "http://localhost:4043/repo/repos/myorgauthkey"
-      assert myorg.auth_key == body["secret"]
+      assert myorg.auth_key == secret
 
       repos = Hex.Config.read_repos(Hex.Config.read())
       assert repo = repos["hexpm:myorgauthkey"]
@@ -103,12 +95,11 @@ defmodule Mix.Tasks.Hex.OrganizationTest do
     in_tmp(fn ->
       set_home_cwd()
       auth = Hexpm.new_tfa_user("orgdeauth", "orgdeauth@mail.com", "password")
-      Hexpm.sign_in(auth)
       Hexpm.new_repo("myorgdeauth", auth)
 
-      send(self(), {:mix_shell_input, :yes?, true})
-      send(self(), {:mix_shell_input, :prompt, "password"})
-      Mix.Tasks.Hex.Organization.run(["auth", "myorgdeauth"])
+      parameters = [%{"domain" => "repository", "resource" => "myorgdeauth"}]
+      [key: secret] = Hexpm.new_key("orgdeauth", "orgdeauth", parameters)
+      Mix.Tasks.Hex.Organization.run(["auth", "myorgdeauth", "--key", secret])
       assert Hex.Config.read_repos(Hex.Config.read())["hexpm:myorgdeauth"]
 
       Mix.Tasks.Hex.Organization.run(["deauth", "myorgdeauth"])
