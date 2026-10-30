@@ -45,6 +45,13 @@ defmodule Mix.Tasks.Hex.Publish do
   uses the organization's workload identities, and one with the `write` role can
   also create the package.
 
+  ## Staged publishing
+
+  When publishing requires approval, the package and docs are staged. The task
+  prints the approval URL and expiry. Use `--wait` to wait for approval after
+  staging the package and docs. Rejection or expiry makes the command fail.
+  Workload Identity tokens are renewed if they expire while waiting.
+
   ## Reverting a package
 
   A new package can be reverted or updated within 24 hours of its initial publish.
@@ -60,6 +67,7 @@ defmodule Mix.Tasks.Hex.Publish do
   ## Command line options
 
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
+    * `--wait` - Open the approval URL and wait for a staged package or docs to be approved
     * `--yes` - Publishes the package without any confirmation prompts
     * `--dry-run` - Builds package and performs local checks without publishing,
       use `mix hex.build --unpack` to inspect package contents before publishing.
@@ -81,7 +89,8 @@ defmodule Mix.Tasks.Hex.Publish do
     organisation: :string,
     yes: :boolean,
     dry_run: :boolean,
-    replace: :boolean
+    replace: :boolean,
+    wait: :boolean
   ]
 
   @impl true
@@ -115,9 +124,12 @@ defmodule Mix.Tasks.Hex.Publish do
             auth = publish_auth(build, organization, opts)
             Hex.Shell.info("Publishing package...")
 
-            case create_release(build, organization, auth, opts) do
-              :ok -> transfer_owner(build, owner, opts)
-              _ -> Mix.Tasks.Hex.set_exit_code(1)
+            result = create_release(build, organization, auth, opts)
+
+            if finish_publish(result, build, organization, auth, opts) == :ok do
+              transfer_owner(result, build, owner, opts)
+            else
+              Mix.Tasks.Hex.set_exit_code(1)
             end
 
           :error ->
@@ -127,7 +139,8 @@ defmodule Mix.Tasks.Hex.Publish do
       ["docs"] ->
         docs_task()
         auth = publish_auth(build, organization, opts)
-        create_docs(build, organization, auth, opts)
+        result = create_docs(build, organization, auth, opts)
+        finish_publish(result, build, organization, auth, opts)
 
       [] ->
         create(build, organization, opts)
@@ -164,12 +177,18 @@ defmodule Mix.Tasks.Hex.Publish do
         Hex.Shell.info("Publishing package...")
 
         case create_release(build, organization, auth, opts) do
-          :ok ->
+          result when result == :ok or elem(result, 0) == :staged ->
             Hex.Shell.info("Publishing docs...")
-            create_docs(build, organization, auth, opts)
-            transfer_owner(build, owner, opts)
+            docs_result = create_docs(build, organization, auth, opts)
 
-          _ ->
+            finished =
+              finish_combined_publish(result, docs_result, build, organization, auth, opts)
+
+            if finished == :ok or not Keyword.get(opts, :wait, false) do
+              transfer_owner(result, build, owner, opts)
+            end
+
+          :error ->
             Mix.Tasks.Hex.set_exit_code(1)
         end
 
@@ -361,6 +380,20 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp public_organization?(organization), do: organization in [nil, "hexpm"]
 
+  defp transfer_owner({:staged, _}, build, owner, opts) when is_binary(owner) do
+    if Keyword.get(opts, :wait, false) do
+      transfer_owner(build, owner, opts)
+    else
+      Hex.Shell.info(
+        "Ownership can be transferred to #{Hex.Utils.escape_terminal(owner)} after approval"
+      )
+    end
+  end
+
+  defp transfer_owner(_release, build, owner, opts) do
+    transfer_owner(build, owner, opts)
+  end
+
   defp transfer_owner(_build, nil, _opts) do
     :ok
   end
@@ -449,6 +482,10 @@ defmodule Mix.Tasks.Hex.Publish do
     progress = progress_fun(progress?, byte_size(tarball))
 
     case Hex.API.ReleaseDocs.publish(organization, name, version, tarball, auth, progress) do
+      {:ok, {code, _, %{"status" => "staged"} = staged}} when code in 200..299 ->
+        print_staged("Documentation", staged, :crypto.hash(:sha256, tarball))
+        {:staged, staged}
+
       {:ok, {code, headers, _body}} when code in 200..299 ->
         api_url = Hex.State.fetch!(:api_url)
         default_api_url? = api_url == Hex.State.default_api_url()
@@ -541,6 +578,10 @@ defmodule Mix.Tasks.Hex.Publish do
     replace? = Keyword.get(opts, :replace, false)
 
     case Hex.API.Release.publish(organization, tarball, auth, progress, replace?) do
+      {:ok, {code, _, %{"status" => "staged"} = staged}} when code in 200..299 ->
+        print_staged("Package", staged, checksum)
+        {:staged, staged}
+
       {:ok, {code, _, body}} when code in 200..299 ->
         location = Hex.Utils.printable_ascii(body["html_url"] || body["url"] || "")
         checksum = String.downcase(Base.encode16(checksum, case: :lower))
@@ -572,6 +613,129 @@ defmodule Mix.Tasks.Hex.Publish do
         Hex.Utils.print_error_result(other)
         :error
     end
+  end
+
+  defp print_staged(kind, staged, checksum) do
+    location = Hex.Utils.printable_ascii(staged["html_url"])
+    expiry = Hex.Utils.printable_ascii(staged["expires_at"])
+    Hex.Shell.info("")
+    Hex.Shell.info("#{kind} staged for approval at #{location} (expires at #{expiry})")
+    Hex.Shell.info("#{kind} SHA-256: #{Base.encode16(checksum, case: :lower)}")
+  end
+
+  defp finish_combined_publish(
+         {:staged, package},
+         {:staged, %{"kind" => "release"} = docs},
+         build,
+         organization,
+         auth,
+         opts
+       ) do
+    if package["checksum"] != docs["checksum"] do
+      Mix.raise("Staged package changed before its docs were staged")
+    end
+
+    finish_publish({:staged, docs}, build, organization, auth, opts)
+  end
+
+  defp finish_combined_publish(
+         {:staged, _} = package,
+         {:staged, _} = docs,
+         build,
+         organization,
+         auth,
+         opts
+       ) do
+    finish_publish(package, build, organization, auth, opts)
+    finish_publish(docs, build, organization, auth, opts)
+  end
+
+  defp finish_combined_publish(package, docs, build, organization, auth, opts) do
+    finish_publish(docs, build, organization, auth, opts)
+    package
+  end
+
+  defp finish_publish({:staged, staged}, build, organization, auth, opts) do
+    if opts[:wait] do
+      open_approval_url(staged["html_url"])
+      Hex.Shell.info("Waiting for publish approval...")
+      wait_for_approval(staged, build, organization, auth)
+    else
+      :ok
+    end
+  end
+
+  defp finish_publish(:ok, _build, _organization, _auth, _opts), do: :ok
+
+  defp finish_publish(:error, _build, _organization, _auth, opts) do
+    if opts[:wait], do: Mix.Tasks.Hex.set_exit_code(1)
+    :error
+  end
+
+  defp open_approval_url(url) do
+    case URI.parse(url) do
+      %URI{scheme: scheme} when scheme in ["http", "https"] ->
+        try do
+          Hex.Utils.system_open(url)
+        catch
+          _kind, _reason -> :ok
+        end
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp wait_for_approval(staged, build, organization, auth) do
+    {result, auth} = read_staged(staged["id"], build, organization, auth)
+
+    checksum = staged["approval_checksum"]
+
+    case result do
+      {:ok, {200, _, %{"approval_checksum" => ^checksum, "status" => status}}} ->
+        case status do
+          "approved" ->
+            Hex.Shell.info("Publish approved")
+            :ok
+
+          "staged" ->
+            Process.sleep(5_000)
+            wait_for_approval(staged, build, organization, auth)
+
+          status when status in ["rejected", "expired"] ->
+            Mix.raise("Staged publish #{status}")
+
+          _ ->
+            Mix.raise("Unexpected staged publish status")
+        end
+
+      {:ok, {200, _, _}} ->
+        Mix.raise("Staged publish changed while waiting for approval")
+
+      other ->
+        Hex.Utils.print_error_result(other)
+        Mix.raise("Failed to read staged publish status")
+    end
+  end
+
+  defp read_staged(id, build, organization, auth) do
+    case Hex.API.Release.get_staged(organization, id, auth) do
+      {:ok, {401, _, _}} when auth != [] ->
+        renew_and_read_staged(id, build, organization)
+
+      # hex_core answers an invalid_token challenge this way, since a workload
+      # identity token has no refresh token
+      {:error, {:auth_error, :token_refresh_failed}} when auth != [] ->
+        renew_and_read_staged(id, build, organization)
+
+      result ->
+        {result, auth}
+    end
+  end
+
+  defp renew_and_read_staged(id, build, organization) do
+    auth = Hex.WorkloadIdentity.auth!(organization || "hexpm", build.meta.name)
+    {Hex.API.Release.get_staged(organization, id, auth), auth}
   end
 
   defp progress_fun(true, size), do: Mix.Tasks.Hex.progress(size)

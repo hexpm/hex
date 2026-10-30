@@ -74,7 +74,7 @@ jobs:
     env:
       HEXPM_OTP: OTP-29.0.5
       HEXPM_ELIXIR: v1.20.3
-      HEXPM_BRANCH: main
+      HEXPM_BRANCH: staged-publishing
       HEXPM_PATH: hexpm
       HEXPM_ELIXIR_PATH: hexpm_elixir
       HEXPM_OTP_PATH: hexpm_otp

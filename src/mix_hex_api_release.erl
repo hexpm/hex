@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.21.1 (d366662), do not edit manually
+%% Vendored from hex_core v0.21.1 (bc360ac), do not edit manually
 
 %% @doc
 %% Hex HTTP API - Releases.
@@ -6,6 +6,7 @@
 -export([
     delete/3,
     get/3,
+    get_staged/2,
     publish/2,
     publish/3,
     retire/4,
@@ -45,6 +46,13 @@
 -spec get(mix_hex_core:config(), binary(), binary()) -> mix_hex_api:response().
 get(Config, Name, Version) when is_map(Config) and is_binary(Name) and is_binary(Version) ->
     Path = mix_hex_api:build_repository_path(Config, ["packages", Name, "releases", Version]),
+    mix_hex_api:get(Config, Path).
+
+%% @doc
+%% Gets a staged release and its approval status.
+-spec get_staged(mix_hex_core:config(), binary()) -> mix_hex_api:response().
+get_staged(Config, Id) when is_map(Config) and is_binary(Id) ->
+    Path = mix_hex_api:build_repository_path(Config, ["staged-releases", Id]),
     mix_hex_api:get(Config, Path).
 
 %% @doc
