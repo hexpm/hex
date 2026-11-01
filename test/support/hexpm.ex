@@ -73,7 +73,8 @@ defmodule HexTest.Hexpm do
       {~c"PATH", path},
       {~c"HEX_SIGNING_KEY", key},
       {~c"HEXPM_SETUP", ~c"1"},
-      {~c"HEXPM_ORGANIZATION_TFA_MODE", ~c"enabled"}
+      {~c"HEXPM_ORGANIZATION_TFA_MODE", ~c"enabled"},
+      {~c"HEXPM_WORKLOAD_IDENTITY_MODE", ~c"off"}
     ]
 
     spawn(fn ->
