@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.21.1 (d3383a0), do not edit manually
+%% Vendored from hex_core v0.21.1 (daea875), do not edit manually
 
 %%% Author  : Robert Virding
 %%% Purpose : Token definitions for Erlang.
