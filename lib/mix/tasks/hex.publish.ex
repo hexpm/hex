@@ -67,7 +67,7 @@ defmodule Mix.Tasks.Hex.Publish do
   ## Command line options
 
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
-    * `--wait` - Open the approval URL and wait for a staged package or docs to be approved
+    * `--wait` - Open the approval URL and wait for the staged release to be approved
     * `--yes` - Publishes the package without any confirmation prompts
     * `--dry-run` - Builds package and performs local checks without publishing,
       use `mix hex.build --unpack` to inspect package contents before publishing.
@@ -632,7 +632,7 @@ defmodule Mix.Tasks.Hex.Publish do
          opts
        ) do
     if package["checksum"] != docs["checksum"] do
-      Mix.raise("Staged package changed before its docs were staged")
+      Mix.raise("Staged release changed before its docs were staged")
     end
 
     finish_publish({:staged, docs}, build, organization, auth, opts)
@@ -703,18 +703,18 @@ defmodule Mix.Tasks.Hex.Publish do
             wait_for_approval(staged, build, organization, auth)
 
           status when status in ["rejected", "expired"] ->
-            Mix.raise("Staged publish #{status}")
+            Mix.raise("Staged release #{status}")
 
           _ ->
-            Mix.raise("Unexpected staged publish status")
+            Mix.raise("Unexpected staged release status")
         end
 
       {:ok, {200, _, _}} ->
-        Mix.raise("Staged publish changed while waiting for approval")
+        Mix.raise("Staged release changed while waiting for approval")
 
       other ->
         Hex.Utils.print_error_result(other)
-        Mix.raise("Failed to read staged publish status")
+        Mix.raise("Failed to read staged release status")
     end
   end
 

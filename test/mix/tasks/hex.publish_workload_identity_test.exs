@@ -276,7 +276,7 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
     Hex.State.put(:api_key, "api_key")
     stub_api(bypass, publish: staged(), docs: Map.put(staged(), "checksum", "another-package"))
 
-    assert_raise Mix.Error, "Staged package changed before its docs were staged", fn ->
+    assert_raise Mix.Error, "Staged release changed before its docs were staged", fn ->
       publish(["--yes", "--no-progress", "--wait"])
     end
 
@@ -321,12 +321,12 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
   end
 
   for status <- ["rejected", "expired"] do
-    test "fails when a staged publish is #{status}", %{bypass: bypass} do
+    test "fails when a staged release is #{status}", %{bypass: bypass} do
       Hex.State.put(:api_key, "api_key")
       status = unquote(status)
       stub_api(bypass, publish: staged(), poll: &erlang_resp(&1, 200, staged(status)))
 
-      assert_raise Mix.Error, "Staged publish #{status}", fn ->
+      assert_raise Mix.Error, "Staged release #{status}", fn ->
         publish(["package", "--yes", "--no-progress", "--wait"])
       end
     end
@@ -337,7 +337,7 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
     changed = Map.put(staged("approved"), "approval_checksum", "different")
     stub_api(bypass, publish: staged(), poll: &erlang_resp(&1, 200, changed))
 
-    assert_raise Mix.Error, "Staged publish changed while waiting for approval", fn ->
+    assert_raise Mix.Error, "Staged release changed while waiting for approval", fn ->
       publish(["package", "--yes", "--no-progress", "--wait"])
     end
   end
@@ -390,7 +390,7 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
       poll: &erlang_resp(&1, 401, %{"message" => "revoked key"})
     )
 
-    assert_raise Mix.Error, "Failed to read staged publish status", fn ->
+    assert_raise Mix.Error, "Failed to read staged release status", fn ->
       publish(["package", "--yes", "--no-progress", "--wait"])
     end
 
