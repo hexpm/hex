@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.21.1 (d366662), do not edit manually
+%% Vendored from hex_core v0.21.1 (d3383a0), do not edit manually
 
 %% @doc
 %% Functions for creating and unpacking Hex tarballs.

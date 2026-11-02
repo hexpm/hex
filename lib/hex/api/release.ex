@@ -15,6 +15,17 @@ defmodule Hex.API.Release do
     )
   end
 
+  def get_staged(repo, id, auth \\ []) do
+    config = Client.build_config(repo, auth)
+
+    Hex.Auth.with_api(
+      :read,
+      config,
+      &:mix_hex_api_release.get_staged(&1, to_string(id)),
+      auth_inline: false
+    )
+  end
+
   def publish(repo, tar, auth \\ [], progress \\ fn _ -> nil end, replace \\ false)
 
   def publish(repo, tar, auth, progress, replace?) do
