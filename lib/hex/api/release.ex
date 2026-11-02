@@ -15,15 +15,18 @@ defmodule Hex.API.Release do
     )
   end
 
-  def get_staged(repo, id, auth \\ []) do
-    config = Client.build_config(repo, auth)
+  # Reads the status URL from a staged release response. hex_core joins
+  # request paths to the configured API URL, so the status URL has to be under it.
+  def get_staged(url, auth \\ []) do
+    config = Client.build_config(nil, auth)
+    prefix = config.api_url <> "/"
 
-    Hex.Auth.with_api(
-      :read,
-      config,
-      &:mix_hex_api_release.get_staged(&1, to_string(id)),
-      auth_inline: false
-    )
+    if String.starts_with?(url, prefix) do
+      path = String.replace_prefix(url, prefix, "")
+      Hex.Auth.with_api(:read, config, &:mix_hex_api.get(&1, path), auth_inline: false)
+    else
+      {:error, {:staged_url_outside_api, url}}
+    end
   end
 
   def publish(repo, tar, auth \\ [], progress \\ fn _ -> nil end, replace \\ false)
