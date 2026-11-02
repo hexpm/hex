@@ -2,6 +2,8 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
   use HexTest.Case
 
   @package "trusted_package"
+  @staged_path "/api/staged-releases/a1b2c3"
+  @docs_staged_path "/api/staged-releases/d4e5f6"
 
   defmodule TrustedPackage.MixProject do
     def project do
@@ -225,7 +227,7 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
     assert_received {:mix_shell, :info, ["Package SHA-256: " <> ^package_checksum]}
     assert_received {:mix_shell, :info, ["Documentation SHA-256: " <> ^docs_checksum]}
 
-    refute_received {:request, "GET", "/api/staged-releases/42", _, _}
+    refute_received {:request, "GET", @staged_path, _, _}
     refute shell_output() =~ "published to"
   end
 
@@ -280,19 +282,25 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
       publish(["--yes", "--no-progress", "--wait"])
     end
 
-    refute_received {:request, "GET", "/api/staged-releases/42", _, _}
+    refute_received {:request, "GET", @staged_path, _, _}
   end
 
   test "verifies the original package when docs require a separate approval", %{bypass: bypass} do
     Hex.State.put(:api_key, "api_key")
-    docs = Map.merge(staged(), %{"id" => 43, "kind" => "docs", "approval_checksum" => "docs"})
+
+    docs =
+      Map.merge(staged(), %{
+        "url" => api_url(@docs_staged_path),
+        "kind" => "docs",
+        "approval_checksum" => "docs"
+      })
 
     stub_api(bypass,
       publish: staged(),
       docs: docs,
       poll: fn conn ->
         payload =
-          if conn.request_path == "/api/staged-releases/42",
+          if conn.request_path == @staged_path,
             do: staged("approved"),
             else: Map.put(docs, "status", "approved")
 
@@ -307,7 +315,7 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
           String.starts_with?(path, "/api/staged-releases/"),
           do: path
 
-    assert requests == ["/api/staged-releases/42", "/api/staged-releases/43"]
+    assert requests == [@staged_path, @docs_staged_path]
   end
 
   test "waits for docs-only approval in an organization repository", %{bypass: bypass} do
@@ -316,7 +324,7 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
 
     publish(["docs", "--no-progress", "--organization", "acme", "--wait"])
 
-    assert_received {:request, "GET", "/api/repos/acme/staged-releases/42", _, ["api_key"]}
+    assert_received {:request, "GET", @staged_path, _, ["api_key"]}
     assert_received {:mix_shell, :info, ["Publish approved"]}
   end
 
@@ -370,8 +378,8 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
     publish(["package", "--yes", "--no-progress", "--wait"])
 
     assert Agent.get(exchanges, & &1) == 2
-    assert_received {:request, "GET", "/api/staged-releases/42", _, ["Bearer token1"]}
-    assert_received {:request, "GET", "/api/staged-releases/42", _, ["Bearer token2"]}
+    assert_received {:request, "GET", @staged_path, _, ["Bearer token1"]}
+    assert_received {:request, "GET", @staged_path, _, ["Bearer token2"]}
     assert_received {:mix_shell, :info, ["Publish approved"]}
   end
 
@@ -379,7 +387,7 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
     Hex.State.put(:api_key, "api_key")
     stub_api(bypass, publish: staged(), docs: %{"message" => "Docs rejected"}, docs_status: 422)
     assert catch_throw(publish(["--yes", "--no-progress", "--wait"])) == {:exit_code, 1}
-    refute_received {:request, "GET", "/api/staged-releases/42", _, _}
+    refute_received {:request, "GET", @staged_path, _, _}
   end
 
   test "reports a failed lookup without exchanging configured credentials", %{bypass: bypass} do
@@ -397,6 +405,19 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
     refute_received {:exchange, _}
   end
 
+  test "doesn't poll a status URL outside the configured API", %{bypass: bypass} do
+    Hex.State.put(:api_key, "api_key")
+    outside = Map.put(staged(), "url", api_url("/elsewhere/staged-releases/a1b2c3"))
+    stub_api(bypass, publish: outside)
+
+    assert_raise Mix.Error, "Failed to read staged release status", fn ->
+      publish(["package", "--yes", "--no-progress", "--wait"])
+    end
+
+    refute_received {:request, "GET", "/elsewhere/" <> _, _, _}
+    assert shell_output() =~ "staged_url_outside_api"
+  end
+
   test "doesn't poll a direct publish with --wait", %{bypass: bypass} do
     Hex.State.put(:api_key, "api_key")
     stub_api(bypass)
@@ -407,7 +428,7 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
 
   defp staged(status \\ "staged") do
     %{
-      "id" => 42,
+      "url" => api_url(@staged_path),
       "kind" => "release",
       "checksum" => "package-checksum",
       "status" => status,
@@ -415,6 +436,10 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
       "expires_at" => "2026-11-01T12:00:00Z",
       "approval_checksum" => "package-and-docs-checksum"
     }
+  end
+
+  defp api_url(path) do
+    Hex.State.fetch!(:api_url) |> URI.parse() |> Map.put(:path, path) |> URI.to_string()
   end
 
   defp publish(args) do
@@ -467,11 +492,7 @@ defmodule Mix.Tasks.Hex.PublishWorkloadIdentityTest do
           end
 
         {"GET", path}
-        when path in [
-               "/api/staged-releases/42",
-               "/api/staged-releases/43",
-               "/api/repos/acme/staged-releases/42"
-             ] ->
+        when path in [@staged_path, @docs_staged_path] ->
           Keyword.fetch!(opts, :poll).(conn)
 
         {"POST", path} ->

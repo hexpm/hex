@@ -687,7 +687,7 @@ defmodule Mix.Tasks.Hex.Publish do
   end
 
   defp wait_for_approval(staged, build, organization, auth) do
-    {result, auth} = read_staged(staged["id"], build, organization, auth)
+    {result, auth} = read_staged(staged["url"], build, organization, auth)
 
     checksum = staged["approval_checksum"]
 
@@ -718,24 +718,24 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp read_staged(id, build, organization, auth) do
-    case Hex.API.Release.get_staged(organization, id, auth) do
+  defp read_staged(url, build, organization, auth) do
+    case Hex.API.Release.get_staged(url, auth) do
       {:ok, {401, _, _}} when auth != [] ->
-        renew_and_read_staged(id, build, organization)
+        renew_and_read_staged(url, build, organization)
 
       # hex_core answers an invalid_token challenge this way, since a workload
       # identity token has no refresh token
       {:error, {:auth_error, :token_refresh_failed}} when auth != [] ->
-        renew_and_read_staged(id, build, organization)
+        renew_and_read_staged(url, build, organization)
 
       result ->
         {result, auth}
     end
   end
 
-  defp renew_and_read_staged(id, build, organization) do
+  defp renew_and_read_staged(url, build, organization) do
     auth = Hex.WorkloadIdentity.auth!(organization || "hexpm", build.meta.name)
-    {Hex.API.Release.get_staged(organization, id, auth), auth}
+    {Hex.API.Release.get_staged(url, auth), auth}
   end
 
   defp progress_fun(true, size), do: Mix.Tasks.Hex.progress(size)
