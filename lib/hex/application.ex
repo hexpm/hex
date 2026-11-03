@@ -9,8 +9,6 @@ defmodule Hex.Application do
     Mix.SCM.append(Hex.SCM)
     Mix.RemoteConverger.register(Hex.RemoteConverger)
 
-    start_httpc()
-
     opts = [strategy: :one_for_one, name: Hex.Supervisor]
     Supervisor.start_link(children(), opts)
   end
@@ -31,18 +29,6 @@ defmodule Hex.Application do
     end
   else
     defp dev_setup, do: :ok
-  end
-
-  defp start_httpc() do
-    :inets.start(:httpc, profile: :hex)
-
-    opts = [
-      max_sessions: 8,
-      max_keep_alive_length: 4,
-      keep_alive_timeout: 120_000
-    ]
-
-    :httpc.set_options(opts, :hex)
   end
 
   if Mix.env() == :test do

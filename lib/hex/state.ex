@@ -213,7 +213,6 @@ defmodule Hex.State do
       httpc_profile: {:computed, :hex},
       pbkdf2_iters: {:computed, @pbkdf2_iters},
       repos: {:computed, Hex.Config.read_repos(global_config, mirrors)},
-      ssl_version: {:computed, ssl_version()},
       shell_process: {:computed, nil},
       active_policy: {:computed, nil},
       policy_filtered_versions: {:computed, []},
@@ -418,26 +417,6 @@ defmodule Hex.State do
     do: {:ok, String.trim_leading(string, "/")}
 
   def trim_slash(_), do: :error
-
-  def ssl_version() do
-    {:ok, version} = :application.get_key(:ssl, :vsn)
-    parse_ssl_version(version)
-  end
-
-  defp parse_ssl_version(version) do
-    version
-    |> List.to_string()
-    |> String.split(".")
-    |> Enum.take(3)
-    |> Enum.map(&to_integer/1)
-    |> version_pad()
-    |> List.to_tuple()
-  end
-
-  defp version_pad([major]), do: [major, 0, 0]
-  defp version_pad([major, minor]), do: [major, minor, 0]
-  defp version_pad([major, minor, patch]), do: [major, minor, patch]
-  defp version_pad([major, minor, patch | _]), do: [major, minor, patch]
 
   def path_expand(path) when is_binary(path) do
     {:ok, Path.expand(path)}
