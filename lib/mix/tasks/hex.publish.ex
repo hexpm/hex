@@ -45,7 +45,7 @@ defmodule Mix.Tasks.Hex.Publish do
   uses the organization's workload identities, and one with the `write` role can
   also create the package.
 
-  ## Publish approval
+  ## Staged publishing
 
   When publishing requires approval, the package and docs are staged. The task
   prints the approval URL and expiry. Use `--wait` to wait for approval after
@@ -658,7 +658,7 @@ defmodule Mix.Tasks.Hex.Publish do
   defp finish_publish({:staged, staged}, build, organization, auth, opts) do
     if opts[:wait] do
       open_approval_url(staged["html_url"])
-      Hex.Shell.info("Waiting for publish approval...")
+      Hex.Shell.info("Waiting for approval...")
       wait_for_approval(staged, build, organization, auth)
     else
       :ok
