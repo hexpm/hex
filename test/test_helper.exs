@@ -1,3 +1,5 @@
+Hex.HTTP.start_httpc()
+
 exclude =
   [:skip] ++
     if(Code.ensure_loaded?(:json), do: [], else: [:requires_json]) ++

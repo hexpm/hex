@@ -29,7 +29,9 @@ defmodule Hex.MixProject do
 
   def application do
     [
-      extra_applications: [:ssl, :inets, :logger],
+      extra_applications: [:logger],
+      # Loaded but not started, Hex.HTTP starts them on the first request
+      included_applications: [:ssl, :inets],
       mod: {Hex.Application, []}
     ]
   end

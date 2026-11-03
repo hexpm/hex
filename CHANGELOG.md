@@ -4,6 +4,7 @@
 
 ### Enhancements
 
+* Start `:ssl`, `:inets` and the httpc profile on the first HTTP request instead of when Hex starts, which saves about 20ms on Mix commands that don't use the network
 * Add `--check-unused-ignores` option to `mix hex.audit` to fail when an `ignore_advisories` or `ignore_retirements` entry doesn't match anything in `mix.lock`
 
 ## v2.6.0 (2026-10-23)

@@ -107,7 +107,43 @@ defmodule Hex.HTTP do
     end
   end
 
+  # :ssl, :inets and the :hex httpc profile are started on the first request
+  # instead of when Hex starts, so that Mix commands that don't touch the
+  # network don't pay for starting them
+  def start_httpc() do
+    unless :persistent_term.get({__MODULE__, :httpc_started}, false) do
+      :global.trans({{__MODULE__, :start_httpc}, self()}, &do_start_httpc/0, [node()])
+    end
+
+    :ok
+  end
+
+  defp do_start_httpc() do
+    unless :persistent_term.get({__MODULE__, :httpc_started}, false) do
+      Hex.Stdlib.ensure_application!(:ssl)
+      Hex.Stdlib.ensure_application!(:inets)
+      {:ok, _} = Application.ensure_all_started(:ssl)
+      {:ok, _} = Application.ensure_all_started(:inets)
+
+      case :inets.start(:httpc, profile: :hex) do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+      end
+
+      opts = [
+        max_sessions: 8,
+        max_keep_alive_length: 4,
+        keep_alive_timeout: 120_000
+      ]
+
+      :httpc.set_options(opts, :hex)
+      :persistent_term.put({__MODULE__, :httpc_started}, true)
+    end
+  end
+
   defp prepare_request(method, url, headers, body, adapter_config) do
+    start_httpc()
+
     # Convert method to atom if it's not already
     method = if is_binary(method), do: String.to_atom(method), else: method
     # Convert URL to string if it's binary
