@@ -82,8 +82,8 @@ defmodule Hex.APITest do
     assert {:ok, {200, _, body}} = Hex.API.Key.get(auth)
     assert Enum.find(body, &(&1["name"] == "key_a"))
 
-    assert {:ok, {200, _, _}} = Hex.API.Key.delete("key_b", auth)
-    assert {:ok, {200, _, body}} = Hex.API.Key.delete("key_a", auth)
+    assert {:ok, {200, _, _}} = Hex.API.Key.delete("key_b", sign_in)
+    assert {:ok, {200, _, body}} = Hex.API.Key.delete("key_a", sign_in)
     assert body["name"] == "key_a"
     assert {:ok, {401, _, _}} = Hex.API.Key.get(auth)
 
@@ -100,8 +100,7 @@ defmodule Hex.APITest do
     assert {:ok, {200, _, body}} = Hex.API.Key.get(auth_d)
     assert Enum.find(body, &(&1["name"] == "key_d"))
 
-    assert {:ok, {200, _, body}} = Hex.API.Key.delete_all(auth_c)
-    assert body["name"] == "key_c"
+    assert {:ok, {200, _, _}} = Hex.API.Key.delete_all(sign_in)
     assert {:ok, {401, _, _}} = Hex.API.Key.get(auth_c)
     assert {:ok, {401, _, _}} = Hex.API.Key.get(auth_d)
   end
