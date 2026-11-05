@@ -1,10 +1,11 @@
 # CHANGELOG
 
-## v2.7.0-dev
+## v2.7.0 (2026-11-06)
 
 ### Enhancements
 
-* Make the organization chosen at the `mix hex.publish` owner prompt the owner of the new package when it's published, including a staged release approved after the command exits. Before, the package stayed yours when transferring it to the organization failed
+* Support staged publishing on hex.pm. When the API key or workload identity that `mix hex.publish` uses requires approval, hex.pm stages the package and docs instead of publishing them. `mix hex.publish` prints the approval URL, the expiry time and the SHA-256 checksum of each staged file. With the new `--wait` option it opens the approval URL and waits for approval, and fails if the release is rejected or expires
+* Create a new package owned by the organization you choose at the `mix hex.publish` owner prompt, also when its staged release is approved after the command has exited. Before, the package stayed yours if transferring it to the organization failed
 * Add `--check-unused-ignores` option to `mix hex.audit` to fail when an `ignore_advisories` or `ignore_retirements` entry doesn't match anything in `mix.lock`
 
 ### Bug fixes
