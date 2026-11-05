@@ -341,6 +341,9 @@ defmodule Hex.HTTP do
         {:error, :socket_closed_remotely} = error ->
           {:retry, error}
 
+        {:error, :timeout} = error ->
+          {:retry, error}
+
         {:error, {:failed_connect, [{:to_address, to_addr}, {inet, inet_l, reason}]}}
         when inet in [:inet, :inet6] and
                reason in [:ehostunreach, :enetunreach, :eprotonosupport, :nxdomain] ->

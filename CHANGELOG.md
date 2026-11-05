@@ -6,6 +6,10 @@
 
 * Add `--check-unused-ignores` option to `mix hex.audit` to fail when an `ignore_advisories` or `ignore_retirements` entry doesn't match anything in `mix.lock`
 
+### Bug fixes
+
+* Retry GET requests that time out, such as registry and tarball fetches, up to two times instead of failing the command
+
 ## v2.6.0 (2026-10-23)
 
 ### Backwards incompatible changes
