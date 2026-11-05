@@ -251,6 +251,7 @@ defmodule Hex.HTTP do
   defp retryable_get?(%Hex.Mint.TransportError{reason: reason}),
     do: reason in [:closed, :timeout]
 
+  defp retryable_get?(:timeout), do: true
   defp retryable_get?(_), do: false
 
   defp fallback_inet(%Hex.Mint.TransportError{reason: reason}, inet)
