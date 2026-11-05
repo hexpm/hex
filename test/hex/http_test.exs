@@ -566,4 +566,23 @@ defmodule Hex.HTTPTest do
       refute File.exists?(filename)
     end)
   end
+
+  test "retries a GET that times out" do
+    {:ok, listener} = :gen_tcp.listen(0, [:binary, active: false])
+    {:ok, port} = :inet.port(listener)
+
+    # The first connection never answers, the second one does
+    spawn_link(fn ->
+      {:ok, stalled} = :gen_tcp.accept(listener)
+      {:ok, _request} = :gen_tcp.recv(stalled, 0)
+
+      {:ok, socket} = :gen_tcp.accept(listener)
+      {:ok, _request} = :gen_tcp.recv(socket, 0)
+      :ok = :gen_tcp.send(socket, "HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nok")
+      Process.sleep(:infinity)
+    end)
+
+    assert {:ok, {200, _headers, "ok"}} =
+             Hex.HTTP.request(:get, "http://localhost:#{port}", %{}, nil, %{timeout: 200})
+  end
 end
