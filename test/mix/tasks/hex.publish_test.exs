@@ -621,12 +621,11 @@ defmodule Mix.Tasks.Hex.PublishTest do
                        ["You are a member of one or multiple organizations. " <> _]}
 
       assert_received {:mix_shell, :info, ["Publishing package using http://" <> _]}
-      assert_received {:mix_shell, :info, ["Transferring ownership to testorg..."]}
 
       assert {:ok, {200, _headers, body}} =
                Hex.API.Package.get("hexpm", "publish_with_organization_prompt")
 
-      assert "testorg" in Enum.map(body["owners"], & &1["username"])
+      assert Enum.map(body["owners"], & &1["username"]) == ["testorg"]
     end)
   after
     purge([ReleaseSimple.MixProject])
