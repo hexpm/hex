@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## v2.8.0-dev
+
 ## v2.7.0 (2026-11-06)
 
 ### Enhancements
