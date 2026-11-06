@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Hex.InfoTest do
     today = Date.utc_today()
     assert releases == "  0.1.0 (#{today})\n  0.1.0-rc1 (#{today})\n  0.0.1 (#{today})\n"
 
-    assert catch_throw(Mix.Tasks.Hex.Info.run(["no_package"])) == {:exit_code, 1}
+    assert catch_throw(Mix.Tasks.Hex.Info.run(["no_package"])) == {:exit_code, 2}
     assert_received {:mix_shell, :error, ["No package with name no_package"]}
 
     assert catch_throw(Mix.Tasks.Hex.Info.run([""])) == {:exit_code, 1}
@@ -139,8 +139,27 @@ defmodule Mix.Tasks.Hex.InfoTest do
     Mix.Tasks.Hex.Info.run(["ex_doc", "0.1.0-rc1"])
     assert_received {:mix_shell, :info, ["Config: {:ex_doc, \"~> 0.1.0-rc1\"}"]}
 
-    assert catch_throw(Mix.Tasks.Hex.Info.run(["ex_doc", "1.2.3"])) == {:exit_code, 1}
+    assert catch_throw(Mix.Tasks.Hex.Info.run(["ex_doc", "1.2.3"])) == {:exit_code, 2}
     assert_received {:mix_shell, :error, ["No release with name ex_doc 1.2.3"]}
+  end
+
+  test "server error" do
+    bypass = Bypass.open()
+    Hex.State.put(:api_url, "http://localhost:#{bypass.port}/api")
+
+    Bypass.expect(bypass, "GET", "/api/packages/ex_doc", fn conn ->
+      Plug.Conn.resp(conn, 500, "")
+    end)
+
+    Bypass.expect(bypass, "GET", "/api/packages/ex_doc/releases/0.1.0", fn conn ->
+      Plug.Conn.resp(conn, 500, "")
+    end)
+
+    assert catch_throw(Mix.Tasks.Hex.Info.run(["ex_doc"])) == {:exit_code, 1}
+    assert_received {:mix_shell, :error, ["Failed to retrieve package information"]}
+
+    assert catch_throw(Mix.Tasks.Hex.Info.run(["ex_doc", "0.1.0"])) == {:exit_code, 1}
+    assert_received {:mix_shell, :error, ["Failed to retrieve release information"]}
   end
 
   test "release downloads" do

@@ -2,6 +2,10 @@
 
 ## v2.8.0-dev
 
+### Enhancements
+
+* Exit `mix hex.info PACKAGE [VERSION]` with status 2 when the package or release doesn't exist, so scripts can tell it apart from other errors, which still exit with status 1
+
 ## v2.7.0 (2026-11-06)
 
 ### Enhancements

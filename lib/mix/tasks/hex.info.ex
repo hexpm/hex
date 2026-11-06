@@ -16,6 +16,9 @@ defmodule Mix.Tasks.Hex.Info do
 
   If `package` and `version` is given, print release information.
 
+  Exits with status 2 if the package or release doesn't exist and with status 1
+  on any other error.
+
   ## Command line options
 
     * `--organization ORGANIZATION` - Set this for private packages belonging to an organization
@@ -80,7 +83,7 @@ defmodule Mix.Tasks.Hex.Info do
 
       {:ok, {404, _, _}} ->
         Hex.Shell.error("No package with name #{package}")
-        Mix.Tasks.Hex.set_exit_code(1)
+        Mix.Tasks.Hex.set_exit_code(2)
 
       other ->
         Hex.Shell.error("Failed to retrieve package information")
@@ -96,7 +99,7 @@ defmodule Mix.Tasks.Hex.Info do
 
       {:ok, {404, _, _}} ->
         Hex.Shell.error("No release with name #{package} #{version}")
-        Mix.Tasks.Hex.set_exit_code(1)
+        Mix.Tasks.Hex.set_exit_code(2)
 
       other ->
         Hex.Shell.error("Failed to retrieve release information")
