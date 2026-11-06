@@ -95,11 +95,10 @@ defmodule Mix.Tasks.Hex.Organization do
     * `--key-name KEY_NAME` - The name of the key created by `key generate`. By
       default Hex bases the key name on your machine's hostname.
 
-    * `--permission PERMISSION` - Sets the permissions on the key, this option can be given
-      multiple times, possibly values are:
-      * `api:read` - API read access.
-      * `api:write` - API write access.
-      * `repository:organization_name` - Access to the organization's repository (this is the default permission).
+    * `--permission PERMISSION` - Sets a permission on the key, this option can be given
+      multiple times. The default is `repository:organization_name`, access to the
+      organization's repository. See https://hex.pm/docs/keys#organization-keys for the
+      available permissions and which organization roles can grant them.
   """
   @behaviour Hex.Mix.TaskDescription
 
