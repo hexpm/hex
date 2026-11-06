@@ -29,9 +29,9 @@ defmodule Hex.API.Release do
     end
   end
 
-  def publish(repo, tar, auth \\ [], progress \\ fn _ -> nil end, replace \\ false)
+  def publish(repo, tar, auth \\ [], progress \\ fn _ -> nil end, params \\ [])
 
-  def publish(repo, tar, auth, progress, replace?) do
+  def publish(repo, tar, auth, progress, params) do
     config = Client.build_config(repo, auth)
     # Pass progress callback through adapter config
     adapter_config = %{progress_callback: progress}
@@ -39,7 +39,7 @@ defmodule Hex.API.Release do
     Hex.Auth.with_api(:write, config, fn config ->
       config = Map.put(config, :http_adapter, {Hex.HTTP, adapter_config})
 
-      :mix_hex_api_release.publish(config, tar, replace: replace?)
+      :mix_hex_api_release.publish(config, tar, params)
     end)
   end
 

@@ -4,6 +4,7 @@
 
 ### Enhancements
 
+* Create a new package owned by the organization chosen at the `mix hex.publish` owner prompt when the package is published. Hex published the package with you as owner and then transferred it to the organization in a second request, so the package stayed yours when that request failed
 * Add `--check-unused-ignores` option to `mix hex.audit` to fail when an `ignore_advisories` or `ignore_retirements` entry doesn't match anything in `mix.lock`
 
 ### Bug fixes

@@ -124,11 +124,9 @@ defmodule Mix.Tasks.Hex.Publish do
             auth = publish_auth(build, organization, opts)
             Hex.Shell.info("Publishing package...")
 
-            result = create_release(build, organization, auth, opts)
+            result = create_release(build, organization, owner, auth, opts)
 
-            if finish_publish(result, build, organization, auth, opts) == :ok do
-              transfer_owner(result, build, owner, opts)
-            else
+            if finish_publish(result, build, organization, auth, opts) != :ok do
               Mix.Tasks.Hex.set_exit_code(1)
             end
 
@@ -176,17 +174,11 @@ defmodule Mix.Tasks.Hex.Publish do
         auth = publish_auth(build, organization, opts)
         Hex.Shell.info("Publishing package...")
 
-        case create_release(build, organization, auth, opts) do
+        case create_release(build, organization, owner, auth, opts) do
           result when result == :ok or elem(result, 0) == :staged ->
             Hex.Shell.info("Publishing docs...")
             docs_result = create_docs(build, organization, auth, opts)
-
-            finished =
-              finish_combined_publish(result, docs_result, build, organization, auth, opts)
-
-            if finished == :ok or not Keyword.get(opts, :wait, false) do
-              transfer_owner(result, build, owner, opts)
-            end
+            finish_combined_publish(result, docs_result, build, organization, auth, opts)
 
           :error ->
             Mix.Tasks.Hex.set_exit_code(1)
@@ -380,42 +372,6 @@ defmodule Mix.Tasks.Hex.Publish do
 
   defp public_organization?(organization), do: organization in [nil, "hexpm"]
 
-  defp transfer_owner({:staged, _}, build, owner, opts) when is_binary(owner) do
-    if Keyword.get(opts, :wait, false) do
-      transfer_owner(build, owner, opts)
-    else
-      Hex.Shell.info(
-        "Ownership can be transferred to #{Hex.Utils.escape_terminal(owner)} after approval"
-      )
-    end
-  end
-
-  defp transfer_owner(_release, build, owner, opts) do
-    transfer_owner(build, owner, opts)
-  end
-
-  defp transfer_owner(_build, nil, _opts) do
-    :ok
-  end
-
-  defp transfer_owner(build, owner, opts) do
-    Hex.Shell.info("Transferring ownership to #{Hex.Utils.escape_terminal(owner)}...")
-    dry_run? = Keyword.get(opts, :dry_run, false)
-
-    if dry_run? do
-      :ok
-    else
-      case Hex.API.Package.Owner.add("hexpm", build.meta.name, owner, "full", true) do
-        {:ok, {status, _header, _body}} when status in 200..299 ->
-          :ok
-
-        other ->
-          Hex.Shell.error("Failed to transfer ownership")
-          Hex.Utils.print_error_result(other)
-      end
-    end
-  end
-
   defp print_link_to_coc() do
     Hex.Shell.info(
       "Before publishing, please read the Code of Conduct: " <>
@@ -555,7 +511,7 @@ defmodule Mix.Tasks.Hex.Publish do
     end
   end
 
-  defp create_release(build, organization, auth, opts) do
+  defp create_release(build, organization, owner, auth, opts) do
     meta = build.meta
 
     %{tarball: tarball, outer_checksum: checksum} =
@@ -567,17 +523,18 @@ defmodule Mix.Tasks.Hex.Publish do
     if dry_run? do
       :ok
     else
-      send_release(tarball, checksum, organization, auth, opts)
+      send_release(tarball, checksum, organization, owner, auth, opts)
     end
   end
 
-  defp send_release(tarball, checksum, organization, auth, opts) do
+  defp send_release(tarball, checksum, organization, owner, auth, opts) do
     progress? = Keyword.get(opts, :progress, true)
     progress = progress_fun(progress?, byte_size(tarball))
 
-    replace? = Keyword.get(opts, :replace, false)
+    params =
+      [replace: Keyword.get(opts, :replace, false)] ++ if(owner, do: [owner: owner], else: [])
 
-    case Hex.API.Release.publish(organization, tarball, auth, progress, replace?) do
+    case Hex.API.Release.publish(organization, tarball, auth, progress, params) do
       {:ok, {code, _, %{"status" => "staged"} = staged}} when code in 200..299 ->
         print_staged("Package", staged, checksum)
         {:staged, staged}

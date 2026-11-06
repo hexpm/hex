@@ -71,7 +71,7 @@ defmodule Hex.TerminalOutputTest do
     refute output =~ "\e[2K"
   end
 
-  test "publish escapes organization choices and selected owner" do
+  test "publish escapes organization choices" do
     in_tmp(fn ->
       set_home_tmp()
       Process.put(:hex_test_app_name, :terminal_audit_publish)
@@ -91,7 +91,6 @@ defmodule Hex.TerminalOutputTest do
       Mix.Tasks.Hex.Publish.run(["package", "--dry-run", "--no-progress"])
       output = shell_output()
       assert output =~ "[2] private\\e[2K\\rFORGED"
-      assert output =~ "Transferring ownership to private\\e[2K\\rFORGED..."
       refute output =~ "\e[2K"
     end)
   end

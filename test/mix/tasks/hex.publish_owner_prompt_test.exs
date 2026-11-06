@@ -68,10 +68,24 @@ defmodule Mix.Tasks.Hex.PublishOwnerPromptTest do
     assert_received {:request, "GET", "/api/users/me"}
     assert_received {:mix_shell, :info, ["  [2] acme"]}
     assert_received {:request, "POST", "/api/packages/#{@package}/releases"}
+    assert_received {:query, "/api/packages/#{@package}/releases", "replace=false"}
+  end
+
+  test "an organization chosen as owner is sent with the release", %{bypass: bypass} do
+    stub_api(bypass, package_status: 404)
+
+    in_tmp(fn ->
+      File.write!("myfile.txt", "hello")
+      send(self(), {:mix_shell_input, :prompt, "2"})
+      Mix.Tasks.Hex.Publish.run(["package", "--no-progress"])
+    end)
+
+    assert_received {:query, "/api/packages/#{@package}/releases", "replace=false&owner=acme"}
+    refute_received {:request, "PUT", _}
   end
 
   for {name, args} <- [{"package", ["package"]}, {"package and docs", []}] do
-    test "a staged #{name} publish leaves the organization transfer for after approval", %{
+    test "a staged #{name} publish sends the organization chosen as owner with the release", %{
       bypass: bypass
     } do
       stub_api(bypass,
@@ -93,8 +107,8 @@ defmodule Mix.Tasks.Hex.PublishOwnerPromptTest do
         Mix.Tasks.Hex.Publish.run(unquote(args) ++ ["--no-progress"])
       end)
 
+      assert_received {:query, "/api/packages/#{@package}/releases", "replace=false&owner=acme"}
       refute_received {:request, "PUT", _}
-      assert_received {:mix_shell, :info, ["Ownership can be transferred to acme after approval"]}
     end
   end
 
@@ -106,6 +120,7 @@ defmodule Mix.Tasks.Hex.PublishOwnerPromptTest do
     Bypass.expect(bypass, fn conn ->
       {:ok, _body, conn} = Plug.Conn.read_body(conn, length: 100_000_000)
       send(test_pid, {:request, conn.method, conn.request_path})
+      send(test_pid, {:query, conn.request_path, conn.query_string})
 
       send(
         test_pid,

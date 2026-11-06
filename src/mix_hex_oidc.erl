@@ -1,4 +1,4 @@
-%% Vendored from hex_core v0.21.1 (daea875), do not edit manually
+%% Vendored from hex_core v0.21.1 (ca4e1e1), do not edit manually
 
 %% @doc
 %% OIDC token issuance for CI providers, used by Workload Identity.
