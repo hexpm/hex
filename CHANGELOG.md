@@ -6,6 +6,10 @@
 
 * Exit `mix hex.info PACKAGE [VERSION]` with status 2 when the package or release doesn't exist, so scripts can tell it apart from other errors, which still exit with status 1
 
+### Bug fixes
+
+* Stop sending the API key, repository key, netrc credentials and one-time password when an API, repository or mirror redirects to a different scheme, host or port
+
 ## v2.7.0 (2026-11-06)
 
 ### Enhancements

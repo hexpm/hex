@@ -141,6 +141,82 @@ defmodule Hex.HTTPTest do
     end)
   end
 
+  test "request drops credentials on a redirect to another host", %{bypass: bypass} do
+    target = Bypass.open()
+    :httpc.set_options([proxy: {{~c"localhost", 80}, [~c"localhost", ~c"127.0.0.1"]}], :hex)
+
+    Bypass.expect_once(bypass, "POST", "/start", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("location", "http://127.0.0.1:#{target.port}/target")
+      |> Plug.Conn.resp(307, "")
+    end)
+
+    Bypass.expect_once(target, "POST", "/target", fn conn ->
+      assert Plug.Conn.get_req_header(conn, "authorization") == []
+      assert Plug.Conn.get_req_header(conn, "x-hex-otp") == []
+      assert Plug.Conn.get_req_header(conn, "user-agent") == ["hex-test"]
+      assert {:ok, "body", conn} = Plug.Conn.read_body(conn)
+      Plug.Conn.resp(conn, 200, "")
+    end)
+
+    headers = %{"authorization" => "key", "x-hex-otp" => "123456", "user-agent" => "hex-test"}
+
+    assert {:ok, {200, _headers, ""}} =
+             Hex.HTTP.request(
+               :post,
+               "http://localhost:#{bypass.port}/start",
+               headers,
+               {"text/plain", "body"}
+             )
+  end
+
+  test "request drops netrc credentials on a redirect to another port", %{bypass: bypass} do
+    target = Bypass.open()
+
+    in_tmp(fn ->
+      File.write!(".netrc", """
+      machine localhost
+        login john
+        password doe
+      """)
+
+      System.put_env("NETRC", Path.join(File.cwd!(), ".netrc"))
+
+      Bypass.expect_once(bypass, "GET", "/start", fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("location", "http://localhost:#{target.port}/target")
+        |> Plug.Conn.resp(302, "")
+      end)
+
+      Bypass.expect_once(target, "GET", "/target", fn conn ->
+        assert Plug.Conn.get_req_header(conn, "authorization") == []
+        Plug.Conn.resp(conn, 200, "")
+      end)
+
+      assert {:ok, {200, _headers, ""}} =
+               Hex.HTTP.request(:get, "http://localhost:#{bypass.port}/start", %{}, nil)
+    end)
+  end
+
+  test "request keeps credentials on a redirect to the same host", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "GET", "/start", fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("location", "http://LOCALHOST:#{bypass.port}/target")
+      |> Plug.Conn.resp(302, "")
+    end)
+
+    Bypass.expect_once(bypass, "GET", "/target", fn conn ->
+      assert Plug.Conn.get_req_header(conn, "authorization") == ["key"]
+      assert Plug.Conn.get_req_header(conn, "x-hex-otp") == ["123456"]
+      Plug.Conn.resp(conn, 200, "")
+    end)
+
+    headers = %{"authorization" => "key", "x-hex-otp" => "123456"}
+
+    assert {:ok, {200, _headers, ""}} =
+             Hex.HTTP.request(:get, "http://localhost:#{bypass.port}/start", headers, nil)
+  end
+
   test "request with Expect 100-continue receives body after 100 response", %{bypass: bypass} do
     # Test that httpc handles 100-continue flow correctly
     body_content = "test request body"
