@@ -418,12 +418,28 @@ defmodule Hex.HTTP do
     :error
   end
 
-  defp update_request({_url, headers, content_type, body}, new_url) do
-    {new_url, headers, content_type, body}
+  defp update_request({url, headers, content_type, body}, new_url) do
+    {new_url, redirect_headers(headers, url, new_url), content_type, body}
   end
 
-  defp update_request({_url, headers}, new_url) do
-    {new_url, headers}
+  defp update_request({url, headers}, new_url) do
+    {new_url, redirect_headers(headers, url, new_url)}
+  end
+
+  # Credentials are only sent to the scheme, host and port they were given for
+  defp redirect_headers(headers, url, new_url) do
+    if origin(url) == origin(new_url) do
+      headers
+    else
+      Enum.reject(headers, fn {name, _value} ->
+        String.downcase(to_string(name)) in ["authorization", "x-hex-otp"]
+      end)
+    end
+  end
+
+  defp origin(url) do
+    uri = URI.parse(to_string(url))
+    {uri.scheme, uri.host && String.downcase(uri.host), uri.port}
   end
 
   defp timeout(request, http_opts, timeout, fun) do
