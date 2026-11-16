@@ -439,11 +439,8 @@ defmodule Hex.HTTP do
 
   defp origin(url) do
     uri = URI.parse(to_string(url))
-    {downcase(uri.scheme), downcase(uri.host), uri.port}
+    {uri.scheme, uri.host && String.downcase(uri.host), uri.port}
   end
-
-  defp downcase(nil), do: nil
-  defp downcase(string), do: String.downcase(string)
 
   defp timeout(request, http_opts, timeout, fun) do
     Task.async(fn -> fun.(request, http_opts) end)
