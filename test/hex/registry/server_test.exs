@@ -217,6 +217,11 @@ defmodule Hex.Registry.ServerTest do
     assert File.exists?(path)
   end
 
+  test "last_update/1 is ignored after the registry is closed" do
+    Registry.close()
+    assert Registry.last_update(:calendar.universal_time()) == :ok
+  end
+
   test "a version removed from the registry leaves no entries behind" do
     release = fn version ->
       %{

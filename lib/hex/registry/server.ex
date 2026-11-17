@@ -435,6 +435,10 @@ defmodule Hex.Registry.Server do
     {:reply, time, state}
   end
 
+  def handle_call({:last_update, _time}, _from, %{ets: nil} = state) do
+    {:reply, :ok, state}
+  end
+
   def handle_call({:last_update, time}, _from, state) do
     :ets.insert(state.ets, {:last_update, time})
     {:reply, :ok, %{state | dirty: true}}
