@@ -140,6 +140,22 @@ defmodule Hex.SCMIntegrationTest do
     refute File.exists?(path)
   end
 
+  test "checkout replaces the locked managers with the build tools of the fetched package" do
+    Mix.Project.push(Project)
+
+    in_tmp(fn ->
+      lock = postgrex_lock([:rebar3])
+      Hex.SCM.prefetch(%{postgrex: lock})
+
+      assert Hex.SCM.checkout(
+               hex: "postgrex",
+               repo: "hexpm",
+               dest: Path.expand("deps/postgrex"),
+               lock: lock
+             ) == postgrex_lock([:mix])
+    end)
+  end
+
   defp mirror(fun) do
     # Waits for the registry to be fetched before the repository changes
     Hex.Registry.Server.outer_checksum("hexpm", "postgrex", "0.2.1")
@@ -149,15 +165,17 @@ defmodule Hex.SCMIntegrationTest do
   end
 
   defp update_postgrex() do
+    lock = postgrex_lock([:mix])
+    Hex.SCM.prefetch(%{postgrex: lock})
+    Hex.SCM.update(hex: "postgrex", repo: "hexpm", dest: Path.expand("deps/postgrex"), lock: lock)
+  end
+
+  defp postgrex_lock(managers) do
     inner_checksum = Hex.Registry.Server.inner_checksum("hexpm", "postgrex", "0.2.1")
     outer_checksum = Hex.Registry.Server.outer_checksum("hexpm", "postgrex", "0.2.1")
 
-    lock =
-      {:hex, :postgrex, "0.2.1", Base.encode16(inner_checksum, case: :lower), [:mix], [], "hexpm",
-       Base.encode16(outer_checksum, case: :lower)}
-
-    Hex.SCM.prefetch(%{postgrex: lock})
-    Hex.SCM.update(hex: "postgrex", repo: "hexpm", dest: Path.expand("deps/postgrex"), lock: lock)
+    {:hex, :postgrex, "0.2.1", Base.encode16(inner_checksum, case: :lower), managers, [], "hexpm",
+     Base.encode16(outer_checksum, case: :lower)}
   end
 
   defp put_registry_entry(key, value) do

@@ -257,8 +257,9 @@ defmodule Hex.SCM do
     # We need to retrieve the managers in the SCM because the RemoteConverger, where
     # the lock is initially is built does not have this information.
     #
-    # Here we update the lock entry with additional information but make sure we only
-    # change the lock when the dependency is being updated or changed in some way.
+    # Here we update the managers of the lock entry with the build tools of the
+    # fetched package, since the RemoteConverger may have copied them from a
+    # previous release, and keep the rest of the entry.
 
     fetched_lock = update(opts)
     maybe_use_fetched_lock(opts[:lock], fetched_lock)
@@ -266,8 +267,14 @@ defmodule Hex.SCM do
 
   defp maybe_use_fetched_lock(current_lock, fetched_lock) do
     case Hex.Utils.lock(current_lock) do
-      %{managers: []} -> fetched_lock
-      _ -> current_lock
+      %{managers: []} ->
+        fetched_lock
+
+      %{managers: managers} when is_list(managers) ->
+        put_elem(current_lock, 4, elem(fetched_lock, 4))
+
+      _ ->
+        current_lock
     end
   end
 

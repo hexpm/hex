@@ -53,7 +53,31 @@ defmodule Hex.MixTest do
     assert Hex.Mix.to_lock([{"hexpm", "kept_parent", "kept_parent", "1.0.0"}], %{
              kept_parent: stale
            }) ==
-             %{kept_parent: fresh}
+             %{kept_parent: kept}
+  end
+
+  test "to_lock/2 keeps the managers of the previous release when there is no manifest" do
+    Hex.Registry.Server.open()
+    put_dependency("managers_parent", "1.0.0", "~> 1.0", false)
+    put_dependency("managers_parent", "1.1.0", "~> 1.0", false)
+
+    [managers_parent: old] =
+      Map.to_list(Hex.Mix.to_lock([{"hexpm", "managers_parent", "managers_parent", "1.0.0"}]))
+
+    old = old |> put_elem(4, [:mix])
+
+    assert {:hex, :managers_parent, "1.1.0", _, [:mix], _, "hexpm", _} =
+             Hex.Mix.to_lock([{"hexpm", "managers_parent", "managers_parent", "1.1.0"}], %{
+               managers_parent: old
+             })[:managers_parent]
+
+    # A different package under the same app name does not inherit managers
+    other = put_elem(old, 1, :other_package)
+
+    assert {:hex, :managers_parent, "1.1.0", _, [], _, "hexpm", _} =
+             Hex.Mix.to_lock([{"hexpm", "managers_parent", "managers_parent", "1.1.0"}], %{
+               managers_parent: other
+             })[:managers_parent]
   end
 
   test "from_lock/1" do
