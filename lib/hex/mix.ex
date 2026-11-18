@@ -155,7 +155,9 @@ defmodule Hex.Mix do
         Hex.Registry.Server.outer_checksum(repo, name, version)
         |> encode_outer_checksum()
 
-      case Hex.Utils.lock(lock[app]) do
+      locked = Hex.Utils.lock(lock[app])
+
+      case locked do
         %{
           name: ^name,
           version: ^version,
@@ -173,7 +175,7 @@ defmodule Hex.Mix do
             |> Enum.sort()
 
           managers =
-            managers(Atom.to_string(app))
+            managers(Atom.to_string(app), locked, name, repo)
             |> Enum.sort()
             |> Enum.uniq()
 
@@ -194,21 +196,25 @@ defmodule Hex.Mix do
 
   # We need to get managers from manifest if a dependency is not in the lock
   # but it's already fetched. Without the manifest we would only get managers
-  # from metadata during checkout or from the lock entry.
-  defp managers(app) do
+  # from metadata during checkout or from the lock entry. If there is no
+  # manifest either, keep the managers of the previously locked release of the
+  # same package, so the lock does not depend on whether deps/ exists.
+  defp managers(app, locked, name, repo) do
     path = Path.join([Mix.Project.deps_path(), app, ".hex"])
 
-    case File.read(path) do
-      {:ok, file} ->
-        case Hex.SCM.parse_manifest(file) do
-          {:ok, %{managers: managers}} -> managers
-          :error -> []
-        end
-
-      _ ->
-        []
+    with {:ok, file} <- File.read(path),
+         {:ok, %{managers: managers}} <- Hex.SCM.parse_manifest(file) do
+      managers
+    else
+      _ -> locked_managers(locked, name, repo)
     end
   end
+
+  defp locked_managers(%{name: name, repo: repo, managers: managers}, name, repo)
+       when is_list(managers),
+       do: managers
+
+  defp locked_managers(_locked, _name, _repo), do: []
 
   defp registry_dep_to_def(%{
          repo: repo,
