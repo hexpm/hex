@@ -330,8 +330,8 @@ defmodule Hex.Repo do
     :mix_hex_cli_auth.resolve_repo_auth(config)
   end
 
-  def get_public_key(repo_config) when is_map(repo_config) do
-    config = build_hex_core_config(repo_config, "")
+  def get_public_key(name, repo_config) when is_binary(name) and is_map(repo_config) do
+    config = build_hex_core_config(repo_config, name)
 
     Hex.Auth.with_preemptive_auth(repo_config, config, &:mix_hex_repo.get_public_key/1,
       auth_inline: false,
@@ -341,9 +341,9 @@ defmodule Hex.Repo do
 
   def get_installs() do
     repo = get_repo("hexpm")
-    config = build_hex_core_config(repo, "")
+    config = build_hex_core_config(repo, "hexpm")
 
-    Hex.Auth.with_repo(config, &:mix_hex_repo.get_hex_installs/1)
+    :mix_hex_repo.get_hex_installs(config)
   end
 
   def find_new_version_from_csv(body) do

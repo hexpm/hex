@@ -201,11 +201,17 @@ defmodule Mix.Tasks.Hex.UserTest do
       Mix.Tasks.Hex.Organization.run(["auth", "myorguserdeauth1", "--key", secret])
       assert Hex.Config.read()[:"$repos"]["hexpm:myorguserdeauth1"]
 
+      Hex.State.fetch!(:repos)
+      |> put_in(["hexpm", :auth_key], "legacy_key")
+      |> Hex.Config.update_repos()
+
       Mix.Tasks.Hex.User.run(["deauth"])
 
       # Verify OAuth tokens are cleared
       refute Hex.Config.read()[:"$oauth_token"]
       refute Hex.Config.read()[:"$repos"]["hexpm:myorguserdeauth1"]
+      refute get_in(Hex.Config.read()[:"$repos"], ["hexpm", :auth_key])
+      assert Hex.State.fetch!(:repos)["hexpm"].auth_key == nil
     end)
   end
 

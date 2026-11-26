@@ -110,7 +110,7 @@ defmodule Hex.RepoTest do
       oauth_exchange: false
     }
 
-    assert {:ok, {200, _, public_key}} = Hex.Repo.get_public_key(config)
+    assert {:ok, {200, _, public_key}} = Hex.Repo.get_public_key("myrepo", config)
     assert public_key == hexpm.public_key
 
     config = %{
@@ -120,7 +120,7 @@ defmodule Hex.RepoTest do
       oauth_exchange: false
     }
 
-    assert {:ok, {404, _, "not found"}} = Hex.Repo.get_public_key(config)
+    assert {:ok, {404, _, "not found"}} = Hex.Repo.get_public_key("myrepo", config)
   end
 
   test "does not send OAuth token fallback to untrusted hexpm mirror" do
@@ -143,8 +143,81 @@ defmodule Hex.RepoTest do
     repo = Hex.Repo.get_repo("hexpm")
     assert repo.trusted == false
 
-    assert {:ok, {200, _, public_key}} = Hex.Repo.get_public_key(repo)
+    assert {:ok, {200, _, public_key}} = Hex.Repo.get_public_key("hexpm", repo)
     assert public_key == hexpm.public_key
+  end
+
+  test "get public key sends neither the user session nor stores an exchanged token" do
+    in_tmp(fn ->
+      set_home_cwd()
+      bypass = Bypass.open()
+      hexpm = Hex.Repo.default_hexpm_repo()
+
+      Hex.OAuth.store_token(%{
+        access_token: "session_token",
+        refresh_token: "session_refresh",
+        expires_at: System.system_time(:second) + 3600
+      })
+
+      Bypass.expect(bypass, fn %Plug.Conn{request_path: path} = conn ->
+        case path do
+          "/oauth/token" ->
+            conn
+            |> Plug.Conn.put_resp_content_type("application/vnd.hex+erlang")
+            |> Plug.Conn.resp(
+              200,
+              :erlang.term_to_binary(%{"access_token" => "exchanged", "expires_in" => 3600})
+            )
+
+          "/public_key" ->
+            assert Plug.Conn.get_req_header(conn, "authorization") == ["Bearer exchanged"]
+            Plug.Conn.resp(conn, 200, hexpm.public_key)
+        end
+      end)
+
+      config = %{
+        url: "http://localhost:#{bypass.port}",
+        auth_key: "key",
+        trusted: true,
+        oauth_exchange: true,
+        oauth_exchange_url: "http://localhost:#{bypass.port}"
+      }
+
+      assert {:ok, {200, _, _}} = Hex.Repo.get_public_key("hexpm", config)
+
+      repos = Hex.Config.read()[:"$repos"] || %{}
+      refute Map.has_key?(repos, "")
+      refute get_in(repos, ["hexpm", :oauth_token])
+
+      config = %{url: "http://localhost:#{bypass.port}", auth_key: nil, trusted: true}
+
+      Bypass.expect(bypass, fn %Plug.Conn{request_path: "/public_key"} = conn ->
+        assert Plug.Conn.get_req_header(conn, "authorization") == []
+        Plug.Conn.resp(conn, 200, hexpm.public_key)
+      end)
+
+      assert {:ok, {200, _, _}} = Hex.Repo.get_public_key("hexpm", config)
+    end)
+  end
+
+  test "get installs sends no credentials" do
+    bypass = Bypass.open()
+
+    Hex.State.put(:trusted_mirror_url, "http://localhost:#{bypass.port}")
+    Hex.State.put(:repos_key, "key")
+
+    Hex.OAuth.store_token(%{
+      access_token: "session_token",
+      refresh_token: "session_refresh",
+      expires_at: System.system_time(:second) + 3600
+    })
+
+    Bypass.expect(bypass, fn %Plug.Conn{request_path: "/installs/hex-1.x.csv"} = conn ->
+      assert Plug.Conn.get_req_header(conn, "authorization") == []
+      Plug.Conn.resp(conn, 200, "1.0.0,abc,1.13.0\n")
+    end)
+
+    assert {:ok, {200, _, _}} = Hex.Repo.get_installs()
   end
 
   test "add repo persists oauth_exchange through config round-trip" do
@@ -474,7 +547,8 @@ defmodule Hex.RepoTest do
       oauth_exchange_url: "http://localhost:#{bypass.port}"
     }
 
-    assert {:ok, {200, _, "fake_public_key_body"}} = Hex.Repo.get_public_key(myrepo_config)
+    assert {:ok, {200, _, "fake_public_key_body"}} =
+             Hex.Repo.get_public_key("myrepo", myrepo_config)
   end
 
   test "non-hexpm repo with oauth_exchange not true does not attempt API key exchange" do
@@ -501,7 +575,7 @@ defmodule Hex.RepoTest do
       oauth_exchange_url: "http://localhost:#{bypass.port}"
     }
 
-    assert {:ok, {200, _, _}} = Hex.Repo.get_public_key(myrepo_config)
+    assert {:ok, {200, _, _}} = Hex.Repo.get_public_key("myrepo", myrepo_config)
 
     refute_received :exchange_attempted
   end

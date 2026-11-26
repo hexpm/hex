@@ -9,6 +9,10 @@
 ### Bug fixes
 
 * Stop sending the API key, repository key, netrc credentials and one-time password when an API, repository or mirror redirects to a different scheme, host or port
+* Ignore credentials that earlier Hex versions stored and that can make fetching packages fail with "Failed to exchange API key for OAuth token": the key for the hexpm repository from Hex 2.2 and earlier when a user session exists, and the repository with an empty name from Hex 2.4. Hex removes them from the config on the next write
+* Remove the key of the hexpm repository and the repository with an empty name on `mix hex.user deauth`
+* Send the update check without credentials, so a key that Hex.pm rejects can't make it fail
+* Stop storing the token that `mix hex.repo add --fetch-public-key` exchanges, and stop sending the user session and Workload Identity token when it fetches the public key
 
 ## v2.7.0 (2026-11-06)
 
