@@ -39,7 +39,9 @@ defmodule Mix.Tasks.Hex.Repo do
 
     * `--auth-key KEY` - Key used to authenticate HTTP requests to repository (optional).
       Hex.pm organization repositories (`hexpm:ORGANIZATION`) don't use it, authenticate
-      to them with `mix hex.organization auth ORGANIZATION --key KEY` instead.
+      to them with `mix hex.organization auth ORGANIZATION --key KEY` instead. The `hexpm`
+      repository at `https://repo.hex.pm` doesn't accept it while you are authenticated
+      with `mix hex.user auth`.
 
     * `--fetch-public-key FINGERPRINT` - Download public key from the repository and verify against the fingerprint (optional).
 
@@ -151,7 +153,7 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp add(name, url, opts) do
-    check_organization_auth_key(name, opts)
+    check_auth_key(name, url, opts)
     # Default oauth_exchange to true for hexpm/repo.hex.pm, false for others
     default_oauth_exchange = name == "hexpm"
     oauth_exchange = Keyword.get(opts, :oauth_exchange, default_oauth_exchange)
@@ -185,7 +187,7 @@ defmodule Mix.Tasks.Hex.Repo do
   end
 
   defp set(name, opts) do
-    check_organization_auth_key(name, opts)
+    check_auth_key(name, opts[:url] || get_in(Hex.State.fetch!(:repos), [name, :url]), opts)
 
     opts =
       if public_key = opts[:public_key] do
@@ -199,7 +201,7 @@ defmodule Mix.Tasks.Hex.Repo do
     |> Hex.Config.update_repos()
   end
 
-  defp check_organization_auth_key("hexpm:" <> organization, opts) do
+  defp check_auth_key("hexpm:" <> organization, _url, opts) do
     if opts[:auth_key] do
       Mix.raise(
         "Hex doesn't use keys for Hex.pm organization repositories. Authenticate " <>
@@ -208,7 +210,16 @@ defmodule Mix.Tasks.Hex.Repo do
     end
   end
 
-  defp check_organization_auth_key(_name, _opts), do: :ok
+  defp check_auth_key("hexpm", url, opts) do
+    if opts[:auth_key] && Hex.Repo.default_hexpm_url?(url) && Hex.OAuth.has_tokens?() do
+      Mix.raise(
+        "You are authenticated as a user, and your user session authenticates the " <>
+          "hexpm repository. To use a key instead, run `mix hex.user deauth` first"
+      )
+    end
+  end
+
+  defp check_auth_key(_name, _url, _opts), do: :ok
 
   defp remove(name) do
     Hex.State.fetch!(:repos)

@@ -27,16 +27,31 @@ defmodule Hex.Config do
   # OAuth token maps were historically persisted with string keys. We now use
   # atom keys consistently (matching the :mix_hex_cli_auth border), so migrate
   # any string-keyed token maps from older configs on read.
+  #
+  # Earlier Hex versions stored credentials that this version doesn't use.
+  # The file loses them on the next write.
+  #
+  #   * Hex 2.4 stored the token from the update check under the repository
+  #     name "", with a copy of the hexpm repository config and its key. No
+  #     repository has that name and nothing reads it.
+  #   * Hex 2.2 and earlier stored a repositories key for the hexpm repository
+  #     on `mix hex.user auth`. Hex uses that key before the user session, so a
+  #     key that Hex.pm no longer accepts makes every fetch fail. With a user
+  #     session the key isn't needed, so it is dropped. This also drops a key
+  #     set with `mix hex.repo set hexpm --auth-key` before the user
+  #     authenticated, which looks the same. The key of a hexpm repository with
+  #     a URL other than repo.hex.pm is kept, since that mirror needs it.
   defp migrate(config) do
+    session? = is_map(config[:"$oauth_token"])
+
     Enum.map(config, fn
       {:"$oauth_token", token} ->
         {:"$oauth_token", migrate_oauth_token(token)}
 
       {:"$repos", repos} when is_map(repos) ->
-        repos =
-          Map.new(repos, fn {name, repo} ->
-            {name, migrate_repo_oauth_token(repo)}
-          end)
+        repos = Map.delete(repos, "")
+        repos = if session?, do: drop_hexpm_auth_key(repos), else: repos
+        repos = Map.new(repos, fn {name, repo} -> {name, migrate_repo_oauth_token(repo)} end)
 
         {:"$repos", repos}
 
@@ -44,6 +59,17 @@ defmodule Hex.Config do
         pair
     end)
   end
+
+  defp drop_hexpm_auth_key(%{"hexpm" => hexpm} = repos) do
+    if Hex.Repo.default_hexpm_url?(hexpm[:url]) do
+      hexpm = hexpm |> Map.put(:auth_key, nil) |> Map.delete(:oauth_token)
+      Map.put(repos, "hexpm", hexpm)
+    else
+      repos
+    end
+  end
+
+  defp drop_hexpm_auth_key(repos), do: repos
 
   defp migrate_repo_oauth_token(repo) when is_map(repo) do
     case repo do

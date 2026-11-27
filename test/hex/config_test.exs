@@ -225,4 +225,64 @@ defmodule Hex.ConfigTest do
              }
     end)
   end
+
+  test "read/0 drops the repository with an empty name" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      Config.write(
+        "$repos": %{
+          "" => %{url: "https://repo.hex.pm", auth_key: "legacy_key", oauth_exchange: true},
+          "acme" => %{url: "https://acme.example"}
+        }
+      )
+
+      assert Map.keys(Config.read()[:"$repos"]) == ["acme"]
+    end)
+  end
+
+  test "read/0 drops the hexpm key when there is a user session" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      repos = %{
+        "hexpm" => %{auth_key: "legacy_key", oauth_token: %{access_token: "t", expires_at: 1}},
+        "acme" => %{url: "https://acme.example", auth_key: "acme_key"}
+      }
+
+      Config.write("$repos": repos)
+      assert Config.read()[:"$repos"]["hexpm"].auth_key == "legacy_key"
+
+      session = %{access_token: "a_token", refresh_token: "r_token", expires_at: 123}
+      Config.write("$oauth_token": session, "$repos": repos)
+      config = Config.read()
+
+      assert config[:"$repos"]["hexpm"].auth_key == nil
+      refute Map.has_key?(config[:"$repos"]["hexpm"], :oauth_token)
+      assert config[:"$repos"]["acme"].auth_key == "acme_key"
+      assert config[:"$oauth_token"] == session
+    end)
+  end
+
+  test "read/0 keeps the key of a hexpm repository with another URL when there is a user session" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      session = %{access_token: "a_token", refresh_token: "r_token", expires_at: 123}
+
+      Config.write(
+        "$oauth_token": session,
+        "$repos": %{"hexpm" => %{url: "https://mirror.example", auth_key: "mirror_key"}}
+      )
+
+      assert Config.read()[:"$repos"]["hexpm"].auth_key == "mirror_key"
+
+      Config.write(
+        "$oauth_token": session,
+        "$repos": %{"hexpm" => %{url: "https://repo.hex.pm/", auth_key: "legacy_key"}}
+      )
+
+      assert Config.read()[:"$repos"]["hexpm"].auth_key == nil
+    end)
+  end
 end
