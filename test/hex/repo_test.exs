@@ -147,6 +147,32 @@ defmodule Hex.RepoTest do
     assert public_key == hexpm.public_key
   end
 
+  test "get installs sends no credentials" do
+    bypass = Bypass.open()
+    url = "http://localhost:#{bypass.port}"
+
+    Hex.State.put(:trusted_mirror_url, url)
+    Hex.State.put(:repos_key, "key")
+
+    Hex.State.update!(
+      :repos,
+      &Map.put(&1, "", %{url: url, auth_key: "legacy_key", trusted: true, oauth_exchange: false})
+    )
+
+    Hex.OAuth.store_token(%{
+      access_token: "session_token",
+      refresh_token: "session_refresh",
+      expires_at: System.system_time(:second) + 3600
+    })
+
+    Bypass.expect(bypass, fn %Plug.Conn{request_path: "/installs/hex-1.x.csv"} = conn ->
+      assert Plug.Conn.get_req_header(conn, "authorization") == []
+      Plug.Conn.resp(conn, 200, "1.0.0,abc,1.13.0\n")
+    end)
+
+    assert {:ok, {200, _, _}} = Hex.Repo.get_installs()
+  end
+
   test "add repo persists oauth_exchange through config round-trip" do
     in_tmp(fn ->
       Hex.State.put(:config_home, File.cwd!())
