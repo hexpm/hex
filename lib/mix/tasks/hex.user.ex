@@ -18,7 +18,8 @@ defmodule Mix.Tasks.Hex.User do
 
   ## Deauthorize the user
 
-  Deauthorizes the user from the local machine.
+  Deauthorizes the user from the local machine. This removes the user session,
+  the organization credentials and the key of the hexpm repository.
 
       $ mix hex.user deauth
   """
@@ -78,7 +79,7 @@ defmodule Mix.Tasks.Hex.User do
 
   defp deauth() do
     Mix.Tasks.Hex.clear_credentials()
-    deauth_organizations()
+    deauth_repos()
 
     Hex.Shell.info(
       "Authentication credentials removed from the local machine. " <>
@@ -86,8 +87,9 @@ defmodule Mix.Tasks.Hex.User do
     )
   end
 
-  defp deauth_organizations() do
+  defp deauth_repos() do
     Hex.State.fetch!(:repos)
+    |> Hex.Config.drop_hexpm_auth_key()
     |> Enum.reject(fn {name, _config} -> String.starts_with?(name, "hexpm:") end)
     |> Map.new()
     |> Hex.Config.update_repos()

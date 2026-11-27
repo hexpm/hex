@@ -13,6 +13,7 @@
 * Stop storing the token that `mix hex.repo add --fetch-public-key` exchanges, and stop sending the user session and Workload Identity token when it fetches the public key
 * Fix fetching packages failing with "Failed to exchange API key for OAuth token" when you are authenticated with `mix hex.user auth` and the config still holds a key for the hexpm repository from Hex 2.2 or earlier
 * Refuse `--auth-key` for the hexpm repository at `https://repo.hex.pm` in `mix hex.repo add` and `mix hex.repo set` while you are authenticated with `mix hex.user auth`
+* Remove the key of the hexpm repository on `mix hex.user deauth`
 
 ## v2.7.0 (2026-11-06)
 
