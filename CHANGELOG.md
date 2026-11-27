@@ -10,6 +10,7 @@
 
 * Stop sending the API key, repository key, netrc credentials and one-time password when an API, repository or mirror redirects to a different scheme, host or port
 * Send the update check without credentials, so a key that Hex.pm rejects can't make it fail
+* Stop storing the token that `mix hex.repo add --fetch-public-key` exchanges, and stop sending the user session and Workload Identity token when it fetches the public key
 
 ## v2.7.0 (2026-11-06)
 

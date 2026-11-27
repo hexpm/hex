@@ -160,6 +160,7 @@ defmodule Mix.Tasks.Hex.Repo do
       read_public_key(opts[:public_key]) ||
         fetch_public_key(
           opts[:fetch_public_key],
+          name,
           url,
           opts[:auth_key],
           oauth_exchange
@@ -269,9 +270,9 @@ defmodule Mix.Tasks.Hex.Repo do
     |> List.to_string()
   end
 
-  defp fetch_public_key(nil, _, _, _), do: nil
+  defp fetch_public_key(nil, _, _, _, _), do: nil
 
-  defp fetch_public_key(fingerprint, repo_url, auth_key, oauth_exchange) do
+  defp fetch_public_key(fingerprint, name, repo_url, auth_key, oauth_exchange) do
     repo_config = %{
       url: repo_url,
       auth_key: auth_key,
@@ -279,7 +280,7 @@ defmodule Mix.Tasks.Hex.Repo do
       oauth_exchange: oauth_exchange
     }
 
-    case Hex.Repo.get_public_key(repo_config) do
+    case Hex.Repo.get_public_key(name, repo_config) do
       {:ok, {200, _, key}} ->
         Hex.Stdlib.ensure_application!(:ssh)
 
