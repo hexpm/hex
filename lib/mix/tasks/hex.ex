@@ -122,6 +122,8 @@ defmodule Mix.Tasks.Hex do
 
   @doc false
   def auth_device do
+    remove_repo_keys()
+
     prompt_user = fn verification_uri, user_code ->
       Hex.Shell.info("To authenticate, visit: #{Hex.Utils.printable_ascii(verification_uri)}")
       Hex.Shell.info("")
@@ -174,6 +176,31 @@ defmodule Mix.Tasks.Hex do
     Hex.OAuth.store_token(tokens)
     Hex.Shell.info("You are authenticated!")
     {:ok, tokens}
+  end
+
+  defp remove_repo_keys do
+    names =
+      for {name, %{auth_key: key}} when is_binary(key) <- Hex.Config.read()[:"$repos"] || %{},
+          name == "hexpm" or String.starts_with?(name, "hexpm:"),
+          do: name
+
+    if names != [] and
+         Hex.Shell.yes?(
+           "Your user session authenticates Hex.pm repositories. Remove the keys " <>
+             "stored for these repositories: #{Enum.join(Enum.sort(names), ", ")}?"
+         ) do
+      Enum.each(names, fn name ->
+        Hex.Config.update_repo(name, &remove_repo_key(name, &1))
+      end)
+    end
+  end
+
+  defp remove_repo_key("hexpm", repo) do
+    repo |> Map.put(:auth_key, nil) |> Map.delete(:oauth_token)
+  end
+
+  defp remove_repo_key(_name, repo) do
+    repo |> Map.put(:auth_key, nil) |> Map.delete(:auth_key_owner)
   end
 
   @doc false

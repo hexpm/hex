@@ -38,7 +38,8 @@ defmodule Hex.Config do
   #     on `mix hex.user auth`. Hex uses that key before the user session, so a
   #     key that Hex.pm no longer accepts makes every fetch fail. With a user
   #     session the key isn't needed, so it is dropped. This also drops a key
-  #     set with `mix hex.repo set hexpm --auth-key`, which looks the same.
+  #     set with `mix hex.repo set hexpm --auth-key` before the user
+  #     authenticated, which looks the same.
   defp migrate(config) do
     session? = is_map(config[:"$oauth_token"])
 

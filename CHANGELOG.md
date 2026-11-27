@@ -12,6 +12,8 @@
 * Send the update check without credentials, so a key that Hex.pm rejects can't make it fail
 * Stop storing the token that `mix hex.repo add --fetch-public-key` exchanges, and stop sending the user session and Workload Identity token when it fetches the public key
 * Ignore credentials that earlier Hex versions stored and that can make fetching packages fail with "Failed to exchange API key for OAuth token": the key for the hexpm repository from Hex 2.2 and earlier when a user session exists, and the repository with an empty name from Hex 2.4. Hex removes them from the config on the next write
+* Refuse `mix hex.repo add hexpm --auth-key` and `mix hex.repo set hexpm --auth-key` while a user session exists
+* Ask on `mix hex.user auth` to remove the keys stored for the hexpm repository and Hex.pm organization repositories
 
 ## v2.7.0 (2026-11-06)
 
