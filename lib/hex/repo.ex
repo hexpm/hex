@@ -341,9 +341,9 @@ defmodule Hex.Repo do
 
   def get_installs() do
     repo = get_repo("hexpm")
-    config = build_hex_core_config(repo, "")
+    config = build_hex_core_config(repo, "hexpm")
 
-    Hex.Auth.with_repo(config, &:mix_hex_repo.get_hex_installs/1)
+    :mix_hex_repo.get_hex_installs(config)
   end
 
   def find_new_version_from_csv(body) do
