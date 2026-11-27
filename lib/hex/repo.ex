@@ -330,8 +330,8 @@ defmodule Hex.Repo do
     :mix_hex_cli_auth.resolve_repo_auth(config)
   end
 
-  def get_public_key(repo_config) when is_map(repo_config) do
-    config = build_hex_core_config(repo_config, "")
+  def get_public_key(name, repo_config) when is_binary(name) and is_map(repo_config) do
+    config = build_hex_core_config(repo_config, name)
 
     Hex.Auth.with_preemptive_auth(repo_config, config, &:mix_hex_repo.get_public_key/1,
       auth_inline: false,

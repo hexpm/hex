@@ -135,11 +135,24 @@ defmodule Hex.Auth do
   end
 
   @doc """
-  Execute a function with preemptive authentication using the provided auth data.
+  Execute a function with repository authentication from the provided auth data
+  only.
+
+  The repository isn't stored yet, so a token exchanged for it isn't stored
+  either. The user session and Workload Identity are left out. The repository
+  can have a name such as "hexpm" with any URL, and must not get their tokens.
   """
   def with_preemptive_auth(auth, config, fun, opts \\ []) do
-    config = put_in(config.cli_auth_callbacks.get_auth_config, fn _ -> auth end)
-    :mix_hex_cli_auth.with_repo(config, fun, opts)
+    callbacks =
+      config.cli_auth_callbacks
+      |> Map.drop([:get_workload_identity_token, :persist_workload_identity_token])
+      |> Map.merge(%{
+        get_auth_config: fn _repo -> auth end,
+        get_oauth_tokens: fn -> :error end,
+        persist_oauth_tokens: fn _scope, _access_token, _refresh_token, _expires_at -> :ok end
+      })
+
+    :mix_hex_cli_auth.with_repo(%{config | cli_auth_callbacks: callbacks}, fun, opts)
   end
 
   @doc false
