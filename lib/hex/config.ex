@@ -60,7 +60,7 @@ defmodule Hex.Config do
     end)
   end
 
-  defp drop_hexpm_auth_key(%{"hexpm" => hexpm} = repos) do
+  def drop_hexpm_auth_key(%{"hexpm" => hexpm} = repos) do
     if Hex.Repo.default_hexpm_url?(hexpm[:url]) do
       hexpm = hexpm |> Map.put(:auth_key, nil) |> Map.delete(:oauth_token)
       Map.put(repos, "hexpm", hexpm)
@@ -69,7 +69,7 @@ defmodule Hex.Config do
     end
   end
 
-  defp drop_hexpm_auth_key(repos), do: repos
+  def drop_hexpm_auth_key(repos), do: repos
 
   defp migrate_repo_oauth_token(repo) when is_map(repo) do
     case repo do
