@@ -98,45 +98,6 @@ defmodule Mix.Tasks.HexTest do
       end)
     end
 
-    test "removes the keys stored for Hex.pm repositories when the user agrees" do
-      in_tmp(fn ->
-        set_home_cwd()
-        store_organization_keys()
-        stub_device_flow()
-        send(self(), {:mix_shell_input, :yes?, true})
-
-        assert {:ok, _tokens} = Mix.Tasks.Hex.auth_device()
-
-        assert_received {:mix_shell, :yes?,
-                         [
-                           "Your user session authenticates Hex.pm repositories. Remove the keys " <>
-                             "stored for these repositories: hexpm, hexpm:acme, hexpm:beta?"
-                         ]}
-
-        repos = Hex.Config.read()[:"$repos"]
-        refute repos["hexpm"][:auth_key]
-        refute repos["hexpm:acme"][:auth_key]
-        refute repos["hexpm:beta"][:auth_key]
-        assert repos["myrepo"].auth_key == "myrepo_key"
-        refute Hex.State.fetch!(:repos)["hexpm:acme"][:auth_key]
-      end)
-    end
-
-    test "keeps the keys stored for Hex.pm repositories when the user declines" do
-      in_tmp(fn ->
-        set_home_cwd()
-        store_organization_keys()
-        stub_device_flow()
-        send(self(), {:mix_shell_input, :yes?, false})
-
-        assert {:ok, _tokens} = Mix.Tasks.Hex.auth_device()
-
-        repos = Hex.Config.read()[:"$repos"]
-        assert repos["hexpm:acme"].auth_key == "acme_key"
-        assert repos["hexpm:beta"].auth_key == "beta_key"
-      end)
-    end
-
     test "prints the verification URL and code without the characters a terminal acts on" do
       in_tmp(fn ->
         set_home_cwd()
@@ -157,19 +118,6 @@ defmodule Mix.Tasks.HexTest do
         refute output =~ "\e"
       end)
     end
-  end
-
-  defp store_organization_keys do
-    Hex.Config.write(
-      "$repos": %{
-        "hexpm" => %{auth_key: "hexpm_key"},
-        "hexpm:acme" => %{auth_key: "acme_key"},
-        "hexpm:beta" => %{auth_key: "beta_key"},
-        "myrepo" => %{url: "https://myrepo.example", auth_key: "myrepo_key"}
-      }
-    )
-
-    Hex.State.put(:repos, Hex.Config.read_repos(Hex.Config.read()))
   end
 
   defp store_token do

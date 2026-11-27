@@ -263,4 +263,26 @@ defmodule Hex.ConfigTest do
       assert config[:"$oauth_token"] == session
     end)
   end
+
+  test "read/0 keeps the key of a hexpm repository with another URL when there is a user session" do
+    in_tmp(fn ->
+      set_home_cwd()
+
+      session = %{access_token: "a_token", refresh_token: "r_token", expires_at: 123}
+
+      Config.write(
+        "$oauth_token": session,
+        "$repos": %{"hexpm" => %{url: "https://mirror.example", auth_key: "mirror_key"}}
+      )
+
+      assert Config.read()[:"$repos"]["hexpm"].auth_key == "mirror_key"
+
+      Config.write(
+        "$oauth_token": session,
+        "$repos": %{"hexpm" => %{url: "https://repo.hex.pm/", auth_key: "legacy_key"}}
+      )
+
+      assert Config.read()[:"$repos"]["hexpm"].auth_key == nil
+    end)
+  end
 end

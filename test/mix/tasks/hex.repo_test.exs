@@ -186,11 +186,19 @@ defmodule Mix.Tasks.Hex.RepoTest do
     end
   end
 
-  test "refuses a key for the hexpm repository when there is a user session" do
+  test "refuses a key for the hexpm repository on repo.hex.pm when there is a user session" do
     in_tmp(fn ->
       Hex.State.put(:config_home, File.cwd!())
 
-      Mix.Tasks.Hex.Repo.run(["set", "hexpm", "--auth-key", "key"])
+      Mix.Tasks.Hex.Repo.run([
+        "set",
+        "hexpm",
+        "--url",
+        "https://repo.hex.pm",
+        "--auth-key",
+        "key"
+      ])
+
       assert Hex.State.fetch!(:repos)["hexpm"].auth_key == "key"
 
       Hex.OAuth.store_token(%{
@@ -200,7 +208,7 @@ defmodule Mix.Tasks.Hex.RepoTest do
       })
 
       assert_raise Mix.Error, ~r"mix hex.user deauth", fn ->
-        Mix.Tasks.Hex.Repo.run(["add", "hexpm", "http://example.com", "--auth-key", "key"])
+        Mix.Tasks.Hex.Repo.run(["add", "hexpm", "https://repo.hex.pm/", "--auth-key", "key"])
       end
 
       assert_raise Mix.Error, ~r"mix hex.user deauth", fn ->
@@ -209,6 +217,23 @@ defmodule Mix.Tasks.Hex.RepoTest do
 
       Mix.Tasks.Hex.Repo.run(["set", "hexpm", "--url", "http://example.com"])
       assert Hex.State.fetch!(:repos)["hexpm"].url == "http://example.com"
+
+      Mix.Tasks.Hex.Repo.run(["set", "hexpm", "--auth-key", "mirror_key"])
+      assert Hex.State.fetch!(:repos)["hexpm"].auth_key == "mirror_key"
+
+      assert_raise Mix.Error, ~r"mix hex.user deauth", fn ->
+        Mix.Tasks.Hex.Repo.run([
+          "set",
+          "hexpm",
+          "--url",
+          "https://repo.hex.pm",
+          "--auth-key",
+          "key"
+        ])
+      end
+
+      Mix.Tasks.Hex.Repo.run(["add", "hexpm", "http://example.com", "--auth-key", "mirror_key"])
+      assert Hex.State.fetch!(:repos)["hexpm"].auth_key == "mirror_key"
     end)
   end
 

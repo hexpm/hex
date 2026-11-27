@@ -12,8 +12,7 @@ defmodule Mix.Tasks.Hex.User do
 
   ## Authorize a new user
 
-  Authorizes a new user on the local machine. If keys are stored for the hexpm
-  repository or Hex.pm organization repositories, Hex first asks to remove them.
+  Authorizes a new user on the local machine.
 
       $ mix hex.user auth
 

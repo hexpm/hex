@@ -124,6 +124,9 @@ defmodule Hex.Repo do
     }
   end
 
+  def default_hexpm_url?(nil), do: true
+  def default_hexpm_url?(url), do: trim_url(url) == @hexpm_url
+
   defp fetch_organization_fallback(repo) do
     case String.split(repo, ":", parts: 2) do
       [source_name, organization] ->
